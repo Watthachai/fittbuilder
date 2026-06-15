@@ -1,0 +1,3727 @@
+{
+  "directed": false,
+  "multigraph": false,
+  "graph": {},
+  "nodes": [
+    {
+      "label": "postcss.config.mjs",
+      "file_type": "code",
+      "source_file": "postcss.config.mjs",
+      "source_location": "L1",
+      "id": "postcss_config_mjs",
+      "community": 14,
+      "norm_label": "postcss.config.mjs"
+    },
+    {
+      "label": "next-env.d.ts",
+      "file_type": "code",
+      "source_file": "next-env.d.ts",
+      "source_location": "L1",
+      "id": "next_env_d_ts",
+      "community": 15,
+      "norm_label": "next-env.d.ts"
+    },
+    {
+      "label": "eslint.config.mjs",
+      "file_type": "code",
+      "source_file": "eslint.config.mjs",
+      "source_location": "L1",
+      "id": "eslint_config_mjs",
+      "community": 16,
+      "norm_label": "eslint.config.mjs"
+    },
+    {
+      "label": "next.config.ts",
+      "file_type": "code",
+      "source_file": "next.config.ts",
+      "source_location": "L1",
+      "id": "next_config_ts",
+      "community": 17,
+      "norm_label": "next.config.ts"
+    },
+    {
+      "label": "layout.tsx",
+      "file_type": "code",
+      "source_file": "app/layout.tsx",
+      "source_location": "L1",
+      "id": "app_layout_tsx",
+      "community": 7,
+      "norm_label": "layout.tsx"
+    },
+    {
+      "label": "RootLayout()",
+      "file_type": "code",
+      "source_file": "app/layout.tsx",
+      "source_location": "L32",
+      "id": "app_layout_rootlayout",
+      "community": 7,
+      "norm_label": "rootlayout()"
+    },
+    {
+      "label": "page.tsx",
+      "file_type": "code",
+      "source_file": "app/page.tsx",
+      "source_location": "L1",
+      "id": "app_page_tsx",
+      "community": 8,
+      "norm_label": "page.tsx"
+    },
+    {
+      "label": "Logo()",
+      "file_type": "code",
+      "source_file": "app/page.tsx",
+      "source_location": "L40",
+      "id": "app_page_logo",
+      "community": 8,
+      "norm_label": "logo()"
+    },
+    {
+      "label": "page.tsx",
+      "file_type": "code",
+      "source_file": "app/projects/page.tsx",
+      "source_location": "L1",
+      "id": "app_projects_page_tsx",
+      "community": 9,
+      "norm_label": "page.tsx"
+    },
+    {
+      "label": "ProjectsPage()",
+      "file_type": "code",
+      "source_file": "app/projects/page.tsx",
+      "source_location": "L8",
+      "id": "projects_page_projectspage",
+      "community": 9,
+      "norm_label": "projectspage()"
+    },
+    {
+      "label": "page.tsx",
+      "file_type": "code",
+      "source_file": "app/project/[id]/page.tsx",
+      "source_location": "L1",
+      "id": "app_project_id_page_tsx",
+      "community": 10,
+      "norm_label": "page.tsx"
+    },
+    {
+      "label": "ProjectPage()",
+      "file_type": "code",
+      "source_file": "app/project/[id]/page.tsx",
+      "source_location": "L8",
+      "id": "id_page_projectpage",
+      "community": 10,
+      "norm_label": "projectpage()"
+    },
+    {
+      "label": "page.tsx",
+      "file_type": "code",
+      "source_file": "app/webcontainer/connect/[id]/page.tsx",
+      "source_location": "L1",
+      "id": "app_webcontainer_connect_id_page_tsx",
+      "community": 11,
+      "norm_label": "page.tsx"
+    },
+    {
+      "label": "WebContainerConnectPage()",
+      "file_type": "code",
+      "source_file": "app/webcontainer/connect/[id]/page.tsx",
+      "source_location": "L12",
+      "id": "id_page_webcontainerconnectpage",
+      "community": 11,
+      "norm_label": "webcontainerconnectpage()"
+    },
+    {
+      "label": "route.ts",
+      "file_type": "code",
+      "source_file": "app/api/extract-answers/route.ts",
+      "source_location": "L1",
+      "id": "app_api_extract_answers_route_ts",
+      "community": 0,
+      "norm_label": "route.ts"
+    },
+    {
+      "label": "POST()",
+      "file_type": "code",
+      "source_file": "app/api/extract-answers/route.ts",
+      "source_location": "L13",
+      "id": "extract_answers_route_post",
+      "community": 0,
+      "norm_label": "post()"
+    },
+    {
+      "label": "route.ts",
+      "file_type": "code",
+      "source_file": "app/api/agent/route.ts",
+      "source_location": "L1",
+      "id": "app_api_agent_route_ts",
+      "community": 1,
+      "norm_label": "route.ts"
+    },
+    {
+      "label": "extractTurn()",
+      "file_type": "code",
+      "source_file": "app/api/agent/route.ts",
+      "source_location": "L41",
+      "id": "agent_route_extractturn",
+      "community": 1,
+      "norm_label": "extractturn()"
+    },
+    {
+      "label": "sse()",
+      "file_type": "code",
+      "source_file": "app/api/agent/route.ts",
+      "source_location": "L52",
+      "id": "agent_route_sse",
+      "community": 1,
+      "norm_label": "sse()"
+    },
+    {
+      "label": "POST()",
+      "file_type": "code",
+      "source_file": "app/api/agent/route.ts",
+      "source_location": "L56",
+      "id": "agent_route_post",
+      "community": 1,
+      "norm_label": "post()"
+    },
+    {
+      "label": "route.ts",
+      "file_type": "code",
+      "source_file": "app/api/generate/route.ts",
+      "source_location": "L1",
+      "id": "app_api_generate_route_ts",
+      "community": 0,
+      "norm_label": "route.ts"
+    },
+    {
+      "label": "sse()",
+      "file_type": "code",
+      "source_file": "app/api/generate/route.ts",
+      "source_location": "L36",
+      "id": "generate_route_sse",
+      "community": 0,
+      "norm_label": "sse()"
+    },
+    {
+      "label": "POST()",
+      "file_type": "code",
+      "source_file": "app/api/generate/route.ts",
+      "source_location": "L40",
+      "id": "generate_route_post",
+      "community": 0,
+      "norm_label": "post()"
+    },
+    {
+      "label": "route.ts",
+      "file_type": "code",
+      "source_file": "app/api/detect-preset/route.ts",
+      "source_location": "L1",
+      "id": "app_api_detect_preset_route_ts",
+      "community": 0,
+      "norm_label": "route.ts"
+    },
+    {
+      "label": "POST()",
+      "file_type": "code",
+      "source_file": "app/api/detect-preset/route.ts",
+      "source_location": "L11",
+      "id": "detect_preset_route_post",
+      "community": 0,
+      "norm_label": "post()"
+    },
+    {
+      "label": "page.tsx",
+      "file_type": "code",
+      "source_file": "app/share/page.tsx",
+      "source_location": "L1",
+      "id": "app_share_page_tsx",
+      "community": 12,
+      "norm_label": "page.tsx"
+    },
+    {
+      "label": "SharePage()",
+      "file_type": "code",
+      "source_file": "app/share/page.tsx",
+      "source_location": "L8",
+      "id": "share_page_sharepage",
+      "community": 12,
+      "norm_label": "sharepage()"
+    },
+    {
+      "label": "PreviewPanel.tsx",
+      "file_type": "code",
+      "source_file": "components/studio/PreviewPanel.tsx",
+      "source_location": "L1",
+      "id": "components_studio_previewpanel_tsx",
+      "community": 18,
+      "norm_label": "previewpanel.tsx"
+    },
+    {
+      "label": "TopBar.tsx",
+      "file_type": "code",
+      "source_file": "components/studio/TopBar.tsx",
+      "source_location": "L1",
+      "id": "components_studio_topbar_tsx",
+      "community": 5,
+      "norm_label": "topbar.tsx"
+    },
+    {
+      "label": "share()",
+      "file_type": "code",
+      "source_file": "components/studio/TopBar.tsx",
+      "source_location": "L36",
+      "id": "studio_topbar_share",
+      "community": 5,
+      "norm_label": "share()"
+    },
+    {
+      "label": "Studio.tsx",
+      "file_type": "code",
+      "source_file": "components/studio/Studio.tsx",
+      "source_location": "L1",
+      "id": "components_studio_studio_tsx",
+      "community": 3,
+      "norm_label": "studio.tsx"
+    },
+    {
+      "label": "gateSatisfied()",
+      "file_type": "code",
+      "source_file": "components/studio/Studio.tsx",
+      "source_location": "L54",
+      "id": "studio_studio_gatesatisfied",
+      "community": 3,
+      "norm_label": "gatesatisfied()"
+    },
+    {
+      "label": "onKeyDown()",
+      "file_type": "code",
+      "source_file": "components/studio/Studio.tsx",
+      "source_location": "L457",
+      "id": "studio_studio_onkeydown",
+      "community": 3,
+      "norm_label": "onkeydown()"
+    },
+    {
+      "label": "onMove()",
+      "file_type": "code",
+      "source_file": "components/studio/Studio.tsx",
+      "source_location": "L479",
+      "id": "studio_studio_onmove",
+      "community": 3,
+      "norm_label": "onmove()"
+    },
+    {
+      "label": "onUp()",
+      "file_type": "code",
+      "source_file": "components/studio/Studio.tsx",
+      "source_location": "L483",
+      "id": "studio_studio_onup",
+      "community": 3,
+      "norm_label": "onup()"
+    },
+    {
+      "label": "SpecFlow.tsx",
+      "file_type": "code",
+      "source_file": "components/studio/SpecFlow.tsx",
+      "source_location": "L1",
+      "id": "components_studio_specflow_tsx",
+      "community": 0,
+      "norm_label": "specflow.tsx"
+    },
+    {
+      "label": "onKeyDown()",
+      "file_type": "code",
+      "source_file": "components/studio/SpecFlow.tsx",
+      "source_location": "L121",
+      "id": "studio_specflow_onkeydown",
+      "community": 0,
+      "norm_label": "onkeydown()"
+    },
+    {
+      "label": "StatusBar.tsx",
+      "file_type": "code",
+      "source_file": "components/studio/StatusBar.tsx",
+      "source_location": "L1",
+      "id": "components_studio_statusbar_tsx",
+      "community": 19,
+      "norm_label": "statusbar.tsx"
+    },
+    {
+      "label": "ChatPanel.tsx",
+      "file_type": "code",
+      "source_file": "components/studio/ChatPanel.tsx",
+      "source_location": "L1",
+      "id": "components_studio_chatpanel_tsx",
+      "community": 1,
+      "norm_label": "chatpanel.tsx"
+    },
+    {
+      "label": "submit()",
+      "file_type": "code",
+      "source_file": "components/studio/ChatPanel.tsx",
+      "source_location": "L44",
+      "id": "studio_chatpanel_submit",
+      "community": 1,
+      "norm_label": "submit()"
+    },
+    {
+      "label": "CodePanel.tsx",
+      "file_type": "code",
+      "source_file": "components/studio/CodePanel.tsx",
+      "source_location": "L1",
+      "id": "components_studio_codepanel_tsx",
+      "community": 13,
+      "norm_label": "codepanel.tsx"
+    },
+    {
+      "label": "languageOf()",
+      "file_type": "code",
+      "source_file": "components/studio/CodePanel.tsx",
+      "source_location": "L17",
+      "id": "studio_codepanel_languageof",
+      "community": 13,
+      "norm_label": "languageof()"
+    },
+    {
+      "label": "PhaseStepper.tsx",
+      "file_type": "code",
+      "source_file": "components/studio/PhaseStepper.tsx",
+      "source_location": "L1",
+      "id": "components_studio_phasestepper_tsx",
+      "community": 1,
+      "norm_label": "phasestepper.tsx"
+    },
+    {
+      "label": "LaunchPad.tsx",
+      "file_type": "code",
+      "source_file": "components/landing/LaunchPad.tsx",
+      "source_location": "L1",
+      "id": "components_landing_launchpad_tsx",
+      "community": 2,
+      "norm_label": "launchpad.tsx"
+    },
+    {
+      "label": "launch()",
+      "file_type": "code",
+      "source_file": "components/landing/LaunchPad.tsx",
+      "source_location": "L24",
+      "id": "landing_launchpad_launch",
+      "community": 2,
+      "norm_label": "launch()"
+    },
+    {
+      "label": "launchSpec()",
+      "file_type": "code",
+      "source_file": "components/landing/LaunchPad.tsx",
+      "source_location": "L35",
+      "id": "landing_launchpad_launchspec",
+      "community": 2,
+      "norm_label": "launchspec()"
+    },
+    {
+      "label": "launchInterview()",
+      "file_type": "code",
+      "source_file": "components/landing/LaunchPad.tsx",
+      "source_location": "L43",
+      "id": "landing_launchpad_launchinterview",
+      "community": 2,
+      "norm_label": "launchinterview()"
+    },
+    {
+      "label": "ProjectGrid.tsx",
+      "file_type": "code",
+      "source_file": "components/projects/ProjectGrid.tsx",
+      "source_location": "L1",
+      "id": "components_projects_projectgrid_tsx",
+      "community": 2,
+      "norm_label": "projectgrid.tsx"
+    },
+    {
+      "label": "formatDate()",
+      "file_type": "code",
+      "source_file": "components/projects/ProjectGrid.tsx",
+      "source_location": "L10",
+      "id": "projects_projectgrid_formatdate",
+      "community": 2,
+      "norm_label": "formatdate()"
+    },
+    {
+      "label": "refresh()",
+      "file_type": "code",
+      "source_file": "components/projects/ProjectGrid.tsx",
+      "source_location": "L24",
+      "id": "projects_projectgrid_refresh",
+      "community": 2,
+      "norm_label": "refresh()"
+    },
+    {
+      "label": "ShareViewer.tsx",
+      "file_type": "code",
+      "source_file": "components/share/ShareViewer.tsx",
+      "source_location": "L1",
+      "id": "components_share_shareviewer_tsx",
+      "community": 4,
+      "norm_label": "shareviewer.tsx"
+    },
+    {
+      "label": "webcontainer.ts",
+      "file_type": "code",
+      "source_file": "lib/webcontainer.ts",
+      "source_location": "L1",
+      "id": "lib_webcontainer_ts",
+      "community": 4,
+      "norm_label": "webcontainer.ts"
+    },
+    {
+      "label": "BrowserUnsupportedError",
+      "file_type": "code",
+      "source_file": "lib/webcontainer.ts",
+      "source_location": "L13",
+      "id": "lib_webcontainer_browserunsupportederror",
+      "community": 4,
+      "norm_label": "browserunsupportederror"
+    },
+    {
+      "label": ".constructor()",
+      "file_type": "code",
+      "source_file": "lib/webcontainer.ts",
+      "source_location": "L14",
+      "id": "lib_webcontainer_browserunsupportederror_constructor",
+      "community": 4,
+      "norm_label": ".constructor()"
+    },
+    {
+      "label": "isPreviewSupported()",
+      "file_type": "code",
+      "source_file": "lib/webcontainer.ts",
+      "source_location": "L27",
+      "id": "lib_webcontainer_ispreviewsupported",
+      "community": 4,
+      "norm_label": "ispreviewsupported()"
+    },
+    {
+      "label": "getContainer()",
+      "file_type": "code",
+      "source_file": "lib/webcontainer.ts",
+      "source_location": "L31",
+      "id": "lib_webcontainer_getcontainer",
+      "community": 4,
+      "norm_label": "getcontainer()"
+    },
+    {
+      "label": "warmBoot()",
+      "file_type": "code",
+      "source_file": "lib/webcontainer.ts",
+      "source_location": "L45",
+      "id": "lib_webcontainer_warmboot",
+      "community": 4,
+      "norm_label": "warmboot()"
+    },
+    {
+      "label": "pipeToTerminal()",
+      "file_type": "code",
+      "source_file": "lib/webcontainer.ts",
+      "source_location": "L62",
+      "id": "lib_webcontainer_pipetoterminal",
+      "community": 4,
+      "norm_label": "pipetoterminal()"
+    },
+    {
+      "label": "runProject()",
+      "file_type": "code",
+      "source_file": "lib/webcontainer.ts",
+      "source_location": "L78",
+      "id": "lib_webcontainer_runproject",
+      "community": 4,
+      "norm_label": "runproject()"
+    },
+    {
+      "label": "applyChanges()",
+      "file_type": "code",
+      "source_file": "lib/webcontainer.ts",
+      "source_location": "L140",
+      "id": "lib_webcontainer_applychanges",
+      "community": 4,
+      "norm_label": "applychanges()"
+    },
+    {
+      "label": "writeFile()",
+      "file_type": "code",
+      "source_file": "lib/webcontainer.ts",
+      "source_location": "L173",
+      "id": "lib_webcontainer_writefile",
+      "community": 4,
+      "norm_label": "writefile()"
+    },
+    {
+      "label": "storage.ts",
+      "file_type": "code",
+      "source_file": "lib/storage.ts",
+      "source_location": "L1",
+      "id": "lib_storage_ts",
+      "community": 2,
+      "norm_label": "storage.ts"
+    },
+    {
+      "label": "readIndex()",
+      "file_type": "code",
+      "source_file": "lib/storage.ts",
+      "source_location": "L15",
+      "id": "lib_storage_readindex",
+      "community": 2,
+      "norm_label": "readindex()"
+    },
+    {
+      "label": "writeIndex()",
+      "file_type": "code",
+      "source_file": "lib/storage.ts",
+      "source_location": "L24",
+      "id": "lib_storage_writeindex",
+      "community": 2,
+      "norm_label": "writeindex()"
+    },
+    {
+      "label": "normalize()",
+      "file_type": "code",
+      "source_file": "lib/storage.ts",
+      "source_location": "L29",
+      "id": "lib_storage_normalize",
+      "community": 2,
+      "norm_label": "normalize()"
+    },
+    {
+      "label": "getProject()",
+      "file_type": "code",
+      "source_file": "lib/storage.ts",
+      "source_location": "L40",
+      "id": "lib_storage_getproject",
+      "community": 2,
+      "norm_label": "getproject()"
+    },
+    {
+      "label": "saveProject()",
+      "file_type": "code",
+      "source_file": "lib/storage.ts",
+      "source_location": "L49",
+      "id": "lib_storage_saveproject",
+      "community": 2,
+      "norm_label": "saveproject()"
+    },
+    {
+      "label": "createProject()",
+      "file_type": "code",
+      "source_file": "lib/storage.ts",
+      "source_location": "L59",
+      "id": "lib_storage_createproject",
+      "community": 2,
+      "norm_label": "createproject()"
+    },
+    {
+      "label": "deleteProject()",
+      "file_type": "code",
+      "source_file": "lib/storage.ts",
+      "source_location": "L82",
+      "id": "lib_storage_deleteproject",
+      "community": 2,
+      "norm_label": "deleteproject()"
+    },
+    {
+      "label": "duplicateProject()",
+      "file_type": "code",
+      "source_file": "lib/storage.ts",
+      "source_location": "L87",
+      "id": "lib_storage_duplicateproject",
+      "community": 2,
+      "norm_label": "duplicateproject()"
+    },
+    {
+      "label": "listProjects()",
+      "file_type": "code",
+      "source_file": "lib/storage.ts",
+      "source_location": "L103",
+      "id": "lib_storage_listprojects",
+      "community": 2,
+      "norm_label": "listprojects()"
+    },
+    {
+      "label": "withHistory()",
+      "file_type": "code",
+      "source_file": "lib/storage.ts",
+      "source_location": "L118",
+      "id": "lib_storage_withhistory",
+      "community": 3,
+      "norm_label": "withhistory()"
+    },
+    {
+      "label": "undo()",
+      "file_type": "code",
+      "source_file": "lib/storage.ts",
+      "source_location": "L126",
+      "id": "lib_storage_undo",
+      "community": 3,
+      "norm_label": "undo()"
+    },
+    {
+      "label": "appendMessage()",
+      "file_type": "code",
+      "source_file": "lib/storage.ts",
+      "source_location": "L133",
+      "id": "lib_storage_appendmessage",
+      "community": 3,
+      "norm_label": "appendmessage()"
+    },
+    {
+      "label": "newMessage()",
+      "file_type": "code",
+      "source_file": "lib/storage.ts",
+      "source_location": "L137",
+      "id": "lib_storage_newmessage",
+      "community": 3,
+      "norm_label": "newmessage()"
+    },
+    {
+      "label": "share.ts",
+      "file_type": "code",
+      "source_file": "lib/share.ts",
+      "source_location": "L1",
+      "id": "lib_share_ts",
+      "community": 5,
+      "norm_label": "share.ts"
+    },
+    {
+      "label": "toBase64Url()",
+      "file_type": "code",
+      "source_file": "lib/share.ts",
+      "source_location": "L16",
+      "id": "lib_share_tobase64url",
+      "community": 5,
+      "norm_label": "tobase64url()"
+    },
+    {
+      "label": "fromBase64Url()",
+      "file_type": "code",
+      "source_file": "lib/share.ts",
+      "source_location": "L24",
+      "id": "lib_share_frombase64url",
+      "community": 5,
+      "norm_label": "frombase64url()"
+    },
+    {
+      "label": "compress()",
+      "file_type": "code",
+      "source_file": "lib/share.ts",
+      "source_location": "L32",
+      "id": "lib_share_compress",
+      "community": 5,
+      "norm_label": "compress()"
+    },
+    {
+      "label": "decompress()",
+      "file_type": "code",
+      "source_file": "lib/share.ts",
+      "source_location": "L37",
+      "id": "lib_share_decompress",
+      "community": 5,
+      "norm_label": "decompress()"
+    },
+    {
+      "label": "encodeShareUrl()",
+      "file_type": "code",
+      "source_file": "lib/share.ts",
+      "source_location": "L44",
+      "id": "lib_share_encodeshareurl",
+      "community": 5,
+      "norm_label": "encodeshareurl()"
+    },
+    {
+      "label": "decodeShareFragment()",
+      "file_type": "code",
+      "source_file": "lib/share.ts",
+      "source_location": "L49",
+      "id": "lib_share_decodesharefragment",
+      "community": 5,
+      "norm_label": "decodesharefragment()"
+    },
+    {
+      "label": "zip.ts",
+      "file_type": "code",
+      "source_file": "lib/zip.ts",
+      "source_location": "L1",
+      "id": "lib_zip_ts",
+      "community": 5,
+      "norm_label": "zip.ts"
+    },
+    {
+      "label": "downloadZip()",
+      "file_type": "code",
+      "source_file": "lib/zip.ts",
+      "source_location": "L6",
+      "id": "lib_zip_downloadzip",
+      "community": 5,
+      "norm_label": "downloadzip()"
+    },
+    {
+      "label": "phases.ts",
+      "file_type": "code",
+      "source_file": "lib/phases.ts",
+      "source_location": "L1",
+      "id": "lib_phases_ts",
+      "community": 1,
+      "norm_label": "phases.ts"
+    },
+    {
+      "label": "phaseDef()",
+      "file_type": "code",
+      "source_file": "lib/phases.ts",
+      "source_location": "L21",
+      "id": "lib_phases_phasedef",
+      "community": 1,
+      "norm_label": "phasedef()"
+    },
+    {
+      "label": "phaseIndex()",
+      "file_type": "code",
+      "source_file": "lib/phases.ts",
+      "source_location": "L27",
+      "id": "lib_phases_phaseindex",
+      "community": 1,
+      "norm_label": "phaseindex()"
+    },
+    {
+      "label": "agentSlugForPhase()",
+      "file_type": "code",
+      "source_file": "lib/phases.ts",
+      "source_location": "L31",
+      "id": "lib_phases_agentslugforphase",
+      "community": 1,
+      "norm_label": "agentslugforphase()"
+    },
+    {
+      "label": "nextPhase()",
+      "file_type": "code",
+      "source_file": "lib/phases.ts",
+      "source_location": "L35",
+      "id": "lib_phases_nextphase",
+      "community": 1,
+      "norm_label": "nextphase()"
+    },
+    {
+      "label": "phaseLabel()",
+      "file_type": "code",
+      "source_file": "lib/phases.ts",
+      "source_location": "L40",
+      "id": "lib_phases_phaselabel",
+      "community": 1,
+      "norm_label": "phaselabel()"
+    },
+    {
+      "label": "isBuildPhase()",
+      "file_type": "code",
+      "source_file": "lib/phases.ts",
+      "source_location": "L45",
+      "id": "lib_phases_isbuildphase",
+      "community": 1,
+      "norm_label": "isbuildphase()"
+    },
+    {
+      "label": "isPhaseId()",
+      "file_type": "code",
+      "source_file": "lib/phases.ts",
+      "source_location": "L49",
+      "id": "lib_phases_isphaseid",
+      "community": 2,
+      "norm_label": "isphaseid()"
+    },
+    {
+      "label": "prompts.ts",
+      "file_type": "code",
+      "source_file": "lib/prompts.ts",
+      "source_location": "L1",
+      "id": "lib_prompts_ts",
+      "community": 0,
+      "norm_label": "prompts.ts"
+    },
+    {
+      "label": "buildGenerationSystemPrompt()",
+      "file_type": "code",
+      "source_file": "lib/prompts.ts",
+      "source_location": "L62",
+      "id": "lib_prompts_buildgenerationsystemprompt",
+      "community": 0,
+      "norm_label": "buildgenerationsystemprompt()"
+    },
+    {
+      "label": "buildIterationSystemPrompt()",
+      "file_type": "code",
+      "source_file": "lib/prompts.ts",
+      "source_location": "L70",
+      "id": "lib_prompts_builditerationsystemprompt",
+      "community": 0,
+      "norm_label": "builditerationsystemprompt()"
+    },
+    {
+      "label": "buildIterationUserPrompt()",
+      "file_type": "code",
+      "source_file": "lib/prompts.ts",
+      "source_location": "L85",
+      "id": "lib_prompts_builditerationuserprompt",
+      "community": 0,
+      "norm_label": "builditerationuserprompt()"
+    },
+    {
+      "label": "buildAgentSystemPrompt()",
+      "file_type": "code",
+      "source_file": "lib/prompts.ts",
+      "source_location": "L108",
+      "id": "lib_prompts_buildagentsystemprompt",
+      "community": 1,
+      "norm_label": "buildagentsystemprompt()"
+    },
+    {
+      "label": "buildExtractAnswersSystem()",
+      "file_type": "code",
+      "source_file": "lib/prompts.ts",
+      "source_location": "L133",
+      "id": "lib_prompts_buildextractanswerssystem",
+      "community": 0,
+      "norm_label": "buildextractanswerssystem()"
+    },
+    {
+      "label": "sse.ts",
+      "file_type": "code",
+      "source_file": "lib/sse.ts",
+      "source_location": "L1",
+      "id": "lib_sse_ts",
+      "community": 3,
+      "norm_label": "sse.ts"
+    },
+    {
+      "label": "streamGenerate()",
+      "file_type": "code",
+      "source_file": "lib/sse.ts",
+      "source_location": "L49",
+      "id": "lib_sse_streamgenerate",
+      "community": 3,
+      "norm_label": "streamgenerate()"
+    },
+    {
+      "label": "streamAgent()",
+      "file_type": "code",
+      "source_file": "lib/sse.ts",
+      "source_location": "L56",
+      "id": "lib_sse_streamagent",
+      "community": 3,
+      "norm_label": "streamagent()"
+    },
+    {
+      "label": "types.ts",
+      "file_type": "code",
+      "source_file": "lib/types.ts",
+      "source_location": "L1",
+      "id": "lib_types_ts",
+      "community": 20,
+      "norm_label": "types.ts"
+    },
+    {
+      "label": "gemini.ts",
+      "file_type": "code",
+      "source_file": "lib/gemini.ts",
+      "source_location": "L1",
+      "id": "lib_gemini_ts",
+      "community": 0,
+      "norm_label": "gemini.ts"
+    },
+    {
+      "label": "MissingApiKeyError",
+      "file_type": "code",
+      "source_file": "lib/gemini.ts",
+      "source_location": "L5",
+      "id": "lib_gemini_missingapikeyerror",
+      "community": 0,
+      "norm_label": "missingapikeyerror"
+    },
+    {
+      "label": ".constructor()",
+      "file_type": "code",
+      "source_file": "lib/gemini.ts",
+      "source_location": "L6",
+      "id": "lib_gemini_missingapikeyerror_constructor",
+      "community": 0,
+      "norm_label": ".constructor()"
+    },
+    {
+      "label": "getGeminiClient()",
+      "file_type": "code",
+      "source_file": "lib/gemini.ts",
+      "source_location": "L16",
+      "id": "lib_gemini_getgeminiclient",
+      "community": 0,
+      "norm_label": "getgeminiclient()"
+    },
+    {
+      "label": "generateText()",
+      "file_type": "code",
+      "source_file": "lib/gemini.ts",
+      "source_location": "L56",
+      "id": "lib_gemini_generatetext",
+      "community": 0,
+      "norm_label": "generatetext()"
+    },
+    {
+      "label": "presets.ts",
+      "file_type": "code",
+      "source_file": "lib/presets.ts",
+      "source_location": "L1",
+      "id": "lib_presets_ts",
+      "community": 0,
+      "norm_label": "presets.ts"
+    },
+    {
+      "label": "getPreset()",
+      "file_type": "code",
+      "source_file": "lib/presets.ts",
+      "source_location": "L219",
+      "id": "lib_presets_getpreset",
+      "community": 0,
+      "norm_label": "getpreset()"
+    },
+    {
+      "label": "detectPresetByKeywords()",
+      "file_type": "code",
+      "source_file": "lib/presets.ts",
+      "source_location": "L224",
+      "id": "lib_presets_detectpresetbykeywords",
+      "community": 0,
+      "norm_label": "detectpresetbykeywords()"
+    },
+    {
+      "label": "context-builder.ts",
+      "file_type": "code",
+      "source_file": "lib/context-builder.ts",
+      "source_location": "L1",
+      "id": "lib_context_builder_ts",
+      "community": 0,
+      "norm_label": "context-builder.ts"
+    },
+    {
+      "label": "truncateDoc()",
+      "file_type": "code",
+      "source_file": "lib/context-builder.ts",
+      "source_location": "L12",
+      "id": "lib_context_builder_truncatedoc",
+      "community": 0,
+      "norm_label": "truncatedoc()"
+    },
+    {
+      "label": "buildSpecContext()",
+      "file_type": "code",
+      "source_file": "lib/context-builder.ts",
+      "source_location": "L37",
+      "id": "lib_context_builder_buildspeccontext",
+      "community": 0,
+      "norm_label": "buildspeccontext()"
+    },
+    {
+      "label": "define.ts",
+      "file_type": "code",
+      "source_file": "lib/define.ts",
+      "source_location": "L1",
+      "id": "lib_define_ts",
+      "community": 3,
+      "norm_label": "define.ts"
+    },
+    {
+      "label": "docsFromFiles()",
+      "file_type": "code",
+      "source_file": "lib/define.ts",
+      "source_location": "L18",
+      "id": "lib_define_docsfromfiles",
+      "community": 3,
+      "norm_label": "docsfromfiles()"
+    },
+    {
+      "label": "docOnlyFiles()",
+      "file_type": "code",
+      "source_file": "lib/define.ts",
+      "source_location": "L31",
+      "id": "lib_define_doconlyfiles",
+      "community": 3,
+      "norm_label": "doconlyfiles()"
+    },
+    {
+      "label": "hasRunnableApp()",
+      "file_type": "code",
+      "source_file": "lib/define.ts",
+      "source_location": "L39",
+      "id": "lib_define_hasrunnableapp",
+      "community": 3,
+      "norm_label": "hasrunnableapp()"
+    },
+    {
+      "label": "rate-limit.ts",
+      "file_type": "code",
+      "source_file": "lib/rate-limit.ts",
+      "source_location": "L1",
+      "id": "lib_rate_limit_ts",
+      "community": 0,
+      "norm_label": "rate-limit.ts"
+    },
+    {
+      "label": "rateLimit()",
+      "file_type": "code",
+      "source_file": "lib/rate-limit.ts",
+      "source_location": "L18",
+      "id": "lib_rate_limit_ratelimit",
+      "community": 0,
+      "norm_label": "ratelimit()"
+    },
+    {
+      "label": "clientIp()",
+      "file_type": "code",
+      "source_file": "lib/rate-limit.ts",
+      "source_location": "L39",
+      "id": "lib_rate_limit_clientip",
+      "community": 0,
+      "norm_label": "clientip()"
+    },
+    {
+      "label": "files.ts",
+      "file_type": "code",
+      "source_file": "lib/files.ts",
+      "source_location": "L1",
+      "id": "lib_files_ts",
+      "community": 6,
+      "norm_label": "files.ts"
+    },
+    {
+      "label": "GenerationParseError",
+      "file_type": "code",
+      "source_file": "lib/files.ts",
+      "source_location": "L16",
+      "id": "lib_files_generationparseerror",
+      "community": 6,
+      "norm_label": "generationparseerror"
+    },
+    {
+      "label": ".constructor()",
+      "file_type": "code",
+      "source_file": "lib/files.ts",
+      "source_location": "L17",
+      "id": "lib_files_generationparseerror_constructor",
+      "community": 6,
+      "norm_label": ".constructor()"
+    },
+    {
+      "label": "isSafePath()",
+      "file_type": "code",
+      "source_file": "lib/files.ts",
+      "source_location": "L23",
+      "id": "lib_files_issafepath",
+      "community": 6,
+      "norm_label": "issafepath()"
+    },
+    {
+      "label": "normalizePath()",
+      "file_type": "code",
+      "source_file": "lib/files.ts",
+      "source_location": "L30",
+      "id": "lib_files_normalizepath",
+      "community": 6,
+      "norm_label": "normalizepath()"
+    },
+    {
+      "label": "parseGeneration()",
+      "file_type": "code",
+      "source_file": "lib/files.ts",
+      "source_location": "L38",
+      "id": "lib_files_parsegeneration",
+      "community": 6,
+      "norm_label": "parsegeneration()"
+    },
+    {
+      "label": "mergeFiles()",
+      "file_type": "code",
+      "source_file": "lib/files.ts",
+      "source_location": "L116",
+      "id": "lib_files_mergefiles",
+      "community": 6,
+      "norm_label": "mergefiles()"
+    },
+    {
+      "label": "toFileSystemTree()",
+      "file_type": "code",
+      "source_file": "lib/files.ts",
+      "source_location": "L139",
+      "id": "lib_files_tofilesystemtree",
+      "community": 4,
+      "norm_label": "tofilesystemtree()"
+    },
+    {
+      "label": "registry.ts",
+      "file_type": "code",
+      "source_file": "lib/agents/registry.ts",
+      "source_location": "L1",
+      "id": "lib_agents_registry_ts",
+      "community": 1,
+      "norm_label": "registry.ts"
+    },
+    {
+      "label": "parseFrontmatter()",
+      "file_type": "code",
+      "source_file": "lib/agents/registry.ts",
+      "source_location": "L31",
+      "id": "agents_registry_parsefrontmatter",
+      "community": 1,
+      "norm_label": "parsefrontmatter()"
+    },
+    {
+      "label": "loadAgent()",
+      "file_type": "code",
+      "source_file": "lib/agents/registry.ts",
+      "source_location": "L59",
+      "id": "agents_registry_loadagent",
+      "community": 1,
+      "norm_label": "loadagent()"
+    },
+    {
+      "label": "getAgent()",
+      "file_type": "code",
+      "source_file": "lib/agents/registry.ts",
+      "source_location": "L81",
+      "id": "agents_registry_getagent",
+      "community": 1,
+      "norm_label": "getagent()"
+    },
+    {
+      "label": "getAgentForPhase()",
+      "file_type": "code",
+      "source_file": "lib/agents/registry.ts",
+      "source_location": "L85",
+      "id": "agents_registry_getagentforphase",
+      "community": 1,
+      "norm_label": "getagentforphase()"
+    },
+    {
+      "label": "route.ts",
+      "file_type": "code",
+      "source_file": "app/api/interview/route.ts",
+      "source_location": "L1",
+      "community": 0,
+      "norm_label": "route.ts",
+      "id": "app_api_interview_route_ts"
+    },
+    {
+      "label": "extractTurn()",
+      "file_type": "code",
+      "source_file": "app/api/interview/route.ts",
+      "source_location": "L29",
+      "community": 0,
+      "norm_label": "extractturn()",
+      "id": "interview_route_extractturn"
+    },
+    {
+      "label": "sse()",
+      "file_type": "code",
+      "source_file": "app/api/interview/route.ts",
+      "source_location": "L40",
+      "community": 0,
+      "norm_label": "sse()",
+      "id": "interview_route_sse"
+    },
+    {
+      "label": "POST()",
+      "file_type": "code",
+      "source_file": "app/api/interview/route.ts",
+      "source_location": "L44",
+      "community": 0,
+      "norm_label": "post()",
+      "id": "interview_route_post"
+    },
+    {
+      "label": "buildInterviewSystemPrompt()",
+      "file_type": "code",
+      "source_file": "lib/prompts.ts",
+      "source_location": "L144",
+      "community": 0,
+      "norm_label": "buildinterviewsystemprompt()",
+      "id": "lib_prompts_buildinterviewsystemprompt"
+    },
+    {
+      "label": "streamInterview()",
+      "file_type": "code",
+      "source_file": "lib/sse.ts",
+      "source_location": "L56",
+      "community": 3,
+      "norm_label": "streaminterview()",
+      "id": "lib_sse_streaminterview"
+    }
+  ],
+  "links": [
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/layout.tsx",
+      "source_location": "L32",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "app_layout_tsx",
+      "target": "app_layout_rootlayout"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/page.tsx",
+      "source_location": "L40",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "app_page_tsx",
+      "target": "app_page_logo"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/projects/page.tsx",
+      "source_location": "L8",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "app_projects_page_tsx",
+      "target": "projects_page_projectspage"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/project/[id]/page.tsx",
+      "source_location": "L8",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "app_project_id_page_tsx",
+      "target": "id_page_projectpage"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/webcontainer/connect/[id]/page.tsx",
+      "source_location": "L12",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "app_webcontainer_connect_id_page_tsx",
+      "target": "id_page_webcontainerconnectpage"
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "app/api/extract-answers/route.ts",
+      "source_location": "L2",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "app_api_extract_answers_route_ts",
+      "target": "lib_gemini_generatetext"
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "app/api/extract-answers/route.ts",
+      "source_location": "L2",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "app_api_extract_answers_route_ts",
+      "target": "lib_gemini_missingapikeyerror"
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "app/api/extract-answers/route.ts",
+      "source_location": "L3",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "app_api_extract_answers_route_ts",
+      "target": "lib_prompts_buildextractanswerssystem"
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "app/api/extract-answers/route.ts",
+      "source_location": "L4",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "app_api_extract_answers_route_ts",
+      "target": "lib_presets_getpreset"
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "app/api/extract-answers/route.ts",
+      "source_location": "L5",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "app_api_extract_answers_route_ts",
+      "target": "lib_rate_limit_clientip"
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "app/api/extract-answers/route.ts",
+      "source_location": "L5",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "app_api_extract_answers_route_ts",
+      "target": "lib_rate_limit_ratelimit"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/api/extract-answers/route.ts",
+      "source_location": "L13",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "app_api_extract_answers_route_ts",
+      "target": "extract_answers_route_post"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "app/api/extract-answers/route.ts",
+      "source_location": "L14",
+      "weight": 1.0,
+      "source": "extract_answers_route_post",
+      "target": "lib_rate_limit_ratelimit"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "app/api/extract-answers/route.ts",
+      "source_location": "L14",
+      "weight": 1.0,
+      "source": "extract_answers_route_post",
+      "target": "lib_rate_limit_clientip"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "app/api/extract-answers/route.ts",
+      "source_location": "L26",
+      "weight": 1.0,
+      "source": "extract_answers_route_post",
+      "target": "lib_presets_getpreset"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "app/api/extract-answers/route.ts",
+      "source_location": "L32",
+      "weight": 1.0,
+      "source": "extract_answers_route_post",
+      "target": "lib_gemini_generatetext"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "app/api/extract-answers/route.ts",
+      "source_location": "L33",
+      "weight": 1.0,
+      "source": "extract_answers_route_post",
+      "target": "lib_prompts_buildextractanswerssystem"
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "app/api/agent/route.ts",
+      "source_location": "L2",
+      "weight": 1.0,
+      "source": "app_api_agent_route_ts",
+      "target": "agents_registry_getagentforphase",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "app/api/agent/route.ts",
+      "source_location": "L3",
+      "weight": 1.0,
+      "source": "app_api_agent_route_ts",
+      "target": "lib_gemini_missingapikeyerror",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "app/api/agent/route.ts",
+      "source_location": "L4",
+      "weight": 1.0,
+      "source": "app_api_agent_route_ts",
+      "target": "lib_phases_isbuildphase",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "app/api/agent/route.ts",
+      "source_location": "L4",
+      "weight": 1.0,
+      "source": "app_api_agent_route_ts",
+      "target": "lib_phases_isphaseid",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "app/api/agent/route.ts",
+      "source_location": "L5",
+      "weight": 1.0,
+      "source": "app_api_agent_route_ts",
+      "target": "lib_prompts_buildagentsystemprompt",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "app/api/agent/route.ts",
+      "source_location": "L6",
+      "weight": 1.0,
+      "source": "app_api_agent_route_ts",
+      "target": "lib_rate_limit_clientip",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "app/api/agent/route.ts",
+      "source_location": "L6",
+      "weight": 1.0,
+      "source": "app_api_agent_route_ts",
+      "target": "lib_rate_limit_ratelimit",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/api/agent/route.ts",
+      "source_location": "L41",
+      "weight": 1.0,
+      "source": "app_api_agent_route_ts",
+      "target": "agent_route_extractturn",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/api/agent/route.ts",
+      "source_location": "L52",
+      "weight": 1.0,
+      "source": "app_api_agent_route_ts",
+      "target": "agent_route_sse",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/api/agent/route.ts",
+      "source_location": "L56",
+      "weight": 1.0,
+      "source": "app_api_agent_route_ts",
+      "target": "agent_route_post",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "app/api/agent/route.ts",
+      "source_location": "L57",
+      "weight": 1.0,
+      "source": "agent_route_post",
+      "target": "lib_rate_limit_ratelimit"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "app/api/agent/route.ts",
+      "source_location": "L57",
+      "weight": 1.0,
+      "source": "agent_route_post",
+      "target": "lib_rate_limit_clientip"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "app/api/agent/route.ts",
+      "source_location": "L73",
+      "weight": 1.0,
+      "source": "agent_route_post",
+      "target": "lib_phases_isbuildphase"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "app/api/agent/route.ts",
+      "source_location": "L80",
+      "weight": 1.0,
+      "source": "agent_route_post",
+      "target": "agents_registry_getagentforphase"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "app/api/agent/route.ts",
+      "source_location": "L81",
+      "weight": 1.0,
+      "source": "agent_route_post",
+      "target": "lib_prompts_buildagentsystemprompt"
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "app/api/generate/route.ts",
+      "source_location": "L2",
+      "weight": 1.0,
+      "source": "app_api_generate_route_ts",
+      "target": "agents_registry_getagent",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "app/api/generate/route.ts",
+      "source_location": "L2",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "app_api_generate_route_ts",
+      "target": "lib_context_builder_buildspeccontext"
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "app/api/generate/route.ts",
+      "source_location": "L3",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "app_api_generate_route_ts",
+      "target": "lib_files_parsegeneration"
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "app/api/generate/route.ts",
+      "source_location": "L4",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "app_api_generate_route_ts",
+      "target": "lib_gemini_missingapikeyerror"
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "app/api/generate/route.ts",
+      "source_location": "L5",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "app_api_generate_route_ts",
+      "target": "lib_prompts_buildgenerationsystemprompt"
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "app/api/generate/route.ts",
+      "source_location": "L5",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "app_api_generate_route_ts",
+      "target": "lib_prompts_builditerationsystemprompt"
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "app/api/generate/route.ts",
+      "source_location": "L5",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "app_api_generate_route_ts",
+      "target": "lib_prompts_builditerationuserprompt"
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "app/api/generate/route.ts",
+      "source_location": "L10",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "app_api_generate_route_ts",
+      "target": "lib_rate_limit_clientip"
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "app/api/generate/route.ts",
+      "source_location": "L10",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "app_api_generate_route_ts",
+      "target": "lib_rate_limit_ratelimit"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/api/generate/route.ts",
+      "source_location": "L35",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "app_api_generate_route_ts",
+      "target": "generate_route_sse"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/api/generate/route.ts",
+      "source_location": "L39",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "app_api_generate_route_ts",
+      "target": "generate_route_post"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "app/api/generate/route.ts",
+      "source_location": "L40",
+      "weight": 1.0,
+      "source": "generate_route_post",
+      "target": "lib_rate_limit_ratelimit"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "app/api/generate/route.ts",
+      "source_location": "L40",
+      "weight": 1.0,
+      "source": "generate_route_post",
+      "target": "lib_rate_limit_clientip"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "app/api/generate/route.ts",
+      "source_location": "L59",
+      "weight": 1.0,
+      "source": "generate_route_post",
+      "target": "agents_registry_getagent"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "app/api/generate/route.ts",
+      "source_location": "L57",
+      "weight": 1.0,
+      "source": "generate_route_post",
+      "target": "lib_prompts_builditerationsystemprompt"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "app/api/generate/route.ts",
+      "source_location": "L58",
+      "weight": 1.0,
+      "source": "generate_route_post",
+      "target": "lib_prompts_buildgenerationsystemprompt"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "app/api/generate/route.ts",
+      "source_location": "L59",
+      "weight": 1.0,
+      "source": "generate_route_post",
+      "target": "lib_context_builder_buildspeccontext"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "app/api/generate/route.ts",
+      "source_location": "L67",
+      "weight": 1.0,
+      "source": "generate_route_post",
+      "target": "lib_prompts_builditerationuserprompt"
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "app/api/detect-preset/route.ts",
+      "source_location": "L2",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "app_api_detect_preset_route_ts",
+      "target": "lib_gemini_generatetext"
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "app/api/detect-preset/route.ts",
+      "source_location": "L2",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "app_api_detect_preset_route_ts",
+      "target": "lib_gemini_missingapikeyerror"
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "app/api/detect-preset/route.ts",
+      "source_location": "L4",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "app_api_detect_preset_route_ts",
+      "target": "lib_presets_detectpresetbykeywords"
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "app/api/detect-preset/route.ts",
+      "source_location": "L5",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "app_api_detect_preset_route_ts",
+      "target": "lib_rate_limit_clientip"
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "app/api/detect-preset/route.ts",
+      "source_location": "L5",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "app_api_detect_preset_route_ts",
+      "target": "lib_rate_limit_ratelimit"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/api/detect-preset/route.ts",
+      "source_location": "L11",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "app_api_detect_preset_route_ts",
+      "target": "detect_preset_route_post"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "app/api/detect-preset/route.ts",
+      "source_location": "L12",
+      "weight": 1.0,
+      "source": "detect_preset_route_post",
+      "target": "lib_rate_limit_ratelimit"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "app/api/detect-preset/route.ts",
+      "source_location": "L12",
+      "weight": 1.0,
+      "source": "detect_preset_route_post",
+      "target": "lib_rate_limit_clientip"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "app/api/detect-preset/route.ts",
+      "source_location": "L29",
+      "weight": 1.0,
+      "source": "detect_preset_route_post",
+      "target": "lib_gemini_generatetext"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "app/api/detect-preset/route.ts",
+      "source_location": "L44",
+      "weight": 1.0,
+      "source": "detect_preset_route_post",
+      "target": "lib_presets_detectpresetbykeywords"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/share/page.tsx",
+      "source_location": "L8",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "app_share_page_tsx",
+      "target": "share_page_sharepage"
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "components/studio/TopBar.tsx",
+      "source_location": "L6",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "components_studio_topbar_tsx",
+      "target": "lib_share_encodeshareurl"
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "components/studio/TopBar.tsx",
+      "source_location": "L8",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "components_studio_topbar_tsx",
+      "target": "lib_zip_downloadzip"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "components/studio/TopBar.tsx",
+      "source_location": "L36",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "components_studio_topbar_tsx",
+      "target": "studio_topbar_share"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "components/studio/TopBar.tsx",
+      "source_location": "L38",
+      "weight": 1.0,
+      "source": "studio_topbar_share",
+      "target": "lib_share_encodeshareurl"
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "components/studio/Studio.tsx",
+      "source_location": "L5",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "components_studio_studio_tsx",
+      "target": "lib_define_doconlyfiles"
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "components/studio/Studio.tsx",
+      "source_location": "L5",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "components_studio_studio_tsx",
+      "target": "lib_define_docsfromfiles"
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "components/studio/Studio.tsx",
+      "source_location": "L5",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "components_studio_studio_tsx",
+      "target": "lib_define_hasrunnableapp"
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "components/studio/Studio.tsx",
+      "source_location": "L6",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "components_studio_studio_tsx",
+      "target": "lib_files_mergefiles"
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "components/studio/Studio.tsx",
+      "source_location": "L7",
+      "weight": 1.0,
+      "source": "components_studio_studio_tsx",
+      "target": "lib_phases_isbuildphase",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "components/studio/Studio.tsx",
+      "source_location": "L7",
+      "weight": 1.0,
+      "source": "components_studio_studio_tsx",
+      "target": "lib_phases_nextphase",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "components/studio/Studio.tsx",
+      "source_location": "L7",
+      "weight": 1.0,
+      "source": "components_studio_studio_tsx",
+      "target": "lib_phases_phasedef",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "components/studio/Studio.tsx",
+      "source_location": "L8",
+      "weight": 1.0,
+      "source": "components_studio_studio_tsx",
+      "target": "lib_sse_streamagent",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "components/studio/Studio.tsx",
+      "source_location": "L7",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "components_studio_studio_tsx",
+      "target": "lib_sse_streamgenerate"
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "components/studio/Studio.tsx",
+      "source_location": "L8",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "components_studio_studio_tsx",
+      "target": "lib_storage_appendmessage"
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "components/studio/Studio.tsx",
+      "source_location": "L8",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "components_studio_studio_tsx",
+      "target": "lib_storage_getproject"
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "components/studio/Studio.tsx",
+      "source_location": "L8",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "components_studio_studio_tsx",
+      "target": "lib_storage_newmessage"
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "components/studio/Studio.tsx",
+      "source_location": "L8",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "components_studio_studio_tsx",
+      "target": "lib_storage_saveproject"
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "components/studio/Studio.tsx",
+      "source_location": "L8",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "components_studio_studio_tsx",
+      "target": "lib_storage_undo"
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "components/studio/Studio.tsx",
+      "source_location": "L8",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "components_studio_studio_tsx",
+      "target": "lib_storage_withhistory"
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "components/studio/Studio.tsx",
+      "source_location": "L24",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "components_studio_studio_tsx",
+      "target": "lib_webcontainer_applychanges"
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "components/studio/Studio.tsx",
+      "source_location": "L24",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "components_studio_studio_tsx",
+      "target": "lib_webcontainer_ispreviewsupported"
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "components/studio/Studio.tsx",
+      "source_location": "L24",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "components_studio_studio_tsx",
+      "target": "lib_webcontainer_runproject"
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "components/studio/Studio.tsx",
+      "source_location": "L24",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "components_studio_studio_tsx",
+      "target": "lib_webcontainer_warmboot"
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "components/studio/Studio.tsx",
+      "source_location": "L24",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "components_studio_studio_tsx",
+      "target": "lib_webcontainer_writefile"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "components/studio/Studio.tsx",
+      "source_location": "L54",
+      "weight": 1.0,
+      "source": "components_studio_studio_tsx",
+      "target": "studio_studio_gatesatisfied",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "components/studio/Studio.tsx",
+      "source_location": "L379",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "components_studio_studio_tsx",
+      "target": "studio_studio_onkeydown"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "components/studio/Studio.tsx",
+      "source_location": "L401",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "components_studio_studio_tsx",
+      "target": "studio_studio_onmove"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "components/studio/Studio.tsx",
+      "source_location": "L405",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "components_studio_studio_tsx",
+      "target": "studio_studio_onup"
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "components/studio/Studio.tsx",
+      "source_location": "L7",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "components_studio_studio_tsx",
+      "target": "lib_sse_streaminterview"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "components/studio/Studio.tsx",
+      "source_location": "L55",
+      "weight": 1.0,
+      "source": "studio_studio_gatesatisfied",
+      "target": "lib_define_docsfromfiles"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "components/studio/Studio.tsx",
+      "source_location": "L62",
+      "weight": 1.0,
+      "source": "studio_studio_gatesatisfied",
+      "target": "lib_define_hasrunnableapp"
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "components/studio/SpecFlow.tsx",
+      "source_location": "L5",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "components_studio_specflow_tsx",
+      "target": "lib_presets_getpreset"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "components/studio/SpecFlow.tsx",
+      "source_location": "L121",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "components_studio_specflow_tsx",
+      "target": "studio_specflow_onkeydown"
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "components/studio/ChatPanel.tsx",
+      "source_location": "L5",
+      "weight": 1.0,
+      "source": "components_studio_chatpanel_tsx",
+      "target": "lib_phases_isbuildphase",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "components/studio/ChatPanel.tsx",
+      "source_location": "L42",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "components_studio_chatpanel_tsx",
+      "target": "studio_chatpanel_submit"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "components/studio/CodePanel.tsx",
+      "source_location": "L17",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "components_studio_codepanel_tsx",
+      "target": "studio_codepanel_languageof"
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "components/studio/PhaseStepper.tsx",
+      "source_location": "L4",
+      "weight": 1.0,
+      "source": "components_studio_phasestepper_tsx",
+      "target": "lib_phases_phaseindex",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "components/landing/LaunchPad.tsx",
+      "source_location": "L6",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "components_landing_launchpad_tsx",
+      "target": "lib_storage_createproject"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "components/landing/LaunchPad.tsx",
+      "source_location": "L23",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "components_landing_launchpad_tsx",
+      "target": "landing_launchpad_launch"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "components/landing/LaunchPad.tsx",
+      "source_location": "L33",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "components_landing_launchpad_tsx",
+      "target": "landing_launchpad_launchspec"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "components/landing/LaunchPad.tsx",
+      "source_location": "L40",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "components_landing_launchpad_tsx",
+      "target": "landing_launchpad_launchinterview"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "components/landing/LaunchPad.tsx",
+      "source_location": "L26",
+      "weight": 1.0,
+      "source": "landing_launchpad_launch",
+      "target": "lib_storage_createproject"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "components/landing/LaunchPad.tsx",
+      "source_location": "L36",
+      "weight": 1.0,
+      "source": "landing_launchpad_launchspec",
+      "target": "lib_storage_createproject"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "components/landing/LaunchPad.tsx",
+      "source_location": "L43",
+      "weight": 1.0,
+      "source": "landing_launchpad_launchinterview",
+      "target": "lib_storage_createproject"
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "components/projects/ProjectGrid.tsx",
+      "source_location": "L7",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "components_projects_projectgrid_tsx",
+      "target": "lib_storage_deleteproject"
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "components/projects/ProjectGrid.tsx",
+      "source_location": "L7",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "components_projects_projectgrid_tsx",
+      "target": "lib_storage_duplicateproject"
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "components/projects/ProjectGrid.tsx",
+      "source_location": "L7",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "components_projects_projectgrid_tsx",
+      "target": "lib_storage_listprojects"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "components/projects/ProjectGrid.tsx",
+      "source_location": "L10",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "components_projects_projectgrid_tsx",
+      "target": "projects_projectgrid_formatdate"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "components/projects/ProjectGrid.tsx",
+      "source_location": "L24",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "components_projects_projectgrid_tsx",
+      "target": "projects_projectgrid_refresh"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "components/projects/ProjectGrid.tsx",
+      "source_location": "L24",
+      "weight": 1.0,
+      "source": "projects_projectgrid_refresh",
+      "target": "lib_storage_listprojects"
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "components/share/ShareViewer.tsx",
+      "source_location": "L5",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "components_share_shareviewer_tsx",
+      "target": "lib_share_decodesharefragment"
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "components/share/ShareViewer.tsx",
+      "source_location": "L7",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "components_share_shareviewer_tsx",
+      "target": "lib_webcontainer_ispreviewsupported"
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "components/share/ShareViewer.tsx",
+      "source_location": "L7",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "components_share_shareviewer_tsx",
+      "target": "lib_webcontainer_runproject"
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "lib/webcontainer.ts",
+      "source_location": "L4",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "lib_webcontainer_ts",
+      "target": "lib_files_tofilesystemtree"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "lib/webcontainer.ts",
+      "source_location": "L13",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "lib_webcontainer_ts",
+      "target": "lib_webcontainer_browserunsupportederror"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "lib/webcontainer.ts",
+      "source_location": "L27",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "lib_webcontainer_ts",
+      "target": "lib_webcontainer_ispreviewsupported"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "lib/webcontainer.ts",
+      "source_location": "L31",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "lib_webcontainer_ts",
+      "target": "lib_webcontainer_getcontainer"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "lib/webcontainer.ts",
+      "source_location": "L45",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "lib_webcontainer_ts",
+      "target": "lib_webcontainer_warmboot"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "lib/webcontainer.ts",
+      "source_location": "L62",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "lib_webcontainer_ts",
+      "target": "lib_webcontainer_pipetoterminal"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "lib/webcontainer.ts",
+      "source_location": "L78",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "lib_webcontainer_ts",
+      "target": "lib_webcontainer_runproject"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "lib/webcontainer.ts",
+      "source_location": "L140",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "lib_webcontainer_ts",
+      "target": "lib_webcontainer_applychanges"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "lib/webcontainer.ts",
+      "source_location": "L173",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "lib_webcontainer_ts",
+      "target": "lib_webcontainer_writefile"
+    },
+    {
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "source_file": "lib/webcontainer.ts",
+      "source_location": "L14",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "lib_webcontainer_browserunsupportederror",
+      "target": "lib_webcontainer_browserunsupportederror_constructor"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "lib/webcontainer.ts",
+      "source_location": "L32",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "lib_webcontainer_getcontainer",
+      "target": "lib_webcontainer_ispreviewsupported"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "lib/webcontainer.ts",
+      "source_location": "L46",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "lib_webcontainer_warmboot",
+      "target": "lib_webcontainer_ispreviewsupported"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "lib/webcontainer.ts",
+      "source_location": "L47",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "lib_webcontainer_warmboot",
+      "target": "lib_webcontainer_getcontainer"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "lib/webcontainer.ts",
+      "source_location": "L81",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "lib_webcontainer_runproject",
+      "target": "lib_webcontainer_getcontainer"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "lib/webcontainer.ts",
+      "source_location": "L151",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "lib_webcontainer_applychanges",
+      "target": "lib_webcontainer_getcontainer"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "lib/webcontainer.ts",
+      "source_location": "L174",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "lib_webcontainer_writefile",
+      "target": "lib_webcontainer_getcontainer"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "lib/webcontainer.ts",
+      "source_location": "L97",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "lib_webcontainer_runproject",
+      "target": "lib_webcontainer_pipetoterminal"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "lib/webcontainer.ts",
+      "source_location": "L147",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "lib_webcontainer_applychanges",
+      "target": "lib_webcontainer_runproject"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "lib/webcontainer.ts",
+      "source_location": "L89",
+      "weight": 1.0,
+      "source": "lib_webcontainer_runproject",
+      "target": "lib_files_tofilesystemtree"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "lib/webcontainer.ts",
+      "source_location": "L163",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "lib_webcontainer_applychanges",
+      "target": "lib_webcontainer_writefile"
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "lib/storage.ts",
+      "source_location": "L3",
+      "weight": 1.0,
+      "source": "lib_storage_ts",
+      "target": "lib_phases_isphaseid",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "lib/storage.ts",
+      "source_location": "L14",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "lib_storage_ts",
+      "target": "lib_storage_readindex"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "lib/storage.ts",
+      "source_location": "L23",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "lib_storage_ts",
+      "target": "lib_storage_writeindex"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "lib/storage.ts",
+      "source_location": "L29",
+      "weight": 1.0,
+      "source": "lib_storage_ts",
+      "target": "lib_storage_normalize",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "lib/storage.ts",
+      "source_location": "L27",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "lib_storage_ts",
+      "target": "lib_storage_getproject"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "lib/storage.ts",
+      "source_location": "L36",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "lib_storage_ts",
+      "target": "lib_storage_saveproject"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "lib/storage.ts",
+      "source_location": "L46",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "lib_storage_ts",
+      "target": "lib_storage_createproject"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "lib/storage.ts",
+      "source_location": "L68",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "lib_storage_ts",
+      "target": "lib_storage_deleteproject"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "lib/storage.ts",
+      "source_location": "L73",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "lib_storage_ts",
+      "target": "lib_storage_duplicateproject"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "lib/storage.ts",
+      "source_location": "L89",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "lib_storage_ts",
+      "target": "lib_storage_listprojects"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "lib/storage.ts",
+      "source_location": "L104",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "lib_storage_ts",
+      "target": "lib_storage_withhistory"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "lib/storage.ts",
+      "source_location": "L112",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "lib_storage_ts",
+      "target": "lib_storage_undo"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "lib/storage.ts",
+      "source_location": "L119",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "lib_storage_ts",
+      "target": "lib_storage_appendmessage"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "lib/storage.ts",
+      "source_location": "L123",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "lib_storage_ts",
+      "target": "lib_storage_newmessage"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "lib/storage.ts",
+      "source_location": "L39",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "lib_storage_saveproject",
+      "target": "lib_storage_readindex"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "lib/storage.ts",
+      "source_location": "L70",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "lib_storage_deleteproject",
+      "target": "lib_storage_readindex"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "lib/storage.ts",
+      "source_location": "L90",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "lib_storage_listprojects",
+      "target": "lib_storage_readindex"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "lib/storage.ts",
+      "source_location": "L41",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "lib_storage_saveproject",
+      "target": "lib_storage_writeindex"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "lib/storage.ts",
+      "source_location": "L70",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "lib_storage_deleteproject",
+      "target": "lib_storage_writeindex"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "lib/storage.ts",
+      "source_location": "L43",
+      "weight": 1.0,
+      "source": "lib_storage_getproject",
+      "target": "lib_storage_normalize",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "lib/storage.ts",
+      "source_location": "L30",
+      "weight": 1.0,
+      "source": "lib_storage_normalize",
+      "target": "lib_phases_isphaseid"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "lib/storage.ts",
+      "source_location": "L74",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "lib_storage_duplicateproject",
+      "target": "lib_storage_getproject"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "lib/storage.ts",
+      "source_location": "L65",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "lib_storage_createproject",
+      "target": "lib_storage_saveproject"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "lib/storage.ts",
+      "source_location": "L86",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "lib_storage_duplicateproject",
+      "target": "lib_storage_saveproject"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "lib/share.ts",
+      "source_location": "L16",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "lib_share_ts",
+      "target": "lib_share_tobase64url"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "lib/share.ts",
+      "source_location": "L24",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "lib_share_ts",
+      "target": "lib_share_frombase64url"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "lib/share.ts",
+      "source_location": "L32",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "lib_share_ts",
+      "target": "lib_share_compress"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "lib/share.ts",
+      "source_location": "L37",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "lib_share_ts",
+      "target": "lib_share_decompress"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "lib/share.ts",
+      "source_location": "L44",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "lib_share_ts",
+      "target": "lib_share_encodeshareurl"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "lib/share.ts",
+      "source_location": "L49",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "lib_share_ts",
+      "target": "lib_share_decodesharefragment"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "lib/share.ts",
+      "source_location": "L46",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "lib_share_encodeshareurl",
+      "target": "lib_share_tobase64url"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "lib/share.ts",
+      "source_location": "L50",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "lib_share_decodesharefragment",
+      "target": "lib_share_frombase64url"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "lib/share.ts",
+      "source_location": "L45",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "lib_share_encodeshareurl",
+      "target": "lib_share_compress"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "lib/share.ts",
+      "source_location": "L50",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "lib_share_decodesharefragment",
+      "target": "lib_share_decompress"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "lib/zip.ts",
+      "source_location": "L6",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "lib_zip_ts",
+      "target": "lib_zip_downloadzip"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "lib/phases.ts",
+      "source_location": "L21",
+      "weight": 1.0,
+      "source": "lib_phases_ts",
+      "target": "lib_phases_phasedef",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "lib/phases.ts",
+      "source_location": "L27",
+      "weight": 1.0,
+      "source": "lib_phases_ts",
+      "target": "lib_phases_phaseindex",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "lib/phases.ts",
+      "source_location": "L31",
+      "weight": 1.0,
+      "source": "lib_phases_ts",
+      "target": "lib_phases_agentslugforphase",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "lib/phases.ts",
+      "source_location": "L35",
+      "weight": 1.0,
+      "source": "lib_phases_ts",
+      "target": "lib_phases_nextphase",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "lib/phases.ts",
+      "source_location": "L40",
+      "weight": 1.0,
+      "source": "lib_phases_ts",
+      "target": "lib_phases_phaselabel",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "lib/phases.ts",
+      "source_location": "L45",
+      "weight": 1.0,
+      "source": "lib_phases_ts",
+      "target": "lib_phases_isbuildphase",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "lib/phases.ts",
+      "source_location": "L49",
+      "weight": 1.0,
+      "source": "lib_phases_ts",
+      "target": "lib_phases_isphaseid",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "lib/phases.ts",
+      "source_location": "L32",
+      "weight": 1.0,
+      "source": "lib_phases_agentslugforphase",
+      "target": "lib_phases_phasedef",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "lib/phases.ts",
+      "source_location": "L41",
+      "weight": 1.0,
+      "source": "lib_phases_phaselabel",
+      "target": "lib_phases_phasedef",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "lib/phases.ts",
+      "source_location": "L36",
+      "weight": 1.0,
+      "source": "lib_phases_nextphase",
+      "target": "lib_phases_phaseindex",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "lib/agents/registry.ts",
+      "source_location": "L3",
+      "weight": 1.0,
+      "source": "lib_agents_registry_ts",
+      "target": "lib_phases_agentslugforphase",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "lib/agents/registry.ts",
+      "source_location": "L86",
+      "weight": 1.0,
+      "source": "agents_registry_getagentforphase",
+      "target": "lib_phases_agentslugforphase"
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "lib/prompts.ts",
+      "source_location": "L3",
+      "weight": 1.0,
+      "source": "lib_prompts_ts",
+      "target": "lib_context_builder_truncatedoc",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "lib/prompts.ts",
+      "source_location": "L55",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "lib_prompts_ts",
+      "target": "lib_prompts_buildgenerationsystemprompt"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "lib/prompts.ts",
+      "source_location": "L63",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "lib_prompts_ts",
+      "target": "lib_prompts_builditerationsystemprompt"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "lib/prompts.ts",
+      "source_location": "L76",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "lib_prompts_ts",
+      "target": "lib_prompts_builditerationuserprompt"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "lib/prompts.ts",
+      "source_location": "L108",
+      "weight": 1.0,
+      "source": "lib_prompts_ts",
+      "target": "lib_prompts_buildagentsystemprompt",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "lib/prompts.ts",
+      "source_location": "L204",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "lib_prompts_ts",
+      "target": "lib_prompts_buildextractanswerssystem"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "lib/prompts.ts",
+      "source_location": "L144",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "lib_prompts_ts",
+      "target": "lib_prompts_buildinterviewsystemprompt"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "lib/sse.ts",
+      "source_location": "L49",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "lib_sse_ts",
+      "target": "lib_sse_streamgenerate"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "lib/sse.ts",
+      "source_location": "L56",
+      "weight": 1.0,
+      "source": "lib_sse_ts",
+      "target": "lib_sse_streamagent",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "lib/sse.ts",
+      "source_location": "L56",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "lib_sse_ts",
+      "target": "lib_sse_streaminterview"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "lib/gemini.ts",
+      "source_location": "L5",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "lib_gemini_ts",
+      "target": "lib_gemini_missingapikeyerror"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "lib/gemini.ts",
+      "source_location": "L16",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "lib_gemini_ts",
+      "target": "lib_gemini_getgeminiclient"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "lib/gemini.ts",
+      "source_location": "L56",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "lib_gemini_ts",
+      "target": "lib_gemini_generatetext"
+    },
+    {
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "source_file": "lib/gemini.ts",
+      "source_location": "L6",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "lib_gemini_missingapikeyerror",
+      "target": "lib_gemini_missingapikeyerror_constructor"
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "app/api/interview/route.ts",
+      "source_location": "L2",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "app_api_interview_route_ts",
+      "target": "lib_gemini_missingapikeyerror"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "lib/presets.ts",
+      "source_location": "L219",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "lib_presets_ts",
+      "target": "lib_presets_getpreset"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "lib/presets.ts",
+      "source_location": "L224",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "lib_presets_ts",
+      "target": "lib_presets_detectpresetbykeywords"
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "lib/context-builder.ts",
+      "source_location": "L1",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "lib_context_builder_ts",
+      "target": "lib_presets_getpreset"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "lib/context-builder.ts",
+      "source_location": "L55",
+      "weight": 1.0,
+      "source": "lib_context_builder_buildspeccontext",
+      "target": "lib_presets_getpreset"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "lib/context-builder.ts",
+      "source_location": "L12",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "lib_context_builder_ts",
+      "target": "lib_context_builder_truncatedoc"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "lib/context-builder.ts",
+      "source_location": "L37",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "lib_context_builder_ts",
+      "target": "lib_context_builder_buildspeccontext"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "lib/context-builder.ts",
+      "source_location": "L49",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "lib_context_builder_buildspeccontext",
+      "target": "lib_context_builder_truncatedoc"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "lib/define.ts",
+      "source_location": "L15",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "lib_define_ts",
+      "target": "lib_define_docsfromfiles"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "lib/define.ts",
+      "source_location": "L28",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "lib_define_ts",
+      "target": "lib_define_doconlyfiles"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "lib/define.ts",
+      "source_location": "L36",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "lib_define_ts",
+      "target": "lib_define_hasrunnableapp"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "lib/rate-limit.ts",
+      "source_location": "L18",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "lib_rate_limit_ts",
+      "target": "lib_rate_limit_ratelimit"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "lib/rate-limit.ts",
+      "source_location": "L39",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "lib_rate_limit_ts",
+      "target": "lib_rate_limit_clientip"
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "app/api/interview/route.ts",
+      "source_location": "L4",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "app_api_interview_route_ts",
+      "target": "lib_rate_limit_ratelimit"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "app/api/interview/route.ts",
+      "source_location": "L45",
+      "weight": 1.0,
+      "source": "interview_route_post",
+      "target": "lib_rate_limit_ratelimit"
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "app/api/interview/route.ts",
+      "source_location": "L4",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "app_api_interview_route_ts",
+      "target": "lib_rate_limit_clientip"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "app/api/interview/route.ts",
+      "source_location": "L45",
+      "weight": 1.0,
+      "source": "interview_route_post",
+      "target": "lib_rate_limit_clientip"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "lib/files.ts",
+      "source_location": "L16",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "lib_files_ts",
+      "target": "lib_files_generationparseerror"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "lib/files.ts",
+      "source_location": "L23",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "lib_files_ts",
+      "target": "lib_files_issafepath"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "lib/files.ts",
+      "source_location": "L30",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "lib_files_ts",
+      "target": "lib_files_normalizepath"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "lib/files.ts",
+      "source_location": "L38",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "lib_files_ts",
+      "target": "lib_files_parsegeneration"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "lib/files.ts",
+      "source_location": "L116",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "lib_files_ts",
+      "target": "lib_files_mergefiles"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "lib/files.ts",
+      "source_location": "L139",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "lib_files_ts",
+      "target": "lib_files_tofilesystemtree"
+    },
+    {
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "source_file": "lib/files.ts",
+      "source_location": "L17",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "lib_files_generationparseerror",
+      "target": "lib_files_generationparseerror_constructor"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "lib/files.ts",
+      "source_location": "L74",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "lib_files_parsegeneration",
+      "target": "lib_files_issafepath"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "lib/files.ts",
+      "source_location": "L73",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "lib_files_parsegeneration",
+      "target": "lib_files_normalizepath"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "lib/agents/registry.ts",
+      "source_location": "L31",
+      "weight": 1.0,
+      "source": "lib_agents_registry_ts",
+      "target": "agents_registry_parsefrontmatter",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "lib/agents/registry.ts",
+      "source_location": "L59",
+      "weight": 1.0,
+      "source": "lib_agents_registry_ts",
+      "target": "agents_registry_loadagent",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "lib/agents/registry.ts",
+      "source_location": "L81",
+      "weight": 1.0,
+      "source": "lib_agents_registry_ts",
+      "target": "agents_registry_getagent",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "lib/agents/registry.ts",
+      "source_location": "L85",
+      "weight": 1.0,
+      "source": "lib_agents_registry_ts",
+      "target": "agents_registry_getagentforphase",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "lib/agents/registry.ts",
+      "source_location": "L67",
+      "weight": 1.0,
+      "source": "agents_registry_loadagent",
+      "target": "agents_registry_parsefrontmatter",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "lib/agents/registry.ts",
+      "source_location": "L82",
+      "weight": 1.0,
+      "source": "agents_registry_getagent",
+      "target": "agents_registry_loadagent",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "lib/agents/registry.ts",
+      "source_location": "L86",
+      "weight": 1.0,
+      "source": "agents_registry_getagentforphase",
+      "target": "agents_registry_loadagent",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "app/api/interview/route.ts",
+      "source_location": "L3",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "app_api_interview_route_ts",
+      "target": "lib_prompts_buildinterviewsystemprompt"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/api/interview/route.ts",
+      "source_location": "L29",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "app_api_interview_route_ts",
+      "target": "interview_route_extractturn"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/api/interview/route.ts",
+      "source_location": "L40",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "app_api_interview_route_ts",
+      "target": "interview_route_sse"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/api/interview/route.ts",
+      "source_location": "L44",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "app_api_interview_route_ts",
+      "target": "interview_route_post"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "app/api/interview/route.ts",
+      "source_location": "L60",
+      "weight": 1.0,
+      "source": "interview_route_post",
+      "target": "lib_prompts_buildinterviewsystemprompt"
+    }
+  ],
+  "hyperedges": [],
+  "built_at_commit": "194cb11bdc96cf84f0a0192e9b0e7d68b5e63b66"
+}

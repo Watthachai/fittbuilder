@@ -1,26 +1,167 @@
 @import "tailwindcss";
 
+/* ————————————————————————————————————————————————
+   FITT Builder design system — "midnight studio"
+   Pure-black canvas, white typography, a single
+   sky-blue accent (#64cefb) with an animated white
+   shine. Spec: docs/brief-plans/design.md
+   ———————————————————————————————————————————————— */
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* surfaces */
+  --night: #000000;
+  --night-panel: #0a0a0a;
+  --night-edge: #2a2a2a;
+
+  /* typography */
+  --chalk: #ffffff;
+  --chalk-dim: #a1a1aa;
+
+  /* the one accent */
+  --shine: #64cefb;
+  --shine-soft: #9ddffc;
+
+  /* status */
+  --go: #34d399;
+  --halt: #f87171;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
+  --color-night: var(--night);
+  --color-night-panel: var(--night-panel);
+  --color-night-edge: var(--night-edge);
+  --color-chalk: var(--chalk);
+  --color-chalk-dim: var(--chalk-dim);
+  --color-shine: var(--shine);
+  --color-shine-soft: var(--shine-soft);
+  --color-go: var(--go);
+  --color-halt: var(--halt);
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --font-display: var(--font-inter), var(--font-anuphan), ui-sans-serif, sans-serif;
+  --font-sans: var(--font-inter), var(--font-anuphan), ui-sans-serif, sans-serif;
+  --font-mono: var(--font-plex-mono), ui-monospace, monospace;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--night);
+  color: var(--chalk);
+  font-family: var(--font-inter), var(--font-anuphan), ui-sans-serif, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+::selection {
+  background: var(--shine);
+  color: #000;
+}
+
+/* Animated shiny gradient text (hero line 2) —
+   base #64cefb with a white 100° band sweeping left → right every 3s.
+   CSS-only equivalent of the framer-motion ShinyText component. */
+.shiny-text {
+  display: inline-block;
+  background-image:
+    linear-gradient(100deg, transparent 40%, #ffffff 50%, transparent 60%),
+    linear-gradient(var(--shine), var(--shine));
+  background-size:
+    250% 100%,
+    100% 100%;
+  background-repeat: no-repeat;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: text-shine 3s linear infinite;
+}
+@keyframes text-shine {
+  from {
+    background-position:
+      200% 0,
+      0 0;
+  }
+  to {
+    background-position:
+      -100% 0,
+      0 0;
+  }
+}
+
+/* Fine grid for dark empty states (studio preview / code panels) */
+.bg-grid {
+  background-color: var(--night);
+  background-image:
+    linear-gradient(to right, rgba(255, 255, 255, 0.04) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.04) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+/* Staggered reveal on load */
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.rise {
+  animation: rise-in 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.rise-1 { animation-delay: 0.05s; }
+.rise-2 { animation-delay: 0.15s; }
+.rise-3 { animation-delay: 0.25s; }
+.rise-4 { animation-delay: 0.38s; }
+.rise-5 { animation-delay: 0.5s; }
+
+/* Blinking builder caret */
+@keyframes caret-blink {
+  0%, 45% { opacity: 1; }
+  50%, 95% { opacity: 0; }
+}
+.caret-blink {
+  animation: caret-blink 1.1s steps(1) infinite;
+}
+
+/* Indeterminate progress sweep */
+@keyframes sweep {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(250%); }
+}
+.progress-sweep {
+  animation: sweep 1.4s ease-in-out infinite;
+}
+
+/* Marquee for preset strip */
+@keyframes marquee {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+.marquee-track {
+  animation: marquee 28s linear infinite;
+}
+.marquee-track:hover {
+  animation-play-state: paused;
+}
+
+/* Subtle pulse for the "live" dot */
+@keyframes live-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(52, 211, 153, 0.55); }
+  60% { box-shadow: 0 0 0 6px rgba(52, 211, 153, 0); }
+}
+.live-dot {
+  animation: live-pulse 1.8s ease-out infinite;
+}
+
+/* Thin scrollbars for studio panels */
+.scroll-thin {
+  scrollbar-width: thin;
+  scrollbar-color: var(--night-edge) transparent;
+}
+.scroll-thin::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+.scroll-thin::-webkit-scrollbar-thumb {
+  background: var(--night-edge);
+  border-radius: 4px;
 }

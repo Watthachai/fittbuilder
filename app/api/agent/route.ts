@@ -1,10 +1,11 @@
 import { z } from "zod";
 import { getAgentForPhase } from "@/lib/agents/registry";
-import { MissingApiKeyError, streamText } from "@/lib/gemini";
+import { AgentStreamFilter } from "@/lib/agent-stream";
+import { MissingApiKeyError, streamParts } from "@/lib/gemini";
 import { isBuildPhase, isPhaseId } from "@/lib/phases";
 import { buildAgentSystemPrompt } from "@/lib/prompts";
 import { clientIp, rateLimit } from "@/lib/rate-limit";
-import type { AgentEvent, AgentTurn, DocKind } from "@/lib/types";
+import type { AgentEvent } from "@/lib/types";
 
 export const maxDuration = 60;
 
@@ -22,32 +23,11 @@ const bodySchema = z.object({
       })
     )
     .max(80),
-  docs: z.record(z.enum(DOC_KINDS), z.string().max(50_000)).optional(),
+  // partialRecord: the client sends only the docs that exist so far (often none
+  // on the first turn). z.record with an enum key is exhaustive in Zod v4 and
+  // would reject any partial set — including {} — which 400s every agent call.
+  docs: z.partialRecord(z.enum(DOC_KINDS), z.string().max(50_000)).optional(),
 });
-
-// Closing fence must sit at line start so a stray ``` inside the doc body
-// (e.g. an example code block) doesn't truncate the capture early.
-const DOC_BLOCK = /^```(idea|brd|prd|verify|review|ship)[ \t]*\n([\s\S]*?)\n```[ \t]*$/gm;
-const DOC_LABELS: Record<DocKind, string> = {
-  idea: "IDEA",
-  brd: "BRD",
-  prd: "PRD",
-  verify: "VERIFY",
-  review: "REVIEW",
-  ship: "SHIP",
-};
-
-/** Split the model's reply into chat text and the documents it issued. */
-function extractTurn(raw: string): AgentTurn {
-  const docs: AgentTurn["docs"] = {};
-  const reply = raw
-    .replace(DOC_BLOCK, (_match, kind: DocKind, body: string) => {
-      docs[kind] = body.trim();
-      return `📄 เอกสาร ${DOC_LABELS[kind]} อัปเดตแล้ว — เปิดดู/แก้ได้ที่ docs/${DOC_LABELS[kind]}.md ในแท็บ Code`;
-    })
-    .trim();
-  return { reply: reply || "อัปเดตเอกสารเรียบร้อยแล้วครับ", docs };
-}
 
 function sse(event: AgentEvent): Uint8Array {
   return new TextEncoder().encode(`data: ${JSON.stringify(event)}\n\n`);
@@ -86,19 +66,25 @@ export async function POST(request: Request) {
 
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
+      const send = (event: AgentEvent) => controller.enqueue(sse(event));
+      const filter = new AgentStreamFilter();
       try {
-        let raw = "";
-        for await (const chunk of streamText({
+        for await (const part of streamParts({
           system,
           user,
           temperature: 0.6,
-          abortSignal: AbortSignal.timeout(ATTEMPT_TIMEOUT_MS),
+          thinking: true,
+          abortSignal: AbortSignal.any([request.signal, AbortSignal.timeout(ATTEMPT_TIMEOUT_MS)]),
         })) {
-          raw += chunk;
-          controller.enqueue(sse({ type: "delta", content: chunk }));
+          if (part.thought) {
+            send({ type: "thought", content: part.text });
+            continue;
+          }
+          const { text, actions } = filter.push(part.text);
+          if (text) send({ type: "text", content: text });
+          for (const a of actions) send({ type: "action", icon: a.icon, label: a.label });
         }
-        if (!raw.trim()) throw new Error("empty reply");
-        controller.enqueue(sse({ type: "done", turn: extractTurn(raw) }));
+        send({ type: "done", turn: filter.getTurn() });
       } catch (error) {
         const message =
           error instanceof MissingApiKeyError
@@ -107,7 +93,7 @@ export async function POST(request: Request) {
               ? "AI ใช้เวลานานเกินไป กรุณาลองใหม่"
               : "ตัวแทน AI สะดุด กรุณาส่งข้อความอีกครั้ง";
         console.error("[agent] failed:", error);
-        controller.enqueue(sse({ type: "error", message }));
+        send({ type: "error", message });
       } finally {
         controller.close();
       }

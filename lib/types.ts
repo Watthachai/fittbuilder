@@ -50,6 +50,15 @@ export interface ChatMessage {
   thinking?: string;
   /** Inline action chips for what the AI did this turn. */
   actions?: AgentAction[];
+  /** Per-file before/after for this build turn, for the "ดูการเปลี่ยนแปลง" diff viewer. */
+  changes?: FileChange[];
+}
+
+/** One file's before→after state in a build turn (null = absent on that side). */
+export interface FileChange {
+  path: string;
+  before: string | null;
+  after: string | null;
 }
 
 export interface ProjectRecord {

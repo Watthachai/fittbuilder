@@ -1,4 +1,29 @@
-import type { GenerationResult, ProjectFiles } from "./types";
+import type { FileChange, GenerationResult, ProjectFiles } from "./types";
+
+/** Per-file content cap stored in a changeset (keeps localStorage + the diff modal light). */
+const CHANGE_FILE_CAP = 40_000;
+
+function capContent(value: string | null): string | null {
+  if (value === null) return null;
+  return value.length > CHANGE_FILE_CAP ? `${value.slice(0, CHANGE_FILE_CAP)}\n… (ตัดทอน)` : value;
+}
+
+/**
+ * Diff two file maps into a changeset (only paths whose content differs), for the
+ * "ดูการเปลี่ยนแปลง" viewer. `before` null on a path = added; `after` null = deleted.
+ */
+export function computeChanges(before: ProjectFiles | null, after: ProjectFiles): FileChange[] {
+  const prev = before ?? {};
+  const paths = [...new Set([...Object.keys(prev), ...Object.keys(after)])].sort();
+  const changes: FileChange[] = [];
+  for (const path of paths) {
+    const b = prev[path] ?? null;
+    const a = after[path] ?? null;
+    if (b === a) continue;
+    changes.push({ path, before: capContent(b), after: capContent(a) });
+  }
+  return changes;
+}
 
 /** Files every generated project must contain (Vite + React + TypeScript). */
 export const REQUIRED_FILES = [

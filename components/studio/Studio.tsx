@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { DOC_PATHS, docOnlyFiles, docsFromFiles, hasRunnableApp } from "@/lib/define";
+import { computeChanges } from "@/lib/files";
 import { isBuildPhase, nextPhase, phaseDef, type PhaseId } from "@/lib/phases";
 import { type DesignOption, designStyleDirective, fetchDesignOptions } from "@/lib/design";
 import { extraDepsOf, packageJsonWithDeps, SCAFFOLD_FILES } from "@/lib/scaffold";
@@ -386,11 +387,13 @@ export default function Studio({ projectId }: { projectId: string }) {
         }
         for (const path of deleted) delete files[path];
 
+        const changes = computeChanges(current.files, files);
         working = withHistory(working, files);
         const assistantMsg = newMessage("assistant", note || "สร้างเรียบร้อยแล้ว", current.phase);
         const snap = liveRef.current;
         if (snap?.thinking.trim()) assistantMsg.thinking = snap.thinking.trim();
         if (snap?.actions.length) assistantMsg.actions = snap.actions;
+        if (changes.length) assistantMsg.changes = changes;
         working = appendMessage(working, assistantMsg);
         persist(working);
 

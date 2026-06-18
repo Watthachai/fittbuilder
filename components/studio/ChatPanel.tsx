@@ -9,6 +9,7 @@ import {
   Download,
   FilePenLine,
   FileText,
+  GitCompare,
   Lightbulb,
   ListChecks,
   Loader2,
@@ -22,6 +23,7 @@ import {
 } from "lucide-react";
 import { isBuildPhase, type PhaseId } from "@/lib/phases";
 import type { AgentAction, ChatMessage, LiveMessage } from "@/lib/types";
+import DiffViewer from "./DiffViewer";
 import Markdown from "./Markdown";
 
 /** Grouped action kinds → header icon + a count-aware Thai header label. */
@@ -179,6 +181,7 @@ export default function ChatPanel({
   const [draft, setDraft] = useState("");
   const [picked, setPicked] = useState<string[]>([]);
   const [pickedAskId, setPickedAskId] = useState<string | null>(null);
+  const [diffMsg, setDiffMsg] = useState<ChatMessage | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   // The clickable choices belong to the latest assistant turn, and only while
@@ -271,6 +274,15 @@ export default function ChatPanel({
             </div>
             {message.role === "assistant" && message.actions && (
               <ActionHistory actions={message.actions} live={false} />
+            )}
+            {message.role === "assistant" && message.changes && message.changes.length > 0 && (
+              <button
+                onClick={() => setDiffMsg(message)}
+                className="mt-2 inline-flex items-center gap-1.5 rounded-md border border-night-edge bg-night px-2.5 py-1 font-mono text-[11px] text-chalk-dim transition hover:border-shine/60 hover:text-chalk"
+              >
+                <GitCompare size={12} className="text-shine" />
+                ดูการเปลี่ยนแปลง ({message.changes.length})
+              </button>
             )}
           </div>
         ))}
@@ -411,6 +423,14 @@ export default function ChatPanel({
           </div>
         </div>
       </div>
+
+      {diffMsg?.changes && (
+        <DiffViewer
+          changes={diffMsg.changes}
+          title={diffMsg.content.split("\n")[0].slice(0, 60)}
+          onClose={() => setDiffMsg(null)}
+        />
+      )}
     </div>
   );
 }

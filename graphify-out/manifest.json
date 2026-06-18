@@ -4,7 +4,7 @@
     "hash": "239f3ebf717465dc636818a1a619398d"
   },
   "/Users/itswatthachai/fitt-builder-v2/next-env.d.ts": {
-    "mtime": 1781522547.9324343,
+    "mtime": 1781761192.8362544,
     "hash": "2a74d3909800ca5467fa83b0ab4a4890"
   },
   "/Users/itswatthachai/fitt-builder-v2/eslint.config.mjs": {
@@ -35,17 +35,25 @@
     "mtime": 1781268337.1306767,
     "hash": "83ed4059c1d328000be89e0458874283"
   },
+  "/Users/itswatthachai/fitt-builder-v2/app/api/npm-search/route.ts": {
+    "mtime": 1781683575.0056438,
+    "hash": "104d3665e6e0a05d3615848ac42336fb"
+  },
+  "/Users/itswatthachai/fitt-builder-v2/app/api/code-suggestion/route.ts": {
+    "mtime": 1781759271.1221025,
+    "hash": "ffe8a4c874c9facf43df667cd1a35371"
+  },
   "/Users/itswatthachai/fitt-builder-v2/app/api/extract-answers/route.ts": {
     "mtime": 1781171361.6549938,
     "hash": "6028f70c5d5df4704ed9bda60a6df546"
   },
   "/Users/itswatthachai/fitt-builder-v2/app/api/agent/route.ts": {
-    "mtime": 1781522941.225385,
-    "hash": "c9de913c36499ea6b49513cb46504ce6"
+    "mtime": 1781767603.861769,
+    "hash": "dac2c193495d93f46c58f65e2cfc5f98"
   },
   "/Users/itswatthachai/fitt-builder-v2/app/api/generate/route.ts": {
-    "mtime": 1781519427.5174584,
-    "hash": "c6530df9e2d1ad14397b72548eb14001"
+    "mtime": 1781767645.2889705,
+    "hash": "3b8d78db897b73672f8ea769dd373253"
   },
   "/Users/itswatthachai/fitt-builder-v2/app/api/detect-preset/route.ts": {
     "mtime": 1781171353.5616465,
@@ -56,40 +64,48 @@
     "hash": "f66c90d202a00cfeb41f0607f6365c72"
   },
   "/Users/itswatthachai/fitt-builder-v2/components/studio/PreviewPanel.tsx": {
-    "mtime": 1781265471.572628,
-    "hash": "3c5b0cfd603a5b36a0d2b045a9afdaaa"
+    "mtime": 1781691344.5307915,
+    "hash": "9d445a8d9f2fa56ca11dc9eea394e3a9"
   },
   "/Users/itswatthachai/fitt-builder-v2/components/studio/TopBar.tsx": {
-    "mtime": 1781268510.1855834,
-    "hash": "524f1cf7ed8ce114725dc34405963fdf"
+    "mtime": 1781760903.6033115,
+    "hash": "a4d618a3209d45c64daa2600b2ac1378"
+  },
+  "/Users/itswatthachai/fitt-builder-v2/components/studio/PackageSearch.tsx": {
+    "mtime": 1781683670.634925,
+    "hash": "edca340de3554f72c1db022f5e59abbf"
   },
   "/Users/itswatthachai/fitt-builder-v2/components/studio/Studio.tsx": {
-    "mtime": 1781523019.3830974,
-    "hash": "ed0744ea86898ba5438184c288b3f925"
+    "mtime": 1781767835.5775552,
+    "hash": "467973da448b509ac08d767b36ce0cff"
+  },
+  "/Users/itswatthachai/fitt-builder-v2/components/studio/TerminalPanel.tsx": {
+    "mtime": 1781757748.6819582,
+    "hash": "58834e08f894e506314bacdce9cddea6"
   },
   "/Users/itswatthachai/fitt-builder-v2/components/studio/SpecFlow.tsx": {
     "mtime": 1781265455.607785,
     "hash": "5a172afddcaaafedaaa4f743b28664b2"
   },
   "/Users/itswatthachai/fitt-builder-v2/components/studio/StatusBar.tsx": {
-    "mtime": 1781265434.9553363,
-    "hash": "3a42d50db8f763781fb5128d287b562f"
+    "mtime": 1781759347.905474,
+    "hash": "5462f84a1fd33d3498379193a509c9cd"
   },
   "/Users/itswatthachai/fitt-builder-v2/components/studio/ChatPanel.tsx": {
-    "mtime": 1781522441.7725763,
-    "hash": "ddc7fb6ad7a5f013ce2a2e850faa5f11"
+    "mtime": 1781768258.6941426,
+    "hash": "6b75084cc676a284d001da4297c8e35b"
   },
   "/Users/itswatthachai/fitt-builder-v2/components/studio/CodePanel.tsx": {
-    "mtime": 1781265372.2792065,
-    "hash": "62d172ebb6c8371c2adc5dc673ff6c29"
+    "mtime": 1781759127.0072403,
+    "hash": "e6254214905516e99dcfe9b0508fd19f"
   },
   "/Users/itswatthachai/fitt-builder-v2/components/studio/PhaseStepper.tsx": {
     "mtime": 1781519545.2361195,
     "hash": "39febce3406189da160ed2bae775bcc1"
   },
   "/Users/itswatthachai/fitt-builder-v2/components/landing/LaunchPad.tsx": {
-    "mtime": 1781522510.7281883,
-    "hash": "8a88ee0583c6850d12bb2dcc8366cd4e"
+    "mtime": 1781683505.908787,
+    "hash": "e74330654436816f429bf02bc171826d"
   },
   "/Users/itswatthachai/fitt-builder-v2/components/projects/ProjectGrid.tsx": {
     "mtime": 1781265345.373189,
@@ -100,8 +116,12 @@
     "hash": "b696ede032f29dc0ef78430d1a32eb83"
   },
   "/Users/itswatthachai/fitt-builder-v2/lib/webcontainer.ts": {
-    "mtime": 1781268332.289462,
-    "hash": "860424245f3a39b38b50f79d738bfc7a"
+    "mtime": 1781764670.2722945,
+    "hash": "ed65d58b00bb64320a0f926d41a6232d"
+  },
+  "/Users/itswatthachai/fitt-builder-v2/lib/scaffold.ts": {
+    "mtime": 1781691273.3076847,
+    "hash": "01597741812800eb63ad2ec20b5298d9"
   },
   "/Users/itswatthachai/fitt-builder-v2/lib/storage.ts": {
     "mtime": 1781522934.8792377,
@@ -120,20 +140,32 @@
     "hash": "f7c691e6e39863ae2704fde627a9f243"
   },
   "/Users/itswatthachai/fitt-builder-v2/lib/prompts.ts": {
-    "mtime": 1781519313.3153532,
-    "hash": "3d2085818f738a5a3a68fdd759a3b700"
+    "mtime": 1781761153.0356667,
+    "hash": "d5255f4804aa5fa9bb2fab8e95b43b74"
   },
   "/Users/itswatthachai/fitt-builder-v2/lib/sse.ts": {
-    "mtime": 1781519338.4975123,
-    "hash": "3aa76c10e1e8780200b054c5a1e54d70"
+    "mtime": 1781760929.2258625,
+    "hash": "08dfdc7a84b77ea2a9f7e373913de51f"
   },
   "/Users/itswatthachai/fitt-builder-v2/lib/types.ts": {
-    "mtime": 1781522932.825176,
-    "hash": "0d1fc2f3ca107dfcc20022a7e6871ac9"
+    "mtime": 1781767309.8561008,
+    "hash": "e8b28ae0d80a2f6138c53a07b9a3dc13"
+  },
+  "/Users/itswatthachai/fitt-builder-v2/lib/stream-parse.ts": {
+    "mtime": 1781760980.8996763,
+    "hash": "67de2d10d19967333eb489f31ec04306"
   },
   "/Users/itswatthachai/fitt-builder-v2/lib/gemini.ts": {
-    "mtime": 1781171291.1014805,
-    "hash": "c95ede409f1078d0938d2a3f7580e0ce"
+    "mtime": 1781767332.19091,
+    "hash": "9487200e233a2a9323cb20a5e85f5325"
+  },
+  "/Users/itswatthachai/fitt-builder-v2/lib/idb.ts": {
+    "mtime": 1781690441.2536662,
+    "hash": "10937880a9dd2addd281d9bdfe3c0ffc"
+  },
+  "/Users/itswatthachai/fitt-builder-v2/lib/file-tree.ts": {
+    "mtime": 1781757497.6556995,
+    "hash": "b593e606888e4e51dd1fa36cc9b9f07c"
   },
   "/Users/itswatthachai/fitt-builder-v2/lib/presets.ts": {
     "mtime": 1781171232.3830845,
@@ -151,9 +183,13 @@
     "mtime": 1781171297.7107346,
     "hash": "fab9346fb709ca2fef934190010fda8d"
   },
+  "/Users/itswatthachai/fitt-builder-v2/lib/agent-stream.ts": {
+    "mtime": 1781768212.9325962,
+    "hash": "7511e6c2af8131352ec40fcc06c3cc4a"
+  },
   "/Users/itswatthachai/fitt-builder-v2/lib/files.ts": {
-    "mtime": 1781171317.0257492,
-    "hash": "16d74f4d718fcbfdf59fd352c01dce39"
+    "mtime": 1781692263.6007237,
+    "hash": "81c55b396ba24aad64fe865f7a8c71a3"
   },
   "/Users/itswatthachai/fitt-builder-v2/lib/agents/registry.ts": {
     "mtime": 1781518909.2344232,
@@ -176,8 +212,8 @@
     "hash": "3268a76e70d6bca65211322ec41268c4"
   },
   "/Users/itswatthachai/fitt-builder-v2/agents/code-builder/SKILL.md": {
-    "mtime": 1781519136.59958,
-    "hash": "eb32779ae0a07eae18c5f34561eb5210"
+    "mtime": 1781682859.5182636,
+    "hash": "e07296638f95e4a8d18a55d3e5a466a7"
   },
   "/Users/itswatthachai/fitt-builder-v2/agents/qa-reviewer/SKILL.md": {
     "mtime": 1781519187.0624952,
@@ -203,6 +239,10 @@
     "mtime": 1781522651.866679,
     "hash": "d62fd212024945b55ee55900cc4dbcbd"
   },
+  "/Users/itswatthachai/fitt-builder-v2/docs/brief-plans/merge-vibecode.md": {
+    "mtime": 1781757407.5502546,
+    "hash": "ceab6577c5ae7b0df4f4d8d5720d9fbc"
+  },
   "/Users/itswatthachai/fitt-builder-v2/docs/brief-plans/BRD.md": {
     "mtime": 1781169832.9561813,
     "hash": "21d000b69afca54dd6332f8173abd755"
@@ -210,6 +250,14 @@
   "/Users/itswatthachai/fitt-builder-v2/docs/brief-plans/design.md": {
     "mtime": 1781265533.407688,
     "hash": "9dfecfd0c6e552cfc09ed497fc9b5a2b"
+  },
+  "/Users/itswatthachai/fitt-builder-v2/docs/superpowers/plans/2026-06-18-streaming-thinking-chat.md": {
+    "mtime": 1781767093.3251595,
+    "hash": "7c1f7c1c3a72245cb3ba8bd41b2da3d5"
+  },
+  "/Users/itswatthachai/fitt-builder-v2/docs/superpowers/specs/2026-06-18-streaming-thinking-chat-design.md": {
+    "mtime": 1781766599.4428906,
+    "hash": "0e9ebab9bc4658dcc8eaf4066884e231"
   },
   "/Users/itswatthachai/fitt-builder-v2/public/file.svg": {
     "mtime": 1781169756.178297,
@@ -222,6 +270,10 @@
   "/Users/itswatthachai/fitt-builder-v2/public/next.svg": {
     "mtime": 1781169756.1794984,
     "hash": "8e061864f388b47f33a1c3780831193e"
+  },
+  "/Users/itswatthachai/fitt-builder-v2/public/cat_playing_animation.svg": {
+    "mtime": 1781767414.265295,
+    "hash": "73c2d47ef6dc1f9654e1e5134c700c7b"
   },
   "/Users/itswatthachai/fitt-builder-v2/public/globe.svg": {
     "mtime": 1781169756.178882,

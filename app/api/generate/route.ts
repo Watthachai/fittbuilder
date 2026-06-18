@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { getAgent } from "@/lib/agents/registry";
 import { buildSpecContext } from "@/lib/context-builder";
-import { isSafePath, normalizePath } from "@/lib/files";
+import { isSafePath, normalizePath, sanitizeCss } from "@/lib/files";
 import { extraDepsOf, packageJsonWithDeps, TSCONFIG, VITE_CONFIG } from "@/lib/scaffold";
 import { FileStreamParser } from "@/lib/stream-parse";
 import { MissingApiKeyError, streamParts } from "@/lib/gemini";
@@ -21,18 +21,6 @@ const ATTEMPT_TIMEOUT_MS = 240_000;
 
 /** package.json + vite.config.js + tsconfig.json are injected canonically, not taken from the model. */
 const RESERVED_PATHS = new Set(["package.json", "vite.config.js", "tsconfig.json"]);
-
-/**
- * Tailwind here is the CDN browser build, not an installed package — so the
- * v4 build-time directives `@import "tailwindcss"` and `@tailwind ...` make
- * Vite's PostCSS try (and fail) to resolve a "tailwindcss" module, crashing the
- * dev server. The prompt forbids them; this strips them as a hard safety net.
- */
-function sanitizeCss(content: string): string {
-  return content
-    .replace(/^[ \t]*@import\s+["']tailwindcss[^"']*["'];?[ \t]*\r?\n?/gim, "")
-    .replace(/^[ \t]*@tailwind\s+[^;]+;[ \t]*\r?\n?/gim, "");
-}
 
 /** Guard <deps> entries so only real npm package names reach package.json. */
 function isValidPackageName(name: string): boolean {

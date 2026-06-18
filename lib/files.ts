@@ -1,5 +1,26 @@
 import type { FileChange, GenerationResult, ProjectFiles } from "./types";
 
+/**
+ * Tailwind here is the CDN browser build, not an installed package — so the v4
+ * build-time directives `@import "tailwindcss"` / `@tailwind …` make Vite's
+ * PostCSS try (and fail) to resolve a "tailwindcss" module, crashing the dev
+ * server. Strip them from any .css so generated/cached projects can't 500.
+ */
+export function sanitizeCss(content: string): string {
+  return content
+    .replace(/^[ \t]*@import\s+["']tailwindcss[^"']*["'];?[ \t]*\r?\n?/gim, "")
+    .replace(/^[ \t]*@tailwind\s+[^;]+;[ \t]*\r?\n?/gim, "");
+}
+
+/** Apply sanitizeCss to every .css entry in a file map (returns a new map). */
+export function sanitizeFiles(files: ProjectFiles): ProjectFiles {
+  const out: ProjectFiles = {};
+  for (const [path, content] of Object.entries(files)) {
+    out[path] = path.endsWith(".css") ? sanitizeCss(content) : content;
+  }
+  return out;
+}
+
 /** Per-file content cap stored in a changeset (keeps localStorage + the diff modal light). */
 const CHANGE_FILE_CAP = 40_000;
 

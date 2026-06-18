@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { DOC_PATHS, docOnlyFiles, docsFromFiles, hasRunnableApp } from "@/lib/define";
-import { computeChanges } from "@/lib/files";
+import { computeChanges, sanitizeFiles } from "@/lib/files";
 import { isBuildPhase, nextPhase, phaseDef, type PhaseId } from "@/lib/phases";
 import { type DesignOption, designStyleDirective, fetchDesignOptions } from "@/lib/design";
 import { extraDepsOf, packageJsonWithDeps, SCAFFOLD_FILES } from "@/lib/scaffold";
@@ -182,7 +182,9 @@ export default function Studio({ projectId }: { projectId: string }) {
         setPhase("idle");
         return;
       }
-      await runProject(files, runCallbacks());
+      // Sanitize CSS on the way in so a project cached with the crash-inducing
+      // `@import "tailwindcss"` self-heals on next boot.
+      await runProject(sanitizeFiles(files), runCallbacks());
     },
     [runCallbacks]
   );

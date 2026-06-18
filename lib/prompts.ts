@@ -13,8 +13,8 @@ import type { DocKind } from "./types";
 export const PACKAGE_JSON_TEMPLATE = DEMO_PACKAGE_JSON;
 
 const OUTPUT_CONTRACT = `OUTPUT FORMAT — STRICT (stream files one at a time):
-1. FIRST write ONE short sentence (the note) in the SAME language as the request — what you are building/changing.
-2. THEN output EACH file as its own block in this EXACT shape — no markdown code fences, no commentary between blocks:
+1. Go straight to the file blocks. At most ONE short lead-in line before them — save the real explanation for the final summary (rule 8).
+2. Output EACH file as its own block in this EXACT shape — no markdown code fences, no commentary between blocks:
 <file path="src/App.tsx">
 <full, complete file contents here>
 </file>
@@ -22,7 +22,11 @@ const OUTPUT_CONTRACT = `OUTPUT FORMAT — STRICT (stream files one at a time):
 4. When practical, output a file BEFORE the files that import it, so the live preview stays valid while it streams.
 5. Use relative paths only (e.g. "src/components/Header.tsx") — never ".." or absolute paths. Do NOT output package.json, vite.config.js, or tsconfig.json (they are provided automatically).
 6. (iteration only) Output ONLY the files that change. To remove a file, output a self-closing tag: <delete path="src/Old.tsx"/>
-7. If your code imports an npm package other than react/react-dom, declare it with a directive: <deps>package-name another-package</deps> (names ONLY, no versions). It is installed automatically. NEVER write "npm install …" or tell the user to run any command — just declare <deps> and import it.`;
+7. If your code imports an npm package other than react/react-dom, declare it with a directive: <deps>package-name another-package</deps> (names ONLY, no versions). It is installed automatically. NEVER write "npm install …" or tell the user to run any command — just declare <deps> and import it.
+8. AFTER the last </file>, write a polished Markdown summary for the user — this is the ONLY text they read in chat, so make it genuinely useful and well-formatted, in the SAME language as the request:
+   - A 1-2 sentence intro of what you built/changed.
+   - Then bullet points grouped by area, each starting with a **bold label**, e.g. **ดีไซน์ (Theme):** …, **ฟังก์ชัน:** …, **โครงสร้างโค้ด:** …, **ส่วนที่แก้ (iteration):** …
+   - Be concrete (mention the actual components, colors, libraries, interactions). Use real Markdown (bold, bullet lists). Do NOT restate the file list (the UI already shows it) and do NOT include code fences here.`;
 
 const PROJECT_RULES = `PROJECT RULES (Vite + React 18 + TypeScript):
 1. Always produce a Vite + React 18 + TypeScript project. Base package.json (do NOT add/remove/change dependencies yourself — the user installs npm packages separately; if the current files already list extra dependencies, keep them):

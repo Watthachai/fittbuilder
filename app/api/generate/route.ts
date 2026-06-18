@@ -135,7 +135,7 @@ export async function POST(request: Request) {
         if (fileCount === 0) {
           send({
             type: "done",
-            note: parser.getNote() || "ไม่มีไฟล์ที่ต้องเปลี่ยน — ลองอธิบายสิ่งที่อยากได้ให้ชัดขึ้นได้ครับ",
+            note: parser.getReply() || "ไม่มีไฟล์ที่ต้องเปลี่ยน — ลองอธิบายสิ่งที่อยากได้ให้ชัดขึ้นได้ครับ",
             deleted: [],
           });
           controller.close();
@@ -155,7 +155,7 @@ export async function POST(request: Request) {
 
         send({
           type: "done",
-          note: parser.getNote() || (iteration ? "แก้ไขเรียบร้อยแล้ว" : "สร้าง demo เรียบร้อยแล้ว"),
+          note: parser.getReply() || (iteration ? "แก้ไขเรียบร้อยแล้ว" : "สร้าง demo เรียบร้อยแล้ว"),
           deleted,
         });
         controller.close();

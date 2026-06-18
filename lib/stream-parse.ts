@@ -64,8 +64,14 @@ export class FileStreamParser {
     return { files, deletes, deps };
   }
 
-  /** The prose note (text before the first file block). */
-  getNote(): string {
-    return this.note.trim();
+  /**
+   * The chat reply shown to the user. Prefer the trailing summary the model
+   * writes AFTER the last file (rich Markdown); fall back to the leading note
+   * (and to whatever prose exists when no files were emitted at all). Any
+   * dangling partial <file …> fragment left in the buffer is stripped.
+   */
+  getReply(): string {
+    const tail = this.buffer.replace(/<file[\s\S]*$/, "").trim();
+    return tail || this.note.trim();
   }
 }

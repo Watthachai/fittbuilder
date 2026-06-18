@@ -3,8 +3,8 @@
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { DOC_PATHS, docOnlyFiles, docsFromFiles, hasRunnableApp } from "@/lib/define";
-import { mergeFiles } from "@/lib/files";
 import { isBuildPhase, nextPhase, phaseDef, type PhaseId } from "@/lib/phases";
+import { extraDepsOf, packageJsonWithDeps, SCAFFOLD_FILES } from "@/lib/scaffold";
 import { streamAgent, streamGenerate } from "@/lib/sse";
 import {
   appendMessage,
@@ -18,19 +18,23 @@ import type {
   AgentTurn,
   DocKind,
   GenerationPhase,
+  LiveMessage,
   ProjectFiles,
   ProjectRecord,
   SpecAnswers,
 } from "@/lib/types";
 import {
-  applyChanges,
   isPreviewSupported,
+  prepareWorkdir,
+  readSource,
+  removeFile,
   runProject,
   warmBoot,
   writeFile,
 } from "@/lib/webcontainer";
 import ChatPanel from "./ChatPanel";
 import CodePanel from "./CodePanel";
+import PackageSearch from "./PackageSearch";
 import PhaseStepper from "./PhaseStepper";
 import PreviewPanel from "./PreviewPanel";
 import SpecFlow, { type SpecResult } from "./SpecFlow";
@@ -81,17 +85,42 @@ export default function Studio({ projectId }: { projectId: string }) {
   const [terminal, setTerminal] = useState<string[]>([]);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [previewKey, setPreviewKey] = useState(0);
-  const [streamedChars, setStreamedChars] = useState(0);
   const [view, setView] = useState<"preview" | "code">("preview");
   const [specOpen, setSpecOpen] = useState(false);
+  const [packagesOpen, setPackagesOpen] = useState(false);
   const [leftWidth, setLeftWidth] = useState(400);
   const [previewSupported, setPreviewSupported] = useState(true);
+  const [chatStreaming, setChatStreaming] = useState(false);
+  // The in-progress assistant turn (thinking/text/actions), rendered live and
+  // committed to project.messages once at done. React state only — not persisted
+  // per token. liveRef mirrors it so the streaming loop can read the latest.
+  const [live, setLive] = useState<LiveMessage | null>(null);
 
   const abortRef = useRef<AbortController | null>(null);
   const lastActionRef = useRef<LastAction | null>(null);
   const projectRef = useRef<ProjectRecord | null>(null);
+  const liveRef = useRef<LiveMessage | null>(null);
 
-  const busy = phase === "generating" || phase === "installing" || phase === "starting";
+  const setLiveBoth = useCallback((value: LiveMessage | null) => {
+    liveRef.current = value;
+    setLive(value);
+  }, []);
+
+  const appendLive = useCallback(
+    (patch: (prev: LiveMessage) => LiveMessage) => {
+      const base = liveRef.current ?? { thinking: "", content: "", actions: [] };
+      const next = patch(base);
+      liveRef.current = next;
+      setLive(next);
+    },
+    []
+  );
+
+  // `phase` tracks the WebContainer (install/run); `chatStreaming` tracks a
+  // conversational agent turn. Both can run at once — the live scaffold installs
+  // while the Define interview streams — so they are kept as separate signals.
+  const wcBusy = phase === "generating" || phase === "installing" || phase === "starting";
+  const busy = wcBusy || chatStreaming;
 
   const pushTerminal = useCallback((line: string) => {
     setTerminal((prev) => [...prev.slice(-MAX_TERMINAL_LINES), line]);
@@ -106,10 +135,10 @@ export default function Studio({ projectId }: { projectId: string }) {
 
   const runCallbacks = useCallback(
     () => ({
-      onPhase: (p: GenerationPhase) => {
-        setPhase(p);
-        if (p === "ready") setErrorMessage(null);
-      },
+      // Note: does NOT clear errorMessage on "ready" — the scaffold's WebContainer
+      // reaching ready must not wipe a concurrent chat-agent error during Define.
+      // Errors are cleared at the start of the next action (generate/runAgent/undo).
+      onPhase: setPhase,
       onTerminal: pushTerminal,
       onServerReady: (url: string) => {
         setPreviewUrl(url);
@@ -139,6 +168,27 @@ export default function Studio({ projectId }: { projectId: string }) {
   );
 
   /**
+   * Bring the live Vite scaffold up on session open. Warm-up failures stay
+   * soft (terminal only) — they must not paint a build-style error over the
+   * interview; the real Build surfaces install errors when they actually matter.
+   */
+  const bootScaffold = useCallback(async () => {
+    if (!isPreviewSupported()) {
+      setPreviewSupported(false);
+      setView("code");
+      return;
+    }
+    setView("preview");
+    await runProject(SCAFFOLD_FILES, {
+      ...runCallbacks(),
+      onError: (message) => {
+        setPhase("idle");
+        pushTerminal(`⚠ เตรียม preview ไม่สำเร็จ: ${message}`);
+      },
+    });
+  }, [runCallbacks, pushTerminal]);
+
+  /**
    * Conversational phase turn (define/plan/verify/review/ship). `userText` is
    * null for the kickoff message (the agent greets / starts its work).
    */
@@ -154,8 +204,8 @@ export default function Studio({ projectId }: { projectId: string }) {
       }
 
       setErrorMessage(null);
-      setStreamedChars(0);
-      setPhase("generating");
+      setChatStreaming(true);
+      setLiveBoth({ thinking: "", content: "", actions: [] });
 
       const controller = new AbortController();
       abortRef.current = controller;
@@ -172,8 +222,12 @@ export default function Studio({ projectId }: { projectId: string }) {
           },
           controller.signal
         )) {
-          if (event.type === "delta") {
-            setStreamedChars((n) => n + event.content.length);
+          if (event.type === "thought") {
+            appendLive((p) => ({ ...p, thinking: p.thinking + event.content }));
+          } else if (event.type === "text") {
+            appendLive((p) => ({ ...p, content: p.content + event.content }));
+          } else if (event.type === "action") {
+            appendLive((p) => ({ ...p, actions: [...p.actions, { icon: event.icon, label: event.label }] }));
           } else if (event.type === "error") {
             throw new Error(event.message);
           } else if (event.type === "done") {
@@ -192,24 +246,28 @@ export default function Studio({ projectId }: { projectId: string }) {
           setView("code");
           pushTerminal(`📄 อัปเดต ${docEntries.map(([kind]) => DOC_PATHS[kind]).join(", ")}`);
         }
-        working = appendMessage(working, newMessage("assistant", turn.reply, working.phase));
+        const assistantMsg = newMessage("assistant", turn.reply, working.phase);
+        if (turn.ask) assistantMsg.ask = turn.ask;
+        const snap = liveRef.current;
+        if (snap?.thinking.trim()) assistantMsg.thinking = snap.thinking.trim();
+        if (snap?.actions.length) assistantMsg.actions = snap.actions;
+        working = appendMessage(working, assistantMsg);
         persist(working);
-        setPhase("idle");
       } catch (error) {
         if (controller.signal.aborted) {
           pushTerminal("✋ ยกเลิกแล้ว");
-          setPhase("idle");
           return;
         }
         const message = error instanceof Error ? error.message : "เกิดข้อผิดพลาด";
         setErrorMessage(message);
-        setPhase("error");
         pushTerminal(`✖ ${message}`);
       } finally {
+        setChatStreaming(false);
+        setLiveBoth(null);
         abortRef.current = null;
       }
     },
-    [persist, pushTerminal]
+    [appendLive, persist, pushTerminal, setLiveBoth]
   );
 
   const generate = useCallback(
@@ -224,16 +282,30 @@ export default function Studio({ projectId }: { projectId: string }) {
       let working = appendMessage(current, newMessage("user", prompt, current.phase));
       working = persist(working);
 
+      // liveContainer = a dev server is already running (scaffold/app), so we can
+      // write each file into it as it streams and let Vite HMR show the build.
+      const liveContainer = previewSupported && Boolean(previewUrl);
+
       setErrorMessage(null);
-      setStreamedChars(0);
-      setPhase("generating");
+      setChatStreaming(true);
+      setLiveBoth({ thinking: "", content: "", actions: [] });
+      if (!liveContainer) setPhase("generating"); // no server yet → overlay until we boot
+      setView("preview");
       pushTerminal(`▸ ${isIteration ? "iteration" : "generate"}: ${prompt.slice(0, 80)}`);
+
+      // Phase docs (+ the existing app on iteration) ride along; streamed files
+      // are layered on top so the result lands in zip/share too.
+      const files: ProjectFiles = isIteration
+        ? { ...(current.files ?? {}) }
+        : { ...docOnlyFiles(current.files) };
 
       const controller = new AbortController();
       abortRef.current = controller;
 
       try {
-        let result: import("@/lib/types").GenerationResult | null = null;
+        let note = "";
+        let deleted: string[] = [];
+        let depsAdded = false;
         for await (const event of streamGenerate(
           {
             prompt,
@@ -243,49 +315,65 @@ export default function Studio({ projectId }: { projectId: string }) {
           },
           controller.signal
         )) {
-          if (event.type === "delta") {
-            setStreamedChars((n) => n + event.content.length);
+          if (event.type === "thought") {
+            appendLive((p) => ({ ...p, thinking: p.thinking + event.content }));
           } else if (event.type === "status") {
             pushTerminal(`… ${event.message}`);
+          } else if (event.type === "file") {
+            files[event.path] = event.content;
+            pushTerminal(`📝 ${event.path}`);
+            appendLive((p) => ({ ...p, actions: [...p.actions, { icon: "📝", label: event.path }] }));
+            if (liveContainer) void writeFile(event.path, event.content).catch(() => {});
+          } else if (event.type === "delete") {
+            delete files[event.path];
+            if (liveContainer) void removeFile(event.path).catch(() => {});
+          } else if (event.type === "deps") {
+            depsAdded = true;
+            pushTerminal(`+ ติดตั้ง: ${event.packages.join(", ")}`);
+            appendLive((p) => ({ ...p, actions: [...p.actions, { icon: "➕", label: event.packages.join(", ") }] }));
           } else if (event.type === "error") {
             throw new Error(event.message);
           } else if (event.type === "done") {
-            result = event.result;
+            note = event.note;
+            deleted = event.deleted;
           }
         }
-        if (!result) throw new Error("ไม่ได้รับผลลัพธ์จาก AI");
+        for (const path of deleted) delete files[path];
 
-        // Phase documents (docs/*.md) ride along into every fresh build so they
-        // end up mounted in the WebContainer, the zip, and share links.
-        const nextFiles = isIteration
-          ? mergeFiles(current.files!, result.files, result.deleted)
-          : { ...docOnlyFiles(current.files), ...result.files };
-
-        working = withHistory(working, nextFiles);
-        working = appendMessage(working, newMessage("assistant", result.note, current.phase));
+        working = withHistory(working, files);
+        const assistantMsg = newMessage("assistant", note || "สร้างเรียบร้อยแล้ว", current.phase);
+        const snap = liveRef.current;
+        if (snap?.thinking.trim()) assistantMsg.thinking = snap.thinking.trim();
+        if (snap?.actions.length) assistantMsg.actions = snap.actions;
+        working = appendMessage(working, assistantMsg);
         persist(working);
-        setView("preview");
 
-        if (isIteration && previewUrl) {
-          await applyChanges(nextFiles, result.files, result.deleted, runCallbacks());
+        if (depsAdded) {
+          // package.json changed (new npm packages) → re-mount + reinstall so the
+          // generated code that imports them actually runs.
+          await boot(files);
+        } else if (liveContainer) {
+          setPhase("ready"); // files already streamed into the running server (HMR)
         } else {
-          await boot(nextFiles);
+          await boot(files); // first run with no server → boot it now
         }
       } catch (error) {
         if (controller.signal.aborted) {
           pushTerminal("✋ ยกเลิกแล้ว");
-          setPhase(runnable ? "ready" : "idle");
+          setPhase(runnable || liveContainer ? "ready" : "idle");
           return;
         }
         const message = error instanceof Error ? error.message : "เกิดข้อผิดพลาด";
         setErrorMessage(message);
-        setPhase("error");
+        if (!liveContainer) setPhase("error");
         pushTerminal(`✖ ${message}`);
       } finally {
+        setChatStreaming(false);
+        setLiveBoth(null);
         abortRef.current = null;
       }
     },
-    [boot, persist, previewUrl, pushTerminal, runCallbacks]
+    [appendLive, boot, persist, previewSupported, previewUrl, pushTerminal, setLiveBoth]
   );
 
   /** Build phase auto-kickoff: generate the demo from the approved BRD/PRD. */
@@ -305,7 +393,12 @@ export default function Studio({ projectId }: { projectId: string }) {
   /** Approve the current phase and move to the next, kicking off its agent. */
   const advancePhase = useCallback(() => {
     const current = projectRef.current;
-    if (!current || busy) return;
+    if (!current) return;
+    // Only the worker that owns THIS phase blocks advance: a background scaffold
+    // install (wcBusy) must not stop the user approving a finished BRD/PRD.
+    const wcWorking = phase === "generating" || phase === "installing" || phase === "starting";
+    const blocked = isBuildPhase(current.phase) ? wcWorking || chatStreaming : chatStreaming;
+    if (blocked) return;
     const next = nextPhase(current.phase);
     if (!next || !gateSatisfied(current)) return;
 
@@ -321,7 +414,7 @@ export default function Studio({ projectId }: { projectId: string }) {
     } else if (!working.messages.some((m) => m.phase === next)) {
       void runAgent(null, working);
     }
-  }, [busy, buildFromDocs, persist, pushTerminal, runAgent]);
+  }, [phase, chatStreaming, buildFromDocs, persist, pushTerminal, runAgent]);
 
   /** Jump back to an earlier (already-reached) phase. */
   const navigatePhase = useCallback(
@@ -357,21 +450,96 @@ export default function Studio({ projectId }: { projectId: string }) {
     const reverted = undoProject(current);
     if (!reverted) return;
     const saved = persist(reverted);
+    setErrorMessage(null);
     pushTerminal("↩ undo — ย้อนกลับ 1 ขั้น");
     if (hasRunnableApp(saved.files)) void boot(saved.files!);
   }, [boot, busy, persist, pushTerminal]);
 
-  /** Monaco edits: persist + hot-write into the container. */
+  /**
+   * Pull the live container's source files into project.files so the Code panel
+   * mirrors real container state (e.g. a package installed from the Shell). Only
+   * once a real app exists — before that the ephemeral scaffold is the source.
+   */
+  const syncFromContainer = useCallback(async () => {
+    const current = projectRef.current;
+    // Skip while a generate/agent stream is in flight — it would overwrite the
+    // freshly-streamed project.files with partial container state.
+    if (abortRef.current) return;
+    if (!current || !previewSupported || !hasRunnableApp(current.files)) return;
+    try {
+      const source = await readSource();
+      if (Object.keys(source).length > 0) {
+        persist({ ...current, files: { ...current.files, ...source } });
+      }
+    } catch {
+      // Container not readable — keep the last known files.
+    }
+  }, [persist, previewSupported]);
+
+  /** Monaco edits: persist (real-app files + docs) and hot-write into the container. */
   const handleFileEdit = useCallback(
     (path: string, contents: string) => {
       const current = projectRef.current;
-      if (!current?.files) return;
-      persist({ ...current, files: { ...current.files, [path]: contents } });
-      if (previewSupported && hasRunnableApp(current.files)) {
+      if (!current) return;
+      // Editing a scaffold file before a real build must NOT persist into
+      // project.files — that would add package.json and trip the build gate.
+      const scaffoldOnly = !hasRunnableApp(current.files) && path in SCAFFOLD_FILES;
+      if (!scaffoldOnly) {
+        persist({ ...current, files: { ...(current.files ?? {}), [path]: contents } });
+      }
+      if (previewSupported) {
         void writeFile(path, contents).catch(() => {
-          // Container not booted yet — persisted copy is the source of truth.
+          // Container not booted yet — persisted/scaffold copy is the source of truth.
         });
       }
+    },
+    [persist, previewSupported]
+  );
+
+  // File-tree CRUD: mutate project.files and mirror into the live container.
+  // Each returns whether it actually changed project.files so CodePanel only
+  // updates its tabs/active state on a real change (scaffold-only files pre-build
+  // aren't in project.files, so these no-op and return false — no desync).
+  const handleCreateFile = useCallback(
+    (path: string): boolean => {
+      const current = projectRef.current;
+      if (!current || current.files?.[path] !== undefined) return false;
+      persist({ ...current, files: { ...(current.files ?? {}), [path]: "" } });
+      if (previewSupported) void writeFile(path, "").catch(() => {});
+      return true;
+    },
+    [persist, previewSupported]
+  );
+
+  const handleRenameFile = useCallback(
+    (oldPath: string, newPath: string): boolean => {
+      const current = projectRef.current;
+      const contents = current?.files?.[oldPath];
+      if (!current?.files || contents === undefined || current.files[newPath] !== undefined) {
+        return false;
+      }
+      const files = { ...current.files };
+      delete files[oldPath];
+      files[newPath] = contents;
+      persist({ ...current, files });
+      if (previewSupported) {
+        void writeFile(newPath, contents).catch(() => {});
+        void removeFile(oldPath).catch(() => {});
+      }
+      return true;
+    },
+    [persist, previewSupported]
+  );
+
+  const handleDeleteFile = useCallback(
+    (path: string): boolean => {
+      const current = projectRef.current;
+      if (!current?.files || current.files[path] === undefined) return false;
+      const files = { ...current.files };
+      delete files[path];
+      persist({ ...current, files });
+      if (previewSupported) void removeFile(path).catch(() => {});
+      return true;
     },
     [persist, previewSupported]
   );
@@ -400,10 +568,47 @@ export default function Studio({ projectId }: { projectId: string }) {
     [generate, persist]
   );
 
+  /** Rewrite package.json's extra deps and reinstall in the container. */
+  const applyDeps = useCallback(
+    (extra: Record<string, string>, note: string) => {
+      const current = projectRef.current;
+      if (!current?.files?.["package.json"] || busy) return;
+      const files = { ...current.files, "package.json": packageJsonWithDeps(extra) };
+      const saved = persist(withHistory(current, files));
+      pushTerminal(note);
+      void boot(saved.files!); // package.json changed → WebContainer reinstalls
+    },
+    [boot, busy, persist, pushTerminal]
+  );
+
+  const addPackage = useCallback(
+    (name: string, version: string) => {
+      const current = projectRef.current;
+      if (!current?.files?.["package.json"]) return;
+      const range = /^[\^~]/.test(version) ? version : `^${version}`;
+      applyDeps(
+        { ...extraDepsOf(current.files["package.json"]), [name]: range },
+        `+ npm install ${name}@${range}`
+      );
+    },
+    [applyDeps]
+  );
+
+  const removePackage = useCallback(
+    (name: string) => {
+      const current = projectRef.current;
+      if (!current?.files?.["package.json"]) return;
+      const extra = extraDepsOf(current.files["package.json"]);
+      delete extra[name];
+      applyDeps(extra, `- ลบ ${name}`);
+    },
+    [applyDeps]
+  );
+
   // Load the project and consume any pending action from the landing page.
   useEffect(() => {
     let cancelled = false;
-    queueMicrotask(() => {
+    queueMicrotask(async () => {
       if (cancelled) return;
       const loaded = getProject(projectId);
       if (!loaded) {
@@ -411,6 +616,11 @@ export default function Studio({ projectId }: { projectId: string }) {
         return;
       }
       setPreviewSupported(isPreviewSupported());
+      // Wipe a previous project's files from the shared workdir before booting
+      // anything — the container is a module singleton that survives SPA
+      // navigation between projects, so files would otherwise bleed across them.
+      await prepareWorkdir(projectId);
+      if (cancelled) return;
       // Boot the container while the user is still typing/answering so the
       // first build skips the boot wait.
       warmBoot();
@@ -433,9 +643,12 @@ export default function Studio({ projectId }: { projectId: string }) {
         setProject(loaded);
         projectRef.current = loaded;
         if (hasRunnableApp(loaded.files)) {
-          void boot(loaded.files!);
+          void boot(loaded.files!); // returning to an already-built app
         } else {
-          if (loaded.files) setView("code");
+          // No real app yet → bring the live Vite scaffold up right away so
+          // the WebContainer (code + preview) is "open" from the first question,
+          // and its npm install warms the cache while the user is interviewed.
+          void bootScaffold();
           // Conversational phase with no turns yet → the agent opens it.
           if (
             !isBuildPhase(loaded.phase) &&
@@ -448,6 +661,9 @@ export default function Studio({ projectId }: { projectId: string }) {
     });
     return () => {
       cancelled = true;
+      // Abort any in-flight generate/agent so stale file writes don't land in
+      // the next project's shared container after an SPA project switch.
+      abortRef.current?.abort();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectId]);
@@ -516,6 +732,17 @@ export default function Studio({ projectId }: { projectId: string }) {
 
   const hasApp = hasRunnableApp(project.files);
   const inBuild = isBuildPhase(project.phase);
+  // Input/advance are gated by the worker that owns the current phase: build →
+  // the WebContainer; conversational → the chat agent (so a background scaffold
+  // install never disables the interview or the approve button).
+  const phaseBusy = inBuild ? wcBusy || chatStreaming : chatStreaming;
+  const streamingNow = chatStreaming;
+  // Code tab: show the real app once built; before that, show the live scaffold
+  // (what's actually running in the container) merged with any phase docs.
+  const displayFiles =
+    hasApp || !previewSupported
+      ? project.files
+      : { ...SCAFFOLD_FILES, ...(project.files ?? {}) };
 
   return (
     <div className="flex h-dvh flex-col overflow-hidden bg-night text-chalk">
@@ -526,14 +753,21 @@ export default function Studio({ projectId }: { projectId: string }) {
         canUndo={project.history.length > 0}
         shippable={hasApp}
         onRename={(name) => persist({ ...project, name: name.trim() || "Untitled" })}
-        onViewChange={setView}
+        onViewChange={(next) => {
+          setView(next);
+          if (next === "code") void syncFromContainer(); // reflect Shell-side changes
+        }}
         onUndo={handleUndo}
         onOpenSpec={() => setSpecOpen(true)}
+        onOpenPackages={() => {
+          void syncFromContainer();
+          setPackagesOpen(true);
+        }}
       />
 
       <PhaseStepper
         phase={project.phase}
-        busy={busy}
+        busy={phaseBusy}
         canAdvance={gateSatisfied(project)}
         onAdvance={advancePhase}
         onNavigate={navigatePhase}
@@ -543,11 +777,11 @@ export default function Studio({ projectId }: { projectId: string }) {
         <div style={{ width: leftWidth }} className="flex shrink-0 flex-col border-r border-night-edge">
           <ChatPanel
             messages={project.messages}
-            busy={busy}
-            phase={phase}
+            busy={phaseBusy}
+            streaming={streamingNow}
             workflowPhase={project.phase}
             agentName={phaseDef(project.phase).name}
-            streamedChars={streamedChars}
+            live={live}
             hasApp={hasApp}
             onSubmit={(text) => (inBuild ? void generate(text) : void runAgent(text))}
             onCancel={cancel}
@@ -565,33 +799,53 @@ export default function Studio({ projectId }: { projectId: string }) {
         />
 
         <div className="flex min-w-0 flex-1 flex-col">
-          {view === "preview" ? (
-            <PreviewPanel
-              url={previewUrl}
-              previewKey={previewKey}
-              phase={phase}
-              supported={previewSupported}
-              hasFiles={hasApp}
-              onRefresh={() => setPreviewKey((k) => k + 1)}
-            />
-          ) : (
-            <CodePanel files={project.files} onEdit={handleFileEdit} />
-          )}
+          <div className="flex min-h-0 flex-1 flex-col">
+            {view === "preview" ? (
+              <PreviewPanel
+                url={previewUrl}
+                previewKey={previewKey}
+                phase={phase}
+                supported={previewSupported}
+                hasFiles={hasApp}
+                onRefresh={() => setPreviewKey((k) => k + 1)}
+              />
+            ) : (
+              <CodePanel
+                files={displayFiles}
+                onEdit={handleFileEdit}
+                onCreateFile={handleCreateFile}
+                onRenameFile={handleRenameFile}
+                onDeleteFile={handleDeleteFile}
+              />
+            )}
+          </div>
+
+          {/* Terminal/status docked under the preview, not under the chat. */}
+          <StatusBar
+            phase={phase}
+            errorMessage={errorMessage}
+            terminal={terminal}
+            onRetry={retry}
+            onFixWithAi={fixWithAi}
+            canFix={hasApp}
+          />
         </div>
       </div>
-
-      <StatusBar
-        phase={phase}
-        errorMessage={errorMessage}
-        terminal={terminal}
-        onRetry={retry}
-        onFixWithAi={fixWithAi}
-        canFix={hasApp}
-      />
 
       {specOpen && (
         <SpecFlow onClose={() => setSpecOpen(false)} onComplete={handleSpecComplete} />
       )}
+
+      {packagesOpen && (
+        <PackageSearch
+          installed={extraDepsOf(project.files?.["package.json"])}
+          busy={busy}
+          onAdd={addPackage}
+          onRemove={removePackage}
+          onClose={() => setPackagesOpen(false)}
+        />
+      )}
+
     </div>
   );
 }

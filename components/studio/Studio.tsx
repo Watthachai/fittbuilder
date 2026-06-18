@@ -230,6 +230,8 @@ export default function Studio({ projectId }: { projectId: string }) {
       abortRef.current = controller;
       try {
         let turn: AgentTurn | null = null;
+        let thoughtStart: number | null = null;
+        let thoughtLogged = false;
         for await (const event of streamAgent(
           {
             phase: working.phase,
@@ -242,8 +244,19 @@ export default function Studio({ projectId }: { projectId: string }) {
           controller.signal
         )) {
           if (event.type === "thought") {
+            if (thoughtStart === null) thoughtStart = Date.now();
             appendLive((p) => ({ ...p, thinking: p.thinking + event.content }));
-          } else if (event.type === "text") {
+            continue;
+          }
+          if (thoughtStart !== null && !thoughtLogged) {
+            const secs = Math.max(1, Math.round((Date.now() - thoughtStart) / 1000));
+            appendLive((p) => ({
+              ...p,
+              actions: [...p.actions, { icon: "thought", label: `คิดเป็นเวลา ${secs} วินาที` }],
+            }));
+            thoughtLogged = true;
+          }
+          if (event.type === "text") {
             appendLive((p) => ({ ...p, content: p.content + event.content }));
           } else if (event.type === "action") {
             appendLive((p) => ({ ...p, actions: [...p.actions, { icon: event.icon, label: event.label }] }));
@@ -325,6 +338,8 @@ export default function Studio({ projectId }: { projectId: string }) {
         let note = "";
         let deleted: string[] = [];
         let depsAdded = false;
+        let thoughtStart: number | null = null;
+        let thoughtLogged = false;
         for await (const event of streamGenerate(
           {
             prompt,
@@ -335,8 +350,20 @@ export default function Studio({ projectId }: { projectId: string }) {
           controller.signal
         )) {
           if (event.type === "thought") {
+            if (thoughtStart === null) thoughtStart = Date.now();
             appendLive((p) => ({ ...p, thinking: p.thinking + event.content }));
-          } else if (event.type === "status") {
+            continue;
+          }
+          // First non-thought event → the model finished thinking: log the duration once.
+          if (thoughtStart !== null && !thoughtLogged) {
+            const secs = Math.max(1, Math.round((Date.now() - thoughtStart) / 1000));
+            appendLive((p) => ({
+              ...p,
+              actions: [...p.actions, { icon: "thought", label: `คิดเป็นเวลา ${secs} วินาที` }],
+            }));
+            thoughtLogged = true;
+          }
+          if (event.type === "status") {
             pushTerminal(`… ${event.message}`);
           } else if (event.type === "file") {
             files[event.path] = event.content;

@@ -9,6 +9,7 @@ import {
   Download,
   FilePenLine,
   FileText,
+  Lightbulb,
   ListChecks,
   Loader2,
   type LucideIcon,
@@ -115,6 +116,15 @@ function ActionHistory({ actions, live }: { actions: AgentAction[]; live: boolea
       </div>
       <div className="space-y-2.5 px-3 py-2.5">
         {groups.map((g, gi) => {
+          // "Thought for Xs" is a single standalone line — no count header / rows.
+          if (g.kind === "thought") {
+            return (
+              <div key={gi} className="flex items-center gap-1.5 text-[12px] text-chalk">
+                <Lightbulb size={13} className="shrink-0 text-chalk-dim" />
+                <span>{g.items[0]}</span>
+              </div>
+            );
+          }
           const meta = GROUP_META[g.kind] ?? { icon: Wrench, header: (n: number) => `${n} รายการ` };
           const Icon = meta.icon;
           const lastGroup = gi === groups.length - 1;

@@ -6,10 +6,12 @@ import {
   CheckCircle2,
   ChevronDown,
   ChevronRight,
+  Download,
   FilePenLine,
   FileText,
+  ListChecks,
+  Loader2,
   type LucideIcon,
-  PackagePlus,
   Paperclip,
   Send,
   Sparkles,
@@ -21,12 +23,11 @@ import { isBuildPhase, type PhaseId } from "@/lib/phases";
 import type { AgentAction, ChatMessage, LiveMessage } from "@/lib/types";
 import Markdown from "./Markdown";
 
-/** Semantic action-icon keys → lucide icons (no emoji anywhere in the UI). */
-const ACTION_ICON: Record<string, LucideIcon> = {
-  file: FilePenLine,
-  deps: PackagePlus,
-  done: CheckCircle2,
-  doc: FileText,
+/** Grouped action kinds → header icon + a count-aware Thai header label. */
+const GROUP_META: Record<string, { icon: LucideIcon; header: (n: number) => string }> = {
+  file: { icon: FilePenLine, header: (n) => `แก้ไข ${n} ไฟล์` },
+  deps: { icon: Download, header: (n) => `ติดตั้ง ${n} package` },
+  doc: { icon: FileText, header: (n) => `อัปเดตเอกสาร ${n} รายการ` },
 };
 
 const MAX_CHARS = 500;
@@ -80,28 +81,74 @@ function Thinking({ text, expanded }: { text: string; expanded: boolean }) {
   );
 }
 
-/** Inline "what the AI did" chips, with library icons (no emoji). */
-function ActionChips({ actions }: { actions: AgentAction[] }) {
-  if (actions.length === 0) return null;
+type ActionGroup = { kind: string; items: string[] };
+
+/** Split a deps action ("a, b") into individual package names; others stay whole. */
+function actionItems(a: AgentAction): string[] {
+  return a.icon === "deps" ? a.label.split(", ").filter(Boolean) : [a.label];
+}
+
+/** Merge consecutive same-kind actions into groups (drops the legacy "done" summary). */
+function groupActions(actions: AgentAction[]): ActionGroup[] {
+  const groups: ActionGroup[] = [];
+  for (const a of actions) {
+    if (a.icon === "done") continue; // group headers already carry the counts
+    const last = groups[groups.length - 1];
+    if (last && last.kind === a.icon) last.items.push(...actionItems(a));
+    else groups.push({ kind: a.icon, items: actionItems(a) });
+  }
+  return groups;
+}
+
+/**
+ * "Action history" card (Google AI Studio style): grouped actions with a header,
+ * per-item green checkmarks, and a live "working" spinner while the turn streams.
+ */
+function ActionHistory({ actions, live }: { actions: AgentAction[]; live: boolean }) {
+  const groups = groupActions(actions);
+  if (groups.length === 0) return null;
   return (
-    <div className="mt-1.5 flex flex-wrap gap-1.5">
-      {actions.map((a, i) => {
-        const Icon = ACTION_ICON[a.icon] ?? Wrench;
-        const done = a.icon === "done";
-        return (
-          <span
-            key={i}
-            className={`inline-flex max-w-[240px] items-center gap-1.5 rounded-full border px-2 py-0.5 font-mono text-[10px] ${
-              done
-                ? "border-go/40 bg-go/10 text-go"
-                : "border-night-edge bg-night text-chalk-dim"
-            }`}
-          >
-            <Icon size={11} className="shrink-0" />
-            <span className="truncate">{a.label}</span>
-          </span>
-        );
-      })}
+    <div className="mt-2 overflow-hidden rounded-lg border border-night-edge bg-night/30">
+      <div className="flex items-center gap-1.5 border-b border-night-edge px-3 py-2 font-mono text-[10px] uppercase tracking-wider text-chalk-dim">
+        <ListChecks size={12} className="text-shine" />
+        Action history
+      </div>
+      <div className="space-y-2.5 px-3 py-2.5">
+        {groups.map((g, gi) => {
+          const meta = GROUP_META[g.kind] ?? { icon: Wrench, header: (n: number) => `${n} รายการ` };
+          const Icon = meta.icon;
+          const lastGroup = gi === groups.length - 1;
+          return (
+            <div key={gi}>
+              <div className="flex items-center gap-1.5 text-[12px] text-chalk">
+                <Icon size={13} className="shrink-0 text-chalk-dim" />
+                <span>{meta.header(g.items.length)}</span>
+              </div>
+              <div className="mt-1 space-y-1 pl-[19px]">
+                {g.items.map((item, ii) => {
+                  const working = live && lastGroup && ii === g.items.length - 1;
+                  return (
+                    <div key={ii} className="flex items-center justify-between gap-2 text-[12px] text-chalk-dim">
+                      <span className="truncate font-mono">{item}</span>
+                      {working ? (
+                        <Loader2 size={13} className="shrink-0 animate-spin text-shine" />
+                      ) : (
+                        <CheckCircle2 size={13} className="shrink-0 text-go" />
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })}
+        {live && (
+          <div className="flex items-center gap-1.5 text-[12px] text-chalk-dim">
+            <Loader2 size={13} className="shrink-0 animate-spin text-shine" />
+            กำลังทำงาน…
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -213,7 +260,7 @@ export default function ChatPanel({
               {message.role === "user" ? message.content : <Markdown>{message.content}</Markdown>}
             </div>
             {message.role === "assistant" && message.actions && (
-              <ActionChips actions={message.actions} />
+              <ActionHistory actions={message.actions} live={false} />
             )}
           </div>
         ))}
@@ -235,7 +282,7 @@ export default function ChatPanel({
                 <span className="caret-blink text-shine">▍</span>
               </div>
             )}
-            <ActionChips actions={live.actions} />
+            <ActionHistory actions={live.actions} live />
           </div>
         )}
       </div>

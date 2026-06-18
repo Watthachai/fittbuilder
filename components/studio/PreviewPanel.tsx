@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { ExternalLink, Monitor, RotateCw, Smartphone, Tablet } from "lucide-react";
 import type { GenerationPhase } from "@/lib/types";
+import BuildingLoader from "./BuildingLoader";
 
 type Viewport = "mobile" | "tablet" | "desktop";
 
@@ -17,8 +18,9 @@ interface PreviewPanelProps {
   previewKey: number;
   phase: GenerationPhase;
   supported: boolean;
-  hasFiles: boolean;
   onRefresh: () => void;
+  /** Open the demo in its own tab (via a portable /share link). */
+  onPopOut: () => void;
 }
 
 export default function PreviewPanel({
@@ -26,8 +28,8 @@ export default function PreviewPanel({
   previewKey,
   phase,
   supported,
-  hasFiles,
   onRefresh,
+  onPopOut,
 }: PreviewPanelProps) {
   const [viewport, setViewport] = useState<Viewport>("desktop");
   const active = VIEWPORTS.find((v) => v.id === viewport)!;
@@ -67,7 +69,7 @@ export default function PreviewPanel({
           <RotateCw size={13} />
         </button>
         <button
-          onClick={() => url && window.open(url, "_blank")}
+          onClick={onPopOut}
           disabled={!url}
           title="เปิดในแท็บใหม่"
           className="rounded-sm border border-night-edge p-1.5 text-chalk-dim transition hover:text-chalk disabled:opacity-40"
@@ -96,24 +98,10 @@ export default function PreviewPanel({
               title="Demo preview"
             />
           </div>
-        ) : hasFiles || phase !== "idle" ? (
-          <CenterNote
-            title={
-              phase === "generating"
-                ? "AI กำลังเขียนโค้ด…"
-                : phase === "installing"
-                  ? "กำลังติดตั้ง dependencies…"
-                  : phase === "starting"
-                    ? "กำลังเปิด dev server…"
-                    : phase === "error"
-                      ? "เกิดข้อผิดพลาด — ดูรายละเอียดที่แถบด้านล่าง"
-                      : "กำลังเตรียม preview…"
-            }
-            body={phase === "error" ? undefined : "preview จะเปิดอัตโนมัติเมื่อพร้อม"}
-            pulse={phase !== "error"}
-          />
+        ) : phase === "error" ? (
+          <CenterNote title="เกิดข้อผิดพลาด — ดูรายละเอียดที่แถบด้านล่าง" />
         ) : (
-          <CenterNote title="กำลังเตรียมเวที…" body="โปรเจกต์กำลังเริ่มรันในเบราว์เซอร์" pulse />
+          <BuildingLoader phase={phase} />
         )}
       </div>
     </div>

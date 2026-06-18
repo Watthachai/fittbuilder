@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { DOC_PATHS, docOnlyFiles, docsFromFiles, hasRunnableApp } from "@/lib/define";
 import { isBuildPhase, nextPhase, phaseDef, type PhaseId } from "@/lib/phases";
 import { extraDepsOf, packageJsonWithDeps, SCAFFOLD_FILES } from "@/lib/scaffold";
+import { encodeShareUrl } from "@/lib/share";
 import { streamAgent, streamGenerate } from "@/lib/sse";
 import {
   appendMessage,
@@ -732,6 +733,19 @@ export default function Studio({ projectId }: { projectId: string }) {
 
   const hasApp = hasRunnableApp(project.files);
   const inBuild = isBuildPhase(project.phase);
+
+  // Open the running demo in its own tab. The raw WebContainer preview URL only
+  // works inside the tab that booted it (opening it standalone shows StackBlitz's
+  // "Connect to Project" screen), so we open the portable /share link instead —
+  // it re-boots a fresh container in the new tab. Open the blank tab first, then
+  // redirect after the async encode, so the popup blocker treats it as a gesture.
+  const handlePopOut = async () => {
+    if (!project.files) return;
+    const tab = window.open("", "_blank");
+    if (!tab) return;
+    const shareUrl = await encodeShareUrl({ name: project.name, files: project.files });
+    tab.location.href = shareUrl;
+  };
   // Input/advance are gated by the worker that owns the current phase: build →
   // the WebContainer; conversational → the chat agent (so a background scaffold
   // install never disables the interview or the approve button).
@@ -806,8 +820,8 @@ export default function Studio({ projectId }: { projectId: string }) {
                 previewKey={previewKey}
                 phase={phase}
                 supported={previewSupported}
-                hasFiles={hasApp}
                 onRefresh={() => setPreviewKey((k) => k + 1)}
+                onPopOut={handlePopOut}
               />
             ) : (
               <CodePanel

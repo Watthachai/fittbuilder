@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { DOC_PATHS, docOnlyFiles, docsFromFiles, hasRunnableApp } from "@/lib/define";
 import { isBuildPhase, nextPhase, phaseDef, type PhaseId } from "@/lib/phases";
+import { type DesignOption, designStyleDirective, fetchDesignOptions } from "@/lib/design";
 import { extraDepsOf, packageJsonWithDeps, SCAFFOLD_FILES } from "@/lib/scaffold";
 import { encodeShareUrl } from "@/lib/share";
 import { streamAgent, streamGenerate } from "@/lib/sse";
@@ -35,6 +36,7 @@ import {
 } from "@/lib/webcontainer";
 import ChatPanel from "./ChatPanel";
 import CodePanel from "./CodePanel";
+import DesignPicker from "./DesignPicker";
 import PackageSearch from "./PackageSearch";
 import PhaseStepper from "./PhaseStepper";
 import PreviewPanel from "./PreviewPanel";
@@ -96,6 +98,12 @@ export default function Studio({ projectId }: { projectId: string }) {
   // committed to project.messages once at done. React state only — not persisted
   // per token. liveRef mirrors it so the streaming loop can read the latest.
   const [live, setLive] = useState<LiveMessage | null>(null);
+  // Design-preview picker (first build only): while fetching, designBusy; once
+  // ready, designOptions render in the canvas; pendingDesignPrompt holds the
+  // build request until the user picks a direction or skips.
+  const [designOptions, setDesignOptions] = useState<DesignOption[] | null>(null);
+  const [designBusy, setDesignBusy] = useState(false);
+  const pendingDesignPromptRef = useRef<string | null>(null);
 
   const abortRef = useRef<AbortController | null>(null);
   const lastActionRef = useRef<LastAction | null>(null);
@@ -389,6 +397,51 @@ export default function Studio({ projectId }: { projectId: string }) {
       }
     },
     [appendLive, boot, persist, previewSupported, previewUrl, pushTerminal, setLiveBoth]
+  );
+
+  /** Resume the build after the user picks a design (or skips → no directive). */
+  const resolveDesign = useCallback(
+    (option: DesignOption | null) => {
+      const prompt = pendingDesignPromptRef.current;
+      pendingDesignPromptRef.current = null;
+      setDesignOptions(null);
+      setDesignBusy(false);
+      if (!prompt) return;
+      void generate(option ? `${prompt}\n\n${designStyleDirective(option)}` : prompt);
+    },
+    [generate]
+  );
+
+  /**
+   * Build-phase chat submit. The FIRST build (no app yet) detours through the
+   * design-preview picker; once an app exists, every message is a direct
+   * iteration. If fetching options fails, fall back to a plain build.
+   */
+  const handleBuildSubmit = useCallback(
+    (text: string) => {
+      const firstBuild = !hasRunnableApp(projectRef.current?.files ?? null) && previewSupported;
+      if (!firstBuild) {
+        void generate(text);
+        return;
+      }
+      setErrorMessage(null);
+      pendingDesignPromptRef.current = text;
+      setDesignOptions(null);
+      setDesignBusy(true);
+      setView("preview");
+      void fetchDesignOptions({ prompt: text })
+        .then((options) => {
+          // Ignore a stale result if the user already moved on.
+          if (pendingDesignPromptRef.current !== text) return;
+          setDesignOptions(options);
+          setDesignBusy(false);
+        })
+        .catch(() => {
+          if (pendingDesignPromptRef.current !== text) return;
+          resolveDesign(null); // graceful fallback: build with no directive
+        });
+    },
+    [generate, previewSupported, resolveDesign]
   );
 
   /** Build phase auto-kickoff: generate the demo from the approved BRD/PRD. */
@@ -811,7 +864,7 @@ export default function Studio({ projectId }: { projectId: string }) {
             agentName={phaseDef(project.phase).name}
             live={live}
             hasApp={hasApp}
-            onSubmit={(text) => (inBuild ? void generate(text) : void runAgent(text))}
+            onSubmit={(text) => (inBuild ? handleBuildSubmit(text) : void runAgent(text))}
             onCancel={cancel}
           />
         </div>
@@ -828,7 +881,26 @@ export default function Studio({ projectId }: { projectId: string }) {
 
         <div className="flex min-w-0 flex-1 flex-col">
           <div className="flex min-h-0 flex-1 flex-col">
-            {view === "preview" ? (
+            {view === "preview" && designBusy ? (
+              <div className="bg-grid flex min-h-0 flex-1 items-center justify-center">
+                <div className="flex flex-col items-center gap-4 text-center">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src="/cat_playing_animation.svg" alt="" className="loader-float w-44 opacity-90" draggable={false} />
+                  <p className="font-display text-[15px] text-chalk">กำลังออกแบบดีไซน์ให้เลือก…</p>
+                  <div className="flex items-center gap-1.5">
+                    <span className="loader-dot h-1.5 w-1.5 rounded-full bg-shine" style={{ animationDelay: "0ms" }} />
+                    <span className="loader-dot h-1.5 w-1.5 rounded-full bg-shine" style={{ animationDelay: "150ms" }} />
+                    <span className="loader-dot h-1.5 w-1.5 rounded-full bg-shine" style={{ animationDelay: "300ms" }} />
+                  </div>
+                </div>
+              </div>
+            ) : view === "preview" && designOptions ? (
+              <DesignPicker
+                options={designOptions}
+                onSelect={(option) => resolveDesign(option)}
+                onSkip={() => resolveDesign(null)}
+              />
+            ) : view === "preview" ? (
               <PreviewPanel
                 url={previewUrl}
                 previewKey={previewKey}

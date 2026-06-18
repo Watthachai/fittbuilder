@@ -115,9 +115,22 @@ export class AgentStreamFilter {
     return { text, actions };
   }
 
-  /** Final turn — call after the stream ends (flushes any held tail). */
+  /** Final turn — call after the stream ends (salvages any held/partial content). */
   getTurn(): AgentTurn {
-    if (this.block === null && this.buffer) {
+    if (this.block !== null) {
+      // Stream ended INSIDE a block (e.g. the model hit maxOutputTokens before
+      // closing the fence). Salvage the partial so a half-written doc/ask isn't
+      // silently lost.
+      const body = (this.body + this.buffer).trim();
+      if (this.block === "ask") {
+        this.ask = this.ask ?? parseAsk(body);
+      } else if (body) {
+        this.docs[this.block] = body;
+      }
+      this.block = null;
+      this.body = "";
+      this.buffer = "";
+    } else if (this.buffer) {
       this.reply += this.buffer;
       this.buffer = "";
     }

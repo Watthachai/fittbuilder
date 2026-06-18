@@ -25,8 +25,12 @@ interface ChatPanelProps {
   onCancel: () => void;
 }
 
-/** Collapsible "💭 ความคิด" block. Expanded while live; collapsed (toggle) otherwise. */
-function Thinking({ text, live }: { text: string; live: boolean }) {
+/**
+ * Collapsible "💭 ความคิด" block. `expanded` forces it open (used while the live
+ * turn is still thinking, i.e. no answer text yet) — it auto-collapses once the
+ * answer starts; the user can always toggle.
+ */
+function Thinking({ text, expanded }: { text: string; expanded: boolean }) {
   const [open, setOpen] = useState(false);
   if (!text) return null;
   return (
@@ -35,9 +39,9 @@ function Thinking({ text, live }: { text: string; live: boolean }) {
         onClick={() => setOpen((o) => !o)}
         className="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-wider text-chalk-dim transition hover:text-chalk"
       >
-        💭 ความคิด {open ? "▾" : "▸"}
+        💭 ความคิด {open || expanded ? "▾" : "▸"}
       </button>
-      {(open || live) && (
+      {(open || expanded) && (
         <p className="mt-1 whitespace-pre-wrap text-[12px] italic leading-relaxed text-chalk-dim">
           {text}
         </p>
@@ -156,7 +160,7 @@ export default function ChatPanel({
               {message.role === "user" ? "คุณ" : agentName}
             </p>
             {message.role === "assistant" && message.thinking && (
-              <Thinking text={message.thinking} live={false} />
+              <Thinking text={message.thinking} expanded={false} />
             )}
             <div
               className={`whitespace-pre-wrap rounded-md px-3.5 py-2.5 text-[14px] leading-relaxed ${
@@ -177,7 +181,7 @@ export default function ChatPanel({
             <p className="mb-1 font-mono text-[10px] uppercase tracking-[0.2em] text-chalk-dim">
               {agentName}
             </p>
-            <Thinking text={live.thinking} live />
+            <Thinking text={live.thinking} expanded={!live.content} />
             {(live.content || !live.thinking) && (
               <div className="whitespace-pre-wrap rounded-md border-l-2 border-shine bg-shine/[0.08] px-3.5 py-2.5 text-[14px] leading-relaxed text-chalk">
                 {live.content || (inBuild ? "กำลังเขียนโค้ด" : "กำลังพิมพ์")}

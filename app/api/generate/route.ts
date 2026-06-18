@@ -1,8 +1,10 @@
 import { z } from "zod";
 import { getAgent } from "@/lib/agents/registry";
 import { buildSpecContext } from "@/lib/context-builder";
-import { parseGeneration } from "@/lib/files";
-import { MissingApiKeyError, streamText } from "@/lib/gemini";
+import { isSafePath, normalizePath } from "@/lib/files";
+import { extraDepsOf, packageJsonWithDeps, VITE_CONFIG } from "@/lib/scaffold";
+import { FileStreamParser } from "@/lib/stream-parse";
+import { MissingApiKeyError, streamParts } from "@/lib/gemini";
 import {
   buildGenerationSystemPrompt,
   buildIterationSystemPrompt,
@@ -12,11 +14,21 @@ import { clientIp, rateLimit } from "@/lib/rate-limit";
 import { PRESET_IDS } from "@/lib/presets";
 import type { GenerateEvent } from "@/lib/types";
 
-export const maxDuration = 120;
+// Generation streams file-by-file, so a longer single pass is fine — partial
+// output is still written live, and there's no all-or-nothing JSON parse.
+export const maxDuration = 300;
+const ATTEMPT_TIMEOUT_MS = 240_000;
 
-/** Per-attempt budget; one retry on bad output (PRD F-002). */
-const ATTEMPT_TIMEOUT_MS = 90_000;
-const MAX_ATTEMPTS = 2;
+/** package.json + vite.config.js are injected canonically, not taken from the model. */
+const RESERVED_PATHS = new Set(["package.json", "vite.config.js"]);
+
+/** Guard <deps> entries so only real npm package names reach package.json. */
+function isValidPackageName(name: string): boolean {
+  return (
+    name.length <= 100 &&
+    /^(@[a-z0-9-~][a-z0-9-._~]*\/)?[a-z0-9-~][a-z0-9-._~]*$/.test(name)
+  );
+}
 
 const bodySchema = z.object({
   prompt: z.string().trim().min(1).max(500),
@@ -75,36 +87,75 @@ export async function POST(request: Request) {
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
       const send = (event: GenerateEvent) => controller.enqueue(sse(event));
+      const parser = new FileStreamParser();
+      let fileCount = 0;
+      const deleted: string[] = [];
+      const wantedDeps = new Set<string>();
 
       try {
-        for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
-          const abort = AbortSignal.timeout(ATTEMPT_TIMEOUT_MS);
-          let raw = "";
-          try {
-            for await (const chunk of streamText({
-              system,
-              user,
-              json: true,
-              abortSignal: abort,
-              // Retries run slightly cooler for more conservative output.
-              temperature: attempt === 1 ? 0.7 : 0.4,
-            })) {
-              raw += chunk;
-              send({ type: "delta", content: chunk });
+        const abort = AbortSignal.timeout(ATTEMPT_TIMEOUT_MS);
+        try {
+          for await (const part of streamParts({
+            system,
+            user,
+            thinking: true,
+            abortSignal: abort,
+            temperature: 0.6,
+          })) {
+            if (part.thought) {
+              send({ type: "thought", content: part.text });
+              continue;
             }
-            const result = parseGeneration(raw, { iteration });
-            send({ type: "done", result });
-            controller.close();
-            return;
-          } catch (error) {
-            if (error instanceof MissingApiKeyError) throw error;
-            if (attempt === MAX_ATTEMPTS) throw error;
-            send({
-              type: "status",
-              message: "ผลลัพธ์รอบแรกใช้ไม่ได้ กำลังลองใหม่อีกครั้ง…",
-            });
+            const { files, deletes, deps } = parser.push(part.text);
+            for (const file of files) {
+              const path = normalizePath(file.path);
+              if (RESERVED_PATHS.has(path) || !isSafePath(path)) continue;
+              fileCount++;
+              send({ type: "file", path, content: file.content });
+            }
+            for (const target of deletes) {
+              const path = normalizePath(target);
+              if (RESERVED_PATHS.has(path) || !isSafePath(path)) continue;
+              deleted.push(path);
+              send({ type: "delete", path });
+            }
+            const fresh = deps.filter((d) => isValidPackageName(d) && !wantedDeps.has(d));
+            for (const d of fresh) wantedDeps.add(d);
+            if (fresh.length) send({ type: "deps", packages: fresh });
           }
+        } catch (streamError) {
+          // Partial output is usable (files were already streamed/written live);
+          // only a total failure (nothing produced) is a hard error.
+          if (fileCount === 0) throw streamError;
+          console.error("[generate] stream ended early, using partial output:", streamError);
         }
+
+        // The model answered without emitting any files (e.g. it explained a
+        // limitation). Surface its note as a normal reply instead of an error.
+        if (fileCount === 0) {
+          send({
+            type: "done",
+            note: parser.getNote() || "ไม่มีไฟล์ที่ต้องเปลี่ยน — ลองอธิบายสิ่งที่อยากได้ให้ชัดขึ้นได้ครับ",
+            deleted: [],
+          });
+          controller.close();
+          return;
+        }
+
+        // Inject canonical build config so the project always runs: package.json
+        // (preserving user-installed extra deps on iteration + any the build asked
+        // for via <deps>) + vite.config.js.
+        const extra = iteration ? extraDepsOf(body.previousFiles?.["package.json"]) : {};
+        for (const name of wantedDeps) extra[name] = "latest";
+        send({ type: "file", path: "package.json", content: packageJsonWithDeps(extra) });
+        if (!iteration) send({ type: "file", path: "vite.config.js", content: VITE_CONFIG });
+
+        send({
+          type: "done",
+          note: parser.getNote() || (iteration ? "แก้ไขเรียบร้อยแล้ว" : "สร้าง demo เรียบร้อยแล้ว"),
+          deleted,
+        });
+        controller.close();
       } catch (error) {
         const message =
           error instanceof MissingApiKeyError
@@ -113,7 +164,7 @@ export async function POST(request: Request) {
               ? "AI ใช้เวลานานเกินไป กรุณาลองใหม่"
               : "สร้างไม่สำเร็จ กรุณาลองใหม่อีกครั้ง";
         console.error("[generate] failed:", error);
-        controller.enqueue(sse({ type: "error", message }));
+        send({ type: "error", message });
         controller.close();
       }
     },

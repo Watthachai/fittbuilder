@@ -307,6 +307,8 @@ export default function Studio({ projectId }: { projectId: string }) {
         let note = "";
         let deleted: string[] = [];
         let depsAdded = false;
+        let fileCount = 0;
+        let pkgCount = 0;
         for await (const event of streamGenerate(
           {
             prompt,
@@ -322,6 +324,7 @@ export default function Studio({ projectId }: { projectId: string }) {
             pushTerminal(`… ${event.message}`);
           } else if (event.type === "file") {
             files[event.path] = event.content;
+            fileCount++;
             pushTerminal(`📝 ${event.path}`);
             appendLive((p) => ({ ...p, actions: [...p.actions, { icon: "📝", label: event.path }] }));
             if (liveContainer) void writeFile(event.path, event.content).catch(() => {});
@@ -330,6 +333,7 @@ export default function Studio({ projectId }: { projectId: string }) {
             if (liveContainer) void removeFile(event.path).catch(() => {});
           } else if (event.type === "deps") {
             depsAdded = true;
+            pkgCount += event.packages.length;
             pushTerminal(`+ ติดตั้ง: ${event.packages.join(", ")}`);
             appendLive((p) => ({ ...p, actions: [...p.actions, { icon: "➕", label: event.packages.join(", ") }] }));
           } else if (event.type === "error") {
@@ -340,6 +344,16 @@ export default function Studio({ projectId }: { projectId: string }) {
           }
         }
         for (const path of deleted) delete files[path];
+
+        // Green-check completion summary (AI-Studio style "Edited N files ✓"),
+        // appended live before snapshotting so it rides into the saved message.
+        if (fileCount > 0) {
+          const summary = [
+            { icon: "✅", label: `${isIteration ? "แก้ไข" : "สร้าง"} ${fileCount} ไฟล์` },
+            ...(pkgCount > 0 ? [{ icon: "✅", label: `ติดตั้ง ${pkgCount} package` }] : []),
+          ];
+          appendLive((p) => ({ ...p, actions: [...p.actions, ...summary] }));
+        }
 
         working = withHistory(working, files);
         const assistantMsg = newMessage("assistant", note || "สร้างเรียบร้อยแล้ว", current.phase);

@@ -126,7 +126,7 @@ export default function CodePanel({
 
   // Active file derived in render so it survives generation/undo/delete without
   // an effect; the active file always shows as a tab even if not explicitly opened.
-  const fallback = paths.includes("src/App.jsx") ? "src/App.jsx" : (paths[0] ?? null);
+  const fallback = paths.includes("src/App.tsx") ? "src/App.tsx" : (paths[0] ?? null);
   const activeFile = activePath && files?.[activePath] !== undefined ? activePath : fallback;
   const liveTabs = openTabs.filter((t) => files?.[t] !== undefined);
   const tabs =
@@ -287,7 +287,7 @@ export default function CodePanel({
           <input
             autoFocus
             value={newName}
-            placeholder="src/components/Foo.jsx"
+            placeholder="src/components/Foo.tsx"
             onChange={(e) => setNewName(e.target.value)}
             onBlur={submitCreate}
             onKeyDown={(e) => {

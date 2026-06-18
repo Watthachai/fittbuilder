@@ -1,11 +1,11 @@
 import type { GenerationResult, ProjectFiles } from "./types";
 
-/** Files every generated project must contain (Vite + React). */
+/** Files every generated project must contain (Vite + React + TypeScript). */
 export const REQUIRED_FILES = [
   "package.json",
   "index.html",
-  "src/main.jsx",
-  "src/App.jsx",
+  "src/main.tsx",
+  "src/App.tsx",
   "src/index.css",
 ] as const;
 

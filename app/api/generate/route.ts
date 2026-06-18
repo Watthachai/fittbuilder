@@ -2,7 +2,7 @@ import { z } from "zod";
 import { getAgent } from "@/lib/agents/registry";
 import { buildSpecContext } from "@/lib/context-builder";
 import { isSafePath, normalizePath } from "@/lib/files";
-import { extraDepsOf, packageJsonWithDeps, VITE_CONFIG } from "@/lib/scaffold";
+import { extraDepsOf, packageJsonWithDeps, TSCONFIG, VITE_CONFIG } from "@/lib/scaffold";
 import { FileStreamParser } from "@/lib/stream-parse";
 import { MissingApiKeyError, streamParts } from "@/lib/gemini";
 import {
@@ -19,8 +19,8 @@ import type { GenerateEvent } from "@/lib/types";
 export const maxDuration = 300;
 const ATTEMPT_TIMEOUT_MS = 240_000;
 
-/** package.json + vite.config.js are injected canonically, not taken from the model. */
-const RESERVED_PATHS = new Set(["package.json", "vite.config.js"]);
+/** package.json + vite.config.js + tsconfig.json are injected canonically, not taken from the model. */
+const RESERVED_PATHS = new Set(["package.json", "vite.config.js", "tsconfig.json"]);
 
 /** Guard <deps> entries so only real npm package names reach package.json. */
 function isValidPackageName(name: string): boolean {
@@ -148,7 +148,10 @@ export async function POST(request: Request) {
         const extra = iteration ? extraDepsOf(body.previousFiles?.["package.json"]) : {};
         for (const name of wantedDeps) extra[name] = "latest";
         send({ type: "file", path: "package.json", content: packageJsonWithDeps(extra) });
-        if (!iteration) send({ type: "file", path: "vite.config.js", content: VITE_CONFIG });
+        if (!iteration) {
+          send({ type: "file", path: "vite.config.js", content: VITE_CONFIG });
+          send({ type: "file", path: "tsconfig.json", content: TSCONFIG });
+        }
 
         send({
           type: "done",

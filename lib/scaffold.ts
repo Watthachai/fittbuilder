@@ -17,6 +17,12 @@ import type { ProjectFiles } from "./types";
  * web demo needs nothing Next provides. Tailwind loads via the browser CDN so
  * the install tree stays react + react-dom + vite + the React plugin.
  *
+ * TypeScript with ZERO extra dependencies: source is `.tsx`, but @vitejs/plugin-react
+ * transpiles TS via its bundled Babel preset and `vite build` does not typecheck,
+ * so the install tree (and therefore the cache key — see DEMO_PACKAGE_JSON) is
+ * byte-identical to a JS project. tsconfig.json is config-only (no `typescript`
+ * package needed at runtime); type errors never block the live preview.
+ *
  * Everything is in `dependencies` (not devDependencies): npm inside WebContainer
  * omits devDependencies, so a build tool placed there (e.g. vite) silently never
  * installs → `vite: command not found`. The React plugin is the Babel-based
@@ -59,6 +65,32 @@ export default defineConfig({
 });
 `;
 
+/**
+ * Canonical tsconfig.json (forced by the generator on first build, like
+ * vite.config.js). Config-only — no `typescript` package is installed; Vite's
+ * esbuild/Babel pipeline reads `jsx`/`target` from here. Kept non-strict and
+ * lenient so the generated demo never trips type noise that the user would see.
+ */
+export const TSCONFIG = `{
+  "compilerOptions": {
+    "target": "ES2020",
+    "useDefineForClassFields": true,
+    "lib": ["ES2020", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "skipLibCheck": true,
+    "moduleResolution": "bundler",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "noEmit": true,
+    "jsx": "react-jsx",
+    "strict": false,
+    "noUnusedLocals": false,
+    "noUnusedParameters": false
+  },
+  "include": ["src"]
+}
+`;
+
 /** Trim npm install chatter/latency inside the container. */
 const NPMRC = `audit=false
 fund=false
@@ -86,17 +118,17 @@ const SCAFFOLD_INDEX_HTML = `<!doctype html>
   </head>
   <body>
     <div id="root"></div>
-    <script type="module" src="/src/main.jsx"></script>
+    <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
 `;
 
 const SCAFFOLD_MAIN = `import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
-import App from "./App.jsx";
+import App from "./App";
 import "./index.css";
 
-createRoot(document.getElementById("root")).render(
+createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <App />
   </StrictMode>
@@ -146,9 +178,10 @@ export const SCAFFOLD_FILES: ProjectFiles = {
   "package.json": DEMO_PACKAGE_JSON,
   ".npmrc": NPMRC,
   "vite.config.js": VITE_CONFIG,
+  "tsconfig.json": TSCONFIG,
   "index.html": SCAFFOLD_INDEX_HTML,
-  "src/main.jsx": SCAFFOLD_MAIN,
-  "src/App.jsx": SCAFFOLD_APP,
+  "src/main.tsx": SCAFFOLD_MAIN,
+  "src/App.tsx": SCAFFOLD_APP,
   "src/index.css": SCAFFOLD_INDEX_CSS,
 };
 

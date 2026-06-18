@@ -15,26 +15,26 @@ export const PACKAGE_JSON_TEMPLATE = DEMO_PACKAGE_JSON;
 const OUTPUT_CONTRACT = `OUTPUT FORMAT — STRICT (stream files one at a time):
 1. FIRST write ONE short sentence (the note) in the SAME language as the request — what you are building/changing.
 2. THEN output EACH file as its own block in this EXACT shape — no markdown code fences, no commentary between blocks:
-<file path="src/App.jsx">
+<file path="src/App.tsx">
 <full, complete file contents here>
 </file>
 3. Write COMPLETE file contents every time — never placeholders, "...", or partial files. Do NOT wrap blocks in \`\`\`.
 4. When practical, output a file BEFORE the files that import it, so the live preview stays valid while it streams.
-5. Use relative paths only (e.g. "src/components/Header.jsx") — never ".." or absolute paths. Do NOT output package.json or vite.config.js (they are provided automatically).
-6. (iteration only) Output ONLY the files that change. To remove a file, output a self-closing tag: <delete path="src/Old.jsx"/>
+5. Use relative paths only (e.g. "src/components/Header.tsx") — never ".." or absolute paths. Do NOT output package.json, vite.config.js, or tsconfig.json (they are provided automatically).
+6. (iteration only) Output ONLY the files that change. To remove a file, output a self-closing tag: <delete path="src/Old.tsx"/>
 7. If your code imports an npm package other than react/react-dom, declare it with a directive: <deps>package-name another-package</deps> (names ONLY, no versions). It is installed automatically. NEVER write "npm install …" or tell the user to run any command — just declare <deps> and import it.`;
 
-const PROJECT_RULES = `PROJECT RULES (Vite + React 18):
-1. Always produce a Vite + React 18 project. Base package.json (do NOT add/remove/change dependencies yourself — the user installs npm packages separately; if the current files already list extra dependencies, keep them):
+const PROJECT_RULES = `PROJECT RULES (Vite + React 18 + TypeScript):
+1. Always produce a Vite + React 18 + TypeScript project. Base package.json (do NOT add/remove/change dependencies yourself — the user installs npm packages separately; if the current files already list extra dependencies, keep them):
 ${DEMO_PACKAGE_JSON}
-2. Required files (always include all of them): "package.json", "index.html", "src/main.jsx", "src/App.jsx", "src/index.css".
+2. Required files (always include all of them): "index.html", "src/main.tsx", "src/App.tsx", "src/index.css". (package.json, vite.config.js, and tsconfig.json are provided automatically — do NOT output them.)
 3. index.html must include, inside <head>, EXACTLY:
    - <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>  (Tailwind — style ONLY with Tailwind utility classes)
    - <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Anuphan:wght@400;500;600;700&display=swap" rel="stylesheet" />
    - <style>body{font-family:'Anuphan','Inter',system-ui,sans-serif}</style>
-   and in <body>: <div id="root"></div> then <script type="module" src="/src/main.jsx"></script>.
-4. src/main.jsx mounts <App /> into #root via react-dom/client createRoot and imports "./index.css".
-5. JavaScript/JSX ONLY (.jsx). The project uses @vitejs/plugin-react with a vite.config.js that is PROVIDED automatically — do NOT create or modify vite.config.js. With the automatic JSX runtime you do NOT need to "import React"; just import the hooks you use (e.g. import { useState } from "react"). Do NOT use TypeScript. You may import react, react-dom, and any npm package ALREADY in package.json "dependencies". To use an EXTRA npm package, declare it with a <deps>package-name</deps> directive (see output format) and it is installed automatically — never hand-write "npm install". Import local files with RELATIVE paths (e.g. "./components/Header").
+   and in <body>: <div id="root"></div> then <script type="module" src="/src/main.tsx"></script>.
+4. src/main.tsx mounts <App /> into #root via react-dom/client createRoot and imports "./index.css".
+5. TypeScript + JSX (.tsx) ONLY. The project uses @vitejs/plugin-react with a vite.config.js + tsconfig.json that are PROVIDED automatically — do NOT create or modify them. With the automatic JSX runtime you do NOT need to "import React"; just import the hooks you use (e.g. import { useState } from "react"). Write idiomatic TypeScript: type component props with interfaces/types and type your state and mock-data shapes, but the build does NOT typecheck — prefer a running app over exhaustive typing, and never let types block functionality. You may import react, react-dom, and any npm package ALREADY in package.json "dependencies". To use an EXTRA npm package, declare it with a <deps>package-name</deps> directive (see output format) and it is installed automatically — never hand-write "npm install". Import local files with RELATIVE paths WITHOUT extension (e.g. "./components/Header").
 6. Build beautiful, responsive, production-quality UI. Use realistic mock data (names, prices, dates) — never lorem ipsum. Add hover states, transitions, and a coherent color palette.
 7. State must work: clickable tabs, working forms, add-to-cart counters, kanban drag is optional but buttons must do something. Use React hooks.
 8. If the request/documents are in Thai, generate ALL visible content in Thai (the Anuphan font is already loaded).
@@ -60,10 +60,10 @@ export function buildIterationSystemPrompt(persona?: string): string {
 The user has an existing generated project and wants a modification described in plain language (Thai or English).
 
 ITERATION RULES:
-1. You receive the current project files (a Vite + React app). Apply ONLY the requested change.
+1. You receive the current project files (a Vite + React + TypeScript app). Apply ONLY the requested change.
 2. Return ONLY the files whose contents change (full new contents for each), plus new files if needed. Unchanged files must NOT appear in "files".
 3. List removed files in "deleted".
-4. Keep the existing stack: NEVER change package.json or add dependencies (react + react-dom + vite only). Use relative imports.
+4. Keep the existing stack: TypeScript (.tsx) only; NEVER change package.json/vite.config.js/tsconfig.json or add dependencies via files (use the <deps> directive for new npm packages). Use relative imports without file extensions.
 5. Preserve the existing design language and data unless the request says otherwise.
 
 ${OUTPUT_CONTRACT}`;

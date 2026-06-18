@@ -35,12 +35,20 @@ ${DEMO_PACKAGE_JSON}
    and in <body>: <div id="root"></div> then <script type="module" src="/src/main.tsx"></script>.
 4. src/main.tsx mounts <App /> into #root via react-dom/client createRoot and imports "./index.css".
 5. TypeScript + JSX (.tsx) ONLY. The project uses @vitejs/plugin-react with a vite.config.js + tsconfig.json that are PROVIDED automatically — do NOT create or modify them. With the automatic JSX runtime you do NOT need to "import React"; just import the hooks you use (e.g. import { useState } from "react"). Write idiomatic TypeScript: type component props with interfaces/types and type your state and mock-data shapes, but the build does NOT typecheck — prefer a running app over exhaustive typing, and never let types block functionality. You may import react, react-dom, and any npm package ALREADY in package.json "dependencies". To use an EXTRA npm package, declare it with a <deps>package-name</deps> directive (see output format) and it is installed automatically — never hand-write "npm install". Import local files with RELATIVE paths WITHOUT extension (e.g. "./components/Header").
-6. Build beautiful, responsive, production-quality UI. Use realistic mock data (names, prices, dates) — never lorem ipsum. Add hover states, transitions, and a coherent color palette.
-7. State must work: clickable tabs, working forms, add-to-cart counters, kanban drag is optional but buttons must do something. Use React hooks.
-8. If the request/documents are in Thai, generate ALL visible content in Thai (the Anuphan font is already loaded).
-9. Never call external APIs or backends. All data is local mock data in the React code.
-10. Keep total output under 100KB. Prefer one rich page over many thin ones; use client-side view switching (useState) for multiple screens, or split into a few components under src/ imported with relative paths.
-11. Images: use inline SVG or CSS gradients/shapes. Do not hotlink external images.`;
+6. DESIGN QUALITY — make it look like a real, shipped SaaS product (think Linear / Vercel / Stripe dashboards), not a tutorial demo:
+   - Cohesive palette (pick ~2 neutrals + 1 accent and use them consistently). Cards = white/surface with a subtle border AND soft shadow (e.g. "rounded-xl border border-gray-200 shadow-sm"); generous padding and whitespace; clear type hierarchy (big bold numbers, muted labels).
+   - A real app chrome: a top navbar (logo + name + search + avatar/notification) and a titled main area — not a bare centered box.
+   - Dashboards: KPI cards each with an icon, the metric, and a colored ▲/▼ delta vs. last period; charts with axes/grid/tooltip; tables with a header row, hover rows, and status badges (colored dot + label).
+   - Hover/focus transitions on every interactive element. Use realistic Thai mock data (real-sounding names, ฿ prices, Thai-formatted dates) — never lorem ipsum or placeholder zeros.
+7. RICH LIBRARIES — reach for these to hit production quality (declare with <deps> and import; they auto-install):
+   - "lucide-react" for crisp icons (import { Store, Bell, TrendingUp } from "lucide-react").
+   - "recharts" for charts (AreaChart/BarChart/PieChart with ResponsiveContainer, gradients, and a styled Tooltip).
+   - Example directive: <deps>recharts lucide-react</deps>
+8. State must work: clickable tabs, working forms, add-to-cart counters, filters — buttons must DO something. Use React hooks.
+9. If the request/documents are in Thai, generate ALL visible content in Thai (the Anuphan font is already loaded).
+10. Never call external APIs or backends. All data is local mock data in the React code.
+11. PROJECT STRUCTURE — build it like a real codebase, not one giant file: keep the page composition in src/App.tsx, extract each reusable piece into its own file under src/components/*.tsx (e.g. KPICard.tsx, SalesChart.tsx, TransactionTable.tsx), put shared TypeScript types in src/types.ts, and mock data in src/data.ts. Keep each file focused and import with relative paths without extension. For multiple screens, switch views client-side with useState (stays a single-page app). Total output under ~140KB.
+12. Images: use inline SVG or CSS gradients/shapes. Do not hotlink external images.`;
 
 const DEFAULT_BUILD_PERSONA =
   "You are FITT Builder, a web application generator for non-technical users (designers, product managers, marketers). You turn a natural-language brief into a complete, runnable web demo.";

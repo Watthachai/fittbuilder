@@ -10,6 +10,7 @@ import {
   FileCode,
   Folder,
   FolderOpen,
+  Paperclip,
   Pencil,
   Plus,
   Trash2,
@@ -103,6 +104,8 @@ interface CodePanelProps {
   onCreateFile: (path: string) => boolean;
   onRenameFile: (oldPath: string, newPath: string) => boolean;
   onDeleteFile: (path: string) => boolean;
+  /** Attach a file as a reference chip in the chat input (double-click / 📎). */
+  onAttachToChat: (path: string) => void;
 }
 
 export default function CodePanel({
@@ -111,6 +114,7 @@ export default function CodePanel({
   onCreateFile,
   onRenameFile,
   onDeleteFile,
+  onAttachToChat,
 }: CodePanelProps) {
   const tree = useMemo(() => buildFileTree(files), [files]);
   const paths = useMemo(() => (files ? Object.keys(files) : []), [files]);
@@ -231,10 +235,19 @@ export default function CodePanel({
         >
           <button
             onClick={() => openFile(node.path)}
+            onDoubleClick={() => onAttachToChat(node.path)}
+            title="คลิกเพื่อเปิด · ดับเบิลคลิกเพื่อแนบในแชท"
             className="flex min-w-0 flex-1 items-center gap-1.5 text-left"
           >
             <FileCode size={12} className="shrink-0 opacity-60" />
             <span className="truncate">{node.name}</span>
+          </button>
+          <button
+            onClick={() => onAttachToChat(node.path)}
+            title="แนบไฟล์นี้ในแชท"
+            className="hidden shrink-0 text-chalk-dim transition hover:text-shine group-hover:block"
+          >
+            <Paperclip size={11} />
           </button>
           <button
             onClick={() => {

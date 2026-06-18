@@ -104,6 +104,16 @@ export default function Studio({ projectId }: { projectId: string }) {
   const [designOptions, setDesignOptions] = useState<DesignOption[] | null>(null);
   const [designBusy, setDesignBusy] = useState(false);
   const pendingDesignPromptRef = useRef<string | null>(null);
+  // File paths attached as reference chips for the next chat message (double-click
+  // a file in the tree). Folded into the message text on submit, then cleared.
+  const [attachedPaths, setAttachedPaths] = useState<string[]>([]);
+
+  const attachFile = useCallback((path: string) => {
+    setAttachedPaths((prev) => (prev.includes(path) ? prev : [...prev, path]));
+  }, []);
+  const removeAttachment = useCallback((path: string) => {
+    setAttachedPaths((prev) => prev.filter((p) => p !== path));
+  }, []);
 
   const abortRef = useRef<AbortController | null>(null);
   const lastActionRef = useRef<LastAction | null>(null);
@@ -864,7 +874,17 @@ export default function Studio({ projectId }: { projectId: string }) {
             agentName={phaseDef(project.phase).name}
             live={live}
             hasApp={hasApp}
-            onSubmit={(text) => (inBuild ? handleBuildSubmit(text) : void runAgent(text))}
+            attachments={attachedPaths}
+            onRemoveAttachment={removeAttachment}
+            onSubmit={(text) => {
+              const note = attachedPaths.length
+                ? `\n\n📎 อ้างอิงไฟล์: ${attachedPaths.join(", ")}`
+                : "";
+              const full = `${text}${note}`;
+              setAttachedPaths([]);
+              if (inBuild) handleBuildSubmit(full);
+              else void runAgent(full);
+            }}
             onCancel={cancel}
           />
         </div>
@@ -916,6 +936,7 @@ export default function Studio({ projectId }: { projectId: string }) {
                 onCreateFile={handleCreateFile}
                 onRenameFile={handleRenameFile}
                 onDeleteFile={handleDeleteFile}
+                onAttachToChat={attachFile}
               />
             )}
           </div>

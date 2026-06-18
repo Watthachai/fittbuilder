@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Check, Send, Square } from "lucide-react";
+import { Check, Paperclip, Send, Square, X } from "lucide-react";
 import { isBuildPhase, type PhaseId } from "@/lib/phases";
 import type { AgentAction, ChatMessage, LiveMessage } from "@/lib/types";
 
@@ -21,6 +21,9 @@ interface ChatPanelProps {
   live: LiveMessage | null;
   /** A runnable app exists (package.json generated). */
   hasApp: boolean;
+  /** File paths attached as reference chips for the next message. */
+  attachments: string[];
+  onRemoveAttachment: (path: string) => void;
   onSubmit: (text: string) => void;
   onCancel: () => void;
 }
@@ -75,6 +78,8 @@ export default function ChatPanel({
   agentName,
   live,
   hasApp,
+  attachments,
+  onRemoveAttachment,
   onSubmit,
   onCancel,
 }: ChatPanelProps) {
@@ -249,6 +254,26 @@ export default function ChatPanel({
 
       <div className="shrink-0 border-t border-night-edge p-3">
         <div className="rounded-md border border-night-edge bg-night focus-within:border-shine">
+          {attachments.length > 0 && (
+            <div className="flex flex-wrap gap-1.5 px-2.5 pt-2.5">
+              {attachments.map((path) => (
+                <span
+                  key={path}
+                  className="inline-flex items-center gap-1 rounded-md border border-night-edge bg-night-panel px-2 py-0.5 font-mono text-[10px] text-chalk-dim"
+                >
+                  <Paperclip size={9} className="text-shine" />
+                  <span className="max-w-[160px] truncate">{path}</span>
+                  <button
+                    onClick={() => onRemoveAttachment(path)}
+                    title="เอาออก"
+                    className="text-chalk-dim transition hover:text-halt"
+                  >
+                    <X size={10} />
+                  </button>
+                </span>
+              ))}
+            </div>
+          )}
           <textarea
             value={draft}
             maxLength={MAX_CHARS}

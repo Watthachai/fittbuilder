@@ -27,13 +27,20 @@ export interface StreamTextOptions {
   user: string;
   /** Force `application/json` output. */
   json?: boolean;
+  /** Stream Gemini thought summaries (parts flagged thought:true) too. */
+  thinking?: boolean;
   maxOutputTokens?: number;
   temperature?: number;
   abortSignal?: AbortSignal;
 }
 
-/** Stream model output as text chunks. */
-export async function* streamText(options: StreamTextOptions): AsyncGenerator<string> {
+export interface StreamPart {
+  thought: boolean;
+  text: string;
+}
+
+/** Stream model output as typed parts, separating thought summaries from the answer. */
+export async function* streamParts(options: StreamTextOptions): AsyncGenerator<StreamPart> {
   const ai = getGeminiClient();
   const stream = await ai.models.generateContentStream({
     model: GEMINI_MODEL,
@@ -43,12 +50,25 @@ export async function* streamText(options: StreamTextOptions): AsyncGenerator<st
       temperature: options.temperature ?? 0.7,
       maxOutputTokens: options.maxOutputTokens ?? 65536,
       ...(options.json ? { responseMimeType: "application/json" } : {}),
+      ...(options.thinking ? { thinkingConfig: { includeThoughts: true } } : {}),
       ...(options.abortSignal ? { abortSignal: options.abortSignal } : {}),
     },
   });
   for await (const chunk of stream) {
-    const text = chunk.text;
-    if (text) yield text;
+    const parts = chunk.candidates?.[0]?.content?.parts;
+    if (!parts) continue;
+    for (const part of parts) {
+      if (typeof part.text === "string" && part.text.length > 0) {
+        yield { thought: part.thought === true, text: part.text };
+      }
+    }
+  }
+}
+
+/** Stream model output as text chunks (answer only — thoughts skipped). */
+export async function* streamText(options: StreamTextOptions): AsyncGenerator<string> {
+  for await (const part of streamParts(options)) {
+    if (!part.thought) yield part.text;
   }
 }
 

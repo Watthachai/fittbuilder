@@ -63,7 +63,6 @@ export default function LaunchPad() {
         value={prompt}
         maxLength={MAX_CHARS}
         rows={4}
-        autoFocus
         onChange={(event) => setPrompt(event.target.value)}
         onKeyDown={(event) => {
           if (event.key === "Enter" && !event.shiftKey) {

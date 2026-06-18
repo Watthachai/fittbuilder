@@ -1,59 +1,46 @@
 /** System prompts for the generation model (PRD §6.4, adapted for Gemini). */
 
 import { truncateDoc } from "./context-builder";
+import { DEMO_PACKAGE_JSON } from "./scaffold";
 import type { DocKind } from "./types";
 
 /**
- * The generated project is deliberately dependency-light so `npm install`
- * inside the WebContainer stays under the PRD's 30s budget:
- * react + react-dom + vite only (Vite transpiles JSX natively), with
- * Tailwind loaded through its browser build in index.html.
+ * Generated demos run as a Vite + React 18 app inside the WebContainer (see
+ * lib/scaffold.ts for why Vite, not Next.js). The package is kept to
+ * react + react-dom + vite so the install matches the pre-warmed scaffold and
+ * Build skips `npm install`.
  */
-export const PACKAGE_JSON_TEMPLATE = `{
-  "name": "fitt-demo",
-  "private": true,
-  "type": "module",
-  "scripts": {
-    "dev": "vite --host",
-    "build": "vite build",
-    "preview": "vite preview"
-  },
-  "dependencies": {
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1"
-  },
-  "devDependencies": {
-    "vite": "^6.3.5"
-  }
-}`;
+export const PACKAGE_JSON_TEMPLATE = DEMO_PACKAGE_JSON;
 
-const OUTPUT_CONTRACT = `OUTPUT FORMAT — STRICT:
-Respond with a single valid JSON object and nothing else (no markdown, no code fences, no commentary):
-{
-  "note": "<1-2 sentence summary of what you built/changed, in the SAME language as the user's request>",
-  "files": { "<path>": "<full file contents>", ... },
-  "deleted": ["<path>", ...]
-}
-- "files" values are complete file contents as strings. Never use placeholders or "...".
-- "deleted" is optional and only used in iteration mode.
-- All paths are relative, e.g. "src/App.jsx". Never use ".." or absolute paths.`;
+const OUTPUT_CONTRACT = `OUTPUT FORMAT — STRICT (stream files one at a time):
+1. FIRST write ONE short sentence (the note) in the SAME language as the request — what you are building/changing.
+2. THEN output EACH file as its own block in this EXACT shape — no markdown code fences, no commentary between blocks:
+<file path="src/App.jsx">
+<full, complete file contents here>
+</file>
+3. Write COMPLETE file contents every time — never placeholders, "...", or partial files. Do NOT wrap blocks in \`\`\`.
+4. When practical, output a file BEFORE the files that import it, so the live preview stays valid while it streams.
+5. Use relative paths only (e.g. "src/components/Header.jsx") — never ".." or absolute paths. Do NOT output package.json or vite.config.js (they are provided automatically).
+6. (iteration only) Output ONLY the files that change. To remove a file, output a self-closing tag: <delete path="src/Old.jsx"/>
+7. If your code imports an npm package other than react/react-dom, declare it with a directive: <deps>package-name another-package</deps> (names ONLY, no versions). It is installed automatically. NEVER write "npm install …" or tell the user to run any command — just declare <deps> and import it.`;
 
-const PROJECT_RULES = `PROJECT RULES:
-1. Always produce a Vite + React 18 project. Use EXACTLY this package.json (do not add dependencies):
-${PACKAGE_JSON_TEMPLATE}
-2. Required files: "package.json", "index.html", "src/main.jsx", "src/App.jsx", "src/index.css".
-3. index.html must include, inside <head>:
-   - <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>  (Tailwind CSS — style ONLY with Tailwind utility classes)
-   - <script type="module" src="/src/main.jsx"></script> goes in <body>.
-4. Vite transpiles .jsx natively — do NOT add a vite.config file and do NOT import any npm package other than react and react-dom.
-5. Build beautiful, responsive, production-quality UI. Use realistic mock data (names, prices, dates) — never lorem ipsum. Add hover states, transitions, and a coherent color palette.
-6. State must work: clickable tabs, working forms, add-to-cart counters, kanban drag is optional but buttons must do something. Use React hooks.
-7. If the user's request is in Thai, generate ALL visible content in Thai and load a Thai font in index.html:
-   <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;600;700&display=swap" rel="stylesheet">
-   then set it as the Tailwind font (class or inline style font-family:'Sarabun',sans-serif on <body>).
-8. Never call external APIs or backends. All data is local mock data in the React code.
-9. Keep total output under 100KB. Prefer one rich page over many thin ones; use simple client-side view switching (useState) if multiple screens are needed.
-10. Images: use inline SVG or CSS gradients/shapes. Do not hotlink external images.`;
+const PROJECT_RULES = `PROJECT RULES (Vite + React 18):
+1. Always produce a Vite + React 18 project. Base package.json (do NOT add/remove/change dependencies yourself — the user installs npm packages separately; if the current files already list extra dependencies, keep them):
+${DEMO_PACKAGE_JSON}
+2. Required files (always include all of them): "package.json", "index.html", "src/main.jsx", "src/App.jsx", "src/index.css".
+3. index.html must include, inside <head>, EXACTLY:
+   - <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>  (Tailwind — style ONLY with Tailwind utility classes)
+   - <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Anuphan:wght@400;500;600;700&display=swap" rel="stylesheet" />
+   - <style>body{font-family:'Anuphan','Inter',system-ui,sans-serif}</style>
+   and in <body>: <div id="root"></div> then <script type="module" src="/src/main.jsx"></script>.
+4. src/main.jsx mounts <App /> into #root via react-dom/client createRoot and imports "./index.css".
+5. JavaScript/JSX ONLY (.jsx). The project uses @vitejs/plugin-react with a vite.config.js that is PROVIDED automatically — do NOT create or modify vite.config.js. With the automatic JSX runtime you do NOT need to "import React"; just import the hooks you use (e.g. import { useState } from "react"). Do NOT use TypeScript. You may import react, react-dom, and any npm package ALREADY in package.json "dependencies". To use an EXTRA npm package, declare it with a <deps>package-name</deps> directive (see output format) and it is installed automatically — never hand-write "npm install". Import local files with RELATIVE paths (e.g. "./components/Header").
+6. Build beautiful, responsive, production-quality UI. Use realistic mock data (names, prices, dates) — never lorem ipsum. Add hover states, transitions, and a coherent color palette.
+7. State must work: clickable tabs, working forms, add-to-cart counters, kanban drag is optional but buttons must do something. Use React hooks.
+8. If the request/documents are in Thai, generate ALL visible content in Thai (the Anuphan font is already loaded).
+9. Never call external APIs or backends. All data is local mock data in the React code.
+10. Keep total output under 100KB. Prefer one rich page over many thin ones; use client-side view switching (useState) for multiple screens, or split into a few components under src/ imported with relative paths.
+11. Images: use inline SVG or CSS gradients/shapes. Do not hotlink external images.`;
 
 const DEFAULT_BUILD_PERSONA =
   "You are FITT Builder, a web application generator for non-technical users (designers, product managers, marketers). You turn a natural-language brief into a complete, runnable web demo.";
@@ -73,10 +60,10 @@ export function buildIterationSystemPrompt(persona?: string): string {
 The user has an existing generated project and wants a modification described in plain language (Thai or English).
 
 ITERATION RULES:
-1. You receive the current project files. Apply ONLY the requested change.
+1. You receive the current project files (a Vite + React app). Apply ONLY the requested change.
 2. Return ONLY the files whose contents change (full new contents for each), plus new files if needed. Unchanged files must NOT appear in "files".
 3. List removed files in "deleted".
-4. Keep the existing stack: do not add dependencies, do not change package.json unless explicitly asked.
+4. Keep the existing stack: NEVER change package.json or add dependencies (react + react-dom + vite only). Use relative imports.
 5. Preserve the existing design language and data unless the request says otherwise.
 
 ${OUTPUT_CONTRACT}`;
@@ -117,7 +104,16 @@ export function buildAgentSystemPrompt(
   const contract = `DOC OUTPUT CONTRACT — สำคัญ:
 - เมื่อจะออก/แก้เอกสาร ให้ครอบเนื้อหา Markdown ฉบับเต็มด้วย fenced block ที่ขึ้นต้น \`\`\`<kind> โดย <kind> เป็นหนึ่งใน: ${(Object.keys(DOC_LABELS) as DocKind[]).join(" | ")}
 - ส่งเอกสารทั้งฉบับเสมอ (ไม่ใช่เฉพาะส่วนที่แก้) และห้ามมี \`\`\` ซ้อนอยู่ภายในเอกสาร
-- ข้อความนอกบล็อกคือบทสนทนาปกติที่ผู้ใช้จะเห็นในแชท`;
+- ข้อความนอกบล็อกคือบทสนทนาปกติที่ผู้ใช้จะเห็นในแชท
+
+INTERACTIVE ASK CONTRACT — สำคัญมาก:
+- ทุกครั้งที่คุณ "ถามคำถาม" ผู้ใช้ ให้แนบตัวเลือกที่กดได้ โดยใส่ fenced block ขึ้นต้น \`\`\`ask ตามด้วย JSON หนึ่งบรรทัด เช่น:
+\`\`\`ask
+{"question":"ธุรกิจของคุณเป็นแบบไหน?","options":["ร้านอาหาร","ร้านค้าออนไลน์","บริการจองคิว","อื่นๆ"],"multi":false,"allowText":true}
+\`\`\`
+- options เป็นคำตอบรูปธรรมที่พบบ่อย 2-5 ข้อ ให้ผู้ใช้กดเลือกได้ทันที (เขียนคำถามเต็มในบทสนทนาปกติด้วย ส่วนบล็อก ask ให้แค่ตัวเลือก)
+- ใช้ multi=true เมื่อเลือกได้หลายข้อ (เช่น เลือกฟีเจอร์), allowText=false เมื่อไม่ต้องการให้พิมพ์เอง
+- ถามทีละคำถาม → ใส่บล็อก \`\`\`ask ได้สูงสุด 1 บล็อกต่อข้อความ และอย่าใส่ ask เมื่อกำลังส่งเอกสารให้ตรวจ (ให้ผู้ใช้กดปุ่ม "อนุมัติ & ไปต่อ" แทน)`;
 
   return `${agentBody}
 

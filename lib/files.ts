@@ -1,6 +1,6 @@
 import type { GenerationResult, ProjectFiles } from "./types";
 
-/** Files every generated project must contain (PRD §6.4). */
+/** Files every generated project must contain (Vite + React). */
 export const REQUIRED_FILES = [
   "package.json",
   "index.html",
@@ -20,14 +20,14 @@ export class GenerationParseError extends Error {
   }
 }
 
-function isSafePath(path: string): boolean {
+export function isSafePath(path: string): boolean {
   if (path.length === 0 || path.length > 200) return false;
   if (path.startsWith("/") || path.startsWith("~")) return false;
   if (path.includes("..") || path.includes("\\") || path.includes("\0")) return false;
   return /^[\w@./ -]+$/.test(path);
 }
 
-function normalizePath(path: string): string {
+export function normalizePath(path: string): string {
   return path.replace(/^\.\//, "").trim();
 }
 

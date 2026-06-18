@@ -59,3 +59,4 @@ export function streamAgent(
 ): AsyncGenerator<AgentEvent> {
   return streamSse<AgentEvent>("/api/agent", body, signal);
 }
+

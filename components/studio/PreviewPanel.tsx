@@ -113,10 +113,7 @@ export default function PreviewPanel({
             pulse={phase !== "error"}
           />
         ) : (
-          <CenterNote
-            title="ยังไม่มี demo"
-            body="พิมพ์ prompt ที่แผงด้านซ้ายเพื่อเริ่มสร้าง"
-          />
+          <CenterNote title="กำลังเตรียมเวที…" body="โปรเจกต์กำลังเริ่มรันในเบราว์เซอร์" pulse />
         )}
       </div>
     </div>

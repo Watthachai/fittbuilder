@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { Check, Code2, Download, Eye, FileText, Share2, Undo2 } from "lucide-react";
+import { Check, Code2, Download, Eye, FileText, Package, Share2, Undo2 } from "lucide-react";
 import { encodeShareUrl } from "@/lib/share";
 import type { ProjectRecord } from "@/lib/types";
 import { downloadZip } from "@/lib/zip";
@@ -18,6 +18,7 @@ interface TopBarProps {
   onViewChange: (view: "preview" | "code") => void;
   onUndo: () => void;
   onOpenSpec: () => void;
+  onOpenPackages: () => void;
 }
 
 export default function TopBar({
@@ -30,6 +31,7 @@ export default function TopBar({
   onViewChange,
   onUndo,
   onOpenSpec,
+  onOpenPackages,
 }: TopBarProps) {
   const [shared, setShared] = useState(false);
 
@@ -91,6 +93,14 @@ export default function TopBar({
         title="สร้างจากเอกสาร BRD/PRD"
       >
         <FileText size={13} /> Spec
+      </button>
+      <button
+        onClick={onOpenPackages}
+        disabled={!shippable || busy}
+        className="inline-flex items-center gap-1.5 rounded-sm border border-night-edge px-2.5 py-1.5 text-xs text-chalk-dim transition hover:border-shine hover:text-chalk disabled:opacity-40"
+        title="ค้นหาและติดตั้ง npm package"
+      >
+        <Package size={13} /> Packages
       </button>
       <button
         onClick={onUndo}

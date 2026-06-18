@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { ChevronDown, ChevronUp, Sparkles, Terminal } from "lucide-react";
 import type { GenerationPhase } from "@/lib/types";
+import TerminalPanel from "./TerminalPanel";
 
 const STEPS: { id: GenerationPhase; label: string }[] = [
   { id: "generating", label: "เขียนโค้ด" },
@@ -29,14 +30,30 @@ export default function StatusBar({
   onFixWithAi,
 }: StatusBarProps) {
   const [terminalOpen, setTerminalOpen] = useState(false);
+  const [tab, setTab] = useState<"output" | "shell">("output");
+  const [shellOpened, setShellOpened] = useState(false); // lazy-mount, then keep alive
   const logRef = useRef<HTMLDivElement>(null);
 
-  // Pop the terminal open when entering the error state (render-time
-  // adjustment instead of an effect — avoids a cascading re-render).
+  // Pop the terminal open (on the Output tab) when entering the error state —
+  // render-time adjustment instead of an effect to avoid a cascading re-render.
   const [prevPhase, setPrevPhase] = useState(phase);
   if (phase !== prevPhase) {
     setPrevPhase(phase);
-    if (phase === "error") setTerminalOpen(true);
+    if (phase === "error") {
+      setTerminalOpen(true);
+      setTab("output");
+    }
+  }
+
+  // Agent (chat) failures surface via errorMessage without flipping phase to
+  // "error", so pop the terminal on the message transition too.
+  const [prevError, setPrevError] = useState(errorMessage);
+  if (errorMessage !== prevError) {
+    setPrevError(errorMessage);
+    if (errorMessage) {
+      setTerminalOpen(true);
+      setTab("output");
+    }
   }
 
   useEffect(() => {
@@ -84,7 +101,7 @@ export default function StatusBar({
           })}
         </ol>
 
-        {phase === "error" && errorMessage && (
+        {errorMessage && (
           <div className="flex min-w-0 flex-1 items-center gap-2">
             <span className="truncate text-[12px] text-halt">{errorMessage}</span>
             <button
@@ -115,19 +132,56 @@ export default function StatusBar({
       </div>
 
       {terminalOpen && (
-        <div
-          ref={logRef}
-          className="scroll-thin h-44 overflow-y-auto border-t border-night-edge bg-[#0d0c09] px-3 py-2 font-mono text-[11px] leading-relaxed text-chalk-dim"
-        >
-          {terminal.length === 0 ? (
-            <span className="opacity-50">— ยังไม่มี log —</span>
-          ) : (
-            terminal.map((line, index) => (
-              <div key={index} className="whitespace-pre-wrap break-all">
-                {line}
+        <div className="border-t border-night-edge bg-[#0d0c09]">
+          <div className="flex items-center gap-1 border-b border-night-edge px-2 py-1">
+            <button
+              onClick={() => setTab("output")}
+              className={`rounded-sm px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider transition ${
+                tab === "output" ? "bg-shine/15 text-shine" : "text-chalk-dim hover:text-chalk"
+              }`}
+            >
+              Output
+            </button>
+            <button
+              onClick={() => {
+                setTab("shell");
+                setShellOpened(true);
+              }}
+              className={`rounded-sm px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider transition ${
+                tab === "shell" ? "bg-shine/15 text-shine" : "text-chalk-dim hover:text-chalk"
+              }`}
+            >
+              Shell
+            </button>
+            <span className="ml-auto font-mono text-[10px] text-chalk-dim/60">
+              {tab === "shell" ? "พิมพ์คำสั่งได้ (ls, npm, node)" : "log อ่านอย่างเดียว"}
+            </span>
+          </div>
+          <div className="h-56">
+            {/* Both panes stay mounted; toggle visibility so the jsh shell + its
+                scrollback survive Output↔Shell switches. */}
+            <div
+              ref={logRef}
+              className={`scroll-thin h-full overflow-y-auto px-3 py-2 font-mono text-[11px] leading-relaxed text-chalk-dim ${
+                tab === "output" ? "" : "hidden"
+              }`}
+            >
+              {terminal.length === 0 ? (
+                <span className="opacity-50">— ยังไม่มี log —</span>
+              ) : (
+                terminal.map((line, index) => (
+                  <div key={index} className="whitespace-pre-wrap break-all">
+                    {line}
+                  </div>
+                ))
+              )}
+            </div>
+            {shellOpened && (
+              <div className={`h-full ${tab === "shell" ? "" : "hidden"}`}>
+                <TerminalPanel />
               </div>
-            ))
-          )}
+            )}
+          </div>
         </div>
       )}
     </div>

@@ -344,7 +344,7 @@ export default function Studio({ projectId }: { projectId: string }) {
             files[event.path] = event.content;
             fileCount++;
             pushTerminal(`📝 ${event.path}`);
-            appendLive((p) => ({ ...p, actions: [...p.actions, { icon: "📝", label: event.path }] }));
+            appendLive((p) => ({ ...p, actions: [...p.actions, { icon: "file", label: event.path }] }));
             if (liveContainer) void writeFile(event.path, event.content).catch(() => {});
           } else if (event.type === "delete") {
             delete files[event.path];
@@ -353,7 +353,7 @@ export default function Studio({ projectId }: { projectId: string }) {
             depsAdded = true;
             pkgCount += event.packages.length;
             pushTerminal(`+ ติดตั้ง: ${event.packages.join(", ")}`);
-            appendLive((p) => ({ ...p, actions: [...p.actions, { icon: "➕", label: event.packages.join(", ") }] }));
+            appendLive((p) => ({ ...p, actions: [...p.actions, { icon: "deps", label: event.packages.join(", ") }] }));
           } else if (event.type === "error") {
             throw new Error(event.message);
           } else if (event.type === "done") {
@@ -367,8 +367,8 @@ export default function Studio({ projectId }: { projectId: string }) {
         // appended live before snapshotting so it rides into the saved message.
         if (fileCount > 0) {
           const summary = [
-            { icon: "✅", label: `${isIteration ? "แก้ไข" : "สร้าง"} ${fileCount} ไฟล์` },
-            ...(pkgCount > 0 ? [{ icon: "✅", label: `ติดตั้ง ${pkgCount} package` }] : []),
+            { icon: "done", label: `${isIteration ? "แก้ไข" : "สร้าง"} ${fileCount} ไฟล์` },
+            ...(pkgCount > 0 ? [{ icon: "done", label: `ติดตั้ง ${pkgCount} package` }] : []),
           ];
           appendLive((p) => ({ ...p, actions: [...p.actions, ...summary] }));
         }

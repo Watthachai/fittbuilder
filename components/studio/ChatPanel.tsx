@@ -1,9 +1,33 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Check, Paperclip, Send, Square, X } from "lucide-react";
+import {
+  Check,
+  CheckCircle2,
+  ChevronDown,
+  ChevronRight,
+  FilePenLine,
+  FileText,
+  type LucideIcon,
+  PackagePlus,
+  Paperclip,
+  Send,
+  Sparkles,
+  Square,
+  Wrench,
+  X,
+} from "lucide-react";
 import { isBuildPhase, type PhaseId } from "@/lib/phases";
 import type { AgentAction, ChatMessage, LiveMessage } from "@/lib/types";
+import Markdown from "./Markdown";
+
+/** Semantic action-icon keys → lucide icons (no emoji anywhere in the UI). */
+const ACTION_ICON: Record<string, LucideIcon> = {
+  file: FilePenLine,
+  deps: PackagePlus,
+  done: CheckCircle2,
+  doc: FileText,
+};
 
 const MAX_CHARS = 500;
 
@@ -29,43 +53,55 @@ interface ChatPanelProps {
 }
 
 /**
- * Collapsible "💭 ความคิด" block. `expanded` forces it open (used while the live
- * turn is still thinking, i.e. no answer text yet) — it auto-collapses once the
- * answer starts; the user can always toggle.
+ * Collapsible "ความคิด" block, Markdown-rendered. `expanded` forces it open (used
+ * while the live turn is still thinking, i.e. no answer text yet) — it
+ * auto-collapses once the answer starts; the user can always toggle.
  */
 function Thinking({ text, expanded }: { text: string; expanded: boolean }) {
   const [open, setOpen] = useState(false);
   if (!text) return null;
+  const show = open || expanded;
   return (
-    <div className="mb-1.5 rounded-md border-l-2 border-night-edge bg-night/40 px-2.5 py-1.5">
+    <div className="mb-1.5 rounded-lg border border-night-edge bg-night/40 px-3 py-2">
       <button
         onClick={() => setOpen((o) => !o)}
         className="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-wider text-chalk-dim transition hover:text-chalk"
       >
-        💭 ความคิด {open || expanded ? "▾" : "▸"}
+        <Sparkles size={11} className="text-shine" />
+        ความคิด
+        {show ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
       </button>
-      {(open || expanded) && (
-        <p className="mt-1 whitespace-pre-wrap text-[12px] italic leading-relaxed text-chalk-dim">
-          {text}
-        </p>
+      {show && (
+        <div className="mt-1.5">
+          <Markdown muted>{text}</Markdown>
+        </div>
       )}
     </div>
   );
 }
 
-/** Inline "what the AI did" chips. */
+/** Inline "what the AI did" chips, with library icons (no emoji). */
 function ActionChips({ actions }: { actions: AgentAction[] }) {
   if (actions.length === 0) return null;
   return (
     <div className="mt-1.5 flex flex-wrap gap-1.5">
-      {actions.map((a, i) => (
-        <span
-          key={i}
-          className="inline-flex max-w-[220px] items-center gap-1 rounded-full border border-night-edge bg-night px-2 py-0.5 font-mono text-[10px] text-chalk-dim"
-        >
-          {a.icon} <span className="truncate">{a.label}</span>
-        </span>
-      ))}
+      {actions.map((a, i) => {
+        const Icon = ACTION_ICON[a.icon] ?? Wrench;
+        const done = a.icon === "done";
+        return (
+          <span
+            key={i}
+            className={`inline-flex max-w-[240px] items-center gap-1.5 rounded-full border px-2 py-0.5 font-mono text-[10px] ${
+              done
+                ? "border-go/40 bg-go/10 text-go"
+                : "border-night-edge bg-night text-chalk-dim"
+            }`}
+          >
+            <Icon size={11} className="shrink-0" />
+            <span className="truncate">{a.label}</span>
+          </span>
+        );
+      })}
     </div>
   );
 }
@@ -168,13 +204,13 @@ export default function ChatPanel({
               <Thinking text={message.thinking} expanded={false} />
             )}
             <div
-              className={`whitespace-pre-wrap rounded-md px-3.5 py-2.5 text-[14px] leading-relaxed ${
+              className={`rounded-lg px-3.5 py-2.5 ${
                 message.role === "user"
-                  ? "border border-night-edge bg-night text-chalk"
-                  : "border-l-2 border-shine bg-shine/[0.07] text-chalk"
+                  ? "whitespace-pre-wrap border border-night-edge bg-night text-[14px] leading-relaxed text-chalk"
+                  : "border border-night-edge border-l-2 border-l-shine bg-shine/[0.05] text-chalk"
               }`}
             >
-              {message.content}
+              {message.role === "user" ? message.content : <Markdown>{message.content}</Markdown>}
             </div>
             {message.role === "assistant" && message.actions && (
               <ActionChips actions={message.actions} />
@@ -188,8 +224,14 @@ export default function ChatPanel({
             </p>
             <Thinking text={live.thinking} expanded={!live.content} />
             {(live.content || !live.thinking) && (
-              <div className="whitespace-pre-wrap rounded-md border-l-2 border-shine bg-shine/[0.08] px-3.5 py-2.5 text-[14px] leading-relaxed text-chalk">
-                {live.content || (inBuild ? "กำลังเขียนโค้ด" : "กำลังพิมพ์")}
+              <div className="rounded-lg border border-night-edge border-l-2 border-l-shine bg-shine/[0.05] px-3.5 py-2.5 text-chalk">
+                {live.content ? (
+                  <Markdown>{live.content}</Markdown>
+                ) : (
+                  <span className="text-[14px] text-chalk-dim">
+                    {inBuild ? "กำลังเขียนโค้ด" : "กำลังพิมพ์"}
+                  </span>
+                )}
                 <span className="caret-blink text-shine">▍</span>
               </div>
             )}

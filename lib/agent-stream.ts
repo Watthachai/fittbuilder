@@ -105,7 +105,7 @@ export class AgentStreamFilter {
           this.ask = this.ask ?? parseAsk(this.body);
         } else {
           this.docs[this.block] = this.body.trim();
-          actions.push({ icon: "📄", label: `อัปเดต ${DOC_LABELS[this.block]}` });
+          actions.push({ icon: "doc", label: `อัปเดต ${DOC_LABELS[this.block]}` });
         }
         this.block = null;
         this.body = "";

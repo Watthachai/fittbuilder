@@ -12,6 +12,31 @@ export type GenerationPhase =
   | "ready"
   | "error";
 
+/** Interactive quick-reply the agent can attach to a question (clickable choices). */
+export interface AgentAsk {
+  /** Short echo of the question (the full prompt is in the message text). */
+  question: string;
+  /** 2–5 concrete choices the user can click instead of typing. */
+  options: string[];
+  /** Allow selecting more than one option (joined on submit). */
+  multi?: boolean;
+  /** Show the free-text box alongside the choices (default true). */
+  allowText?: boolean;
+}
+
+/** A compact "what the AI did" chip shown inline in chat. */
+export interface AgentAction {
+  icon: string;
+  label: string;
+}
+
+/** The in-progress assistant turn, held in React state (not persisted) while streaming. */
+export interface LiveMessage {
+  thinking: string;
+  content: string;
+  actions: AgentAction[];
+}
+
 export interface ChatMessage {
   id: string;
   role: "user" | "assistant";
@@ -19,6 +44,12 @@ export interface ChatMessage {
   createdAt: string;
   /** Workflow phase this turn belongs to (scopes the per-agent transcript). */
   phase?: PhaseId;
+  /** Clickable choices offered with this (assistant) message. */
+  ask?: AgentAsk;
+  /** Gemini thought summary for this assistant turn (collapsible in the UI). */
+  thinking?: string;
+  /** Inline action chips for what the AI did this turn. */
+  actions?: AgentAction[];
 }
 
 export interface ProjectRecord {
@@ -58,11 +89,14 @@ export interface GenerationResult {
   deleted?: string[];
 }
 
-/** Server-Sent Events emitted by POST /api/generate. */
+/** Server-Sent Events emitted by POST /api/generate (incremental, file-by-file). */
 export type GenerateEvent =
-  | { type: "delta"; content: string }
+  | { type: "thought"; content: string }
   | { type: "status"; message: string }
-  | { type: "done"; result: GenerationResult }
+  | { type: "file"; path: string; content: string }
+  | { type: "delete"; path: string }
+  | { type: "deps"; packages: string[] }
+  | { type: "done"; note: string; deleted: string[] }
   | { type: "error"; message: string };
 
 export interface SpecAnswers {
@@ -87,11 +121,15 @@ export type DocKind = "idea" | "brd" | "prd" | "verify" | "review" | "ship";
 export interface AgentTurn {
   reply: string;
   docs: Partial<Record<DocKind, string>>;
+  /** Optional clickable choices for the user's next answer. */
+  ask?: AgentAsk;
 }
 
 /** Server-Sent Events emitted by POST /api/agent. */
 export type AgentEvent =
-  | { type: "delta"; content: string }
+  | { type: "thought"; content: string }
+  | { type: "text"; content: string }
+  | { type: "action"; icon: string; label: string }
   | { type: "done"; turn: AgentTurn }
   | { type: "error"; message: string };
 

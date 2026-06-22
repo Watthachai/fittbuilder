@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ArrowRight, ArrowUpRight, FolderOpen } from "lucide-react";
 import LaunchPad from "@/components/landing/LaunchPad";
+import AccountMenu from "@/components/AccountMenu";
 import { PRESETS } from "@/lib/presets";
 
 const HERO_VIDEO =
@@ -72,29 +73,32 @@ export default function Home() {
           {/* Nav */}
           <header className="mx-auto flex w-full max-w-7xl items-center justify-between px-6 py-5">
             <Logo />
-            <nav className="hidden items-center gap-1 rounded-full border border-night-edge bg-black/30 px-2 py-1.5 backdrop-blur-sm lg:flex">
-              {NAV_LINKS.map((link) => (
-                <a
-                  key={link.href}
-                  href={link.href}
-                  className="rounded-full px-4 py-1.5 text-sm text-white/80 transition hover:text-white"
+            <div className="flex items-center gap-3">
+              <nav className="hidden items-center gap-1 rounded-full border border-night-edge bg-black/30 px-2 py-1.5 backdrop-blur-sm lg:flex">
+                {NAV_LINKS.map((link) => (
+                  <a
+                    key={link.href}
+                    href={link.href}
+                    className="rounded-full px-4 py-1.5 text-sm text-white/80 transition hover:text-white"
+                  >
+                    {link.label}
+                  </a>
+                ))}
+                <Link
+                  href="/projects"
+                  className="inline-flex items-center gap-1 rounded-full px-4 py-1.5 text-sm text-white/80 transition hover:text-white"
                 >
-                  {link.label}
-                </a>
-              ))}
+                  ผลงานของฉัน <ArrowUpRight size={14} />
+                </Link>
+              </nav>
               <Link
                 href="/projects"
-                className="inline-flex items-center gap-1 rounded-full px-4 py-1.5 text-sm text-white/80 transition hover:text-white"
+                className="inline-flex items-center gap-1.5 text-sm text-white/80 transition hover:text-white lg:hidden"
               >
-                ผลงานของฉัน <ArrowUpRight size={14} />
+                <FolderOpen size={16} /> ผลงานของฉัน
               </Link>
-            </nav>
-            <Link
-              href="/projects"
-              className="inline-flex items-center gap-1.5 text-sm text-white/80 transition hover:text-white lg:hidden"
-            >
-              <FolderOpen size={16} /> ผลงานของฉัน
-            </Link>
+              <AccountMenu />
+            </div>
           </header>
 
           {/* Two-column intro row */}

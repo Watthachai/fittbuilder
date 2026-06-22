@@ -92,10 +92,9 @@ npx tsc --noEmit # typecheck
 4. รัน migration: `psql $DATABASE_URL -f supabase/migrations/0001_init.sql`
    (สร้างตาราง `fittbuilder_*` พร้อม RLS policies ทั้งหมด)
 
-## Production checklist (ยังไม่ได้ทำ — ตาม PRD Phase 1-2)
+## Production checklist (Auth + DB เสร็จแล้ว — ที่เหลือตาม PRD Phase 1-2)
 
-ระบบเหล่านี้ออกแบบ interface รองรับไว้แล้วแต่ยังไม่ implement เพราะต้องการ
-infrastructure เพิ่ม:
+ระบบที่เหลือยังไม่ implement เพราะต้องการ infrastructure เพิ่ม:
 
 - [x] **Auth** — Supabase Auth (Google OAuth + magic link) + protect `/project/*`
 - [x] **Database** — Supabase Postgres + RLS (ตาราง prefix `fittbuilder_`) แทน localStorage
@@ -106,7 +105,8 @@ infrastructure เพิ่ม:
       ใช้ Upstash Redis เมื่อ deploy หลาย instance
 - [ ] **WebContainers commercial license** — จำเป็นสำหรับ production
       (https://webcontainers.io/enterprise)
-- [ ] Share link หมดอายุ 30 วันสำหรับ free tier (ตอนนี้ลิงก์อยู่ใน URL ถาวร)
+- [ ] Share link หมดอายุ 30 วันสำหรับ free tier (ตอนนี้ join token ไม่หมดอายุ; invite token หมดอายุ 14 วัน)
+- [ ] Real-time co-editing (CRDT) — Spec 2 (ตอนนี้แชร์เป็น async, last-write-wins)
 
 ## Deploy
 

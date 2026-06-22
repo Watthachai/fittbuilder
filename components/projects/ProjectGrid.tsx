@@ -45,17 +45,19 @@ export default function ProjectGrid() {
   }, []);
 
   useEffect(() => {
+    let cancelled = false;
     (async () => {
       const supabase = createClient();
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      if (cancelled || !user) return;
       const { data } = await supabase
         .from("fittbuilder_profiles")
         .select("last_seen_changelog")
         .eq("id", user.id)
         .single();
-      setChangelogUnseen(isChangelogUnseen(data?.last_seen_changelog ?? null));
+      if (!cancelled) setChangelogUnseen(isChangelogUnseen(data?.last_seen_changelog ?? null));
     })();
+    return () => { cancelled = true; };
   }, []);
 
   return (

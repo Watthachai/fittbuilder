@@ -12,5 +12,7 @@ test("maps role and project into DMAIL variables", () => {
   expect(p.variables.roleText).toBe("Editor");
   expect(p.variables.branchName).toBe("-");
   expect(p.variables.invitationLink).toBe("https://app/join/x");
+  expect(p.variables.senderName).toBe("Watt");
+  expect(p.variables.year).toBe(new Date().getFullYear().toString());
   expect(buildInvitePayload({ to: "a@b.com", projectName: "X", role: "viewer", inviteLink: "l", senderName: "s" }).variables.roleText).toBe("Viewer");
 });

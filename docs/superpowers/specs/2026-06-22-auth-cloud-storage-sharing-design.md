@@ -189,11 +189,9 @@ become `async`.
 
 - **Share modal** (per project, owner only to manage):
   - Copy public link with a role toggle (viewer/editor) → sets `share_token` + `share_role`.
-  - Invite by email + role → inserts `fittbuilder_project_invites` keyed by the email,
-    and produces a **copyable invite link** (containing the token) for the owner to send
-    however they want. **No transactional email is sent by the app** (avoids an email
-    provider dependency); delivery is the owner copying the link OR the invitee simply
-    logging in with that email (see below).
+  - Invite by email + role → inserts `fittbuilder_project_invites` keyed by the email and
+    **sends a real invite email via the DMAIL API** (`lib/email.ts`), containing the
+    accept link. Also exposes the same link as copyable for manual sharing.
   - Member list with role + remove; revoke pending invites.
 - **Accepting:**
   - **Link:** a logged-in user opening `/join/<share_token>` is inserted into
@@ -226,6 +224,22 @@ become `async`.
 
 ---
 
+## Email (DMAIL API)
+
+Invite emails are sent through the existing DMAIL transactional service (no new npm
+dependency — uses `fetch`).
+
+- `lib/email.ts` exports `sendProjectInviteEmail({ to, projectName, role, inviteLink, senderName })`.
+- POST `https://dmailservicebackend-sandbox-1095128507689.asia-southeast1.run.app/api/v1/mail/send`
+  with header `X-API-Key: process.env.DMAIL_API_KEY` (server-only).
+- **Template:** reuse the existing FITT BSA invitation template
+  `4b72b137-4124-4b4a-982b-a7b38d723547` with mapped variables — `companyName` ←
+  project name, `roleText` ← `Viewer`/`Editor`, `branchName` ← `"-"`, `invitationLink` ←
+  the accept link, `senderName` ← inviter's name, `year`. A Builder-specific template can
+  replace `INVITATION_TEMPLATE_ID` later without code changes elsewhere.
+- Sending is **best-effort**: a DMAIL failure is logged but does not fail the invite — the
+  invite row + copyable link still work, and login-email matching still grants access.
+
 ## Out of Scope (this spec)
 
 - Real-time co-editing / CRDT / presence / shared cursors (→ Spec 2).
@@ -234,8 +248,6 @@ become `async`.
 - AI-build turn-taking when multiple editors are online (→ Spec 2).
 - Usage metering, quotas, Stripe billing (deferred; `plan` column reserved only).
 - Distributed rate limiting (Upstash/Redis) — keep current per-instance limiter.
-- Transactional email sending (Resend/SMTP) — invites resolve via copy-link + login-email
-  matching; automated invite emails can be a later add-on.
 - WebContainers commercial license procurement.
 
 ## New Dependencies
@@ -250,6 +262,7 @@ become `async`.
 | `NEXT_PUBLIC_SUPABASE_URL` | public | Supabase project URL |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | public | anon key (safe in browser, guarded by RLS) |
 | `SUPABASE_SERVICE_ROLE_KEY` | server-only | admin paths (invite resolution if needed) |
+| `DMAIL_API_KEY` | server-only | DMAIL transactional email (invite emails) |
 
 ## Verification
 
@@ -266,7 +279,8 @@ become `async`.
 **Create:** `lib/supabase/{server,client,middleware}.ts`, `proxy.ts`,
 `app/login/page.tsx`, `app/auth/callback/route.ts`, `app/changelog/page.tsx`,
 `app/join/[token]/route.ts`, `lib/changelog.ts`, `lib/db/types.ts` (generated),
-`components/studio/ShareModal.tsx`, `supabase/migrations/*.sql` (schema + RLS).
+`lib/email.ts` (DMAIL invite email), `components/studio/ShareModal.tsx`,
+`supabase/migrations/*.sql` (schema + RLS).
 
 **Modify:** `lib/storage.ts` (async Supabase), `lib/types.ts` (add member/invite types,
 `access`/`role` on `ProjectSummary`), `components/studio/Studio.tsx` (async saves,

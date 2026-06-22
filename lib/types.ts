@@ -146,6 +146,7 @@ export interface GenerateRequestBody {
   prd?: string;
   presetId?: string;
   presetAnswers?: SpecAnswers;
+  skillId?: string;
 }
 
 /* ——— Phase documents (Define/Plan/Verify/Review/Ship produce markdown) ——— */
@@ -173,4 +174,6 @@ export interface AgentRequestBody {
   messages: Pick<ChatMessage, "role" | "content">[];
   /** Current documents (user may have edited them in the code editor). */
   docs?: Partial<Record<DocKind, string>>;
+  /** Selected domain skill template id, for domain-expert questioning. */
+  skillId?: string;
 }

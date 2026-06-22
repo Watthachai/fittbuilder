@@ -43,6 +43,7 @@ import PackageSearch from "./PackageSearch";
 import PhaseStepper from "./PhaseStepper";
 import PreviewPanel from "./PreviewPanel";
 import ShareModal from "./ShareModal";
+import SkillPicker from "./SkillPicker";
 import SpecFlow, { type SpecResult } from "./SpecFlow";
 import StatusBar from "./StatusBar";
 import TopBar from "./TopBar";
@@ -122,12 +123,50 @@ export default function Studio({ projectId }: { projectId: string }) {
   const [isOwner, setIsOwner] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved">("idle");
+  const [skillPickerOpen, setSkillPickerOpen] = useState(false);
+  const [detectedSkillId, setDetectedSkillId] = useState<string | null>(null);
+  const [detectingSkill, setDetectingSkill] = useState(false);
 
   const abortRef = useRef<AbortController | null>(null);
   const lastActionRef = useRef<LastAction | null>(null);
   const projectRef = useRef<ProjectRecord | null>(null);
   const liveRef = useRef<LiveMessage | null>(null);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const skillCheckedRef = useRef<string | null>(null);
+
+  // Show the domain SkillPicker once per project at the start of Define when no
+  // skill is chosen yet, and auto-detect from the prompt / first message.
+  useEffect(() => {
+    if (!project || readOnly) return;
+    if (project.skillId || project.phase !== "define") return;
+    if (skillCheckedRef.current === project.id) return;
+    skillCheckedRef.current = project.id;
+    const text = (
+      project.pendingPrompt ?? project.messages.find((m) => m.role === "user")?.content ?? ""
+    ).trim();
+    let cancelled = false;
+    (async () => {
+      if (!cancelled) setSkillPickerOpen(true);
+      if (!text) return;
+      if (!cancelled) setDetectingSkill(true);
+      try {
+        const res = await fetch("/api/detect-skill", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ text }),
+        });
+        const data = (await res.json().catch(() => null)) as { skillId?: string | null } | null;
+        if (!cancelled) setDetectedSkillId(data?.skillId ?? null);
+      } catch {
+        if (!cancelled) setDetectedSkillId(null);
+      } finally {
+        if (!cancelled) setDetectingSkill(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [project, readOnly]);
 
   const setLiveBoth = useCallback((value: LiveMessage | null) => {
     liveRef.current = value;
@@ -261,6 +300,7 @@ export default function Studio({ projectId }: { projectId: string }) {
               .filter((m) => m.phase === working.phase)
               .map(({ role, content }) => ({ role, content })),
             docs: docsFromFiles(working.files),
+            skillId: working.skillId,
           },
           controller.signal
         )) {
@@ -366,6 +406,7 @@ export default function Studio({ projectId }: { projectId: string }) {
             prompt,
             iterationMode: isIteration,
             previousFiles: isIteration ? current.files : undefined,
+            skillId: current.skillId,
             ...spec,
           },
           controller.signal
@@ -924,6 +965,20 @@ export default function Studio({ projectId }: { projectId: string }) {
 
       <div className="flex min-h-0 flex-1">
         <div style={{ width: leftWidth }} className="flex shrink-0 flex-col border-r border-night-edge">
+          {skillPickerOpen && !readOnly && (
+            <div className="border-b border-night-edge p-3">
+              <SkillPicker
+                detectedId={detectedSkillId}
+                busy={detectingSkill}
+                onSelect={(skillId) => {
+                  const cur = projectRef.current;
+                  if (cur) persist({ ...cur, skillId });
+                  setSkillPickerOpen(false);
+                }}
+                onSkip={() => setSkillPickerOpen(false)}
+              />
+            </div>
+          )}
           <ChatPanel
             messages={project.messages}
             busy={phaseBusy}

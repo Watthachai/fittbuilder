@@ -31,21 +31,23 @@ export async function getShareToken(
   projectId: string
 ): Promise<{ token: string; role: ShareRole } | null> {
   const supabase = createClient();
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("fittbuilder_projects")
     .select("share_token, share_role")
     .eq("id", projectId)
     .maybeSingle();
+  if (error) throw error;
   if (!data?.share_token || !data.share_role) return null;
   return { token: data.share_token, role: data.share_role as ShareRole };
 }
 
 export async function listMembers(projectId: string): Promise<ProjectMember[]> {
   const supabase = createClient();
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("fittbuilder_project_members")
     .select("project_id, user_id, role, created_at, fittbuilder_profiles(email, name)")
     .eq("project_id", projectId);
+  if (error) throw error;
   // The hand-authored Database type has empty Relationships, so the nested
   // join result cannot be inferred. Cast via unknown to an explicit shape.
   type MemberRow = {
@@ -77,11 +79,12 @@ export async function removeMember(projectId: string, userId: string): Promise<v
 
 export async function listInvites(projectId: string): Promise<ProjectInvite[]> {
   const supabase = createClient();
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("fittbuilder_project_invites")
     .select("*")
     .eq("project_id", projectId)
     .eq("status", "pending");
+  if (error) throw error;
   return (data ?? []).map((i) => ({
     id: i.id,
     projectId: i.project_id,
@@ -97,9 +100,7 @@ export async function listInvites(projectId: string): Promise<ProjectInvite[]> {
 export async function createInvite(
   projectId: string,
   email: string,
-  role: ShareRole,
-  senderName: string,
-  projectName: string
+  role: ShareRole
 ): Promise<ProjectInvite> {
   const supabase = createClient();
   const tok = token();
@@ -109,12 +110,11 @@ export async function createInvite(
     .select("*")
     .single();
   if (error) throw error;
-  const inviteLink = `${location.origin}/join/${tok}`;
-  // best-effort email via server route (Task 11); a 404 during the gap is harmless
+  // best-effort email via server route; all email fields derived server-side from invite row
   void fetch("/api/invite-email", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ to: email, projectName, role, inviteLink, senderName }),
+    body: JSON.stringify({ inviteId: data.id }),
   }).catch((e) => console.error("[sharing] invite email failed:", e));
   return {
     id: data.id,

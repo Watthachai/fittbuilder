@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { Copy, Link, Mail, Trash2, Users, X } from "lucide-react";
-import { createClient } from "@/lib/supabase/client";
 import {
   createInvite,
   disableShareLink,
@@ -21,7 +20,7 @@ interface ShareModalProps {
   onClose: () => void;
 }
 
-export default function ShareModal({ projectId, projectName, onClose }: ShareModalProps) {
+export default function ShareModal({ projectId, onClose }: ShareModalProps) {
   // Public link state
   const [linkToken, setLinkToken] = useState<string | null>(null);
   const [linkRole, setLinkRole] = useState<ShareRole>("viewer");
@@ -108,12 +107,7 @@ export default function ShareModal({ projectId, projectName, onClose }: ShareMod
     setInviteBusy(true);
     setError(null);
     try {
-      const supabase = createClient();
-      const { data: { user } } = await supabase.auth.getUser();
-      const senderName = user?.user_metadata?.full_name as string | undefined
-        ?? user?.email
-        ?? "ทีม FITT Builder";
-      await createInvite(projectId, inviteEmail.trim(), inviteRole, senderName, projectName);
+      await createInvite(projectId, inviteEmail.trim(), inviteRole);
       setInviteEmail("");
       // Refresh invite list
       const inviteList = await listInvites(projectId);

@@ -22,7 +22,8 @@ async function uid(): Promise<string> {
 export async function getProject(id: string): Promise<ProjectRecord | null> {
   const supabase = createClient();
   const { data, error } = await supabase.from("fittbuilder_projects").select(SELECT).eq("id", id).maybeSingle();
-  if (error || !data) return null;
+  if (error) { console.error("[storage] getProject:", error); return null; }
+  if (!data) return null;
   return rowToProject(data as unknown as ProjectRow);
 }
 
@@ -81,10 +82,11 @@ export async function listProjects(): Promise<ProjectSummary[]> {
   const supabase = createClient();
   const me = await uid();
   // RLS returns owned + shared rows; classify by owner_id, attach role from memberships.
-  const { data: rows } = await supabase
+  const { data: rows, error } = await supabase
     .from("fittbuilder_projects")
     .select("id, owner_id, name, files, created_at, updated_at")
     .order("updated_at", { ascending: false });
+  if (error) throw error;
   const { data: memberships } = await supabase
     .from("fittbuilder_project_members")
     .select("project_id, role")
@@ -107,10 +109,12 @@ export async function listProjects(): Promise<ProjectSummary[]> {
 export async function getAccess(id: string): Promise<{ access: "owner" | "member"; role?: ShareRole } | null> {
   const me = await uid();
   const supabase = createClient();
-  const { data: p } = await supabase.from("fittbuilder_projects").select("owner_id").eq("id", id).maybeSingle();
+  const { data: p, error: pErr } = await supabase.from("fittbuilder_projects").select("owner_id").eq("id", id).maybeSingle();
+  if (pErr) { console.error("[storage] getAccess project:", pErr); return null; }
   if (!p) return null;
   if (p.owner_id === me) return { access: "owner" };
-  const { data: m } = await supabase.from("fittbuilder_project_members").select("role").eq("project_id", id).eq("user_id", me).maybeSingle();
+  const { data: m, error: mErr } = await supabase.from("fittbuilder_project_members").select("role").eq("project_id", id).eq("user_id", me).maybeSingle();
+  if (mErr) { console.error("[storage] getAccess member:", mErr); return null; }
   return { access: "member", role: m?.role as ShareRole | undefined };
 }
 

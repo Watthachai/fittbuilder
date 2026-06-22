@@ -69,7 +69,7 @@ prompt / BRD+PRD ─→ POST /api/generate (Gemini, SSE streaming)
 | `GEMINI_MODEL` | — | `gemini-2.5-flash` | |
 | `NEXT_PUBLIC_SUPABASE_URL` | ✅ | — | inlined at build time — ต้องตั้งก่อน `next build` |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | ✅ | — | inlined at build time — ต้องตั้งก่อน `next build` |
-| `SUPABASE_SERVICE_ROLE_KEY` | ✅ | — | server-only (invite email + admin RPC) |
+| `SUPABASE_SERVICE_ROLE_KEY` | — | — | reserved for future admin use (not currently required) |
 | `DMAIL_API_KEY` | ✅ | — | server-only (transactional email สำหรับ team invites) |
 
 > **Build note:** `NEXT_PUBLIC_SUPABASE_*` ถูก inline เข้า bundle ตอน `next build` —

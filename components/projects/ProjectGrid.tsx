@@ -23,22 +23,37 @@ export default function ProjectGrid() {
   const router = useRouter();
   const [projects, setProjects] = useState<ProjectSummary[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [changelogUnseen, setChangelogUnseen] = useState(false);
 
   const refresh = useCallback(async () => {
     setLoading(true);
-    setProjects(await listProjects());
-    setLoading(false);
+    setLoadError(null);
+    try {
+      setProjects(await listProjects());
+    } catch (e) {
+      console.error("[ProjectGrid] listProjects failed:", e);
+      setLoadError("โหลดโปรเจกต์ไม่สำเร็จ");
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
       setLoading(true);
-      const list = await listProjects();
-      if (!cancelled) {
-        setProjects(list);
-        setLoading(false);
+      setLoadError(null);
+      try {
+        const list = await listProjects();
+        if (!cancelled) setProjects(list);
+      } catch (e) {
+        if (!cancelled) {
+          console.error("[ProjectGrid] listProjects failed:", e);
+          setLoadError("โหลดโปรเจกต์ไม่สำเร็จ");
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
       }
     })();
     return () => { cancelled = true; };
@@ -100,7 +115,9 @@ export default function ProjectGrid() {
           เก็บไว้ในเครื่องของคุณ — เปิด แก้ต่อ duplicate หรือลบได้
         </p>
 
-        {loading ? (
+        {loadError ? (
+          <div className="mt-12 text-center font-mono text-sm text-white/40">{loadError}</div>
+        ) : loading ? (
           <div className="mt-12 text-center font-mono text-sm text-white/40">กำลังโหลด…</div>
         ) : projects.length === 0 ? (
           <div className="mt-12 rounded-2xl border border-dashed border-white/20 bg-white/[0.03] p-14 text-center">

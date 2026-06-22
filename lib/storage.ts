@@ -1,120 +1,120 @@
 "use client";
 
-import { isPhaseId, type PhaseId } from "./phases";
-import type { ChatMessage, ProjectFiles, ProjectRecord, ProjectSummary } from "./types";
+import { createClient } from "@/lib/supabase/client";
+import { projectToRow, rowToProject, type ProjectRow } from "@/lib/db/project-mapper";
+import type { PhaseId } from "./phases";
+import type { ChatMessage, ProjectFiles, ProjectRecord, ProjectSummary, ShareRole } from "./types";
 
-/**
- * localStorage-backed project store. This is the MVP persistence layer —
- * swap for Prisma/PostgreSQL behind the same interface when auth lands.
- */
-
-const INDEX_KEY = "pb:projects";
-const PROJECT_PREFIX = "pb:project:";
 const HISTORY_LIMIT = 10; // US-004
 
-function readIndex(): string[] {
-  try {
-    const raw = localStorage.getItem(INDEX_KEY);
-    return raw ? (JSON.parse(raw) as string[]) : [];
-  } catch {
-    return [];
-  }
+const SELECT = "id, owner_id, name, files, phase, approved_phases, history, messages, share_token, share_role, created_at, updated_at";
+
+async function uid(): Promise<string> {
+  const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error("not authenticated");
+  return user.id;
 }
 
-function writeIndex(ids: string[]): void {
-  localStorage.setItem(INDEX_KEY, JSON.stringify(ids));
+export async function getProject(id: string): Promise<ProjectRecord | null> {
+  const supabase = createClient();
+  const { data, error } = await supabase.from("fittbuilder_projects").select(SELECT).eq("id", id).maybeSingle();
+  if (error || !data) return null;
+  return rowToProject(data as unknown as ProjectRow);
 }
 
-/** Fill in fields added after a project was first saved (forward-compat). */
-function normalize(raw: ProjectRecord & { mode?: string }): ProjectRecord {
-  const phase: PhaseId = isPhaseId(raw.phase)
-    ? raw.phase
-    : raw.mode === "define"
-      ? "define"
-      : raw.files?.["package.json"]
-        ? "build"
-        : "define";
-  return { ...raw, phase, approvedPhases: raw.approvedPhases ?? [] };
+export async function saveProject(project: ProjectRecord): Promise<ProjectRecord> {
+  const supabase = createClient();
+  const ownerId = await uid();
+  const row = { id: project.id, ...projectToRow(project, ownerId) };
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data, error } = await supabase.from("fittbuilder_projects").upsert(row as any).select(SELECT).single();
+  if (error) throw error;
+  return rowToProject(data as unknown as ProjectRow);
 }
 
-export function getProject(id: string): ProjectRecord | null {
-  try {
-    const raw = localStorage.getItem(PROJECT_PREFIX + id);
-    return raw ? normalize(JSON.parse(raw) as ProjectRecord) : null;
-  } catch {
-    return null;
-  }
-}
-
-export function saveProject(project: ProjectRecord): ProjectRecord {
-  const updated = { ...project, updatedAt: new Date().toISOString() };
-  localStorage.setItem(PROJECT_PREFIX + project.id, JSON.stringify(updated));
-  const ids = readIndex();
-  if (!ids.includes(project.id)) {
-    writeIndex([project.id, ...ids]);
-  }
-  return updated;
-}
-
-export function createProject(options?: {
+export async function createProject(options?: {
   name?: string;
   pendingPrompt?: string;
   pendingSpec?: boolean;
   phase?: PhaseId;
-}): ProjectRecord {
-  const now = new Date().toISOString();
-  const project: ProjectRecord = {
-    id: crypto.randomUUID().slice(0, 8),
-    name: options?.name?.trim() || "Untitled",
-    files: null,
-    phase: options?.phase ?? "define",
-    approvedPhases: [],
-    history: [],
-    messages: [],
-    pendingPrompt: options?.pendingPrompt,
-    pendingSpec: options?.pendingSpec,
-    createdAt: now,
-    updatedAt: now,
-  };
-  return saveProject(project);
+}): Promise<ProjectRecord> {
+  const supabase = createClient();
+  const ownerId = await uid();
+  const { data, error } = await supabase
+    .from("fittbuilder_projects")
+    .insert({ owner_id: ownerId, name: options?.name?.trim() || "Untitled", phase: options?.phase ?? "define" })
+    .select(SELECT)
+    .single();
+  if (error) throw error;
+  const rec = rowToProject(data as unknown as ProjectRow);
+  return { ...rec, pendingPrompt: options?.pendingPrompt, pendingSpec: options?.pendingSpec };
 }
 
-export function deleteProject(id: string): void {
-  localStorage.removeItem(PROJECT_PREFIX + id);
-  writeIndex(readIndex().filter((existing) => existing !== id));
+export async function deleteProject(id: string): Promise<void> {
+  const supabase = createClient();
+  const { error } = await supabase.from("fittbuilder_projects").delete().eq("id", id);
+  if (error) throw error;
 }
 
-export function duplicateProject(id: string): ProjectRecord | null {
-  const source = getProject(id);
+export async function duplicateProject(id: string): Promise<ProjectRecord | null> {
+  const source = await getProject(id);
   if (!source) return null;
-  const now = new Date().toISOString();
-  const copy: ProjectRecord = {
-    ...source,
-    id: crypto.randomUUID().slice(0, 8),
-    name: `${source.name} (copy)`,
-    pendingPrompt: undefined,
-    pendingSpec: undefined,
-    createdAt: now,
-    updatedAt: now,
-  };
-  return saveProject(copy);
+  return saveProjectAsNew({ ...source, name: `${source.name} (copy)` });
 }
 
-export function listProjects(): ProjectSummary[] {
-  return readIndex()
-    .map((id) => getProject(id))
-    .filter((p): p is ProjectRecord => p !== null)
-    .map((p) => ({
-      id: p.id,
-      name: p.name,
-      fileCount: p.files ? Object.keys(p.files).length : 0,
-      createdAt: p.createdAt,
-      updatedAt: p.updatedAt,
-    }))
-    .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+async function saveProjectAsNew(rec: ProjectRecord): Promise<ProjectRecord> {
+  const supabase = createClient();
+  const ownerId = await uid();
+  const { data, error } = await supabase
+    .from("fittbuilder_projects")
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    .insert(projectToRow(rec, ownerId) as any)
+    .select(SELECT)
+    .single();
+  if (error) throw error;
+  return rowToProject(data as unknown as ProjectRow);
 }
 
-/** Snapshot current files into history before replacing them. */
+export async function listProjects(): Promise<ProjectSummary[]> {
+  const supabase = createClient();
+  const me = await uid();
+  // RLS returns owned + shared rows; classify by owner_id, attach role from memberships.
+  const { data: rows } = await supabase
+    .from("fittbuilder_projects")
+    .select("id, owner_id, name, files, created_at, updated_at")
+    .order("updated_at", { ascending: false });
+  const { data: memberships } = await supabase
+    .from("fittbuilder_project_members")
+    .select("project_id, role")
+    .eq("user_id", me);
+  const roleByProject = new Map<string, ShareRole>((memberships ?? []).map((m) => [m.project_id, m.role as ShareRole]));
+  return (rows ?? []).map((r) => {
+    const owner = r.owner_id === me;
+    return {
+      id: r.id,
+      name: r.name,
+      fileCount: r.files ? Object.keys(r.files as ProjectFiles).length : 0,
+      createdAt: r.created_at,
+      updatedAt: r.updated_at,
+      access: owner ? "owner" : "member",
+      role: owner ? undefined : roleByProject.get(r.id),
+    } satisfies ProjectSummary;
+  });
+}
+
+export async function getAccess(id: string): Promise<{ access: "owner" | "member"; role?: ShareRole } | null> {
+  const me = await uid();
+  const supabase = createClient();
+  const { data: p } = await supabase.from("fittbuilder_projects").select("owner_id").eq("id", id).maybeSingle();
+  if (!p) return null;
+  if (p.owner_id === me) return { access: "owner" };
+  const { data: m } = await supabase.from("fittbuilder_project_members").select("role").eq("project_id", id).eq("user_id", me).maybeSingle();
+  return { access: "member", role: m?.role as ShareRole | undefined };
+}
+
+/* ---------- pure helpers (unchanged behaviour) ---------- */
+
 export function withHistory(project: ProjectRecord, nextFiles: ProjectFiles): ProjectRecord {
   const history = project.files
     ? [...project.history, project.files].slice(-HISTORY_LIMIT)
@@ -122,7 +122,6 @@ export function withHistory(project: ProjectRecord, nextFiles: ProjectFiles): Pr
   return { ...project, history, files: nextFiles };
 }
 
-/** Undo the latest change. Returns null when there is nothing to undo. */
 export function undo(project: ProjectRecord): ProjectRecord | null {
   if (project.history.length === 0) return null;
   const history = [...project.history];
@@ -134,11 +133,7 @@ export function appendMessage(project: ProjectRecord, message: ChatMessage): Pro
   return { ...project, messages: [...project.messages, message] };
 }
 
-export function newMessage(
-  role: ChatMessage["role"],
-  content: string,
-  phase?: PhaseId
-): ChatMessage {
+export function newMessage(role: ChatMessage["role"], content: string, phase?: PhaseId): ChatMessage {
   return {
     id: crypto.randomUUID(),
     role,

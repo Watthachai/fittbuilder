@@ -21,10 +21,10 @@ export default function LaunchPad() {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   // Quick path: skip straight to the Build phase with the typed prompt (express).
-  const launch = () => {
+  const launch = async () => {
     if (!prompt.trim() || launching) return;
     setLaunching(true);
-    const project = createProject({
+    const project = await createProject({
       name: prompt.trim().slice(0, 40),
       pendingPrompt: prompt.trim(),
       phase: "build",
@@ -32,18 +32,18 @@ export default function LaunchPad() {
     router.push(`/project/${project.id}`);
   };
 
-  const launchSpec = () => {
+  const launchSpec = async () => {
     if (launching) return;
     setLaunching(true);
-    const project = createProject({ name: "Spec-to-Demo", pendingSpec: true });
+    const project = await createProject({ name: "Spec-to-Demo", pendingSpec: true });
     router.push(`/project/${project.id}`);
   };
 
   // Full flow: start at the Define phase — the AI interviewer opens the session.
-  const launchInterview = () => {
+  const launchInterview = async () => {
     if (launching) return;
     setLaunching(true);
-    const project = createProject({ name: "Define Session", phase: "define" });
+    const project = await createProject({ name: "Define Session", phase: "define" });
     router.push(`/project/${project.id}`);
   };
 

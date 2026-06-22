@@ -3,6 +3,42 @@
 import { truncateDoc } from "./context-builder";
 import { DEMO_PACKAGE_JSON } from "./scaffold";
 import type { DocKind } from "./types";
+import type { SkillTemplate } from "./skills/types";
+
+/** Format a skill's question bank as a prioritized interview checklist. */
+function renderQuestionBank(skill: SkillTemplate): string {
+  return skill.questionBank
+    .map((q, i) => {
+      const opts = q.options?.length ? ` [${q.options.join(" / ")}]` : "";
+      const why = q.why ? ` — (เหตุผล: ${q.why})` : "";
+      return `${i + 1}. ${q.label}${opts}${why}`;
+    })
+    .join("\n");
+}
+
+/** Domain-expert framing + question bank + knowledge, injected into the Define/Plan interview. */
+function renderSkillForInterview(skill: SkillTemplate): string {
+  return `บทบาทผู้เชี่ยวชาญโดเมน (${skill.nameEn}) — สวมบทนี้ทับบุคลิกเดิม:
+${skill.persona}
+
+ชุดคำถามเชิงลึกของโดเมนนี้ (ใช้เป็น checklist หลัก ถามให้ครบ ปรับลำดับ/รวมได้ ข้ามข้อที่ผู้ใช้ตอบแล้ว — ห้ามถามคำถาม generic ที่ตื้นกว่านี้):
+${renderQuestionBank(skill)}
+
+ความรู้โดเมนสำหรับอ้างอิง (ใช้ศัพท์และ best practice เหล่านี้):
+${skill.domainKnowledge}`;
+}
+
+/** Domain knowledge + screen guidance + seed data, injected into Build. */
+function renderSkillForBuild(skill: SkillTemplate): string {
+  return `DOMAIN EXPERTISE — ${skill.nameEn} (สร้าง demo ให้สมจริงตามโดเมนนี้):
+
+${skill.domainKnowledge}
+
+${skill.buildGuidance}
+
+ข้อมูลตัวอย่างที่ต้องฝังลงใน demo (ใช้ค่าพวกนี้จริง อย่าใส่ข้อมูลว่างเปล่า/Lorem ipsum):
+${skill.seedData}`;
+}
 
 /**
  * Generated demos run as a Vite + React 18 app inside the WebContainer (see
@@ -59,12 +95,17 @@ const DEFAULT_BUILD_PERSONA =
   "You are FITT Builder, a web application generator for non-technical users (designers, product managers, marketers). You turn a natural-language brief into a complete, runnable web demo.";
 
 /** Build-phase system prompt. `persona` is the code-builder SKILL.md body. */
-export function buildGenerationSystemPrompt(specContext?: string, persona?: string): string {
+export function buildGenerationSystemPrompt(
+  specContext?: string,
+  persona?: string,
+  skill?: SkillTemplate
+): string {
+  const skillBlock = skill ? `${renderSkillForBuild(skill)}\n\n` : "";
   return `${persona ?? DEFAULT_BUILD_PERSONA}
 
 ${PROJECT_RULES}
 
-${specContext ? `${specContext}\n\n` : ""}${OUTPUT_CONTRACT}`;
+${skillBlock}${specContext ? `${specContext}\n\n` : ""}${OUTPUT_CONTRACT}`;
 }
 
 export function buildIterationSystemPrompt(persona?: string): string {
@@ -107,7 +148,8 @@ const DOC_LABELS: Record<DocKind, string> = {
  */
 export function buildAgentSystemPrompt(
   agentBody: string,
-  docs: Partial<Record<DocKind, string>>
+  docs: Partial<Record<DocKind, string>>,
+  skill?: SkillTemplate
 ): string {
   const docState = (Object.keys(DOC_LABELS) as DocKind[])
     .filter((kind) => docs[kind])
@@ -128,9 +170,11 @@ INTERACTIVE ASK CONTRACT — สำคัญมาก:
 - ใช้ multi=true เมื่อเลือกได้หลายข้อ (เช่น เลือกฟีเจอร์), allowText=false เมื่อไม่ต้องการให้พิมพ์เอง
 - ถามทีละคำถาม → ใส่บล็อก \`\`\`ask ได้สูงสุด 1 บล็อกต่อข้อความ และอย่าใส่ ask เมื่อกำลังส่งเอกสารให้ตรวจ (ให้ผู้ใช้กดปุ่ม "อนุมัติ & ไปต่อ" แทน)`;
 
+  const skillBlock = skill ? `${renderSkillForInterview(skill)}\n\n` : "";
+
   return `${agentBody}
 
-${docState ? `สถานะเอกสารปัจจุบัน (ผู้ใช้อาจแก้ไขเองใน editor — ยึดฉบับนี้เป็นหลัก):\n\n${docState}\n\n` : ""}${contract}`;
+${skillBlock}${docState ? `สถานะเอกสารปัจจุบัน (ผู้ใช้อาจแก้ไขเองใน editor — ยึดฉบับนี้เป็นหลัก):\n\n${docState}\n\n` : ""}${contract}`;
 }
 
 /* ——— Spec-to-Demo helpers (preset detection / answer extraction) ——— */

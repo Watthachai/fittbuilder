@@ -4,6 +4,7 @@ import { AgentStreamFilter } from "@/lib/agent-stream";
 import { MissingApiKeyError, streamParts } from "@/lib/gemini";
 import { isBuildPhase, isPhaseId } from "@/lib/phases";
 import { buildAgentSystemPrompt } from "@/lib/prompts";
+import { getSkill } from "@/lib/skills/registry";
 import { clientIp, rateLimit } from "@/lib/rate-limit";
 import type { AgentEvent } from "@/lib/types";
 
@@ -27,6 +28,7 @@ const bodySchema = z.object({
   // on the first turn). z.record with an enum key is exhaustive in Zod v4 and
   // would reject any partial set — including {} — which 400s every agent call.
   docs: z.partialRecord(z.enum(DOC_KINDS), z.string().max(50_000)).optional(),
+  skillId: z.string().max(40).optional(),
 });
 
 function sse(event: AgentEvent): Uint8Array {
@@ -58,7 +60,7 @@ export async function POST(request: Request) {
   }
 
   const agent = await getAgentForPhase(body.phase);
-  const system = buildAgentSystemPrompt(agent.body, body.docs ?? {});
+  const system = buildAgentSystemPrompt(agent.body, body.docs ?? {}, getSkill(body.skillId));
   const transcript = body.messages
     .map((m) => `${m.role === "user" ? "ผู้ใช้" : "FITT"}: ${m.content}`)
     .join("\n\n");

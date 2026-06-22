@@ -12,6 +12,7 @@ import {
 } from "@/lib/prompts";
 import { clientIp, rateLimit } from "@/lib/rate-limit";
 import { PRESET_IDS } from "@/lib/presets";
+import { getSkill } from "@/lib/skills/registry";
 import type { GenerateEvent } from "@/lib/types";
 
 // Generation streams file-by-file, so a longer single pass is fine — partial
@@ -43,6 +44,7 @@ const bodySchema = z.object({
   presetAnswers: z
     .record(z.string(), z.union([z.string().max(2_000), z.array(z.string().max(500)).max(20)]))
     .optional(),
+  skillId: z.string().max(40).optional(),
 });
 
 function sse(event: GenerateEvent): Uint8Array {
@@ -78,7 +80,8 @@ export async function POST(request: Request) {
           presetId: body.presetId,
           answers: body.presetAnswers,
         }),
-        persona
+        persona,
+        getSkill(body.skillId)
       );
   const user = iteration
     ? buildIterationUserPrompt(body.prompt, body.previousFiles!)

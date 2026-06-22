@@ -6,7 +6,7 @@ import { clientIp, rateLimit } from "@/lib/rate-limit";
 export const maxDuration = 30;
 
 const bodySchema = z.object({
-  prompt: z.string().trim().min(1).max(500),
+  prompt: z.string().trim().min(1).max(10_000),
   brd: z.string().max(50_000).optional(),
   prd: z.string().max(50_000).optional(),
 });

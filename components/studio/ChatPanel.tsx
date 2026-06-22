@@ -33,7 +33,7 @@ const GROUP_META: Record<string, { icon: LucideIcon; header: (n: number) => stri
   doc: { icon: FileText, header: (n) => `อัปเดตเอกสาร ${n} รายการ` },
 };
 
-const MAX_CHARS = 500;
+const MAX_CHARS = 10_000;
 
 interface ChatPanelProps {
   messages: ChatMessage[];

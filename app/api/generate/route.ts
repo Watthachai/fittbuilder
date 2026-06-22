@@ -31,7 +31,7 @@ function isValidPackageName(name: string): boolean {
 }
 
 const bodySchema = z.object({
-  prompt: z.string().trim().min(1).max(500),
+  prompt: z.string().trim().min(1).max(10_000),
   previousFiles: z.record(z.string().max(200), z.string().max(200_000)).optional(),
   iterationMode: z.boolean().optional(),
   brd: z.string().max(50_000).optional(),

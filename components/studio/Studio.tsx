@@ -42,6 +42,7 @@ import DesignPicker from "./DesignPicker";
 import PackageSearch from "./PackageSearch";
 import PhaseStepper from "./PhaseStepper";
 import PreviewPanel from "./PreviewPanel";
+import ShareModal from "./ShareModal";
 import SpecFlow, { type SpecResult } from "./SpecFlow";
 import StatusBar from "./StatusBar";
 import TopBar from "./TopBar";
@@ -118,6 +119,8 @@ export default function Studio({ projectId }: { projectId: string }) {
   }, []);
 
   const [readOnly, setReadOnly] = useState(false);
+  const [isOwner, setIsOwner] = useState(false);
+  const [shareOpen, setShareOpen] = useState(false);
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved">("idle");
 
   const abortRef = useRef<AbortController | null>(null);
@@ -733,6 +736,7 @@ export default function Studio({ projectId }: { projectId: string }) {
       // Determine role-based access (owner vs. member/viewer).
       const access = await getAccess(projectId);
       if (cancelled) return;
+      setIsOwner(access?.access === "owner");
       setReadOnly(access?.role === "viewer");
 
       setPreviewSupported(isPreviewSupported());
@@ -907,6 +911,7 @@ export default function Studio({ projectId }: { projectId: string }) {
             setPackagesOpen(true);
           }
         }}
+        onTeamShare={isOwner ? () => setShareOpen(true) : undefined}
       />
 
       <PhaseStepper
@@ -1017,6 +1022,14 @@ export default function Studio({ projectId }: { projectId: string }) {
           onAdd={addPackage}
           onRemove={removePackage}
           onClose={() => setPackagesOpen(false)}
+        />
+      )}
+
+      {shareOpen && (
+        <ShareModal
+          projectId={project.id}
+          projectName={project.name}
+          onClose={() => setShareOpen(false)}
         />
       )}
 

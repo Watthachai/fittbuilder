@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { Check, Code2, Download, Eye, FileText, Package, Share2, Undo2 } from "lucide-react";
+import { Check, Code2, Download, Eye, FileText, Package, Share2, Undo2, Users } from "lucide-react";
 import { encodeShareUrl } from "@/lib/share";
 import type { ProjectRecord } from "@/lib/types";
 import { downloadZip } from "@/lib/zip";
@@ -19,6 +19,8 @@ interface TopBarProps {
   onUndo: () => void;
   onOpenSpec: () => void;
   onOpenPackages: () => void;
+  /** Owner-only: open the team sharing modal. Omit to hide the button. */
+  onTeamShare?: () => void;
 }
 
 export default function TopBar({
@@ -32,6 +34,7 @@ export default function TopBar({
   onUndo,
   onOpenSpec,
   onOpenPackages,
+  onTeamShare,
 }: TopBarProps) {
   const [shared, setShared] = useState(false);
 
@@ -119,6 +122,15 @@ export default function TopBar({
         {shared ? <Check size={13} className="text-go" /> : <Share2 size={13} />}
         {shared ? "คัดลอกแล้ว" : "แชร์"}
       </button>
+      {onTeamShare && (
+        <button
+          onClick={onTeamShare}
+          className="inline-flex items-center gap-1.5 rounded-sm border border-night-edge px-2.5 py-1.5 text-xs text-chalk-dim transition hover:border-shine hover:text-chalk"
+          title="เชิญสมาชิกเข้าทีม"
+        >
+          <Users size={13} /> เชิญทีม
+        </button>
+      )}
       <button
         onClick={() => project.files && void downloadZip(project.files, project.name)}
         disabled={!shippable}

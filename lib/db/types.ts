@@ -138,7 +138,7 @@ export interface Database {
     Views: Record<string, never>;
     Functions: {
       fittbuilder_accept_invites: { Args: { uid: string; mail: string }; Returns: undefined };
-      fittbuilder_join_by_token: { Args: { tok: string; uid: string }; Returns: string };
+      fittbuilder_join_by_token: { Args: { tok: string; uid: string }; Returns: string | null };
     };
     Enums: Record<string, never>;
     CompositeTypes: Record<string, never>;

@@ -133,3 +133,14 @@ create policy invites_update on fittbuilder_project_invites
   for update using (fittbuilder_is_project_owner(project_id, auth.uid()));
 create policy invites_delete on fittbuilder_project_invites
   for delete using (fittbuilder_is_project_owner(project_id, auth.uid()));
+
+-- ---------- invite acceptance RPC (SECURITY DEFINER — bypasses RLS so invitee can accept) ----------
+create function fittbuilder_accept_invites(uid uuid, mail text) returns void
+  language sql security definer set search_path = public as $$
+    insert into fittbuilder_project_members (project_id, user_id, role)
+      select project_id, uid, role from fittbuilder_project_invites
+      where status = 'pending' and lower(email) = lower(mail)
+    on conflict (project_id, user_id) do nothing;
+    update fittbuilder_project_invites set status = 'accepted'
+      where status = 'pending' and lower(email) = lower(mail);
+  $$;

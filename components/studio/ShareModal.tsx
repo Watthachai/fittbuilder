@@ -43,30 +43,30 @@ export default function ShareModal({ projectId, projectName, onClose }: ShareMod
 
   // Load initial data
   useEffect(() => {
-    void loadAll();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [projectId]);
-
-  async function loadAll() {
-    setError(null);
-    try {
-      const [tokenResult, memberList, inviteList] = await Promise.all([
-        getShareToken(projectId),
-        listMembers(projectId),
-        listInvites(projectId),
-      ]);
-      if (tokenResult) {
-        setLinkToken(tokenResult.token);
-        setLinkRole(tokenResult.role);
-      } else {
-        setLinkToken(null);
+    let cancelled = false;
+    (async () => {
+      setError(null);
+      try {
+        const [tokenResult, memberList, inviteList] = await Promise.all([
+          getShareToken(projectId),
+          listMembers(projectId),
+          listInvites(projectId),
+        ]);
+        if (cancelled) return;
+        if (tokenResult) {
+          setLinkToken(tokenResult.token);
+          setLinkRole(tokenResult.role);
+        } else {
+          setLinkToken(null);
+        }
+        setMembers(memberList);
+        setInvites(inviteList);
+      } catch (e) {
+        if (!cancelled) setError(e instanceof Error ? e.message : "โหลดข้อมูลไม่สำเร็จ");
       }
-      setMembers(memberList);
-      setInvites(inviteList);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "โหลดข้อมูลไม่สำเร็จ");
-    }
-  }
+    })();
+    return () => { cancelled = true; };
+  }, [projectId]);
 
   async function handleCreateLink() {
     setLinkBusy(true);

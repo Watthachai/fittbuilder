@@ -12,7 +12,8 @@ export async function GET(request: Request) {
     if (!error) {
       const { data: { user } } = await supabase.auth.getUser();
       if (user?.email) {
-        await supabase.rpc("fittbuilder_accept_invites", { uid: user.id, mail: user.email });
+        const { error: rpcError } = await supabase.rpc("fittbuilder_accept_invites", { uid: user.id, mail: user.email });
+        if (rpcError) console.error("[auth/callback] invite-accept failed:", rpcError);
       }
       return NextResponse.redirect(`${origin}${next}`);
     }

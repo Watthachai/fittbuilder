@@ -104,7 +104,7 @@ export default function ShareModal({ projectId, projectName, onClose }: ShareMod
   }
 
   async function handleInvite() {
-    if (!inviteEmail.trim()) return;
+    if (!inviteEmail.trim() || inviteBusy) return;
     setInviteBusy(true);
     setError(null);
     try {

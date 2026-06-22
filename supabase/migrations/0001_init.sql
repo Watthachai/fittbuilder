@@ -1,5 +1,7 @@
+-- Idempotent: safe to run on an empty DB or re-run on an existing one.
+
 -- ---------- profiles ----------
-create table fittbuilder_profiles (
+create table if not exists fittbuilder_profiles (
   id uuid primary key references auth.users(id) on delete cascade,
   email text not null,
   name text,
@@ -10,7 +12,7 @@ create table fittbuilder_profiles (
 );
 
 -- auto-create a profile row on signup
-create function fittbuilder_handle_new_user() returns trigger
+create or replace function fittbuilder_handle_new_user() returns trigger
   language plpgsql security definer set search_path = public as $$
 begin
   insert into fittbuilder_profiles (id, email, name, avatar_url)
@@ -21,12 +23,13 @@ begin
   return new;
 end; $$;
 
+drop trigger if exists fittbuilder_on_auth_user_created on auth.users;
 create trigger fittbuilder_on_auth_user_created
   after insert on auth.users
   for each row execute function fittbuilder_handle_new_user();
 
 -- ---------- projects ----------
-create table fittbuilder_projects (
+create table if not exists fittbuilder_projects (
   id uuid primary key default gen_random_uuid(),
   owner_id uuid not null references auth.users(id) on delete cascade,
   name text not null default 'Untitled',
@@ -40,28 +43,29 @@ create table fittbuilder_projects (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
-create index on fittbuilder_projects (owner_id);
+create index if not exists fittbuilder_projects_owner_idx on fittbuilder_projects (owner_id);
 
-create function fittbuilder_touch_updated_at() returns trigger
+create or replace function fittbuilder_touch_updated_at() returns trigger
   language plpgsql as $$
 begin new.updated_at = now(); return new; end; $$;
 
+drop trigger if exists fittbuilder_projects_touch on fittbuilder_projects;
 create trigger fittbuilder_projects_touch
   before update on fittbuilder_projects
   for each row execute function fittbuilder_touch_updated_at();
 
 -- ---------- members ----------
-create table fittbuilder_project_members (
+create table if not exists fittbuilder_project_members (
   project_id uuid not null references fittbuilder_projects(id) on delete cascade,
   user_id uuid not null references auth.users(id) on delete cascade,
   role text not null check (role in ('viewer','editor')),
   created_at timestamptz not null default now(),
   primary key (project_id, user_id)
 );
-create index on fittbuilder_project_members (user_id);
+create index if not exists fittbuilder_project_members_user_idx on fittbuilder_project_members (user_id);
 
 -- ---------- invites ----------
-create table fittbuilder_project_invites (
+create table if not exists fittbuilder_project_invites (
   id uuid primary key default gen_random_uuid(),
   project_id uuid not null references fittbuilder_projects(id) on delete cascade,
   email text not null,
@@ -71,23 +75,23 @@ create table fittbuilder_project_invites (
   expires_at timestamptz not null default now() + interval '14 days',
   created_at timestamptz not null default now()
 );
-create index on fittbuilder_project_invites (lower(email));
+create index if not exists fittbuilder_project_invites_email_idx on fittbuilder_project_invites (lower(email));
 
 -- ---------- RLS helper functions (bypass RLS internally to avoid recursion) ----------
-create function fittbuilder_can_read_project(pid uuid, uid uuid) returns boolean
+create or replace function fittbuilder_can_read_project(pid uuid, uid uuid) returns boolean
   language sql security definer stable set search_path = public as $$
     select exists(select 1 from fittbuilder_projects p where p.id = pid and p.owner_id = uid)
         or exists(select 1 from fittbuilder_project_members m where m.project_id = pid and m.user_id = uid);
   $$;
 
-create function fittbuilder_can_edit_project(pid uuid, uid uuid) returns boolean
+create or replace function fittbuilder_can_edit_project(pid uuid, uid uuid) returns boolean
   language sql security definer stable set search_path = public as $$
     select exists(select 1 from fittbuilder_projects p where p.id = pid and p.owner_id = uid)
         or exists(select 1 from fittbuilder_project_members m
                   where m.project_id = pid and m.user_id = uid and m.role = 'editor');
   $$;
 
-create function fittbuilder_is_project_owner(pid uuid, uid uuid) returns boolean
+create or replace function fittbuilder_is_project_owner(pid uuid, uid uuid) returns boolean
   language sql security definer stable set search_path = public as $$
     select exists(select 1 from fittbuilder_projects p where p.id = pid and p.owner_id = uid);
   $$;
@@ -99,43 +103,57 @@ alter table fittbuilder_project_members  enable row level security;
 alter table fittbuilder_project_invites  enable row level security;
 
 -- profiles
+drop policy if exists profiles_select_own on fittbuilder_profiles;
 create policy profiles_select_own on fittbuilder_profiles
   for select using (id = auth.uid());
+drop policy if exists profiles_update_own on fittbuilder_profiles;
 create policy profiles_update_own on fittbuilder_profiles
   for update using (id = auth.uid());
 
 -- projects
+drop policy if exists projects_select on fittbuilder_projects;
 create policy projects_select on fittbuilder_projects
   for select using (fittbuilder_can_read_project(id, auth.uid()));
+drop policy if exists projects_insert on fittbuilder_projects;
 create policy projects_insert on fittbuilder_projects
   for insert with check (owner_id = auth.uid());
+drop policy if exists projects_update on fittbuilder_projects;
 create policy projects_update on fittbuilder_projects
   for update using (fittbuilder_can_edit_project(id, auth.uid()));
+drop policy if exists projects_delete on fittbuilder_projects;
 create policy projects_delete on fittbuilder_projects
   for delete using (owner_id = auth.uid());
 
 -- members
+drop policy if exists members_select on fittbuilder_project_members;
 create policy members_select on fittbuilder_project_members
   for select using (fittbuilder_can_read_project(project_id, auth.uid()));
+drop policy if exists members_insert on fittbuilder_project_members;
 create policy members_insert on fittbuilder_project_members
   for insert with check (fittbuilder_is_project_owner(project_id, auth.uid()));
+drop policy if exists members_update on fittbuilder_project_members;
 create policy members_update on fittbuilder_project_members
   for update using (fittbuilder_is_project_owner(project_id, auth.uid()));
+drop policy if exists members_delete on fittbuilder_project_members;
 create policy members_delete on fittbuilder_project_members
   for delete using (fittbuilder_is_project_owner(project_id, auth.uid()) or user_id = auth.uid());
 
 -- invites
+drop policy if exists invites_select on fittbuilder_project_invites;
 create policy invites_select on fittbuilder_project_invites
   for select using (fittbuilder_is_project_owner(project_id, auth.uid()));
+drop policy if exists invites_insert on fittbuilder_project_invites;
 create policy invites_insert on fittbuilder_project_invites
   for insert with check (fittbuilder_is_project_owner(project_id, auth.uid()));
+drop policy if exists invites_update on fittbuilder_project_invites;
 create policy invites_update on fittbuilder_project_invites
   for update using (fittbuilder_is_project_owner(project_id, auth.uid()));
+drop policy if exists invites_delete on fittbuilder_project_invites;
 create policy invites_delete on fittbuilder_project_invites
   for delete using (fittbuilder_is_project_owner(project_id, auth.uid()));
 
 -- ---------- invite acceptance RPC (SECURITY DEFINER — bypasses RLS so invitee can accept) ----------
-create function fittbuilder_accept_invites(uid uuid, mail text) returns void
+create or replace function fittbuilder_accept_invites(uid uuid, mail text) returns void
   language sql security definer set search_path = public as $$
     insert into fittbuilder_project_members (project_id, user_id, role)
       select project_id, uid, role from fittbuilder_project_invites
@@ -146,7 +164,7 @@ create function fittbuilder_accept_invites(uid uuid, mail text) returns void
   $$;
 
 -- ---------- join-by-token RPC (SECURITY DEFINER — bypasses RLS so anyone with the token can join) ----------
-create function fittbuilder_join_by_token(tok text, uid uuid) returns uuid
+create or replace function fittbuilder_join_by_token(tok text, uid uuid) returns uuid
   language plpgsql security definer set search_path = public as $$
 declare pid uuid; r text;
 begin
@@ -156,3 +174,6 @@ begin
     values (pid, uid, r) on conflict (project_id, user_id) do nothing;
   return pid;
 end; $$;
+
+-- Reload PostgREST schema cache so new functions are callable immediately.
+notify pgrst, 'reload schema';

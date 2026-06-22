@@ -3,9 +3,11 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
-import { Copy, FileCode, Plus, Trash2 } from "lucide-react";
+import { Copy, FileCode, Plus, Sparkles, Trash2 } from "lucide-react";
 import { deleteProject, duplicateProject, listProjects } from "@/lib/storage";
 import type { ProjectSummary } from "@/lib/types";
+import { createClient } from "@/lib/supabase/client";
+import { isChangelogUnseen } from "@/lib/changelog";
 
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString("th-TH", {
@@ -21,6 +23,7 @@ export default function ProjectGrid() {
   const router = useRouter();
   const [projects, setProjects] = useState<ProjectSummary[]>([]);
   const [loading, setLoading] = useState(true);
+  const [changelogUnseen, setChangelogUnseen] = useState(false);
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -29,6 +32,20 @@ export default function ProjectGrid() {
   }, []);
 
   useEffect(() => { void refresh(); }, [refresh]);
+
+  useEffect(() => {
+    (async () => {
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const { data } = await supabase
+        .from("fittbuilder_profiles")
+        .select("last_seen_changelog")
+        .eq("id", user.id)
+        .single();
+      setChangelogUnseen(isChangelogUnseen(data?.last_seen_changelog ?? null));
+    })();
+  }, []);
 
   return (
     <div className="min-h-screen bg-black text-white">
@@ -41,12 +58,27 @@ export default function ProjectGrid() {
             FITT Builder
           </span>
         </Link>
-        <Link
-          href="/"
-          className="inline-flex items-center gap-1.5 rounded-full bg-white px-5 py-2 font-display text-sm font-semibold text-black transition hover:bg-gray-200"
-        >
-          <Plus size={15} /> สร้างใหม่
-        </Link>
+        <div className="flex items-center gap-3">
+          <Link
+            href="/changelog"
+            className="relative inline-flex items-center gap-1.5 rounded-full border border-white/20 px-4 py-2 font-display text-sm text-white/70 transition hover:border-white/40 hover:text-white"
+          >
+            <Sparkles size={14} />
+            มีอะไรใหม่
+            {changelogUnseen && (
+              <span
+                className="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full"
+                style={{ backgroundColor: "#64cefb" }}
+              />
+            )}
+          </Link>
+          <Link
+            href="/"
+            className="inline-flex items-center gap-1.5 rounded-full bg-white px-5 py-2 font-display text-sm font-semibold text-black transition hover:bg-gray-200"
+          >
+            <Plus size={15} /> สร้างใหม่
+          </Link>
+        </div>
       </header>
 
       <main className="mx-auto max-w-7xl px-6 pb-24 pt-6">

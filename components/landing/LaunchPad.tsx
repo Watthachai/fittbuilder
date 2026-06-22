@@ -18,33 +18,58 @@ export default function LaunchPad() {
   const router = useRouter();
   const [prompt, setPrompt] = useState("");
   const [launching, setLaunching] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   // Quick path: skip straight to the Build phase with the typed prompt (express).
   const launch = async () => {
     if (!prompt.trim() || launching) return;
+    setError(null);
     setLaunching(true);
-    const project = await createProject({
-      name: prompt.trim().slice(0, 40),
-      pendingPrompt: prompt.trim(),
-      phase: "build",
-    });
-    router.push(`/project/${project.id}`);
+    try {
+      const project = await createProject({
+        name: prompt.trim().slice(0, 40),
+        pendingPrompt: prompt.trim(),
+        phase: "build",
+      });
+      router.push(`/project/${project.id}`);
+    } catch (e) {
+      console.error("[launchpad] create failed:", e);
+      setError("สร้างโปรเจกต์ไม่สำเร็จ กรุณาลองใหม่");
+    } finally {
+      setLaunching(false);
+    }
   };
 
   const launchSpec = async () => {
     if (launching) return;
+    setError(null);
     setLaunching(true);
-    const project = await createProject({ name: "Spec-to-Demo", pendingSpec: true });
-    router.push(`/project/${project.id}`);
+    try {
+      const project = await createProject({ name: "Spec-to-Demo", pendingSpec: true });
+      router.push(`/project/${project.id}`);
+    } catch (e) {
+      console.error("[launchpad] create failed:", e);
+      setError("สร้างโปรเจกต์ไม่สำเร็จ กรุณาลองใหม่");
+    } finally {
+      setLaunching(false);
+    }
   };
 
   // Full flow: start at the Define phase — the AI interviewer opens the session.
   const launchInterview = async () => {
     if (launching) return;
+    setError(null);
     setLaunching(true);
-    const project = await createProject({ name: "Define Session", phase: "define" });
-    router.push(`/project/${project.id}`);
+    try {
+      const project = await createProject({ name: "Define Session", phase: "define" });
+      router.push(`/project/${project.id}`);
+    } catch (e) {
+      console.error("[launchpad] create failed:", e);
+      setError("สร้างโปรเจกต์ไม่สำเร็จ กรุณาลองใหม่");
+    } finally {
+      setLaunching(false);
+    }
   };
 
   return (
@@ -106,6 +131,12 @@ export default function LaunchPad() {
           Enter = สร้าง · Shift+Enter = บรรทัดใหม่
         </span>
       </div>
+
+      {error && (
+        <div className="border-t border-white/10 px-4 py-3 text-[13px] text-white/60">
+          {error}
+        </div>
+      )}
 
       <div className="flex flex-wrap gap-1.5 border-t border-dashed border-white/10 px-4 py-3">
         {EXAMPLES.map((example) => (

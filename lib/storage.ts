@@ -4,6 +4,9 @@ import { createClient } from "@/lib/supabase/client";
 import { projectToRow, rowToProject, type ProjectRow } from "@/lib/db/project-mapper";
 import type { PhaseId } from "./phases";
 import type { ChatMessage, ProjectFiles, ProjectRecord, ProjectSummary, ShareRole } from "./types";
+import type { Database } from "@/lib/db/types";
+
+type ProjInsert = Database["public"]["Tables"]["fittbuilder_projects"]["Insert"];
 
 const HISTORY_LIMIT = 10; // US-004
 
@@ -27,8 +30,7 @@ export async function saveProject(project: ProjectRecord): Promise<ProjectRecord
   const supabase = createClient();
   const ownerId = await uid();
   const row = { id: project.id, ...projectToRow(project, ownerId) };
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data, error } = await supabase.from("fittbuilder_projects").upsert(row as any).select(SELECT).single();
+  const { data, error } = await supabase.from("fittbuilder_projects").upsert(row as unknown as ProjInsert).select(SELECT).single();
   if (error) throw error;
   return rowToProject(data as unknown as ProjectRow);
 }
@@ -68,8 +70,7 @@ async function saveProjectAsNew(rec: ProjectRecord): Promise<ProjectRecord> {
   const ownerId = await uid();
   const { data, error } = await supabase
     .from("fittbuilder_projects")
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    .insert(projectToRow(rec, ownerId) as any)
+    .insert(projectToRow(rec, ownerId) as unknown as ProjInsert)
     .select(SELECT)
     .single();
   if (error) throw error;

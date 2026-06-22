@@ -4,8 +4,9 @@ import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 import { ArrowRight, FileText, MessagesSquare } from "lucide-react";
 import { createProject } from "@/lib/storage";
+import SkillPicker from "@/components/studio/SkillPicker";
 
-const MAX_CHARS = 500;
+const MAX_CHARS = 10_000;
 
 const EXAMPLES = [
   "Landing page สำหรับ coffee shop สไตล์ minimal โทนสีครีม-น้ำตาล",
@@ -19,25 +20,49 @@ export default function LaunchPad() {
   const [prompt, setPrompt] = useState("");
   const [launching, setLaunching] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [picking, setPicking] = useState(false);
+  const [detectedSkillId, setDetectedSkillId] = useState<string | null>(null);
+  const [detecting, setDetecting] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  // Quick path: skip straight to the Build phase with the typed prompt (express).
+  // Quick path: detect the domain, show the skill confirm card, then build.
   const launch = async () => {
-    if (!prompt.trim() || launching) return;
+    if (!prompt.trim() || launching || picking) return;
     setError(null);
+    setPicking(true);
+    setDetecting(true);
+    try {
+      const res = await fetch("/api/detect-skill", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: prompt.trim() }),
+      });
+      const data = (await res.json().catch(() => null)) as { skillId?: string | null } | null;
+      setDetectedSkillId(data?.skillId ?? null);
+    } catch {
+      setDetectedSkillId(null);
+    } finally {
+      setDetecting(false);
+    }
+  };
+
+  // Create the express-build project with the chosen domain skill (or none).
+  const createWithSkill = async (skillId: string | null) => {
+    if (launching) return;
     setLaunching(true);
     try {
       const project = await createProject({
         name: prompt.trim().slice(0, 40),
         pendingPrompt: prompt.trim(),
         phase: "build",
+        skillId: skillId ?? undefined,
       });
       router.push(`/project/${project.id}`);
     } catch (e) {
       console.error("[launchpad] create failed:", e);
       setError("สร้างโปรเจกต์ไม่สำเร็จ กรุณาลองใหม่");
-    } finally {
       setLaunching(false);
+      setPicking(false);
     }
   };
 
@@ -83,6 +108,24 @@ export default function LaunchPad() {
         </span>
       </div>
 
+      {picking ? (
+        <div className="p-4">
+          <SkillPicker
+            detectedId={detectedSkillId}
+            busy={detecting}
+            onSelect={(id) => void createWithSkill(id)}
+            onSkip={() => void createWithSkill(null)}
+          />
+          <button
+            onClick={() => setPicking(false)}
+            disabled={launching}
+            className="mt-3 text-xs text-white/50 transition hover:text-white disabled:opacity-40"
+          >
+            ← กลับไปแก้ prompt
+          </button>
+        </div>
+      ) : (
+        <>
       <textarea
         ref={textareaRef}
         value={prompt}
@@ -152,6 +195,8 @@ export default function LaunchPad() {
           </button>
         ))}
       </div>
+        </>
+      )}
     </div>
   );
 }

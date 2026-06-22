@@ -8,6 +8,7 @@ import { deleteProject, duplicateProject, listProjects } from "@/lib/storage";
 import type { ProjectSummary } from "@/lib/types";
 import { createClient } from "@/lib/supabase/client";
 import { isChangelogUnseen } from "@/lib/changelog";
+import AccountMenu from "@/components/AccountMenu";
 
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString("th-TH", {
@@ -106,6 +107,7 @@ export default function ProjectGrid() {
           >
             <Plus size={15} /> สร้างใหม่
           </Link>
+          <AccountMenu />
         </div>
       </header>
 

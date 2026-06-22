@@ -80,12 +80,36 @@ export interface ProjectRecord {
   updatedAt: string;
 }
 
+export type ShareRole = "viewer" | "editor";
+
+export interface ProjectMember {
+  projectId: string;
+  userId: string;
+  email: string;
+  name: string | null;
+  role: ShareRole;
+  createdAt: string;
+}
+
+export interface ProjectInvite {
+  id: string;
+  projectId: string;
+  email: string;
+  role: ShareRole;
+  token: string;
+  status: "pending" | "accepted" | "revoked";
+  expiresAt: string;
+  createdAt: string;
+}
+
 export interface ProjectSummary {
   id: string;
   name: string;
   fileCount: number;
   createdAt: string;
   updatedAt: string;
+  access: "owner" | "member";
+  role?: ShareRole;
 }
 
 /** Result the model must produce (parsed from its JSON output). */

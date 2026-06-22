@@ -12,6 +12,7 @@ export interface ProjectRow {
   messages: ChatMessage[];
   share_token: string | null;
   share_role: "viewer" | "editor" | null;
+  skill_id: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -25,6 +26,7 @@ export interface ProjectInsertRow {
   approved_phases: PhaseId[];
   history: ProjectFiles[];
   messages: ChatMessage[];
+  skill_id: string | null;
 }
 
 export function rowToProject(row: ProjectRow): ProjectRecord {
@@ -36,6 +38,7 @@ export function rowToProject(row: ProjectRow): ProjectRecord {
     approvedPhases: row.approved_phases ?? [],
     history: row.history ?? [],
     messages: row.messages ?? [],
+    skillId: row.skill_id ?? undefined,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -50,5 +53,6 @@ export function projectToRow(rec: ProjectRecord, ownerId: string): ProjectInsert
     approved_phases: rec.approvedPhases ?? [],
     history: rec.history,
     messages: rec.messages,
+    skill_id: rec.skillId ?? null,
   };
 }

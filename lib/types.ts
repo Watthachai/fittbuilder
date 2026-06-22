@@ -72,6 +72,8 @@ export interface ProjectRecord {
   /** Snapshots of `files` before each change — capped at 10 (US-004). */
   history: ProjectFiles[];
   messages: ChatMessage[];
+  /** Selected domain skill template id (e.g. "erp") — powers domain-expert questioning + build. */
+  skillId?: string;
   /** Prompt queued from the landing page, consumed on first studio load. */
   pendingPrompt?: string;
   /** Spec-to-Demo flow requested from the landing page. */

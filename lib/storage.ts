@@ -10,7 +10,7 @@ type ProjInsert = Database["public"]["Tables"]["fittbuilder_projects"]["Insert"]
 
 const HISTORY_LIMIT = 10; // US-004
 
-const SELECT = "id, owner_id, name, files, phase, approved_phases, history, messages, share_token, share_role, created_at, updated_at";
+const SELECT = "id, owner_id, name, files, phase, approved_phases, history, messages, share_token, share_role, skill_id, created_at, updated_at";
 
 async function uid(): Promise<string> {
   const supabase = createClient();
@@ -41,12 +41,18 @@ export async function createProject(options?: {
   pendingPrompt?: string;
   pendingSpec?: boolean;
   phase?: PhaseId;
+  skillId?: string;
 }): Promise<ProjectRecord> {
   const supabase = createClient();
   const ownerId = await uid();
   const { data, error } = await supabase
     .from("fittbuilder_projects")
-    .insert({ owner_id: ownerId, name: options?.name?.trim() || "Untitled", phase: options?.phase ?? "define" })
+    .insert({
+      owner_id: ownerId,
+      name: options?.name?.trim() || "Untitled",
+      phase: options?.phase ?? "define",
+      skill_id: options?.skillId ?? null,
+    })
     .select(SELECT)
     .single();
   if (error) throw error;

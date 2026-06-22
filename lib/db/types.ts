@@ -47,6 +47,7 @@ export interface Database {
           messages: Json;
           share_token: string | null;
           share_role: string | null;
+          skill_id: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -61,6 +62,7 @@ export interface Database {
           messages?: Json;
           share_token?: string | null;
           share_role?: string | null;
+          skill_id?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -75,6 +77,7 @@ export interface Database {
           messages?: Json;
           share_token?: string | null;
           share_role?: string | null;
+          skill_id?: string | null;
           created_at?: string;
           updated_at?: string;
         };

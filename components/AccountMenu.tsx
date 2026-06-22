@@ -19,19 +19,35 @@ export default function AccountMenu() {
   const [signingOut, setSigningOut] = useState(false);
 
   useEffect(() => {
+    const supabase = createClient();
     let cancelled = false;
-    (async () => {
-      const supabase = createClient();
-      const { data: { user } } = await supabase.auth.getUser();
-      if (cancelled || !user) return;
+
+    function apply(user: { email?: string; user_metadata?: Record<string, unknown> } | null) {
+      if (cancelled) return;
+      if (!user) {
+        setAccount(null);
+        return;
+      }
       const meta = user.user_metadata ?? {};
       setAccount({
         email: user.email ?? "",
         name: (meta.full_name ?? meta.name ?? null) as string | null,
         avatarUrl: (meta.avatar_url ?? meta.picture ?? null) as string | null,
       });
-    })();
-    return () => { cancelled = true; };
+    }
+
+    // Initial read, then react to login/logout/token-refresh so the chip
+    // appears or clears without a manual page refresh (e.g. signing in on
+    // another tab while this page is already open).
+    void supabase.auth.getUser().then(({ data: { user } }) => apply(user));
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      apply(session?.user ?? null);
+    });
+
+    return () => {
+      cancelled = true;
+      subscription.unsubscribe();
+    };
   }, []);
 
   async function signOut() {

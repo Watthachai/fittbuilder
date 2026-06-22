@@ -11,6 +11,7 @@ import { encodeShareUrl } from "@/lib/share";
 import { streamAgent, streamGenerate } from "@/lib/sse";
 import {
   appendMessage,
+  getAccess,
   getProject,
   newMessage,
   saveProject,
@@ -116,10 +117,14 @@ export default function Studio({ projectId }: { projectId: string }) {
     setAttachedPaths((prev) => prev.filter((p) => p !== path));
   }, []);
 
+  const [readOnly, setReadOnly] = useState(false);
+  const [saveState, setSaveState] = useState<"idle" | "saving" | "saved">("idle");
+
   const abortRef = useRef<AbortController | null>(null);
   const lastActionRef = useRef<LastAction | null>(null);
   const projectRef = useRef<ProjectRecord | null>(null);
   const liveRef = useRef<LiveMessage | null>(null);
+  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const setLiveBoth = useCallback((value: LiveMessage | null) => {
     liveRef.current = value;
@@ -147,10 +152,20 @@ export default function Studio({ projectId }: { projectId: string }) {
   }, []);
 
   const persist = useCallback((next: ProjectRecord) => {
-    const saved = saveProject(next);
-    projectRef.current = saved; // keep the ref in sync synchronously for chained calls
-    setProject(saved);
-    return saved;
+    const local = { ...next, updatedAt: new Date().toISOString() };
+    projectRef.current = local; // synchronous for chained calls
+    setProject(local);
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    setSaveState("saving");
+    saveTimer.current = setTimeout(() => {
+      saveProject(local)
+        .then(() => setSaveState("saved"))
+        .catch((e) => {
+          console.error("[studio] save failed:", e);
+          setSaveState("idle");
+        });
+    }, 800);
+    return local;
   }, []);
 
   const runCallbacks = useCallback(
@@ -542,14 +557,14 @@ export default function Studio({ projectId }: { projectId: string }) {
 
   const handleUndo = useCallback(() => {
     const current = projectRef.current;
-    if (!current || busy) return;
+    if (!current || busy || readOnly) return;
     const reverted = undoProject(current);
     if (!reverted) return;
     const saved = persist(reverted);
     setErrorMessage(null);
     pushTerminal("↩ undo — ย้อนกลับ 1 ขั้น");
     if (hasRunnableApp(saved.files)) void boot(saved.files!);
-  }, [boot, busy, persist, pushTerminal]);
+  }, [boot, busy, persist, pushTerminal, readOnly]);
 
   /**
    * Pull the live container's source files into project.files so the Code panel
@@ -704,13 +719,22 @@ export default function Studio({ projectId }: { projectId: string }) {
   // Load the project and consume any pending action from the landing page.
   useEffect(() => {
     let cancelled = false;
-    queueMicrotask(async () => {
+    (async () => {
+      const loaded = await getProject(projectId);
       if (cancelled) return;
-      const loaded = getProject(projectId);
       if (!loaded) {
         setNotFound(true);
         return;
       }
+
+      // Determine role-based access (owner vs. member/viewer).
+      const access = await getAccess(projectId);
+      if (cancelled) return;
+      setReadOnly(access?.role === "viewer");
+
+      projectRef.current = loaded;
+      setProject(loaded);
+
       setPreviewSupported(isPreviewSupported());
       // Wipe a previous project's files from the shared workdir before booting
       // anything — the container is a module singleton that survives SPA
@@ -723,21 +747,17 @@ export default function Studio({ projectId }: { projectId: string }) {
 
       const { pendingPrompt, pendingSpec } = loaded;
       if (pendingPrompt || pendingSpec) {
-        const cleared = saveProject({
+        const cleared = persist({
           ...loaded,
           pendingPrompt: undefined,
           pendingSpec: undefined,
         });
-        setProject(cleared);
-        projectRef.current = cleared;
         if (pendingPrompt) {
           void generate(pendingPrompt, undefined, cleared); // express build
         } else {
           setSpecOpen(true);
         }
       } else {
-        setProject(loaded);
-        projectRef.current = loaded;
         if (hasRunnableApp(loaded.files)) {
           void boot(loaded.files!); // returning to an already-built app
         } else {
@@ -754,7 +774,7 @@ export default function Studio({ projectId }: { projectId: string }) {
           }
         }
       }
-    });
+    })();
     return () => {
       cancelled = true;
       // Abort any in-flight generate/agent so stale file writes don't land in
@@ -807,7 +827,7 @@ export default function Studio({ projectId }: { projectId: string }) {
   if (notFound) {
     return (
       <div className="bg-grid flex min-h-screen flex-col items-center justify-center gap-4 text-chalk">
-        <p className="font-display text-2xl font-semibold">ไม่พบโปรเจกต์นี้</p>
+        <p className="font-display text-2xl font-semibold">ไม่พบโปรเจกต์ หรือคุณไม่มีสิทธิ์เข้าถึง</p>
         <Link
           href="/"
           className="rounded-sm bg-shine px-5 py-2 font-display font-medium text-black transition hover:bg-shine-soft"
@@ -844,7 +864,8 @@ export default function Studio({ projectId }: { projectId: string }) {
   // Input/advance are gated by the worker that owns the current phase: build →
   // the WebContainer; conversational → the chat agent (so a background scaffold
   // install never disables the interview or the approve button).
-  const phaseBusy = inBuild ? wcBusy || chatStreaming : chatStreaming;
+  // readOnly viewers see all controls disabled.
+  const phaseBusy = readOnly || (inBuild ? wcBusy || chatStreaming : chatStreaming);
   const streamingNow = chatStreaming;
   // Code tab: show the real app once built; before that, show the live scaffold
   // (what's actually running in the container) merged with any phase docs.
@@ -855,29 +876,36 @@ export default function Studio({ projectId }: { projectId: string }) {
 
   return (
     <div className="flex h-dvh flex-col overflow-hidden bg-night text-chalk">
+      {readOnly && (
+        <div className="flex items-center justify-center bg-night-panel px-3 py-1 text-xs font-medium text-chalk-dim border-b border-night-edge">
+          อ่านอย่างเดียว (viewer)
+        </div>
+      )}
       <TopBar
         project={project}
         view={view}
         busy={busy}
-        canUndo={project.history.length > 0}
+        canUndo={!readOnly && project.history.length > 0}
         shippable={hasApp}
-        onRename={(name) => persist({ ...project, name: name.trim() || "Untitled" })}
+        onRename={(name) => { if (!readOnly) persist({ ...project, name: name.trim() || "Untitled" }); }}
         onViewChange={(next) => {
           setView(next);
           if (next === "code") void syncFromContainer(); // reflect Shell-side changes
         }}
         onUndo={handleUndo}
-        onOpenSpec={() => setSpecOpen(true)}
+        onOpenSpec={() => { if (!readOnly) setSpecOpen(true); }}
         onOpenPackages={() => {
-          void syncFromContainer();
-          setPackagesOpen(true);
+          if (!readOnly) {
+            void syncFromContainer();
+            setPackagesOpen(true);
+          }
         }}
       />
 
       <PhaseStepper
         phase={project.phase}
         busy={phaseBusy}
-        canAdvance={gateSatisfied(project)}
+        canAdvance={!readOnly && gateSatisfied(project)}
         onAdvance={advancePhase}
         onNavigate={navigatePhase}
       />
@@ -950,10 +978,10 @@ export default function Studio({ projectId }: { projectId: string }) {
             ) : (
               <CodePanel
                 files={displayFiles}
-                onEdit={handleFileEdit}
-                onCreateFile={handleCreateFile}
-                onRenameFile={handleRenameFile}
-                onDeleteFile={handleDeleteFile}
+                onEdit={readOnly ? () => {} : handleFileEdit}
+                onCreateFile={readOnly ? () => false : handleCreateFile}
+                onRenameFile={readOnly ? () => false : handleRenameFile}
+                onDeleteFile={readOnly ? () => false : handleDeleteFile}
                 onAttachToChat={attachFile}
               />
             )}

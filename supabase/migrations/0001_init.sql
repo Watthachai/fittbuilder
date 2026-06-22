@@ -175,5 +175,14 @@ begin
   return pid;
 end; $$;
 
+-- Backfill profiles for users who signed up BEFORE the trigger existed
+-- (the trigger only fires on new auth.users inserts).
+insert into fittbuilder_profiles (id, email, name, avatar_url)
+  select id, email,
+         raw_user_meta_data->>'full_name',
+         raw_user_meta_data->>'avatar_url'
+  from auth.users
+  on conflict (id) do nothing;
+
 -- Reload PostgREST schema cache so new functions are callable immediately.
 notify pgrst, 'reload schema';

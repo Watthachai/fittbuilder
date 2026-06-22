@@ -144,3 +144,15 @@ create function fittbuilder_accept_invites(uid uuid, mail text) returns void
     update fittbuilder_project_invites set status = 'accepted'
       where status = 'pending' and lower(email) = lower(mail);
   $$;
+
+-- ---------- join-by-token RPC (SECURITY DEFINER — bypasses RLS so anyone with the token can join) ----------
+create function fittbuilder_join_by_token(tok text, uid uuid) returns uuid
+  language plpgsql security definer set search_path = public as $$
+declare pid uuid; r text;
+begin
+  select id, share_role into pid, r from fittbuilder_projects where share_token = tok;
+  if pid is null or r is null then return null; end if;
+  insert into fittbuilder_project_members (project_id, user_id, role)
+    values (pid, uid, r) on conflict (project_id, user_id) do nothing;
+  return pid;
+end; $$;

@@ -40,8 +40,11 @@ export default function AccountMenu() {
     // appears or clears without a manual page refresh (e.g. signing in on
     // another tab while this page is already open).
     void supabase.auth.getUser().then(({ data: { user } }) => apply(user));
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      apply(session?.user ?? null);
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      // Only clear on a real sign-out; transient null sessions from other
+      // events must not wipe a chip that getUser() already validated.
+      if (event === "SIGNED_OUT") apply(null);
+      else if (session?.user) apply(session.user);
     });
 
     return () => {

@@ -727,13 +727,13 @@ export default function Studio({ projectId }: { projectId: string }) {
         return;
       }
 
+      projectRef.current = loaded;
+      setProject(loaded);
+
       // Determine role-based access (owner vs. member/viewer).
       const access = await getAccess(projectId);
       if (cancelled) return;
       setReadOnly(access?.role === "viewer");
-
-      projectRef.current = loaded;
-      setProject(loaded);
 
       setPreviewSupported(isPreviewSupported());
       // Wipe a previous project's files from the shared workdir before booting
@@ -777,6 +777,7 @@ export default function Studio({ projectId }: { projectId: string }) {
     })();
     return () => {
       cancelled = true;
+      if (saveTimer.current) clearTimeout(saveTimer.current);
       // Abort any in-flight generate/agent so stale file writes don't land in
       // the next project's shared container after an SPA project switch.
       abortRef.current?.abort();
@@ -881,6 +882,12 @@ export default function Studio({ projectId }: { projectId: string }) {
           อ่านอย่างเดียว (viewer)
         </div>
       )}
+      {!readOnly && (saveState === "saving" || saveState === "saved") && (
+        <div className="flex items-center justify-center bg-night-panel px-3 py-1 border-b border-night-edge">
+          {saveState === "saving" && <span className="text-xs text-chalk-dim">กำลังบันทึก…</span>}
+          {saveState === "saved" && <span className="text-xs text-chalk-dim">บันทึกแล้ว</span>}
+        </div>
+      )}
       <TopBar
         project={project}
         view={view}
@@ -906,7 +913,7 @@ export default function Studio({ projectId }: { projectId: string }) {
         phase={project.phase}
         busy={phaseBusy}
         canAdvance={!readOnly && gateSatisfied(project)}
-        onAdvance={advancePhase}
+        onAdvance={readOnly ? () => {} : advancePhase}
         onNavigate={navigatePhase}
       />
 

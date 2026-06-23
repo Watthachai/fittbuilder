@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowRight, Check } from "lucide-react";
+import { ArrowRight, Check, RotateCcw } from "lucide-react";
 import { PHASES, phaseIndex, type PhaseId } from "@/lib/phases";
 
 interface PhaseStepperProps {
@@ -8,16 +8,21 @@ interface PhaseStepperProps {
   busy: boolean;
   /** The current phase's exit gate is satisfied (doc/app ready). */
   canAdvance: boolean;
+  /** An app + BRD/PRD exist, so the user can regenerate from the docs. */
+  canRework: boolean;
   onAdvance: () => void;
   onNavigate: (phase: PhaseId) => void;
+  onRework: () => void;
 }
 
 export default function PhaseStepper({
   phase,
   busy,
   canAdvance,
+  canRework,
   onAdvance,
   onNavigate,
+  onRework,
 }: PhaseStepperProps) {
   const currentIndex = phaseIndex(phase);
   const isLast = currentIndex === PHASES.length - 1;
@@ -64,6 +69,17 @@ export default function PhaseStepper({
           );
         })}
       </ol>
+
+      {canRework && (
+        <button
+          onClick={onRework}
+          disabled={busy}
+          title="สร้างเว็บใหม่จาก BRD/PRD ปัจจุบัน (แทนที่โค้ดเดิม · ย้อนได้ด้วย Undo)"
+          className="inline-flex shrink-0 items-center gap-1.5 rounded-sm border border-night-edge px-2.5 py-1.5 font-display text-xs font-medium text-chalk-dim transition hover:border-shine/60 hover:text-chalk disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          <RotateCcw size={12} /> สร้างใหม่จากเอกสาร
+        </button>
+      )}
 
       {!isLast && (
         <button

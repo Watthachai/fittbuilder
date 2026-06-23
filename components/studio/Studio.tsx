@@ -551,6 +551,34 @@ export default function Studio({ projectId }: { projectId: string }) {
   );
 
   /**
+   * Rework: regenerate the whole app from the CURRENT BRD/PRD (after the user
+   * went back and edited them). Full rebuild (not an iteration) so the app
+   * matches the spec again; the previous app rides into history for Undo. Always
+   * lands in Build with Define/Plan marked approved.
+   */
+  const rebuildFromDocs = useCallback(() => {
+    const current = projectRef.current;
+    if (!current || busy || readOnly) return;
+    const docs = docsFromFiles(current.files);
+    if (!docs.brd || !docs.prd) return;
+    if (
+      !window.confirm(
+        "สร้างเว็บใหม่จาก BRD/PRD ปัจจุบัน? โค้ดที่มีอยู่จะถูกแทนที่ทั้งหมด (ย้อนกลับได้ด้วย Undo)"
+      )
+    ) {
+      return;
+    }
+    const working = persist({
+      ...current,
+      phase: "build",
+      approvedPhases: Array.from(
+        new Set([...(current.approvedPhases ?? []), "define" as PhaseId, "plan" as PhaseId])
+      ),
+    });
+    buildFromDocs(working);
+  }, [busy, readOnly, persist, buildFromDocs]);
+
+  /**
    * Express auto-pilot: the brief is complete, so walk the full flow without the
    * interview — Define→BRD, Plan→PRD (each emitted in one shot), then Build from
    * the docs. Stops (leaving the user in control) if a phase fails to produce its
@@ -930,6 +958,10 @@ export default function Studio({ projectId }: { projectId: string }) {
 
   const hasApp = hasRunnableApp(project.files);
   const inBuild = isBuildPhase(project.phase);
+  // Rework is available once an app exists alongside its BRD/PRD: the user can go
+  // back, edit the docs, then regenerate the app from them.
+  const reworkDocs = docsFromFiles(project.files);
+  const canRework = !readOnly && hasApp && Boolean(reworkDocs.brd && reworkDocs.prd);
 
   // Open the running demo in its own tab. The raw WebContainer preview URL only
   // works inside the tab that booted it (opening it standalone shows StackBlitz's
@@ -995,8 +1027,10 @@ export default function Studio({ projectId }: { projectId: string }) {
         phase={project.phase}
         busy={phaseBusy}
         canAdvance={!readOnly && gateSatisfied(project)}
+        canRework={canRework}
         onAdvance={readOnly ? () => {} : advancePhase}
         onNavigate={navigatePhase}
+        onRework={rebuildFromDocs}
       />
 
       <div className="flex min-h-0 flex-1">

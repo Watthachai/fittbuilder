@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { motion, useScroll, useSpring, useTransform } from "motion/react";
+import { motion, useMotionValueEvent, useScroll, useSpring, useTransform } from "motion/react";
 import Link from "next/link";
 import LaunchPad from "./LaunchPad";
 import AccountMenu from "@/components/AccountMenu";
@@ -75,6 +75,27 @@ export default function MainframeHero() {
   // Spring-smooth the zoom so it glides instead of tracking scroll 1:1.
   const smoothZoom = useSpring(videoZoom, { stiffness: 90, damping: 24, mass: 0.4 });
 
+  // Apply the zoom IMPERATIVELY instead of via motion's persistent transform.
+  // A persistent CSS transform (and the will-change motion adds) pins the video
+  // to the GPU-texture compositing path, so every mouse-scrub seek must be
+  // re-rasterized — that's what made scrubbing janky. At rest (z≈1, which is the
+  // whole hero where scrubbing happens) we leave the video transform-free, so it
+  // stays on the fast path exactly like a plain <video>; the zoom only engages
+  // once scrolled away from the hero.
+  useMotionValueEvent(smoothZoom, "change", (z) => {
+    const v = videoRef.current;
+    if (!v) return;
+    if (z <= 1.002) {
+      v.style.transform = "";
+      v.style.transformOrigin = "";
+      v.style.willChange = "";
+    } else {
+      v.style.transformOrigin = "72% 42%";
+      v.style.transform = `scale(${z})`;
+      v.style.willChange = "transform";
+    }
+  });
+
   // Pills/builder appear 400ms after load, independent of the typewriter.
   useEffect(() => {
     const t = setTimeout(() => setShowLaunch(true), 400);
@@ -120,8 +141,9 @@ export default function MainframeHero() {
 
   return (
     <>
-      {/* Background video (mouse-scrub) + scroll-zoom into the robot's screen + scrim */}
-      <motion.video
+      {/* Background video — plain <video> (no persistent transform) so mouse-scrub
+          seeks stay smooth; zoom is applied imperatively in the effect above. */}
+      <video
         ref={videoRef}
         src={VIDEO_SRC}
         muted
@@ -130,7 +152,7 @@ export default function MainframeHero() {
         aria-hidden
         onSeeked={handleSeeked}
         className="fixed inset-0 z-0 h-full w-full object-cover"
-        style={{ objectPosition: "70% center", scale: smoothZoom, transformOrigin: "72% 42%" }}
+        style={{ objectPosition: "70% center" }}
       />
       <div className="fixed inset-0 z-0 bg-black/55" aria-hidden />
 

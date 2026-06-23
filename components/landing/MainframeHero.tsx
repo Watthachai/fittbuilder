@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { motion, useScroll, useTransform } from "motion/react";
+import { motion, useScroll, useSpring, useTransform } from "motion/react";
 import Link from "next/link";
 import LaunchPad from "./LaunchPad";
 import AccountMenu from "@/components/AccountMenu";
@@ -57,6 +57,24 @@ export default function MainframeHero() {
   const heroOpacity = useTransform(scrollYProgress, [0, 0.7], [1, 0]);
   const heroY = useTransform(scrollYProgress, [0, 1], [0, -90]);
 
+  // Scroll-zoom into the robot's screen: as the page scrolls down toward
+  // "ทำงานยังไง?", the fixed video scales up toward its CRT screen; scrolling
+  // back up zooms out (scroll-linked, so it reverses automatically).
+  const { scrollY } = useScroll();
+  const [vh, setVh] = useState(800);
+  useEffect(() => {
+    const update = () => setVh(window.innerHeight);
+    const raf = requestAnimationFrame(update);
+    window.addEventListener("resize", update);
+    return () => {
+      cancelAnimationFrame(raf);
+      window.removeEventListener("resize", update);
+    };
+  }, []);
+  const videoZoom = useTransform(scrollY, [0, vh * 1.6], [1, 1.5], { clamp: true });
+  // Spring-smooth the zoom so it glides instead of tracking scroll 1:1.
+  const smoothZoom = useSpring(videoZoom, { stiffness: 90, damping: 24, mass: 0.4 });
+
   // Pills/builder appear 400ms after load, independent of the typewriter.
   useEffect(() => {
     const t = setTimeout(() => setShowLaunch(true), 400);
@@ -106,8 +124,8 @@ export default function MainframeHero() {
 
   return (
     <>
-      {/* Background video (mouse-scrub) + legibility scrim */}
-      <video
+      {/* Background video (mouse-scrub) + scroll-zoom into the robot's screen + scrim */}
+      <motion.video
         ref={videoRef}
         src={VIDEO_SRC}
         muted
@@ -115,7 +133,7 @@ export default function MainframeHero() {
         preload="auto"
         aria-hidden
         className="fixed inset-0 z-0 h-full w-full object-cover"
-        style={{ objectPosition: "70% center" }}
+        style={{ objectPosition: "70% center", scale: smoothZoom, transformOrigin: "72% 42%" }}
       />
       <div className="fixed inset-0 z-0 bg-black/55" aria-hidden />
 

@@ -33,6 +33,28 @@ let inlineProviderRegistered = false;
 
 const handleEditorMount: OnMount = (editor, monaco) => {
   editor.updateOptions({ inlineSuggest: { enabled: true } });
+
+  // Monaco has no node_modules / type defs in the browser, so SEMANTIC checks
+  // ("Cannot find module 'react'", implicit-any JSX) would red-underline code
+  // that Vite compiles perfectly. Turn off semantic validation (keep syntax
+  // errors), and configure JSX so .tsx parses cleanly. Global + idempotent.
+  const compilerOptions = {
+    jsx: monaco.languages.typescript.JsxEmit.ReactJSX,
+    target: monaco.languages.typescript.ScriptTarget.ESNext,
+    moduleResolution: monaco.languages.typescript.ModuleResolutionKind.NodeJs,
+    allowNonTsExtensions: true,
+    allowJs: true,
+    esModuleInterop: true,
+  };
+  const diagnostics = { noSemanticValidation: true, noSyntaxValidation: false };
+  for (const defaults of [
+    monaco.languages.typescript.typescriptDefaults,
+    monaco.languages.typescript.javascriptDefaults,
+  ]) {
+    defaults.setCompilerOptions({ ...defaults.getCompilerOptions(), ...compilerOptions });
+    defaults.setDiagnosticsOptions(diagnostics);
+  }
+
   if (inlineProviderRegistered) return;
   inlineProviderRegistered = true;
   const provider: Monaco.languages.InlineCompletionsProvider = {

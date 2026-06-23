@@ -661,6 +661,34 @@ export default function Studio({ projectId }: { projectId: string }) {
     setPreviewPhase(target);
   }, []);
 
+  /**
+   * Revise a phase's doc from the preview modal: the comment goes into the chat
+   * and that phase's agent regenerates the doc (express, one shot). Revising the
+   * BRD also regenerates the PRD afterward (chained) since the spec follows the
+   * brief. The app is left for the explicit "สร้างใหม่จากเอกสาร" rebuild.
+   */
+  const reviseDoc = useCallback(
+    async (target: PhaseId, comment: string) => {
+      const current = projectRef.current;
+      if (!current || busy || readOnly || !comment.trim()) return;
+      setPreviewPhase(null); // the revision streams in the chat behind the modal
+      let rec: ProjectRecord | null = persist({ ...current, phase: target });
+      rec = await runAgent(comment.trim(), rec, true);
+      if (!rec) return;
+      if (target === "define" && docsFromFiles(rec.files).brd) {
+        rec = persist({
+          ...rec,
+          phase: "plan",
+          approvedPhases: Array.from(
+            new Set([...(rec.approvedPhases ?? []), "define" as PhaseId])
+          ),
+        });
+        await runAgent(null, rec, true); // regenerate PRD from the revised BRD
+      }
+    },
+    [busy, readOnly, persist, runAgent]
+  );
+
   const cancel = useCallback(() => {
     abortRef.current?.abort();
   }, []);
@@ -975,6 +1003,9 @@ export default function Studio({ projectId }: { projectId: string }) {
   // back, edit the docs, then regenerate the app from them.
   const reworkDocs = docsFromFiles(project.files);
   const canRework = !readOnly && hasApp && Boolean(reworkDocs.brd && reworkDocs.prd);
+  // Doc-preview modal: resolve the clicked phase's doc + revise handler.
+  const previewKind = previewPhase ? DOC_KIND_BY_PHASE[previewPhase] : undefined;
+  const previewContent = previewKind ? (reworkDocs[previewKind] ?? null) : null;
 
   // Open the running demo in its own tab. The raw WebContainer preview URL only
   // works inside the tab that booted it (opening it standalone shows StackBlitz's
@@ -1171,19 +1202,21 @@ export default function Studio({ projectId }: { projectId: string }) {
         />
       )}
 
-      {previewPhase &&
-        (() => {
-          const kind = DOC_KIND_BY_PHASE[previewPhase];
-          const def = phaseDef(previewPhase);
-          return (
-            <DocPreviewModal
-              title={`${def.user} — ${def.name}`}
-              path={kind ? DOC_PATHS[kind] : ""}
-              content={kind ? (docsFromFiles(project.files)[kind] ?? null) : null}
-              onClose={() => setPreviewPhase(null)}
-            />
-          );
-        })()}
+      {previewPhase && (
+        <DocPreviewModal
+          title={`${phaseDef(previewPhase).user} — ${phaseDef(previewPhase).name}`}
+          path={previewKind ? DOC_PATHS[previewKind] : ""}
+          content={previewContent}
+          hint={
+            previewPhase === "define"
+              ? "คอมเมนต์จะส่งเข้าแชท แล้ว AI จะ gen BRD ใหม่ และ gen PRD ตามให้อัตโนมัติ"
+              : undefined
+          }
+          busy={busy || readOnly}
+          onRevise={(comment) => reviseDoc(previewPhase, comment)}
+          onClose={() => setPreviewPhase(null)}
+        />
+      )}
 
     </div>
   );

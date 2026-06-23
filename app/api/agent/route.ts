@@ -20,7 +20,7 @@ const bodySchema = z.object({
     .array(
       z.object({
         role: z.enum(["user", "assistant"]),
-        content: z.string().max(6_000),
+        content: z.string().max(10_000),
       })
     )
     .max(80),

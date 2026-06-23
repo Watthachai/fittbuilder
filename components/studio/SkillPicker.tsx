@@ -1,32 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import {
-  CalendarCheck,
-  Factory,
-  LayoutDashboard,
-  Loader2,
-  Rocket,
-  ShoppingCart,
-  Sparkles,
-  Users,
-  type LucideIcon,
-} from "lucide-react";
+import { Loader2, Sparkles } from "lucide-react";
 import { SKILLS, getSkill } from "@/lib/skills/registry";
-
-const ICONS: Record<string, LucideIcon> = {
-  Factory,
-  Users,
-  ShoppingCart,
-  LayoutDashboard,
-  CalendarCheck,
-  Rocket,
-};
-
-function SkillIcon({ name, size = 18 }: { name: string; size?: number }) {
-  const Icon = ICONS[name] ?? Sparkles;
-  return <Icon size={size} className="text-shine" />;
-}
+import SkillIcon from "./SkillIcon";
 
 interface SkillPickerProps {
   /** Detected skill id (null = no clear match → show gallery directly). */

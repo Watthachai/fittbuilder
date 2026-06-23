@@ -17,6 +17,10 @@
   --chalk: #ffffff;
   --chalk-dim: #a1a1aa;
 
+  /* Helvetica Now Display — landing hero (Mainframe-style layout) */
+  --font-heading: "HelveticaNowDisplay-Medium", "Helvetica Neue", Arial, sans-serif;
+  --font-body: "HelveticaNowDisplayW01-Rg", "Helvetica Neue", Arial, sans-serif;
+
   /* the one accent */
   --shine: #64cefb;
   --shine-soft: #9ddffc;

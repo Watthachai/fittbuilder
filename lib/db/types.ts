@@ -137,6 +137,66 @@ export interface Database {
         };
         Relationships: [];
       };
+      fittbuilder_skill_templates: {
+        Row: {
+          id: string;
+          slug: string;
+          name: string;
+          name_en: string;
+          tagline: string;
+          icon: string;
+          keywords: Json;
+          persona: string;
+          domain_knowledge: string;
+          build_guidance: string;
+          seed_data: string;
+          design_hints: string | null;
+          question_bank: Json;
+          status: string;
+          created_by: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          slug: string;
+          name: string;
+          name_en: string;
+          tagline?: string;
+          icon?: string;
+          keywords?: Json;
+          persona?: string;
+          domain_knowledge?: string;
+          build_guidance?: string;
+          seed_data?: string;
+          design_hints?: string | null;
+          question_bank?: Json;
+          status?: string;
+          created_by?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          slug?: string;
+          name?: string;
+          name_en?: string;
+          tagline?: string;
+          icon?: string;
+          keywords?: Json;
+          persona?: string;
+          domain_knowledge?: string;
+          build_guidance?: string;
+          seed_data?: string;
+          design_hints?: string | null;
+          question_bank?: Json;
+          status?: string;
+          created_by?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
     };
     Views: Record<string, never>;
     Functions: {

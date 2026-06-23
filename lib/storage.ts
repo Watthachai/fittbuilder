@@ -43,27 +43,20 @@ export async function createProject(options?: {
   phase?: PhaseId;
   skillId?: string;
 }): Promise<ProjectRecord> {
-  // Insert runs server-side (/api/projects): the cookie-based server client
-  // forwards the user's token so RLS sees auth.uid(). On failure the route
-  // reports the auth.uid() PostgREST resolved, to localize any token problem.
-  const res = await fetch("/api/projects", {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({
+  const supabase = createClient();
+  // owner_id is stamped by the DB default (auth.uid()) so it always matches the
+  // RLS insert check — the client never sends it.
+  const { data, error } = await supabase
+    .from("fittbuilder_projects")
+    .insert({
       name: options?.name?.trim() || "Untitled",
       phase: options?.phase ?? "define",
-      skillId: options?.skillId ?? null,
-    }),
-  });
-  const payload = await res.json();
-  if (!res.ok) {
-    throw new Error(
-      payload?.error
-        ? `${payload.error} (getUserId=${payload.getUserId ?? "?"}, pgAuthUid=${payload.pgAuthUid ?? "null"})`
-        : "createProject failed"
-    );
-  }
-  const rec = rowToProject(payload as ProjectRow);
+      skill_id: options?.skillId ?? null,
+    })
+    .select(SELECT)
+    .single();
+  if (error) throw new Error(error.message || "createProject failed");
+  const rec = rowToProject(data as unknown as ProjectRow);
   return { ...rec, pendingPrompt: options?.pendingPrompt, pendingSpec: options?.pendingSpec };
 }
 

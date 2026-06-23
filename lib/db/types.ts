@@ -202,7 +202,6 @@ export interface Database {
     Functions: {
       fittbuilder_accept_invites: { Args: { uid: string; mail: string }; Returns: undefined };
       fittbuilder_join_by_token: { Args: { tok: string; uid: string }; Returns: string | null };
-      fittbuilder_whoami: { Args: Record<string, never>; Returns: string | null };
     };
     Enums: Record<string, never>;
     CompositeTypes: Record<string, never>;

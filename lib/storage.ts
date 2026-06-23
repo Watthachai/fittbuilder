@@ -44,11 +44,11 @@ export async function createProject(options?: {
   skillId?: string;
 }): Promise<ProjectRecord> {
   const supabase = createClient();
-  const ownerId = await uid();
+  // owner_id is stamped by the DB default (auth.uid()) so it always matches the
+  // RLS insert check — the client never sends it.
   const { data, error } = await supabase
     .from("fittbuilder_projects")
     .insert({
-      owner_id: ownerId,
       name: options?.name?.trim() || "Untitled",
       phase: options?.phase ?? "define",
       skill_id: options?.skillId ?? null,

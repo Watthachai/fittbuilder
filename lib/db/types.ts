@@ -53,7 +53,7 @@ export interface Database {
         };
         Insert: {
           id?: string;
-          owner_id: string;
+          owner_id?: string;
           name?: string;
           files?: Json | null;
           phase?: string;

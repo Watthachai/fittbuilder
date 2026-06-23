@@ -55,7 +55,7 @@ export async function createProject(options?: {
     })
     .select(SELECT)
     .single();
-  if (error) throw error;
+  if (error) throw new Error(error.message || "createProject failed");
   const rec = rowToProject(data as unknown as ProjectRow);
   return { ...rec, pendingPrompt: options?.pendingPrompt, pendingSpec: options?.pendingSpec };
 }

@@ -68,8 +68,9 @@ export default function LaunchPad() {
       });
       router.push(`/project/${project.id}`);
     } catch (e) {
-      console.error("[launchpad] create failed:", e);
-      setError("สร้างโปรเจกต์ไม่สำเร็จ กรุณาลองใหม่");
+      const msg = e instanceof Error ? e.message : String(e);
+      console.error("[launchpad] create failed:", msg);
+      setError(`สร้างโปรเจกต์ไม่สำเร็จ: ${msg}`);
       setLaunching(false);
       setPicking(false);
     }

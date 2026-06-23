@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { motion, useScroll, useTransform } from "motion/react";
 import Link from "next/link";
 import LaunchPad from "./LaunchPad";
 import AccountMenu from "@/components/AccountMenu";
@@ -46,9 +47,15 @@ export default function MainframeHero() {
   const prevX = useRef<number | null>(null);
   const targetTime = useRef(0);
   const seeking = useRef(false);
+  const heroRef = useRef<HTMLElement>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [showLaunch, setShowLaunch] = useState(false);
   const { displayed, done } = useTypewriter(TYPED);
+
+  // Parallax: hero content drifts up + fades as it scrolls away.
+  const { scrollYProgress } = useScroll({ target: heroRef, offset: ["start start", "end start"] });
+  const heroOpacity = useTransform(scrollYProgress, [0, 0.7], [1, 0]);
+  const heroY = useTransform(scrollYProgress, [0, 1], [0, -90]);
 
   // Pills/builder appear 400ms after load, independent of the typewriter.
   useEffect(() => {
@@ -193,10 +200,11 @@ export default function MainframeHero() {
 
       {/* Hero */}
       <section
+        ref={heroRef}
         className="relative z-10 flex h-screen flex-col justify-end overflow-hidden px-5 pb-12 sm:px-8 md:justify-center md:px-10 md:pb-0"
         style={{ fontFamily: "var(--font-body)" }}
       >
-        <div className="relative z-10 w-full max-w-2xl">
+        <motion.div style={{ opacity: heroOpacity, y: heroY }} className="relative z-10 w-full max-w-2xl">
           {/* Blurred intro label */}
           <div
             className="pointer-events-none mb-5 select-none text-white sm:mb-6"
@@ -238,7 +246,7 @@ export default function MainframeHero() {
           >
             <LaunchPad />
           </div>
-        </div>
+        </motion.div>
       </section>
     </>
   );

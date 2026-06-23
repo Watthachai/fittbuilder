@@ -1,6 +1,7 @@
 import Link from "next/link";
 import MainframeHero from "@/components/landing/MainframeHero";
 import Reveal from "@/components/landing/Reveal";
+import ScrollStory from "@/components/landing/ScrollStory";
 import { PRESETS } from "@/lib/presets";
 
 const STEPS = [
@@ -55,10 +56,13 @@ export default function Home() {
               {[0, 1].map((copy) => (
                 <span key={copy}>
                   {PRESETS.map((preset) => (
-                    <span key={`${copy}-${preset.id}`} className="mx-6 font-display text-sm text-white/80">
-                      <span className="mr-2 text-shine">✦</span>
-                      {preset.name}
-                      <span className="ml-2 font-mono text-[11px] text-white/40">{preset.tagline}</span>
+                    <span
+                      key={`${copy}-${preset.id}`}
+                      className="mx-2 inline-flex items-center gap-2 rounded-full border border-white/12 bg-white/[0.05] px-4 py-1.5 backdrop-blur-sm"
+                    >
+                      <span className="text-shine">✦</span>
+                      <span className="font-display text-sm text-white/85">{preset.name}</span>
+                      <span className="font-mono text-[11px] text-white/40">{preset.tagline}</span>
                     </span>
                   ))}
                 </span>
@@ -67,25 +71,8 @@ export default function Home() {
           </div>
         </section>
 
-        {/* How it works */}
-        <section id="how" className="mx-auto max-w-7xl px-6 py-20">
-          <Reveal>
-            <h2 className="font-display text-3xl font-medium tracking-tight">
-              ทำงานยังไง<span className="text-shine">?</span>
-            </h2>
-          </Reveal>
-          <div className="mt-10 grid gap-6 md:grid-cols-3">
-            {STEPS.map((step, i) => (
-              <Reveal key={step.no} delay={i * 0.08}>
-                <div className="rounded-3xl border border-white/12 bg-white/[0.06] p-6 shadow-[0_8px_40px_rgba(0,0,0,0.25)] backdrop-blur-xl transition hover:-translate-y-1 hover:border-shine/50">
-                  <span className="font-mono text-sm font-semibold text-shine">{step.no}</span>
-                  <h3 className="mt-3 font-display text-lg font-semibold text-white">{step.title}</h3>
-                  <p className="mt-2 text-[15px] leading-relaxed text-white/70">{step.body}</p>
-                </div>
-              </Reveal>
-            ))}
-          </div>
-        </section>
+        {/* How it works — pinned scroll story */}
+        <ScrollStory steps={STEPS} />
 
         {/* Spec-to-Demo callout */}
         <section id="spec" className="mx-auto max-w-7xl px-6 pb-20">

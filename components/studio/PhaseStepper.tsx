@@ -10,6 +10,8 @@ interface PhaseStepperProps {
   canAdvance: boolean;
   /** An app + BRD/PRD exist, so the user can regenerate from the docs. */
   canRework: boolean;
+  /** Multi-party approval tally for the current phase (null = solo project). */
+  approval: { approved: number; total: number; mine: boolean } | null;
   onAdvance: () => void;
   /** Click a completed step → preview that phase's document (does not move phase). */
   onPreview: (phase: PhaseId) => void;
@@ -21,12 +23,18 @@ export default function PhaseStepper({
   busy,
   canAdvance,
   canRework,
+  approval,
   onAdvance,
   onPreview,
   onRework,
 }: PhaseStepperProps) {
   const currentIndex = phaseIndex(phase);
   const isLast = currentIndex === PHASES.length - 1;
+  // Shared project: this member approved but others haven't → wait.
+  const waiting = approval ? approval.mine && approval.approved < approval.total : false;
+  const advanceLabel = approval
+    ? `${waiting ? "รออนุมัติ" : "อนุมัติ"} ${approval.approved}/${approval.total}`
+    : "อนุมัติ & ไปต่อ";
 
   return (
     <div className="flex h-11 shrink-0 items-center gap-2 border-b border-night-edge bg-night-panel px-3">
@@ -86,11 +94,19 @@ export default function PhaseStepper({
       {!isLast && (
         <button
           onClick={onAdvance}
-          disabled={!canAdvance || busy}
-          title={canAdvance ? "อนุมัติเฟสนี้แล้วไปเฟสถัดไป" : "ยังทำเฟสนี้ไม่เสร็จ"}
+          disabled={!canAdvance || busy || waiting}
+          title={
+            !canAdvance
+              ? "ยังทำเฟสนี้ไม่เสร็จ"
+              : approval
+                ? waiting
+                  ? "คุณอนุมัติแล้ว — รอสมาชิกที่เหลืออนุมัติให้ครบ"
+                  : "อนุมัติเฟสนี้ (จะไปต่อเมื่อทุกคนอนุมัติครบ)"
+                : "อนุมัติเฟสนี้แล้วไปเฟสถัดไป"
+          }
           className="inline-flex shrink-0 items-center gap-1.5 rounded-sm bg-shine px-3 py-1.5 font-display text-xs font-semibold text-black transition hover:bg-shine-soft disabled:cursor-not-allowed disabled:opacity-40"
         >
-          อนุมัติ & ไปต่อ <ArrowRight size={13} />
+          {advanceLabel} <ArrowRight size={13} />
         </button>
       )}
     </div>

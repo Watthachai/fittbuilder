@@ -12,7 +12,10 @@ import { encodeShareUrl } from "@/lib/share";
 import { streamAgent, streamGenerate } from "@/lib/sse";
 import {
   appendMessage,
+  approvePhase,
+  type ApprovalState,
   getAccess,
+  getApprovalState,
   getProject,
   newMessage,
   saveProject,
@@ -105,6 +108,7 @@ export default function Studio({ projectId }: { projectId: string }) {
   const [previewKey, setPreviewKey] = useState(0);
   const [view, setView] = useState<"preview" | "code">("preview");
   const [previewPhase, setPreviewPhase] = useState<PhaseId | null>(null);
+  const [approval, setApproval] = useState<ApprovalState | null>(null);
   const [specOpen, setSpecOpen] = useState(false);
   const [packagesOpen, setPackagesOpen] = useState(false);
   const [leftWidth, setLeftWidth] = useState(400);
@@ -648,6 +652,37 @@ export default function Studio({ projectId }: { projectId: string }) {
     }
   }, [phase, chatStreaming, buildFromDocs, persist, pushTerminal, runAgent]);
 
+  /** Re-read who has approved the current phase (count is shown in the stepper). */
+  const refreshApproval = useCallback(async () => {
+    const current = projectRef.current;
+    if (!current) return;
+    try {
+      setApproval(await getApprovalState(projectId, current.phase));
+    } catch (e) {
+      console.error("[studio] refreshApproval:", e);
+    }
+  }, [projectId]);
+
+  /**
+   * "อนุมัติ & ไปต่อ". Solo (only the owner) → advance immediately. Shared project →
+   * record THIS user's approval; the phase advances only once every member (owner
+   * + all invited members, any role) has approved. The session that lands the
+   * final approval performs the advance; others converge on focus/poll.
+   */
+  const handleApprove = useCallback(async () => {
+    const current = projectRef.current;
+    if (!current || readOnly || !gateSatisfied(current)) return;
+    const state = approval ?? (await getApprovalState(projectId, current.phase));
+    if (state.approvers.length <= 1) {
+      advancePhase();
+      return;
+    }
+    await approvePhase(projectId, current.phase);
+    const fresh = await getApprovalState(projectId, current.phase);
+    setApproval(fresh);
+    if (fresh.approvers.every((a) => fresh.approved.includes(a))) advancePhase();
+  }, [approval, projectId, readOnly, advancePhase]);
+
   /**
    * Click a completed step → preview that phase's document in a modal. This does
    * NOT move the workflow back (that confused the flow — the user could re-approve
@@ -936,6 +971,34 @@ export default function Studio({ projectId }: { projectId: string }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectId]);
 
+  // Multi-party approval, sans real-time (Spec 2): refresh the approval tally on
+  // phase change, on window focus, and — for shared projects — every 12s, so
+  // members see each other's approvals. On focus, also reload the project if
+  // another member advanced the phase (skipped while this session is working).
+  useEffect(() => {
+    if (!projectRef.current) return;
+    void refreshApproval();
+    const multi = (approval?.approvers.length ?? 0) > 1;
+    const onFocus = () => {
+      void refreshApproval();
+      // Pull in another member's phase advance — but never clobber active work.
+      if (abortRef.current || saveTimer.current) return;
+      void getProject(projectId).then((loaded) => {
+        const cur = projectRef.current;
+        if (loaded && cur && loaded.phase !== cur.phase) {
+          projectRef.current = loaded;
+          setProject(loaded);
+        }
+      });
+    };
+    window.addEventListener("focus", onFocus);
+    const timer = multi ? setInterval(() => void refreshApproval(), 12_000) : null;
+    return () => {
+      window.removeEventListener("focus", onFocus);
+      if (timer) clearInterval(timer);
+    };
+  }, [project?.phase, approval?.approvers.length, projectId, refreshApproval]);
+
   // Keyboard: Escape cancels generation, Cmd/Ctrl+Z undoes (PRD §7.3).
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -1007,6 +1070,15 @@ export default function Studio({ projectId }: { projectId: string }) {
   // Doc-preview modal: resolve the clicked phase's doc + revise handler.
   const previewKind = previewPhase ? DOC_KIND_BY_PHASE[previewPhase] : undefined;
   const previewContent = previewKind ? (reworkDocs[previewKind] ?? null) : null;
+  // Multi-party approval summary for the stepper (null = solo project).
+  const approvalSummary =
+    approval && approval.approvers.length > 1
+      ? {
+          approved: approval.approvers.filter((a) => approval.approved.includes(a)).length,
+          total: approval.approvers.length,
+          mine: approval.approved.includes(approval.me),
+        }
+      : null;
 
   // Open the running demo in its own tab. The raw WebContainer preview URL only
   // works inside the tab that booted it (opening it standalone shows StackBlitz's
@@ -1073,7 +1145,8 @@ export default function Studio({ projectId }: { projectId: string }) {
         busy={phaseBusy}
         canAdvance={!readOnly && gateSatisfied(project)}
         canRework={canRework}
-        onAdvance={readOnly ? () => {} : advancePhase}
+        approval={approvalSummary}
+        onAdvance={readOnly ? () => {} : () => void handleApprove()}
         onPreview={previewPhaseDoc}
         onRework={rebuildFromDocs}
       />

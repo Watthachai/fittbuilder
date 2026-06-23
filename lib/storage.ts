@@ -121,6 +121,54 @@ export async function getAccess(id: string): Promise<{ access: "owner" | "member
   return { access: "member", role: m?.role as ShareRole | undefined };
 }
 
+/* ---------- multi-party phase approval ---------- */
+
+export interface ApprovalState {
+  /** Everyone who must approve (owner + all members, any role). */
+  approvers: string[];
+  /** User ids who have approved the given phase. */
+  approved: string[];
+  /** The current user's id. */
+  me: string;
+}
+
+/** Who must approve `phase`, and who already has. */
+export async function getApprovalState(projectId: string, phase: string): Promise<ApprovalState> {
+  const supabase = createClient();
+  const me = await uid();
+  const { data: proj } = await supabase
+    .from("fittbuilder_projects")
+    .select("owner_id")
+    .eq("id", projectId)
+    .maybeSingle();
+  const { data: members } = await supabase
+    .from("fittbuilder_project_members")
+    .select("user_id")
+    .eq("project_id", projectId);
+  const approvers = Array.from(
+    new Set([...(proj ? [proj.owner_id] : []), ...(members ?? []).map((m) => m.user_id)])
+  );
+  const { data: approvals } = await supabase
+    .from("fittbuilder_phase_approvals")
+    .select("user_id")
+    .eq("project_id", projectId)
+    .eq("phase", phase);
+  return { approvers, approved: (approvals ?? []).map((a) => a.user_id), me };
+}
+
+/** Record the current user's approval of `phase` (idempotent). */
+export async function approvePhase(projectId: string, phase: string): Promise<void> {
+  const supabase = createClient();
+  const me = await uid();
+  const { error } = await supabase
+    .from("fittbuilder_phase_approvals")
+    .upsert(
+      { project_id: projectId, phase, user_id: me },
+      { onConflict: "project_id,phase,user_id" }
+    );
+  if (error) throw new Error(error.message);
+}
+
 /* ---------- pure helpers (unchanged behaviour) ---------- */
 
 export function withHistory(project: ProjectRecord, nextFiles: ProjectFiles): ProjectRecord {

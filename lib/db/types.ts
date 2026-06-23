@@ -104,6 +104,27 @@ export interface Database {
         };
         Relationships: [];
       };
+      fittbuilder_phase_approvals: {
+        Row: {
+          project_id: string;
+          phase: string;
+          user_id: string;
+          created_at: string;
+        };
+        Insert: {
+          project_id: string;
+          phase: string;
+          user_id: string;
+          created_at?: string;
+        };
+        Update: {
+          project_id?: string;
+          phase?: string;
+          user_id?: string;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
       fittbuilder_project_invites: {
         Row: {
           id: string;

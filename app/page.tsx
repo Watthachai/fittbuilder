@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ArrowRight, ArrowUpRight, FolderOpen } from "lucide-react";
 import LaunchPad from "@/components/landing/LaunchPad";
+import Reveal from "@/components/landing/Reveal";
 import AccountMenu from "@/components/AccountMenu";
 import { PRESETS } from "@/lib/presets";
 
@@ -173,25 +174,27 @@ export default function Home() {
 
         {/* How it works */}
         <section id="how" className="mx-auto max-w-7xl px-6 py-20">
-          <h2 className="font-display text-3xl font-medium tracking-tight">
-            ทำงานยังไง<span className="text-shine">?</span>
-          </h2>
+          <Reveal>
+            <h2 className="font-display text-3xl font-medium tracking-tight">
+              ทำงานยังไง<span className="text-shine">?</span>
+            </h2>
+          </Reveal>
           <div className="mt-10 grid gap-6 md:grid-cols-3">
-            {STEPS.map((step) => (
-              <div
-                key={step.no}
-                className="rounded-2xl border border-white/10 bg-white/[0.03] p-6 transition hover:-translate-y-1 hover:border-shine/50"
-              >
-                <span className="font-mono text-sm font-semibold text-shine">{step.no}</span>
-                <h3 className="mt-3 font-display text-lg font-semibold text-white">{step.title}</h3>
-                <p className="mt-2 text-[15px] leading-relaxed text-white/70">{step.body}</p>
-              </div>
+            {STEPS.map((step, i) => (
+              <Reveal key={step.no} delay={i * 0.08}>
+                <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-6 transition hover:-translate-y-1 hover:border-shine/50">
+                  <span className="font-mono text-sm font-semibold text-shine">{step.no}</span>
+                  <h3 className="mt-3 font-display text-lg font-semibold text-white">{step.title}</h3>
+                  <p className="mt-2 text-[15px] leading-relaxed text-white/70">{step.body}</p>
+                </div>
+              </Reveal>
             ))}
           </div>
         </section>
 
         {/* Spec-to-Demo callout */}
         <section id="spec" className="mx-auto max-w-7xl px-6 pb-20">
+          <Reveal>
           <div className="rounded-3xl border border-shine/30 bg-shine/5 p-8 md:p-10">
             <div className="flex flex-col items-start justify-between gap-6 md:flex-row md:items-center">
               <div>
@@ -218,18 +221,21 @@ export default function Home() {
               </div>
             </div>
           </div>
+          </Reveal>
         </section>
 
         {/* Pricing */}
         <section id="pricing" className="mx-auto max-w-7xl px-6 pb-24">
-          <h2 className="font-display text-3xl font-medium tracking-tight">ราคา</h2>
-          <p className="mt-2 text-white/70">
-            เริ่มฟรี ไม่ต้องใส่บัตร — ระบบชำระเงินกำลังจะเปิดเร็วๆ นี้
-          </p>
+          <Reveal>
+            <h2 className="font-display text-3xl font-medium tracking-tight">ราคา</h2>
+            <p className="mt-2 text-white/70">
+              เริ่มฟรี ไม่ต้องใส่บัตร — ระบบชำระเงินกำลังจะเปิดเร็วๆ นี้
+            </p>
+          </Reveal>
           <div className="mt-10 grid gap-6 md:grid-cols-3">
-            {TIERS.map((tier) => (
+            {TIERS.map((tier, i) => (
+              <Reveal key={tier.name} delay={i * 0.08}>
               <div
-                key={tier.name}
                 className={`relative rounded-2xl border p-6 ${
                   tier.hot
                     ? "border-shine bg-shine/[0.06]"
@@ -255,6 +261,7 @@ export default function Home() {
                   ))}
                 </ul>
               </div>
+              </Reveal>
             ))}
           </div>
         </section>

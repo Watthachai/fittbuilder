@@ -264,13 +264,13 @@ export default function ChatPanel({
               <Thinking text={message.thinking} expanded={false} />
             )}
             <div
-              className={`rounded-lg px-3.5 py-2.5 ${
+              className={`min-w-0 break-words rounded-lg px-3.5 py-2.5 text-chalk ${
                 message.role === "user"
-                  ? "whitespace-pre-wrap border border-night-edge bg-night text-[14px] leading-relaxed text-chalk"
-                  : "border border-night-edge border-l-2 border-l-shine bg-shine/[0.05] text-chalk"
+                  ? "border border-night-edge bg-night"
+                  : "border border-night-edge border-l-2 border-l-shine bg-shine/[0.05]"
               }`}
             >
-              {message.role === "user" ? message.content : <Markdown>{message.content}</Markdown>}
+              <Markdown>{message.content}</Markdown>
             </div>
             {message.role === "assistant" && message.actions && (
               <ActionHistory actions={message.actions} live={false} />

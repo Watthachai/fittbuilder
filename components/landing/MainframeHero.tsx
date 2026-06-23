@@ -46,7 +46,6 @@ export default function MainframeHero() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const prevX = useRef<number | null>(null);
   const targetTime = useRef(0);
-  const seeking = useRef(false);
   const heroRef = useRef<HTMLElement>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [showLaunch, setShowLaunch] = useState(false);
@@ -71,7 +70,7 @@ export default function MainframeHero() {
       window.removeEventListener("resize", update);
     };
   }, []);
-  const videoZoom = useTransform(scrollY, [0, vh * 1.6], [1, 1.5], { clamp: true });
+  const videoZoom = useTransform(scrollY, [0, vh * 1.4], [1, 2.3], { clamp: true });
   // Spring-smooth the zoom so it glides instead of tracking scroll 1:1.
   const smoothZoom = useSpring(videoZoom, { stiffness: 90, damping: 24, mass: 0.4 });
 
@@ -81,12 +80,19 @@ export default function MainframeHero() {
     return () => clearTimeout(t);
   }, []);
 
-  // Scrub the (non-autoplaying) video by horizontal mouse movement.
+  // Scrub the (non-autoplaying) video by horizontal mouse movement. Uses a
+  // requestAnimationFrame throttle (one seek per frame) instead of the `seeked`
+  // event, so it doesn't depend on the listener being attached at mount.
   useEffect(() => {
-    const video = videoRef.current;
-    if (!video) return;
     const SENSITIVITY = 0.8;
-
+    let raf = 0;
+    const flush = () => {
+      raf = 0;
+      const v = videoRef.current;
+      if (v && v.duration && Math.abs(v.currentTime - targetTime.current) > 0.005) {
+        v.currentTime = targetTime.current;
+      }
+    };
     function onMove(e: MouseEvent) {
       const v = videoRef.current;
       if (!v || !v.duration) return;
@@ -99,26 +105,12 @@ export default function MainframeHero() {
       let t = targetTime.current + (delta / window.innerWidth) * SENSITIVITY * v.duration;
       t = Math.max(0, Math.min(v.duration, t));
       targetTime.current = t;
-      if (!seeking.current) {
-        seeking.current = true;
-        v.currentTime = t;
-      }
+      if (!raf) raf = requestAnimationFrame(flush);
     }
-    function onSeeked() {
-      const v = videoRef.current;
-      if (!v) return;
-      if (Math.abs(v.currentTime - targetTime.current) > 0.01) {
-        v.currentTime = targetTime.current; // queue the next seek
-      } else {
-        seeking.current = false;
-      }
-    }
-
     window.addEventListener("mousemove", onMove);
-    video.addEventListener("seeked", onSeeked);
     return () => {
       window.removeEventListener("mousemove", onMove);
-      video.removeEventListener("seeked", onSeeked);
+      if (raf) cancelAnimationFrame(raf);
     };
   }, []);
 

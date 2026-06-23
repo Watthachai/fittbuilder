@@ -74,10 +74,6 @@ export interface ProjectRecord {
   messages: ChatMessage[];
   /** Selected domain skill template id (e.g. "erp") — powers domain-expert questioning + build. */
   skillId?: string;
-  /** Prompt queued from the landing page, consumed on first studio load. */
-  pendingPrompt?: string;
-  /** Spec-to-Demo flow requested from the landing page. */
-  pendingSpec?: boolean;
   createdAt: string;
   updatedAt: string;
 }

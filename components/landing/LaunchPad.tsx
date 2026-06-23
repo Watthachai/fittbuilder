@@ -5,6 +5,7 @@ import { useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { ArrowRight, FileText, MessagesSquare, Plus } from "lucide-react";
 import { createProject } from "@/lib/storage";
+import { setPendingAction } from "@/lib/pending-action";
 import SkillPicker from "@/components/studio/SkillPicker";
 import SkillDropdown from "@/components/studio/SkillDropdown";
 
@@ -62,10 +63,10 @@ export default function LaunchPad() {
     try {
       const project = await createProject({
         name: prompt.trim().slice(0, 40),
-        pendingPrompt: prompt.trim(),
         phase: "build",
         skillId: skillId ?? undefined,
       });
+      setPendingAction(project.id, { kind: "build", prompt: prompt.trim() });
       router.push(`/project/${project.id}`);
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
@@ -81,7 +82,8 @@ export default function LaunchPad() {
     setError(null);
     setLaunching(true);
     try {
-      const project = await createProject({ name: "Spec-to-Demo", pendingSpec: true });
+      const project = await createProject({ name: "Spec-to-Demo" });
+      setPendingAction(project.id, { kind: "spec" });
       router.push(`/project/${project.id}`);
     } catch (e) {
       console.error("[launchpad] create failed:", e);

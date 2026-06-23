@@ -7,6 +7,7 @@ import { computeChanges, sanitizeFiles } from "@/lib/files";
 import { isBuildPhase, nextPhase, phaseDef, type PhaseId } from "@/lib/phases";
 import { type DesignOption, designStyleDirective, fetchDesignOptions } from "@/lib/design";
 import { extraDepsOf, packageJsonWithDeps, SCAFFOLD_FILES } from "@/lib/scaffold";
+import { takePendingAction } from "@/lib/pending-action";
 import { encodeShareUrl } from "@/lib/share";
 import { streamAgent, streamGenerate } from "@/lib/sse";
 import {
@@ -141,9 +142,7 @@ export default function Studio({ projectId }: { projectId: string }) {
     if (project.skillId || project.phase !== "define") return;
     if (skillCheckedRef.current === project.id) return;
     skillCheckedRef.current = project.id;
-    const text = (
-      project.pendingPrompt ?? project.messages.find((m) => m.role === "user")?.content ?? ""
-    ).trim();
+    const text = (project.messages.find((m) => m.role === "user")?.content ?? "").trim();
     let cancelled = false;
     (async () => {
       if (!cancelled) setSkillPickerOpen(true);
@@ -790,15 +789,10 @@ export default function Studio({ projectId }: { projectId: string }) {
       // first build skips the boot wait.
       warmBoot();
 
-      const { pendingPrompt, pendingSpec } = loaded;
-      if (pendingPrompt || pendingSpec) {
-        const cleared = persist({
-          ...loaded,
-          pendingPrompt: undefined,
-          pendingSpec: undefined,
-        });
-        if (pendingPrompt) {
-          void generate(pendingPrompt, undefined, cleared); // express build
+      const pending = takePendingAction(projectId);
+      if (pending) {
+        if (pending.kind === "build") {
+          void generate(pending.prompt, undefined, loaded); // express build
         } else {
           setSpecOpen(true);
         }

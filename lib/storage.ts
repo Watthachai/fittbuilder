@@ -38,8 +38,6 @@ export async function saveProject(project: ProjectRecord): Promise<ProjectRecord
 
 export async function createProject(options?: {
   name?: string;
-  pendingPrompt?: string;
-  pendingSpec?: boolean;
   phase?: PhaseId;
   skillId?: string;
 }): Promise<ProjectRecord> {
@@ -56,8 +54,7 @@ export async function createProject(options?: {
     .select(SELECT)
     .single();
   if (error) throw new Error(error.message || "createProject failed");
-  const rec = rowToProject(data as unknown as ProjectRow);
-  return { ...rec, pendingPrompt: options?.pendingPrompt, pendingSpec: options?.pendingSpec };
+  return rowToProject(data as unknown as ProjectRow);
 }
 
 export async function deleteProject(id: string): Promise<void> {

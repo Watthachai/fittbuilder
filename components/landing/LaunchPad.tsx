@@ -5,6 +5,7 @@ import { useRef, useState } from "react";
 import { ArrowRight, FileText, MessagesSquare } from "lucide-react";
 import { createProject } from "@/lib/storage";
 import SkillPicker from "@/components/studio/SkillPicker";
+import { SKILLS } from "@/lib/skills/registry";
 
 const MAX_CHARS = 10_000;
 
@@ -23,11 +24,17 @@ export default function LaunchPad() {
   const [picking, setPicking] = useState(false);
   const [detectedSkillId, setDetectedSkillId] = useState<string | null>(null);
   const [detecting, setDetecting] = useState(false);
+  const [selectedSkillId, setSelectedSkillId] = useState<string | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   // Quick path: detect the domain, show the skill confirm card, then build.
   const launch = async () => {
     if (!prompt.trim() || launching || picking) return;
+    // Explicit choice → build straight away with that skill (skip the detect card).
+    if (selectedSkillId) {
+      void createWithSkill(selectedSkillId);
+      return;
+    }
     setError(null);
     setPicking(true);
     setDetecting(true);
@@ -180,6 +187,26 @@ export default function LaunchPad() {
           {error}
         </div>
       )}
+
+      <div className="flex flex-wrap items-center gap-1.5 border-t border-dashed border-white/10 px-4 py-3">
+        <span className="mr-1 font-mono text-[11px] uppercase tracking-wide text-white/40">
+          ประเภท
+        </span>
+        {SKILLS.map((s) => (
+          <button
+            key={s.id}
+            type="button"
+            onClick={() => setSelectedSkillId((cur) => (cur === s.id ? null : s.id))}
+            className={`rounded-full border px-3 py-1 text-[13px] transition ${
+              selectedSkillId === s.id
+                ? "border-shine bg-shine/10 text-shine"
+                : "border-white/15 text-white/60 hover:border-shine hover:text-shine"
+            }`}
+          >
+            {s.name}
+          </button>
+        ))}
+      </div>
 
       <div className="flex flex-wrap gap-1.5 border-t border-dashed border-white/10 px-4 py-3">
         {EXAMPLES.map((example) => (

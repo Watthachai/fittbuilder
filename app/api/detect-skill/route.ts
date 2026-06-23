@@ -2,6 +2,7 @@ import { z } from "zod";
 import { generateText, MissingApiKeyError } from "@/lib/gemini";
 import { DETECT_PRESET_SYSTEM } from "@/lib/prompts";
 import { detectSkillByKeywords, SKILL_IDS } from "@/lib/skills/registry";
+import { getAllSkills } from "@/lib/skills/db";
 import { clientIp, rateLimit } from "@/lib/rate-limit";
 
 // Detects the domain skill template from the user's prompt (short text), so the
@@ -24,6 +25,8 @@ export async function POST(request: Request) {
   }
 
   const excerpt = body.text.slice(0, 3000);
+  // Keyword detection runs across built-in AND published custom templates.
+  const allSkills = await getAllSkills();
 
   try {
     const word = (
@@ -42,7 +45,7 @@ export async function POST(request: Request) {
       return Response.json({ skillId: word, confidence: "high" });
     }
     // Model said "other"/unexpected — fall back to keyword scoring.
-    const fallback = detectSkillByKeywords(excerpt);
+    const fallback = detectSkillByKeywords(excerpt, allSkills);
     return Response.json({
       skillId: fallback.score > 0 ? fallback.skillId : null,
       confidence: fallback.score >= 2 ? "high" : "low",
@@ -51,7 +54,7 @@ export async function POST(request: Request) {
     if (error instanceof MissingApiKeyError) {
       return Response.json({ error: error.message }, { status: 500 });
     }
-    const fallback = detectSkillByKeywords(excerpt);
+    const fallback = detectSkillByKeywords(excerpt, allSkills);
     return Response.json({
       skillId: fallback.score > 0 ? fallback.skillId : null,
       confidence: "low",

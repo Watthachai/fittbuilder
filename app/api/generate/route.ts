@@ -12,7 +12,7 @@ import {
 } from "@/lib/prompts";
 import { clientIp, rateLimit } from "@/lib/rate-limit";
 import { PRESET_IDS } from "@/lib/presets";
-import { getSkill } from "@/lib/skills/registry";
+import { resolveSkill } from "@/lib/skills/db";
 import type { GenerateEvent } from "@/lib/types";
 
 // Generation streams file-by-file, so a longer single pass is fine — partial
@@ -71,6 +71,7 @@ export async function POST(request: Request) {
   // The code-builder SKILL.md body is the Build-phase persona; fall back to the
   // built-in default if the file is unreadable so generation still works.
   const persona = (await getAgent("code-builder").catch(() => null))?.body;
+  const skill = await resolveSkill(body.skillId);
   const system = iteration
     ? buildIterationSystemPrompt(persona)
     : buildGenerationSystemPrompt(
@@ -81,7 +82,7 @@ export async function POST(request: Request) {
           answers: body.presetAnswers,
         }),
         persona,
-        getSkill(body.skillId)
+        skill
       );
   const user = iteration
     ? buildIterationUserPrompt(body.prompt, body.previousFiles!)

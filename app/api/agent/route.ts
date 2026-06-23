@@ -4,7 +4,7 @@ import { AgentStreamFilter } from "@/lib/agent-stream";
 import { MissingApiKeyError, streamParts } from "@/lib/gemini";
 import { isBuildPhase, isPhaseId } from "@/lib/phases";
 import { buildAgentSystemPrompt } from "@/lib/prompts";
-import { getSkill } from "@/lib/skills/registry";
+import { resolveSkill } from "@/lib/skills/db";
 import { clientIp, rateLimit } from "@/lib/rate-limit";
 import type { AgentEvent } from "@/lib/types";
 
@@ -60,7 +60,7 @@ export async function POST(request: Request) {
   }
 
   const agent = await getAgentForPhase(body.phase);
-  const system = buildAgentSystemPrompt(agent.body, body.docs ?? {}, getSkill(body.skillId));
+  const system = buildAgentSystemPrompt(agent.body, body.docs ?? {}, await resolveSkill(body.skillId));
   const transcript = body.messages
     .map((m) => `${m.role === "user" ? "ผู้ใช้" : "FITT"}: ${m.content}`)
     .join("\n\n");

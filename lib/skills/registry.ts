@@ -21,10 +21,13 @@ export function getSkill(id: string | null | undefined): SkillTemplate | undefin
  * and to seed the model's choice. Returns the best match (defaults to "landing"
  * with score 0 when nothing matches — caller should treat score 0 as "no clear match").
  */
-export function detectSkillByKeywords(text: string): { skillId: string; score: number } {
+export function detectSkillByKeywords(
+  text: string,
+  skills: SkillTemplate[] = SKILLS
+): { skillId: string; score: number } {
   const lower = text.toLowerCase();
   let best = { skillId: "landing", score: 0 };
-  for (const skill of SKILLS) {
+  for (const skill of skills) {
     let score = 0;
     for (const kw of skill.keywords) {
       if (lower.includes(kw.toLowerCase())) score += 1;

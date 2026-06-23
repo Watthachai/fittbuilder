@@ -14,8 +14,13 @@ and is kept in sync with the entries below.
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-06-23
+
 ### Added
-- Admin-authored domain skill templates (create/publish custom domains from `/admin/skills`).
+- **Admin-authored skill templates**: create/edit/publish custom domains from `/admin/skills`
+  (full form + question builder), gated by `ADMIN_EMAILS` (email or `@domain`).
+- Published custom templates appear everywhere built-ins do — SkillDropdown, detection,
+  and Define/Plan/Build injection — resolved dynamically (built-in code + DB).
 
 ## [0.6.0] - 2026-06-22
 

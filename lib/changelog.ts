@@ -9,6 +9,16 @@ export interface ChangelogEntry {
 // Newest first. SemVer: fix → PATCH, feature → MINOR, breaking → MAJOR.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.7.0",
+    date: "2026-06-23",
+    title: "แอดมินสร้าง Skill Template เองได้",
+    body: [
+      "- แอดมินสร้าง/แก้ไขโดเมนใหม่เองได้ที่ /admin/skills (ฟอร์มครบ + ตัวสร้างคำถาม)",
+      "- โดเมนที่ \"เผยแพร่\" แล้วจะโผล่ให้ผู้ใช้เลือกใน dropdown และระบบเดาโดเมนอัตโนมัติ",
+      "- เพิ่มโดเมนเฉพาะทางได้โดยไม่ต้อง deploy โค้ดใหม่",
+    ].join("\n"),
+  },
+  {
     version: "0.6.0",
     date: "2026-06-22",
     title: "AI Skill Templates เฉพาะโดเมน + ลูกเล่นใหม่",

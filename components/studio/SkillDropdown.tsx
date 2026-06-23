@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { Check, ChevronDown, Sparkles } from "lucide-react";
-import { SKILLS, getSkill } from "@/lib/skills/registry";
+import { useSkills } from "@/lib/skills/use-skills";
 import SkillIcon from "./SkillIcon";
 
 interface SkillDropdownProps {
@@ -18,7 +18,8 @@ interface SkillDropdownProps {
  */
 export default function SkillDropdown({ value, onChange }: SkillDropdownProps) {
   const [open, setOpen] = useState(false);
-  const selected = getSkill(value);
+  const skills = useSkills();
+  const selected = skills.find((s) => s.id === value);
 
   function pick(id: string | null) {
     onChange(id);
@@ -60,7 +61,7 @@ export default function SkillDropdown({ value, onChange }: SkillDropdownProps) {
               onClick={() => pick(null)}
             />
             <div className="my-1 h-px bg-white/8" />
-            {SKILLS.map((s) => (
+            {skills.map((s) => (
               <Row
                 key={s.id}
                 icon={<SkillIcon name={s.icon} size={18} />}

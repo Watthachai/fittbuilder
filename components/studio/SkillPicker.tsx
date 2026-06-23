@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Loader2, Sparkles } from "lucide-react";
-import { SKILLS, getSkill } from "@/lib/skills/registry";
+import { useSkills } from "@/lib/skills/use-skills";
 import SkillIcon from "./SkillIcon";
 
 interface SkillPickerProps {
@@ -19,8 +19,9 @@ interface SkillPickerProps {
  * interview when no skill is chosen yet.
  */
 export default function SkillPicker({ detectedId, busy, onSelect, onSkip }: SkillPickerProps) {
-  const detected = getSkill(detectedId);
-  const [showGallery, setShowGallery] = useState(!detected);
+  const skills = useSkills();
+  const detected = skills.find((s) => s.id === detectedId);
+  const [showGallery, setShowGallery] = useState(!detectedId);
 
   if (busy) {
     return (
@@ -86,7 +87,7 @@ export default function SkillPicker({ detectedId, busy, onSelect, onSkip }: Skil
             )}
           </div>
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-            {SKILLS.map((s) => (
+            {skills.map((s) => (
               <button
                 key={s.id}
                 onClick={() => onSelect(s.id)}

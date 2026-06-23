@@ -77,7 +77,7 @@ export default function Home() {
           <div className="mt-10 grid gap-6 md:grid-cols-3">
             {STEPS.map((step, i) => (
               <Reveal key={step.no} delay={i * 0.08}>
-                <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-6 transition hover:-translate-y-1 hover:border-shine/50">
+                <div className="rounded-3xl border border-white/12 bg-white/[0.06] p-6 shadow-[0_8px_40px_rgba(0,0,0,0.25)] backdrop-blur-xl transition hover:-translate-y-1 hover:border-shine/50">
                   <span className="font-mono text-sm font-semibold text-shine">{step.no}</span>
                   <h3 className="mt-3 font-display text-lg font-semibold text-white">{step.title}</h3>
                   <p className="mt-2 text-[15px] leading-relaxed text-white/70">{step.body}</p>
@@ -90,7 +90,7 @@ export default function Home() {
         {/* Spec-to-Demo callout */}
         <section id="spec" className="mx-auto max-w-7xl px-6 pb-20">
           <Reveal>
-            <div className="rounded-3xl border border-shine/30 bg-shine/5 p-8 md:p-10">
+            <div className="rounded-3xl border border-white/12 bg-white/[0.05] p-8 shadow-[0_8px_40px_rgba(0,0,0,0.25)] backdrop-blur-xl md:p-10">
               <div className="flex flex-col items-start justify-between gap-6 md:flex-row md:items-center">
                 <div>
                   <p className="font-mono text-[11px] uppercase tracking-[0.25em] text-shine">Spec-to-Demo</p>
@@ -127,8 +127,8 @@ export default function Home() {
             {TIERS.map((tier, i) => (
               <Reveal key={tier.name} delay={i * 0.08}>
                 <div
-                  className={`relative rounded-2xl border p-6 ${
-                    tier.hot ? "border-shine bg-shine/[0.06]" : "border-white/10 bg-white/[0.03]"
+                  className={`relative rounded-3xl border p-6 shadow-[0_8px_40px_rgba(0,0,0,0.25)] backdrop-blur-xl transition hover:-translate-y-1 ${
+                    tier.hot ? "border-shine/60 bg-shine/[0.08]" : "border-white/12 bg-white/[0.06]"
                   }`}
                 >
                   {tier.hot && (

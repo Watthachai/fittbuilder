@@ -11,7 +11,8 @@ interface PhaseStepperProps {
   /** An app + BRD/PRD exist, so the user can regenerate from the docs. */
   canRework: boolean;
   onAdvance: () => void;
-  onNavigate: (phase: PhaseId) => void;
+  /** Click a completed step → preview that phase's document (does not move phase). */
+  onPreview: (phase: PhaseId) => void;
   onRework: () => void;
 }
 
@@ -21,7 +22,7 @@ export default function PhaseStepper({
   canAdvance,
   canRework,
   onAdvance,
-  onNavigate,
+  onPreview,
   onRework,
 }: PhaseStepperProps) {
   const currentIndex = phaseIndex(phase);
@@ -33,7 +34,8 @@ export default function PhaseStepper({
         {PHASES.map((step, index) => {
           const done = index < currentIndex;
           const active = index === currentIndex;
-          const reachable = index <= currentIndex;
+          // Only completed steps are clickable — they open a doc preview. The
+          // active step is where you are; future steps aren't reachable yet.
           return (
             <li key={step.id} className="flex shrink-0 items-center gap-1">
               {index > 0 && (
@@ -41,16 +43,16 @@ export default function PhaseStepper({
               )}
               <button
                 type="button"
-                disabled={!reachable}
-                onClick={() => reachable && onNavigate(step.id)}
-                title={`${step.user} / ${step.dev} — ${step.blurb}`}
+                disabled={!done}
+                onClick={() => done && onPreview(step.id)}
+                title={done ? `ดูเอกสาร ${step.user}` : `${step.user} / ${step.dev} — ${step.blurb}`}
                 className={`inline-flex items-center gap-1.5 rounded-full py-1 pl-1 pr-2.5 text-xs transition ${
                   active
                     ? "bg-shine font-semibold text-black"
                     : done
-                      ? "text-go hover:bg-white/5"
+                      ? "cursor-pointer text-go hover:bg-white/5"
                       : "cursor-default text-chalk-dim/50"
-                } ${reachable && !active ? "cursor-pointer" : ""}`}
+                }`}
               >
                 <span
                   className={`grid h-4 w-4 place-items-center rounded-full text-[9px] font-bold ${

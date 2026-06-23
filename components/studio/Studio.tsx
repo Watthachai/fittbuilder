@@ -40,6 +40,7 @@ import {
 import ChatPanel from "./ChatPanel";
 import CodePanel from "./CodePanel";
 import DesignPicker from "./DesignPicker";
+import DocPreviewModal from "./DocPreviewModal";
 import PackageSearch from "./PackageSearch";
 import PhaseStepper from "./PhaseStepper";
 import PreviewPanel from "./PreviewPanel";
@@ -61,6 +62,15 @@ export interface SpecPayload {
 type LastAction =
   | { kind: "generate"; prompt: string; spec?: SpecPayload }
   | { kind: "agent"; text: string | null };
+
+/** The markdown doc each phase produces (build emits code, not a doc). */
+const DOC_KIND_BY_PHASE: Partial<Record<PhaseId, DocKind>> = {
+  define: "brd",
+  plan: "prd",
+  verify: "verify",
+  review: "review",
+  ship: "ship",
+};
 
 /** Is the current phase's exit gate satisfied? */
 function gateSatisfied(project: ProjectRecord): boolean {
@@ -94,6 +104,7 @@ export default function Studio({ projectId }: { projectId: string }) {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [previewKey, setPreviewKey] = useState(0);
   const [view, setView] = useState<"preview" | "code">("preview");
+  const [previewPhase, setPreviewPhase] = useState<PhaseId | null>(null);
   const [specOpen, setSpecOpen] = useState(false);
   const [packagesOpen, setPackagesOpen] = useState(false);
   const [leftWidth, setLeftWidth] = useState(400);
@@ -636,17 +647,19 @@ export default function Studio({ projectId }: { projectId: string }) {
     }
   }, [phase, chatStreaming, buildFromDocs, persist, pushTerminal, runAgent]);
 
-  /** Jump back to an earlier (already-reached) phase. */
-  const navigatePhase = useCallback(
-    (target: PhaseId) => {
-      const current = projectRef.current;
-      if (!current || busy || target === current.phase) return;
-      const working = persist({ ...current, phase: target });
-      if (isBuildPhase(target) && hasRunnableApp(working.files)) setView("preview");
-      else if (working.files) setView("code");
-    },
-    [busy, persist]
-  );
+  /**
+   * Click a completed step → preview that phase's document in a modal. This does
+   * NOT move the workflow back (that confused the flow — the user could re-approve
+   * and "advance" again). To change a doc, edit it in the Code tab, then use the
+   * "สร้างใหม่จากเอกสาร" rework button. Build has no doc → peek at the running app.
+   */
+  const previewPhaseDoc = useCallback((target: PhaseId) => {
+    if (isBuildPhase(target)) {
+      if (hasRunnableApp(projectRef.current?.files ?? null)) setView("preview");
+      return;
+    }
+    setPreviewPhase(target);
+  }, []);
 
   const cancel = useCallback(() => {
     abortRef.current?.abort();
@@ -1029,7 +1042,7 @@ export default function Studio({ projectId }: { projectId: string }) {
         canAdvance={!readOnly && gateSatisfied(project)}
         canRework={canRework}
         onAdvance={readOnly ? () => {} : advancePhase}
-        onNavigate={navigatePhase}
+        onPreview={previewPhaseDoc}
         onRework={rebuildFromDocs}
       />
 
@@ -1157,6 +1170,20 @@ export default function Studio({ projectId }: { projectId: string }) {
           onClose={() => setShareOpen(false)}
         />
       )}
+
+      {previewPhase &&
+        (() => {
+          const kind = DOC_KIND_BY_PHASE[previewPhase];
+          const def = phaseDef(previewPhase);
+          return (
+            <DocPreviewModal
+              title={`${def.user} — ${def.name}`}
+              path={kind ? DOC_PATHS[kind] : ""}
+              content={kind ? (docsFromFiles(project.files)[kind] ?? null) : null}
+              onClose={() => setPreviewPhase(null)}
+            />
+          );
+        })()}
 
     </div>
   );

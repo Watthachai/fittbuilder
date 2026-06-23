@@ -1,7 +1,7 @@
 "use client";
 
-import { useRef } from "react";
-import { motion, useScroll, useTransform, type MotionValue } from "motion/react";
+import { useRef, useState } from "react";
+import { useMotionValueEvent, useScroll } from "motion/react";
 
 interface Step {
   no: string;
@@ -12,10 +12,22 @@ interface Step {
 /**
  * Pinned scroll story for "ทำงานยังไง?": a tall section whose sticky viewport
  * cross-fades through the steps as the user scrolls — one card at a time.
+ *
+ * Drives the active step from the scroll progress (via useMotionValueEvent) and
+ * tweens the cards with CSS transitions — avoids per-card useTransform, which
+ * tripped the WAAPI "offsets must be monotonically non-decreasing" error.
  */
 export default function ScrollStory({ steps }: { steps: Step[] }) {
   const ref = useRef<HTMLDivElement>(null);
   const { scrollYProgress } = useScroll({ target: ref, offset: ["start start", "end end"] });
+  const [active, setActive] = useState(0);
+  const [progress, setProgress] = useState(0);
+
+  useMotionValueEvent(scrollYProgress, "change", (v) => {
+    const idx = Math.min(steps.length - 1, Math.max(0, Math.floor(v * steps.length)));
+    setActive(idx);
+    setProgress(Math.min(100, Math.max(0, Math.round(v * 100))));
+  });
 
   return (
     <section id="how" ref={ref} className="relative" style={{ height: `${steps.length * 95}vh` }}>
@@ -25,54 +37,28 @@ export default function ScrollStory({ steps }: { steps: Step[] }) {
         </h2>
         <div className="relative h-[300px] w-full max-w-xl">
           {steps.map((step, i) => (
-            <StoryCard key={step.no} progress={scrollYProgress} index={i} total={steps.length} step={step} />
+            <div
+              key={step.no}
+              className="absolute inset-0 flex flex-col justify-center rounded-3xl border border-white/12 bg-white/[0.05] p-8 shadow-[0_8px_40px_rgba(0,0,0,0.25)] backdrop-blur-md transition-all duration-500 ease-out"
+              style={{
+                opacity: i === active ? 1 : 0,
+                transform: i === active ? "translateY(0) scale(1)" : "translateY(40px) scale(0.94)",
+                pointerEvents: i === active ? "auto" : "none",
+              }}
+            >
+              <span className="font-mono text-sm font-semibold text-shine">{step.no}</span>
+              <h3 className="mt-3 font-display text-2xl font-semibold text-white">{step.title}</h3>
+              <p className="mt-3 text-base leading-relaxed text-white/75">{step.body}</p>
+            </div>
           ))}
         </div>
-        <ScrollHint progress={scrollYProgress} />
+        <div className="mt-10 h-[3px] w-40 overflow-hidden rounded-full bg-white/10">
+          <div
+            className="h-full bg-shine transition-[width] duration-200 ease-out"
+            style={{ width: `${progress}%` }}
+          />
+        </div>
       </div>
     </section>
-  );
-}
-
-function StoryCard({
-  progress,
-  index,
-  total,
-  step,
-}: {
-  progress: MotionValue<number>;
-  index: number;
-  total: number;
-  step: Step;
-}) {
-  const seg = 1 / total;
-  const start = index * seg;
-  const opacity = useTransform(
-    progress,
-    [start - seg * 0.6, start - seg * 0.15, start + seg * 0.7, start + seg],
-    [0, 1, 1, 0]
-  );
-  const y = useTransform(progress, [start - seg * 0.6, start - seg * 0.15], [60, 0]);
-  const scale = useTransform(progress, [start - seg * 0.6, start - seg * 0.15], [0.9, 1]);
-
-  return (
-    <motion.div
-      style={{ opacity, y, scale }}
-      className="absolute inset-0 flex flex-col justify-center rounded-3xl border border-white/12 bg-white/[0.05] p-8 backdrop-blur-md"
-    >
-      <span className="font-mono text-sm font-semibold text-shine">{step.no}</span>
-      <h3 className="mt-3 font-display text-2xl font-semibold text-white">{step.title}</h3>
-      <p className="mt-3 text-base leading-relaxed text-white/75">{step.body}</p>
-    </motion.div>
-  );
-}
-
-/** Progress dots showing where the reader is in the story. */
-function ScrollHint({ progress }: { progress: MotionValue<number> }) {
-  const width = useTransform(progress, [0, 1], ["0%", "100%"]);
-  return (
-    <div className="mt-10 h-[3px] w-40 overflow-hidden rounded-full bg-white/10">
-      <motion.div style={{ width }} className="h-full bg-shine" />
-    </div>
   );
 }

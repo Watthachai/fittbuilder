@@ -46,6 +46,7 @@ export default function MainframeHero() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const prevX = useRef<number | null>(null);
   const targetTime = useRef(0);
+  const seeking = useRef(false);
   const heroRef = useRef<HTMLElement>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [showLaunch, setShowLaunch] = useState(false);
@@ -80,19 +81,12 @@ export default function MainframeHero() {
     return () => clearTimeout(t);
   }, []);
 
-  // Scrub the (non-autoplaying) video by horizontal mouse movement. Uses a
-  // requestAnimationFrame throttle (one seek per frame) instead of the `seeked`
-  // event, so it doesn't depend on the listener being attached at mount.
+  // Scrub the (non-autoplaying) video by horizontal mouse movement. Waits for
+  // each seek to finish (onSeeked) before issuing the next so the browser doesn't
+  // drop intermediate frames (which made it jump between sparse keyframes). The
+  // onSeeked handler is attached as an element prop so it binds reliably.
   useEffect(() => {
     const SENSITIVITY = 0.8;
-    let raf = 0;
-    const flush = () => {
-      raf = 0;
-      const v = videoRef.current;
-      if (v && v.duration && Math.abs(v.currentTime - targetTime.current) > 0.005) {
-        v.currentTime = targetTime.current;
-      }
-    };
     function onMove(e: MouseEvent) {
       const v = videoRef.current;
       if (!v || !v.duration) return;
@@ -105,14 +99,24 @@ export default function MainframeHero() {
       let t = targetTime.current + (delta / window.innerWidth) * SENSITIVITY * v.duration;
       t = Math.max(0, Math.min(v.duration, t));
       targetTime.current = t;
-      if (!raf) raf = requestAnimationFrame(flush);
+      if (!seeking.current) {
+        seeking.current = true;
+        v.currentTime = t;
+      }
     }
     window.addEventListener("mousemove", onMove);
-    return () => {
-      window.removeEventListener("mousemove", onMove);
-      if (raf) cancelAnimationFrame(raf);
-    };
+    return () => window.removeEventListener("mousemove", onMove);
   }, []);
+
+  function handleSeeked() {
+    const v = videoRef.current;
+    if (!v) return;
+    if (Math.abs(v.currentTime - targetTime.current) > 0.01) {
+      v.currentTime = targetTime.current;
+    } else {
+      seeking.current = false;
+    }
+  }
 
   return (
     <>
@@ -124,6 +128,7 @@ export default function MainframeHero() {
         playsInline
         preload="auto"
         aria-hidden
+        onSeeked={handleSeeked}
         className="fixed inset-0 z-0 h-full w-full object-cover"
         style={{ objectPosition: "70% center", scale: smoothZoom, transformOrigin: "72% 42%" }}
       />

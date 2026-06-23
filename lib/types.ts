@@ -172,4 +172,6 @@ export interface AgentRequestBody {
   docs?: Partial<Record<DocKind, string>>;
   /** Selected domain skill template id, for domain-expert questioning. */
   skillId?: string;
+  /** Express mode: brief is complete — emit the phase doc in one shot, no questions. */
+  express?: boolean;
 }

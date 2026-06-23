@@ -149,7 +149,8 @@ const DOC_LABELS: Record<DocKind, string> = {
 export function buildAgentSystemPrompt(
   agentBody: string,
   docs: Partial<Record<DocKind, string>>,
-  skill?: SkillTemplate
+  skill?: SkillTemplate,
+  express?: boolean
 ): string {
   const docState = (Object.keys(DOC_LABELS) as DocKind[])
     .filter((kind) => docs[kind])
@@ -172,9 +173,18 @@ INTERACTIVE ASK CONTRACT — สำคัญมาก:
 
   const skillBlock = skill ? `${renderSkillForInterview(skill)}\n\n` : "";
 
+  const expressBlock = express
+    ? `โหมด EXPRESS — สำคัญที่สุด (override ทุกอย่างด้านบน):
+- ผู้ใช้ได้ให้ brief ที่ครบถ้วนแล้ว ห้ามถามคำถามกลับ และห้ามใส่บล็อก \`\`\`ask เด็ดขาด
+- ให้สร้างเอกสารหลักของเฟสนี้ (เช่น BRD สำหรับ Define, PRD สำหรับ Plan) ให้สมบูรณ์ในครั้งเดียว จาก brief + เอกสารก่อนหน้า โดยเติมรายละเอียดที่สมเหตุสมผลเองเมื่อ brief ไม่ได้ระบุ
+- ปิดท้ายด้วยข้อความสั้นๆ 1-2 ประโยคว่าทำอะไรไปแล้ว แล้วให้ผู้ใช้กด "อนุมัติ & ไปต่อ"
+
+`
+    : "";
+
   return `${agentBody}
 
-${skillBlock}${docState ? `สถานะเอกสารปัจจุบัน (ผู้ใช้อาจแก้ไขเองใน editor — ยึดฉบับนี้เป็นหลัก):\n\n${docState}\n\n` : ""}${contract}`;
+${skillBlock}${expressBlock}${docState ? `สถานะเอกสารปัจจุบัน (ผู้ใช้อาจแก้ไขเองใน editor — ยึดฉบับนี้เป็นหลัก):\n\n${docState}\n\n` : ""}${contract}`;
 }
 
 /* ——— Spec-to-Demo helpers (preset detection / answer extraction) ——— */

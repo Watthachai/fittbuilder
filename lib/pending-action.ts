@@ -7,7 +7,7 @@
 const KEY = (projectId: string) => `fittbuilder:pending:${projectId}`;
 
 export type PendingAction =
-  | { kind: "build"; prompt: string } // express build straight from a prompt
+  | { kind: "express"; prompt: string } // auto-pilot the full flow (BRD→PRD→build)
   | { kind: "spec" }; // open the Spec-to-Demo flow
 
 export function setPendingAction(projectId: string, action: PendingAction): void {

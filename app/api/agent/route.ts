@@ -29,6 +29,7 @@ const bodySchema = z.object({
   // would reject any partial set — including {} — which 400s every agent call.
   docs: z.partialRecord(z.enum(DOC_KINDS), z.string().max(50_000)).optional(),
   skillId: z.string().max(40).optional(),
+  express: z.boolean().optional(),
 });
 
 function sse(event: AgentEvent): Uint8Array {
@@ -60,11 +61,20 @@ export async function POST(request: Request) {
   }
 
   const agent = await getAgentForPhase(body.phase);
-  const system = buildAgentSystemPrompt(agent.body, body.docs ?? {}, await resolveSkill(body.skillId));
+  const system = buildAgentSystemPrompt(
+    agent.body,
+    body.docs ?? {},
+    await resolveSkill(body.skillId),
+    body.express
+  );
   const transcript = body.messages
     .map((m) => `${m.role === "user" ? "ผู้ใช้" : "FITT"}: ${m.content}`)
     .join("\n\n");
-  const user = transcript || "(เริ่มบทสนทนา — ทักทายสั้นๆ แล้วเริ่มงานของเฟสนี้)";
+  const user =
+    transcript ||
+    (body.express
+      ? "(สร้างเอกสารของเฟสนี้จาก brief และเอกสารก่อนหน้าให้สมบูรณ์ในครั้งเดียว)"
+      : "(เริ่มบทสนทนา — ทักทายสั้นๆ แล้วเริ่มงานของเฟสนี้)");
 
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {

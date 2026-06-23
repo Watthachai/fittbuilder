@@ -61,12 +61,14 @@ export default function LaunchPad() {
     if (launching) return;
     setLaunching(true);
     try {
+      // Start at Define: the brief is complete, so the studio auto-pilots the
+      // full flow (BRD → PRD → build) instead of jumping straight to Build.
       const project = await createProject({
         name: prompt.trim().slice(0, 40),
-        phase: "build",
+        phase: "define",
         skillId: skillId ?? undefined,
       });
-      setPendingAction(project.id, { kind: "build", prompt: prompt.trim() });
+      setPendingAction(project.id, { kind: "express", prompt: prompt.trim() });
       router.push(`/project/${project.id}`);
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);

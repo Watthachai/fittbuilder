@@ -271,9 +271,13 @@ export default function Studio({ projectId }: { projectId: string }) {
    * null for the kickoff message (the agent greets / starts its work).
    */
   const runAgent = useCallback(
-    async (userText: string | null, base?: ProjectRecord) => {
+    async (
+      userText: string | null,
+      base?: ProjectRecord,
+      express?: boolean
+    ): Promise<ProjectRecord | null> => {
       const current = base ?? projectRef.current;
-      if (!current) return;
+      if (!current) return null;
       lastActionRef.current = { kind: "agent", text: userText };
 
       let working = current;
@@ -300,6 +304,7 @@ export default function Studio({ projectId }: { projectId: string }) {
               .map(({ role, content }) => ({ role, content })),
             docs: docsFromFiles(working.files),
             skillId: working.skillId,
+            express,
           },
           controller.signal
         )) {
@@ -344,15 +349,16 @@ export default function Studio({ projectId }: { projectId: string }) {
         if (snap?.thinking.trim()) assistantMsg.thinking = snap.thinking.trim();
         if (snap?.actions.length) assistantMsg.actions = snap.actions;
         working = appendMessage(working, assistantMsg);
-        persist(working);
+        return persist(working);
       } catch (error) {
         if (controller.signal.aborted) {
           pushTerminal("✋ ยกเลิกแล้ว");
-          return;
+          return null;
         }
         const message = error instanceof Error ? error.message : "เกิดข้อผิดพลาด";
         setErrorMessage(message);
         pushTerminal(`✖ ${message}`);
+        return null;
       } finally {
         setChatStreaming(false);
         setLiveBoth(null);
@@ -542,6 +548,38 @@ export default function Studio({ projectId }: { projectId: string }) {
       );
     },
     [generate]
+  );
+
+  /**
+   * Express auto-pilot: the brief is complete, so walk the full flow without the
+   * interview — Define→BRD, Plan→PRD (each emitted in one shot), then Build from
+   * the docs. Stops (leaving the user in control) if a phase fails to produce its
+   * doc. The prompt rides in as the first chat message so the user sees it.
+   */
+  const runExpressPipeline = useCallback(
+    async (prompt: string, base: ProjectRecord) => {
+      pushTerminal("⚡ Express: สร้าง BRD จาก brief…");
+      let rec = await runAgent(prompt, { ...base, phase: "define" }, true);
+      if (!rec || !docsFromFiles(rec.files).brd) return;
+
+      rec = persist({
+        ...rec,
+        phase: "plan",
+        approvedPhases: Array.from(new Set([...(rec.approvedPhases ?? []), "define" as PhaseId])),
+      });
+      pushTerminal("⚡ Express: สร้าง PRD จาก BRD…");
+      rec = await runAgent(null, rec, true);
+      if (!rec || !docsFromFiles(rec.files).prd) return;
+
+      rec = persist({
+        ...rec,
+        phase: "build",
+        approvedPhases: Array.from(new Set([...(rec.approvedPhases ?? []), "plan" as PhaseId])),
+      });
+      pushTerminal("⚡ Express: build จาก BRD/PRD…");
+      buildFromDocs(rec);
+    },
+    [runAgent, persist, buildFromDocs, pushTerminal]
   );
 
   /** Approve the current phase and move to the next, kicking off its agent. */
@@ -791,8 +829,12 @@ export default function Studio({ projectId }: { projectId: string }) {
 
       const pending = takePendingAction(projectId);
       if (pending) {
-        if (pending.kind === "build") {
-          void generate(pending.prompt, undefined, loaded); // express build
+        if (pending.kind === "express") {
+          // Brief is complete → auto-pilot the whole flow (BRD→PRD→build).
+          // Suppress the domain picker; the skill was already chosen at launch.
+          skillCheckedRef.current = projectId;
+          void bootScaffold(); // warm the preview so the final build HMRs in
+          void runExpressPipeline(pending.prompt, loaded);
         } else {
           setSpecOpen(true);
         }

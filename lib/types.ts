@@ -52,6 +52,8 @@ export interface ChatMessage {
   actions?: AgentAction[];
   /** Per-file before/after for this build turn, for the "ดูการเปลี่ยนแปลง" diff viewer. */
   changes?: FileChange[];
+  /** This turn produced/updated this phase's doc → show a "ดูเอกสาร" button. */
+  hasDoc?: boolean;
 }
 
 /** One file's before→after state in a build turn (null = absent on that side). */

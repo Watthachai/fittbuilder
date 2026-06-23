@@ -54,6 +54,8 @@ interface ChatPanelProps {
   onRemoveAttachment: (path: string) => void;
   onSubmit: (text: string) => void;
   onCancel: () => void;
+  /** Open the doc-preview modal for a phase (from a message's "ดูเอกสาร" button). */
+  onViewDoc: (phase: PhaseId) => void;
 }
 
 /**
@@ -177,6 +179,7 @@ export default function ChatPanel({
   onRemoveAttachment,
   onSubmit,
   onCancel,
+  onViewDoc,
 }: ChatPanelProps) {
   const [draft, setDraft] = useState("");
   const [picked, setPicked] = useState<string[]>([]);
@@ -275,6 +278,18 @@ export default function ChatPanel({
             {message.role === "assistant" && message.actions && (
               <ActionHistory actions={message.actions} live={false} />
             )}
+            {message.role === "assistant" &&
+              message.hasDoc &&
+              message.phase &&
+              !isBuildPhase(message.phase) && (
+                <button
+                  onClick={() => onViewDoc(message.phase!)}
+                  className="mt-2 inline-flex items-center gap-1.5 rounded-md border border-night-edge bg-night px-2.5 py-1 font-mono text-[11px] text-chalk-dim transition hover:border-shine/60 hover:text-chalk"
+                >
+                  <FileText size={12} className="text-shine" />
+                  ดูเอกสาร
+                </button>
+              )}
             {message.role === "assistant" && message.changes && message.changes.length > 0 && (
               <button
                 onClick={() => setDiffMsg(message)}

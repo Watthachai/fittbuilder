@@ -356,6 +356,7 @@ export default function Studio({ projectId }: { projectId: string }) {
         }
         const assistantMsg = newMessage("assistant", turn.reply, working.phase);
         if (turn.ask) assistantMsg.ask = turn.ask;
+        if (docEntries.length > 0) assistantMsg.hasDoc = true;
         const snap = liveRef.current;
         if (snap?.thinking.trim()) assistantMsg.thinking = snap.thinking.trim();
         if (snap?.actions.length) assistantMsg.actions = snap.actions;
@@ -1113,6 +1114,7 @@ export default function Studio({ projectId }: { projectId: string }) {
               else void runAgent(full);
             }}
             onCancel={cancel}
+            onViewDoc={previewPhaseDoc}
           />
         </div>
 

@@ -112,8 +112,8 @@ export default function MainframeHero() {
       />
       <div className="fixed inset-0 z-0 bg-black/55" aria-hidden />
 
-      {/* Navbar */}
-      <header className="fixed inset-x-0 top-0 z-50 flex items-center justify-between px-5 py-4 sm:px-8 sm:py-5">
+      {/* Navbar (glass) */}
+      <header className="fixed inset-x-0 top-0 z-50 flex items-center justify-between border-b border-white/10 bg-black/40 px-5 py-4 backdrop-blur-xl sm:px-8 sm:py-5">
         <Link href="/" className="flex items-center gap-3">
           <span
             className="text-[21px] tracking-tight text-white sm:text-[26px]"

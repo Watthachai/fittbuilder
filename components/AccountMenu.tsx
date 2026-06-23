@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { LogOut } from "lucide-react";
+import { LogOut, ShieldCheck } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 
 interface Account {
@@ -15,6 +16,7 @@ interface Account {
 export default function AccountMenu() {
   const router = useRouter();
   const [account, setAccount] = useState<Account | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [open, setOpen] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
 
@@ -53,6 +55,27 @@ export default function AccountMenu() {
     };
   }, []);
 
+  // Admin flag (server-checked) — drives the badge + management link.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      if (!account) {
+        if (!cancelled) setIsAdmin(false);
+        return;
+      }
+      try {
+        const res = await fetch("/api/me");
+        const data = res.ok ? ((await res.json()) as { isAdmin?: boolean }) : null;
+        if (!cancelled) setIsAdmin(Boolean(data?.isAdmin));
+      } catch {
+        /* keep false */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [account]);
+
   async function signOut() {
     setSigningOut(true);
     const supabase = createClient();
@@ -74,6 +97,11 @@ export default function AccountMenu() {
       >
         <Avatar avatarUrl={account.avatarUrl} initial={initial} />
         <span className="max-w-[10rem] truncate font-display text-sm text-white/80">{label}</span>
+        {isAdmin && (
+          <span className="rounded-full bg-shine/15 px-1.5 py-0.5 font-display text-[10px] font-semibold text-shine">
+            Admin
+          </span>
+        )}
       </button>
 
       {open && (
@@ -89,6 +117,15 @@ export default function AccountMenu() {
                 <p className="truncate font-mono text-[11px] text-white/50">{account.email}</p>
               </div>
             </div>
+            {isAdmin && (
+              <Link
+                href="/admin/skills"
+                onClick={() => setOpen(false)}
+                className="flex w-full items-center gap-2 border-b border-white/10 px-4 py-2.5 text-left font-display text-sm text-white/70 transition hover:bg-white/5 hover:text-white"
+              >
+                <ShieldCheck size={14} className="text-shine" /> จัดการ Skill Templates
+              </Link>
+            )}
             <button
               onClick={signOut}
               disabled={signingOut}

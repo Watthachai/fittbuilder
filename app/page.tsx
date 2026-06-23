@@ -46,10 +46,10 @@ export default function Home() {
       {/* Full-screen Mainframe-style hero with the embedded builder */}
       <MainframeHero />
 
-      {/* Below-fold marketing — opaque layer that scrolls over the fixed hero video */}
-      <main className="relative z-10 bg-black">
+      {/* Below-fold marketing — glass layer: the fixed hero video shows through, blurred */}
+      <main className="relative z-10 bg-black/70 backdrop-blur-2xl">
         {/* Preset marquee */}
-        <section className="border-y border-night-edge py-4">
+        <section className="border-y border-white/10 py-4">
           <div className="overflow-hidden whitespace-nowrap">
             <div className="marquee-track inline-block">
               {[0, 1].map((copy) => (
@@ -156,7 +156,7 @@ export default function Home() {
         </section>
       </main>
 
-      <footer className="relative z-10 border-t border-white/10 bg-black py-8">
+      <footer className="relative z-10 border-t border-white/10 bg-black/70 py-8 backdrop-blur-2xl">
         <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-3 px-6 sm:flex-row">
           <Logo />
           <span className="font-mono text-[12px] text-white/50">

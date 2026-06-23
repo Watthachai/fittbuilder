@@ -112,8 +112,8 @@ export default function MainframeHero() {
       />
       <div className="fixed inset-0 z-0 bg-black/55" aria-hidden />
 
-      {/* Navbar (glass) */}
-      <header className="fixed inset-x-0 top-0 z-50 flex items-center justify-between border-b border-white/10 bg-black/40 px-5 py-4 backdrop-blur-xl sm:px-8 sm:py-5">
+      {/* Navbar — floating glass pill */}
+      <header className="fixed inset-x-0 top-0 z-50 flex items-center justify-between px-5 py-4 sm:px-8 sm:py-5">
         <Link href="/" className="flex items-center gap-3">
           <span
             className="text-[21px] tracking-tight text-white sm:text-[26px]"
@@ -129,21 +129,22 @@ export default function MainframeHero() {
           </span>
         </Link>
 
-        <nav className="hidden items-center gap-1 text-[23px] text-white md:flex">
-          {NAV_LINKS.map((link, i) => (
-            <span key={link.href} className="flex items-center">
-              <a href={link.href} className="transition-opacity hover:opacity-60">
-                {link.label}
-              </a>
-              {i < NAV_LINKS.length - 1 && <span className="px-1">,</span>}
-            </span>
+        <nav className="absolute left-1/2 hidden -translate-x-1/2 items-center gap-1 rounded-full border border-white/12 bg-black/40 px-2 py-1.5 text-[15px] text-white/85 backdrop-blur-xl md:flex">
+          {NAV_LINKS.map((link) => (
+            <a
+              key={link.href}
+              href={link.href}
+              className="rounded-full px-4 py-1.5 transition hover:bg-white/10 hover:text-white"
+            >
+              {link.label}
+            </a>
           ))}
         </nav>
 
-        <div className="hidden items-center gap-4 md:flex">
+        <div className="hidden items-center gap-2 rounded-full border border-white/12 bg-black/40 py-1 pl-3 pr-1 backdrop-blur-xl md:flex">
           <Link
             href="/projects"
-            className="text-[23px] text-white underline underline-offset-2 transition-opacity hover:opacity-60"
+            className="text-[15px] text-white/85 transition hover:text-white"
           >
             ผลงานของฉัน
           </Link>

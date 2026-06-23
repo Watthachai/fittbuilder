@@ -2,8 +2,7 @@
 
 import { useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { CHANGELOG, latestVersion } from "@/lib/changelog";
-import Markdown from "@/components/studio/Markdown";
+import { CHANGE_BADGE, CHANGELOG, latestVersion } from "@/lib/changelog";
 
 export default function ChangelogPage() {
   useEffect(() => {
@@ -24,10 +23,24 @@ export default function ChangelogPage() {
       <div className="mx-auto max-w-2xl space-y-10">
         <h1 className="text-3xl font-semibold">มีอะไรใหม่</h1>
         {CHANGELOG.map((e) => (
-          <article key={e.version} className="space-y-2 border-b border-white/10 pb-8">
+          <article key={e.version} className="space-y-3 border-b border-white/10 pb-8">
             <div className="text-sm text-white/50">{e.date} · v{e.version}</div>
             <h2 className="text-xl font-medium">{e.title}</h2>
-            <Markdown>{e.body}</Markdown>
+            <ul className="space-y-2">
+              {e.items.map((item, i) => {
+                const badge = CHANGE_BADGE[item.type];
+                return (
+                  <li key={i} className="flex items-start gap-2.5">
+                    <span
+                      className={`mt-0.5 shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium ${badge.className}`}
+                    >
+                      {badge.label}
+                    </span>
+                    <span className="text-[15px] leading-relaxed text-white/80">{item.text}</span>
+                  </li>
+                );
+              })}
+            </ul>
           </article>
         ))}
       </div>

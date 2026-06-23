@@ -2,7 +2,8 @@
 
 import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
-import { ArrowRight, FileText, MessagesSquare } from "lucide-react";
+import { AnimatePresence, motion } from "motion/react";
+import { ArrowRight, FileText, MessagesSquare, Plus } from "lucide-react";
 import { createProject } from "@/lib/storage";
 import SkillPicker from "@/components/studio/SkillPicker";
 import SkillDropdown from "@/components/studio/SkillDropdown";
@@ -25,6 +26,7 @@ export default function LaunchPad() {
   const [detectedSkillId, setDetectedSkillId] = useState<string | null>(null);
   const [detecting, setDetecting] = useState(false);
   const [selectedSkillId, setSelectedSkillId] = useState<string | null>(null);
+  const [plusOpen, setPlusOpen] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   // Quick path: detect the domain, show the skill confirm card, then build.
@@ -150,37 +152,63 @@ export default function LaunchPad() {
       />
 
       <div className="flex flex-wrap items-center gap-2 border-t border-white/10 px-4 py-3">
+        <div className="relative">
+          <motion.button
+            type="button"
+            whileTap={{ scale: 0.92 }}
+            onClick={() => setPlusOpen((v) => !v)}
+            disabled={launching}
+            aria-label="ตัวเลือกเพิ่มเติม"
+            className="grid h-9 w-9 place-items-center rounded-full border border-white/15 bg-white/5 text-white/80 transition hover:border-white/30 disabled:opacity-40"
+          >
+            <Plus size={18} className={`transition-transform ${plusOpen ? "rotate-45" : ""}`} />
+          </motion.button>
+          <AnimatePresence>
+            {plusOpen && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setPlusOpen(false)} />
+                <motion.div
+                  initial={{ opacity: 0, y: 8, scale: 0.96 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: 8, scale: 0.96 }}
+                  transition={{ duration: 0.16, ease: "easeOut" }}
+                  className="absolute bottom-full left-0 z-50 mb-2 w-64 origin-bottom-left overflow-hidden rounded-2xl border border-white/12 bg-[#15151c] p-1.5 shadow-2xl"
+                >
+                  <MenuItem
+                    icon={<MessagesSquare size={16} className="text-shine" />}
+                    title="ให้ AI สัมภาษณ์ (Define)"
+                    desc="เริ่มจากสัมภาษณ์ → BRD/PRD แบบมีโครง"
+                    onClick={() => {
+                      setPlusOpen(false);
+                      void launchInterview();
+                    }}
+                  />
+                  <MenuItem
+                    icon={<FileText size={16} className="text-shine" />}
+                    title="มีเอกสารแล้ว"
+                    desc="วาง BRD/PRD → ตอบคำถามสั้นๆ → demo"
+                    onClick={() => {
+                      setPlusOpen(false);
+                      void launchSpec();
+                    }}
+                  />
+                </motion.div>
+              </>
+            )}
+          </AnimatePresence>
+        </div>
+
         <SkillDropdown value={selectedSkillId} onChange={setSelectedSkillId} />
-        <button
+
+        <motion.button
+          whileTap={{ scale: 0.97 }}
           onClick={launch}
           disabled={!prompt.trim() || launching}
-          className="group inline-flex items-center gap-2 rounded-full bg-white px-6 py-2.5 font-display font-semibold text-black transition hover:bg-gray-200 disabled:cursor-not-allowed disabled:opacity-40"
+          className="group ml-auto inline-flex items-center gap-2 rounded-full bg-white px-6 py-2.5 font-display font-semibold text-black transition hover:bg-gray-200 disabled:cursor-not-allowed disabled:opacity-40"
         >
           {launching ? "กำลังเปิดสตูดิโอ…" : "สร้างเลย"}
-          <ArrowRight
-            size={17}
-            className="transition-transform group-hover:translate-x-0.5"
-          />
-        </button>
-        <button
-          onClick={launchInterview}
-          disabled={launching}
-          className="inline-flex items-center gap-2 rounded-full border border-white/20 px-5 py-2.5 font-display text-sm font-medium text-white/80 transition hover:border-shine hover:text-shine disabled:opacity-40"
-        >
-          <MessagesSquare size={15} />
-          ให้ AI สัมภาษณ์ (Define)
-        </button>
-        <button
-          onClick={launchSpec}
-          disabled={launching}
-          className="inline-flex items-center gap-2 rounded-full border border-white/20 px-5 py-2.5 font-display text-sm font-medium text-white/80 transition hover:border-shine hover:text-shine disabled:opacity-40"
-        >
-          <FileText size={15} />
-          มีเอกสารแล้ว
-        </button>
-        <span className="ml-auto hidden font-mono text-[11px] text-white/50 sm:block">
-          Enter = สร้าง · Shift+Enter = บรรทัดใหม่
-        </span>
+          <ArrowRight size={17} className="transition-transform group-hover:translate-x-0.5" />
+        </motion.button>
       </div>
 
       {error && (
@@ -206,5 +234,31 @@ export default function LaunchPad() {
         </>
       )}
     </div>
+  );
+}
+
+function MenuItem({
+  icon,
+  title,
+  desc,
+  onClick,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  desc: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="flex w-full items-start gap-3 rounded-xl px-3 py-2.5 text-left transition hover:bg-white/5"
+    >
+      <span className="mt-0.5 shrink-0">{icon}</span>
+      <span className="min-w-0 flex-1">
+        <span className="block font-display text-sm font-medium text-white">{title}</span>
+        <span className="mt-0.5 block text-xs leading-snug text-white/55">{desc}</span>
+      </span>
+    </button>
   );
 }

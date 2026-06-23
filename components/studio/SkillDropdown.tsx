@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { AnimatePresence, motion } from "motion/react";
 import { Check, ChevronDown, Sparkles } from "lucide-react";
 import { SKILLS, getSkill } from "@/lib/skills/registry";
 import SkillIcon from "./SkillIcon";
@@ -40,10 +41,17 @@ export default function SkillDropdown({ value, onChange }: SkillDropdownProps) {
         <ChevronDown size={14} className={`transition ${open ? "rotate-180" : ""}`} />
       </button>
 
-      {open && (
-        <>
-          <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
-          <div className="absolute bottom-full left-0 z-50 mb-2 w-80 max-w-[90vw] overflow-hidden rounded-2xl border border-white/12 bg-[#15151c] p-1.5 shadow-2xl">
+      <AnimatePresence>
+        {open && (
+          <>
+            <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
+            <motion.div
+              initial={{ opacity: 0, y: 8, scale: 0.96 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 8, scale: 0.96 }}
+              transition={{ duration: 0.16, ease: "easeOut" }}
+              className="absolute bottom-full left-0 z-50 mb-2 w-80 max-w-[90vw] origin-bottom-left overflow-hidden rounded-2xl border border-white/12 bg-[#15151c] p-1.5 shadow-2xl"
+            >
             <Row
               icon={<Sparkles size={18} className="text-shine" />}
               title="ให้ AI เดาให้ (Auto)"
@@ -62,9 +70,10 @@ export default function SkillDropdown({ value, onChange }: SkillDropdownProps) {
                 onClick={() => pick(s.id)}
               />
             ))}
-          </div>
-        </>
-      )}
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

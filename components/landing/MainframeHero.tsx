@@ -3,8 +3,10 @@
 import { useEffect, useRef, useState } from "react";
 import { motion, useMotionValueEvent, useScroll, useSpring, useTransform } from "motion/react";
 import Link from "next/link";
+import { PanelLeft } from "lucide-react";
 import LaunchPad from "./LaunchPad";
 import AccountMenu from "@/components/AccountMenu";
+import ProjectsDrawer from "@/components/projects/ProjectsDrawer";
 
 const VIDEO_SRC =
   "https://d8j0ntlcm91z4.cloudfront.net/user_38xzZboKViGWJOttwIXH07lWA1P/hf_20260530_042513_df96a13b-6155-4f6e-8b93-c9dee66fba08.mp4";
@@ -49,6 +51,7 @@ export default function MainframeHero() {
   const seeking = useRef(false);
   const heroRef = useRef<HTMLElement>(null);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [projectsOpen, setProjectsOpen] = useState(false);
   const [showLaunch, setShowLaunch] = useState(false);
   const { displayed, done } = useTypewriter(TYPED);
 
@@ -158,20 +161,29 @@ export default function MainframeHero() {
 
       {/* Navbar — floating glass pill */}
       <header className="fixed inset-x-0 top-0 z-50 flex items-center justify-between px-5 py-4 sm:px-8 sm:py-5">
-        <Link href="/" className="flex items-center gap-3">
-          <span
-            className="text-[21px] tracking-tight text-chalk sm:text-[26px]"
-            style={{ fontFamily: "var(--font-heading)" }}
+        <div className="flex items-center gap-2 sm:gap-3">
+          <button
+            onClick={() => setProjectsOpen(true)}
+            aria-label="ผลงานของฉัน"
+            className="grid h-9 w-9 place-items-center rounded-full border border-chalk/12 bg-night/40 text-chalk/85 backdrop-blur-xl transition hover:text-chalk"
           >
-            FITT Builder
-          </span>
-          <span
-            className="select-none text-[25px] text-chalk sm:text-[30px]"
-            style={{ letterSpacing: "-0.02em" }}
-          >
-            ✳︎
-          </span>
-        </Link>
+            <PanelLeft size={17} />
+          </button>
+          <Link href="/" className="flex items-center gap-3">
+            <span
+              className="text-[21px] tracking-tight text-chalk sm:text-[26px]"
+              style={{ fontFamily: "var(--font-heading)" }}
+            >
+              FITT Builder
+            </span>
+            <span
+              className="select-none text-[25px] text-chalk sm:text-[30px]"
+              style={{ letterSpacing: "-0.02em" }}
+            >
+              ✳︎
+            </span>
+          </Link>
+        </div>
 
         <nav className="absolute left-1/2 hidden -translate-x-1/2 items-center gap-1 rounded-full border border-chalk/12 bg-night/40 px-2 py-1.5 text-[15px] text-chalk/85 backdrop-blur-xl md:flex">
           {NAV_LINKS.map((link) => (
@@ -186,12 +198,12 @@ export default function MainframeHero() {
         </nav>
 
         <div className="hidden items-center gap-2 rounded-full border border-chalk/12 bg-night/40 py-1 pl-3 pr-1 backdrop-blur-xl md:flex">
-          <Link
-            href="/projects"
+          <button
+            onClick={() => setProjectsOpen(true)}
             className="text-[15px] text-chalk/85 transition hover:text-chalk"
           >
             ผลงานของฉัน
-          </Link>
+          </button>
           <AccountMenu />
         </div>
 
@@ -226,18 +238,22 @@ export default function MainframeHero() {
             {link.label}
           </a>
         ))}
-        <Link
-          href="/projects"
-          onClick={() => setMenuOpen(false)}
-          className="text-[32px] font-medium text-chalk underline underline-offset-2"
+        <button
+          onClick={() => {
+            setMenuOpen(false);
+            setProjectsOpen(true);
+          }}
+          className="text-left text-[32px] font-medium text-chalk underline underline-offset-2"
         >
           ผลงานของฉัน
-        </Link>
+        </button>
         {/* Account + admin (Skill Templates / รายงานการใช้ AI) live in this menu. */}
         <div className="mt-2">
           <AccountMenu />
         </div>
       </div>
+
+      <ProjectsDrawer open={projectsOpen} onClose={() => setProjectsOpen(false)} />
 
       {/* Hero */}
       <section

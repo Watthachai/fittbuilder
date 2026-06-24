@@ -1,10 +1,6 @@
-import type { Metadata } from "next";
-import ProjectGrid from "@/components/projects/ProjectGrid";
+import { redirect } from "next/navigation";
 
-export const metadata: Metadata = {
-  title: "ผลงานของฉัน",
-};
-
+// Projects now live on the landing page as a floating, collapsible sidebar.
 export default function ProjectsPage() {
-  return <ProjectGrid />;
+  redirect("/");
 }

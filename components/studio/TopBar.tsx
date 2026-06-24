@@ -49,9 +49,9 @@ export default function TopBar({
   return (
     <header className="flex h-12 shrink-0 items-center gap-3 border-b border-night-edge bg-night-panel px-3">
       <Link
-        href="/projects"
+        href="/"
         className="font-display text-sm font-bold tracking-tight text-chalk transition hover:text-shine"
-        title="กลับไปหน้าผลงาน"
+        title="กลับไปหน้าแรก"
       >
         FITT <span className="text-shine">Builder</span>
       </Link>

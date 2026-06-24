@@ -2,6 +2,7 @@ import Link from "next/link";
 import MainframeHero from "@/components/landing/MainframeHero";
 import Reveal from "@/components/landing/Reveal";
 import ScrollStory from "@/components/landing/ScrollStory";
+import SpecJourney from "@/components/landing/SpecJourney";
 import { PRESETS } from "@/lib/presets";
 
 const STEPS = [
@@ -74,35 +75,8 @@ export default function Home() {
         {/* How it works — pinned scroll story */}
         <ScrollStory steps={STEPS} />
 
-        {/* Spec-to-Demo callout */}
-        <section id="spec" className="mx-auto max-w-7xl px-6 pb-20">
-          <Reveal>
-            <div className="rounded-3xl border border-chalk/12 bg-chalk/[0.05] p-8 shadow-[0_8px_40px_rgba(0,0,0,0.25)] backdrop-blur-xl md:p-10">
-              <div className="flex flex-col items-start justify-between gap-6 md:flex-row md:items-center">
-                <div>
-                  <p className="font-mono text-[11px] uppercase tracking-[0.25em] text-shine">Spec-to-Demo</p>
-                  <h2 className="mt-2 font-display text-2xl font-medium text-chalk">
-                    มี BRD/PRD อยู่แล้ว? วางลงไปเลย
-                  </h2>
-                  <p className="mt-2 max-w-xl text-chalk/70">
-                    ระบบอ่านเอกสาร เดา domain (ERP, CRM, E-commerce…) แล้วถามคำถามเจาะจง 3-5 ข้อ
-                    ก่อนสร้าง demo ที่ตรง spec จริง ไม่ใช่ template กลางๆ
-                  </p>
-                </div>
-                <div className="flex max-w-xs flex-wrap gap-2">
-                  {PRESETS.map((preset) => (
-                    <span
-                      key={preset.id}
-                      className="rounded-full border border-shine/40 px-3 py-1 font-mono text-[12px] text-shine"
-                    >
-                      {preset.nameEn}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </Reveal>
-        </section>
+        {/* Spec-to-Demo — pinned scroll journey (type → detect → Define → … → Ship) */}
+        <SpecJourney />
 
         {/* Pricing */}
         <section id="pricing" className="mx-auto max-w-7xl px-6 pb-24">

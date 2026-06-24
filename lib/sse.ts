@@ -1,6 +1,11 @@
 "use client";
 
-import type { AgentEvent, AgentRequestBody, GenerateEvent } from "./types";
+import type {
+  AgentEvent,
+  AgentRequestBody,
+  GenerateEvent,
+  GenerateSkillEvent,
+} from "./types";
 
 /**
  * POST to an SSE endpoint and yield parsed events.
@@ -58,5 +63,12 @@ export function streamAgent(
   signal: AbortSignal
 ): AsyncGenerator<AgentEvent> {
   return streamSse<AgentEvent>("/api/agent", body, signal);
+}
+
+export function streamGenerateSkill(
+  body: { topic: string; url?: string; webSearch?: boolean },
+  signal: AbortSignal
+): AsyncGenerator<GenerateSkillEvent> {
+  return streamSse<GenerateSkillEvent>("/api/admin/generate-skill", body, signal);
 }
 

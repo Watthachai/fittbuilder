@@ -51,6 +51,7 @@ const KIND_LABELS: Record<string, string> = {
   detect_preset: "ตรวจ Preset",
   extract_answers: "ดึงคำตอบจากเอกสาร",
   code_suggestion: "เติมโค้ดอัตโนมัติ",
+  generate_skill: "สร้าง Skill Template (AI)",
 };
 
 const num = (n: number | null | undefined) => Number(n ?? 0).toLocaleString("en-US");
@@ -73,7 +74,7 @@ export default async function AdminUsagePage() {
 
   return (
     <div className="min-h-dvh bg-night px-5 py-8 text-chalk sm:px-8">
-      <div className="mx-auto max-w-6xl">
+      <div className="mx-auto max-w-6xl stitch">
         <div className="mb-6 flex items-center justify-between">
           <div>
             <h1 className="font-display text-2xl font-semibold">รายงานการใช้งาน AI</h1>
@@ -153,7 +154,7 @@ export default async function AdminUsagePage() {
 
 function Stat({ label, value, accent }: { label: string; value: string; accent?: boolean }) {
   return (
-    <div className="rounded-xl border border-night-edge bg-night-panel px-4 py-3">
+    <div className="glass rounded-xl px-4 py-3">
       <p className="text-[11px] uppercase tracking-wider text-chalk-dim">{label}</p>
       <p className={`mt-1 font-display text-xl font-semibold ${accent ? "text-shine" : "text-chalk"}`}>
         {value}
@@ -166,9 +167,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   return (
     <section className="mb-8">
       <h2 className="mb-2 font-display text-sm font-semibold text-chalk-dim">{title}</h2>
-      <div className="scroll-thin overflow-x-auto rounded-xl border border-night-edge bg-night-panel">
-        {children}
-      </div>
+      <div className="glass scroll-thin overflow-x-auto rounded-xl">{children}</div>
     </section>
   );
 }

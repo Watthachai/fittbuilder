@@ -1,10 +1,21 @@
 "use client";
 
-import { useState } from "react";
-import { Plus, Trash2 } from "lucide-react";
+import { useRef, useState } from "react";
+import {
+  ChevronDown,
+  ChevronRight,
+  Globe,
+  Plus,
+  Sparkles,
+  Square,
+  Trash2,
+} from "lucide-react";
 import SkillIcon, { SKILL_ICON_NAMES } from "@/components/studio/SkillIcon";
+import Markdown from "@/components/studio/Markdown";
+import { streamGenerateSkill } from "@/lib/sse";
 import type { SkillTemplateRow } from "@/lib/skills/db-mapper";
 import type { SkillQuestion } from "@/lib/skills/types";
+import type { GeneratedSkill } from "@/lib/types";
 
 interface QuestionDraft {
   id: string;
@@ -54,6 +65,79 @@ export default function SkillTemplateForm({
   );
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // ── AI generator ──────────────────────────────────────────────
+  const [aiTopic, setAiTopic] = useState("");
+  const [aiUrl, setAiUrl] = useState("");
+  const [aiWebSearch, setAiWebSearch] = useState(true);
+  const [aiBusy, setAiBusy] = useState(false);
+  const [aiThinking, setAiThinking] = useState("");
+  const [aiReport, setAiReport] = useState("");
+  const [aiError, setAiError] = useState<string | null>(null);
+  const [thinkOpen, setThinkOpen] = useState(true);
+  const aiAbort = useRef<AbortController | null>(null);
+
+  function applyGenerated(t: GeneratedSkill) {
+    if (t.name) setName(t.name);
+    if (t.nameEn) setNameEn(t.nameEn);
+    if (t.tagline) setTagline(t.tagline);
+    if (t.icon) setIcon(t.icon);
+    if (t.keywords?.length) setKeywordsText(t.keywords.join(", "));
+    if (t.persona) setPersona(t.persona);
+    if (t.domainKnowledge) setDomainKnowledge(t.domainKnowledge);
+    if (t.buildGuidance) setBuildGuidance(t.buildGuidance);
+    if (t.seedData) setSeedData(t.seedData);
+    if (t.designHints) setDesignHints(t.designHints);
+    if (t.questionBank?.length) {
+      setQuestions(
+        t.questionBank.map((q) => ({
+          id: q.id || crypto.randomUUID().slice(0, 8),
+          label: q.label,
+          type: q.type,
+          optionsText: (q.options ?? []).join(", "),
+          why: q.why ?? "",
+        }))
+      );
+    }
+    if (!editing && !slug.trim() && t.nameEn) {
+      setSlug(
+        t.nameEn
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, "-")
+          .replace(/^-|-$/g, "")
+          .slice(0, 40)
+      );
+    }
+  }
+
+  async function generate() {
+    if (!aiTopic.trim() || aiBusy) return;
+    setAiError(null);
+    setAiBusy(true);
+    setAiThinking("");
+    setAiReport("");
+    setThinkOpen(true);
+    const ctrl = new AbortController();
+    aiAbort.current = ctrl;
+    try {
+      for await (const e of streamGenerateSkill(
+        { topic: aiTopic.trim(), url: aiUrl.trim() || undefined, webSearch: aiWebSearch },
+        ctrl.signal
+      )) {
+        if (e.type === "thought") setAiThinking((p) => p + e.content);
+        else if (e.type === "text") setAiReport((p) => p + e.content);
+        else if (e.type === "done") {
+          applyGenerated(e.template);
+          setThinkOpen(false);
+        } else if (e.type === "error") setAiError(e.message);
+      }
+    } catch {
+      if (!ctrl.signal.aborted) setAiError("เครือข่ายมีปัญหา ลองใหม่");
+    } finally {
+      setAiBusy(false);
+      aiAbort.current = null;
+    }
+  }
 
   function addQuestion() {
     setQuestions((qs) => [
@@ -122,7 +206,7 @@ export default function SkillTemplateForm({
   }
 
   return (
-    <div className="space-y-4 rounded-2xl border border-night-edge bg-night-panel p-5">
+    <div className="glass stitch space-y-4 rounded-2xl p-5">
       <h2 className="font-display text-lg font-semibold text-chalk">
         {editing ? `แก้ไข: ${initial!.name}` : "สร้าง Skill Template ใหม่"}
       </h2>
@@ -130,6 +214,96 @@ export default function SkillTemplateForm({
       {error && (
         <p className="rounded border border-halt/40 bg-halt/10 px-3 py-2 text-xs text-halt">{error}</p>
       )}
+
+      {/* AI generator */}
+      <div className="space-y-3 rounded-xl border border-shine/30 bg-shine/[0.05] p-4">
+        <div className="flex items-center gap-2">
+          <Sparkles size={16} className="text-shine" />
+          <span className="font-display text-sm font-semibold text-chalk">ให้ AI ช่วยสร้าง</span>
+          <span className="text-xs text-chalk-dim">— ใส่โดเมน + (URL หรือเปิด Web search) แล้วกด Generate</span>
+        </div>
+        <textarea
+          className={`${INPUT} resize-y`}
+          rows={2}
+          value={aiTopic}
+          onChange={(e) => setAiTopic(e.target.value)}
+          placeholder='โดเมนที่อยากได้ เช่น "ระบบจัดการคลินิกทันตกรรม" หรือ "ร้านขายของชำออนไลน์"'
+        />
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex min-w-[220px] flex-1 items-center gap-2 rounded-lg border border-night-edge bg-night/30 px-2.5">
+            <Globe size={14} className="shrink-0 text-chalk-dim" />
+            <input
+              className="w-full bg-transparent py-2 text-sm text-chalk outline-none placeholder:text-chalk-dim/50"
+              value={aiUrl}
+              onChange={(e) => setAiUrl(e.target.value)}
+              placeholder="URL อ้างอิง (ไม่บังคับ)"
+            />
+          </div>
+          <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-night-edge px-3 py-2 text-sm text-chalk-dim">
+            <input
+              type="checkbox"
+              checked={aiWebSearch}
+              onChange={(e) => setAiWebSearch(e.target.checked)}
+              className="accent-shine"
+            />
+            Web search
+          </label>
+          {aiBusy ? (
+            <button
+              type="button"
+              onClick={() => aiAbort.current?.abort()}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-night-edge px-4 py-2 text-sm text-chalk-dim transition hover:text-chalk"
+            >
+              <Square size={13} /> หยุด
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={generate}
+              disabled={!aiTopic.trim()}
+              className="inline-flex items-center gap-1.5 rounded-lg bg-shine px-4 py-2 font-display text-sm font-semibold text-night transition hover:brightness-110 disabled:opacity-40"
+            >
+              <Sparkles size={14} /> Generate
+            </button>
+          )}
+        </div>
+
+        {aiError && <p className="text-xs text-halt">{aiError}</p>}
+
+        {(aiThinking || aiReport || aiBusy) && (
+          <div className="space-y-2">
+            {aiThinking && (
+              <div className="rounded-lg border border-night-edge bg-night/30 px-3 py-2">
+                <button
+                  type="button"
+                  onClick={() => setThinkOpen((o) => !o)}
+                  className="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-wider text-chalk-dim transition hover:text-chalk"
+                >
+                  <Sparkles size={11} className="text-shine" /> ความคิด
+                  {thinkOpen ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+                </button>
+                {thinkOpen && (
+                  <div className="mt-1.5 max-h-48 overflow-y-auto scroll-thin">
+                    <Markdown muted>{aiThinking}</Markdown>
+                  </div>
+                )}
+              </div>
+            )}
+            <div className="max-h-72 overflow-y-auto scroll-thin rounded-lg border border-night-edge bg-night/20 px-3 py-2">
+              {aiReport ? (
+                <Markdown>{aiReport}</Markdown>
+              ) : (
+                <span className="text-sm text-chalk-dim">
+                  {aiBusy ? "กำลังค้นคว้าและร่าง template…" : ""}
+                </span>
+              )}
+            </div>
+            {!aiBusy && aiReport && (
+              <p className="text-[11px] text-go">✓ เติมฟอร์มด้านล่างให้แล้ว — ตรวจ/แก้ก่อนบันทึก</p>
+            )}
+          </div>
+        )}
+      </div>
 
       <div className="grid gap-3 sm:grid-cols-2">
         <div>

@@ -69,7 +69,7 @@ export default function SkillAdmin() {
   if (view.mode !== "list") {
     return (
       <main className="min-h-screen bg-night px-6 py-10 text-chalk">
-        <div className="mx-auto max-w-3xl">
+        <div className="mx-auto max-w-4xl stitch">
           <button
             onClick={() => setView({ mode: "list" })}
             className="mb-4 inline-flex items-center gap-1.5 text-sm text-chalk-dim transition hover:text-chalk"
@@ -91,7 +91,7 @@ export default function SkillAdmin() {
 
   return (
     <main className="min-h-screen bg-night px-6 py-10 text-chalk">
-      <div className="mx-auto max-w-3xl">
+      <div className="mx-auto max-w-5xl stitch">
         <div className="flex items-center justify-between">
           <div>
             <Link href="/" className="text-sm text-chalk-dim transition hover:text-chalk">
@@ -118,10 +118,11 @@ export default function SkillAdmin() {
             <p className="mt-3 text-sm text-chalk-dim">ยังไม่มี custom template — กด “สร้างใหม่”</p>
           ) : (
             <div className="mt-3 space-y-2">
-              {templates.map((row) => (
+              {templates.map((row, i) => (
                 <div
                   key={row.id}
-                  className="flex items-center gap-3 rounded-xl border border-night-edge bg-night-panel p-3"
+                  style={{ "--d": `${i * 0.04}s` } as React.CSSProperties}
+                  className="glass stitch-item flex items-center gap-3 rounded-xl p-3"
                 >
                   <SkillIcon name={row.icon} size={18} />
                   <div className="min-w-0 flex-1">
@@ -173,7 +174,7 @@ export default function SkillAdmin() {
             {SKILLS.map((s) => (
               <div
                 key={s.id}
-                className="flex items-center gap-3 rounded-xl border border-night-edge bg-night-panel/50 p-3"
+                className="glass flex items-center gap-3 rounded-xl p-3"
               >
                 <SkillIcon name={s.icon} size={18} />
                 <div className="min-w-0">

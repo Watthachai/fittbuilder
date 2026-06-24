@@ -39,6 +39,8 @@ export interface StreamTextOptions {
   maxOutputTokens?: number;
   temperature?: number;
   abortSignal?: AbortSignal;
+  /** Web grounding: googleSearch (search) and/or urlContext (read given URLs). */
+  tools?: ("googleSearch" | "urlContext")[];
   /** Called once with the final token usage when the stream ends. */
   onUsage?: (usage: TokenUsage) => void;
 }
@@ -60,6 +62,13 @@ export async function* streamParts(options: StreamTextOptions): AsyncGenerator<S
       maxOutputTokens: options.maxOutputTokens ?? 65536,
       ...(options.json ? { responseMimeType: "application/json" } : {}),
       ...(options.thinking ? { thinkingConfig: { includeThoughts: true } } : {}),
+      ...(options.tools?.length
+        ? {
+            tools: options.tools.map((t) =>
+              t === "googleSearch" ? { googleSearch: {} } : { urlContext: {} }
+            ),
+          }
+        : {}),
       ...(options.abortSignal ? { abortSignal: options.abortSignal } : {}),
     },
   });

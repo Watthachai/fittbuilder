@@ -167,6 +167,34 @@ export type AgentEvent =
   | { type: "done"; turn: AgentTurn }
   | { type: "error"; message: string };
 
+/** AI-generated skill-template draft (admin generator → fills the form). */
+export interface GeneratedSkill {
+  name?: string;
+  nameEn?: string;
+  tagline?: string;
+  icon?: string;
+  keywords?: string[];
+  persona?: string;
+  domainKnowledge?: string;
+  buildGuidance?: string;
+  seedData?: string;
+  designHints?: string;
+  questionBank?: {
+    id: string;
+    label: string;
+    type: "single" | "multi" | "text";
+    options?: string[];
+    why?: string;
+  }[];
+}
+
+/** SSE events from /api/admin/generate-skill (chat-like, with thinking). */
+export type GenerateSkillEvent =
+  | { type: "thought"; content: string }
+  | { type: "text"; content: string }
+  | { type: "done"; template: GeneratedSkill }
+  | { type: "error"; message: string };
+
 export interface AgentRequestBody {
   phase: PhaseId;
   messages: Pick<ChatMessage, "role" | "content">[];

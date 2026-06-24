@@ -2,22 +2,46 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
-import { Copy, FileCode, Plus, Sparkles, Trash2 } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  Copy,
+  FileCode,
+  FolderGit2,
+  Menu,
+  Search,
+  Sparkles,
+  Trash2,
+  Users,
+  X,
+} from "lucide-react";
 import { deleteProject, duplicateProject, listProjects } from "@/lib/storage";
 import type { ProjectSummary } from "@/lib/types";
 import { createClient } from "@/lib/supabase/client";
 import { isChangelogUnseen } from "@/lib/changelog";
 import AccountMenu from "@/components/AccountMenu";
+import LaunchPad from "@/components/landing/LaunchPad";
+
+type Tab = "mine" | "shared";
 
 function formatDate(iso: string): string {
-  return new Date(iso).toLocaleDateString("th-TH", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+  return new Date(iso).toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "numeric" });
+}
+
+/** Group projects into time buckets (newest first within each). */
+function groupByTime(items: ProjectSummary[]): { label: string; items: ProjectSummary[] }[] {
+  const now = Date.now();
+  const buckets: Record<string, ProjectSummary[]> = { recent: [], month: [], older: [] };
+  for (const p of items) {
+    const age = now - new Date(p.updatedAt).getTime();
+    if (age <= 7 * 864e5) buckets.recent.push(p);
+    else if (age <= 30 * 864e5) buckets.month.push(p);
+    else buckets.older.push(p);
+  }
+  return [
+    { label: "7 วันล่าสุด", items: buckets.recent },
+    { label: "30 วันล่าสุด", items: buckets.month },
+    { label: "ก่อนหน้านี้", items: buckets.older },
+  ].filter((g) => g.items.length > 0);
 }
 
 export default function ProjectGrid() {
@@ -26,25 +50,22 @@ export default function ProjectGrid() {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [changelogUnseen, setChangelogUnseen] = useState(false);
+  const [tab, setTab] = useState<Tab>("mine");
+  const [query, setQuery] = useState("");
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const refresh = useCallback(async () => {
-    setLoading(true);
-    setLoadError(null);
     try {
       setProjects(await listProjects());
     } catch (e) {
       console.error("[ProjectGrid] listProjects failed:", e);
       setLoadError("โหลดโปรเจกต์ไม่สำเร็จ");
-    } finally {
-      setLoading(false);
     }
   }, []);
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      setLoading(true);
-      setLoadError(null);
       try {
         const list = await listProjects();
         if (!cancelled) setProjects(list);
@@ -57,14 +78,18 @@ export default function ProjectGrid() {
         if (!cancelled) setLoading(false);
       }
     })();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
       const supabase = createClient();
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (cancelled || !user) return;
       const { data } = await supabase
         .from("fittbuilder_profiles")
@@ -73,140 +98,201 @@ export default function ProjectGrid() {
         .single();
       if (!cancelled) setChangelogUnseen(isChangelogUnseen(data?.last_seen_changelog ?? null));
     })();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
+  const { mine, shared } = useMemo(
+    () => ({
+      mine: projects.filter((p) => p.access === "owner"),
+      shared: projects.filter((p) => p.access === "member"),
+    }),
+    [projects]
+  );
+
+  const visible = useMemo(() => {
+    const base = tab === "mine" ? mine : shared;
+    const q = query.trim().toLowerCase();
+    return q ? base.filter((p) => p.name.toLowerCase().includes(q)) : base;
+  }, [tab, mine, shared, query]);
+
+  const groups = useMemo(() => groupByTime(visible), [visible]);
+
+  async function remove(p: ProjectSummary) {
+    if (!confirm(`ลบ "${p.name}" ถาวร?`)) return;
+    await deleteProject(p.id);
+    await refresh();
+  }
+  async function duplicate(p: ProjectSummary) {
+    await duplicateProject(p.id);
+    await refresh();
+  }
+
   return (
-    <div className="min-h-screen bg-night text-chalk">
-      <header className="mx-auto flex max-w-7xl items-center justify-between px-6 py-5">
-        <Link href="/" className="inline-flex items-center gap-2.5">
-          <span className="grid h-8 w-8 place-items-center rounded-full border-2 border-chalk">
-            <span className="h-2.5 w-2.5 rounded-full bg-chalk" />
-          </span>
-          <span className="font-display text-base font-semibold tracking-tight">
-            FITT Builder
-          </span>
-        </Link>
-        <div className="flex items-center gap-3">
-          <Link
-            href="/changelog"
-            className="relative inline-flex items-center gap-1.5 rounded-full border border-chalk/20 px-4 py-2 font-display text-sm text-chalk/70 transition hover:border-chalk/40 hover:text-chalk"
-          >
-            <Sparkles size={14} />
-            มีอะไรใหม่
-            {changelogUnseen && (
-              <span
-                className="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full"
-                style={{ backgroundColor: "#64cefb" }}
-              />
-            )}
+    <div className="flex h-dvh overflow-hidden bg-night text-chalk">
+      {/* Mobile backdrop */}
+      {sidebarOpen && (
+        <div className="fixed inset-0 z-30 bg-night/60 md:hidden" onClick={() => setSidebarOpen(false)} />
+      )}
+
+      {/* Sidebar */}
+      <aside
+        className={`fixed inset-y-0 left-0 z-40 flex w-72 shrink-0 flex-col border-r border-night-edge bg-night-panel transition-transform md:static md:translate-x-0 ${
+          sidebarOpen ? "translate-x-0" : "-translate-x-full"
+        }`}
+      >
+        <div className="flex items-center justify-between px-4 py-4">
+          <Link href="/" className="inline-flex items-center gap-2.5">
+            <span className="grid h-7 w-7 place-items-center rounded-full border-2 border-chalk">
+              <span className="h-2 w-2 rounded-full bg-chalk" />
+            </span>
+            <span className="font-display text-sm font-semibold tracking-tight">FITT Builder</span>
           </Link>
-          <Link
-            href="/"
-            className="inline-flex items-center gap-1.5 rounded-full bg-chalk px-5 py-2 font-display text-sm font-semibold text-night transition hover:bg-gray-200"
+          <button
+            onClick={() => setSidebarOpen(false)}
+            className="text-chalk-dim md:hidden"
+            aria-label="ปิด"
           >
-            <Plus size={15} /> สร้างใหม่
-          </Link>
-          <AccountMenu />
+            <X size={18} />
+          </button>
         </div>
-      </header>
 
-      <main className="mx-auto max-w-7xl px-6 pb-24 pt-6 stitch">
-        <h1 className="font-display text-3xl font-medium tracking-tight">ผลงานของฉัน</h1>
-        <p className="mt-1 text-chalk/70">
-          เก็บไว้ในเครื่องของคุณ — เปิด แก้ต่อ duplicate หรือลบได้
-        </p>
+        {/* Tabs */}
+        <div className="mx-3 grid grid-cols-2 gap-1 rounded-xl border border-night-edge bg-night p-1">
+          <button
+            onClick={() => setTab("mine")}
+            className={`inline-flex items-center justify-center gap-1.5 rounded-lg py-1.5 text-xs font-medium transition ${
+              tab === "mine" ? "bg-shine text-night" : "text-chalk-dim hover:text-chalk"
+            }`}
+          >
+            <FolderGit2 size={13} /> ของฉัน
+          </button>
+          <button
+            onClick={() => setTab("shared")}
+            className={`inline-flex items-center justify-center gap-1.5 rounded-lg py-1.5 text-xs font-medium transition ${
+              tab === "shared" ? "bg-shine text-night" : "text-chalk-dim hover:text-chalk"
+            }`}
+          >
+            <Users size={13} /> แชร์กับฉัน
+          </button>
+        </div>
 
-        {loadError ? (
-          <div className="mt-12 text-center font-mono text-sm text-chalk/40">{loadError}</div>
-        ) : loading ? (
-          <div className="mt-12 text-center font-mono text-sm text-chalk/40">กำลังโหลด…</div>
-        ) : projects.length === 0 ? (
-          <div className="mt-12 rounded-2xl border border-dashed border-chalk/20 bg-chalk/[0.03] p-14 text-center">
-            <p className="font-display text-lg text-chalk/70">ยังไม่มีโปรเจกต์</p>
-            <Link
-              href="/"
-              className="mt-4 inline-flex items-center gap-2 rounded-full bg-chalk px-6 py-2.5 font-display text-sm font-semibold text-night transition hover:bg-gray-200"
-            >
-              <Plus size={15} /> สร้าง demo แรกของคุณ
-            </Link>
-          </div>
-        ) : (() => {
-          const owned = projects.filter((p) => p.access === "owner");
-          const shared = projects.filter((p) => p.access === "member");
+        {/* Search */}
+        <div className="mx-3 mt-3 flex items-center gap-2 rounded-xl border border-night-edge bg-night px-3">
+          <Search size={14} className="shrink-0 text-chalk-dim" />
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="ค้นหาโปรเจกต์"
+            className="w-full bg-transparent py-2 text-sm text-chalk outline-none placeholder:text-chalk-dim/50"
+          />
+        </div>
 
-          const renderCard = (project: ProjectSummary) => (
-            <div
-              key={project.id}
-              className="group glass rounded-2xl transition hover:-translate-y-0.5 hover:border-shine/50"
-            >
-              <button
-                onClick={() => router.push(`/project/${project.id}`)}
-                className="block w-full p-5 text-left"
-              >
-                <div className="bg-grid flex h-24 items-center justify-center rounded-xl border border-chalk/10">
-                  <FileCode size={22} className="text-shine/60" />
-                </div>
-                <div className="mt-4 flex items-center gap-2">
-                  <h2 className="truncate font-display text-base font-semibold">
-                    {project.name}
-                  </h2>
-                  {project.access === "member" && project.role && (
-                    <span className="shrink-0 rounded-full border border-chalk/20 px-2 py-0.5 font-mono text-[10px] text-chalk/50">
-                      {project.role}
-                    </span>
-                  )}
-                </div>
-                <p className="mt-1 font-mono text-[11px] text-chalk/50">
-                  {project.fileCount > 0 ? `${project.fileCount} ไฟล์ · ` : ""}แก้ล่าสุด{" "}
-                  {formatDate(project.updatedAt)}
+        {/* List */}
+        <div className="scroll-thin mt-3 min-h-0 flex-1 overflow-y-auto px-2 pb-4">
+          {loading ? (
+            <p className="px-2 py-4 text-sm text-chalk-dim">กำลังโหลด…</p>
+          ) : loadError ? (
+            <p className="px-2 py-4 text-sm text-halt">{loadError}</p>
+          ) : visible.length === 0 ? (
+            <p className="px-2 py-6 text-sm text-chalk-dim">
+              {query
+                ? "ไม่พบโปรเจกต์ที่ค้นหา"
+                : tab === "mine"
+                  ? "ยังไม่มีโปรเจกต์ — เริ่มสร้างทางขวา"
+                  : "ยังไม่มีใครแชร์โปรเจกต์ให้คุณ"}
+            </p>
+          ) : (
+            groups.map((g) => (
+              <div key={g.label} className="mb-3">
+                <p className="px-2 py-1 font-mono text-[10px] uppercase tracking-wider text-chalk-dim">
+                  {g.label}
                 </p>
-              </button>
-              <div className="flex border-t border-chalk/10">
-                <button
-                  onClick={async () => {
-                    await duplicateProject(project.id);
-                    await refresh();
-                  }}
-                  className="flex flex-1 items-center justify-center gap-1.5 py-2.5 font-display text-xs text-chalk/60 transition hover:bg-shine/5 hover:text-shine"
-                >
-                  <Copy size={12} /> Duplicate
-                </button>
-                <button
-                  onClick={async () => {
-                    if (confirm(`ลบ "${project.name}" ถาวร?`)) {
-                      await deleteProject(project.id);
-                      await refresh();
-                    }
-                  }}
-                  className="flex flex-1 items-center justify-center gap-1.5 border-l border-chalk/10 py-2.5 font-display text-xs text-chalk/60 transition hover:bg-halt/5 hover:text-halt"
-                >
-                  <Trash2 size={12} /> ลบ
-                </button>
-              </div>
-            </div>
-          );
-
-          return (
-            <>
-              {shared.length > 0 && (
-                <h2 className="mt-8 font-display text-xl font-medium tracking-tight text-chalk/70">ของฉัน</h2>
-              )}
-              <div className="mt-4 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-                {owned.map(renderCard)}
-              </div>
-              {shared.length > 0 && (
-                <section className="mt-12">
-                  <h2 className="font-display text-xl font-medium tracking-tight">แชร์กับฉัน</h2>
-                  <div className="mt-4 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-                    {shared.map(renderCard)}
+                {g.items.map((p) => (
+                  <div
+                    key={p.id}
+                    className="group relative flex items-center gap-2.5 rounded-lg px-2 py-2 transition hover:bg-chalk/5"
+                  >
+                    <button
+                      onClick={() => router.push(`/project/${p.id}`)}
+                      className="flex min-w-0 flex-1 items-center gap-2.5 text-left"
+                    >
+                      <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg border border-night-edge bg-night">
+                        <FileCode size={15} className="text-shine/70" />
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-sm text-chalk">{p.name}</span>
+                        <span className="block truncate font-mono text-[10px] text-chalk-dim">
+                          {formatDate(p.updatedAt)}
+                          {p.access === "member" && p.role ? ` · ${p.role}` : ""}
+                        </span>
+                      </span>
+                    </button>
+                    {p.access === "owner" && (
+                      <div className="absolute right-1 hidden items-center gap-0.5 rounded-lg bg-night-panel/90 px-1 group-hover:flex">
+                        <button
+                          onClick={() => void duplicate(p)}
+                          title="Duplicate"
+                          className="grid h-7 w-7 place-items-center rounded-md text-chalk-dim transition hover:text-shine"
+                        >
+                          <Copy size={13} />
+                        </button>
+                        <button
+                          onClick={() => void remove(p)}
+                          title="ลบ"
+                          className="grid h-7 w-7 place-items-center rounded-md text-chalk-dim transition hover:text-halt"
+                        >
+                          <Trash2 size={13} />
+                        </button>
+                      </div>
+                    )}
                   </div>
-                </section>
+                ))}
+              </div>
+            ))
+          )}
+        </div>
+      </aside>
+
+      {/* Main */}
+      <div className="flex min-w-0 flex-1 flex-col">
+        <header className="flex shrink-0 items-center justify-between gap-3 border-b border-night-edge px-4 py-3 sm:px-6">
+          <button
+            onClick={() => setSidebarOpen(true)}
+            className="text-chalk-dim md:hidden"
+            aria-label="เมนูโปรเจกต์"
+          >
+            <Menu size={20} />
+          </button>
+          <div className="ml-auto flex items-center gap-3">
+            <Link
+              href="/changelog"
+              className="relative inline-flex items-center gap-1.5 rounded-full border border-chalk/20 px-3.5 py-1.5 font-display text-sm text-chalk/70 transition hover:border-chalk/40 hover:text-chalk"
+            >
+              <Sparkles size={14} /> มีอะไรใหม่
+              {changelogUnseen && (
+                <span className="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full bg-shine" />
               )}
-            </>
-          );
-        })()}
-      </main>
+            </Link>
+            <AccountMenu />
+          </div>
+        </header>
+
+        <main className="scroll-thin flex-1 overflow-y-auto">
+          <div className="stitch mx-auto flex max-w-3xl flex-col px-6 py-14 sm:py-20">
+            <h1 className="text-center font-display text-3xl font-medium tracking-tight sm:text-4xl">
+              วันนี้อยากสร้างอะไร?
+            </h1>
+            <p className="mt-2 text-center text-chalk/60">
+              พิมพ์ไอเดียเป็นภาษาไทยหรืออังกฤษ แล้วได้เว็บ demo ที่รันจริงในเบราว์เซอร์
+            </p>
+            <div className="mt-8 flex justify-center">
+              <LaunchPad />
+            </div>
+          </div>
+        </main>
+      </div>
     </div>
   );
 }

@@ -111,7 +111,7 @@ export default function ProjectGrid() {
         </div>
       </header>
 
-      <main className="mx-auto max-w-7xl px-6 pb-24 pt-6">
+      <main className="mx-auto max-w-7xl px-6 pb-24 pt-6 stitch">
         <h1 className="font-display text-3xl font-medium tracking-tight">ผลงานของฉัน</h1>
         <p className="mt-1 text-chalk/70">
           เก็บไว้ในเครื่องของคุณ — เปิด แก้ต่อ duplicate หรือลบได้
@@ -138,7 +138,7 @@ export default function ProjectGrid() {
           const renderCard = (project: ProjectSummary) => (
             <div
               key={project.id}
-              className="group rounded-2xl border border-chalk/10 bg-chalk/[0.03] transition hover:-translate-y-0.5 hover:border-shine/50"
+              className="group glass rounded-2xl transition hover:-translate-y-0.5 hover:border-shine/50"
             >
               <button
                 onClick={() => router.push(`/project/${project.id}`)}

@@ -20,7 +20,7 @@ export default function ChangelogPage() {
 
   return (
     <main className="min-h-screen bg-night text-chalk px-6 py-12">
-      <div className="mx-auto max-w-2xl space-y-10">
+      <div className="mx-auto max-w-2xl space-y-10 stitch">
         <h1 className="text-3xl font-semibold">มีอะไรใหม่</h1>
         {CHANGELOG.map((e) => (
           <article key={e.version} className="space-y-3 border-b border-chalk/10 pb-8">

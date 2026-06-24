@@ -20,7 +20,7 @@ export default function LoginPage() {
 
   return (
     <main className="min-h-screen grid place-items-center bg-night text-chalk p-6">
-      <div className="w-full max-w-sm space-y-6">
+      <div className="glass stitch w-full max-w-sm space-y-6 rounded-2xl p-6">
         <h1 className="text-2xl font-semibold">เข้าสู่ระบบ FITT Builder</h1>
         <button onClick={google} className="w-full rounded-lg border border-chalk/15 py-2.5 hover:bg-chalk/5">
           เข้าสู่ระบบด้วย Google

@@ -207,7 +207,7 @@ export default function SpecFlow({ onClose, onComplete }: SpecFlowProps) {
                 <button
                   onClick={() => void detect()}
                   disabled={!hasDoc}
-                  className="inline-flex items-center gap-2 rounded-sm bg-shine px-5 py-2.5 font-display text-sm font-semibold text-black transition hover:bg-shine-soft disabled:opacity-40"
+                  className="inline-flex items-center gap-2 rounded-sm bg-shine px-5 py-2.5 font-display text-sm font-semibold text-night transition hover:bg-shine-soft disabled:opacity-40"
                 >
                   อ่านเอกสาร <ArrowRight size={15} />
                 </button>
@@ -235,7 +235,7 @@ export default function SpecFlow({ onClose, onComplete }: SpecFlowProps) {
                   <div className="mt-5 flex gap-2">
                     <button
                       onClick={() => void startQuestions(preset)}
-                      className="inline-flex items-center gap-2 rounded-sm bg-shine px-5 py-2.5 font-display text-sm font-semibold text-black transition hover:bg-shine-soft"
+                      className="inline-flex items-center gap-2 rounded-sm bg-shine px-5 py-2.5 font-display text-sm font-semibold text-night transition hover:bg-shine-soft"
                     >
                       <Check size={15} /> ใช่ ไปต่อ
                     </button>
@@ -346,7 +346,7 @@ export default function SpecFlow({ onClose, onComplete }: SpecFlowProps) {
                 </button>
                 <button
                   onClick={next}
-                  className="inline-flex items-center gap-2 rounded-sm bg-shine px-5 py-2 font-display text-sm font-semibold text-black transition hover:bg-shine-soft"
+                  className="inline-flex items-center gap-2 rounded-sm bg-shine px-5 py-2 font-display text-sm font-semibold text-night transition hover:bg-shine-soft"
                 >
                   {questionIndex === preset.questions.length - 1 ? "สรุป" : "ถัดไป"}
                   <ArrowRight size={14} />
@@ -389,7 +389,7 @@ export default function SpecFlow({ onClose, onComplete }: SpecFlowProps) {
                 </button>
                 <button
                   onClick={finish}
-                  className="inline-flex items-center gap-2 rounded-sm bg-shine px-6 py-2.5 font-display text-sm font-bold text-black transition hover:bg-shine-soft"
+                  className="inline-flex items-center gap-2 rounded-sm bg-shine px-6 py-2.5 font-display text-sm font-bold text-night transition hover:bg-shine-soft"
                 >
                   Generate Demo <ArrowRight size={15} />
                 </button>

@@ -56,16 +56,16 @@ export default function PhaseStepper({
                 title={done ? `ดูเอกสาร ${step.user}` : `${step.user} / ${step.dev} — ${step.blurb}`}
                 className={`inline-flex items-center gap-1.5 rounded-full py-1 pl-1 pr-2.5 text-xs transition ${
                   active
-                    ? "bg-shine font-semibold text-black"
+                    ? "bg-shine font-semibold text-night"
                     : done
-                      ? "cursor-pointer text-go hover:bg-white/5"
+                      ? "cursor-pointer text-go hover:bg-chalk/5"
                       : "cursor-default text-chalk-dim/50"
                 }`}
               >
                 <span
                   className={`grid h-4 w-4 place-items-center rounded-full text-[9px] font-bold ${
                     active
-                      ? "bg-black/20 text-black"
+                      ? "bg-night/20 text-night"
                       : done
                         ? "bg-go/20 text-go"
                         : "border border-night-edge text-chalk-dim/50"
@@ -104,7 +104,7 @@ export default function PhaseStepper({
                   : "อนุมัติเฟสนี้ (จะไปต่อเมื่อทุกคนอนุมัติครบ)"
                 : "อนุมัติเฟสนี้แล้วไปเฟสถัดไป"
           }
-          className="inline-flex shrink-0 items-center gap-1.5 rounded-sm bg-shine px-3 py-1.5 font-display text-xs font-semibold text-black transition hover:bg-shine-soft disabled:cursor-not-allowed disabled:opacity-40"
+          className="inline-flex shrink-0 items-center gap-1.5 rounded-sm bg-shine px-3 py-1.5 font-display text-xs font-semibold text-night transition hover:bg-shine-soft disabled:cursor-not-allowed disabled:opacity-40"
         >
           {advanceLabel} <ArrowRight size={13} />
         </button>

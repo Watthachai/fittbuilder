@@ -19,12 +19,12 @@ export default function ChangelogPage() {
   }, []);
 
   return (
-    <main className="min-h-screen bg-black text-white px-6 py-12">
+    <main className="min-h-screen bg-night text-chalk px-6 py-12">
       <div className="mx-auto max-w-2xl space-y-10">
         <h1 className="text-3xl font-semibold">มีอะไรใหม่</h1>
         {CHANGELOG.map((e) => (
-          <article key={e.version} className="space-y-3 border-b border-white/10 pb-8">
-            <div className="text-sm text-white/50">{e.date} · v{e.version}</div>
+          <article key={e.version} className="space-y-3 border-b border-chalk/10 pb-8">
+            <div className="text-sm text-chalk/50">{e.date} · v{e.version}</div>
             <h2 className="text-xl font-medium">{e.title}</h2>
             <ul className="space-y-2">
               {e.items.map((item, i) => {
@@ -36,7 +36,7 @@ export default function ChangelogPage() {
                     >
                       {badge.label}
                     </span>
-                    <span className="text-[15px] leading-relaxed text-white/80">{item.text}</span>
+                    <span className="text-[15px] leading-relaxed text-chalk/80">{item.text}</span>
                   </li>
                 );
               })}

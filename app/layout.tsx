@@ -40,6 +40,13 @@ export default function RootLayout({
       className={`${inter.variable} ${anuphan.variable} ${plexMono.variable} h-full antialiased`}
     >
       <head>
+        {/* No-FOUC theme: apply the saved theme (or OS default) before paint.
+            'system'/absent → no class (CSS @media decides); 'light'/'dark' → class. */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var t=localStorage.getItem('fitt-theme');var c=document.documentElement.classList;c.remove('light','dark');if(t==='light'||t==='dark')c.add(t);}catch(e){}})();`,
+          }}
+        />
         {/* Helvetica Now Display — used by the Mainframe-style landing hero. */}
         <link
           rel="stylesheet"

@@ -31,7 +31,7 @@ export default function SkillDropdown({ value, onChange }: SkillDropdownProps) {
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-white/5 px-3 py-1.5 text-sm text-white/85 transition hover:border-white/30"
+        className="inline-flex items-center gap-1.5 rounded-full border border-chalk/15 bg-chalk/5 px-3 py-1.5 text-sm text-chalk/85 transition hover:border-chalk/30"
       >
         {selected ? (
           <SkillIcon name={selected.icon} size={14} />
@@ -51,7 +51,7 @@ export default function SkillDropdown({ value, onChange }: SkillDropdownProps) {
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 8, scale: 0.96 }}
               transition={{ duration: 0.16, ease: "easeOut" }}
-              className="absolute bottom-full left-0 z-50 mb-2 w-80 max-w-[90vw] origin-bottom-left overflow-hidden rounded-2xl border border-white/12 bg-[#15151c] p-1.5 shadow-2xl"
+              className="absolute bottom-full left-0 z-50 mb-2 w-80 max-w-[90vw] origin-bottom-left overflow-hidden rounded-2xl border border-chalk/12 bg-night-panel p-1.5 shadow-2xl"
             >
             <Row
               icon={<Sparkles size={18} className="text-shine" />}
@@ -60,7 +60,7 @@ export default function SkillDropdown({ value, onChange }: SkillDropdownProps) {
               selected={value === null}
               onClick={() => pick(null)}
             />
-            <div className="my-1 h-px bg-white/8" />
+            <div className="my-1 h-px bg-chalk/8" />
             {skills.map((s) => (
               <Row
                 key={s.id}
@@ -97,15 +97,15 @@ function Row({
       type="button"
       onClick={onClick}
       className={`flex w-full items-start gap-3 rounded-xl px-3 py-2.5 text-left transition ${
-        selected ? "bg-white/10" : "hover:bg-white/5"
+        selected ? "bg-chalk/10" : "hover:bg-chalk/5"
       }`}
     >
       <span className="mt-0.5 shrink-0">{icon}</span>
       <span className="min-w-0 flex-1">
-        <span className="block font-display text-sm font-medium text-white">{title}</span>
-        <span className="mt-0.5 block text-xs leading-snug text-white/55">{desc}</span>
+        <span className="block font-display text-sm font-medium text-chalk">{title}</span>
+        <span className="mt-0.5 block text-xs leading-snug text-chalk/55">{desc}</span>
       </span>
-      {selected && <Check size={16} className="mt-0.5 shrink-0 text-white/80" />}
+      {selected && <Check size={16} className="mt-0.5 shrink-0 text-chalk/80" />}
     </button>
   );
 }

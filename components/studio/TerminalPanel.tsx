@@ -131,7 +131,7 @@ export default function TerminalPanel() {
   };
 
   return (
-    <div className="flex h-full flex-col bg-[#0d0c09]">
+    <div className="flex h-full flex-col bg-night-panel">
       <div className="flex items-center gap-1.5 border-b border-night-edge px-2 py-1">
         <Search size={11} className="shrink-0 text-chalk-dim" />
         <input

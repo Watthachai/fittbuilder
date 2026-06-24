@@ -348,7 +348,7 @@ export default function ChatPanel({
                 >
                   <span
                     className={`grid h-5 w-5 shrink-0 place-items-center rounded text-[10px] font-bold ${
-                      selected ? "bg-shine text-black" : "border border-night-edge text-chalk-dim"
+                      selected ? "bg-shine text-night" : "border border-night-edge text-chalk-dim"
                     }`}
                   >
                     {activeAsk.multi && selected ? <Check size={11} /> : index + 1}
@@ -363,7 +363,7 @@ export default function ChatPanel({
               <button
                 onClick={() => send(picked.join(", "))}
                 disabled={picked.length === 0}
-                className="inline-flex items-center gap-1.5 rounded-sm bg-shine px-3 py-1.5 font-display text-xs font-semibold text-black transition hover:bg-shine-soft disabled:opacity-40"
+                className="inline-flex items-center gap-1.5 rounded-sm bg-shine px-3 py-1.5 font-display text-xs font-semibold text-night transition hover:bg-shine-soft disabled:opacity-40"
               >
                 ยืนยัน{picked.length > 0 ? ` (${picked.length})` : ""}
               </button>
@@ -430,7 +430,7 @@ export default function ChatPanel({
               <button
                 onClick={() => send(draft)}
                 disabled={!draft.trim()}
-                className="inline-flex items-center gap-1.5 rounded-sm bg-shine px-3 py-1.5 font-display text-xs font-semibold text-black transition hover:bg-shine-soft disabled:opacity-40"
+                className="inline-flex items-center gap-1.5 rounded-sm bg-shine px-3 py-1.5 font-display text-xs font-semibold text-night transition hover:bg-shine-soft disabled:opacity-40"
               >
                 <Send size={11} /> {sendLabel}
               </button>

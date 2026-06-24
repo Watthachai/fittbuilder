@@ -77,11 +77,11 @@ export default function ProjectGrid() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-black text-white">
+    <div className="min-h-screen bg-night text-chalk">
       <header className="mx-auto flex max-w-7xl items-center justify-between px-6 py-5">
         <Link href="/" className="inline-flex items-center gap-2.5">
-          <span className="grid h-8 w-8 place-items-center rounded-full border-2 border-white">
-            <span className="h-2.5 w-2.5 rounded-full bg-white" />
+          <span className="grid h-8 w-8 place-items-center rounded-full border-2 border-chalk">
+            <span className="h-2.5 w-2.5 rounded-full bg-chalk" />
           </span>
           <span className="font-display text-base font-semibold tracking-tight">
             FITT Builder
@@ -90,7 +90,7 @@ export default function ProjectGrid() {
         <div className="flex items-center gap-3">
           <Link
             href="/changelog"
-            className="relative inline-flex items-center gap-1.5 rounded-full border border-white/20 px-4 py-2 font-display text-sm text-white/70 transition hover:border-white/40 hover:text-white"
+            className="relative inline-flex items-center gap-1.5 rounded-full border border-chalk/20 px-4 py-2 font-display text-sm text-chalk/70 transition hover:border-chalk/40 hover:text-chalk"
           >
             <Sparkles size={14} />
             มีอะไรใหม่
@@ -103,7 +103,7 @@ export default function ProjectGrid() {
           </Link>
           <Link
             href="/"
-            className="inline-flex items-center gap-1.5 rounded-full bg-white px-5 py-2 font-display text-sm font-semibold text-black transition hover:bg-gray-200"
+            className="inline-flex items-center gap-1.5 rounded-full bg-chalk px-5 py-2 font-display text-sm font-semibold text-night transition hover:bg-gray-200"
           >
             <Plus size={15} /> สร้างใหม่
           </Link>
@@ -113,20 +113,20 @@ export default function ProjectGrid() {
 
       <main className="mx-auto max-w-7xl px-6 pb-24 pt-6">
         <h1 className="font-display text-3xl font-medium tracking-tight">ผลงานของฉัน</h1>
-        <p className="mt-1 text-white/70">
+        <p className="mt-1 text-chalk/70">
           เก็บไว้ในเครื่องของคุณ — เปิด แก้ต่อ duplicate หรือลบได้
         </p>
 
         {loadError ? (
-          <div className="mt-12 text-center font-mono text-sm text-white/40">{loadError}</div>
+          <div className="mt-12 text-center font-mono text-sm text-chalk/40">{loadError}</div>
         ) : loading ? (
-          <div className="mt-12 text-center font-mono text-sm text-white/40">กำลังโหลด…</div>
+          <div className="mt-12 text-center font-mono text-sm text-chalk/40">กำลังโหลด…</div>
         ) : projects.length === 0 ? (
-          <div className="mt-12 rounded-2xl border border-dashed border-white/20 bg-white/[0.03] p-14 text-center">
-            <p className="font-display text-lg text-white/70">ยังไม่มีโปรเจกต์</p>
+          <div className="mt-12 rounded-2xl border border-dashed border-chalk/20 bg-chalk/[0.03] p-14 text-center">
+            <p className="font-display text-lg text-chalk/70">ยังไม่มีโปรเจกต์</p>
             <Link
               href="/"
-              className="mt-4 inline-flex items-center gap-2 rounded-full bg-white px-6 py-2.5 font-display text-sm font-semibold text-black transition hover:bg-gray-200"
+              className="mt-4 inline-flex items-center gap-2 rounded-full bg-chalk px-6 py-2.5 font-display text-sm font-semibold text-night transition hover:bg-gray-200"
             >
               <Plus size={15} /> สร้าง demo แรกของคุณ
             </Link>
@@ -138,13 +138,13 @@ export default function ProjectGrid() {
           const renderCard = (project: ProjectSummary) => (
             <div
               key={project.id}
-              className="group rounded-2xl border border-white/10 bg-white/[0.03] transition hover:-translate-y-0.5 hover:border-shine/50"
+              className="group rounded-2xl border border-chalk/10 bg-chalk/[0.03] transition hover:-translate-y-0.5 hover:border-shine/50"
             >
               <button
                 onClick={() => router.push(`/project/${project.id}`)}
                 className="block w-full p-5 text-left"
               >
-                <div className="bg-grid flex h-24 items-center justify-center rounded-xl border border-white/10">
+                <div className="bg-grid flex h-24 items-center justify-center rounded-xl border border-chalk/10">
                   <FileCode size={22} className="text-shine/60" />
                 </div>
                 <div className="mt-4 flex items-center gap-2">
@@ -152,23 +152,23 @@ export default function ProjectGrid() {
                     {project.name}
                   </h2>
                   {project.access === "member" && project.role && (
-                    <span className="shrink-0 rounded-full border border-white/20 px-2 py-0.5 font-mono text-[10px] text-white/50">
+                    <span className="shrink-0 rounded-full border border-chalk/20 px-2 py-0.5 font-mono text-[10px] text-chalk/50">
                       {project.role}
                     </span>
                   )}
                 </div>
-                <p className="mt-1 font-mono text-[11px] text-white/50">
+                <p className="mt-1 font-mono text-[11px] text-chalk/50">
                   {project.fileCount > 0 ? `${project.fileCount} ไฟล์ · ` : ""}แก้ล่าสุด{" "}
                   {formatDate(project.updatedAt)}
                 </p>
               </button>
-              <div className="flex border-t border-white/10">
+              <div className="flex border-t border-chalk/10">
                 <button
                   onClick={async () => {
                     await duplicateProject(project.id);
                     await refresh();
                   }}
-                  className="flex flex-1 items-center justify-center gap-1.5 py-2.5 font-display text-xs text-white/60 transition hover:bg-shine/5 hover:text-shine"
+                  className="flex flex-1 items-center justify-center gap-1.5 py-2.5 font-display text-xs text-chalk/60 transition hover:bg-shine/5 hover:text-shine"
                 >
                   <Copy size={12} /> Duplicate
                 </button>
@@ -179,7 +179,7 @@ export default function ProjectGrid() {
                       await refresh();
                     }
                   }}
-                  className="flex flex-1 items-center justify-center gap-1.5 border-l border-white/10 py-2.5 font-display text-xs text-white/60 transition hover:bg-halt/5 hover:text-halt"
+                  className="flex flex-1 items-center justify-center gap-1.5 border-l border-chalk/10 py-2.5 font-display text-xs text-chalk/60 transition hover:bg-halt/5 hover:text-halt"
                 >
                   <Trash2 size={12} /> ลบ
                 </button>
@@ -190,7 +190,7 @@ export default function ProjectGrid() {
           return (
             <>
               {shared.length > 0 && (
-                <h2 className="mt-8 font-display text-xl font-medium tracking-tight text-white/70">ของฉัน</h2>
+                <h2 className="mt-8 font-display text-xl font-medium tracking-tight text-chalk/70">ของฉัน</h2>
               )}
               <div className="mt-4 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
                 {owned.map(renderCard)}

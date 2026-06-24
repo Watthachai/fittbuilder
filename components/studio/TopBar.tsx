@@ -74,7 +74,7 @@ export default function TopBar({
         <button
           onClick={() => onViewChange("preview")}
           className={`inline-flex items-center gap-1.5 rounded-[2px] px-3 py-1 font-display text-xs font-medium transition ${
-            view === "preview" ? "bg-shine text-black" : "text-chalk-dim hover:text-chalk"
+            view === "preview" ? "bg-shine text-night" : "text-chalk-dim hover:text-chalk"
           }`}
         >
           <Eye size={13} /> Preview
@@ -82,7 +82,7 @@ export default function TopBar({
         <button
           onClick={() => onViewChange("code")}
           className={`inline-flex items-center gap-1.5 rounded-[2px] px-3 py-1 font-display text-xs font-medium transition ${
-            view === "code" ? "bg-shine text-black" : "text-chalk-dim hover:text-chalk"
+            view === "code" ? "bg-shine text-night" : "text-chalk-dim hover:text-chalk"
           }`}
         >
           <Code2 size={13} /> Code
@@ -134,7 +134,7 @@ export default function TopBar({
       <button
         onClick={() => project.files && void downloadZip(project.files, project.name)}
         disabled={!shippable}
-        className="inline-flex items-center gap-1.5 rounded-sm bg-shine px-2.5 py-1.5 text-xs font-medium text-black transition hover:brightness-110 disabled:opacity-40"
+        className="inline-flex items-center gap-1.5 rounded-sm bg-shine px-2.5 py-1.5 text-xs font-medium text-night transition hover:brightness-110 disabled:opacity-40"
         title="ดาวน์โหลดโค้ดเป็น .zip"
       >
         <Download size={13} /> Export

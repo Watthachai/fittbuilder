@@ -25,7 +25,7 @@ function toDraft(q: SkillQuestion): QuestionDraft {
 }
 
 const INPUT =
-  "w-full rounded-lg border border-night-edge bg-black/30 px-3 py-2 text-sm text-chalk outline-none focus:border-shine";
+  "w-full rounded-lg border border-night-edge bg-night/30 px-3 py-2 text-sm text-chalk outline-none focus:border-shine";
 const LABEL = "block text-xs font-medium text-chalk-dim";
 
 export default function SkillTemplateForm({
@@ -145,7 +145,7 @@ export default function SkillTemplateForm({
         <div>
           <label className={LABEL}>ไอคอน</label>
           <div className="flex items-center gap-2">
-            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg border border-night-edge bg-black/30">
+            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg border border-night-edge bg-night/30">
               <SkillIcon name={icon} size={18} />
             </span>
             <select className={INPUT} value={icon} onChange={(e) => setIcon(e.target.value)}>
@@ -194,7 +194,7 @@ export default function SkillTemplateForm({
           </button>
         </div>
         {questions.map((q, i) => (
-          <div key={q.id} className="space-y-2 rounded-lg border border-night-edge bg-black/20 p-3">
+          <div key={q.id} className="space-y-2 rounded-lg border border-night-edge bg-night/20 p-3">
             <div className="flex items-center gap-2">
               <input
                 className={INPUT}
@@ -203,7 +203,7 @@ export default function SkillTemplateForm({
                 onChange={(e) => updateQuestion(i, { label: e.target.value })}
               />
               <select
-                className="rounded-lg border border-night-edge bg-black/30 px-2 py-2 text-sm text-chalk"
+                className="rounded-lg border border-night-edge bg-night/30 px-2 py-2 text-sm text-chalk"
                 value={q.type}
                 onChange={(e) => updateQuestion(i, { type: e.target.value as QuestionDraft["type"] })}
               >
@@ -242,7 +242,7 @@ export default function SkillTemplateForm({
           type="button"
           onClick={submit}
           disabled={busy}
-          className="rounded-lg bg-shine px-4 py-2 font-display text-sm font-semibold text-black transition hover:brightness-110 disabled:opacity-40"
+          className="rounded-lg bg-shine px-4 py-2 font-display text-sm font-semibold text-night transition hover:brightness-110 disabled:opacity-40"
         >
           {busy ? "กำลังบันทึก…" : editing ? "บันทึกการแก้ไข" : "สร้าง (เป็น draft)"}
         </button>

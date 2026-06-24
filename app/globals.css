@@ -7,27 +7,62 @@
    shine. Spec: docs/brief-plans/design.md
    ———————————————————————————————————————————————— */
 
+/* ── Theme tokens ──────────────────────────────────────────────
+   Default = LIGHT. Dark applies when the OS prefers dark AND the user
+   hasn't picked a theme (:not(.light):not(.dark)), or when .dark is set
+   explicitly. .light forces light. The no-FOUC script in the root layout
+   sets/removes the class on <html> before paint. */
 :root {
+  color-scheme: light;
   /* surfaces */
-  --night: #000000;
-  --night-panel: #0a0a0a;
-  --night-edge: #2a2a2a;
-
+  --night: #ffffff;
+  --night-panel: #f4f4f5;
+  --night-edge: #e4e4e7;
   /* typography */
-  --chalk: #ffffff;
-  --chalk-dim: #a1a1aa;
+  --chalk: #18181b;
+  --chalk-dim: #6b7280;
+  /* the one accent */
+  --shine: #0284c7;
+  --shine-soft: #0ea5e9;
+  /* status */
+  --go: #059669;
+  --halt: #dc2626;
+  /* faint grid line for empty states */
+  --grid-line: rgba(0, 0, 0, 0.06);
 
   /* Helvetica Now Display — landing hero (Mainframe-style layout) */
   --font-heading: "HelveticaNowDisplay-Medium", "Helvetica Neue", Arial, sans-serif;
   --font-body: "HelveticaNowDisplayW01-Rg", "Helvetica Neue", Arial, sans-serif;
+}
 
-  /* the one accent */
+:root.dark {
+  color-scheme: dark;
+  --night: #000000;
+  --night-panel: #0a0a0a;
+  --night-edge: #2a2a2a;
+  --chalk: #ffffff;
+  --chalk-dim: #a1a1aa;
   --shine: #64cefb;
   --shine-soft: #9ddffc;
-
-  /* status */
   --go: #34d399;
   --halt: #f87171;
+  --grid-line: rgba(255, 255, 255, 0.04);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not(.light):not(.dark) {
+    color-scheme: dark;
+    --night: #000000;
+    --night-panel: #0a0a0a;
+    --night-edge: #2a2a2a;
+    --chalk: #ffffff;
+    --chalk-dim: #a1a1aa;
+    --shine: #64cefb;
+    --shine-soft: #9ddffc;
+    --go: #34d399;
+    --halt: #f87171;
+    --grid-line: rgba(255, 255, 255, 0.04);
+  }
 }
 
 @theme inline {
@@ -92,8 +127,8 @@ body {
 .bg-grid {
   background-color: var(--night);
   background-image:
-    linear-gradient(to right, rgba(255, 255, 255, 0.04) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(255, 255, 255, 0.04) 1px, transparent 1px);
+    linear-gradient(to right, var(--grid-line) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--grid-line) 1px, transparent 1px);
   background-size: 24px 24px;
 }
 

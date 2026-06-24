@@ -64,7 +64,7 @@ export default function ShareViewer() {
         </div>
         <Link
           href="/"
-          className="rounded-sm bg-shine px-3 py-1.5 font-display text-xs font-semibold text-black transition hover:bg-shine-soft"
+          className="rounded-sm bg-shine px-3 py-1.5 font-display text-xs font-semibold text-night transition hover:bg-shine-soft"
         >
           สร้างของคุณเองฟรี →
         </Link>
@@ -79,7 +79,7 @@ export default function ShareViewer() {
           <iframe
             src={url}
             sandbox="allow-scripts allow-same-origin allow-forms"
-            className="h-full w-full bg-white"
+            className="h-full w-full bg-chalk"
             title={payload?.name ?? "Shared demo"}
           />
         ) : (

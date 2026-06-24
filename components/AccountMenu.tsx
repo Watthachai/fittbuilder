@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { BarChart3, LogOut, ShieldCheck } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import ThemeToggle from "@/components/ThemeToggle";
 
 interface Account {
   email: string;
@@ -93,10 +94,10 @@ export default function AccountMenu() {
     <div className="relative">
       <button
         onClick={() => setOpen((v) => !v)}
-        className="inline-flex items-center gap-2 rounded-full border border-white/20 py-1 pl-1 pr-3 transition hover:border-white/40"
+        className="inline-flex items-center gap-2 rounded-full border border-chalk/20 py-1 pl-1 pr-3 transition hover:border-chalk/40"
       >
         <Avatar avatarUrl={account.avatarUrl} initial={initial} />
-        <span className="max-w-[10rem] truncate font-display text-sm text-white/80">{label}</span>
+        <span className="max-w-[10rem] truncate font-display text-sm text-chalk/80">{label}</span>
         {isAdmin && (
           <span className="rounded-full bg-shine/15 px-1.5 py-0.5 font-display text-[10px] font-semibold text-shine">
             Admin
@@ -107,21 +108,21 @@ export default function AccountMenu() {
       {open && (
         <>
           <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
-          <div className="absolute right-0 z-50 mt-2 w-60 overflow-hidden rounded-xl border border-white/15 bg-night-panel shadow-xl">
-            <div className="flex items-center gap-3 border-b border-white/10 px-4 py-3">
+          <div className="absolute right-0 z-50 mt-2 w-60 overflow-hidden rounded-xl border border-chalk/15 bg-night-panel shadow-xl">
+            <div className="flex items-center gap-3 border-b border-chalk/10 px-4 py-3">
               <Avatar avatarUrl={account.avatarUrl} initial={initial} />
               <div className="min-w-0">
                 {account.name && (
-                  <p className="truncate font-display text-sm text-white">{account.name}</p>
+                  <p className="truncate font-display text-sm text-chalk">{account.name}</p>
                 )}
-                <p className="truncate font-mono text-[11px] text-white/50">{account.email}</p>
+                <p className="truncate font-mono text-[11px] text-chalk/50">{account.email}</p>
               </div>
             </div>
             {isAdmin && (
               <Link
                 href="/admin/skills"
                 onClick={() => setOpen(false)}
-                className="flex w-full items-center gap-2 border-b border-white/10 px-4 py-2.5 text-left font-display text-sm text-white/70 transition hover:bg-white/5 hover:text-white"
+                className="flex w-full items-center gap-2 border-b border-chalk/10 px-4 py-2.5 text-left font-display text-sm text-chalk/70 transition hover:bg-chalk/5 hover:text-chalk"
               >
                 <ShieldCheck size={14} className="text-shine" /> จัดการ Skill Templates
               </Link>
@@ -130,15 +131,19 @@ export default function AccountMenu() {
               <Link
                 href="/admin/usage"
                 onClick={() => setOpen(false)}
-                className="flex w-full items-center gap-2 border-b border-white/10 px-4 py-2.5 text-left font-display text-sm text-white/70 transition hover:bg-white/5 hover:text-white"
+                className="flex w-full items-center gap-2 border-b border-chalk/10 px-4 py-2.5 text-left font-display text-sm text-chalk/70 transition hover:bg-chalk/5 hover:text-chalk"
               >
                 <BarChart3 size={14} className="text-shine" /> รายงานการใช้ AI
               </Link>
             )}
+            <div className="flex items-center justify-between gap-2 border-b border-chalk/10 px-4 py-2.5">
+              <span className="font-display text-sm text-chalk/70">ธีม</span>
+              <ThemeToggle />
+            </div>
             <button
               onClick={signOut}
               disabled={signingOut}
-              className="flex w-full items-center gap-2 px-4 py-2.5 text-left font-display text-sm text-white/70 transition hover:bg-white/5 hover:text-white disabled:opacity-50"
+              className="flex w-full items-center gap-2 px-4 py-2.5 text-left font-display text-sm text-chalk/70 transition hover:bg-chalk/5 hover:text-chalk disabled:opacity-50"
             >
               <LogOut size={14} />
               {signingOut ? "กำลังออก…" : "ออกจากระบบ"}
@@ -156,7 +161,7 @@ function Avatar({ avatarUrl, initial }: { avatarUrl: string | null; initial: str
     return <img src={avatarUrl} alt="" className="h-7 w-7 rounded-full object-cover" />;
   }
   return (
-    <span className="grid h-7 w-7 place-items-center rounded-full bg-white/10 font-display text-xs font-semibold text-white/80">
+    <span className="grid h-7 w-7 place-items-center rounded-full bg-chalk/10 font-display text-xs font-semibold text-chalk/80">
       {initial}
     </span>
   );

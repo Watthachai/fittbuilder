@@ -37,7 +37,7 @@ export default function SkillPicker({ detectedId, busy, onSelect, onSkip }: Skil
       {detected && !showGallery ? (
         <div className="flex flex-col gap-3">
           <div className="flex items-start gap-3">
-            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-lg border border-night-edge bg-black/30">
+            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-lg border border-night-edge bg-night/30">
               <SkillIcon name={detected.icon} size={20} />
             </span>
             <div className="min-w-0">
@@ -53,7 +53,7 @@ export default function SkillPicker({ detectedId, busy, onSelect, onSkip }: Skil
           <div className="flex items-center gap-2">
             <button
               onClick={() => onSelect(detected.id)}
-              className="inline-flex items-center gap-1.5 rounded-lg bg-shine px-3.5 py-2 font-display text-sm font-semibold text-black transition hover:brightness-110"
+              className="inline-flex items-center gap-1.5 rounded-lg bg-shine px-3.5 py-2 font-display text-sm font-semibold text-night transition hover:brightness-110"
             >
               ✓ ใช่ ลุยเลย
             </button>
@@ -92,7 +92,7 @@ export default function SkillPicker({ detectedId, busy, onSelect, onSkip }: Skil
                 key={s.id}
                 onClick={() => onSelect(s.id)}
                 className={`flex flex-col gap-1.5 rounded-lg border p-3 text-left transition hover:-translate-y-0.5 hover:border-shine/50 ${
-                  s.id === detectedId ? "border-shine/60 bg-shine/5" : "border-night-edge bg-black/20"
+                  s.id === detectedId ? "border-shine/60 bg-shine/5" : "border-night-edge bg-night/20"
                 }`}
               >
                 <SkillIcon name={s.icon} />

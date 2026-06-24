@@ -57,7 +57,7 @@ export default function PackageSearch({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-start justify-center bg-black/70 p-4 pt-[8vh] backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-start justify-center bg-night/70 p-4 pt-[8vh] backdrop-blur-sm"
       onClick={onClose}
     >
       <div
@@ -95,7 +95,7 @@ export default function PackageSearch({
             <button
               onClick={() => void search()}
               disabled={!query.trim() || loading}
-              className="shrink-0 rounded-sm bg-shine px-3 py-1 font-display text-xs font-semibold text-black transition hover:bg-shine-soft disabled:opacity-40"
+              className="shrink-0 rounded-sm bg-shine px-3 py-1 font-display text-xs font-semibold text-night transition hover:bg-shine-soft disabled:opacity-40"
             >
               ค้นหา
             </button>
@@ -176,7 +176,7 @@ export default function PackageSearch({
                     className={`inline-flex shrink-0 items-center gap-1 rounded-sm px-2.5 py-1.5 font-display text-xs font-semibold transition ${
                       isInstalled
                         ? "cursor-default border border-night-edge text-go"
-                        : "bg-shine text-black hover:bg-shine-soft disabled:opacity-40"
+                        : "bg-shine text-night hover:bg-shine-soft disabled:opacity-40"
                     }`}
                   >
                     {isInstalled ? (

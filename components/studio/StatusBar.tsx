@@ -113,7 +113,7 @@ export default function StatusBar({
             {canFix && (
               <button
                 onClick={onFixWithAi}
-                className="inline-flex shrink-0 items-center gap-1 rounded-sm bg-shine px-2 py-0.5 text-[11px] font-medium text-black transition hover:bg-shine-soft"
+                className="inline-flex shrink-0 items-center gap-1 rounded-sm bg-shine px-2 py-0.5 text-[11px] font-medium text-night transition hover:bg-shine-soft"
               >
                 <Sparkles size={10} /> แก้ด้วย AI
               </button>
@@ -132,7 +132,7 @@ export default function StatusBar({
       </div>
 
       {terminalOpen && (
-        <div className="border-t border-night-edge bg-[#0d0c09]">
+        <div className="border-t border-night-edge bg-night-panel">
           <div className="flex items-center gap-1 border-b border-night-edge px-2 py-1">
             <button
               onClick={() => setTab("output")}

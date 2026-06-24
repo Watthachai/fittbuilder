@@ -154,41 +154,41 @@ export default function MainframeHero() {
         className="fixed inset-0 z-0 h-full w-full object-cover"
         style={{ objectPosition: "70% center" }}
       />
-      <div className="fixed inset-0 z-0 bg-black/55" aria-hidden />
+      <div className="fixed inset-0 z-0 bg-night/55" aria-hidden />
 
       {/* Navbar — floating glass pill */}
       <header className="fixed inset-x-0 top-0 z-50 flex items-center justify-between px-5 py-4 sm:px-8 sm:py-5">
         <Link href="/" className="flex items-center gap-3">
           <span
-            className="text-[21px] tracking-tight text-white sm:text-[26px]"
+            className="text-[21px] tracking-tight text-chalk sm:text-[26px]"
             style={{ fontFamily: "var(--font-heading)" }}
           >
             FITT Builder
           </span>
           <span
-            className="select-none text-[25px] text-white sm:text-[30px]"
+            className="select-none text-[25px] text-chalk sm:text-[30px]"
             style={{ letterSpacing: "-0.02em" }}
           >
             ✳︎
           </span>
         </Link>
 
-        <nav className="absolute left-1/2 hidden -translate-x-1/2 items-center gap-1 rounded-full border border-white/12 bg-black/40 px-2 py-1.5 text-[15px] text-white/85 backdrop-blur-xl md:flex">
+        <nav className="absolute left-1/2 hidden -translate-x-1/2 items-center gap-1 rounded-full border border-chalk/12 bg-night/40 px-2 py-1.5 text-[15px] text-chalk/85 backdrop-blur-xl md:flex">
           {NAV_LINKS.map((link) => (
             <a
               key={link.href}
               href={link.href}
-              className="rounded-full px-4 py-1.5 transition hover:bg-white/10 hover:text-white"
+              className="rounded-full px-4 py-1.5 transition hover:bg-chalk/10 hover:text-chalk"
             >
               {link.label}
             </a>
           ))}
         </nav>
 
-        <div className="hidden items-center gap-2 rounded-full border border-white/12 bg-black/40 py-1 pl-3 pr-1 backdrop-blur-xl md:flex">
+        <div className="hidden items-center gap-2 rounded-full border border-chalk/12 bg-night/40 py-1 pl-3 pr-1 backdrop-blur-xl md:flex">
           <Link
             href="/projects"
-            className="text-[15px] text-white/85 transition hover:text-white"
+            className="text-[15px] text-chalk/85 transition hover:text-chalk"
           >
             ผลงานของฉัน
           </Link>
@@ -202,18 +202,18 @@ export default function MainframeHero() {
           className="flex flex-col gap-[5px] md:hidden"
         >
           <span
-            className={`h-[2px] w-6 bg-white transition-all duration-300 ${menuOpen ? "translate-y-[7px] rotate-45" : ""}`}
+            className={`h-[2px] w-6 bg-chalk transition-all duration-300 ${menuOpen ? "translate-y-[7px] rotate-45" : ""}`}
           />
-          <span className={`h-[2px] w-6 bg-white transition-all duration-300 ${menuOpen ? "opacity-0" : ""}`} />
+          <span className={`h-[2px] w-6 bg-chalk transition-all duration-300 ${menuOpen ? "opacity-0" : ""}`} />
           <span
-            className={`h-[2px] w-6 bg-white transition-all duration-300 ${menuOpen ? "-translate-y-[7px] -rotate-45" : ""}`}
+            className={`h-[2px] w-6 bg-chalk transition-all duration-300 ${menuOpen ? "-translate-y-[7px] -rotate-45" : ""}`}
           />
         </button>
       </header>
 
       {/* Mobile overlay */}
       <div
-        className="fixed inset-0 z-40 flex flex-col justify-center gap-8 bg-black/95 px-8 backdrop-blur-sm transition-opacity duration-300 md:hidden"
+        className="fixed inset-0 z-40 flex flex-col justify-center gap-8 bg-night/95 px-8 backdrop-blur-sm transition-opacity duration-300 md:hidden"
         style={{ opacity: menuOpen ? 1 : 0, pointerEvents: menuOpen ? "auto" : "none" }}
       >
         {NAV_LINKS.map((link) => (
@@ -221,7 +221,7 @@ export default function MainframeHero() {
             key={link.href}
             href={link.href}
             onClick={() => setMenuOpen(false)}
-            className="text-[32px] font-medium text-white"
+            className="text-[32px] font-medium text-chalk"
           >
             {link.label}
           </a>
@@ -229,7 +229,7 @@ export default function MainframeHero() {
         <Link
           href="/projects"
           onClick={() => setMenuOpen(false)}
-          className="text-[32px] font-medium text-white underline underline-offset-2"
+          className="text-[32px] font-medium text-chalk underline underline-offset-2"
         >
           ผลงานของฉัน
         </Link>
@@ -248,7 +248,7 @@ export default function MainframeHero() {
         <motion.div style={{ opacity: heroOpacity, y: heroY }} className="relative z-10 w-full max-w-2xl">
           {/* Blurred intro label */}
           <div
-            className="pointer-events-none mb-5 select-none text-white sm:mb-6"
+            className="pointer-events-none mb-5 select-none text-chalk sm:mb-6"
             style={{
               fontSize: "clamp(18px, 4vw, 26px)",
               lineHeight: 1.3,
@@ -263,7 +263,7 @@ export default function MainframeHero() {
 
           {/* Typewriter */}
           <p
-            className="mb-5 text-white sm:mb-6"
+            className="mb-5 text-chalk sm:mb-6"
             style={{
               fontSize: "clamp(18px, 4vw, 26px)",
               lineHeight: 1.35,
@@ -273,7 +273,7 @@ export default function MainframeHero() {
           >
             {displayed}
             {!done && (
-              <span className="caret-blink ml-[2px] inline-block h-[1.1em] w-[2px] bg-white align-middle" />
+              <span className="caret-blink ml-[2px] inline-block h-[1.1em] w-[2px] bg-chalk align-middle" />
             )}
           </p>
 

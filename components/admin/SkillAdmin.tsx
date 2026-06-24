@@ -68,7 +68,7 @@ export default function SkillAdmin() {
 
   if (view.mode !== "list") {
     return (
-      <main className="min-h-screen bg-black px-6 py-10 text-white">
+      <main className="min-h-screen bg-night px-6 py-10 text-chalk">
         <div className="mx-auto max-w-3xl">
           <button
             onClick={() => setView({ mode: "list" })}
@@ -90,7 +90,7 @@ export default function SkillAdmin() {
   }
 
   return (
-    <main className="min-h-screen bg-black px-6 py-10 text-white">
+    <main className="min-h-screen bg-night px-6 py-10 text-chalk">
       <div className="mx-auto max-w-3xl">
         <div className="flex items-center justify-between">
           <div>
@@ -101,7 +101,7 @@ export default function SkillAdmin() {
           </div>
           <button
             onClick={() => setView({ mode: "new" })}
-            className="inline-flex items-center gap-1.5 rounded-full bg-shine px-4 py-2 font-display text-sm font-semibold text-black transition hover:brightness-110"
+            className="inline-flex items-center gap-1.5 rounded-full bg-shine px-4 py-2 font-display text-sm font-semibold text-night transition hover:brightness-110"
           >
             <Plus size={15} /> สร้างใหม่
           </button>
@@ -132,7 +132,7 @@ export default function SkillAdmin() {
                         className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${
                           row.status === "published"
                             ? "bg-go/15 text-go"
-                            : "bg-white/10 text-chalk-dim"
+                            : "bg-chalk/10 text-chalk-dim"
                         }`}
                       >
                         {row.status === "published" ? "เผยแพร่แล้ว" : "draft"}

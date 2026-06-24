@@ -45,7 +45,7 @@ export default function PreviewPanel({
               onClick={() => setViewport(v.id)}
               title={v.label}
               className={`rounded-[2px] px-2 py-1 transition ${
-                viewport === v.id ? "bg-shine text-black" : "text-chalk-dim hover:text-chalk"
+                viewport === v.id ? "bg-shine text-night" : "text-chalk-dim hover:text-chalk"
               }`}
             >
               <v.icon size={13} />
@@ -94,7 +94,7 @@ export default function PreviewPanel({
               key={previewKey}
               src={url}
               sandbox="allow-scripts allow-same-origin allow-forms"
-              className={`h-full w-full bg-white ${active.width ? "border-x border-night-edge" : ""}`}
+              className={`h-full w-full bg-chalk ${active.width ? "border-x border-night-edge" : ""}`}
               title="Demo preview"
             />
           </div>

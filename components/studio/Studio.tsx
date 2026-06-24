@@ -1048,7 +1048,7 @@ export default function Studio({ projectId }: { projectId: string }) {
         <p className="font-display text-2xl font-semibold">ไม่พบโปรเจกต์ หรือคุณไม่มีสิทธิ์เข้าถึง</p>
         <Link
           href="/"
-          className="rounded-sm bg-shine px-5 py-2 font-display font-medium text-black transition hover:bg-shine-soft"
+          className="rounded-sm bg-shine px-5 py-2 font-display font-medium text-night transition hover:bg-shine-soft"
         >
           กลับหน้าแรก
         </Link>

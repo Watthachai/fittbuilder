@@ -149,7 +149,7 @@ export default function ShareModal({ projectId, onClose }: ShareModalProps) {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-6"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-night/70 p-6"
       onClick={onClose}
     >
       <div
@@ -193,7 +193,7 @@ export default function ShareModal({ projectId, onClose }: ShareModalProps) {
                 <button
                   onClick={() => setLinkRole("viewer")}
                   className={`rounded-[2px] px-2.5 py-1 text-xs font-medium transition ${
-                    linkRole === "viewer" ? "bg-shine text-black" : "text-chalk-dim hover:text-chalk"
+                    linkRole === "viewer" ? "bg-shine text-night" : "text-chalk-dim hover:text-chalk"
                   }`}
                 >
                   Viewer
@@ -201,7 +201,7 @@ export default function ShareModal({ projectId, onClose }: ShareModalProps) {
                 <button
                   onClick={() => setLinkRole("editor")}
                   className={`rounded-[2px] px-2.5 py-1 text-xs font-medium transition ${
-                    linkRole === "editor" ? "bg-shine text-black" : "text-chalk-dim hover:text-chalk"
+                    linkRole === "editor" ? "bg-shine text-night" : "text-chalk-dim hover:text-chalk"
                   }`}
                 >
                   Editor

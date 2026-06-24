@@ -51,7 +51,7 @@ export default function DocPreviewModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 sm:p-8"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-night/60 p-4 sm:p-8"
       onClick={onClose}
     >
       <div
@@ -68,7 +68,7 @@ export default function DocPreviewModal({
                     key={d.kind}
                     onClick={() => setActive(i)}
                     className={`rounded-full px-3 py-1 text-xs font-medium transition ${
-                      i === active ? "bg-shine text-black" : "text-chalk-dim hover:text-chalk"
+                      i === active ? "bg-shine text-night" : "text-chalk-dim hover:text-chalk"
                     }`}
                   >
                     {d.label}
@@ -115,7 +115,7 @@ export default function DocPreviewModal({
             <button
               onClick={submit}
               disabled={!comment.trim() || busy}
-              className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-shine px-4 py-2.5 font-display text-sm font-semibold text-black transition hover:bg-shine-soft disabled:cursor-not-allowed disabled:opacity-40"
+              className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-shine px-4 py-2.5 font-display text-sm font-semibold text-night transition hover:bg-shine-soft disabled:cursor-not-allowed disabled:opacity-40"
             >
               <Sparkles size={14} /> แก้ไขใหม่
             </button>

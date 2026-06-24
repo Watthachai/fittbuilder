@@ -112,7 +112,7 @@ export default function LaunchPad() {
   };
 
   return (
-    <div className="w-full max-w-2xl rounded-2xl border border-chalk/15 bg-chalk/[0.04] backdrop-blur-sm">
+    <div className="glass w-full max-w-2xl rounded-2xl">
       <div className="flex items-center justify-between border-b border-chalk/10 px-4 py-2">
         <span className="font-mono text-[11px] uppercase tracking-[0.18em] text-chalk/60">
           FITT-001 · Demo Brief

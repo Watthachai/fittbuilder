@@ -38,6 +38,7 @@ export default function RootLayout({
   return (
     <html
       lang="th"
+      suppressHydrationWarning
       className={`${inter.variable} ${anuphan.variable} ${plexMono.variable} h-full antialiased`}
     >
       <head>

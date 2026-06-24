@@ -14,6 +14,28 @@ and is kept in sync with the entries below.
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-06-24
+
+### Added
+- **Light/Dark theme** across the whole app (default = system) with a floating glass switcher (bottom-right, every page).
+- **AI usage report** (`/admin/usage`): per-chat / per-user / per-kind token totals with an estimated cost.
+- **AI skill-template generator** (`/admin/skills`): researches a domain via an optional URL and/or Google Search grounding, streams the thinking + a Thai report, and auto-fills the template for review.
+- **Multi-party phase approval**: on shared projects every member (any role) must approve a phase before it advances.
+- **Express auto-pilot**: a complete prompt now generates BRD → PRD → build automatically (Define and Plan emit their docs in one shot).
+- **Rework from docs**: regenerate the app from the current BRD/PRD; a doc-preview modal (IDEA / BRD tabs) with an inline AI "revise" box; a "ดูเอกสาร" button on chat turns that produced a doc.
+
+### Changed
+- Frosted-glass surfaces + Google-Stitch-style entrance animations across pages (projects, login, changelog, admin).
+
+### Fixed
+- Project creation failed with an RLS error — `INSERT…RETURNING` applied a SELECT policy whose owner check was a self-referential subquery that couldn't see the new row.
+- Mouse-scrub hero video was janky — a persistent CSS transform kept it off the fast compositing path.
+- The launch prompt was lost on navigation; it's now handed off via `sessionStorage`.
+- `/api/agent` rejected long briefs — per-message cap raised 6k → 10k to match the input limit.
+- Chat renders user messages as Markdown and wraps long URLs/code instead of overflowing.
+- Monaco stopped red-underlining valid in-browser code (semantic validation off, JSX configured).
+- Account + admin links are now reachable on mobile.
+
 ## [0.7.0] - 2026-06-23
 
 ### Added

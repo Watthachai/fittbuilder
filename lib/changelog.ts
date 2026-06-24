@@ -23,6 +23,21 @@ export const CHANGE_BADGE: Record<ChangeType, { label: string; className: string
 // Newest first. SemVer: fix → PATCH, feature → MINOR, breaking → MAJOR.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.8.0",
+    date: "2026-06-24",
+    title: "ธีม Light/Dark + AI ช่วยสร้าง Skill + รายงานการใช้ AI",
+    items: [
+      { type: "feature", text: "ธีม Light/Dark ทั้งระบบ (เริ่มต้นตามเครื่อง) สลับได้จากปุ่มกระจกลอยมุมขวาล่างทุกหน้า" },
+      { type: "feature", text: "AI ช่วยสร้าง Skill Template: ใส่ URL หรือเปิด Web search ให้ค้นมาอ้างอิง → เห็น thinking + รายงาน แล้วเติมฟอร์มให้อัตโนมัติ" },
+      { type: "feature", text: "หน้ารายงานการใช้ AI (admin): ดู token + ค่าใช้จ่ายประมาณการ แยกตาม chat / ผู้ใช้ / ชนิดการเรียก" },
+      { type: "feature", text: "Express: พิมพ์ prompt ครบ → สร้าง BRD → PRD → build ให้อัตโนมัติ" },
+      { type: "feature", text: "อนุมัติหลายคน: โปรเจกต์ที่แชร์ ทุกคนต้องกดอนุมัติก่อนถึงจะไปเฟสถัดไป" },
+      { type: "feature", text: 'ดู/แก้เอกสารจากปุ่ม "ดูเอกสาร" ในแชท (แท็บ IDEA/BRD) + ปุ่ม "สร้างใหม่จากเอกสาร"' },
+      { type: "improvement", text: "ดีไซน์ใหม่แนว glass + อนิเมชันเลื่อนเข้าทุกหน้า (Google Stitch style)" },
+      { type: "fix", text: "แก้บั๊กสร้างโปรเจกต์ไม่ได้ (RLS), คลิปพื้นหลังกระตุก, prompt หายตอนเปลี่ยนหน้า, แชทยาวเกินล้นจอ และโค้ดขีดแดงทั้งที่รันได้" },
+    ],
+  },
+  {
     version: "0.7.0",
     date: "2026-06-23",
     title: "แอดมินสร้าง Skill Template เองได้",

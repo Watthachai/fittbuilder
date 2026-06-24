@@ -1,12 +1,14 @@
 "use client";
 
-import { useState, useSyncExternalStore } from "react";
-import { AnimatePresence, motion } from "motion/react";
+import { useSyncExternalStore } from "react";
+import Link from "next/link";
 import { Monitor, Moon, Sun } from "lucide-react";
+import { CHANGELOG } from "@/lib/changelog";
 
 type Theme = "system" | "light" | "dark";
 
 const THEME_EVENT = "fitt-theme-change";
+const VERSION = CHANGELOG[0]?.version ?? "0.0.0";
 
 function applyTheme(theme: Theme) {
   const cls = document.documentElement.classList;
@@ -33,11 +35,22 @@ const OPTIONS: { key: Theme; Icon: typeof Monitor; label: string }[] = [
   { key: "dark", Icon: Moon, label: "มืด" },
 ];
 
-/** Floating glass theme switcher, bottom-right on every page. */
+/** Small hover tooltip (liquid glass), positioned above its child. */
+function Tip({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <span className="group/tip relative inline-flex">
+      {children}
+      <span className="glass pointer-events-none absolute bottom-full left-1/2 mb-2 -translate-x-1/2 whitespace-nowrap rounded-lg px-2.5 py-1 text-xs text-chalk opacity-0 transition-opacity duration-150 group-hover/tip:opacity-100">
+        {label}
+      </span>
+    </span>
+  );
+}
+
+/** Floating Liquid-Glass cluster (bottom-right): version → changelog + theme switcher. */
 export default function FloatingThemeToggle() {
   const theme = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
-  const [open, setOpen] = useState(false);
-  const Current = (OPTIONS.find((o) => o.key === theme) ?? OPTIONS[0]).Icon;
+  const activeIndex = Math.max(0, OPTIONS.findIndex((o) => o.key === theme));
 
   const choose = (t: Theme) => {
     try {
@@ -47,49 +60,44 @@ export default function FloatingThemeToggle() {
     }
     applyTheme(t);
     window.dispatchEvent(new Event(THEME_EVENT));
-    setOpen(false);
   };
 
   return (
-    <div className="fixed bottom-5 right-5 z-[60] flex flex-col items-end gap-2 print:hidden">
-      <AnimatePresence>
-        {open && (
-          <>
-            <div className="fixed inset-0 -z-10" onClick={() => setOpen(false)} />
-            <motion.div
-              initial={{ opacity: 0, y: 8, scale: 0.95 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: 8, scale: 0.95 }}
-              transition={{ duration: 0.16, ease: "easeOut" }}
-              className="glass flex flex-col gap-1 rounded-2xl p-1.5 shadow-xl"
-            >
-              {OPTIONS.map(({ key, Icon, label }) => (
-                <button
-                  key={key}
-                  onClick={() => choose(key)}
-                  className={`flex items-center gap-2 rounded-xl px-3 py-2 text-left text-sm transition ${
-                    theme === key
-                      ? "bg-shine text-night"
-                      : "text-chalk-dim hover:bg-chalk/10 hover:text-chalk"
-                  }`}
-                >
-                  <Icon size={15} />
-                  {label}
-                </button>
-              ))}
-            </motion.div>
-          </>
-        )}
-      </AnimatePresence>
+    <div className="fixed bottom-5 right-5 z-[60] flex items-center gap-2 print:hidden">
+      {/* Version → changelog */}
+      <Tip label="มีอะไรใหม่ · changelog">
+        <Link
+          href="/changelog"
+          className="glass inline-flex h-10 items-center rounded-full px-3.5 font-mono text-xs font-medium text-chalk-dim transition hover:text-shine"
+        >
+          v{VERSION}
+        </Link>
+      </Tip>
 
-      <motion.button
-        whileTap={{ scale: 0.9 }}
-        onClick={() => setOpen((v) => !v)}
-        aria-label="สลับธีม"
-        className="glass grid h-11 w-11 place-items-center rounded-full text-chalk shadow-lg transition hover:text-shine"
-      >
-        <Current size={18} />
-      </motion.button>
+      {/* Theme switcher — liquid glass pill with sliding indicator */}
+      <div className="glass relative flex items-center rounded-full p-1">
+        {/* sliding indicator */}
+        <span
+          aria-hidden
+          className="absolute left-1 top-1 h-9 w-9 rounded-full bg-chalk/12 shadow-[inset_0_1px_1px_rgba(255,255,255,0.4)] transition-transform duration-300 ease-[cubic-bezier(0.5,0,0,1)]"
+          style={{ transform: `translateX(${activeIndex * 36}px)` }}
+        />
+        {OPTIONS.map(({ key, Icon, label }) => (
+          <Tip key={key} label={label}>
+            <button
+              type="button"
+              onClick={() => choose(key)}
+              aria-label={label}
+              aria-pressed={theme === key}
+              className={`relative z-10 grid h-9 w-9 place-items-center rounded-full transition-all duration-200 ${
+                theme === key ? "text-chalk" : "text-chalk-dim hover:scale-110 hover:text-shine"
+              }`}
+            >
+              <Icon size={16} />
+            </button>
+          </Tip>
+        ))}
+      </div>
     </div>
   );
 }

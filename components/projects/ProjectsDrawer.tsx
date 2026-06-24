@@ -109,7 +109,7 @@ export default function ProjectsDrawer({ open, onClose }: { open: boolean; onClo
             animate={{ x: 0, opacity: 1 }}
             exit={{ x: "-110%", opacity: 0 }}
             transition={{ type: "spring", stiffness: 320, damping: 34 }}
-            className="glass fixed bottom-3 left-3 top-3 z-50 flex w-80 flex-col overflow-hidden rounded-2xl shadow-2xl"
+            className="glass-strong fixed bottom-3 left-3 top-3 z-50 flex w-80 flex-col overflow-hidden rounded-2xl shadow-2xl"
           >
             <div className="flex items-center justify-between px-4 py-3.5">
               <span className="font-display text-sm font-semibold text-chalk">ผลงาน</span>

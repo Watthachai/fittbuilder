@@ -55,7 +55,7 @@ export default function DocPreviewModal({
       onClick={onClose}
     >
       <div
-        className="flex h-[90vh] w-full max-w-6xl flex-col overflow-hidden rounded-xl border border-night-edge bg-night-panel shadow-2xl"
+        className="glass-strong flex h-[90vh] w-full max-w-6xl flex-col overflow-hidden rounded-xl shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex shrink-0 items-center justify-between gap-3 border-b border-night-edge px-5 py-3">

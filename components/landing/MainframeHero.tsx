@@ -7,6 +7,9 @@ import { PanelLeft } from "lucide-react";
 import LaunchPad from "./LaunchPad";
 import AccountMenu from "@/components/AccountMenu";
 import ProjectsDrawer from "@/components/projects/ProjectsDrawer";
+import { CHANGELOG } from "@/lib/changelog";
+
+const VERSION = CHANGELOG[0]?.version ?? "0.0.0";
 
 const VIDEO_SRC =
   "https://d8j0ntlcm91z4.cloudfront.net/user_38xzZboKViGWJOttwIXH07lWA1P/hf_20260530_042513_df96a13b-6155-4f6e-8b93-c9dee66fba08.mp4";
@@ -183,6 +186,15 @@ export default function MainframeHero() {
               ✳︎
             </span>
           </Link>
+          <a
+            href="/changelog"
+            target="_blank"
+            rel="noreferrer"
+            title="มีอะไรใหม่ · changelog"
+            className="font-mono text-[11px] text-chalk/45 transition hover:text-chalk/80"
+          >
+            v{VERSION}
+          </a>
         </div>
 
         <nav className="absolute left-1/2 hidden -translate-x-1/2 items-center gap-1 rounded-full border border-chalk/12 bg-night/40 px-2 py-1.5 text-[15px] text-chalk/85 backdrop-blur-xl md:flex">

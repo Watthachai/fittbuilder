@@ -1,14 +1,11 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
-import Link from "next/link";
 import { Monitor, Moon, Sun } from "lucide-react";
-import { CHANGELOG } from "@/lib/changelog";
 
 type Theme = "system" | "light" | "dark";
 
 const THEME_EVENT = "fitt-theme-change";
-const VERSION = CHANGELOG[0]?.version ?? "0.0.0";
 
 function applyTheme(theme: Theme) {
   const cls = document.documentElement.classList;
@@ -64,16 +61,6 @@ export default function FloatingThemeToggle() {
 
   return (
     <div className="fixed bottom-5 right-5 z-[60] flex items-center gap-2 print:hidden">
-      {/* Version → changelog */}
-      <Tip label="มีอะไรใหม่ · changelog">
-        <Link
-          href="/changelog"
-          className="glass inline-flex h-10 items-center rounded-full px-3.5 font-mono text-xs font-medium text-chalk-dim transition hover:text-shine"
-        >
-          v{VERSION}
-        </Link>
-      </Tip>
-
       {/* Theme switcher — liquid glass pill with sliding indicator */}
       <div className="glass relative flex items-center rounded-full p-1">
         {/* sliding indicator */}

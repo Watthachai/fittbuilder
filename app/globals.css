@@ -153,14 +153,16 @@ body {
    The inset highlight mimics light hitting the front edge of thick glass; the
    drop shadow gives depth. Used system-wide via `.glass` / `.glass-strong`. */
 .glass {
-  background: color-mix(in srgb, var(--night-panel) 68%, transparent);
-  backdrop-filter: blur(20px) saturate(1.6);
-  -webkit-backdrop-filter: blur(20px) saturate(1.6);
+  background: color-mix(in srgb, var(--night-panel) 40%, transparent);
+  backdrop-filter: blur(16px) saturate(1.8);
+  -webkit-backdrop-filter: blur(16px) saturate(1.8);
   border: 1px solid var(--glass-border);
   box-shadow: var(--liquid-shadow);
 }
+/* For text-heavy panels (drawers, modals, cards) that need legibility over busy
+   backgrounds — more opaque but still clearly frosted. */
 .glass-strong {
-  background: color-mix(in srgb, var(--night-panel) 84%, transparent);
+  background: color-mix(in srgb, var(--night-panel) 75%, transparent);
   backdrop-filter: blur(28px) saturate(1.7);
   -webkit-backdrop-filter: blur(28px) saturate(1.7);
   border: 1px solid var(--glass-border);

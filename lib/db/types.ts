@@ -125,6 +125,42 @@ export interface Database {
         };
         Relationships: [];
       };
+      fittbuilder_ai_usage: {
+        Row: {
+          id: string;
+          user_id: string | null;
+          project_id: string | null;
+          kind: string;
+          model: string;
+          prompt_tokens: number;
+          output_tokens: number;
+          total_tokens: number;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id?: string | null;
+          project_id?: string | null;
+          kind: string;
+          model: string;
+          prompt_tokens?: number;
+          output_tokens?: number;
+          total_tokens?: number;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string | null;
+          project_id?: string | null;
+          kind?: string;
+          model?: string;
+          prompt_tokens?: number;
+          output_tokens?: number;
+          total_tokens?: number;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
       fittbuilder_project_invites: {
         Row: {
           id: string;
@@ -223,6 +259,7 @@ export interface Database {
     Functions: {
       fittbuilder_accept_invites: { Args: { uid: string; mail: string }; Returns: undefined };
       fittbuilder_join_by_token: { Args: { tok: string; uid: string }; Returns: string | null };
+      fittbuilder_ai_usage_report: { Args: Record<string, never>; Returns: Json };
     };
     Enums: Record<string, never>;
     CompositeTypes: Record<string, never>;

@@ -22,6 +22,13 @@ export function getGeminiClient(): GoogleGenAI {
 
 export const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-3.5-flash";
 
+/** Token counts for one Gemini call (thinking tokens folded into output). */
+export interface TokenUsage {
+  promptTokens: number;
+  outputTokens: number;
+  totalTokens: number;
+}
+
 export interface StreamTextOptions {
   system: string;
   user: string;
@@ -32,6 +39,8 @@ export interface StreamTextOptions {
   maxOutputTokens?: number;
   temperature?: number;
   abortSignal?: AbortSignal;
+  /** Called once with the final token usage when the stream ends. */
+  onUsage?: (usage: TokenUsage) => void;
 }
 
 export interface StreamPart {
@@ -54,14 +63,31 @@ export async function* streamParts(options: StreamTextOptions): AsyncGenerator<S
       ...(options.abortSignal ? { abortSignal: options.abortSignal } : {}),
     },
   });
-  for await (const chunk of stream) {
-    const parts = chunk.candidates?.[0]?.content?.parts;
-    if (!parts) continue;
-    for (const part of parts) {
-      if (typeof part.text === "string" && part.text.length > 0) {
-        yield { thought: part.thought === true, text: part.text };
+  let usage: TokenUsage | null = null;
+  try {
+    for await (const chunk of stream) {
+      // usageMetadata arrives on (typically) the last chunk; keep the latest.
+      const m = chunk.usageMetadata;
+      if (m) {
+        const prompt = m.promptTokenCount ?? 0;
+        const candidates = m.candidatesTokenCount ?? 0;
+        const thoughts = m.thoughtsTokenCount ?? 0;
+        usage = {
+          promptTokens: prompt,
+          outputTokens: candidates + thoughts,
+          totalTokens: m.totalTokenCount ?? prompt + candidates + thoughts,
+        };
+      }
+      const parts = chunk.candidates?.[0]?.content?.parts;
+      if (!parts) continue;
+      for (const part of parts) {
+        if (typeof part.text === "string" && part.text.length > 0) {
+          yield { thought: part.thought === true, text: part.text };
+        }
       }
     }
+  } finally {
+    if (usage && options.onUsage) options.onUsage(usage);
   }
 }
 

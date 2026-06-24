@@ -1,5 +1,7 @@
+import { after } from "next/server";
 import { z } from "zod";
-import { generateText, MissingApiKeyError } from "@/lib/gemini";
+import { generateText, MissingApiKeyError, type TokenUsage } from "@/lib/gemini";
+import { recordUsage } from "@/lib/ai-usage";
 import { clientIp, rateLimit } from "@/lib/rate-limit";
 
 export const maxDuration = 30;
@@ -44,6 +46,10 @@ ${body.suffix ?? ""}
 
 Return ONLY the text to insert at the cursor.`;
 
+  let usage: TokenUsage | null = null;
+  // High-frequency ghost text → skip the auth round-trip; record kind only.
+  after(() => void recordUsage({ userId: null, projectId: null, kind: "code_suggestion", usage }));
+
   try {
     const raw = await generateText({
       system: SYSTEM,
@@ -52,6 +58,9 @@ Return ONLY the text to insert at the cursor.`;
       maxOutputTokens: 256,
       // Cancel the Gemini call if the editor cancels the completion (or on timeout).
       abortSignal: AbortSignal.any([request.signal, AbortSignal.timeout(20_000)]),
+      onUsage: (u) => {
+        usage = u;
+      },
     });
     return Response.json({ suggestion: stripFences(raw) });
   } catch (error) {

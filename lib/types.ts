@@ -176,4 +176,6 @@ export interface AgentRequestBody {
   skillId?: string;
   /** Express mode: brief is complete — emit the phase doc in one shot, no questions. */
   express?: boolean;
+  /** Owning project id, for AI usage attribution. */
+  projectId?: string;
 }

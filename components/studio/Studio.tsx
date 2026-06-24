@@ -320,6 +320,7 @@ export default function Studio({ projectId }: { projectId: string }) {
             docs: docsFromFiles(working.files),
             skillId: working.skillId,
             express,
+            projectId,
           },
           controller.signal
         )) {
@@ -381,7 +382,7 @@ export default function Studio({ projectId }: { projectId: string }) {
         abortRef.current = null;
       }
     },
-    [appendLive, persist, pushTerminal, setLiveBoth]
+    [appendLive, persist, pushTerminal, setLiveBoth, projectId]
   );
 
   const generate = useCallback(
@@ -428,6 +429,7 @@ export default function Studio({ projectId }: { projectId: string }) {
             iterationMode: isIteration,
             previousFiles: isIteration ? current.files : undefined,
             skillId: current.skillId,
+            projectId,
             ...spec,
           },
           controller.signal
@@ -504,7 +506,7 @@ export default function Studio({ projectId }: { projectId: string }) {
         abortRef.current = null;
       }
     },
-    [appendLive, boot, persist, previewSupported, previewUrl, pushTerminal, setLiveBoth]
+    [appendLive, boot, persist, previewSupported, previewUrl, pushTerminal, setLiveBoth, projectId]
   );
 
   /** Resume the build after the user picks a design (or skips → no directive). */

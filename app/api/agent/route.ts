@@ -1,7 +1,9 @@
+import { after } from "next/server";
 import { z } from "zod";
 import { getAgentForPhase } from "@/lib/agents/registry";
 import { AgentStreamFilter } from "@/lib/agent-stream";
-import { MissingApiKeyError, streamParts } from "@/lib/gemini";
+import { currentUserId, recordUsage } from "@/lib/ai-usage";
+import { MissingApiKeyError, streamParts, type TokenUsage } from "@/lib/gemini";
 import { isBuildPhase, isPhaseId } from "@/lib/phases";
 import { buildAgentSystemPrompt } from "@/lib/prompts";
 import { resolveSkill } from "@/lib/skills/db";
@@ -30,6 +32,7 @@ const bodySchema = z.object({
   docs: z.partialRecord(z.enum(DOC_KINDS), z.string().max(50_000)).optional(),
   skillId: z.string().max(40).optional(),
   express: z.boolean().optional(),
+  projectId: z.string().uuid().optional(),
 });
 
 function sse(event: AgentEvent): Uint8Array {
@@ -76,6 +79,12 @@ export async function POST(request: Request) {
       ? "(สร้างเอกสารของเฟสนี้จาก brief และเอกสารก่อนหน้าให้สมบูรณ์ในครั้งเดียว)"
       : "(เริ่มบทสนทนา — ทักทายสั้นๆ แล้วเริ่มงานของเฟสนี้)");
 
+  let usage: TokenUsage | null = null;
+  const userId = await currentUserId();
+  after(() =>
+    void recordUsage({ userId, projectId: body.projectId ?? null, kind: "agent", usage })
+  );
+
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
       const send = (event: AgentEvent) => controller.enqueue(sse(event));
@@ -87,6 +96,9 @@ export async function POST(request: Request) {
           temperature: 0.6,
           thinking: true,
           abortSignal: AbortSignal.any([request.signal, AbortSignal.timeout(ATTEMPT_TIMEOUT_MS)]),
+          onUsage: (u) => {
+            usage = u;
+          },
         })) {
           if (part.thought) {
             send({ type: "thought", content: part.text });

@@ -1,5 +1,7 @@
+import { after } from "next/server";
 import { z } from "zod";
-import { generateText, MissingApiKeyError } from "@/lib/gemini";
+import { generateText, MissingApiKeyError, type TokenUsage } from "@/lib/gemini";
+import { currentUserId, recordUsage } from "@/lib/ai-usage";
 import { DETECT_PRESET_SYSTEM } from "@/lib/prompts";
 import { detectPresetByKeywords, PRESET_IDS } from "@/lib/presets";
 import { clientIp, rateLimit } from "@/lib/rate-limit";
@@ -24,6 +26,10 @@ export async function POST(request: Request) {
   // PRD §9.3: classify on the first 3,000 chars only.
   const excerpt = body.documentText.slice(0, 3000);
 
+  let usage: TokenUsage | null = null;
+  const userId = await currentUserId();
+  after(() => void recordUsage({ userId, projectId: null, kind: "detect_preset", usage }));
+
   try {
     const word = (
       await generateText({
@@ -31,6 +37,9 @@ export async function POST(request: Request) {
         user: excerpt,
         temperature: 0,
         maxOutputTokens: 2048,
+        onUsage: (u) => {
+          usage = u;
+        },
       })
     )
       .trim()

@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { LogOut, ShieldCheck } from "lucide-react";
+import { BarChart3, LogOut, ShieldCheck } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 
 interface Account {
@@ -124,6 +124,15 @@ export default function AccountMenu() {
                 className="flex w-full items-center gap-2 border-b border-white/10 px-4 py-2.5 text-left font-display text-sm text-white/70 transition hover:bg-white/5 hover:text-white"
               >
                 <ShieldCheck size={14} className="text-shine" /> จัดการ Skill Templates
+              </Link>
+            )}
+            {isAdmin && (
+              <Link
+                href="/admin/usage"
+                onClick={() => setOpen(false)}
+                className="flex w-full items-center gap-2 border-b border-white/10 px-4 py-2.5 text-left font-display text-sm text-white/70 transition hover:bg-white/5 hover:text-white"
+              >
+                <BarChart3 size={14} className="text-shine" /> รายงานการใช้ AI
               </Link>
             )}
             <button

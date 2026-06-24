@@ -1,5 +1,7 @@
+import { after } from "next/server";
 import { z } from "zod";
-import { generateText, MissingApiKeyError } from "@/lib/gemini";
+import { generateText, MissingApiKeyError, type TokenUsage } from "@/lib/gemini";
+import { currentUserId, recordUsage } from "@/lib/ai-usage";
 import { DETECT_PRESET_SYSTEM } from "@/lib/prompts";
 import { detectSkillByKeywords, SKILL_IDS } from "@/lib/skills/registry";
 import { getAllSkills } from "@/lib/skills/db";
@@ -28,6 +30,10 @@ export async function POST(request: Request) {
   // Keyword detection runs across built-in AND published custom templates.
   const allSkills = await getAllSkills();
 
+  let usage: TokenUsage | null = null;
+  const userId = await currentUserId();
+  after(() => void recordUsage({ userId, projectId: null, kind: "detect_skill", usage }));
+
   try {
     const word = (
       await generateText({
@@ -35,6 +41,9 @@ export async function POST(request: Request) {
         user: excerpt,
         temperature: 0,
         maxOutputTokens: 2048,
+        onUsage: (u) => {
+          usage = u;
+        },
       })
     )
       .trim()

@@ -1,10 +1,12 @@
+import { after } from "next/server";
 import { z } from "zod";
 import { getAgent } from "@/lib/agents/registry";
 import { buildSpecContext } from "@/lib/context-builder";
+import { currentUserId, recordUsage } from "@/lib/ai-usage";
 import { isSafePath, normalizePath, sanitizeCss } from "@/lib/files";
 import { extraDepsOf, packageJsonWithDeps, TSCONFIG, VITE_CONFIG } from "@/lib/scaffold";
 import { FileStreamParser } from "@/lib/stream-parse";
-import { MissingApiKeyError, streamParts } from "@/lib/gemini";
+import { MissingApiKeyError, streamParts, type TokenUsage } from "@/lib/gemini";
 import {
   buildGenerationSystemPrompt,
   buildIterationSystemPrompt,
@@ -45,6 +47,7 @@ const bodySchema = z.object({
     .record(z.string(), z.union([z.string().max(2_000), z.array(z.string().max(500)).max(20)]))
     .optional(),
   skillId: z.string().max(40).optional(),
+  projectId: z.string().uuid().optional(),
 });
 
 function sse(event: GenerateEvent): Uint8Array {
@@ -88,6 +91,12 @@ export async function POST(request: Request) {
     ? buildIterationUserPrompt(body.prompt, body.previousFiles!)
     : body.prompt;
 
+  let usage: TokenUsage | null = null;
+  const userId = await currentUserId();
+  after(() =>
+    void recordUsage({ userId, projectId: body.projectId ?? null, kind: "generate", usage })
+  );
+
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
       const send = (event: GenerateEvent) => controller.enqueue(sse(event));
@@ -105,6 +114,9 @@ export async function POST(request: Request) {
             thinking: true,
             abortSignal: abort,
             temperature: 0.6,
+            onUsage: (u) => {
+              usage = u;
+            },
           })) {
             if (part.thought) {
               send({ type: "thought", content: part.text });

@@ -1,5 +1,7 @@
+import { after } from "next/server";
 import { z } from "zod";
-import { generateText, MissingApiKeyError } from "@/lib/gemini";
+import { generateText, MissingApiKeyError, type TokenUsage } from "@/lib/gemini";
+import { currentUserId, recordUsage } from "@/lib/ai-usage";
 import { buildExtractAnswersSystem } from "@/lib/prompts";
 import { getPreset } from "@/lib/presets";
 import { clientIp, rateLimit } from "@/lib/rate-limit";
@@ -28,6 +30,10 @@ export async function POST(request: Request) {
     return Response.json({ error: "ไม่รู้จัก preset นี้" }, { status: 400 });
   }
 
+  let usage: TokenUsage | null = null;
+  const userId = await currentUserId();
+  after(() => void recordUsage({ userId, projectId: null, kind: "extract_answers", usage }));
+
   try {
     const raw = await generateText({
       system: buildExtractAnswersSystem(JSON.stringify(preset.questions, null, 2)),
@@ -35,6 +41,9 @@ export async function POST(request: Request) {
       json: true,
       temperature: 0,
       maxOutputTokens: 4096,
+      onUsage: (u) => {
+        usage = u;
+      },
     });
 
     const parsed = JSON.parse(raw) as { answers?: Record<string, unknown> };

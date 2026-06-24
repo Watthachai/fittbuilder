@@ -1,5 +1,7 @@
+import { after } from "next/server";
 import { z } from "zod";
-import { generateText, MissingApiKeyError } from "@/lib/gemini";
+import { generateText, MissingApiKeyError, type TokenUsage } from "@/lib/gemini";
+import { currentUserId, recordUsage } from "@/lib/ai-usage";
 import { DESIGN_OPTIONS_SYSTEM } from "@/lib/prompts";
 import { clientIp, rateLimit } from "@/lib/rate-limit";
 
@@ -51,12 +53,19 @@ export async function POST(request: Request) {
   const context = [body.prd, body.brd].filter(Boolean).join("\n\n").slice(0, 2000);
   const user = context ? `${body.prompt}\n\nเอกสารอ้างอิง:\n${context}` : body.prompt;
 
+  let usage: TokenUsage | null = null;
+  const userId = await currentUserId();
+  after(() => void recordUsage({ userId, projectId: null, kind: "design_options", usage }));
+
   try {
     const raw = await generateText({
       system: DESIGN_OPTIONS_SYSTEM,
       user,
       temperature: 0.9,
       maxOutputTokens: 4096,
+      onUsage: (u) => {
+        usage = u;
+      },
     });
     const parsed = responseSchema.parse(JSON.parse(stripFence(raw)));
     // Keep at most 5, drop any that slipped through malformed.

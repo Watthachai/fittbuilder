@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Anuphan, IBM_Plex_Mono, Inter } from "next/font/google";
 import "./globals.css";
+import FloatingThemeToggle from "@/components/FloatingThemeToggle";
 
 // Inter is the theme's typeface (docs/brief-plans/design.md); it has no Thai
 // glyphs, so Anuphan sits behind it in the stack for Thai text.
@@ -57,7 +58,10 @@ export default function RootLayout({
           href="https://db.onlinewebfonts.com/c/1aa3377e489837a26d019bba501e779d?family=HelveticaNowDisplayW01-Rg"
         />
       </head>
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col">
+        {children}
+        <FloatingThemeToggle />
+      </body>
     </html>
   );
 }

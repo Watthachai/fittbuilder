@@ -5,7 +5,6 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { BarChart3, LogOut, ShieldCheck } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
-import ThemeToggle from "@/components/ThemeToggle";
 
 interface Account {
   email: string;
@@ -136,10 +135,6 @@ export default function AccountMenu() {
                 <BarChart3 size={14} className="text-shine" /> รายงานการใช้ AI
               </Link>
             )}
-            <div className="flex items-center justify-between gap-2 border-b border-chalk/10 px-4 py-2.5">
-              <span className="font-display text-sm text-chalk/70">ธีม</span>
-              <ThemeToggle />
-            </div>
             <button
               onClick={signOut}
               disabled={signingOut}

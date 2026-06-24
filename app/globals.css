@@ -123,6 +123,49 @@ body {
   }
 }
 
+/* Frosted glass surface — theme-aware (light/dark) blur panel. */
+.glass {
+  background: color-mix(in srgb, var(--night-panel) 72%, transparent);
+  backdrop-filter: blur(16px) saturate(1.4);
+  -webkit-backdrop-filter: blur(16px) saturate(1.4);
+  border: 1px solid color-mix(in srgb, var(--chalk) 12%, transparent);
+}
+.glass-strong {
+  background: color-mix(in srgb, var(--night-panel) 88%, transparent);
+  backdrop-filter: blur(24px) saturate(1.5);
+  -webkit-backdrop-filter: blur(24px) saturate(1.5);
+  border: 1px solid color-mix(in srgb, var(--chalk) 14%, transparent);
+}
+
+/* Google-Stitch-style entrance: gentle fade + slide-up + slight blur clear.
+   Add `.stitch` to a container and `.stitch-item` (with optional --d delay) to
+   children for a staggered reveal on mount. */
+@keyframes stitch-in {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+    filter: blur(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+    filter: blur(0);
+  }
+}
+.stitch {
+  animation: stitch-in 0.6s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.stitch-item {
+  animation: stitch-in 0.6s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: var(--d, 0s);
+}
+@media (prefers-reduced-motion: reduce) {
+  .stitch,
+  .stitch-item {
+    animation: none;
+  }
+}
+
 /* Fine grid for dark empty states (studio preview / code panels) */
 .bg-grid {
   background-color: var(--night);

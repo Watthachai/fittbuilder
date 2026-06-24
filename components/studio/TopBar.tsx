@@ -6,7 +6,6 @@ import { Check, Code2, Download, Eye, FileText, Package, Share2, Undo2, Users } 
 import { encodeShareUrl } from "@/lib/share";
 import type { ProjectRecord } from "@/lib/types";
 import { downloadZip } from "@/lib/zip";
-import ThemeToggle from "@/components/ThemeToggle";
 
 interface TopBarProps {
   project: ProjectRecord;
@@ -140,7 +139,6 @@ export default function TopBar({
       >
         <Download size={13} /> Export
       </button>
-      <ThemeToggle />
     </header>
   );
 }

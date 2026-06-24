@@ -233,6 +233,10 @@ export default function MainframeHero() {
         >
           ผลงานของฉัน
         </Link>
+        {/* Account + admin (Skill Templates / รายงานการใช้ AI) live in this menu. */}
+        <div className="mt-2">
+          <AccountMenu />
+        </div>
       </div>
 
       {/* Hero */}

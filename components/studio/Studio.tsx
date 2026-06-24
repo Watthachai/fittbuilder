@@ -66,13 +66,14 @@ type LastAction =
   | { kind: "generate"; prompt: string; spec?: SpecPayload }
   | { kind: "agent"; text: string | null };
 
-/** The markdown doc each phase produces (build emits code, not a doc). */
-const DOC_KIND_BY_PHASE: Partial<Record<PhaseId, DocKind>> = {
-  define: "brd",
-  plan: "prd",
-  verify: "verify",
-  review: "review",
-  ship: "ship",
+/** The markdown doc(s) each phase produces (build emits code, not a doc). Define
+ *  produces both IDEA and BRD — the preview shows both as tabs. */
+const DOC_KINDS_BY_PHASE: Partial<Record<PhaseId, DocKind[]>> = {
+  define: ["idea", "brd"],
+  plan: ["prd"],
+  verify: ["verify"],
+  review: ["review"],
+  ship: ["ship"],
 };
 
 /** Is the current phase's exit gate satisfied? */
@@ -1070,8 +1071,14 @@ export default function Studio({ projectId }: { projectId: string }) {
   const reworkDocs = docsFromFiles(project.files);
   const canRework = !readOnly && hasApp && Boolean(reworkDocs.brd && reworkDocs.prd);
   // Doc-preview modal: resolve the clicked phase's doc + revise handler.
-  const previewKind = previewPhase ? DOC_KIND_BY_PHASE[previewPhase] : undefined;
-  const previewContent = previewKind ? (reworkDocs[previewKind] ?? null) : null;
+  const previewDocs = previewPhase
+    ? (DOC_KINDS_BY_PHASE[previewPhase] ?? []).flatMap((kind) => {
+        const content = reworkDocs[kind];
+        return content
+          ? [{ kind, label: kind.toUpperCase(), path: DOC_PATHS[kind], content }]
+          : [];
+      })
+    : [];
   // Multi-party approval summary for the stepper (null = solo project).
   const approvalSummary =
     approval && approval.approvers.length > 1
@@ -1282,8 +1289,7 @@ export default function Studio({ projectId }: { projectId: string }) {
       {previewPhase && (
         <DocPreviewModal
           title={`${phaseDef(previewPhase).user} — ${phaseDef(previewPhase).name}`}
-          path={previewKind ? DOC_PATHS[previewKind] : ""}
-          content={previewContent}
+          docs={previewDocs}
           hint={
             previewPhase === "define"
               ? "คอมเมนต์จะส่งเข้าแชท แล้ว AI จะ gen BRD ใหม่ และ gen PRD ตามให้อัตโนมัติ"

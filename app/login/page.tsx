@@ -20,7 +20,9 @@ export default function LoginPage() {
     setError(null);
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
-      options: { redirectTo },
+      // `prompt: select_account` forces Google's account chooser every time
+      // instead of silently reusing the only/last signed-in account.
+      options: { redirectTo, queryParams: { prompt: "select_account" } },
     });
     if (error) {
       setError("เปิด Google ไม่สำเร็จ ลองอีกครั้ง");

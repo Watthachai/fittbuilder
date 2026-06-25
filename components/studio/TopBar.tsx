@@ -9,7 +9,6 @@ import {
   Eye,
   FileText,
   FileUp,
-  MessageSquare,
   Package,
   Share2,
   Undo2,
@@ -20,6 +19,7 @@ import type { ProjectRecord } from "@/lib/types";
 import { downloadZip } from "@/lib/zip";
 import { downloadFittcoreSpec } from "@/lib/fittcore";
 import ProjectPresence from "./ProjectPresence";
+import TeamChat from "./TeamChat";
 
 interface TopBarProps {
   project: ProjectRecord;
@@ -35,10 +35,6 @@ interface TopBarProps {
   onOpenPackages: () => void;
   /** Owner-only: open the team sharing modal. Omit to hide the button. */
   onTeamShare?: () => void;
-  /** Toggle the team chat drawer. */
-  onToggleTeamChat: () => void;
-  /** Unread team-chat messages for the toolbar badge. */
-  teamChatUnread: number;
 }
 
 export default function TopBar({
@@ -53,8 +49,6 @@ export default function TopBar({
   onOpenSpec,
   onOpenPackages,
   onTeamShare,
-  onToggleTeamChat,
-  teamChatUnread,
 }: TopBarProps) {
   const [shared, setShared] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
@@ -135,18 +129,7 @@ export default function TopBar({
         <Undo2 size={13} /> Undo
       </button>
       <ProjectPresence projectId={project.id} />
-      <button
-        onClick={onToggleTeamChat}
-        className="relative inline-flex items-center gap-1.5 rounded-sm border border-night-edge px-2.5 py-1.5 text-xs text-chalk-dim transition hover:border-shine hover:text-chalk"
-        title="ห้องแชททีม"
-      >
-        <MessageSquare size={13} /> แชท
-        {teamChatUnread > 0 && (
-          <span className="absolute -right-1.5 -top-1.5 grid h-4 min-w-4 place-items-center rounded-full bg-shine px-1 text-[10px] font-bold text-night">
-            {teamChatUnread > 9 ? "9+" : teamChatUnread}
-          </span>
-        )}
-      </button>
+      <TeamChat projectId={project.id} />
       <button
         onClick={() => void share()}
         disabled={!shippable}

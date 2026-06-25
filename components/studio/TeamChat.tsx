@@ -1,26 +1,11 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import {
-  FileText,
-  Loader2,
-  MessageSquare,
-  Paperclip,
-  Send,
-  X,
-} from "lucide-react";
+import { FileText, Loader2, MessageSquare, Paperclip, Send, X } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { loadMessages, sendMessage, sendSystemMessage, uploadAttachment } from "@/lib/team-chat";
 import { onSystemLog } from "@/lib/team-chat-bus";
 import type { TeamChatAttachment, TeamChatMessage } from "@/lib/types";
-
-interface TeamChatProps {
-  projectId: string;
-  open: boolean;
-  onClose: () => void;
-  /** Bubble unread count up to the toolbar badge. */
-  onUnreadChange: (n: number) => void;
-}
 
 const TYPING_TTL = 2500;
 
@@ -29,11 +14,14 @@ function timeLabel(iso: string): string {
 }
 
 /**
- * Per-project team chat room — people, not the AI builder. Realtime via Broadcast
- * (same transport as Presence): the component stays mounted even when the drawer
- * is closed so it keeps receiving messages and counting unreads for the badge.
+ * Per-project team chat — people, not the AI builder. A dropdown that drops down
+ * from its toolbar button. Self-contained: owns its open/unread state and the
+ * realtime channel. Stays mounted (button always rendered, panel only hidden) so
+ * it keeps receiving messages and counting unreads even while closed. Realtime is
+ * Broadcast (same transport as Presence), so it needs no realtime publication.
  */
-export default function TeamChat({ projectId, open, onClose, onUnreadChange }: TeamChatProps) {
+export default function TeamChat({ projectId }: { projectId: string }) {
+  const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState<TeamChatMessage[]>([]);
   const [draft, setDraft] = useState("");
   const [pending, setPending] = useState<TeamChatAttachment[]>([]);
@@ -54,10 +42,6 @@ export default function TeamChat({ projectId, open, onClose, onUnreadChange }: T
   useEffect(() => {
     openRef.current = open;
   }, [open]);
-
-  useEffect(() => {
-    onUnreadChange(unread);
-  }, [unread, onUnreadChange]);
 
   // Subscribe once per project; stays alive while closed so unreads accumulate.
   useEffect(() => {
@@ -107,7 +91,6 @@ export default function TeamChat({ projectId, open, onClose, onUnreadChange }: T
         const msg = payload as TeamChatMessage;
         setMessages((prev) => (prev.some((m) => m.id === msg.id) ? prev : [...prev, msg]));
         if (msg.userId) {
-          // a real person spoke → clear their typing flag
           const t = timers.get(msg.userId);
           if (t) clearTimeout(t);
           timers.delete(msg.userId);
@@ -200,40 +183,65 @@ export default function TeamChat({ projectId, open, onClose, onUnreadChange }: T
     }
   };
 
+  const peopleMsgCount = messages.filter((m) => m.kind === "message").length;
+  const badge = unread > 0 ? unread : peopleMsgCount;
+
   return (
-    <>
-      {open && (
-        <div
-          className="fixed inset-0 z-40 bg-black/40"
-          onClick={onClose}
-          aria-hidden
-        />
-      )}
-      <aside
-        className={`fixed right-0 top-0 z-50 flex h-full w-full max-w-md flex-col border-l border-night-edge bg-night-panel shadow-2xl transition-transform duration-300 ${
-          open ? "translate-x-0" : "pointer-events-none translate-x-full"
+    <div className="relative">
+      <button
+        onClick={() => setOpen((o) => !o)}
+        className={`relative inline-flex items-center gap-1.5 rounded-sm border px-2.5 py-1.5 text-xs transition ${
+          open
+            ? "border-shine text-chalk"
+            : "border-night-edge text-chalk-dim hover:border-shine hover:text-chalk"
         }`}
+        title="ห้องแชททีม"
+      >
+        <MessageSquare size={13} /> แชท
+        {badge > 0 && (
+          <span
+            className={`grid h-4 min-w-4 place-items-center rounded-full px-1 text-[10px] font-bold ${
+              unread > 0 ? "bg-shine text-night" : "bg-chalk/15 text-chalk-dim"
+            }`}
+          >
+            {badge > 99 ? "99+" : badge}
+          </span>
+        )}
+      </button>
+
+      {open && <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} aria-hidden />}
+
+      <div
+        className={`absolute right-0 top-full z-50 mt-2 flex w-[min(92vw,400px)] origin-top-right flex-col overflow-hidden rounded-xl border border-night-edge bg-night-panel shadow-2xl transition-all duration-200 ${
+          open
+            ? "pointer-events-auto translate-y-0 scale-100 opacity-100"
+            : "pointer-events-none -translate-y-2 scale-95 opacity-0"
+        }`}
+        style={{ maxHeight: "min(72vh, 560px)" }}
         aria-hidden={!open}
       >
         {/* Header */}
-        <div className="flex h-12 shrink-0 items-center justify-between border-b border-night-edge px-4">
+        <div className="flex h-10 shrink-0 items-center justify-between border-b border-night-edge px-3.5">
           <div className="flex items-center gap-2">
-            <MessageSquare size={15} className="text-shine" />
-            <span className="font-display text-sm font-semibold text-chalk">ห้องแชททีม</span>
+            <MessageSquare size={14} className="text-shine" />
+            <span className="font-display text-[13px] font-semibold text-chalk">ห้องแชททีม</span>
           </div>
           <button
-            onClick={onClose}
+            onClick={() => setOpen(false)}
             className="rounded-sm p-1 text-chalk-dim transition hover:text-chalk"
             title="ปิด"
           >
-            <X size={16} />
+            <X size={15} />
           </button>
         </div>
 
         {/* Messages */}
-        <div ref={scrollRef} className="scroll-thin min-h-0 flex-1 space-y-3 overflow-y-auto px-4 py-4">
+        <div
+          ref={scrollRef}
+          className="scroll-thin min-h-[220px] flex-1 space-y-3 overflow-y-auto px-3.5 py-3"
+        >
           {messages.length === 0 && (
-            <p className="mt-10 text-center text-sm text-chalk-dim">
+            <p className="mt-10 text-center text-[13px] text-chalk-dim">
               ยังไม่มีข้อความ — เริ่มคุยกับทีมได้เลย
               <br />
               ส่งข้อความ รูปภาพ หรือไฟล์เอกสารให้กันได้
@@ -262,7 +270,7 @@ export default function TeamChat({ projectId, open, onClose, onUnreadChange }: T
         </div>
 
         {/* Composer */}
-        <div className="shrink-0 border-t border-night-edge p-3">
+        <div className="shrink-0 border-t border-night-edge p-2.5">
           {pending.length > 0 && (
             <div className="mb-2 flex flex-wrap gap-1.5">
               {pending.map((a) => (
@@ -283,7 +291,7 @@ export default function TeamChat({ projectId, open, onClose, onUnreadChange }: T
               ))}
             </div>
           )}
-          <div className="flex items-end gap-2 rounded-md border border-night-edge bg-night focus-within:border-shine">
+          <div className="flex items-end gap-1.5 rounded-md border border-night-edge bg-night focus-within:border-shine">
             <button
               onClick={() => fileRef.current?.click()}
               disabled={uploading}
@@ -313,7 +321,7 @@ export default function TeamChat({ projectId, open, onClose, onUnreadChange }: T
                 }
               }}
               placeholder="พิมพ์ข้อความถึงทีม…"
-              className="max-h-28 min-h-[40px] flex-1 resize-none bg-transparent py-2.5 text-[14px] text-chalk outline-none placeholder:text-chalk-dim/60"
+              className="max-h-24 min-h-[40px] flex-1 resize-none bg-transparent py-2.5 text-[14px] text-chalk outline-none placeholder:text-chalk-dim/60"
             />
             <button
               onClick={() => void send()}
@@ -325,8 +333,8 @@ export default function TeamChat({ projectId, open, onClose, onUnreadChange }: T
             </button>
           </div>
         </div>
-      </aside>
-    </>
+      </div>
+    </div>
   );
 }
 

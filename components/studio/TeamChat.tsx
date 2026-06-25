@@ -24,6 +24,7 @@ import { onSystemLog } from "@/lib/team-chat-bus";
 import { toast } from "@/lib/toast";
 import { useFileDrop } from "@/lib/useFileDrop";
 import DropOverlay from "@/components/ui/DropOverlay";
+import ImageLightbox from "@/components/ui/ImageLightbox";
 import type { TeamChatAttachment, TeamChatMessage, TeamChatReplyRef } from "@/lib/types";
 
 const TYPING_TTL = 2500;
@@ -78,6 +79,7 @@ export default function TeamChat({ projectId }: { projectId: string }) {
   const [unread, setUnread] = useState(0);
   const [myId, setMyId] = useState("");
   const [replyTarget, setReplyTarget] = useState<TeamChatReplyRef | null>(null);
+  const [lightbox, setLightbox] = useState<{ src: string; alt: string } | null>(null);
 
   const channelRef = useRef<ReturnType<ReturnType<typeof createClient>["channel"]> | null>(null);
   const meRef = useRef<{ id: string; name: string }>({ id: "", name: "" });
@@ -383,6 +385,7 @@ export default function TeamChat({ projectId }: { projectId: string }) {
                 }
                 onReact={(emoji) => void react(m.id, emoji)}
                 onDelete={() => void removeMessage(m.id)}
+                onViewImage={(src, alt) => setLightbox({ src, alt })}
               />
             )
           )}
@@ -428,8 +431,9 @@ export default function TeamChat({ projectId }: { projectId: string }) {
                     <img
                       src={a.url}
                       alt={a.name}
-                      title={a.name}
-                      className="h-16 w-16 rounded-md border border-night-edge object-cover"
+                      title="คลิกเพื่อดูรูป"
+                      onClick={() => setLightbox({ src: a.url!, alt: a.name })}
+                      className="h-16 w-16 cursor-zoom-in rounded-md border border-night-edge object-cover"
                     />
                     <button
                       onClick={remove}
@@ -504,6 +508,10 @@ export default function TeamChat({ projectId }: { projectId: string }) {
           </div>
         </div>
       </div>
+
+      {lightbox && (
+        <ImageLightbox src={lightbox.src} alt={lightbox.alt} onClose={() => setLightbox(null)} />
+      )}
     </div>
   );
 }
@@ -515,6 +523,7 @@ function ChatBubble({
   onReply,
   onReact,
   onDelete,
+  onViewImage,
 }: {
   message: TeamChatMessage;
   mine: boolean;
@@ -522,6 +531,7 @@ function ChatBubble({
   onReply: () => void;
   onReact: (emoji: string) => void;
   onDelete: () => void;
+  onViewImage: (src: string, alt: string) => void;
 }) {
   const initial = (message.authorName || "?").charAt(0).toUpperCase();
   return (
@@ -603,7 +613,7 @@ function ChatBubble({
         </div>
 
         {message.attachments.map((a) => (
-          <Attachment key={a.path} att={a} />
+          <Attachment key={a.path} att={a} onViewImage={onViewImage} />
         ))}
 
         {message.reactions.length > 0 && (
@@ -633,21 +643,28 @@ function ChatBubble({
   );
 }
 
-function Attachment({ att }: { att: TeamChatAttachment }) {
+function Attachment({
+  att,
+  onViewImage,
+}: {
+  att: TeamChatAttachment;
+  onViewImage: (src: string, alt: string) => void;
+}) {
   const [loaded, setLoaded] = useState(false);
   const isImage = att.type.startsWith("image/");
   if (isImage && att.url) {
+    const url = att.url;
     return (
-      <a href={att.url} target="_blank" rel="noreferrer" className="mt-1 block">
+      <button onClick={() => onViewImage(url, att.name)} className="mt-1 block" title="คลิกเพื่อดูรูป">
         {!loaded && <span className="skeleton block h-40 w-56 rounded-lg" />}
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
-          src={att.url}
+          src={url}
           alt={att.name}
           onLoad={() => setLoaded(true)}
-          className={`max-h-56 rounded-lg border border-night-edge object-cover ${loaded ? "block" : "hidden"}`}
+          className={`max-h-56 cursor-zoom-in rounded-lg border border-night-edge object-cover ${loaded ? "block" : "hidden"}`}
         />
-      </a>
+      </button>
     );
   }
   return (

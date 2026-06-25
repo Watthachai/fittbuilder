@@ -26,6 +26,7 @@ import {
 import { isBuildPhase, type PhaseId } from "@/lib/phases";
 import { useFileDrop } from "@/lib/useFileDrop";
 import DropOverlay from "@/components/ui/DropOverlay";
+import ImageLightbox from "@/components/ui/ImageLightbox";
 import type { AgentAction, ChatAttachmentInput, ChatMessage, LiveMessage } from "@/lib/types";
 
 const MAX_FILE_BYTES = 4 * 1024 * 1024; // 4MB/attachment — keeps the SSE body sane
@@ -217,6 +218,7 @@ export default function ChatPanel({
   const [diffMsg, setDiffMsg] = useState<ChatMessage | null>(null);
   const [media, setMedia] = useState<ChatAttachmentInput[]>([]);
   const [mediaBusy, setMediaBusy] = useState(false);
+  const [lightbox, setLightbox] = useState<{ src: string; alt: string } | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const mediaInputRef = useRef<HTMLInputElement>(null);
 
@@ -483,14 +485,16 @@ export default function ChatPanel({
               {mediaBusy && <span className="skeleton h-16 w-16 rounded-md" />}
               {media.map((m, i) => {
                 const remove = () => setMedia((prev) => prev.filter((_, j) => j !== i));
+                const dataUrl = `data:${m.mimeType};base64,${m.data}`;
                 return m.mimeType.startsWith("image/") ? (
                   <div key={`${m.name}-${i}`} className="group relative">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
-                      src={`data:${m.mimeType};base64,${m.data}`}
+                      src={dataUrl}
                       alt={m.name}
-                      title={m.name}
-                      className="h-16 w-16 rounded-md border border-night-edge object-cover"
+                      title="คลิกเพื่อดูรูป"
+                      onClick={() => setLightbox({ src: dataUrl, alt: m.name })}
+                      className="h-16 w-16 cursor-zoom-in rounded-md border border-night-edge object-cover"
                     />
                     <button
                       onClick={remove}
@@ -589,6 +593,10 @@ export default function ChatPanel({
           title={diffMsg.content.split("\n")[0].slice(0, 60)}
           onClose={() => setDiffMsg(null)}
         />
+      )}
+
+      {lightbox && (
+        <ImageLightbox src={lightbox.src} alt={lightbox.alt} onClose={() => setLightbox(null)} />
       )}
     </div>
   );

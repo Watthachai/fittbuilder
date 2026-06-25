@@ -48,6 +48,16 @@ const bodySchema = z.object({
     .optional(),
   skillId: z.string().max(40).optional(),
   projectId: z.string().uuid().optional(),
+  attachments: z
+    .array(
+      z.object({
+        name: z.string().max(200),
+        mimeType: z.string().max(120),
+        data: z.string().max(8_000_000),
+      })
+    )
+    .max(5)
+    .optional(),
 });
 
 function sse(event: GenerateEvent): Uint8Array {
@@ -87,9 +97,14 @@ export async function POST(request: Request) {
         persona,
         skill
       );
-  const user = iteration
+  let user = iteration
     ? buildIterationUserPrompt(body.prompt, body.previousFiles!)
     : body.prompt;
+  if (body.attachments?.length) {
+    user +=
+      "\n\n(ผู้ใช้แนบรูป/ไฟล์อ้างอิงมาด้วย เช่น ภาพหน้าจอ prototype — ดูประกอบแล้วทำตามที่ผู้ใช้ขอ" +
+      " โดยให้เข้ากับโครงสร้างและสไตล์ของโปรเจกต์ปัจจุบัน)";
+  }
 
   let usage: TokenUsage | null = null;
   const userId = await currentUserId();
@@ -111,6 +126,7 @@ export async function POST(request: Request) {
           for await (const part of streamParts({
             system,
             user,
+            attachments: body.attachments,
             thinking: true,
             abortSignal: abort,
             temperature: 0.6,

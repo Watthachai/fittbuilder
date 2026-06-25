@@ -230,4 +230,15 @@ export interface AgentRequestBody {
   express?: boolean;
   /** Owning project id, for AI usage attribution. */
   projectId?: string;
+  /** Reference images/files the user attached for the AI to read this turn. */
+  attachments?: ChatAttachmentInput[];
+}
+
+/** A file/image attached to an AI chat turn, sent to Gemini as a content part.
+ *  `data` is base64 (no `data:` prefix); images/PDF go in as inlineData, other
+ *  files are decoded to text server-side. */
+export interface ChatAttachmentInput {
+  name: string;
+  mimeType: string;
+  data: string;
 }

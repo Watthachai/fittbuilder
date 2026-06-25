@@ -23,6 +23,17 @@ export const CHANGE_BADGE: Record<ChangeType, { label: string; className: string
 // Newest first. SemVer: fix → PATCH, feature → MINOR, breaking → MAJOR.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.11.0",
+    date: "2026-06-25",
+    title: "แชต AI อ่านรูป/ไฟล์ได้ + เห็นว่าใครกำลังคุยกับ AI",
+    items: [
+      { type: "feature", text: "แนบรูปภาพหรือไฟล์ในแชต AI ได้ เช่น แคปหน้าจอ prototype แล้วบอกให้แก้ตรงนี้ AI จะอ่านประกอบแล้วทำให้เข้ากับโปรเจกต์ปัจจุบัน" },
+      { type: "feature", text: "เมื่อแนบไฟล์อ้างอิง AI จะสรุปว่ามันเกี่ยวกับโปรเจกต์อย่างไร และเสนอว่าจะเพิ่มเนื้อหานั้นลงใน BRD/PRD ให้ไหม" },
+      { type: "feature", text: "เห็นความเคลื่อนไหวในแชต AI แบบเรียลไทม์ — ใครกำลังพิมพ์ หรือกำลังสั่ง AI ทำงานอยู่" },
+      { type: "improvement", text: "ขยายห้องแชททีมให้ใหญ่และยาวขึ้น อ่านง่ายขึ้น" },
+    ],
+  },
+  {
     version: "0.10.0",
     date: "2026-06-25",
     title: "ห้องแชททีม + สิทธิ์ผู้ชม/ผู้แก้ไข + บันทึกการอนุมัติ",

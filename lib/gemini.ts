@@ -1,4 +1,5 @@
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenAI, type Part } from "@google/genai";
+import type { ChatAttachmentInput } from "@/lib/types";
 
 /** Server-only Gemini client. Never import from client components. */
 
@@ -41,8 +42,24 @@ export interface StreamTextOptions {
   abortSignal?: AbortSignal;
   /** Web grounding: googleSearch (search) and/or urlContext (read given URLs). */
   tools?: ("googleSearch" | "urlContext")[];
+  /** Images/files to read alongside `user` (sent as extra content parts). */
+  attachments?: ChatAttachmentInput[];
   /** Called once with the final token usage when the stream ends. */
   onUsage?: (usage: TokenUsage) => void;
+}
+
+const TEXT_PART_LIMIT = 100_000; // cap decoded text files so one attachment can't blow the context
+
+/** Turn user attachments into Gemini content parts: image/PDF as inlineData, any
+ *  other file decoded to a labelled text part so the model reads its contents. */
+function attachmentParts(attachments: ChatAttachmentInput[]): Part[] {
+  return attachments.map((a) => {
+    if (a.mimeType.startsWith("image/") || a.mimeType === "application/pdf") {
+      return { inlineData: { mimeType: a.mimeType, data: a.data } };
+    }
+    const text = Buffer.from(a.data, "base64").toString("utf8").slice(0, TEXT_PART_LIMIT);
+    return { text: `ไฟล์แนบ "${a.name}":\n${text}` };
+  });
 }
 
 export interface StreamPart {
@@ -53,9 +70,13 @@ export interface StreamPart {
 /** Stream model output as typed parts, separating thought summaries from the answer. */
 export async function* streamParts(options: StreamTextOptions): AsyncGenerator<StreamPart> {
   const ai = getGeminiClient();
+  // With attachments, send a single user turn of [text, ...media] parts.
+  const contents = options.attachments?.length
+    ? [{ text: options.user }, ...attachmentParts(options.attachments)]
+    : options.user;
   const stream = await ai.models.generateContentStream({
     model: GEMINI_MODEL,
-    contents: options.user,
+    contents,
     config: {
       systemInstruction: options.system,
       temperature: options.temperature ?? 0.7,

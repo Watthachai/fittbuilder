@@ -212,12 +212,12 @@ export default function TeamChat({ projectId }: { projectId: string }) {
       {open && <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} aria-hidden />}
 
       <div
-        className={`absolute right-0 top-full z-50 mt-2 flex w-[min(92vw,400px)] origin-top-right flex-col overflow-hidden rounded-xl border border-night-edge bg-night-panel shadow-2xl transition-all duration-200 ${
+        className={`absolute right-0 top-full z-50 mt-2 flex w-[min(94vw,460px)] origin-top-right flex-col overflow-hidden rounded-xl border border-night-edge bg-night-panel shadow-2xl transition-all duration-200 ${
           open
             ? "pointer-events-auto translate-y-0 scale-100 opacity-100"
             : "pointer-events-none -translate-y-2 scale-95 opacity-0"
         }`}
-        style={{ maxHeight: "min(72vh, 560px)" }}
+        style={{ height: "min(82vh, 760px)" }}
         aria-hidden={!open}
       >
         {/* Header */}

@@ -11,6 +11,7 @@ import {
   FilePenLine,
   FileText,
   GitCompare,
+  ImagePlus,
   Lightbulb,
   ListChecks,
   Loader2,
@@ -23,7 +24,24 @@ import {
   X,
 } from "lucide-react";
 import { isBuildPhase, type PhaseId } from "@/lib/phases";
-import type { AgentAction, ChatMessage, LiveMessage } from "@/lib/types";
+import type { AgentAction, ChatAttachmentInput, ChatMessage, LiveMessage } from "@/lib/types";
+
+const MAX_FILE_BYTES = 4 * 1024 * 1024; // 4MB/attachment — keeps the SSE body sane
+
+/** Read a File as base64 (no data: prefix) for sending to the model. */
+async function fileToAttachment(file: File): Promise<ChatAttachmentInput> {
+  const dataUrl = await new Promise<string>((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve(r.result as string);
+    r.onerror = () => reject(r.error);
+    r.readAsDataURL(file);
+  });
+  return {
+    name: file.name,
+    mimeType: file.type || "application/octet-stream",
+    data: dataUrl.split(",")[1] ?? "",
+  };
+}
 import DiffViewer from "./DiffViewer";
 import Markdown from "./Markdown";
 
@@ -53,12 +71,16 @@ interface ChatPanelProps {
   /** File paths attached as reference chips for the next message. */
   attachments: string[];
   onRemoveAttachment: (path: string) => void;
-  onSubmit: (text: string) => void;
+  onSubmit: (text: string, media: ChatAttachmentInput[]) => void;
   onCancel: () => void;
   /** Open the doc-preview modal for a phase (from a message's "ดูเอกสาร" button). */
   onViewDoc: (phase: PhaseId) => void;
   /** Viewer (read-only): hide every write affordance — composer and answer choices. */
   readOnly?: boolean;
+  /** Collaborators currently active in this chat (typing or running the AI). */
+  peers?: { name: string; mode: "typing" | "working" }[];
+  /** Called as the user types, so peers can be shown a typing indicator. */
+  onTyping?: () => void;
 }
 
 /**
@@ -184,12 +206,32 @@ export default function ChatPanel({
   onCancel,
   onViewDoc,
   readOnly = false,
+  peers = [],
+  onTyping,
 }: ChatPanelProps) {
   const [draft, setDraft] = useState("");
   const [picked, setPicked] = useState<string[]>([]);
   const [pickedAskId, setPickedAskId] = useState<string | null>(null);
   const [diffMsg, setDiffMsg] = useState<ChatMessage | null>(null);
+  const [media, setMedia] = useState<ChatAttachmentInput[]>([]);
+  const [mediaBusy, setMediaBusy] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const mediaInputRef = useRef<HTMLInputElement>(null);
+
+  const onPickMedia = async (files: FileList | null) => {
+    if (!files || files.length === 0) return;
+    setMediaBusy(true);
+    try {
+      for (const file of Array.from(files)) {
+        if (file.size > MAX_FILE_BYTES) continue; // silently skip oversize; cap is generous
+        const att = await fileToAttachment(file);
+        setMedia((prev) => [...prev, att]);
+      }
+    } finally {
+      setMediaBusy(false);
+      if (mediaInputRef.current) mediaInputRef.current.value = "";
+    }
+  };
 
   // The clickable choices belong to the latest assistant turn, and only while
   // we're idle (a new streaming turn or a user reply clears them).
@@ -209,9 +251,10 @@ export default function ChatPanel({
   }, [messages.length, busy, activeAskId, live]);
 
   const send = (text: string) => {
-    if (!text.trim() || busy) return;
-    onSubmit(text.trim());
+    if ((!text.trim() && media.length === 0) || busy) return;
+    onSubmit(text.trim(), media);
     setDraft("");
+    setMedia([]);
   };
 
   const onOption = (option: string) => {
@@ -382,6 +425,22 @@ export default function ChatPanel({
         </div>
       )}
 
+      {peers.length > 0 && (
+        <div className="shrink-0 border-t border-night-edge bg-night px-3.5 py-1.5">
+          {peers.some((p) => p.mode === "working") && (
+            <p className="flex items-center gap-1.5 text-[11px] text-shine">
+              <Loader2 size={11} className="animate-spin" />
+              {peers.filter((p) => p.mode === "working").map((p) => p.name).join(", ")} กำลังให้ AI ทำงาน…
+            </p>
+          )}
+          {peers.some((p) => p.mode === "typing") && (
+            <p className="text-[11px] italic text-chalk-dim">
+              {peers.filter((p) => p.mode === "typing").map((p) => p.name).join(", ")} กำลังพิมพ์…
+            </p>
+          )}
+        </div>
+      )}
+
       {readOnly ? (
         <div className="shrink-0 border-t border-night-edge p-3">
           <p className="flex items-center justify-center gap-2 rounded-md border border-night-edge bg-night px-3 py-3 text-center text-[12px] text-chalk-dim">
@@ -412,12 +471,39 @@ export default function ChatPanel({
               ))}
             </div>
           )}
+          {media.length > 0 && (
+            <div className="flex flex-wrap gap-1.5 px-2.5 pt-2.5">
+              {media.map((m, i) => (
+                <span
+                  key={`${m.name}-${i}`}
+                  className="inline-flex items-center gap-1 rounded-md border border-night-edge bg-night-panel px-2 py-0.5 font-mono text-[10px] text-chalk-dim"
+                >
+                  {m.mimeType.startsWith("image/") ? (
+                    <ImagePlus size={9} className="text-shine" />
+                  ) : (
+                    <FileText size={9} className="text-shine" />
+                  )}
+                  <span className="max-w-[160px] truncate">{m.name}</span>
+                  <button
+                    onClick={() => setMedia((prev) => prev.filter((_, j) => j !== i))}
+                    title="เอาออก"
+                    className="text-chalk-dim transition hover:text-halt"
+                  >
+                    <X size={10} />
+                  </button>
+                </span>
+              ))}
+            </div>
+          )}
           <textarea
             value={draft}
             maxLength={MAX_CHARS}
             rows={2}
             disabled={busy}
-            onChange={(event) => setDraft(event.target.value)}
+            onChange={(event) => {
+              setDraft(event.target.value);
+              onTyping?.();
+            }}
             onKeyDown={(event) => {
               if (event.key === "Enter" && !event.shiftKey) {
                 event.preventDefault();
@@ -428,9 +514,27 @@ export default function ChatPanel({
             className="block w-full resize-none bg-transparent px-3 py-2.5 text-[14px] text-chalk outline-none placeholder:text-chalk-dim/60 disabled:opacity-50"
           />
           <div className="flex items-center justify-between px-3 pb-2">
-            <span className="font-mono text-[10px] text-chalk-dim">
-              {draft.length}/{MAX_CHARS}
-            </span>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => mediaInputRef.current?.click()}
+                disabled={busy || mediaBusy}
+                title="แนบรูปภาพหรือไฟล์ให้ AI อ่าน"
+                className="text-chalk-dim transition hover:text-shine disabled:opacity-40"
+              >
+                {mediaBusy ? <Loader2 size={14} className="animate-spin" /> : <ImagePlus size={14} />}
+              </button>
+              <input
+                ref={mediaInputRef}
+                type="file"
+                multiple
+                accept="image/*,application/pdf,text/*,.md,.json,.csv"
+                className="hidden"
+                onChange={(event) => void onPickMedia(event.target.files)}
+              />
+              <span className="font-mono text-[10px] text-chalk-dim">
+                {draft.length}/{MAX_CHARS}
+              </span>
+            </div>
             {busy ? (
               <button
                 onClick={onCancel}
@@ -441,7 +545,7 @@ export default function ChatPanel({
             ) : (
               <button
                 onClick={() => send(draft)}
-                disabled={!draft.trim()}
+                disabled={!draft.trim() && media.length === 0}
                 className="inline-flex items-center gap-1.5 rounded-sm bg-shine px-3 py-1.5 font-display text-xs font-semibold text-night transition hover:bg-shine-soft disabled:opacity-40"
               >
                 <Send size={11} /> {sendLabel}

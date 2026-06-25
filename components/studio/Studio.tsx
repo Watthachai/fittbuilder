@@ -30,6 +30,7 @@ import {
 } from "@/lib/storage";
 import type {
   AgentTurn,
+  ChatAttachmentInput,
   DocKind,
   GenerationPhase,
   LiveMessage,
@@ -178,6 +179,13 @@ export default function Studio({ projectId }: { projectId: string }) {
   const clientIdRef = useRef("");
   const streamingRef = useRef(false);
   const rtReloadTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // AI-chat presence: who else is typing/running the AI in this project right now.
+  const nameRef = useRef("");
+  const aiPeerTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
+  const lastAiTypingSent = useRef(0);
+  const [aiPeers, setAiPeers] = useState<Map<string, { name: string; mode: "typing" | "working" }>>(
+    new Map()
+  );
 
   // Show the domain SkillPicker once per project at the start of Define when no
   // skill is chosen yet, and auto-detect from the prompt / first message.
@@ -326,7 +334,8 @@ export default function Studio({ projectId }: { projectId: string }) {
     async (
       userText: string | null,
       base?: ProjectRecord,
-      express?: boolean
+      express?: boolean,
+      attachments?: ChatAttachmentInput[]
     ): Promise<ProjectRecord | null> => {
       const current = base ?? projectRef.current;
       if (!current) return null;
@@ -359,6 +368,7 @@ export default function Studio({ projectId }: { projectId: string }) {
             skillId: working.skillId,
             express,
             projectId,
+            attachments,
           },
           controller.signal
         )) {
@@ -428,7 +438,12 @@ export default function Studio({ projectId }: { projectId: string }) {
   );
 
   const generate = useCallback(
-    async (prompt: string, spec?: SpecPayload, base?: ProjectRecord) => {
+    async (
+      prompt: string,
+      spec?: SpecPayload,
+      base?: ProjectRecord,
+      attachments?: ChatAttachmentInput[]
+    ) => {
       const current = base ?? projectRef.current;
       if (!current || !prompt.trim()) return;
 
@@ -476,6 +491,7 @@ export default function Studio({ projectId }: { projectId: string }) {
             previousFiles: isIteration ? current.files : undefined,
             skillId: current.skillId,
             projectId,
+            attachments,
             ...spec,
           },
           controller.signal
@@ -597,10 +613,10 @@ export default function Studio({ projectId }: { projectId: string }) {
    * iteration. If fetching options fails, fall back to a plain build.
    */
   const handleBuildSubmit = useCallback(
-    (text: string) => {
+    (text: string, attachments?: ChatAttachmentInput[]) => {
       const firstBuild = !hasRunnableApp(projectRef.current?.files ?? null) && previewSupported;
       if (!firstBuild) {
-        void generate(text);
+        void generate(text, undefined, undefined, attachments);
         return;
       }
       setErrorMessage(null);
@@ -1076,9 +1092,36 @@ export default function Studio({ projectId }: { projectId: string }) {
 
   // Mirror chatStreaming into a ref so the realtime handler's closure reads the
   // live value (it subscribes once, keyed on projectId, not on every turn).
+  // Also tells peers when we're running the AI, with a heartbeat so a long turn
+  // keeps the "X กำลังให้ AI ทำงาน" indicator alive and it self-clears if we vanish.
   useEffect(() => {
     streamingRef.current = chatStreaming;
+    const announce = (active: boolean) =>
+      rtChannelRef.current?.send({
+        type: "broadcast",
+        event: "ai-working",
+        payload: { from: clientIdRef.current, name: nameRef.current, active },
+      });
+    if (!chatStreaming) return;
+    announce(true);
+    const heartbeat = setInterval(() => announce(true), 20_000);
+    return () => {
+      clearInterval(heartbeat);
+      announce(false);
+    };
   }, [chatStreaming]);
+
+  // Broadcast our own typing in the AI chat (throttled). Passed to ChatPanel.
+  const broadcastAiTyping = useCallback(() => {
+    const now = Date.now();
+    if (now - lastAiTypingSent.current < 1500) return;
+    lastAiTypingSent.current = now;
+    rtChannelRef.current?.send({
+      type: "broadcast",
+      event: "ai-typing",
+      payload: { from: clientIdRef.current, name: nameRef.current },
+    });
+  }, []);
 
   // Realtime collaboration: when a collaborator's turn lands, they broadcast on
   // this project's channel; idle viewers pull the new messages + files in. Reload
@@ -1093,6 +1136,42 @@ export default function Studio({ projectId }: { projectId: string }) {
           : `c-${Math.random().toString(36).slice(2)}`;
     }
     const supabase = createClient();
+    void supabase.auth.getUser().then(({ data: { user } }) => {
+      const meta = user?.user_metadata ?? {};
+      nameRef.current = (meta.full_name ?? meta.name ?? user?.email ?? "เพื่อนร่วมทีม") as string;
+    });
+
+    const timers = aiPeerTimers.current;
+    const markPeer = (id: string, name: string, mode: "typing" | "working") => {
+      const ex = timers.get(id);
+      if (ex) clearTimeout(ex);
+      setAiPeers((prev) => new Map(prev).set(id, { name, mode }));
+      timers.set(
+        id,
+        setTimeout(
+          () => {
+            setAiPeers((prev) => {
+              const m = new Map(prev);
+              m.delete(id);
+              return m;
+            });
+            timers.delete(id);
+          },
+          mode === "working" ? 45_000 : 3_000
+        )
+      );
+    };
+    const clearPeer = (id: string) => {
+      const ex = timers.get(id);
+      if (ex) clearTimeout(ex);
+      timers.delete(id);
+      setAiPeers((prev) => {
+        const m = new Map(prev);
+        m.delete(id);
+        return m;
+      });
+    };
+
     const channel = supabase.channel(`rt:project:${projectId}`);
     rtChannelRef.current = channel;
     channel
@@ -1109,9 +1188,20 @@ export default function Studio({ projectId }: { projectId: string }) {
           });
         }, 400);
       })
+      .on("broadcast", { event: "ai-typing" }, ({ payload }) => {
+        if (!payload || payload.from === clientIdRef.current) return;
+        markPeer(payload.from, payload.name, "typing");
+      })
+      .on("broadcast", { event: "ai-working" }, ({ payload }) => {
+        if (!payload || payload.from === clientIdRef.current) return;
+        if (payload.active) markPeer(payload.from, payload.name, "working");
+        else clearPeer(payload.from);
+      })
       .subscribe();
     return () => {
       if (rtReloadTimer.current) clearTimeout(rtReloadTimer.current);
+      timers.forEach((t) => clearTimeout(t));
+      timers.clear();
       void supabase.removeChannel(channel);
       rtChannelRef.current = null;
     };
@@ -1337,18 +1427,20 @@ export default function Studio({ projectId }: { projectId: string }) {
             hasApp={hasApp}
             attachments={attachedPaths}
             onRemoveAttachment={removeAttachment}
-            onSubmit={(text) => {
+            onSubmit={(text, media) => {
               const note = attachedPaths.length
                 ? `\n\n📎 อ้างอิงไฟล์: ${attachedPaths.join(", ")}`
                 : "";
               const full = `${text}${note}`;
               setAttachedPaths([]);
-              if (inBuild) handleBuildSubmit(full);
-              else void runAgent(full);
+              if (inBuild) handleBuildSubmit(full, media);
+              else void runAgent(full, undefined, undefined, media);
             }}
             onCancel={cancel}
             onViewDoc={previewPhaseDoc}
             readOnly={readOnly}
+            peers={[...aiPeers.values()]}
+            onTyping={broadcastAiTyping}
           />
         </div>
 

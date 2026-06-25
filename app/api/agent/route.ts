@@ -33,6 +33,16 @@ const bodySchema = z.object({
   skillId: z.string().max(40).optional(),
   express: z.boolean().optional(),
   projectId: z.string().uuid().optional(),
+  attachments: z
+    .array(
+      z.object({
+        name: z.string().max(200),
+        mimeType: z.string().max(120),
+        data: z.string().max(8_000_000),
+      })
+    )
+    .max(5)
+    .optional(),
 });
 
 function sse(event: AgentEvent): Uint8Array {
@@ -73,11 +83,16 @@ export async function POST(request: Request) {
   const transcript = body.messages
     .map((m) => `${m.role === "user" ? "ผู้ใช้" : "FITT"}: ${m.content}`)
     .join("\n\n");
-  const user =
+  let user =
     transcript ||
     (body.express
       ? "(สร้างเอกสารของเฟสนี้จาก brief และเอกสารก่อนหน้าให้สมบูรณ์ในครั้งเดียว)"
       : "(เริ่มบทสนทนา — ทักทายสั้นๆ แล้วเริ่มงานของเฟสนี้)");
+  if (body.attachments?.length) {
+    user +=
+      "\n\n(ผู้ใช้แนบไฟล์/รูปอ้างอิงมาด้วย — อ่านแล้วสรุปสั้นๆ ว่ามันเกี่ยวข้องกับโปรเจกต์นี้อย่างไร" +
+      " ถ้ามีส่วนที่ควรเพิ่มลงในเอกสาร BRD/PRD ให้ถามผู้ใช้ก่อนว่าจะเพิ่มเข้าไปไหม แล้วค่อยอัปเดตเมื่อผู้ใช้ตกลง)";
+  }
 
   let usage: TokenUsage | null = null;
   const userId = await currentUserId();
@@ -93,6 +108,7 @@ export async function POST(request: Request) {
         for await (const part of streamParts({
           system,
           user,
+          attachments: body.attachments,
           temperature: 0.6,
           thinking: true,
           abortSignal: AbortSignal.any([request.signal, AbortSignal.timeout(ATTEMPT_TIMEOUT_MS)]),

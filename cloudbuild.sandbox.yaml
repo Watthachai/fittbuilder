@@ -96,6 +96,9 @@ steps:
       - "80"
       - --timeout
       - "900"
+      # Clear secret-type env vars from any earlier --set-secrets deploy so the
+      # same keys can be set as string literals below without a type conflict.
+      - --clear-secrets
       - --set-env-vars
       - >-
         ^|^NODE_ENV=production|GEMINI_MODEL=${_GEMINI_MODEL}|ADMIN_EMAILS=${_ADMIN_EMAILS}|NEXT_PUBLIC_SUPABASE_URL=${_NEXT_PUBLIC_SUPABASE_URL}|NEXT_PUBLIC_SUPABASE_ANON_KEY=${_NEXT_PUBLIC_SUPABASE_ANON_KEY}|GEMINI_API_KEY=${_GEMINI_API_KEY}|SUPABASE_SERVICE_ROLE_KEY=${_SUPABASE_SERVICE_ROLE_KEY}

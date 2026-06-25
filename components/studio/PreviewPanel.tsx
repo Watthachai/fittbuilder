@@ -1,7 +1,15 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
-import { ExternalLink, Monitor, RotateCw, Smartphone, Tablet } from "lucide-react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import {
+  ExternalLink,
+  Maximize2,
+  Minimize2,
+  Monitor,
+  RotateCw,
+  Smartphone,
+  Tablet,
+} from "lucide-react";
 import type { GenerationPhase } from "@/lib/types";
 import BuildingLoader from "./BuildingLoader";
 
@@ -33,9 +41,22 @@ export default function PreviewPanel({
 }: PreviewPanelProps) {
   const [viewport, setViewport] = useState<Viewport>("desktop");
   const active = VIEWPORTS.find((v) => v.id === viewport)!;
+  const rootRef = useRef<HTMLDivElement>(null);
+  const [isFs, setIsFs] = useState(false);
+
+  // Fullscreen the whole panel (toolbar stays usable; Esc exits via the browser).
+  useEffect(() => {
+    const onChange = () => setIsFs(document.fullscreenElement === rootRef.current);
+    document.addEventListener("fullscreenchange", onChange);
+    return () => document.removeEventListener("fullscreenchange", onChange);
+  }, []);
+  const toggleFs = () => {
+    if (document.fullscreenElement) void document.exitFullscreen();
+    else void rootRef.current?.requestFullscreen?.();
+  };
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col">
+    <div ref={rootRef} className="flex min-h-0 flex-1 flex-col bg-night">
       {/* Toolbar */}
       <div className="flex h-10 shrink-0 items-center gap-2 border-b border-night-edge bg-night-panel px-3">
         <div className="flex items-center rounded-sm border border-night-edge p-0.5">
@@ -69,6 +90,14 @@ export default function PreviewPanel({
           <RotateCw size={13} />
         </button>
         <button
+          onClick={toggleFs}
+          disabled={!url}
+          title={isFs ? "ออกจากเต็มจอ" : "ดูเต็มจอ"}
+          className="rounded-sm border border-night-edge p-1.5 text-chalk-dim transition hover:text-chalk disabled:opacity-40"
+        >
+          {isFs ? <Minimize2 size={13} /> : <Maximize2 size={13} />}
+        </button>
+        <button
           onClick={onPopOut}
           disabled={!url}
           title="เปิดในแท็บใหม่"
@@ -96,13 +125,13 @@ export default function PreviewPanel({
         ) : url ? (
           <div
             className="my-0 flex h-full justify-center transition-all"
-            style={{ width: active.width ? `${active.width}px` : "100%" }}
+            style={{ width: isFs || !active.width ? "100%" : `${active.width}px` }}
           >
             <iframe
               key={previewKey}
               src={url}
               sandbox="allow-scripts allow-same-origin allow-forms"
-              className={`h-full w-full bg-chalk ${active.width ? "border-x border-night-edge" : ""}`}
+              className={`h-full w-full bg-chalk ${!isFs && active.width ? "border-x border-night-edge" : ""}`}
               title="Demo preview"
             />
           </div>

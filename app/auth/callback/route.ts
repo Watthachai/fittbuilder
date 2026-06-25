@@ -2,18 +2,14 @@ import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import type { Database } from "@/lib/db/types";
+import { requestOrigin } from "@/lib/origin";
 
 export async function GET(request: Request) {
   const url = new URL(request.url);
   const code = url.searchParams.get("code");
   const next = url.searchParams.get("next") ?? "/";
-
-  // Behind Cloud Run / a proxy, request.url's host is the internal bind address
-  // (0.0.0.0:3000), so redirecting to its origin sends the browser to 0.0.0.0.
-  // Use the forwarded host the user actually came from.
-  const fwdHost = request.headers.get("x-forwarded-host");
-  const fwdProto = request.headers.get("x-forwarded-proto") ?? "https";
-  const origin = fwdHost ? `${fwdProto}://${fwdHost}` : url.origin;
+  // Public origin behind the Cloud Run proxy (not the 0.0.0.0 bind host).
+  const origin = requestOrigin(request);
 
   if (!code) return NextResponse.redirect(`${origin}/login`);
 

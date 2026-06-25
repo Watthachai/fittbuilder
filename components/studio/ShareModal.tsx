@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { Copy, Link, Mail, Trash2, Users, X } from "lucide-react";
+import Overlay from "@/components/ui/Overlay";
+import GlassSurface from "@/components/ui/GlassSurface";
 import {
   createInvite,
   disableShareLink,
@@ -148,13 +150,10 @@ export default function ShareModal({ projectId, onClose }: ShareModalProps) {
   const joinUrl = linkToken ? `${location.origin}/join/${linkToken}` : null;
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-night/70 p-6"
-      onClick={onClose}
-    >
-      <div
-        className="flex max-h-[85vh] w-full max-w-lg flex-col overflow-hidden rounded-xl border border-night-edge bg-night-panel"
-        onClick={(e) => e.stopPropagation()}
+    <Overlay open onClose={onClose} placement="center" blur>
+      <GlassSurface
+        strong
+        className="flex max-h-[85vh] w-full max-w-lg flex-col overflow-hidden rounded-xl"
       >
         {/* Header */}
         <div className="flex shrink-0 items-center justify-between border-b border-night-edge px-4 py-3">
@@ -336,7 +335,7 @@ export default function ShareModal({ projectId, onClose }: ShareModalProps) {
             ))}
           </section>
         </div>
-      </div>
-    </div>
+      </GlassSurface>
+    </Overlay>
   );
 }

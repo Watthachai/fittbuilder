@@ -1,7 +1,9 @@
 "use client";
 
-import { useSyncExternalStore } from "react";
+import { useState, useSyncExternalStore } from "react";
+import { AnimatePresence, motion } from "motion/react";
 import { Monitor, Moon, Sun } from "lucide-react";
+import { useDismiss } from "@/lib/useDismiss";
 
 type Theme = "system" | "light" | "dark";
 
@@ -32,22 +34,13 @@ const OPTIONS: { key: Theme; Icon: typeof Monitor; label: string }[] = [
   { key: "dark", Icon: Moon, label: "มืด" },
 ];
 
-/** Small hover tooltip (liquid glass), positioned above its child. */
-function Tip({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <span className="group/tip relative inline-flex">
-      {children}
-      <span className="glass pointer-events-none absolute bottom-full left-1/2 mb-2 -translate-x-1/2 whitespace-nowrap rounded-lg px-2.5 py-1 text-xs text-chalk opacity-0 transition-opacity duration-150 group-hover/tip:opacity-100">
-        {label}
-      </span>
-    </span>
-  );
-}
-
-/** Floating Liquid-Glass cluster (bottom-right): version → changelog + theme switcher. */
+/** Floating glass theme switcher, bottom-right on every page. */
 export default function FloatingThemeToggle() {
   const theme = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
-  const activeIndex = Math.max(0, OPTIONS.findIndex((o) => o.key === theme));
+  const [open, setOpen] = useState(false);
+  const Current = (OPTIONS.find((o) => o.key === theme) ?? OPTIONS[0]).Icon;
+
+  useDismiss(open, () => setOpen(false));
 
   const choose = (t: Theme) => {
     try {
@@ -57,34 +50,48 @@ export default function FloatingThemeToggle() {
     }
     applyTheme(t);
     window.dispatchEvent(new Event(THEME_EVENT));
+    setOpen(false);
   };
 
   return (
-    <div className="fixed bottom-5 right-5 z-[60] flex items-center gap-2 print:hidden">
-      {/* Theme switcher — liquid glass pill with sliding indicator */}
-      <div className="glass relative flex items-center rounded-full p-1">
-        {/* sliding indicator */}
-        <span
-          aria-hidden
-          className="absolute left-1 top-1 h-9 w-9 rounded-full bg-chalk/12 shadow-[inset_0_1px_1px_rgba(255,255,255,0.4)] transition-transform duration-300 ease-[cubic-bezier(0.5,0,0,1)]"
-          style={{ transform: `translateX(${activeIndex * 36}px)` }}
-        />
-        {OPTIONS.map(({ key, Icon, label }) => (
-          <Tip key={key} label={label}>
-            <button
-              type="button"
-              onClick={() => choose(key)}
-              aria-label={label}
-              aria-pressed={theme === key}
-              className={`relative z-10 grid h-9 w-9 place-items-center rounded-full transition-all duration-200 ${
-                theme === key ? "text-chalk" : "text-chalk-dim hover:scale-110 hover:text-shine"
-              }`}
+    <div className="fixed bottom-5 right-5 z-[60] flex flex-col items-end gap-2 print:hidden">
+      <AnimatePresence>
+        {open && (
+          <>
+            <div className="fixed inset-0 -z-10" onClick={() => setOpen(false)} />
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.16, ease: "easeOut" }}
+              className="glass flex flex-col gap-1 rounded-2xl p-1.5 shadow-xl"
             >
-              <Icon size={16} />
-            </button>
-          </Tip>
-        ))}
-      </div>
+              {OPTIONS.map(({ key, Icon, label }) => (
+                <button
+                  key={key}
+                  onClick={() => choose(key)}
+                  className={`flex items-center gap-2 rounded-xl px-3 py-2 text-left text-sm transition ${
+                    theme === key
+                      ? "bg-shine text-night"
+                      : "text-chalk-dim hover:bg-chalk/10 hover:text-chalk"
+                  }`}
+                >
+                  <Icon size={15} />
+                  {label}
+                </button>
+              ))}
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
+      <button
+        onClick={() => setOpen((v) => !v)}
+        aria-label="สลับธีม"
+        className="glass grid h-11 w-11 place-items-center rounded-full text-chalk shadow-lg transition hover:text-shine"
+      >
+        <Current size={18} />
+      </button>
     </div>
   );
 }

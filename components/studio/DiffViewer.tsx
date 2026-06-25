@@ -4,6 +4,8 @@ import { useState } from "react";
 import { diffLines } from "diff";
 import { ChevronDown, ChevronRight, FileMinus, FilePenLine, FilePlus, X } from "lucide-react";
 import type { FileChange } from "@/lib/types";
+import Overlay from "@/components/ui/Overlay";
+import GlassSurface from "@/components/ui/GlassSurface";
 
 type Status = "added" | "deleted" | "modified";
 
@@ -40,7 +42,7 @@ function FileDiff({ change }: { change: FileChange }) {
   }
 
   return (
-    <div className="overflow-hidden rounded-lg border border-night-edge">
+    <div className="shrink-0 overflow-hidden rounded-lg border border-night-edge">
       <button
         onClick={() => setOpen((o) => !o)}
         className="flex w-full items-center gap-2 bg-night px-3 py-2 text-left transition hover:bg-night-edge/30"
@@ -86,13 +88,10 @@ export default function DiffViewer({
   onClose: () => void;
 }) {
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-night/70 p-6"
-      onClick={onClose}
-    >
-      <div
-        className="flex max-h-[85vh] w-full max-w-4xl flex-col overflow-hidden rounded-xl border border-night-edge bg-night-panel"
-        onClick={(e) => e.stopPropagation()}
+    <Overlay open onClose={onClose} placement="center">
+      <GlassSurface
+        strong
+        className="flex max-h-[85vh] w-full max-w-4xl flex-col overflow-hidden rounded-xl"
       >
         <div className="flex shrink-0 items-center justify-between border-b border-night-edge px-4 py-3">
           <div className="min-w-0">
@@ -113,7 +112,7 @@ export default function DiffViewer({
             <FileDiff key={change.path} change={change} />
           ))}
         </div>
-      </div>
-    </div>
+      </GlassSurface>
+    </Overlay>
   );
 }

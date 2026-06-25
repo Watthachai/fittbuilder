@@ -206,7 +206,8 @@ export default function SkillTemplateForm({
   }
 
   return (
-    <div className="glass stitch space-y-4 rounded-2xl p-5">
+    <div className="stitch">
+    <div className="glass space-y-4 rounded-2xl p-5">
       <h2 className="font-display text-lg font-semibold text-chalk">
         {editing ? `แก้ไข: ${initial!.name}` : "สร้าง Skill Template ใหม่"}
       </h2>
@@ -429,6 +430,7 @@ export default function SkillTemplateForm({
           ยกเลิก
         </button>
       </div>
+    </div>
     </div>
   );
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { motion, useMotionValueEvent, useScroll, useSpring, useTransform } from "motion/react";
 import Link from "next/link";
 import { PanelLeft } from "lucide-react";
@@ -56,7 +56,32 @@ export default function MainframeHero() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [projectsOpen, setProjectsOpen] = useState(false);
   const [showLaunch, setShowLaunch] = useState(false);
+  const [launching, setLaunching] = useState(false);
+  const launchingRef = useRef(false);
   const { displayed, done } = useTypewriter(TYPED);
+
+  // "Dive into the machine": on launch, zoom the video deep into the robot's CRT
+  // screen and fade to black, then resolve so LaunchPad navigates to the Studio —
+  // a portal-into-another-world transition.
+  const startZoom = useCallback(
+    () =>
+      new Promise<void>((resolve) => {
+        launchingRef.current = true;
+        setLaunching(true);
+        const v = videoRef.current;
+        if (v) {
+          v.style.transition = "transform 1100ms cubic-bezier(0.66, 0, 0.85, 0.2)";
+          v.style.transformOrigin = "70% 38%";
+          v.style.willChange = "transform";
+          requestAnimationFrame(() => {
+            if (videoRef.current) videoRef.current.style.transform = "scale(11)";
+          });
+        }
+        // Navigate just as the screen reaches full black for a seamless cut.
+        setTimeout(resolve, 950);
+      }),
+    [],
+  );
 
   // Parallax: hero content drifts up + fades as it scrolls away.
   const { scrollYProgress } = useScroll({ target: heroRef, offset: ["start start", "end start"] });
@@ -89,6 +114,7 @@ export default function MainframeHero() {
   // stays on the fast path exactly like a plain <video>; the zoom only engages
   // once scrolled away from the hero.
   useMotionValueEvent(smoothZoom, "change", (z) => {
+    if (launchingRef.current) return; // don't fight the launch zoom
     const v = videoRef.current;
     if (!v) return;
     if (z <= 1.002) {
@@ -237,8 +263,12 @@ export default function MainframeHero() {
 
       {/* Mobile overlay */}
       <div
-        className="fixed inset-0 z-40 flex flex-col justify-center gap-8 bg-night/95 px-8 backdrop-blur-sm transition-opacity duration-300 md:hidden"
-        style={{ opacity: menuOpen ? 1 : 0, pointerEvents: menuOpen ? "auto" : "none" }}
+        className="fixed inset-0 z-40 flex flex-col justify-center gap-8 px-8 backdrop-blur-sm transition-opacity duration-300 md:hidden"
+        style={{
+          background: "var(--overlay-dim)",
+          opacity: menuOpen ? 1 : 0,
+          pointerEvents: menuOpen ? "auto" : "none",
+        }}
       >
         {NAV_LINKS.map((link) => (
           <a
@@ -271,7 +301,11 @@ export default function MainframeHero() {
       <section
         ref={heroRef}
         className="relative z-10 flex h-screen flex-col justify-end overflow-hidden px-5 pb-12 sm:px-8 md:justify-center md:px-10 md:pb-0"
-        style={{ fontFamily: "var(--font-body)" }}
+        style={{
+          fontFamily: "var(--font-body)",
+          opacity: launching ? 0 : 1,
+          transition: "opacity 0.5s ease",
+        }}
       >
         <motion.div style={{ opacity: heroOpacity, y: heroY }} className="relative z-10 w-full max-w-2xl">
           {/* Blurred intro label */}
@@ -313,10 +347,20 @@ export default function MainframeHero() {
               transition: "opacity 0.4s ease, transform 0.4s ease",
             }}
           >
-            <LaunchPad />
+            <LaunchPad onLaunch={startZoom} />
           </div>
         </motion.div>
       </section>
+
+      {/* Fade-to-black as we dive into the screen, covering the cut to Studio. */}
+      {launching && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.95, ease: "easeIn" }}
+          className="pointer-events-none fixed inset-0 z-[100] bg-night"
+        />
+      )}
     </>
   );
 }

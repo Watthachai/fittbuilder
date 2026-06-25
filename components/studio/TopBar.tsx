@@ -2,10 +2,22 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { Check, Code2, Download, Eye, FileText, Package, Share2, Undo2, Users } from "lucide-react";
+import {
+  Check,
+  Code2,
+  Download,
+  Eye,
+  FileText,
+  FileUp,
+  Package,
+  Share2,
+  Undo2,
+  Users,
+} from "lucide-react";
 import { encodeShareUrl } from "@/lib/share";
 import type { ProjectRecord } from "@/lib/types";
 import { downloadZip } from "@/lib/zip";
+import { downloadFittcoreSpec } from "@/lib/fittcore";
 
 interface TopBarProps {
   project: ProjectRecord;
@@ -37,6 +49,7 @@ export default function TopBar({
   onTeamShare,
 }: TopBarProps) {
   const [shared, setShared] = useState(false);
+  const [moreOpen, setMoreOpen] = useState(false);
 
   const share = async () => {
     if (!project.files) return;
@@ -131,14 +144,48 @@ export default function TopBar({
           <Users size={13} /> เชิญทีม
         </button>
       )}
-      <button
-        onClick={() => project.files && void downloadZip(project.files, project.name)}
-        disabled={!shippable}
-        className="inline-flex items-center gap-1.5 rounded-sm bg-shine px-2.5 py-1.5 text-xs font-medium text-night transition hover:brightness-110 disabled:opacity-40"
-        title="ดาวน์โหลดโค้ดเป็น .zip"
-      >
-        <Download size={13} /> Export
-      </button>
+      <div className="relative">
+        <button
+          onClick={() => setMoreOpen((v) => !v)}
+          disabled={!shippable}
+          className={`inline-flex items-center gap-1.5 rounded-sm px-2.5 py-1.5 text-xs font-medium transition disabled:opacity-40 ${
+            moreOpen
+              ? "bg-chalk/10 text-chalk"
+              : "bg-shine text-night hover:brightness-110"
+          }`}
+          title="ส่งออก"
+        >
+          <Download size={13} /> Export
+        </button>
+        {moreOpen && (
+          <>
+            <div
+              className="fixed inset-0 z-40"
+              onClick={() => setMoreOpen(false)}
+            />
+            <div className="absolute right-0 top-full z-50 mt-1 w-56 overflow-hidden rounded-lg border border-night-edge bg-night-panel py-1 shadow-xl">
+              <button
+                onClick={() => {
+                  setMoreOpen(false);
+                  if (project.files) void downloadZip(project.files, project.name);
+                }}
+                className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-xs text-chalk/80 transition hover:bg-chalk/5 hover:text-chalk"
+              >
+                <Download size={14} /> ดาวน์โหลดโค้ด (.zip)
+              </button>
+              <button
+                onClick={() => {
+                  setMoreOpen(false);
+                  downloadFittcoreSpec(project);
+                }}
+                className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-xs text-chalk/80 transition hover:bg-chalk/5 hover:text-chalk"
+              >
+                <FileUp size={14} className="text-shine" /> Export to FITTCORE V2
+              </button>
+            </div>
+          </>
+        )}
+      </div>
     </header>
   );
 }

@@ -39,16 +39,18 @@ export default function ScrollStory({ steps }: { steps: Step[] }) {
           {steps.map((step, i) => (
             <div
               key={step.no}
-              className="absolute inset-0 flex flex-col justify-center rounded-3xl border border-chalk/12 bg-chalk/[0.05] p-8 shadow-[0_8px_40px_rgba(0,0,0,0.25)] backdrop-blur-md transition-all duration-500 ease-out"
+              className="absolute inset-0 transition-all duration-500 ease-out"
               style={{
                 opacity: i === active ? 1 : 0,
                 transform: i === active ? "translateY(0) scale(1)" : "translateY(40px) scale(0.94)",
                 pointerEvents: i === active ? "auto" : "none",
               }}
             >
-              <span className="font-mono text-sm font-semibold text-shine">{step.no}</span>
-              <h3 className="mt-3 font-display text-2xl font-semibold text-chalk">{step.title}</h3>
-              <p className="mt-3 text-base leading-relaxed text-chalk/75">{step.body}</p>
+              <div className="flex h-full flex-col justify-center rounded-3xl border border-chalk/12 bg-chalk/[0.05] p-8 shadow-glass backdrop-blur-md">
+                <span className="font-mono text-sm font-semibold text-shine">{step.no}</span>
+                <h3 className="mt-3 font-display text-2xl font-semibold text-chalk">{step.title}</h3>
+                <p className="mt-3 text-base leading-relaxed text-chalk/75">{step.body}</p>
+              </div>
             </div>
           ))}
         </div>

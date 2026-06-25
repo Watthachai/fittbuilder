@@ -294,8 +294,23 @@ export default function CodePanel({
 
   if (!files || paths.length === 0) {
     return (
-      <div className="bg-grid flex flex-1 items-center justify-center">
-        <p className="font-display text-sm text-chalk-dim">ยังไม่มีโค้ด — กำลังเตรียมเวที…</p>
+      <div className="bg-grid flex flex-1 flex-col items-center justify-center gap-4 text-center">
+        {/* Same playful cat as BuildingLoader so the waiting states feel like one flow. */}
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="/cat_playing_animation.svg"
+          alt=""
+          className="loader-float w-40 select-none opacity-90"
+          draggable={false}
+        />
+        <div>
+          <p className="font-display text-sm text-chalk-dim">ยังไม่มีโค้ด — กำลังเตรียมเวที…</p>
+          <div className="mt-2 flex items-center justify-center gap-1.5">
+            <span className="loader-dot h-1.5 w-1.5 rounded-full bg-shine" style={{ animationDelay: "0ms" }} />
+            <span className="loader-dot h-1.5 w-1.5 rounded-full bg-shine" style={{ animationDelay: "150ms" }} />
+            <span className="loader-dot h-1.5 w-1.5 rounded-full bg-shine" style={{ animationDelay: "300ms" }} />
+          </div>
+        </div>
       </div>
     );
   }

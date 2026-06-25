@@ -1,10 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { BarChart3, LogOut, ShieldCheck } from "lucide-react";
+import { AnimatePresence, motion } from "motion/react";
+import { BarChart3, LogOut, ShieldCheck, X } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { useDismiss } from "@/lib/useDismiss";
 
 interface Account {
   email: string;
@@ -19,6 +22,8 @@ export default function AccountMenu() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [open, setOpen] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
+
+  useDismiss(open, () => setOpen(false));
 
   useEffect(() => {
     const supabase = createClient();
@@ -104,59 +109,118 @@ export default function AccountMenu() {
         )}
       </button>
 
-      {open && (
-        <>
-          <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
-          <div className="absolute right-0 z-50 mt-2 w-60 overflow-hidden rounded-xl border border-chalk/15 bg-night-panel shadow-xl">
-            <div className="flex items-center gap-3 border-b border-chalk/10 px-4 py-3">
-              <Avatar avatarUrl={account.avatarUrl} initial={initial} />
+      {createPortal(
+        <AnimatePresence>
+          {open && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.16, ease: "easeOut" }}
+              onClick={() => setOpen(false)}
+              className="fixed inset-0 z-[60] flex items-center justify-center p-4 md:items-start md:justify-end md:p-3"
+            >
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.16, ease: "easeOut" }}
+                onClick={(e) => e.stopPropagation()}
+                className="glass max-h-[90vh] w-[min(92vw,22rem)] overflow-y-auto rounded-2xl p-4 shadow-2xl md:mr-2 md:mt-14"
+              >
+            <div className="flex items-center justify-between">
+              <span className="font-display text-xl font-semibold tracking-tight text-chalk">
+                FITT Builder
+              </span>
+              <button
+                onClick={() => setOpen(false)}
+                aria-label="ปิด"
+                className="text-chalk-dim transition hover:text-chalk"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="mt-5 flex items-center gap-4">
+              <Avatar avatarUrl={account.avatarUrl} initial={initial} big />
               <div className="min-w-0">
                 {account.name && (
-                  <p className="truncate font-display text-sm text-chalk">{account.name}</p>
+                  <p className="truncate font-display text-base font-semibold text-chalk">
+                    {account.name}
+                  </p>
                 )}
-                <p className="truncate font-mono text-[11px] text-chalk/50">{account.email}</p>
+                <p className="truncate font-mono text-xs text-chalk/50">
+                  {account.email}
+                </p>
               </div>
             </div>
-            {isAdmin && (
-              <Link
-                href="/admin/skills"
-                onClick={() => setOpen(false)}
-                className="flex w-full items-center gap-2 border-b border-chalk/10 px-4 py-2.5 text-left font-display text-sm text-chalk/70 transition hover:bg-chalk/5 hover:text-chalk"
+
+            <div className="mt-6 space-y-2.5">
+              {isAdmin && (
+                <Link
+                  href="/admin/skills"
+                  onClick={() => setOpen(false)}
+                  className="flex w-full items-center justify-center gap-2 rounded-full border border-chalk/15 py-2.5 font-display text-sm text-chalk/85 transition hover:bg-chalk/5 hover:text-chalk"
+                >
+                  <ShieldCheck size={15} className="text-shine" /> จัดการ Skill
+                  Templates
+                </Link>
+              )}
+              {isAdmin && (
+                <Link
+                  href="/admin/usage"
+                  onClick={() => setOpen(false)}
+                  className="flex w-full items-center justify-center gap-2 rounded-full border border-chalk/15 py-2.5 font-display text-sm text-chalk/85 transition hover:bg-chalk/5 hover:text-chalk"
+                >
+                  <BarChart3 size={15} className="text-shine" /> รายงานการใช้ AI
+                </Link>
+              )}
+              <button
+                onClick={signOut}
+                disabled={signingOut}
+                className="flex w-full items-center justify-center gap-2 rounded-full border border-chalk/15 py-2.5 font-display text-sm text-chalk/85 transition hover:bg-chalk/5 hover:text-chalk disabled:opacity-50"
               >
-                <ShieldCheck size={14} className="text-shine" /> จัดการ Skill Templates
-              </Link>
-            )}
-            {isAdmin && (
-              <Link
-                href="/admin/usage"
-                onClick={() => setOpen(false)}
-                className="flex w-full items-center gap-2 border-b border-chalk/10 px-4 py-2.5 text-left font-display text-sm text-chalk/70 transition hover:bg-chalk/5 hover:text-chalk"
-              >
-                <BarChart3 size={14} className="text-shine" /> รายงานการใช้ AI
-              </Link>
-            )}
-            <button
-              onClick={signOut}
-              disabled={signingOut}
-              className="flex w-full items-center gap-2 px-4 py-2.5 text-left font-display text-sm text-chalk/70 transition hover:bg-chalk/5 hover:text-chalk disabled:opacity-50"
-            >
-              <LogOut size={14} />
-              {signingOut ? "กำลังออก…" : "ออกจากระบบ"}
-            </button>
-          </div>
-        </>
+                <LogOut size={15} />
+                {signingOut ? "กำลังออก…" : "ออกจากระบบ"}
+              </button>
+            </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>,
+        document.body,
       )}
     </div>
   );
 }
 
-function Avatar({ avatarUrl, initial }: { avatarUrl: string | null; initial: string }) {
+function Avatar({
+  avatarUrl,
+  initial,
+  big = false,
+}: {
+  avatarUrl: string | null;
+  initial: string;
+  big?: boolean;
+}) {
+  const size = big ? "h-14 w-14 text-lg" : "h-7 w-7 text-xs";
   if (avatarUrl) {
-    // eslint-disable-next-line @next/next/no-img-element
-    return <img src={avatarUrl} alt="" className="h-7 w-7 rounded-full object-cover" />;
+    // Google (lh3.googleusercontent.com) rejects requests carrying a Referer
+    // header, so the image 403s without referrerPolicy="no-referrer".
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={avatarUrl}
+        alt=""
+        referrerPolicy="no-referrer"
+        className={`${size} shrink-0 rounded-full object-cover`}
+      />
+    );
   }
   return (
-    <span className="grid h-7 w-7 place-items-center rounded-full bg-chalk/10 font-display text-xs font-semibold text-chalk/80">
+    <span
+      className={`${size} grid shrink-0 place-items-center rounded-full bg-chalk/10 font-display font-semibold text-chalk/80`}
+    >
       {initial}
     </span>
   );

@@ -18,7 +18,12 @@ const EXAMPLES = [
   "Kanban board สำหรับทีม marketing ลาก task ระหว่างคอลัมน์ได้",
 ];
 
-export default function LaunchPad() {
+export default function LaunchPad({
+  onLaunch,
+}: {
+  /** Plays the dive-into-the-screen transition just before navigating. */
+  onLaunch?: () => Promise<void>;
+}) {
   const router = useRouter();
   const [prompt, setPrompt] = useState("");
   const [launching, setLaunching] = useState(false);
@@ -69,6 +74,7 @@ export default function LaunchPad() {
         skillId: skillId ?? undefined,
       });
       setPendingAction(project.id, { kind: "express", prompt: prompt.trim() });
+      await onLaunch?.();
       router.push(`/project/${project.id}`);
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
@@ -86,6 +92,7 @@ export default function LaunchPad() {
     try {
       const project = await createProject({ name: "Spec-to-Demo" });
       setPendingAction(project.id, { kind: "spec" });
+      await onLaunch?.();
       router.push(`/project/${project.id}`);
     } catch (e) {
       console.error("[launchpad] create failed:", e);
@@ -102,6 +109,7 @@ export default function LaunchPad() {
     setLaunching(true);
     try {
       const project = await createProject({ name: "Define Session", phase: "define" });
+      await onLaunch?.();
       router.push(`/project/${project.id}`);
     } catch (e) {
       console.error("[launchpad] create failed:", e);

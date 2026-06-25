@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { ExternalLink, Monitor, RotateCw, Smartphone, Tablet } from "lucide-react";
 import type { GenerationPhase } from "@/lib/types";
 import BuildingLoader from "./BuildingLoader";
@@ -83,7 +83,15 @@ export default function PreviewPanel({
         {!supported ? (
           <CenterNote
             title="เบราว์เซอร์นี้ไม่รองรับ live preview"
-            body="ต้องการ Chrome หรือ Edge เวอร์ชันล่าสุด (cross-origin isolation) — ยังดูและแก้โค้ดได้ในแท็บ Code"
+            body="ถ้าเพิ่งเปิดหน้านี้ อาจยังโหลดไม่เสร็จ — ลองโหลดหน้าใหม่ดูก่อน ต้องใช้ Chrome/Edge เวอร์ชันล่าสุด (cross-origin isolation) · ระหว่างนี้ดูและแก้โค้ดได้ในแท็บ Code"
+            action={
+              <button
+                onClick={() => window.location.reload()}
+                className="mt-4 inline-flex items-center gap-2 rounded-lg bg-halt px-5 py-2.5 text-sm font-semibold text-white shadow-lg transition hover:brightness-110"
+              >
+                <RotateCw size={15} /> โหลดหน้าใหม่
+              </button>
+            }
           />
         ) : url ? (
           <div
@@ -112,18 +120,21 @@ function CenterNote({
   title,
   body,
   pulse,
+  action,
 }: {
   title: string;
   body?: string;
   pulse?: boolean;
+  action?: ReactNode;
 }) {
   return (
     <div className="flex flex-col items-center justify-center gap-2 self-center px-8 text-center">
-      <div className="rounded-2xl border border-night-edge bg-night-panel px-8 py-6">
+      <div className="max-w-sm rounded-2xl border border-night-edge bg-night-panel px-8 py-6">
         <p className={`font-display text-[15px] text-chalk ${pulse ? "animate-pulse" : ""}`}>
           {title}
         </p>
-        {body && <p className="mt-1.5 text-[13px] text-chalk-dim">{body}</p>}
+        {body && <p className="mt-1.5 text-[13px] leading-relaxed text-chalk-dim">{body}</p>}
+        {action}
       </div>
     </div>
   );

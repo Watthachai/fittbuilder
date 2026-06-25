@@ -1,21 +1,55 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  type CSSProperties,
+  type MouseEvent as ReactMouseEvent,
+} from "react";
+import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "motion/react";
-import { Copy, FileCode, FolderGit2, Search, Trash2, Users, X } from "lucide-react";
-import { deleteProject, duplicateProject, listProjects } from "@/lib/storage";
+import {
+  Copy,
+  FileCode,
+  FolderGit2,
+  MoreHorizontal,
+  Search,
+  Share2,
+  Trash2,
+  Users,
+  X,
+} from "lucide-react";
+import {
+  deleteProject,
+  duplicateProject,
+  getProject,
+  listProjects,
+} from "@/lib/storage";
+import { encodeShareUrl } from "@/lib/share";
 import type { ProjectSummary } from "@/lib/types";
 
 type Tab = "mine" | "shared";
 
 function formatDate(iso: string): string {
-  return new Date(iso).toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "numeric" });
+  return new Date(iso).toLocaleDateString("th-TH", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
 }
 
-function groupByTime(items: ProjectSummary[]): { label: string; items: ProjectSummary[] }[] {
+function groupByTime(
+  items: ProjectSummary[],
+): { label: string; items: ProjectSummary[] }[] {
   const now = Date.now();
-  const b: Record<string, ProjectSummary[]> = { recent: [], month: [], older: [] };
+  const b: Record<string, ProjectSummary[]> = {
+    recent: [],
+    month: [],
+    older: [],
+  };
   for (const p of items) {
     const age = now - new Date(p.updatedAt).getTime();
     if (age <= 7 * 864e5) b.recent.push(p);
@@ -31,13 +65,25 @@ function groupByTime(items: ProjectSummary[]): { label: string; items: ProjectSu
 
 /** Floating, collapsible projects sidebar (Stitch-style) — slides in from the
  *  left with margins. Controlled by the host (`open` / `onClose`). */
-export default function ProjectsDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
+export default function ProjectsDrawer({
+  open,
+  onClose,
+}: {
+  open: boolean;
+  onClose: () => void;
+}) {
   const router = useRouter();
   const [projects, setProjects] = useState<ProjectSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [tab, setTab] = useState<Tab>("mine");
   const [query, setQuery] = useState("");
+  // Which row's "⋯" menu is open, plus its fixed-position style (computed from
+  // the button rect so the menu escapes the list's overflow clipping).
+  const [menu, setMenu] = useState<{ id: string; style: CSSProperties } | null>(
+    null,
+  );
+  const [toast, setToast] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
     try {
@@ -74,18 +120,27 @@ export default function ProjectsDrawer({ open, onClose }: { open: boolean; onClo
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
+      if (e.key !== "Escape") return;
+      if (menu) setMenu(null);
+      else onClose();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
+  }, [onClose, menu]);
+
+  // Auto-dismiss the toast.
+  useEffect(() => {
+    if (!toast) return;
+    const t = setTimeout(() => setToast(null), 2200);
+    return () => clearTimeout(t);
+  }, [toast]);
 
   const { mine, shared } = useMemo(
     () => ({
       mine: projects.filter((p) => p.access === "owner"),
       shared: projects.filter((p) => p.access === "member"),
     }),
-    [projects]
+    [projects],
   );
   const visible = useMemo(() => {
     const base = tab === "mine" ? mine : shared;
@@ -99,21 +154,80 @@ export default function ProjectsDrawer({ open, onClose }: { open: boolean; onClo
     router.push(`/project/${id}`);
   };
 
+  const toggleMenu = (e: ReactMouseEvent<HTMLButtonElement>, id: string) => {
+    if (menu?.id === id) {
+      setMenu(null);
+      return;
+    }
+    const r = e.currentTarget.getBoundingClientRect();
+    // Flip the menu upward when there isn't room for it below the button.
+    const up = window.innerHeight - r.bottom < 168;
+    setMenu({
+      id,
+      style: {
+        right: `${window.innerWidth - r.right}px`,
+        ...(up
+          ? { bottom: `${window.innerHeight - r.top + 6}px` }
+          : { top: `${r.bottom + 6}px` }),
+      },
+    });
+  };
+
+  const handleShare = async (p: ProjectSummary) => {
+    setMenu(null);
+    try {
+      const rec = await getProject(p.id);
+      if (!rec?.files) throw new Error("empty");
+      const url = await encodeShareUrl({ name: rec.name, files: rec.files });
+      await navigator.clipboard.writeText(url);
+      setToast("คัดลอกลิงก์แชร์แล้ว");
+    } catch {
+      setToast("แชร์ไม่สำเร็จ");
+    }
+  };
+
+  const handleDuplicate = async (id: string) => {
+    setMenu(null);
+    await duplicateProject(id);
+    await refresh();
+  };
+
+  const handleDelete = async (p: ProjectSummary) => {
+    setMenu(null);
+    if (!confirm(`ลบ "${p.name}" ถาวร?`)) return;
+    await deleteProject(p.id);
+    await refresh();
+  };
+
   return (
     <AnimatePresence>
       {open && (
         <>
           <div className="fixed inset-0 z-40" onClick={onClose} />
+          {/* Slide via `left`, NOT `x`/transform: a persistent transform on the
+              panel disables its own backdrop-filter (Chrome/WebKit bug), which is
+              why the frost can't render on the panel. Animating `left` keeps the
+              panel transform-free, so `glass-strong`'s backdrop-filter renders as
+              the sidebar's real frosted background — sliding in with it. */}
           <motion.aside
-            initial={{ x: "-110%", opacity: 0 }}
-            animate={{ x: 0, opacity: 1 }}
-            exit={{ x: "-110%", opacity: 0 }}
+            initial={{ left: "-21rem" }}
+            animate={{ left: "0.75rem" }}
+            exit={{ left: "-21rem" }}
             transition={{ type: "spring", stiffness: 320, damping: 34 }}
-            className="glass-strong fixed bottom-3 left-3 top-3 z-50 flex w-80 flex-col overflow-hidden rounded-2xl shadow-2xl"
+            className="glass-strong fixed bottom-3 top-3 z-50 flex w-80 flex-col overflow-hidden rounded-2xl shadow-2xl"
           >
             <div className="flex items-center justify-between px-4 py-3.5">
-              <span className="font-display text-sm font-semibold text-chalk">ผลงาน</span>
-              <button onClick={onClose} aria-label="หุบ" className="text-chalk-dim transition hover:text-chalk">
+              <span className="font-display text-sm font-semibold text-chalk">
+                ผลงาน
+              </span>
+              <button
+                onClick={() => {
+                  setMenu(null);
+                  onClose();
+                }}
+                aria-label="หุบ"
+                className="text-chalk-dim transition hover:text-chalk"
+              >
                 <X size={18} />
               </button>
             </div>
@@ -122,7 +236,9 @@ export default function ProjectsDrawer({ open, onClose }: { open: boolean; onClo
               <button
                 onClick={() => setTab("mine")}
                 className={`inline-flex items-center justify-center gap-1.5 rounded-lg py-1.5 text-xs font-medium transition ${
-                  tab === "mine" ? "bg-shine text-night" : "text-chalk-dim hover:text-chalk"
+                  tab === "mine"
+                    ? "bg-shine text-night"
+                    : "text-chalk-dim hover:text-chalk"
                 }`}
               >
                 <FolderGit2 size={13} /> ของฉัน
@@ -130,7 +246,9 @@ export default function ProjectsDrawer({ open, onClose }: { open: boolean; onClo
               <button
                 onClick={() => setTab("shared")}
                 className={`inline-flex items-center justify-center gap-1.5 rounded-lg py-1.5 text-xs font-medium transition ${
-                  tab === "shared" ? "bg-shine text-night" : "text-chalk-dim hover:text-chalk"
+                  tab === "shared"
+                    ? "bg-shine text-night"
+                    : "text-chalk-dim hover:text-chalk"
                 }`}
               >
                 <Users size={13} /> แชร์กับฉัน
@@ -179,44 +297,77 @@ export default function ProjectsDrawer({ open, onClose }: { open: boolean; onClo
                             <FileCode size={15} className="text-shine/70" />
                           </span>
                           <span className="min-w-0 flex-1">
-                            <span className="block truncate text-sm text-chalk">{p.name}</span>
+                            <span className="block truncate text-sm text-chalk">
+                              {p.name}
+                            </span>
                             <span className="block truncate font-mono text-[10px] text-chalk-dim">
                               {formatDate(p.updatedAt)}
-                              {p.access === "member" && p.role ? ` · ${p.role}` : ""}
+                              {p.access === "member" && p.role
+                                ? ` · ${p.role}`
+                                : ""}
                             </span>
                           </span>
                         </button>
                         {p.access === "owner" && (
-                          <div className="absolute right-1 hidden items-center gap-0.5 rounded-lg bg-night-panel/90 px-1 group-hover:flex">
-                            <button
-                              onClick={async () => {
-                                await duplicateProject(p.id);
-                                await refresh();
-                              }}
-                              title="Duplicate"
-                              className="grid h-7 w-7 place-items-center rounded-md text-chalk-dim transition hover:text-shine"
-                            >
-                              <Copy size={13} />
-                            </button>
-                            <button
-                              onClick={async () => {
-                                if (!confirm(`ลบ "${p.name}" ถาวร?`)) return;
-                                await deleteProject(p.id);
-                                await refresh();
-                              }}
-                              title="ลบ"
-                              className="grid h-7 w-7 place-items-center rounded-md text-chalk-dim transition hover:text-halt"
-                            >
-                              <Trash2 size={13} />
-                            </button>
-                          </div>
+                          <button
+                            onClick={(e) => toggleMenu(e, p.id)}
+                            aria-label="ตัวเลือก"
+                            className={`grid h-7 w-7 shrink-0 place-items-center rounded-md transition hover:bg-chalk/10 hover:text-chalk ${
+                              menu?.id === p.id
+                                ? "bg-chalk/10 text-chalk"
+                                : "text-chalk-dim"
+                            }`}
+                          >
+                            <MoreHorizontal size={16} />
+                          </button>
                         )}
+                        {menu?.id === p.id &&
+                          createPortal(
+                            <>
+                              <div
+                                className="fixed inset-0 z-[60]"
+                                onClick={() => setMenu(null)}
+                              />
+                              <div
+                                style={menu.style}
+                                className="fixed z-[60] w-44 overflow-hidden rounded-xl border border-chalk/15 bg-night-panel py-1 shadow-xl"
+                              >
+                              <button
+                                onClick={() => handleShare(p)}
+                                className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-sm text-chalk/80 transition hover:bg-chalk/5 hover:text-chalk"
+                              >
+                                <Share2 size={14} /> แชร์
+                              </button>
+                              <button
+                                onClick={() => handleDuplicate(p.id)}
+                                className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-sm text-chalk/80 transition hover:bg-chalk/5 hover:text-chalk"
+                              >
+                                <Copy size={14} /> ทำสำเนา
+                              </button>
+                              <button
+                                onClick={() => handleDelete(p)}
+                                className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-sm text-halt/90 transition hover:bg-halt/10 hover:text-halt"
+                              >
+                                <Trash2 size={14} /> ลบ
+                              </button>
+                            </div>
+                            </>,
+                            document.body,
+                          )}
                       </div>
                     ))}
                   </div>
                 ))
               )}
             </div>
+
+            {toast && (
+              <div className="pointer-events-none absolute inset-x-0 bottom-3 flex justify-center">
+                <span className="rounded-full border border-chalk/15 bg-night-panel px-3 py-1.5 text-xs text-chalk shadow-lg">
+                  {toast}
+                </span>
+              </div>
+            )}
           </motion.aside>
         </>
       )}

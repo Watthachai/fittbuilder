@@ -1,8 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Sparkles, X } from "lucide-react";
 import Markdown from "./Markdown";
+import Overlay from "@/components/ui/Overlay";
+import GlassSurface from "@/components/ui/GlassSurface";
 
 interface DocTab {
   kind: string;
@@ -36,27 +38,16 @@ export default function DocPreviewModal({
   const [active, setActive] = useState(0);
   const doc = docs[active] ?? null;
 
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
-
   const submit = () => {
     if (!comment.trim() || busy) return;
     onRevise(comment.trim());
   };
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-night/60 p-4 sm:p-8"
-      onClick={onClose}
-    >
-      <div
-        className="glass-strong flex h-[90vh] w-full max-w-6xl flex-col overflow-hidden rounded-xl shadow-2xl"
-        onClick={(e) => e.stopPropagation()}
+    <Overlay open onClose={onClose} placement="center">
+      <GlassSurface
+        strong
+        className="flex h-[90vh] w-full max-w-6xl flex-col overflow-hidden rounded-xl"
       >
         <div className="flex shrink-0 items-center justify-between gap-3 border-b border-night-edge px-5 py-3">
           <div className="flex min-w-0 items-center gap-3">
@@ -125,7 +116,7 @@ export default function DocPreviewModal({
             {" · ⌘/Ctrl + Enter เพื่อส่ง"}
           </p>
         </div>
-      </div>
-    </div>
+      </GlassSurface>
+    </Overlay>
   );
 }

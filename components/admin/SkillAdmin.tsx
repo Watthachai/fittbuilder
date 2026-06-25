@@ -122,8 +122,9 @@ export default function SkillAdmin() {
                 <div
                   key={row.id}
                   style={{ "--d": `${i * 0.04}s` } as React.CSSProperties}
-                  className="glass stitch-item flex items-center gap-3 rounded-xl p-3"
+                  className="stitch-item"
                 >
+                  <div className="glass flex items-center gap-3 rounded-xl p-3">
                   <SkillIcon name={row.icon} size={18} />
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
@@ -160,6 +161,7 @@ export default function SkillAdmin() {
                     >
                       ลบ
                     </button>
+                  </div>
                   </div>
                 </div>
               ))}

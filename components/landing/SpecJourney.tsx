@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 import { useMotionValueEvent, useScroll } from "motion/react";
 import { Check, FileText, Search, Sparkles } from "lucide-react";
+import GlassSurface from "@/components/ui/GlassSurface";
 
 const PHASES = ["Define", "Plan", "Build", "Verify", "Review", "Ship"];
 
@@ -74,14 +75,16 @@ export default function SpecJourney() {
           {NARR.map((n, i) => (
             <div
               key={n.k}
-              className="glass absolute inset-0 overflow-hidden rounded-3xl p-6 transition-all duration-500 ease-out"
+              className="absolute inset-0 transition-all duration-500 ease-out"
               style={{
                 opacity: i === active ? 1 : 0,
                 transform: i === active ? "translateY(0) scale(1)" : "translateY(28px) scale(0.96)",
                 pointerEvents: i === active ? "auto" : "none",
               }}
             >
-              <Stage k={n.k} />
+              <GlassSurface className="h-full overflow-hidden rounded-3xl p-6">
+                <Stage k={n.k} />
+              </GlassSurface>
             </div>
           ))}
         </div>

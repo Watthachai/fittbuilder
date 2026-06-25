@@ -26,7 +26,7 @@ substitutions:
   # Public (shipped to the browser) — safe to commit.
   _NEXT_PUBLIC_SUPABASE_URL: "https://YOUR-PROJECT.supabase.co"
   _NEXT_PUBLIC_SUPABASE_ANON_KEY: "YOUR_SUPABASE_ANON_KEY"
-  _GEMINI_MODEL: "gemini-2.5-flash"
+  _GEMINI_MODEL: "gemini-3.5-flash"
   _ADMIN_EMAILS: "YOUR_ADMIN_EMAILS"
   # Sensitive — SET THESE IN THE TRIGGER UI, do not commit real values here.
   _GEMINI_API_KEY: "SET_IN_TRIGGER"

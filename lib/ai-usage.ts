@@ -20,9 +20,11 @@ export type UsageKind =
  * the admin report is labelled "ประมาณการ".
  */
 const PRICING: Record<string, { input: number; output: number }> = {
-  "gemini-3.5-flash": { input: 0.3, output: 2.5 },
+  // Paid tier, USD per 1M tokens (output includes thinking tokens).
+  "gemini-3.5-flash": { input: 1.5, output: 9.0 },
+  "gemini-2.5-flash": { input: 0.3, output: 2.5 },
 };
-const DEFAULT_PRICE = { input: 0.3, output: 2.5 };
+const DEFAULT_PRICE = { input: 1.5, output: 9.0 };
 
 /** Estimated USD cost for a token split, using the configured model's pricing. */
 export function estimateCostUsd(promptTokens: number, outputTokens: number): number {

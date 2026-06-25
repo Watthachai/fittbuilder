@@ -24,6 +24,8 @@ import {
   X,
 } from "lucide-react";
 import { isBuildPhase, type PhaseId } from "@/lib/phases";
+import { useFileDrop } from "@/lib/useFileDrop";
+import DropOverlay from "@/components/ui/DropOverlay";
 import type { AgentAction, ChatAttachmentInput, ChatMessage, LiveMessage } from "@/lib/types";
 
 const MAX_FILE_BYTES = 4 * 1024 * 1024; // 4MB/attachment — keeps the SSE body sane
@@ -233,6 +235,10 @@ export default function ChatPanel({
     }
   };
 
+  const { dragging, dropHandlers } = useFileDrop((files) => {
+    if (!readOnly && !busy) void onPickMedia(files);
+  });
+
   // The clickable choices belong to the latest assistant turn, and only while
   // we're idle (a new streaming turn or a user reply clears them).
   const last = messages[messages.length - 1];
@@ -281,7 +287,8 @@ export default function ChatPanel({
   const sendLabel = inBuild ? (hasApp ? "แก้ไข" : "สร้าง") : "ส่ง";
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col bg-night-panel">
+    <div className="relative flex min-h-0 flex-1 flex-col bg-night-panel" {...dropHandlers}>
+      {dragging && !readOnly && <DropOverlay />}
       <div
         ref={scrollRef}
         className="scroll-thin min-h-0 flex-1 space-y-4 overflow-y-auto px-4 py-4"
@@ -471,8 +478,9 @@ export default function ChatPanel({
               ))}
             </div>
           )}
-          {media.length > 0 && (
+          {(media.length > 0 || mediaBusy) && (
             <div className="flex flex-wrap gap-1.5 px-2.5 pt-2.5">
+              {mediaBusy && <span className="skeleton h-[22px] w-24 rounded-md" />}
               {media.map((m, i) => (
                 <span
                   key={`${m.name}-${i}`}

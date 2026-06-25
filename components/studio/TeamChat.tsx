@@ -6,6 +6,8 @@ import { createClient } from "@/lib/supabase/client";
 import { loadMessages, sendMessage, sendSystemMessage, uploadAttachment } from "@/lib/team-chat";
 import { onSystemLog } from "@/lib/team-chat-bus";
 import { toast } from "@/lib/toast";
+import { useFileDrop } from "@/lib/useFileDrop";
+import DropOverlay from "@/components/ui/DropOverlay";
 import type { TeamChatAttachment, TeamChatMessage } from "@/lib/types";
 
 const TYPING_TTL = 2500;
@@ -170,6 +172,8 @@ export default function TeamChat({ projectId }: { projectId: string }) {
     }
   };
 
+  const { dragging, dropHandlers } = useFileDrop((files) => void onPickFiles(files));
+
   const send = async () => {
     const body = draft.trim();
     if ((!body && pending.length === 0) || sending) return;
@@ -219,6 +223,7 @@ export default function TeamChat({ projectId }: { projectId: string }) {
       {open && <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} aria-hidden />}
 
       <div
+        {...dropHandlers}
         className={`absolute right-0 top-full z-50 mt-2 flex w-[min(94vw,460px)] origin-top-right flex-col overflow-hidden rounded-xl border border-night-edge bg-night-panel shadow-2xl transition-all duration-200 ${
           open
             ? "pointer-events-auto translate-y-0 scale-100 opacity-100"
@@ -227,6 +232,7 @@ export default function TeamChat({ projectId }: { projectId: string }) {
         style={{ height: "min(82vh, 760px)" }}
         aria-hidden={!open}
       >
+        {dragging && <DropOverlay />}
         {/* Header */}
         <div className="flex h-10 shrink-0 items-center justify-between border-b border-night-edge px-3.5">
           <div className="flex items-center gap-2">
@@ -278,8 +284,9 @@ export default function TeamChat({ projectId }: { projectId: string }) {
 
         {/* Composer */}
         <div className="shrink-0 border-t border-night-edge p-2.5">
-          {pending.length > 0 && (
+          {(pending.length > 0 || uploading) && (
             <div className="mb-2 flex flex-wrap gap-1.5">
+              {uploading && <span className="skeleton h-[22px] w-28 rounded-md" />}
               {pending.map((a) => (
                 <span
                   key={a.path}
@@ -385,15 +392,18 @@ function ChatBubble({ message, mine }: { message: TeamChatMessage; mine: boolean
 }
 
 function Attachment({ att }: { att: TeamChatAttachment }) {
+  const [loaded, setLoaded] = useState(false);
   const isImage = att.type.startsWith("image/");
   if (isImage && att.url) {
     return (
       <a href={att.url} target="_blank" rel="noreferrer" className="mt-1 block">
+        {!loaded && <span className="skeleton block h-40 w-56 rounded-lg" />}
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={att.url}
           alt={att.name}
-          className="max-h-56 rounded-lg border border-night-edge object-cover"
+          onLoad={() => setLoaded(true)}
+          className={`max-h-56 rounded-lg border border-night-edge object-cover ${loaded ? "block" : "hidden"}`}
         />
       </a>
     );

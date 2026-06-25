@@ -1,35 +1,18 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { ArrowRight, Mail } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
-
-// Real example briefs from the product — shown "typing" in the showcase so the
-// page previews what you'll actually do after signing in.
-const EXAMPLES = [
-  "Landing page ร้านกาแฟ สไตล์ minimal โทนครีม-น้ำตาล",
-  "Dashboard ยอดขาย มี KPI cards และกราฟรายเดือน",
-  "หน้าจองโต๊ะร้านอาหาร เลือกวัน เวลา จำนวนคน",
-  "Kanban board ลาก task ระหว่างคอลัมน์ได้",
-];
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [sent, setSent] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [ex, setEx] = useState(0);
   const supabase = createClient();
   const redirectTo =
     typeof window !== "undefined" ? `${location.origin}/auth/callback` : undefined;
-
-  // Rotate the showcase prompt (skips when the user prefers reduced motion).
-  useEffect(() => {
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-    const id = setInterval(() => setEx((i) => (i + 1) % EXAMPLES.length), 3600);
-    return () => clearInterval(id);
-  }, []);
 
   async function google() {
     setBusy(true);
@@ -148,61 +131,19 @@ export default function LoginPage() {
         </p>
       </section>
 
-      {/* ── Right: product showcase (prompt → live demo) ──────────────── */}
-      <section className="bg-grid relative hidden overflow-hidden border-l border-night-edge bg-night-panel lg:block">
-        <div
-          className="pointer-events-none absolute -right-24 -top-24 h-96 w-96 rounded-full opacity-25 blur-3xl"
-          style={{ background: "radial-gradient(circle, var(--shine), transparent 70%)" }}
+      {/* ── Right: product showcase video ─────────────────────────────── */}
+      <section className="relative hidden overflow-hidden border-l border-night-edge bg-night-panel lg:block">
+        <video
+          src="/cowork-login-hero-dark.mp4"
+          autoPlay
+          muted
+          loop
+          playsInline
+          aria-hidden
+          className="h-full w-full object-cover"
         />
-
-        <div className="relative flex h-full flex-col justify-center gap-6 px-12 xl:px-20">
-          {/* The brief you'd type */}
-          <div className="glass max-w-md rounded-2xl p-5 shadow-2xl">
-            <div className="mb-3 flex items-center justify-between">
-              <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-chalk/60">
-                FITT-001 · Demo Brief
-              </span>
-              <span className="font-mono text-[10px] text-chalk/40">Auto</span>
-            </div>
-            <p key={ex} className="tip-fade min-h-[3.25rem] text-[15px] leading-relaxed text-chalk">
-              {EXAMPLES[ex]}
-              <span className="caret-blink ml-0.5 inline-block h-[1.05em] w-[2px] translate-y-[2px] bg-shine align-middle" />
-            </p>
-            <div className="mt-4 flex justify-end">
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-shine px-3.5 py-1.5 font-display text-xs font-semibold text-night">
-                สร้างเลย <ArrowRight size={13} />
-              </span>
-            </div>
-          </div>
-
-          {/* …becomes a real running demo */}
-          <div className="ml-10 max-w-md overflow-hidden rounded-2xl border border-night-edge bg-night shadow-2xl xl:ml-16">
-            <div className="flex items-center gap-2 border-b border-night-edge bg-night-panel px-3 py-2">
-              <span className="h-2.5 w-2.5 rounded-full bg-halt/70" />
-              <span className="h-2.5 w-2.5 rounded-full bg-shine/40" />
-              <span className="h-2.5 w-2.5 rounded-full bg-go/70" />
-              <span className="ml-2 flex items-center gap-1.5 font-mono text-[10px] text-chalk-dim">
-                <span className="live-dot h-1.5 w-1.5 rounded-full bg-go" /> your-demo.fitt.app
-              </span>
-            </div>
-            <div className="space-y-3 p-5">
-              <div className="flex items-center justify-between">
-                <span className="h-2.5 w-16 rounded-full bg-chalk/20" />
-                <span className="h-2.5 w-10 rounded-full bg-shine/60" />
-              </div>
-              <div className="h-4 w-3/4 rounded bg-chalk/25" />
-              <div className="h-3 w-1/2 rounded bg-chalk/15" />
-              <span className="inline-block rounded-md bg-shine px-3 py-1.5 text-[10px] font-semibold text-night">
-                เริ่มเลย
-              </span>
-              <div className="grid grid-cols-3 gap-2 pt-1">
-                <div className="h-12 rounded-lg bg-chalk/[0.06]" />
-                <div className="h-12 rounded-lg bg-chalk/[0.06]" />
-                <div className="h-12 rounded-lg bg-chalk/[0.06]" />
-              </div>
-            </div>
-          </div>
-        </div>
+        {/* Subtle fade so the video blends into the panel's left border. */}
+        <div className="pointer-events-none absolute inset-0 bg-gradient-to-l from-transparent via-transparent to-night/30" />
       </section>
     </main>
   );

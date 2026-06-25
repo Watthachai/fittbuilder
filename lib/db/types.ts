@@ -254,6 +254,42 @@ export interface Database {
         };
         Relationships: [];
       };
+      fittbuilder_project_chat: {
+        Row: {
+          id: string;
+          project_id: string;
+          user_id: string | null;
+          author_name: string | null;
+          author_avatar: string | null;
+          kind: string;
+          body: string;
+          attachments: Json;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          project_id: string;
+          user_id?: string | null;
+          author_name?: string | null;
+          author_avatar?: string | null;
+          kind?: string;
+          body?: string;
+          attachments?: Json;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          project_id?: string;
+          user_id?: string | null;
+          author_name?: string | null;
+          author_avatar?: string | null;
+          kind?: string;
+          body?: string;
+          attachments?: Json;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
     };
     Views: Record<string, never>;
     Functions: {

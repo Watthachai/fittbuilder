@@ -56,6 +56,30 @@ export interface ChatMessage {
   hasDoc?: boolean;
 }
 
+/** A file shared in the team chat. `path` is the storage object key; the signed
+ *  URL is resolved at load time (the bucket is private). */
+export interface TeamChatAttachment {
+  path: string;
+  name: string;
+  type: string;
+  size: number;
+  /** Short-lived signed URL, attached when messages are loaded for display. */
+  url?: string;
+}
+
+/** One message in a project's team chat (people talking, not the AI builder). */
+export interface TeamChatMessage {
+  id: string;
+  /** "message" = a person; "system" = an activity log (e.g. phase approval). */
+  kind: "message" | "system";
+  userId: string | null;
+  authorName: string | null;
+  authorAvatar: string | null;
+  body: string;
+  attachments: TeamChatAttachment[];
+  createdAt: string;
+}
+
 /** One file's before→after state in a build turn (null = absent on that side). */
 export interface FileChange {
   path: string;

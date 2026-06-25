@@ -53,7 +53,9 @@ import {
   subscribeGenerations,
 } from "@/lib/generation/registry";
 import { createClient } from "@/lib/supabase/client";
+import { emitSystemLog } from "@/lib/team-chat-bus";
 import ChatPanel from "./ChatPanel";
+import TeamChat from "./TeamChat";
 import CodePanel from "./CodePanel";
 import DesignPicker from "./DesignPicker";
 import DocPreviewModal from "./DocPreviewModal";
@@ -151,6 +153,8 @@ export default function Studio({ projectId }: { projectId: string }) {
 
   const [readOnly, setReadOnly] = useState(false);
   const [isOwner, setIsOwner] = useState(false);
+  const [teamChatOpen, setTeamChatOpen] = useState(false);
+  const [teamChatUnread, setTeamChatUnread] = useState(0);
   const [shareOpen, setShareOpen] = useState(false);
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved">("idle");
   const [skillPickerOpen, setSkillPickerOpen] = useState(false);
@@ -748,6 +752,11 @@ export default function Studio({ projectId }: { projectId: string }) {
       return;
     }
     await approvePhase(projectId, current.phase);
+    // Log who approved this phase into the team chat (best-effort, live to all).
+    const { data: { user } } = await createClient().auth.getUser();
+    const meta = user?.user_metadata ?? {};
+    const who = (meta.full_name ?? meta.name ?? user?.email ?? "สมาชิก") as string;
+    emitSystemLog(projectId, `${who} อนุมัติขั้น “${phaseDef(current.phase).user}” แล้ว`);
     const fresh = await getApprovalState(projectId, current.phase);
     setApproval(fresh);
     if (fresh.approvers.every((a) => fresh.approved.includes(a))) advancePhase();
@@ -1292,6 +1301,15 @@ export default function Studio({ projectId }: { projectId: string }) {
           }
         }}
         onTeamShare={isOwner ? () => setShareOpen(true) : undefined}
+        onToggleTeamChat={() => setTeamChatOpen((o) => !o)}
+        teamChatUnread={teamChatUnread}
+      />
+
+      <TeamChat
+        projectId={projectId}
+        open={teamChatOpen}
+        onClose={() => setTeamChatOpen(false)}
+        onUnreadChange={setTeamChatUnread}
       />
 
       <PhaseStepper

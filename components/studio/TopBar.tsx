@@ -25,6 +25,10 @@ interface TopBarProps {
   project: ProjectRecord;
   view: "preview" | "code";
   busy: boolean;
+  /** Viewer (read-only) — shown as a chip instead of the auto-save status. */
+  readOnly: boolean;
+  /** Save status, shown in the fixed-height bar (no layout shift). */
+  saveState: "idle" | "saving" | "saved";
   canUndo: boolean;
   /** A runnable app exists — share links and zip exports make sense. */
   shippable: boolean;
@@ -41,6 +45,8 @@ export default function TopBar({
   project,
   view,
   busy,
+  readOnly,
+  saveState,
   canUndo,
   shippable,
   onRename,
@@ -81,9 +87,15 @@ export default function TopBar({
         className="w-48 rounded-sm border border-transparent bg-transparent px-2 py-1 font-display text-sm text-chalk outline-none transition focus:border-shine"
         aria-label="ชื่อโปรเจกต์"
       />
-      <span className="font-mono text-[10px] uppercase tracking-widest text-chalk-dim">
-        เซฟอัตโนมัติ
-      </span>
+      {readOnly ? (
+        <span className="inline-flex items-center gap-1 rounded-full border border-night-edge bg-chalk/[0.04] px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider text-chalk-dim">
+          <Eye size={11} /> ดูอย่างเดียว
+        </span>
+      ) : (
+        <span className="font-mono text-[10px] uppercase tracking-widest text-chalk-dim">
+          {saveState === "saving" ? "กำลังบันทึก…" : saveState === "saved" ? "บันทึกแล้ว" : "เซฟอัตโนมัติ"}
+        </span>
+      )}
 
       <div className="mx-auto flex items-center rounded-sm border border-night-edge p-0.5">
         <button

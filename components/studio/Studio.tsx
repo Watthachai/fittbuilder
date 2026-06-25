@@ -1379,21 +1379,12 @@ export default function Studio({ projectId }: { projectId: string }) {
           </span>
         </div>
       )}
-      {readOnly && (
-        <div className="flex items-center justify-center bg-night-panel px-3 py-1 text-xs font-medium text-chalk-dim border-b border-night-edge">
-          อ่านอย่างเดียว (viewer)
-        </div>
-      )}
-      {!readOnly && (saveState === "saving" || saveState === "saved") && (
-        <div className="flex items-center justify-center bg-night-panel px-3 py-1 border-b border-night-edge">
-          {saveState === "saving" && <span className="text-xs text-chalk-dim">กำลังบันทึก…</span>}
-          {saveState === "saved" && <span className="text-xs text-chalk-dim">บันทึกแล้ว</span>}
-        </div>
-      )}
       <TopBar
         project={project}
         view={view}
         busy={busy}
+        readOnly={readOnly}
+        saveState={saveState}
         canUndo={!readOnly && project.history.length > 0}
         shippable={hasApp}
         onRename={(name) => { if (!readOnly) persist({ ...project, name: name.trim() || "Untitled" }); }}

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Anuphan, IBM_Plex_Mono, Inter } from "next/font/google";
 import "./globals.css";
 import FloatingThemeToggle from "@/components/FloatingThemeToggle";
+import GlobalGenerationIndicator from "@/components/GlobalGenerationIndicator";
 
 // Inter is the theme's typeface (docs/brief-plans/design.md); it has no Thai
 // glyphs, so Anuphan sits behind it in the stack for Thai text.
@@ -62,6 +63,7 @@ export default function RootLayout({
       <body className="min-h-full flex flex-col">
         {children}
         <FloatingThemeToggle />
+        <GlobalGenerationIndicator />
       </body>
     </html>
   );

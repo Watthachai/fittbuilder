@@ -1,7 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import { DOC_PATHS, docOnlyFiles, docsFromFiles, hasRunnableApp } from "@/lib/define";
 import { computeChanges, sanitizeFiles } from "@/lib/files";
 import { isBuildPhase, nextPhase, phaseDef, type PhaseId } from "@/lib/phases";
@@ -40,6 +46,12 @@ import {
   warmBoot,
   writeFile,
 } from "@/lib/webcontainer";
+import {
+  beginGeneration,
+  endGeneration,
+  isGenerating,
+  subscribeGenerations,
+} from "@/lib/generation/registry";
 import ChatPanel from "./ChatPanel";
 import CodePanel from "./CodePanel";
 import DesignPicker from "./DesignPicker";
@@ -145,6 +157,12 @@ export default function Studio({ projectId }: { projectId: string }) {
   const [detectingSkill, setDetectingSkill] = useState(false);
 
   const abortRef = useRef<AbortController | null>(null);
+  // Set true when THIS studio instance unmounts. A detached generation keeps
+  // streaming + persisting to storage (so it finishes in the background) but
+  // must never touch the shared WebContainer again — that container now belongs
+  // to whatever the user navigated to. Per-instance, never reset, which avoids
+  // any race with a future studio that re-opens the same project.
+  const detachedRef = useRef(false);
   const lastActionRef = useRef<LastAction | null>(null);
   const projectRef = useRef<ProjectRecord | null>(null);
   const liveRef = useRef<LiveMessage | null>(null);
@@ -304,6 +322,7 @@ export default function Studio({ projectId }: { projectId: string }) {
       setErrorMessage(null);
       setChatStreaming(true);
       setLiveBoth({ thinking: "", content: "", actions: [] });
+      beginGeneration(projectId, current.name);
 
       const controller = new AbortController();
       abortRef.current = controller;
@@ -378,6 +397,10 @@ export default function Studio({ projectId }: { projectId: string }) {
         pushTerminal(`✖ ${message}`);
         return null;
       } finally {
+        if (detachedRef.current && projectRef.current) {
+          await saveProject(projectRef.current).catch(() => {});
+        }
+        endGeneration(projectId);
         setChatStreaming(false);
         setLiveBoth(null);
         abortRef.current = null;
@@ -396,7 +419,11 @@ export default function Studio({ projectId }: { projectId: string }) {
       const isIteration = runnable && !spec;
 
       let working = appendMessage(current, newMessage("user", prompt, current.phase));
-      working = persist(working);
+      // Snapshot the pre-generation files into history NOW (not only at the end)
+      // so a turn interrupted by navigating away is still undoable — paired with
+      // the abort-path save below, partial work survives leaving the studio.
+      working = persist(withHistory(working, current.files ?? {}));
+      beginGeneration(projectId, current.name);
 
       // liveContainer = a dev server is already running (scaffold/app), so we can
       // write each file into it as it streams and let Vite HMR show the build.
@@ -455,10 +482,12 @@ export default function Studio({ projectId }: { projectId: string }) {
             files[event.path] = event.content;
             pushTerminal(`📝 ${event.path}`);
             appendLive((p) => ({ ...p, actions: [...p.actions, { icon: "file", label: event.path }] }));
-            if (liveContainer) void writeFile(event.path, event.content).catch(() => {});
+            if (liveContainer && !detachedRef.current)
+              void writeFile(event.path, event.content).catch(() => {});
           } else if (event.type === "delete") {
             delete files[event.path];
-            if (liveContainer) void removeFile(event.path).catch(() => {});
+            if (liveContainer && !detachedRef.current)
+              void removeFile(event.path).catch(() => {});
           } else if (event.type === "deps") {
             depsAdded = true;
             pushTerminal(`+ ติดตั้ง: ${event.packages.join(", ")}`);
@@ -473,7 +502,9 @@ export default function Studio({ projectId }: { projectId: string }) {
         for (const path of deleted) delete files[path];
 
         const changes = computeChanges(current.files, files);
-        working = withHistory(working, files);
+        // History was already snapshotted at the start of the turn, so just set
+        // the final files here (don't push a second history entry).
+        working = { ...working, files };
         const assistantMsg = newMessage("assistant", note || "สร้างเรียบร้อยแล้ว", current.phase);
         const snap = liveRef.current;
         if (snap?.thinking.trim()) assistantMsg.thinking = snap.thinking.trim();
@@ -482,17 +513,30 @@ export default function Studio({ projectId }: { projectId: string }) {
         working = appendMessage(working, assistantMsg);
         persist(working);
 
-        if (depsAdded) {
-          // package.json changed (new npm packages) → re-mount + reinstall so the
-          // generated code that imports them actually runs.
-          await boot(files);
-        } else if (liveContainer) {
-          setPhase("ready"); // files already streamed into the running server (HMR)
-        } else {
-          await boot(files); // first run with no server → boot it now
+        // Detached (user navigated away): files are already persisted above —
+        // skip all container work, it belongs to the foreground project now.
+        if (!detachedRef.current) {
+          if (depsAdded) {
+            // package.json changed (new npm packages) → re-mount + reinstall so
+            // the generated code that imports them actually runs.
+            await boot(files);
+          } else if (liveContainer) {
+            setPhase("ready"); // files already streamed into the running server (HMR)
+          } else {
+            await boot(files); // first run with no server → boot it now
+          }
         }
       } catch (error) {
         if (controller.signal.aborted) {
+          // Aborted = the user navigated away / switched project mid-stream.
+          // Persist what streamed so far so the work isn't lost (the pre-gen
+          // state is in history for undo). This runs even as Studio unmounts
+          // because the async loop and saveProject aren't tied to React.
+          void saveProject({
+            ...working,
+            files: { ...files },
+            updatedAt: new Date().toISOString(),
+          }).catch(() => {});
           pushTerminal("✋ ยกเลิกแล้ว");
           setPhase(runnable || liveContainer ? "ready" : "idle");
           return;
@@ -502,6 +546,12 @@ export default function Studio({ projectId }: { projectId: string }) {
         if (!liveContainer) setPhase("error");
         pushTerminal(`✖ ${message}`);
       } finally {
+        // If this ran detached (in the background), flush the final state now so
+        // a studio re-opening this project reads the result, not a stale save.
+        if (detachedRef.current && projectRef.current) {
+          await saveProject(projectRef.current).catch(() => {});
+        }
+        endGeneration(projectId);
         setChatStreaming(false);
         setLiveBoth(null);
         abortRef.current = null;
@@ -967,12 +1017,39 @@ export default function Studio({ projectId }: { projectId: string }) {
     return () => {
       cancelled = true;
       if (saveTimer.current) clearTimeout(saveTimer.current);
-      // Abort any in-flight generate/agent so stale file writes don't land in
-      // the next project's shared container after an SPA project switch.
-      abortRef.current?.abort();
+      // Don't abort an in-flight generate/agent — let it finish in the background
+      // (the registry keeps it visible site-wide and it persists on done). Mark
+      // this instance detached so its loop stops writing to the shared container,
+      // which is what the old abort guarded against on an SPA project switch.
+      detachedRef.current = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectId]);
+
+  // A generation is running in the BACKGROUND for this project when the registry
+  // has it but THIS instance isn't the one streaming (it was started by a prior,
+  // now-detached studio instance). Derive it from the registry (no effect needed).
+  const projectGenerating = useSyncExternalStore(
+    subscribeGenerations,
+    () => isGenerating(projectId),
+    () => false,
+  );
+  const bgActive = projectGenerating && !chatStreaming;
+
+  // When that background turn finishes, pull the result into this view (no manual
+  // refresh). setState lives in the async callback, not the effect body.
+  const wasBgRef = useRef(false);
+  useEffect(() => {
+    if (wasBgRef.current && !projectGenerating) {
+      void getProject(projectId).then((p) => {
+        if (!p) return;
+        projectRef.current = p;
+        setProject(p);
+        if (hasRunnableApp(p.files) && !detachedRef.current) void boot(p.files!);
+      });
+    }
+    wasBgRef.current = bgActive;
+  }, [projectGenerating, bgActive, projectId, boot]);
 
   // Multi-party approval, sans real-time (Spec 2): refresh the approval tally on
   // phase change, on window focus, and — for shared projects — every 12s, so
@@ -1116,6 +1193,14 @@ export default function Studio({ projectId }: { projectId: string }) {
 
   return (
     <div className="flex h-dvh flex-col overflow-hidden bg-night text-chalk">
+      {bgActive && (
+        <div className="pointer-events-none fixed left-1/2 top-3 z-[60] -translate-x-1/2">
+          <span className="glass inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs text-chalk shadow-lg">
+            <span className="loader-dot h-1.5 w-1.5 rounded-full bg-shine" />
+            กำลังสร้างเบื้องหลัง… จะอัปเดตให้เมื่อเสร็จ
+          </span>
+        </div>
+      )}
       {readOnly && (
         <div className="flex items-center justify-center bg-night-panel px-3 py-1 text-xs font-medium text-chalk-dim border-b border-night-edge">
           อ่านอย่างเดียว (viewer)

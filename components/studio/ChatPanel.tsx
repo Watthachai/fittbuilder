@@ -479,28 +479,40 @@ export default function ChatPanel({
             </div>
           )}
           {(media.length > 0 || mediaBusy) && (
-            <div className="flex flex-wrap gap-1.5 px-2.5 pt-2.5">
-              {mediaBusy && <span className="skeleton h-[22px] w-24 rounded-md" />}
-              {media.map((m, i) => (
-                <span
-                  key={`${m.name}-${i}`}
-                  className="inline-flex items-center gap-1 rounded-md border border-night-edge bg-night-panel px-2 py-0.5 font-mono text-[10px] text-chalk-dim"
-                >
-                  {m.mimeType.startsWith("image/") ? (
-                    <ImagePlus size={9} className="text-shine" />
-                  ) : (
-                    <FileText size={9} className="text-shine" />
-                  )}
-                  <span className="max-w-[160px] truncate">{m.name}</span>
-                  <button
-                    onClick={() => setMedia((prev) => prev.filter((_, j) => j !== i))}
-                    title="เอาออก"
-                    className="text-chalk-dim transition hover:text-halt"
+            <div className="flex flex-wrap items-start gap-2 px-2.5 pt-2.5">
+              {mediaBusy && <span className="skeleton h-16 w-16 rounded-md" />}
+              {media.map((m, i) => {
+                const remove = () => setMedia((prev) => prev.filter((_, j) => j !== i));
+                return m.mimeType.startsWith("image/") ? (
+                  <div key={`${m.name}-${i}`} className="group relative">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={`data:${m.mimeType};base64,${m.data}`}
+                      alt={m.name}
+                      title={m.name}
+                      className="h-16 w-16 rounded-md border border-night-edge object-cover"
+                    />
+                    <button
+                      onClick={remove}
+                      title="เอาออก"
+                      className="absolute -right-1.5 -top-1.5 grid h-5 w-5 place-items-center rounded-full border border-night-edge bg-night text-chalk-dim shadow transition hover:text-halt"
+                    >
+                      <X size={11} />
+                    </button>
+                  </div>
+                ) : (
+                  <span
+                    key={`${m.name}-${i}`}
+                    className="inline-flex items-center gap-1 rounded-md border border-night-edge bg-night-panel px-2 py-1 font-mono text-[10px] text-chalk-dim"
                   >
-                    <X size={10} />
-                  </button>
-                </span>
-              ))}
+                    <FileText size={11} className="text-shine" />
+                    <span className="max-w-[160px] truncate">{m.name}</span>
+                    <button onClick={remove} title="เอาออก" className="transition hover:text-halt">
+                      <X size={10} />
+                    </button>
+                  </span>
+                );
+              })}
             </div>
           )}
           <textarea
@@ -516,6 +528,13 @@ export default function ChatPanel({
               if (event.key === "Enter" && !event.shiftKey) {
                 event.preventDefault();
                 send(draft);
+              }
+            }}
+            onPaste={(event) => {
+              const files = event.clipboardData?.files;
+              if (files && files.length > 0) {
+                event.preventDefault();
+                void onPickMedia(files);
               }
             }}
             placeholder={placeholder}

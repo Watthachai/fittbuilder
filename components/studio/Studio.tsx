@@ -1446,7 +1446,11 @@ export default function Studio({ projectId }: { projectId: string }) {
               const note = attachedPaths.length
                 ? `\n\n📎 อ้างอิงไฟล์: ${attachedPaths.join(", ")}`
                 : "";
-              const full = `${text}${note}`;
+              // Record what was attached in the transcript so it's visible later.
+              const mediaNote = media.length
+                ? `\n\n🖼️ แนบ: ${media.map((m) => m.name).join(", ")}`
+                : "";
+              const full = `${text}${note}${mediaNote}`;
               setAttachedPaths([]);
               if (inBuild) handleBuildSubmit(full, media);
               else void runAgent(full, undefined, undefined, media);

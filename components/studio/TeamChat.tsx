@@ -219,7 +219,9 @@ export default function TeamChat({ projectId }: { projectId: string }) {
     try {
       for (const file of Array.from(files)) {
         const att = await uploadAttachment(projectId, file);
-        setPending((prev) => [...prev, att]);
+        // Object URL = instant local preview before send (stripped on persist).
+        const url = file.type.startsWith("image/") ? URL.createObjectURL(file) : undefined;
+        setPending((prev) => [...prev, { ...att, url }]);
       }
     } catch (e) {
       console.error("[team-chat] upload failed:", e);
@@ -413,24 +415,43 @@ export default function TeamChat({ projectId }: { projectId: string }) {
             </div>
           )}
           {(pending.length > 0 || uploading) && (
-            <div className="mb-2 flex flex-wrap gap-1.5">
-              {uploading && <span className="skeleton h-[22px] w-28 rounded-md" />}
-              {pending.map((a) => (
-                <span
-                  key={a.path}
-                  className="inline-flex items-center gap-1 rounded-md border border-night-edge bg-night px-2 py-0.5 font-mono text-[10px] text-chalk-dim"
-                >
-                  <Paperclip size={9} className="text-shine" />
-                  <span className="max-w-[140px] truncate">{a.name}</span>
-                  <button
-                    onClick={() => setPending((prev) => prev.filter((p) => p.path !== a.path))}
-                    className="transition hover:text-halt"
-                    title="เอาออก"
+            <div className="mb-2 flex flex-wrap items-start gap-2">
+              {uploading && <span className="skeleton h-16 w-16 rounded-md" />}
+              {pending.map((a) => {
+                const remove = () => {
+                  if (a.url) URL.revokeObjectURL(a.url);
+                  setPending((prev) => prev.filter((p) => p.path !== a.path));
+                };
+                return a.type.startsWith("image/") && a.url ? (
+                  <div key={a.path} className="relative">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={a.url}
+                      alt={a.name}
+                      title={a.name}
+                      className="h-16 w-16 rounded-md border border-night-edge object-cover"
+                    />
+                    <button
+                      onClick={remove}
+                      title="เอาออก"
+                      className="absolute -right-1.5 -top-1.5 grid h-5 w-5 place-items-center rounded-full border border-night-edge bg-night text-chalk-dim shadow transition hover:text-halt"
+                    >
+                      <X size={11} />
+                    </button>
+                  </div>
+                ) : (
+                  <span
+                    key={a.path}
+                    className="inline-flex items-center gap-1 rounded-md border border-night-edge bg-night px-2 py-1 font-mono text-[10px] text-chalk-dim"
                   >
-                    <X size={10} />
-                  </button>
-                </span>
-              ))}
+                    <Paperclip size={9} className="text-shine" />
+                    <span className="max-w-[140px] truncate">{a.name}</span>
+                    <button onClick={remove} className="transition hover:text-halt" title="เอาออก">
+                      <X size={10} />
+                    </button>
+                  </span>
+                );
+              })}
             </div>
           )}
           <div className="flex items-end gap-1.5 rounded-md border border-night-edge bg-night focus-within:border-shine">
@@ -460,6 +481,13 @@ export default function TeamChat({ projectId }: { projectId: string }) {
                 if (e.key === "Enter" && !e.shiftKey) {
                   e.preventDefault();
                   void send();
+                }
+              }}
+              onPaste={(e) => {
+                const files = e.clipboardData?.files;
+                if (files && files.length > 0) {
+                  e.preventDefault();
+                  void onPickFiles(files);
                 }
               }}
               placeholder="พิมพ์ข้อความถึงทีม…"

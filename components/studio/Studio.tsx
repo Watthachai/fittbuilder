@@ -52,6 +52,7 @@ import {
   isGenerating,
   subscribeGenerations,
 } from "@/lib/generation/registry";
+import { createClient } from "@/lib/supabase/client";
 import ChatPanel from "./ChatPanel";
 import CodePanel from "./CodePanel";
 import DesignPicker from "./DesignPicker";
@@ -168,6 +169,14 @@ export default function Studio({ projectId }: { projectId: string }) {
   const liveRef = useRef<LiveMessage | null>(null);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const skillCheckedRef = useRef<string | null>(null);
+  // Realtime fan-out so collaborators see each other's turns live. The channel
+  // is ephemeral pub/sub (no DB schema); clientId tags our own broadcasts so we
+  // ignore them; streamingRef mirrors chatStreaming so an incoming update never
+  // clobbers our own in-flight turn (the closure would otherwise read it stale).
+  const rtChannelRef = useRef<ReturnType<ReturnType<typeof createClient>["channel"]> | null>(null);
+  const clientIdRef = useRef("");
+  const streamingRef = useRef(false);
+  const rtReloadTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Show the domain SkillPicker once per project at the start of Define when no
   // skill is chosen yet, and auto-detect from the prompt / first message.
@@ -234,7 +243,15 @@ export default function Studio({ projectId }: { projectId: string }) {
     setSaveState("saving");
     saveTimer.current = setTimeout(() => {
       saveProject(local)
-        .then(() => setSaveState("saved"))
+        .then(() => {
+          setSaveState("saved");
+          // Tell collaborators a new turn landed so their idle views pull it in.
+          rtChannelRef.current?.send({
+            type: "broadcast",
+            event: "updated",
+            payload: { from: clientIdRef.current },
+          });
+        })
         .catch((e) => {
           console.error("[studio] save failed:", e);
           setSaveState("idle");
@@ -1050,6 +1067,49 @@ export default function Studio({ projectId }: { projectId: string }) {
     }
     wasBgRef.current = bgActive;
   }, [projectGenerating, bgActive, projectId, boot]);
+
+  // Mirror chatStreaming into a ref so the realtime handler's closure reads the
+  // live value (it subscribes once, keyed on projectId, not on every turn).
+  useEffect(() => {
+    streamingRef.current = chatStreaming;
+  }, [chatStreaming]);
+
+  // Realtime collaboration: when a collaborator's turn lands, they broadcast on
+  // this project's channel; idle viewers pull the new messages + files in. Reload
+  // is debounced and guarded so it never clobbers our own in-flight or unsaved
+  // work. We deliberately don't reboot the preview here — a silent file refresh
+  // beats yanking the running demo out from under whoever's looking at it.
+  useEffect(() => {
+    if (!clientIdRef.current) {
+      clientIdRef.current =
+        typeof crypto !== "undefined" && crypto.randomUUID
+          ? crypto.randomUUID()
+          : `c-${Math.random().toString(36).slice(2)}`;
+    }
+    const supabase = createClient();
+    const channel = supabase.channel(`rt:project:${projectId}`);
+    rtChannelRef.current = channel;
+    channel
+      .on("broadcast", { event: "updated" }, ({ payload }) => {
+        if (!payload || payload.from === clientIdRef.current) return; // our own
+        if (rtReloadTimer.current) clearTimeout(rtReloadTimer.current);
+        rtReloadTimer.current = setTimeout(() => {
+          // Re-checked at fire time: state can change during the debounce.
+          if (streamingRef.current || abortRef.current || saveTimer.current) return;
+          void getProject(projectId).then((p) => {
+            if (!p) return;
+            projectRef.current = p;
+            setProject(p);
+          });
+        }, 400);
+      })
+      .subscribe();
+    return () => {
+      if (rtReloadTimer.current) clearTimeout(rtReloadTimer.current);
+      void supabase.removeChannel(channel);
+      rtChannelRef.current = null;
+    };
+  }, [projectId]);
 
   // Multi-party approval, sans real-time (Spec 2): refresh the approval tally on
   // phase change, on window focus, and — for shared projects — every 12s, so

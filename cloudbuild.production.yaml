@@ -1,63 +1,51 @@
 # FITT Builder — Cloud Build → Cloud Run (PRODUCTION).
-# Cost-optimized: scale-to-zero (min 0), 512Mi, default Cloud Build pool (free
-# 120 build-min/day — no machineType), logs to Cloud Logging only.
+# Simple mode: ALL config (incl. API keys) comes from substitution variables set
+# in the Cloud Build Trigger UI — no Secret Manager. Cost-optimized: scale-to-zero,
+# 512Mi, default build pool (free 120 build-min/day), Cloud Logging only.
 #
-# ── ONE-TIME SETUP ────────────────────────────────────────────────────────────
-# 1) Create the secrets (paste each value when prompted). DMAIL is OPTIONAL —
-#    only if you use team-invite emails (then also re-add it to --set-secrets):
-#      printf '%s' "<gemini key>"        | gcloud secrets create fitt-gemini-api-key            --data-file=-
-#      printf '%s' "<service role key>"  | gcloud secrets create fitt-supabase-service-role-key --data-file=-
-# 2) Let the Cloud Run RUNTIME service account read them
-#    (default = <PROJECT_NUMBER>-compute@developer.gserviceaccount.com):
-#      for s in fitt-gemini-api-key fitt-supabase-service-role-key; do
-#        gcloud secrets add-iam-policy-binding "$s" \
-#          --member="serviceAccount:<PROJECT_NUMBER>-compute@developer.gserviceaccount.com" \
-#          --role="roles/secretmanager.secretAccessor"; done
-# 3) Let the Cloud Build SA deploy:
-#      gcloud projects add-iam-policy-binding <PROJECT_ID> \
-#        --member="serviceAccount:<PROJECT_NUMBER>@cloudbuild.gserviceaccount.com" --role="roles/run.admin"
-#      gcloud projects add-iam-policy-binding <PROJECT_ID> \
-#        --member="serviceAccount:<PROJECT_NUMBER>@cloudbuild.gserviceaccount.com" --role="roles/iam.serviceAccountUser"
-# 4) Fill the _NEXT_PUBLIC_* and _ADMIN_EMAILS below, then:
-#      gcloud builds submit --config cloudbuild.production.yaml
-# 5) After deploy, add the service URL to Supabase → Auth → URL Configuration →
-#    Redirect URLs:  https://<service-url>/auth/callback
-#
-# ── VIA CLOUD BUILD TRIGGER (recommended) ─────────────────────────────────────
-# Cloud Build → Triggers → Create → Source = this repo, branch = ^main$ (prod),
-# Configuration = "Cloud Build configuration file" → /cloudbuild.production.yaml.
-# Under Advanced → Substitution variables, add (override the placeholders here):
-#   _NEXT_PUBLIC_SUPABASE_URL, _NEXT_PUBLIC_SUPABASE_ANON_KEY, _ADMIN_EMAILS
-#   (optional: _MAX_INSTANCES, _REGION). Secrets stay in Secret Manager — do NOT
-#   put them in the trigger. $BUILD_ID is auto-set; the trigger fires on push.
-#
-# Stricter prod (optional): pin secret versions instead of :latest (e.g.
-# fitt-gemini-api-key:1) so a `gcloud secrets versions add` can't silently change
-# what production loads — find versions with `gcloud secrets versions list <name>`.
+# ── SETUP (once) ──────────────────────────────────────────────────────────────
+# A) The trigger's user-managed service account needs these project roles:
+#      roles/logging.logWriter  roles/artifactregistry.writer  roles/run.admin
+#    and act-as on the Cloud Run runtime SA:
+#      gcloud iam service-accounts add-iam-policy-binding \
+#        <PROJECT_NUMBER>-compute@developer.gserviceaccount.com \
+#        --member="serviceAccount:<build-sa>@<PROJECT_ID>.iam.gserviceaccount.com" \
+#        --role="roles/iam.serviceAccountUser"
+# B) In the trigger → Advanced → Substitution variables, set (override below):
+#      _NEXT_PUBLIC_SUPABASE_URL, _NEXT_PUBLIC_SUPABASE_ANON_KEY, _ADMIN_EMAILS,
+#      _GEMINI_API_KEY, _SUPABASE_SERVICE_ROLE_KEY
+#    (the keys live in the trigger config — keep that trigger access-restricted).
+# C) After the first deploy, add the service URL to Supabase → Auth → URL
+#    Configuration → Redirect URLs:  https://<service-url>/auth/callback
 # ──────────────────────────────────────────────────────────────────────────────
 
 substitutions:
   _SERVICE: "fitt-builder"
   _REGION: "asia-southeast1"
   _MAX_INSTANCES: "3"
-  # Public Supabase client config (shipped to the browser; safe to commit).
+  # Public (shipped to the browser) — safe to commit.
   _NEXT_PUBLIC_SUPABASE_URL: "https://YOUR-PROJECT.supabase.co"
   _NEXT_PUBLIC_SUPABASE_ANON_KEY: "YOUR_SUPABASE_ANON_KEY"
   _GEMINI_MODEL: "gemini-2.5-flash"
-  # Comma-separated; full emails or "@domain" suffixes.
   _ADMIN_EMAILS: "YOUR_ADMIN_EMAILS"
+  # Sensitive — SET THESE IN THE TRIGGER UI, do not commit real values here.
+  _GEMINI_API_KEY: "SET_IN_TRIGGER"
+  _SUPABASE_SERVICE_ROLE_KEY: "SET_IN_TRIGGER"
 
 steps:
   # ==================== PREFLIGHT ====================
-  # Fail fast if the required substitutions are still placeholders.
   - name: gcr.io/google.com/cloudsdktool/cloud-sdk:slim
     id: preflight
     entrypoint: bash
     args:
       - -c
       - |
-        if printf '%s' "${_NEXT_PUBLIC_SUPABASE_URL}${_NEXT_PUBLIC_SUPABASE_ANON_KEY}${_ADMIN_EMAILS}" | grep -q 'YOUR'; then
-          echo "ERROR: set _NEXT_PUBLIC_SUPABASE_URL, _NEXT_PUBLIC_SUPABASE_ANON_KEY and _ADMIN_EMAILS before deploying." >&2
+        miss=
+        for v in "${_NEXT_PUBLIC_SUPABASE_URL}" "${_NEXT_PUBLIC_SUPABASE_ANON_KEY}" "${_ADMIN_EMAILS}" "${_GEMINI_API_KEY}" "${_SUPABASE_SERVICE_ROLE_KEY}"; do
+          case "$v" in *YOUR*|SET_IN_TRIGGER|"") miss=1;; esac
+        done
+        if [ -n "$miss" ]; then
+          echo "ERROR: set _NEXT_PUBLIC_SUPABASE_URL, _NEXT_PUBLIC_SUPABASE_ANON_KEY, _ADMIN_EMAILS, _GEMINI_API_KEY, _SUPABASE_SERVICE_ROLE_KEY in the trigger before deploying." >&2
           exit 1
         fi
         echo "preflight ok"
@@ -93,6 +81,7 @@ steps:
     waitFor: [build]
 
   # ==================== DEPLOY ====================
+  # Everything via --set-env-vars (^|^ delimiter so ADMIN_EMAILS' commas survive).
   - name: gcr.io/google.com/cloudsdktool/cloud-sdk:slim
     id: deploy
     entrypoint: gcloud
@@ -121,15 +110,9 @@ steps:
       - "80"
       - --timeout
       - "900"
-      # Non-secret env (^|^ delimiter so ADMIN_EMAILS' commas survive).
       - --set-env-vars
       - >-
-        ^|^NODE_ENV=production|GEMINI_MODEL=${_GEMINI_MODEL}|ADMIN_EMAILS=${_ADMIN_EMAILS}|NEXT_PUBLIC_SUPABASE_URL=${_NEXT_PUBLIC_SUPABASE_URL}|NEXT_PUBLIC_SUPABASE_ANON_KEY=${_NEXT_PUBLIC_SUPABASE_ANON_KEY}
-      # Secrets mounted from Secret Manager at runtime (never baked in the image).
-      # DMAIL_API_KEY (team-invite emails) is optional — add
-      # `,DMAIL_API_KEY=fitt-dmail-api-key:latest` here once that secret exists.
-      - --set-secrets
-      - GEMINI_API_KEY=fitt-gemini-api-key:latest,SUPABASE_SERVICE_ROLE_KEY=fitt-supabase-service-role-key:latest
+        ^|^NODE_ENV=production|GEMINI_MODEL=${_GEMINI_MODEL}|ADMIN_EMAILS=${_ADMIN_EMAILS}|NEXT_PUBLIC_SUPABASE_URL=${_NEXT_PUBLIC_SUPABASE_URL}|NEXT_PUBLIC_SUPABASE_ANON_KEY=${_NEXT_PUBLIC_SUPABASE_ANON_KEY}|GEMINI_API_KEY=${_GEMINI_API_KEY}|SUPABASE_SERVICE_ROLE_KEY=${_SUPABASE_SERVICE_ROLE_KEY}
     waitFor: [push-build]
 
 images:

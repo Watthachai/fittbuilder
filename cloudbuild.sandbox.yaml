@@ -1,23 +1,16 @@
 # FITT Builder — Cloud Build → Cloud Run (SANDBOX).
-# Same cost-optimized shape as production (scale-to-zero, 512Mi, free build pool,
-# Cloud Logging only) but a separate service + lower max-instances.
+# Simple mode: ALL config (incl. API keys) via substitution variables set in the
+# Cloud Build Trigger UI — no Secret Manager. Same cost-optimized shape as
+# production (scale-to-zero, 512Mi, free build pool, Cloud Logging only).
 #
-# Setup: same as cloudbuild.production.yaml steps 1–3, then fill the values below
-# and run:  gcloud builds submit --config cloudbuild.sandbox.yaml
-# After deploy, add  https://<sandbox-url>/auth/callback  to Supabase redirect URLs.
+# SETUP: same as cloudbuild.production.yaml (build SA roles, then set the
+# substitutions below in the trigger). After deploy, add
+# https://<sandbox-url>/auth/callback to Supabase → Auth → Redirect URLs.
 #
-# ── VIA CLOUD BUILD TRIGGER (recommended) ─────────────────────────────────────
-# Cloud Build → Triggers → Create → branch = ^dev$ (or your sandbox branch),
-# Configuration file = /cloudbuild.sandbox.yaml. Under Advanced → Substitution
-# variables add: _NEXT_PUBLIC_SUPABASE_URL, _NEXT_PUBLIC_SUPABASE_ANON_KEY,
-# _ADMIN_EMAILS. Secrets stay in Secret Manager. Fires on push; $BUILD_ID auto-set.
-#
-# ISOLATION (optional, $0 extra): for a sandbox that can't touch prod data, create
-# a SEPARATE Supabase project + `*-sandbox` secrets and point this file at them:
-#   - set _NEXT_PUBLIC_SUPABASE_URL / _ANON_KEY to the sandbox project
-#   - create fitt-gemini-api-key-sandbox / ...-service-role-key-sandbox / ...-dmail-...-sandbox
-#     and change the --set-secrets refs below to the -sandbox names.
-# As written, it reuses the SAME secrets/Supabase as production (simplest).
+# In the trigger → Advanced → Substitution variables, set:
+#   _NEXT_PUBLIC_SUPABASE_URL, _NEXT_PUBLIC_SUPABASE_ANON_KEY, _ADMIN_EMAILS,
+#   _GEMINI_API_KEY, _SUPABASE_SERVICE_ROLE_KEY
+# (For data isolation you can point these at a separate Supabase project — $0 extra.)
 # ──────────────────────────────────────────────────────────────────────────────
 
 substitutions:
@@ -28,6 +21,9 @@ substitutions:
   _NEXT_PUBLIC_SUPABASE_ANON_KEY: "YOUR_SUPABASE_ANON_KEY"
   _GEMINI_MODEL: "gemini-2.5-flash"
   _ADMIN_EMAILS: "YOUR_ADMIN_EMAILS"
+  # Sensitive — SET THESE IN THE TRIGGER UI.
+  _GEMINI_API_KEY: "SET_IN_TRIGGER"
+  _SUPABASE_SERVICE_ROLE_KEY: "SET_IN_TRIGGER"
 
 steps:
   - name: gcr.io/google.com/cloudsdktool/cloud-sdk:slim
@@ -36,8 +32,12 @@ steps:
     args:
       - -c
       - |
-        if printf '%s' "${_NEXT_PUBLIC_SUPABASE_URL}${_NEXT_PUBLIC_SUPABASE_ANON_KEY}${_ADMIN_EMAILS}" | grep -q 'YOUR'; then
-          echo "ERROR: set _NEXT_PUBLIC_SUPABASE_URL, _NEXT_PUBLIC_SUPABASE_ANON_KEY and _ADMIN_EMAILS before deploying." >&2
+        miss=
+        for v in "${_NEXT_PUBLIC_SUPABASE_URL}" "${_NEXT_PUBLIC_SUPABASE_ANON_KEY}" "${_ADMIN_EMAILS}" "${_GEMINI_API_KEY}" "${_SUPABASE_SERVICE_ROLE_KEY}"; do
+          case "$v" in *YOUR*|SET_IN_TRIGGER|"") miss=1;; esac
+        done
+        if [ -n "$miss" ]; then
+          echo "ERROR: set _NEXT_PUBLIC_SUPABASE_URL, _NEXT_PUBLIC_SUPABASE_ANON_KEY, _ADMIN_EMAILS, _GEMINI_API_KEY, _SUPABASE_SERVICE_ROLE_KEY in the trigger before deploying." >&2
           exit 1
         fi
         echo "preflight ok"
@@ -98,11 +98,7 @@ steps:
       - "900"
       - --set-env-vars
       - >-
-        ^|^NODE_ENV=production|GEMINI_MODEL=${_GEMINI_MODEL}|ADMIN_EMAILS=${_ADMIN_EMAILS}|NEXT_PUBLIC_SUPABASE_URL=${_NEXT_PUBLIC_SUPABASE_URL}|NEXT_PUBLIC_SUPABASE_ANON_KEY=${_NEXT_PUBLIC_SUPABASE_ANON_KEY}
-      # DMAIL_API_KEY (team-invite emails) optional — append
-      # `,DMAIL_API_KEY=fitt-dmail-api-key:latest` once that secret exists.
-      - --set-secrets
-      - GEMINI_API_KEY=fitt-gemini-api-key:latest,SUPABASE_SERVICE_ROLE_KEY=fitt-supabase-service-role-key:latest
+        ^|^NODE_ENV=production|GEMINI_MODEL=${_GEMINI_MODEL}|ADMIN_EMAILS=${_ADMIN_EMAILS}|NEXT_PUBLIC_SUPABASE_URL=${_NEXT_PUBLIC_SUPABASE_URL}|NEXT_PUBLIC_SUPABASE_ANON_KEY=${_NEXT_PUBLIC_SUPABASE_ANON_KEY}|GEMINI_API_KEY=${_GEMINI_API_KEY}|SUPABASE_SERVICE_ROLE_KEY=${_SUPABASE_SERVICE_ROLE_KEY}
     waitFor: [push-build]
 
 images:

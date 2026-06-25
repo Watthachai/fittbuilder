@@ -115,6 +115,26 @@ const SCAFFOLD_INDEX_HTML = `<!doctype html>
     <style>
       body { font-family: 'Anuphan', 'Inter', system-ui, sans-serif; }
     </style>
+    <script>
+      // FITT live cursors: forward the pointer to the parent studio so teammates
+      // see each other's cursor over the running prototype (best-effort).
+      (function () {
+        if (window.parent === window) return;
+        var pending = false, lx = 0, ly = 0;
+        addEventListener('mousemove', function (e) {
+          lx = e.clientX; ly = e.clientY;
+          if (pending) return;
+          pending = true;
+          requestAnimationFrame(function () {
+            pending = false;
+            parent.postMessage({ __fittCursor: true, x: lx / innerWidth, y: ly / innerHeight }, '*');
+          });
+        });
+        addEventListener('mouseleave', function () {
+          parent.postMessage({ __fittCursor: true, leave: true }, '*');
+        });
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

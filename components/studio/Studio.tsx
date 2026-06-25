@@ -57,6 +57,7 @@ import { createClient } from "@/lib/supabase/client";
 import { emitSystemLog } from "@/lib/team-chat-bus";
 import { toast } from "@/lib/toast";
 import ChatPanel from "./ChatPanel";
+import LiveCursors from "./LiveCursors";
 import CodePanel from "./CodePanel";
 import DesignPicker from "./DesignPicker";
 import DocPreviewModal from "./DocPreviewModal";
@@ -1364,6 +1365,7 @@ export default function Studio({ projectId }: { projectId: string }) {
 
   return (
     <div className="flex h-dvh flex-col overflow-hidden bg-night text-chalk">
+      <LiveCursors projectId={projectId} />
       {bgActive && (
         <div className="pointer-events-none fixed left-1/2 top-3 z-[60] -translate-x-1/2">
           <span className="glass inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs text-chalk shadow-lg">

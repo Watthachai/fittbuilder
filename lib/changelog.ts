@@ -23,6 +23,14 @@ export const CHANGE_BADGE: Record<ChangeType, { label: string; className: string
 // Newest first. SemVer: fix → PATCH, feature → MINOR, breaking → MAJOR.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.13.0",
+    date: "2026-06-25",
+    title: "เห็นเคอร์เซอร์ของเพื่อนร่วมทีมแบบเรียลไทม์",
+    items: [
+      { type: "feature", text: "Live cursors: เห็นเมาส์ของเพื่อนร่วมทีมเลื่อนแบบเรียลไทม์ทั่ว Studio พร้อมชื่อและสีประจำตัว — รวมถึงบนตัว prototype ที่กำลังรันด้วย" },
+    ],
+  },
+  {
     version: "0.12.1",
     date: "2026-06-25",
     title: "แก้หน้าแชร์ทีมโหลดสมาชิก/คำเชิญไม่ขึ้น",

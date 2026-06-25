@@ -15,6 +15,7 @@ import {
   setShareLink,
   updateMemberRole,
 } from "@/lib/sharing";
+import { toast } from "@/lib/toast";
 import type { ProjectInvite, ProjectMember, ShareRole } from "@/lib/types";
 
 interface ShareModalProps {
@@ -110,13 +111,16 @@ export default function ShareModal({ projectId, onClose }: ShareModalProps) {
     setInviteBusy(true);
     setError(null);
     try {
-      await createInvite(projectId, inviteEmail.trim(), inviteRole);
+      const sentTo = inviteEmail.trim();
+      await createInvite(projectId, sentTo, inviteRole);
       setInviteEmail("");
       // Refresh invite list
       const inviteList = await listInvites(projectId);
       setInvites(inviteList);
+      toast.success("ส่งคำเชิญแล้ว", { description: `เชิญ ${sentTo} เป็น${inviteRole === "editor" ? "ผู้แก้ไข" : "ผู้ชม"}` });
     } catch (e) {
       setError(e instanceof Error ? e.message : "ส่งคำเชิญไม่สำเร็จ");
+      toast.error("ส่งคำเชิญไม่สำเร็จ", { description: e instanceof Error ? e.message : undefined });
     } finally {
       setInviteBusy(false);
     }

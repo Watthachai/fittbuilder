@@ -359,3 +359,73 @@ body {
   background: var(--night-edge);
   border-radius: 4px;
 }
+
+/* Toasts: enter on mount, exit when the store marks the toast `leaving`. */
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(-10px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+@keyframes toast-out {
+  to {
+    opacity: 0;
+    transform: translateX(16px) scale(0.97);
+  }
+}
+.toast-item {
+  animation: toast-in 0.22s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.toast-item[data-leaving="true"] {
+  animation: toast-out 0.2s ease forwards;
+}
+
+/* Skeleton shimmer for media loading (chat uploads, image bubbles). */
+@keyframes shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
+.skeleton {
+  position: relative;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--chalk) 6%, transparent);
+}
+.skeleton::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(
+    90deg,
+    transparent,
+    color-mix(in srgb, var(--chalk) 9%, transparent),
+    transparent
+  );
+  animation: shimmer 1.3s infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .toast-item,
+  .toast-item[data-leaving="true"],
+  .skeleton::after {
+    animation: none;
+  }
+}
+
+/* Drag-and-drop drop zone overlay for chat panels. */
+@keyframes drop-pulse {
+  0%,
+  100% {
+    opacity: 0.85;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+.drop-overlay {
+  animation: drop-pulse 1.4s ease-in-out infinite;
+}

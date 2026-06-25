@@ -3,6 +3,7 @@ import { Anuphan, IBM_Plex_Mono, Inter } from "next/font/google";
 import "./globals.css";
 import FloatingThemeToggle from "@/components/FloatingThemeToggle";
 import GlobalGenerationIndicator from "@/components/GlobalGenerationIndicator";
+import Toaster from "@/components/ui/Toaster";
 
 // Inter is the theme's typeface (docs/brief-plans/design.md); it has no Thai
 // glyphs, so Anuphan sits behind it in the stack for Thai text.
@@ -64,6 +65,7 @@ export default function RootLayout({
         {children}
         <FloatingThemeToggle />
         <GlobalGenerationIndicator />
+        <Toaster />
       </body>
     </html>
   );

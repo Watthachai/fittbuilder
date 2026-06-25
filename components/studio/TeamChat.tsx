@@ -5,6 +5,7 @@ import { FileText, Loader2, MessageSquare, Paperclip, Send, X } from "lucide-rea
 import { createClient } from "@/lib/supabase/client";
 import { loadMessages, sendMessage, sendSystemMessage, uploadAttachment } from "@/lib/team-chat";
 import { onSystemLog } from "@/lib/team-chat-bus";
+import { toast } from "@/lib/toast";
 import type { TeamChatAttachment, TeamChatMessage } from "@/lib/types";
 
 const TYPING_TTL = 2500;
@@ -160,6 +161,9 @@ export default function TeamChat({ projectId }: { projectId: string }) {
       }
     } catch (e) {
       console.error("[team-chat] upload failed:", e);
+      toast.error("อัปโหลดไฟล์ไม่สำเร็จ", {
+        description: e instanceof Error ? e.message : "ลองใหม่อีกครั้ง หรือเช็กขนาดไฟล์",
+      });
     } finally {
       setUploading(false);
       if (fileRef.current) fileRef.current.value = "";
@@ -178,6 +182,9 @@ export default function TeamChat({ projectId }: { projectId: string }) {
       channelRef.current?.send({ type: "broadcast", event: "message", payload: msg });
     } catch (e) {
       console.error("[team-chat] send failed:", e);
+      toast.error("ส่งข้อความไม่สำเร็จ", {
+        description: e instanceof Error ? e.message : "เช็กการเชื่อมต่อแล้วลองใหม่",
+      });
     } finally {
       setSending(false);
     }

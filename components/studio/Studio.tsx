@@ -55,6 +55,7 @@ import {
 } from "@/lib/generation/registry";
 import { createClient } from "@/lib/supabase/client";
 import { emitSystemLog } from "@/lib/team-chat-bus";
+import { toast } from "@/lib/toast";
 import ChatPanel from "./ChatPanel";
 import CodePanel from "./CodePanel";
 import DesignPicker from "./DesignPicker";
@@ -264,6 +265,9 @@ export default function Studio({ projectId }: { projectId: string }) {
         .catch((e) => {
           console.error("[studio] save failed:", e);
           setSaveState("idle");
+          toast.error("บันทึกไม่สำเร็จ", {
+            description: "การเปลี่ยนแปลงล่าสุดอาจยังไม่ถูกบันทึก — เช็กการเชื่อมต่อแล้วลองอีกครั้ง",
+          });
         });
     }, 800);
     return local;
@@ -423,6 +427,7 @@ export default function Studio({ projectId }: { projectId: string }) {
         const message = error instanceof Error ? error.message : "เกิดข้อผิดพลาด";
         setErrorMessage(message);
         pushTerminal(`✖ ${message}`);
+        toast.error("AI สะดุด", { description: message });
         return null;
       } finally {
         if (detachedRef.current && projectRef.current) {
@@ -579,6 +584,7 @@ export default function Studio({ projectId }: { projectId: string }) {
         setErrorMessage(message);
         if (!liveContainer) setPhase("error");
         pushTerminal(`✖ ${message}`);
+        toast.error("สร้างไม่สำเร็จ", { description: message });
       } finally {
         // If this ran detached (in the background), flush the final state now so
         // a studio re-opening this project reads the result, not a stale save.
@@ -772,7 +778,16 @@ export default function Studio({ projectId }: { projectId: string }) {
     emitSystemLog(projectId, `${who} อนุมัติขั้น “${phaseDef(current.phase).user}” แล้ว`);
     const fresh = await getApprovalState(projectId, current.phase);
     setApproval(fresh);
-    if (fresh.approvers.every((a) => fresh.approved.includes(a))) advancePhase();
+    const done = fresh.approvers.every((a) => fresh.approved.includes(a));
+    if (done) {
+      advancePhase();
+      toast.success("อนุมัติครบทุกคนแล้ว", { description: "ไปต่อขั้นถัดไปได้เลย" });
+    } else {
+      const left = fresh.approvers.length - fresh.approved.length;
+      toast.success("บันทึกการอนุมัติของคุณแล้ว", {
+        description: `รออีก ${left} คนอนุมัติก่อนไปต่อ`,
+      });
+    }
   }, [approval, projectId, readOnly, advancePhase]);
 
   /**

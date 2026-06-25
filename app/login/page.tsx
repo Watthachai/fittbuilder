@@ -12,8 +12,16 @@ export default function LoginPage() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const supabase = createClient();
+  // Carry the `next` (e.g. /join/<token>) through the OAuth round-trip so the
+  // callback returns the user where they were headed — not silently to "/".
   const redirectTo =
-    typeof window !== "undefined" ? `${location.origin}/auth/callback` : undefined;
+    typeof window !== "undefined"
+      ? (() => {
+          const raw = new URLSearchParams(location.search).get("next");
+          const next = raw && raw.startsWith("/") ? raw : "/";
+          return `${location.origin}/auth/callback?next=${encodeURIComponent(next)}`;
+        })()
+      : undefined;
 
   async function google() {
     setBusy(true);

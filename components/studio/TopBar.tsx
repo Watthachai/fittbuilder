@@ -18,6 +18,7 @@ import { encodeShareUrl } from "@/lib/share";
 import type { ProjectRecord } from "@/lib/types";
 import { downloadZip } from "@/lib/zip";
 import { downloadFittcoreSpec } from "@/lib/fittcore";
+import ProjectPresence from "./ProjectPresence";
 
 interface TopBarProps {
   project: ProjectRecord;
@@ -126,6 +127,7 @@ export default function TopBar({
       >
         <Undo2 size={13} /> Undo
       </button>
+      <ProjectPresence projectId={project.id} />
       <button
         onClick={() => void share()}
         disabled={!shippable}

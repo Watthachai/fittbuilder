@@ -12,7 +12,7 @@ import { DOC_PATHS, docOnlyFiles, docsFromFiles, hasRunnableApp } from "@/lib/de
 import { computeChanges, sanitizeFiles } from "@/lib/files";
 import { isBuildPhase, nextPhase, phaseDef, type PhaseId } from "@/lib/phases";
 import { type DesignOption, designStyleDirective, fetchDesignOptions } from "@/lib/design";
-import { extraDepsOf, packageJsonWithDeps, SCAFFOLD_FILES } from "@/lib/scaffold";
+import { extraDepsOf, packageJsonWithDeps, SCAFFOLD_FILES, VITE_CONFIG } from "@/lib/scaffold";
 import { takePendingAction } from "@/lib/pending-action";
 import { encodeShareUrl } from "@/lib/share";
 import { streamAgent, streamGenerate } from "@/lib/sse";
@@ -304,8 +304,13 @@ export default function Studio({ projectId }: { projectId: string }) {
         return;
       }
       // Sanitize CSS on the way in so a project cached with the crash-inducing
-      // `@import "tailwindcss"` self-heals on next boot.
-      await runProject(sanitizeFiles(files), runCallbacks());
+      // `@import "tailwindcss"` self-heals on next boot. vite.config.js is
+      // canonical (never authored by the AI) — always boot the current version so
+      // older projects pick up the live-cursor forwarder plugin.
+      await runProject(
+        { ...sanitizeFiles(files), "vite.config.js": VITE_CONFIG },
+        runCallbacks()
+      );
     },
     [runCallbacks]
   );

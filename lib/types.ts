@@ -67,6 +67,19 @@ export interface TeamChatAttachment {
   url?: string;
 }
 
+/** An emoji reaction tally on a chat message. */
+export interface TeamChatReaction {
+  emoji: string;
+  userIds: string[];
+}
+
+/** The message a reply points at, denormalized for rendering the quote. */
+export interface TeamChatReplyRef {
+  id: string;
+  author: string;
+  excerpt: string;
+}
+
 /** One message in a project's team chat (people talking, not the AI builder). */
 export interface TeamChatMessage {
   id: string;
@@ -77,6 +90,8 @@ export interface TeamChatMessage {
   authorAvatar: string | null;
   body: string;
   attachments: TeamChatAttachment[];
+  replyTo?: TeamChatReplyRef | null;
+  reactions: TeamChatReaction[];
   createdAt: string;
 }
 

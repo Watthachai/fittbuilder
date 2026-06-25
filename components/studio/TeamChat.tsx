@@ -1,19 +1,63 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { FileText, Loader2, MessageSquare, Paperclip, Send, X } from "lucide-react";
+import {
+  CornerUpLeft,
+  FileText,
+  Loader2,
+  MessageSquare,
+  Paperclip,
+  Send,
+  Trash2,
+  X,
+} from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
-import { loadMessages, sendMessage, sendSystemMessage, uploadAttachment } from "@/lib/team-chat";
+import {
+  deleteMessage,
+  loadMessages,
+  sendMessage,
+  sendSystemMessage,
+  toggleReaction,
+  uploadAttachment,
+} from "@/lib/team-chat";
 import { onSystemLog } from "@/lib/team-chat-bus";
 import { toast } from "@/lib/toast";
 import { useFileDrop } from "@/lib/useFileDrop";
 import DropOverlay from "@/components/ui/DropOverlay";
-import type { TeamChatAttachment, TeamChatMessage } from "@/lib/types";
+import type { TeamChatAttachment, TeamChatMessage, TeamChatReplyRef } from "@/lib/types";
 
 const TYPING_TTL = 2500;
+const QUICK_REACTIONS = ["👍", "❤️", "😂", "😮", "🙏"];
 
 function timeLabel(iso: string): string {
   return new Date(iso).toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit" });
+}
+
+/** Pure: add/remove a user's emoji on a message's reaction tallies. */
+function applyReaction(
+  m: TeamChatMessage,
+  emoji: string,
+  userId: string,
+  op: "add" | "remove"
+): TeamChatMessage {
+  const reactions = m.reactions.map((r) => ({ ...r, userIds: [...r.userIds] }));
+  const idx = reactions.findIndex((r) => r.emoji === emoji);
+  if (op === "add") {
+    if (idx === -1) reactions.push({ emoji, userIds: [userId] });
+    else if (!reactions[idx].userIds.includes(userId)) reactions[idx].userIds.push(userId);
+  } else if (idx !== -1) {
+    reactions[idx].userIds = reactions[idx].userIds.filter((u) => u !== userId);
+    if (reactions[idx].userIds.length === 0) reactions.splice(idx, 1);
+  }
+  return { ...m, reactions };
+}
+
+/** A one-line preview of a message for the reply quote. */
+function replyExcerpt(m: TeamChatMessage): string {
+  if (m.body.trim()) return m.body.trim().slice(0, 90);
+  if (m.attachments.some((a) => a.type.startsWith("image/"))) return "📷 รูปภาพ";
+  if (m.attachments.length) return `📎 ${m.attachments[0].name}`;
+  return "ข้อความ";
 }
 
 /**
@@ -33,6 +77,7 @@ export default function TeamChat({ projectId }: { projectId: string }) {
   const [typers, setTypers] = useState<string[]>([]);
   const [unread, setUnread] = useState(0);
   const [myId, setMyId] = useState("");
+  const [replyTarget, setReplyTarget] = useState<TeamChatReplyRef | null>(null);
 
   const channelRef = useRef<ReturnType<ReturnType<typeof createClient>["channel"]> | null>(null);
   const meRef = useRef<{ id: string; name: string }>({ id: "", name: "" });
@@ -104,6 +149,21 @@ export default function TeamChat({ projectId }: { projectId: string }) {
       .on("broadcast", { event: "typing" }, ({ payload }) => {
         const { id, name } = payload as { id: string; name: string };
         if (id && id !== meRef.current.id) markTyper(id, name);
+      })
+      .on("broadcast", { event: "reaction" }, ({ payload }) => {
+        const { messageId, emoji, userId, op } = payload as {
+          messageId: string;
+          emoji: string;
+          userId: string;
+          op: "add" | "remove";
+        };
+        setMessages((prev) =>
+          prev.map((m) => (m.id === messageId ? applyReaction(m, emoji, userId, op) : m))
+        );
+      })
+      .on("broadcast", { event: "delete" }, ({ payload }) => {
+        const { messageId } = payload as { messageId: string };
+        setMessages((prev) => prev.filter((m) => m.id !== messageId));
       })
       .subscribe();
 
@@ -178,11 +238,13 @@ export default function TeamChat({ projectId }: { projectId: string }) {
     const body = draft.trim();
     if ((!body && pending.length === 0) || sending) return;
     setSending(true);
+    const reply = replyTarget;
     try {
-      const msg = await sendMessage(projectId, body, pending);
+      const msg = await sendMessage(projectId, body, pending, reply);
       setMessages((prev) => [...prev, msg]);
       setDraft("");
       setPending([]);
+      setReplyTarget(null);
       channelRef.current?.send({ type: "broadcast", event: "message", payload: msg });
     } catch (e) {
       console.error("[team-chat] send failed:", e);
@@ -191,6 +253,42 @@ export default function TeamChat({ projectId }: { projectId: string }) {
       });
     } finally {
       setSending(false);
+    }
+  };
+
+  const react = async (messageId: string, emoji: string) => {
+    const uid = meRef.current.id;
+    if (!uid) return;
+    const cur = messages.find((m) => m.id === messageId);
+    const has = !!cur?.reactions.find((r) => r.emoji === emoji)?.userIds.includes(uid);
+    const op: "add" | "remove" = has ? "remove" : "add";
+    setMessages((prev) => prev.map((m) => (m.id === messageId ? applyReaction(m, emoji, uid, op) : m)));
+    try {
+      await toggleReaction(projectId, messageId, emoji);
+      channelRef.current?.send({
+        type: "broadcast",
+        event: "reaction",
+        payload: { messageId, emoji, userId: uid, op },
+      });
+    } catch (e) {
+      console.error("[team-chat] reaction failed:", e);
+      setMessages((prev) =>
+        prev.map((m) => (m.id === messageId ? applyReaction(m, emoji, uid, has ? "add" : "remove") : m))
+      );
+      toast.error("กดรีแอกชันไม่สำเร็จ");
+    }
+  };
+
+  const removeMessage = async (messageId: string) => {
+    const snapshot = messages;
+    setMessages((prev) => prev.filter((m) => m.id !== messageId));
+    try {
+      await deleteMessage(messageId);
+      channelRef.current?.send({ type: "broadcast", event: "delete", payload: { messageId } });
+    } catch (e) {
+      console.error("[team-chat] delete failed:", e);
+      setMessages(snapshot);
+      toast.error("ลบข้อความไม่สำเร็จ");
     }
   };
 
@@ -269,7 +367,21 @@ export default function TeamChat({ projectId }: { projectId: string }) {
                 {m.body}
               </p>
             ) : (
-              <ChatBubble key={m.id} message={m} mine={m.userId === myId} />
+              <ChatBubble
+                key={m.id}
+                message={m}
+                mine={m.userId === myId}
+                myId={myId}
+                onReply={() =>
+                  setReplyTarget({
+                    id: m.id,
+                    author: m.authorName ?? "ผู้ใช้",
+                    excerpt: replyExcerpt(m),
+                  })
+                }
+                onReact={(emoji) => void react(m.id, emoji)}
+                onDelete={() => void removeMessage(m.id)}
+              />
             )
           )}
           {typers.length > 0 && (
@@ -284,6 +396,22 @@ export default function TeamChat({ projectId }: { projectId: string }) {
 
         {/* Composer */}
         <div className="shrink-0 border-t border-night-edge p-2.5">
+          {replyTarget && (
+            <div className="mb-2 flex items-start gap-2 rounded-md border-l-2 border-l-shine border-night-edge bg-night px-2.5 py-1.5">
+              <CornerUpLeft size={13} className="mt-0.5 shrink-0 text-shine" />
+              <div className="min-w-0 flex-1">
+                <p className="text-[11px] font-semibold text-chalk">ตอบกลับ {replyTarget.author}</p>
+                <p className="truncate text-[11px] text-chalk-dim">{replyTarget.excerpt}</p>
+              </div>
+              <button
+                onClick={() => setReplyTarget(null)}
+                className="shrink-0 text-chalk-dim transition hover:text-halt"
+                title="ยกเลิกการตอบกลับ"
+              >
+                <X size={13} />
+              </button>
+            </div>
+          )}
           {(pending.length > 0 || uploading) && (
             <div className="mb-2 flex flex-wrap gap-1.5">
               {uploading && <span className="skeleton h-[22px] w-28 rounded-md" />}
@@ -352,10 +480,24 @@ export default function TeamChat({ projectId }: { projectId: string }) {
   );
 }
 
-function ChatBubble({ message, mine }: { message: TeamChatMessage; mine: boolean }) {
+function ChatBubble({
+  message,
+  mine,
+  myId,
+  onReply,
+  onReact,
+  onDelete,
+}: {
+  message: TeamChatMessage;
+  mine: boolean;
+  myId: string;
+  onReply: () => void;
+  onReact: (emoji: string) => void;
+  onDelete: () => void;
+}) {
   const initial = (message.authorName || "?").charAt(0).toUpperCase();
   return (
-    <div className={`flex gap-2.5 ${mine ? "flex-row-reverse" : ""}`}>
+    <div className={`group flex gap-2.5 ${mine ? "flex-row-reverse" : ""}`}>
       {message.authorAvatar ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img
@@ -369,23 +511,95 @@ function ChatBubble({ message, mine }: { message: TeamChatMessage; mine: boolean
           {initial}
         </span>
       )}
-      <div className={`flex min-w-0 max-w-[78%] flex-col ${mine ? "items-end" : "items-start"}`}>
+      <div className={`flex min-w-0 max-w-[80%] flex-col ${mine ? "items-end" : "items-start"}`}>
         <div className="mb-0.5 flex items-center gap-1.5">
           <span className="font-mono text-[10px] text-chalk-dim">{message.authorName ?? "ผู้ใช้"}</span>
           <span className="font-mono text-[9px] text-chalk-dim/60">{timeLabel(message.createdAt)}</span>
         </div>
-        {message.body && (
+
+        {message.replyTo && (
           <div
-            className={`whitespace-pre-wrap break-words rounded-lg px-3 py-2 text-[14px] text-chalk ${
-              mine ? "border border-shine/30 bg-shine/10" : "border border-night-edge bg-night"
+            className={`mb-1 max-w-full rounded-md border-l-2 border-l-shine bg-night/60 px-2 py-1 ${
+              mine ? "text-right" : ""
             }`}
           >
-            {message.body}
+            <p className="text-[10px] font-semibold text-chalk-dim">↪ {message.replyTo.author}</p>
+            <p className="truncate text-[11px] text-chalk-dim/80">{message.replyTo.excerpt}</p>
           </div>
         )}
+
+        {/* Bubble + hover toolbar */}
+        <div className={`relative flex items-center gap-1 ${mine ? "flex-row-reverse" : ""}`}>
+          {(message.body || message.attachments.length === 0) && (
+            <div
+              className={`whitespace-pre-wrap break-words rounded-lg px-3 py-2 text-[14px] text-chalk ${
+                mine ? "border border-shine/30 bg-shine/10" : "border border-night-edge bg-night"
+              }`}
+            >
+              {message.body || <span className="text-chalk-dim">…</span>}
+            </div>
+          )}
+          <div
+            className={`absolute top-1/2 z-10 flex -translate-y-1/2 items-center gap-0.5 rounded-full border border-night-edge bg-night-panel px-1 py-0.5 opacity-0 shadow-lg transition group-hover:opacity-100 ${
+              mine ? "right-full mr-1" : "left-full ml-1"
+            }`}
+          >
+            {QUICK_REACTIONS.map((emoji) => (
+              <button
+                key={emoji}
+                onClick={() => onReact(emoji)}
+                className="rounded-full px-1 text-[14px] leading-none transition hover:scale-125"
+                title={`รีแอกชัน ${emoji}`}
+              >
+                {emoji}
+              </button>
+            ))}
+            <span className="mx-0.5 h-3.5 w-px bg-night-edge" />
+            <button
+              onClick={onReply}
+              className="rounded-full p-1 text-chalk-dim transition hover:text-chalk"
+              title="ตอบกลับ"
+            >
+              <CornerUpLeft size={12} />
+            </button>
+            {mine && (
+              <button
+                onClick={onDelete}
+                className="rounded-full p-1 text-chalk-dim transition hover:text-halt"
+                title="ลบข้อความ"
+              >
+                <Trash2 size={12} />
+              </button>
+            )}
+          </div>
+        </div>
+
         {message.attachments.map((a) => (
           <Attachment key={a.path} att={a} />
         ))}
+
+        {message.reactions.length > 0 && (
+          <div className={`mt-1 flex flex-wrap gap-1 ${mine ? "justify-end" : ""}`}>
+            {message.reactions.map((r) => {
+              const mineReacted = r.userIds.includes(myId);
+              return (
+                <button
+                  key={r.emoji}
+                  onClick={() => onReact(r.emoji)}
+                  className={`inline-flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-[11px] transition ${
+                    mineReacted
+                      ? "border-shine/50 bg-shine/15 text-chalk"
+                      : "border-night-edge bg-night text-chalk-dim hover:text-chalk"
+                  }`}
+                  title={mineReacted ? "เอารีแอกชันออก" : "กดรีแอกชัน"}
+                >
+                  <span>{r.emoji}</span>
+                  <span className="font-mono">{r.userIds.length}</span>
+                </button>
+              );
+            })}
+          </div>
+        )}
       </div>
     </div>
   );

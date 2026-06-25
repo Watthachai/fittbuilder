@@ -23,6 +23,16 @@ export const CHANGE_BADGE: Record<ChangeType, { label: string; className: string
 // Newest first. SemVer: fix → PATCH, feature → MINOR, breaking → MAJOR.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.12.0",
+    date: "2026-06-25",
+    title: "แจ้งเตือนทั่วระบบ + ลากวางไฟล์ + แชททีมแบบ messenger",
+    items: [
+      { type: "feature", text: "ระบบแจ้งเตือน (toast) สวยๆ ทั่วทั้งเว็บ — บอกสำเร็จ/กำลังทำ/ผิดพลาด พร้อมรายละเอียดเข้าใจง่าย แทนที่จะเงียบไป" },
+      { type: "feature", text: "ลากรูปหรือไฟล์มาวางในแชต AI และห้องแชททีมได้เลย มีอนิเมชันบอกจุดวาง และ skeleton ระหว่างรูปกำลังโหลด" },
+      { type: "feature", text: "ห้องแชททีมแบบ messenger: ตอบกลับข้อความ (reply), กดรีแอกชันอีโมจิ และลบข้อความของตัวเองได้ — เห็นกันแบบเรียลไทม์" },
+    ],
+  },
+  {
     version: "0.11.0",
     date: "2026-06-25",
     title: "แชต AI อ่านรูป/ไฟล์ได้ + เห็นว่าใครกำลังคุยกับ AI",

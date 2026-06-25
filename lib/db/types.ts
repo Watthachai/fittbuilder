@@ -264,6 +264,9 @@ export interface Database {
           kind: string;
           body: string;
           attachments: Json;
+          reply_to: string | null;
+          reply_author: string | null;
+          reply_excerpt: string | null;
           created_at: string;
         };
         Insert: {
@@ -275,6 +278,9 @@ export interface Database {
           kind?: string;
           body?: string;
           attachments?: Json;
+          reply_to?: string | null;
+          reply_author?: string | null;
+          reply_excerpt?: string | null;
           created_at?: string;
         };
         Update: {
@@ -286,6 +292,33 @@ export interface Database {
           kind?: string;
           body?: string;
           attachments?: Json;
+          reply_to?: string | null;
+          reply_author?: string | null;
+          reply_excerpt?: string | null;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      fittbuilder_chat_reactions: {
+        Row: {
+          message_id: string;
+          project_id: string;
+          user_id: string;
+          emoji: string;
+          created_at: string;
+        };
+        Insert: {
+          message_id: string;
+          project_id: string;
+          user_id: string;
+          emoji: string;
+          created_at?: string;
+        };
+        Update: {
+          message_id?: string;
+          project_id?: string;
+          user_id?: string;
+          emoji?: string;
           created_at?: string;
         };
         Relationships: [];

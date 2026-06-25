@@ -3,13 +3,13 @@
 # 120 build-min/day — no machineType), logs to Cloud Logging only.
 #
 # ── ONE-TIME SETUP ────────────────────────────────────────────────────────────
-# 1) Create the three secrets (paste each value when prompted):
+# 1) Create the secrets (paste each value when prompted). DMAIL is OPTIONAL —
+#    only if you use team-invite emails (then also re-add it to --set-secrets):
 #      printf '%s' "<gemini key>"        | gcloud secrets create fitt-gemini-api-key            --data-file=-
 #      printf '%s' "<service role key>"  | gcloud secrets create fitt-supabase-service-role-key --data-file=-
-#      printf '%s' "<dmail key>"         | gcloud secrets create fitt-dmail-api-key             --data-file=-
 # 2) Let the Cloud Run RUNTIME service account read them
 #    (default = <PROJECT_NUMBER>-compute@developer.gserviceaccount.com):
-#      for s in fitt-gemini-api-key fitt-supabase-service-role-key fitt-dmail-api-key; do
+#      for s in fitt-gemini-api-key fitt-supabase-service-role-key; do
 #        gcloud secrets add-iam-policy-binding "$s" \
 #          --member="serviceAccount:<PROJECT_NUMBER>-compute@developer.gserviceaccount.com" \
 #          --role="roles/secretmanager.secretAccessor"; done
@@ -126,8 +126,10 @@ steps:
       - >-
         ^|^NODE_ENV=production|GEMINI_MODEL=${_GEMINI_MODEL}|ADMIN_EMAILS=${_ADMIN_EMAILS}|NEXT_PUBLIC_SUPABASE_URL=${_NEXT_PUBLIC_SUPABASE_URL}|NEXT_PUBLIC_SUPABASE_ANON_KEY=${_NEXT_PUBLIC_SUPABASE_ANON_KEY}
       # Secrets mounted from Secret Manager at runtime (never baked in the image).
+      # DMAIL_API_KEY (team-invite emails) is optional — add
+      # `,DMAIL_API_KEY=fitt-dmail-api-key:latest` here once that secret exists.
       - --set-secrets
-      - GEMINI_API_KEY=fitt-gemini-api-key:latest,SUPABASE_SERVICE_ROLE_KEY=fitt-supabase-service-role-key:latest,DMAIL_API_KEY=fitt-dmail-api-key:latest
+      - GEMINI_API_KEY=fitt-gemini-api-key:latest,SUPABASE_SERVICE_ROLE_KEY=fitt-supabase-service-role-key:latest
     waitFor: [push-build]
 
 images:

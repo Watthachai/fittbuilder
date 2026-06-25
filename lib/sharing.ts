@@ -67,6 +67,20 @@ export async function listMembers(projectId: string): Promise<ProjectMember[]> {
   }));
 }
 
+export async function updateMemberRole(
+  projectId: string,
+  userId: string,
+  role: ShareRole
+): Promise<void> {
+  const supabase = createClient();
+  const { error } = await supabase
+    .from("fittbuilder_project_members")
+    .update({ role })
+    .eq("project_id", projectId)
+    .eq("user_id", userId);
+  if (error) throw error;
+}
+
 export async function removeMember(projectId: string, userId: string): Promise<void> {
   const supabase = createClient();
   const { error } = await supabase

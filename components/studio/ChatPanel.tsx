@@ -7,6 +7,7 @@ import {
   ChevronDown,
   ChevronRight,
   Download,
+  Eye,
   FilePenLine,
   FileText,
   GitCompare,
@@ -56,6 +57,8 @@ interface ChatPanelProps {
   onCancel: () => void;
   /** Open the doc-preview modal for a phase (from a message's "ดูเอกสาร" button). */
   onViewDoc: (phase: PhaseId) => void;
+  /** Viewer (read-only): hide every write affordance — composer and answer choices. */
+  readOnly?: boolean;
 }
 
 /**
@@ -180,6 +183,7 @@ export default function ChatPanel({
   onSubmit,
   onCancel,
   onViewDoc,
+  readOnly = false,
 }: ChatPanelProps) {
   const [draft, setDraft] = useState("");
   const [picked, setPicked] = useState<string[]>([]);
@@ -325,7 +329,7 @@ export default function ChatPanel({
       </div>
 
       {/* Interactive choices for the latest question */}
-      {activeAsk && (
+      {activeAsk && !readOnly && (
         <div className="shrink-0 border-t border-night-edge bg-night px-3 pt-3">
           {activeAsk.question && (
             <p className="mb-2 font-display text-[12px] text-chalk-dim">
@@ -378,6 +382,14 @@ export default function ChatPanel({
         </div>
       )}
 
+      {readOnly ? (
+        <div className="shrink-0 border-t border-night-edge p-3">
+          <p className="flex items-center justify-center gap-2 rounded-md border border-night-edge bg-night px-3 py-3 text-center text-[12px] text-chalk-dim">
+            <Eye size={13} className="shrink-0 text-chalk-dim" />
+            โหมดดูอย่างเดียว — คุยกับทีมได้ที่ห้องแชท
+          </p>
+        </div>
+      ) : (
       <div className="shrink-0 border-t border-night-edge p-3">
         <div className="rounded-md border border-night-edge bg-night focus-within:border-shine">
           {attachments.length > 0 && (
@@ -438,6 +450,7 @@ export default function ChatPanel({
           </div>
         </div>
       </div>
+      )}
 
       {diffMsg?.changes && (
         <DiffViewer

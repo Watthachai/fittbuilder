@@ -1342,6 +1342,7 @@ export default function Studio({ projectId }: { projectId: string }) {
             }}
             onCancel={cancel}
             onViewDoc={previewPhaseDoc}
+            readOnly={readOnly}
           />
         </div>
 

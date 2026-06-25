@@ -124,7 +124,8 @@ export async function getAccess(id: string): Promise<{ access: "owner" | "member
 /* ---------- multi-party phase approval ---------- */
 
 export interface ApprovalState {
-  /** Everyone who must approve (owner + all members, any role). */
+  /** Who must approve: owner + editor members only. Viewers are read-only and
+   *  cannot approve, so counting them would deadlock the gate forever. */
   approvers: string[];
   /** User ids who have approved the given phase. */
   approved: string[];
@@ -141,10 +142,12 @@ export async function getApprovalState(projectId: string, phase: string): Promis
     .select("owner_id")
     .eq("id", projectId)
     .maybeSingle();
+  // Only editors approve; viewers are read-only (see ApprovalState).
   const { data: members } = await supabase
     .from("fittbuilder_project_members")
     .select("user_id")
-    .eq("project_id", projectId);
+    .eq("project_id", projectId)
+    .eq("role", "editor");
   const approvers = Array.from(
     new Set([...(proj ? [proj.owner_id] : []), ...(members ?? []).map((m) => m.user_id)])
   );

@@ -13,6 +13,7 @@ import {
   removeMember,
   revokeInvite,
   setShareLink,
+  updateMemberRole,
 } from "@/lib/sharing";
 import type { ProjectInvite, ProjectMember, ShareRole } from "@/lib/types";
 
@@ -118,6 +119,22 @@ export default function ShareModal({ projectId, onClose }: ShareModalProps) {
       setError(e instanceof Error ? e.message : "ส่งคำเชิญไม่สำเร็จ");
     } finally {
       setInviteBusy(false);
+    }
+  }
+
+  async function handleRoleChange(userId: string, role: ShareRole) {
+    setPeopleBusy(true);
+    setError(null);
+    // Optimistic — revert on failure so the select never lies about the role.
+    const prev = members;
+    setMembers((cur) => cur.map((m) => (m.userId === userId ? { ...m, role } : m)));
+    try {
+      await updateMemberRole(projectId, userId, role);
+    } catch (e) {
+      setMembers(prev);
+      setError(e instanceof Error ? e.message : "เปลี่ยนสิทธิ์ไม่สำเร็จ");
+    } finally {
+      setPeopleBusy(false);
     }
   }
 
@@ -299,9 +316,16 @@ export default function ShareModal({ projectId, onClose }: ShareModalProps) {
                 <span className="min-w-0 flex-1 truncate font-mono text-xs text-chalk">
                   {m.email}
                 </span>
-                <span className="shrink-0 rounded-sm border border-night-edge px-1.5 py-0.5 text-[10px] uppercase tracking-wider text-chalk-dim">
-                  {m.role}
-                </span>
+                <select
+                  value={m.role}
+                  onChange={(e) => void handleRoleChange(m.userId, e.target.value as ShareRole)}
+                  disabled={peopleBusy}
+                  title="เปลี่ยนสิทธิ์ — ผู้แก้ไขร่วมสร้างและอนุมัติได้ ผู้ชมดูอย่างเดียว"
+                  className="shrink-0 rounded-sm border border-night-edge bg-night px-1.5 py-0.5 text-[11px] text-chalk-dim outline-none transition hover:text-chalk focus:border-shine disabled:opacity-40"
+                >
+                  <option value="viewer">ผู้ชม</option>
+                  <option value="editor">ผู้แก้ไข</option>
+                </select>
                 <button
                   onClick={() => void handleRemoveMember(m.userId)}
                   disabled={peopleBusy}

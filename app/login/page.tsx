@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { ArrowRight, Mail } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import LoginShowcase from "@/components/landing/LoginShowcase";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -131,19 +132,9 @@ export default function LoginPage() {
         </p>
       </section>
 
-      {/* ── Right: product showcase video ─────────────────────────────── */}
+      {/* ── Right: self-running product showcase (drawn in code) ──────── */}
       <section className="relative hidden overflow-hidden border-l border-night-edge bg-night-panel lg:block">
-        <video
-          src="/cowork-login-hero-dark.mp4"
-          autoPlay
-          muted
-          loop
-          playsInline
-          aria-hidden
-          className="h-full w-full object-cover"
-        />
-        {/* Subtle fade so the video blends into the panel's left border. */}
-        <div className="pointer-events-none absolute inset-0 bg-gradient-to-l from-transparent via-transparent to-night/30" />
+        <LoginShowcase />
       </section>
     </main>
   );

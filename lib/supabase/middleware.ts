@@ -31,7 +31,11 @@ export async function updateSession(request: NextRequest) {
   if (!user && !isPublic) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
-    return NextResponse.redirect(url);
+    const redirect = NextResponse.redirect(url);
+    // Carry over any auth cookies refreshed by getUser() — a bare redirect drops
+    // them, desyncing browser/server and forcing a second login (Supabase SSR).
+    response.cookies.getAll().forEach((c) => redirect.cookies.set(c));
+    return redirect;
   }
   return response;
 }

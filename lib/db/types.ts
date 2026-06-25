@@ -329,6 +329,16 @@ export interface Database {
       fittbuilder_accept_invites: { Args: { uid: string; mail: string }; Returns: undefined };
       fittbuilder_join_by_token: { Args: { tok: string; uid: string }; Returns: string | null };
       fittbuilder_ai_usage_report: { Args: Record<string, never>; Returns: Json };
+      fittbuilder_project_members_detailed: {
+        Args: { pid: string };
+        Returns: {
+          user_id: string;
+          email: string | null;
+          name: string | null;
+          role: string;
+          created_at: string;
+        }[];
+      };
     };
     Enums: Record<string, never>;
     CompositeTypes: Record<string, never>;

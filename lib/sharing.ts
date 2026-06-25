@@ -43,25 +43,17 @@ export async function getShareToken(
 
 export async function listMembers(projectId: string): Promise<ProjectMember[]> {
   const supabase = createClient();
-  const { data, error } = await supabase
-    .from("fittbuilder_project_members")
-    .select("project_id, user_id, role, created_at, fittbuilder_profiles(email, name)")
-    .eq("project_id", projectId);
+  // RPC (SECURITY DEFINER, membership-gated): a PostgREST embed to profiles isn't
+  // possible (no FK) and profiles_select_own would hide other members anyway.
+  const { data, error } = await supabase.rpc("fittbuilder_project_members_detailed", {
+    pid: projectId,
+  });
   if (error) throw error;
-  // The hand-authored Database type has empty Relationships, so the nested
-  // join result cannot be inferred. Cast via unknown to an explicit shape.
-  type MemberRow = {
-    project_id: string;
-    user_id: string;
-    role: string;
-    created_at: string;
-    fittbuilder_profiles: { email: string; name: string | null } | null;
-  };
-  return (data as unknown as MemberRow[] ?? []).map((m) => ({
-    projectId: m.project_id,
+  return (data ?? []).map((m) => ({
+    projectId,
     userId: m.user_id,
-    email: m.fittbuilder_profiles?.email ?? "",
-    name: m.fittbuilder_profiles?.name ?? null,
+    email: m.email ?? "",
+    name: m.name ?? null,
     role: m.role as ShareRole,
     createdAt: m.created_at,
   }));

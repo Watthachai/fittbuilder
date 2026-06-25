@@ -23,6 +23,14 @@ export const CHANGE_BADGE: Record<ChangeType, { label: string; className: string
 // Newest first. SemVer: fix → PATCH, feature → MINOR, breaking → MAJOR.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.12.1",
+    date: "2026-06-25",
+    title: "แก้หน้าแชร์ทีมโหลดสมาชิก/คำเชิญไม่ขึ้น",
+    items: [
+      { type: "fix", text: "แก้หน้า “เชิญทีม” ที่ขึ้น “โหลดข้อมูลไม่สำเร็จ” และไม่แสดงสมาชิก/คำเชิญทั้งที่มีอยู่ — ตอนนี้ดึงรายชื่อสมาชิกพร้อมอีเมลได้ถูกต้อง" },
+    ],
+  },
+  {
     version: "0.12.0",
     date: "2026-06-25",
     title: "แจ้งเตือนทั่วระบบ + ลากวางไฟล์ + แชททีมแบบ messenger",

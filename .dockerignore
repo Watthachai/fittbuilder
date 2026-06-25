@@ -1,0 +1,26 @@
+# Never send local secrets, build output, or junk into the build context.
+.env
+.env.*
+!.env.example
+
+node_modules
+.next
+out
+build
+coverage
+
+.git
+.gitignore
+**/.DS_Store
+.vscode
+.idea
+npm-debug.log*
+
+# Heavy / dev-only artifacts not needed to build the app.
+# NOTE: do NOT add "*.md" here — agents/<slug>/SKILL.md is read at runtime.
+graphify-out
+.claude
+
+# Old deploy templates from a different project (DVIBE) — not used by this build.
+cloudbuild-production-example.yaml
+cloudbuild-sandbox-example.yaml

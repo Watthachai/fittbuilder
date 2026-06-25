@@ -1,0 +1,142 @@
+# FITT Builder — Cloud Build → Cloud Run (PRODUCTION).
+# Cost-optimized: scale-to-zero (min 0), 512Mi, default Cloud Build pool (free
+# 120 build-min/day — no machineType), logs to Cloud Logging only.
+#
+# ── ONE-TIME SETUP ────────────────────────────────────────────────────────────
+# 1) Create the three secrets (paste each value when prompted):
+#      printf '%s' "<gemini key>"        | gcloud secrets create fitt-gemini-api-key            --data-file=-
+#      printf '%s' "<service role key>"  | gcloud secrets create fitt-supabase-service-role-key --data-file=-
+#      printf '%s' "<dmail key>"         | gcloud secrets create fitt-dmail-api-key             --data-file=-
+# 2) Let the Cloud Run RUNTIME service account read them
+#    (default = <PROJECT_NUMBER>-compute@developer.gserviceaccount.com):
+#      for s in fitt-gemini-api-key fitt-supabase-service-role-key fitt-dmail-api-key; do
+#        gcloud secrets add-iam-policy-binding "$s" \
+#          --member="serviceAccount:<PROJECT_NUMBER>-compute@developer.gserviceaccount.com" \
+#          --role="roles/secretmanager.secretAccessor"; done
+# 3) Let the Cloud Build SA deploy:
+#      gcloud projects add-iam-policy-binding <PROJECT_ID> \
+#        --member="serviceAccount:<PROJECT_NUMBER>@cloudbuild.gserviceaccount.com" --role="roles/run.admin"
+#      gcloud projects add-iam-policy-binding <PROJECT_ID> \
+#        --member="serviceAccount:<PROJECT_NUMBER>@cloudbuild.gserviceaccount.com" --role="roles/iam.serviceAccountUser"
+# 4) Fill the _NEXT_PUBLIC_* and _ADMIN_EMAILS below, then:
+#      gcloud builds submit --config cloudbuild.production.yaml
+# 5) After deploy, add the service URL to Supabase → Auth → URL Configuration →
+#    Redirect URLs:  https://<service-url>/auth/callback
+#
+# ── VIA CLOUD BUILD TRIGGER (recommended) ─────────────────────────────────────
+# Cloud Build → Triggers → Create → Source = this repo, branch = ^main$ (prod),
+# Configuration = "Cloud Build configuration file" → /cloudbuild.production.yaml.
+# Under Advanced → Substitution variables, add (override the placeholders here):
+#   _NEXT_PUBLIC_SUPABASE_URL, _NEXT_PUBLIC_SUPABASE_ANON_KEY, _ADMIN_EMAILS
+#   (optional: _MAX_INSTANCES, _REGION). Secrets stay in Secret Manager — do NOT
+#   put them in the trigger. $BUILD_ID is auto-set; the trigger fires on push.
+#
+# Stricter prod (optional): pin secret versions instead of :latest (e.g.
+# fitt-gemini-api-key:1) so a `gcloud secrets versions add` can't silently change
+# what production loads — find versions with `gcloud secrets versions list <name>`.
+# ──────────────────────────────────────────────────────────────────────────────
+
+substitutions:
+  _SERVICE: "fitt-builder"
+  _REGION: "asia-southeast1"
+  _MAX_INSTANCES: "3"
+  # Public Supabase client config (shipped to the browser; safe to commit).
+  _NEXT_PUBLIC_SUPABASE_URL: "https://YOUR-PROJECT.supabase.co"
+  _NEXT_PUBLIC_SUPABASE_ANON_KEY: "YOUR_SUPABASE_ANON_KEY"
+  _GEMINI_MODEL: "gemini-2.5-flash"
+  # Comma-separated; full emails or "@domain" suffixes.
+  _ADMIN_EMAILS: "YOUR_ADMIN_EMAILS"
+
+steps:
+  # ==================== PREFLIGHT ====================
+  # Fail fast if the required substitutions are still placeholders.
+  - name: gcr.io/google.com/cloudsdktool/cloud-sdk:slim
+    id: preflight
+    entrypoint: bash
+    args:
+      - -c
+      - |
+        if printf '%s' "${_NEXT_PUBLIC_SUPABASE_URL}${_NEXT_PUBLIC_SUPABASE_ANON_KEY}${_ADMIN_EMAILS}" | grep -q 'YOUR'; then
+          echo "ERROR: set _NEXT_PUBLIC_SUPABASE_URL, _NEXT_PUBLIC_SUPABASE_ANON_KEY and _ADMIN_EMAILS before deploying." >&2
+          exit 1
+        fi
+        echo "preflight ok"
+
+  # ==================== BUILD ====================
+  # NEXT_PUBLIC_* are inlined into the client bundle at build time → build args.
+  # $BUILD_ID is always set (manual submit AND triggers); $COMMIT_SHA is not.
+  - name: gcr.io/cloud-builders/docker
+    id: build
+    waitFor: [preflight]
+    args:
+      - build
+      - --build-arg
+      - NEXT_PUBLIC_SUPABASE_URL=${_NEXT_PUBLIC_SUPABASE_URL}
+      - --build-arg
+      - NEXT_PUBLIC_SUPABASE_ANON_KEY=${_NEXT_PUBLIC_SUPABASE_ANON_KEY}
+      - -t
+      - gcr.io/$PROJECT_ID/${_SERVICE}:$BUILD_ID
+      - -t
+      - gcr.io/$PROJECT_ID/${_SERVICE}:latest
+      - -f
+      - Dockerfile
+      - .
+
+  # ==================== PUSH ====================
+  - name: gcr.io/cloud-builders/docker
+    id: push-build
+    args: [push, "gcr.io/$PROJECT_ID/${_SERVICE}:$BUILD_ID"]
+    waitFor: [build]
+  - name: gcr.io/cloud-builders/docker
+    id: push-latest
+    args: [push, "gcr.io/$PROJECT_ID/${_SERVICE}:latest"]
+    waitFor: [build]
+
+  # ==================== DEPLOY ====================
+  - name: gcr.io/google.com/cloudsdktool/cloud-sdk:slim
+    id: deploy
+    entrypoint: gcloud
+    args:
+      - run
+      - deploy
+      - ${_SERVICE}
+      - --image
+      - gcr.io/$PROJECT_ID/${_SERVICE}:$BUILD_ID
+      - --region
+      - ${_REGION}
+      - --platform
+      - managed
+      - --allow-unauthenticated
+      - --port
+      - "3000"
+      - --cpu
+      - "1"
+      - --memory
+      - 512Mi
+      - --min-instances
+      - "0"
+      - --max-instances
+      - ${_MAX_INSTANCES}
+      - --concurrency
+      - "80"
+      - --timeout
+      - "900"
+      # Non-secret env (^|^ delimiter so ADMIN_EMAILS' commas survive).
+      - --set-env-vars
+      - >-
+        ^|^NODE_ENV=production|GEMINI_MODEL=${_GEMINI_MODEL}|ADMIN_EMAILS=${_ADMIN_EMAILS}|NEXT_PUBLIC_SUPABASE_URL=${_NEXT_PUBLIC_SUPABASE_URL}|NEXT_PUBLIC_SUPABASE_ANON_KEY=${_NEXT_PUBLIC_SUPABASE_ANON_KEY}
+      # Secrets mounted from Secret Manager at runtime (never baked in the image).
+      - --set-secrets
+      - GEMINI_API_KEY=fitt-gemini-api-key:latest,SUPABASE_SERVICE_ROLE_KEY=fitt-supabase-service-role-key:latest,DMAIL_API_KEY=fitt-dmail-api-key:latest
+    waitFor: [push-build]
+
+images:
+  - gcr.io/$PROJECT_ID/${_SERVICE}:$BUILD_ID
+  - gcr.io/$PROJECT_ID/${_SERVICE}:latest
+
+options:
+  logging: CLOUD_LOGGING_ONLY
+  substitution_option: ALLOW_LOOSE
+  # No machineType → default Cloud Build pool (free 120 build-min/day).
+
+timeout: "1800s"

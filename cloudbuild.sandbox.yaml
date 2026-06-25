@@ -1,0 +1,114 @@
+# FITT Builder — Cloud Build → Cloud Run (SANDBOX).
+# Same cost-optimized shape as production (scale-to-zero, 512Mi, free build pool,
+# Cloud Logging only) but a separate service + lower max-instances.
+#
+# Setup: same as cloudbuild.production.yaml steps 1–3, then fill the values below
+# and run:  gcloud builds submit --config cloudbuild.sandbox.yaml
+# After deploy, add  https://<sandbox-url>/auth/callback  to Supabase redirect URLs.
+#
+# ── VIA CLOUD BUILD TRIGGER (recommended) ─────────────────────────────────────
+# Cloud Build → Triggers → Create → branch = ^dev$ (or your sandbox branch),
+# Configuration file = /cloudbuild.sandbox.yaml. Under Advanced → Substitution
+# variables add: _NEXT_PUBLIC_SUPABASE_URL, _NEXT_PUBLIC_SUPABASE_ANON_KEY,
+# _ADMIN_EMAILS. Secrets stay in Secret Manager. Fires on push; $BUILD_ID auto-set.
+#
+# ISOLATION (optional, $0 extra): for a sandbox that can't touch prod data, create
+# a SEPARATE Supabase project + `*-sandbox` secrets and point this file at them:
+#   - set _NEXT_PUBLIC_SUPABASE_URL / _ANON_KEY to the sandbox project
+#   - create fitt-gemini-api-key-sandbox / ...-service-role-key-sandbox / ...-dmail-...-sandbox
+#     and change the --set-secrets refs below to the -sandbox names.
+# As written, it reuses the SAME secrets/Supabase as production (simplest).
+# ──────────────────────────────────────────────────────────────────────────────
+
+substitutions:
+  _SERVICE: "fitt-builder-sandbox"
+  _REGION: "asia-southeast1"
+  _MAX_INSTANCES: "1"
+  _NEXT_PUBLIC_SUPABASE_URL: "https://YOUR-PROJECT.supabase.co"
+  _NEXT_PUBLIC_SUPABASE_ANON_KEY: "YOUR_SUPABASE_ANON_KEY"
+  _GEMINI_MODEL: "gemini-2.5-flash"
+  _ADMIN_EMAILS: "YOUR_ADMIN_EMAILS"
+
+steps:
+  - name: gcr.io/google.com/cloudsdktool/cloud-sdk:slim
+    id: preflight
+    entrypoint: bash
+    args:
+      - -c
+      - |
+        if printf '%s' "${_NEXT_PUBLIC_SUPABASE_URL}${_NEXT_PUBLIC_SUPABASE_ANON_KEY}${_ADMIN_EMAILS}" | grep -q 'YOUR'; then
+          echo "ERROR: set _NEXT_PUBLIC_SUPABASE_URL, _NEXT_PUBLIC_SUPABASE_ANON_KEY and _ADMIN_EMAILS before deploying." >&2
+          exit 1
+        fi
+        echo "preflight ok"
+
+  - name: gcr.io/cloud-builders/docker
+    id: build
+    waitFor: [preflight]
+    args:
+      - build
+      - --build-arg
+      - NEXT_PUBLIC_SUPABASE_URL=${_NEXT_PUBLIC_SUPABASE_URL}
+      - --build-arg
+      - NEXT_PUBLIC_SUPABASE_ANON_KEY=${_NEXT_PUBLIC_SUPABASE_ANON_KEY}
+      - -t
+      - gcr.io/$PROJECT_ID/${_SERVICE}:$BUILD_ID
+      - -t
+      - gcr.io/$PROJECT_ID/${_SERVICE}:latest
+      - -f
+      - Dockerfile
+      - .
+
+  - name: gcr.io/cloud-builders/docker
+    id: push-build
+    args: [push, "gcr.io/$PROJECT_ID/${_SERVICE}:$BUILD_ID"]
+    waitFor: [build]
+  - name: gcr.io/cloud-builders/docker
+    id: push-latest
+    args: [push, "gcr.io/$PROJECT_ID/${_SERVICE}:latest"]
+    waitFor: [build]
+
+  - name: gcr.io/google.com/cloudsdktool/cloud-sdk:slim
+    id: deploy
+    entrypoint: gcloud
+    args:
+      - run
+      - deploy
+      - ${_SERVICE}
+      - --image
+      - gcr.io/$PROJECT_ID/${_SERVICE}:$BUILD_ID
+      - --region
+      - ${_REGION}
+      - --platform
+      - managed
+      - --allow-unauthenticated
+      - --port
+      - "3000"
+      - --cpu
+      - "1"
+      - --memory
+      - 512Mi
+      - --min-instances
+      - "0"
+      - --max-instances
+      - ${_MAX_INSTANCES}
+      - --concurrency
+      - "80"
+      - --timeout
+      - "900"
+      - --set-env-vars
+      - >-
+        ^|^NODE_ENV=production|GEMINI_MODEL=${_GEMINI_MODEL}|ADMIN_EMAILS=${_ADMIN_EMAILS}|NEXT_PUBLIC_SUPABASE_URL=${_NEXT_PUBLIC_SUPABASE_URL}|NEXT_PUBLIC_SUPABASE_ANON_KEY=${_NEXT_PUBLIC_SUPABASE_ANON_KEY}
+      - --set-secrets
+      - GEMINI_API_KEY=fitt-gemini-api-key:latest,SUPABASE_SERVICE_ROLE_KEY=fitt-supabase-service-role-key:latest,DMAIL_API_KEY=fitt-dmail-api-key:latest
+    waitFor: [push-build]
+
+images:
+  - gcr.io/$PROJECT_ID/${_SERVICE}:$BUILD_ID
+  - gcr.io/$PROJECT_ID/${_SERVICE}:latest
+
+options:
+  logging: CLOUD_LOGGING_ONLY
+  substitution_option: ALLOW_LOOSE
+
+timeout: "1800s"

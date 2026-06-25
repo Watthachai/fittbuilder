@@ -1,17 +1,23 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { motion, useSpring } from "motion/react";
+import { motion, useMotionValue, useSpring } from "motion/react";
 import { createClient } from "@/lib/supabase/client";
 
 const TTL = 5000; // drop a cursor this long after its last move
 const THROTTLE = 40; // ms between broadcasts (~25/s)
 const SPRING = { stiffness: 600, damping: 45, mass: 0.6 };
 
+/** Which coordinate space a cursor's (x,y) is normalized against. "preview" is
+ *  relative to the prototype iframe's content (identical for everyone, so it
+ *  aligns regardless of banners/panel sizes); "viewport" is the whole window. */
+type CursorSpace = "viewport" | "preview";
+
 interface Peer {
   name: string;
   color: string;
-  /** Viewport-normalized position (0..1). */
+  space: CursorSpace;
+  /** Normalized position (0..1) within `space`. */
   x: number;
   y: number;
   t: number;
@@ -55,10 +61,24 @@ export default function LiveCursors({ projectId }: { projectId: string }) {
     });
     channel
       .on("broadcast", { event: "move" }, ({ payload }) => {
-        const p = payload as { id: string; name: string; color: string; x: number; y: number };
+        const p = payload as {
+          id: string;
+          name: string;
+          color: string;
+          space: CursorSpace;
+          x: number;
+          y: number;
+        };
         if (p.id === clientId) return;
         setPeers((prev) =>
-          new Map(prev).set(p.id, { name: p.name, color: p.color, x: p.x, y: p.y, t: Date.now() })
+          new Map(prev).set(p.id, {
+            name: p.name,
+            color: p.color,
+            space: p.space ?? "viewport",
+            x: p.x,
+            y: p.y,
+            t: Date.now(),
+          })
         );
       })
       .on("broadcast", { event: "leave" }, ({ payload }) => {
@@ -71,27 +91,32 @@ export default function LiveCursors({ projectId }: { projectId: string }) {
       })
       .subscribe();
 
-    const send = (x: number, y: number) => {
+    const send = (space: CursorSpace, x: number, y: number) => {
       const now = Date.now();
       if (now - lastSent < THROTTLE) return;
       lastSent = now;
-      channel.send({ type: "broadcast", event: "move", payload: { id: clientId, name, color, x, y } });
+      channel.send({
+        type: "broadcast",
+        event: "move",
+        payload: { id: clientId, name, color, space, x, y },
+      });
     };
     const leave = () =>
       channel.send({ type: "broadcast", event: "leave", payload: { id: clientId } });
 
-    const onMove = (e: MouseEvent) => send(e.clientX / window.innerWidth, e.clientY / window.innerHeight);
+    const onMove = (e: MouseEvent) =>
+      send("viewport", e.clientX / window.innerWidth, e.clientY / window.innerHeight);
     const onLeave = () => leave();
 
-    // Pointer forwarded from inside the preview iframe → map via its rect.
+    // Pointer forwarded from inside the preview iframe is already normalized to
+    // the iframe's own content — broadcast it AS preview-space (don't fold in the
+    // sender's layout), so every receiver maps it onto their own iframe.
     const onMessage = (e: MessageEvent) => {
       const d = e.data as { __fittCursor?: boolean; x?: number; y?: number; leave?: boolean };
       if (!d || !d.__fittCursor) return;
       if (d.leave) return leave();
-      const iframe = document.querySelector<HTMLIFrameElement>('iframe[title="Demo preview"]');
-      if (!iframe || d.x == null || d.y == null) return;
-      const r = iframe.getBoundingClientRect();
-      send((r.left + d.x * r.width) / window.innerWidth, (r.top + d.y * r.height) / window.innerHeight);
+      if (d.x == null || d.y == null) return;
+      send("preview", d.x, d.y);
     };
 
     window.addEventListener("mousemove", onMove);
@@ -133,21 +158,34 @@ export default function LiveCursors({ projectId }: { projectId: string }) {
   );
 }
 
+/** Map a peer's normalized position into viewport pixels, against the receiver's
+ *  OWN layout — preview-space goes through the local iframe rect so the prototype
+ *  surface aligns even when banners/panels differ between users. */
+function resolve(peer: Peer): { px: number; py: number; visible: boolean } {
+  if (peer.space === "preview") {
+    const iframe = document.querySelector<HTMLIFrameElement>('iframe[title="Demo preview"]');
+    if (!iframe) return { px: 0, py: 0, visible: false }; // not on the Preview tab
+    const r = iframe.getBoundingClientRect();
+    return { px: r.left + peer.x * r.width, py: r.top + peer.y * r.height, visible: true };
+  }
+  return { px: peer.x * window.innerWidth, py: peer.y * window.innerHeight, visible: true };
+}
+
 function RemoteCursor({ peer }: { peer: Peer }) {
-  const vw = typeof window === "undefined" ? 0 : window.innerWidth;
-  const vh = typeof window === "undefined" ? 0 : window.innerHeight;
-  const x = useSpring(peer.x * vw, SPRING);
-  const y = useSpring(peer.y * vh, SPRING);
+  const initial = typeof window === "undefined" ? { px: 0, py: 0, visible: false } : resolve(peer);
+  const x = useSpring(initial.px, SPRING);
+  const y = useSpring(initial.py, SPRING);
+  const opacity = useMotionValue(initial.visible ? 1 : 0);
 
   useEffect(() => {
-    x.set(peer.x * window.innerWidth);
-  }, [peer.x, x]);
-  useEffect(() => {
-    y.set(peer.y * window.innerHeight);
-  }, [peer.y, y]);
+    const { px, py, visible } = resolve(peer);
+    x.set(px);
+    y.set(py);
+    opacity.set(visible ? 1 : 0); // motion value, not React state — fine in an effect
+  }, [peer, x, y, opacity]);
 
   return (
-    <motion.div style={{ x, y }} className="absolute left-0 top-0 will-change-transform">
+    <motion.div style={{ x, y, opacity }} className="absolute left-0 top-0 will-change-transform">
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" className="drop-shadow">
         <path
           d="M5.5 3.2 19 11.2l-6.6 1.2 -2.4 6.3z"

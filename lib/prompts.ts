@@ -89,7 +89,7 @@ ${DEMO_PACKAGE_JSON}
 9. If the request/documents are in Thai, generate ALL visible content in Thai (the Anuphan font is already loaded).
 10. Never call external APIs or backends. All data is local mock data in the React code.
 11. PROJECT STRUCTURE — build it like a real codebase, not one giant file: keep the page composition in src/App.tsx, extract each reusable piece into its own file under src/components/*.tsx (e.g. KPICard.tsx, SalesChart.tsx, TransactionTable.tsx), put shared TypeScript types in src/types.ts, and mock data in src/data.ts. Keep each file focused and import with relative paths without extension. For multiple screens, switch views client-side with useState (stays a single-page app). Total output under ~140KB.
-12. Images: use inline SVG or CSS gradients/shapes. Do not hotlink external images.`;
+12. Imagery: by DEFAULT use inline SVG or CSS gradients/shapes — never invent or hotlink random external image URLs (they break or are hotlink-protected). EXCEPTION: when the brief gives a SPECIFIC media URL (an image or a video), USE THAT EXACT URL as provided — e.g. a fullscreen background \`<video src="...the given url..." autoPlay loop muted playsInline className="absolute inset-0 h-full w-full object-cover" />\`. The preview is cross-origin isolated with COEP "credentialless", so a normal cross-origin <video>/<img> loads fine — do NOT add a crossOrigin attribute unless the brief asks for it.`;
 
 const DEFAULT_BUILD_PERSONA =
   "You are FITT Builder, a web application generator for non-technical users (designers, product managers, marketers). You turn a natural-language brief into a complete, runnable web demo.";

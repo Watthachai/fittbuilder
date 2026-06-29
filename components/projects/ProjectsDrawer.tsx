@@ -12,6 +12,7 @@ import {
 import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "motion/react";
 import {
+  ChevronDown,
   Copy,
   Dna,
   FileCode,
@@ -30,11 +31,12 @@ import {
   getProject,
   listProjects,
 } from "@/lib/storage";
-import { firstOrg } from "@/lib/orgs";
+import { firstOrg, listOrgs } from "@/lib/orgs";
 import { confirm } from "@/lib/confirm";
 import { openCreateWorkspace } from "@/lib/workspace-modal";
+import { WorkspaceIcon } from "@/lib/workspace-style";
 import { encodeShareUrl } from "@/lib/share";
-import type { ProjectSummary } from "@/lib/types";
+import type { OrgRecord, ProjectSummary } from "@/lib/types";
 
 type Tab = "mine" | "shared";
 
@@ -79,8 +81,18 @@ export default function ProjectsDrawer({
 }) {
   const router = useRouter();
   const [projects, setProjects] = useState<ProjectSummary[]>([]);
+  const [orgs, setOrgs] = useState<OrgRecord[]>([]);
+  const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const toggleFolder = (key: string) =>
+    setCollapsed((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
   const [tab, setTab] = useState<Tab>("mine");
   const [orgOpening, setOrgOpening] = useState(false);
 
@@ -113,7 +125,9 @@ export default function ProjectsDrawer({
 
   const refresh = useCallback(async () => {
     try {
-      setProjects(await listProjects());
+      const [list, orgList] = await Promise.all([listProjects(), listOrgs()]);
+      setProjects(list);
+      setOrgs(orgList);
       setError(null);
     } catch {
       setError("เข้าสู่ระบบเพื่อดูผลงานของคุณ");
@@ -128,9 +142,10 @@ export default function ProjectsDrawer({
     let cancelled = false;
     (async () => {
       try {
-        const list = await listProjects();
+        const [list, orgList] = await Promise.all([listProjects(), listOrgs()]);
         if (!cancelled) {
           setProjects(list);
+          setOrgs(orgList);
           setError(null);
         }
       } catch {
@@ -174,6 +189,32 @@ export default function ProjectsDrawer({
     return q ? base.filter((p) => p.name.toLowerCase().includes(q)) : base;
   }, [tab, mine, shared, query]);
   const groups = useMemo(() => groupByTime(visible), [visible]);
+
+  // "Mine" tab: group into workspace folders — a "ส่วนตัว" folder for projects in
+  // no workspace, then one folder per owned workspace (shown even when empty so a
+  // freshly-created workspace appears). Search filters within and hides empties.
+  const mineGroups = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    const match = (arr: ProjectSummary[]) =>
+      q ? arr.filter((p) => p.name.toLowerCase().includes(q)) : arr;
+    const out: {
+      key: string;
+      label: string;
+      color: string | null;
+      icon: string | null;
+      items: ProjectSummary[];
+    }[] = [];
+    const personal = match(mine.filter((p) => !p.orgId));
+    if (personal.length > 0) {
+      out.push({ key: "__personal", label: "ส่วนตัว", color: null, icon: null, items: personal });
+    }
+    for (const o of orgs) {
+      const items = match(mine.filter((p) => p.orgId === o.id));
+      if (q && items.length === 0) continue;
+      out.push({ key: o.id, label: o.name, color: o.color, icon: o.icon, items });
+    }
+    return out;
+  }, [mine, orgs, query]);
 
   const openProject = (id: string) => {
     onClose();
@@ -230,6 +271,70 @@ export default function ProjectsDrawer({
     await deleteProject(p.id);
     await refresh();
   };
+
+  const renderRow = (p: ProjectSummary) => (
+    <div
+      key={p.id}
+      className="group relative flex items-center gap-2.5 rounded-lg px-2 py-2 transition hover:bg-chalk/5"
+    >
+      <button
+        onClick={() => openProject(p.id)}
+        className="flex min-w-0 flex-1 items-center gap-2.5 text-left"
+      >
+        <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg border border-night-edge bg-night/40">
+          <FileCode size={15} className="text-shine/70" />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-sm text-chalk">{p.name}</span>
+          <span className="block truncate font-mono text-[10px] text-chalk-dim">
+            {formatDate(p.updatedAt)}
+            {p.access === "member" && p.role ? ` · ${p.role}` : ""}
+          </span>
+        </span>
+      </button>
+      {p.access === "owner" && (
+        <button
+          onClick={(e) => toggleMenu(e, p.id)}
+          aria-label="ตัวเลือก"
+          className={`grid h-7 w-7 shrink-0 place-items-center rounded-md transition hover:bg-chalk/10 hover:text-chalk ${
+            menu?.id === p.id ? "bg-chalk/10 text-chalk" : "text-chalk-dim"
+          }`}
+        >
+          <MoreHorizontal size={16} />
+        </button>
+      )}
+      {menu?.id === p.id &&
+        createPortal(
+          <>
+            <div className="fixed inset-0 z-[60]" onClick={() => setMenu(null)} />
+            <div
+              style={menu.style}
+              className="fixed z-[60] w-44 overflow-hidden rounded-xl border border-chalk/15 bg-night-panel py-1 shadow-xl"
+            >
+              <button
+                onClick={() => handleShare(p)}
+                className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-sm text-chalk/80 transition hover:bg-chalk/5 hover:text-chalk"
+              >
+                <Share2 size={14} /> แชร์
+              </button>
+              <button
+                onClick={() => handleDuplicate(p.id)}
+                className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-sm text-chalk/80 transition hover:bg-chalk/5 hover:text-chalk"
+              >
+                <Copy size={14} /> ทำสำเนา
+              </button>
+              <button
+                onClick={() => handleDelete(p)}
+                className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-sm text-halt/90 transition hover:bg-halt/10 hover:text-halt"
+              >
+                <Trash2 size={14} /> ลบ
+              </button>
+            </div>
+          </>,
+          document.body,
+        )}
+    </div>
+  );
 
   return (
     <AnimatePresence>
@@ -326,86 +431,56 @@ export default function ProjectsDrawer({
                       ? "ยังไม่มีโปรเจกต์ — เริ่มสร้างได้เลย"
                       : "ยังไม่มีใครแชร์โปรเจกต์ให้คุณ"}
                 </p>
-              ) : (
+              ) : tab === "shared" ? (
                 groups.map((g) => (
                   <div key={g.label} className="mb-3">
                     <p className="px-2 py-1 font-mono text-[10px] uppercase tracking-wider text-chalk-dim">
                       {g.label}
                     </p>
-                    {g.items.map((p) => (
-                      <div
-                        key={p.id}
-                        className="group relative flex items-center gap-2.5 rounded-lg px-2 py-2 transition hover:bg-chalk/5"
-                      >
-                        <button
-                          onClick={() => openProject(p.id)}
-                          className="flex min-w-0 flex-1 items-center gap-2.5 text-left"
-                        >
-                          <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg border border-night-edge bg-night/40">
-                            <FileCode size={15} className="text-shine/70" />
-                          </span>
-                          <span className="min-w-0 flex-1">
-                            <span className="block truncate text-sm text-chalk">
-                              {p.name}
-                            </span>
-                            <span className="block truncate font-mono text-[10px] text-chalk-dim">
-                              {formatDate(p.updatedAt)}
-                              {p.access === "member" && p.role
-                                ? ` · ${p.role}`
-                                : ""}
-                            </span>
-                          </span>
-                        </button>
-                        {p.access === "owner" && (
-                          <button
-                            onClick={(e) => toggleMenu(e, p.id)}
-                            aria-label="ตัวเลือก"
-                            className={`grid h-7 w-7 shrink-0 place-items-center rounded-md transition hover:bg-chalk/10 hover:text-chalk ${
-                              menu?.id === p.id
-                                ? "bg-chalk/10 text-chalk"
-                                : "text-chalk-dim"
-                            }`}
-                          >
-                            <MoreHorizontal size={16} />
-                          </button>
-                        )}
-                        {menu?.id === p.id &&
-                          createPortal(
-                            <>
-                              <div
-                                className="fixed inset-0 z-[60]"
-                                onClick={() => setMenu(null)}
-                              />
-                              <div
-                                style={menu.style}
-                                className="fixed z-[60] w-44 overflow-hidden rounded-xl border border-chalk/15 bg-night-panel py-1 shadow-xl"
-                              >
-                              <button
-                                onClick={() => handleShare(p)}
-                                className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-sm text-chalk/80 transition hover:bg-chalk/5 hover:text-chalk"
-                              >
-                                <Share2 size={14} /> แชร์
-                              </button>
-                              <button
-                                onClick={() => handleDuplicate(p.id)}
-                                className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-sm text-chalk/80 transition hover:bg-chalk/5 hover:text-chalk"
-                              >
-                                <Copy size={14} /> ทำสำเนา
-                              </button>
-                              <button
-                                onClick={() => handleDelete(p)}
-                                className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-sm text-halt/90 transition hover:bg-halt/10 hover:text-halt"
-                              >
-                                <Trash2 size={14} /> ลบ
-                              </button>
-                            </div>
-                            </>,
-                            document.body,
-                          )}
-                      </div>
-                    ))}
+                    {g.items.map(renderRow)}
                   </div>
                 ))
+              ) : (
+                mineGroups.map((g) => {
+                  const isOpen = !collapsed.has(g.key);
+                  return (
+                    <div key={g.key} className="mb-2">
+                      <button
+                        onClick={() => toggleFolder(g.key)}
+                        className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 transition hover:bg-chalk/5"
+                      >
+                        <ChevronDown
+                          size={13}
+                          className={`shrink-0 text-chalk-dim transition-transform ${
+                            isOpen ? "" : "-rotate-90"
+                          }`}
+                        />
+                        {g.color ? (
+                          <span
+                            className="grid h-5 w-5 shrink-0 place-items-center rounded-md"
+                            style={{ background: `${g.color}22`, color: g.color }}
+                          >
+                            <WorkspaceIcon icon={g.icon} size={12} />
+                          </span>
+                        ) : (
+                          <FolderGit2 size={14} className="shrink-0 text-chalk-dim" />
+                        )}
+                        <span className="min-w-0 flex-1 truncate text-left text-[13px] font-medium text-chalk">
+                          {g.label}
+                        </span>
+                        <span className="font-mono text-[10px] text-chalk-dim">{g.items.length}</span>
+                      </button>
+                      {isOpen &&
+                        (g.items.length > 0 ? (
+                          g.items.map(renderRow)
+                        ) : (
+                          <p className="px-3 py-1.5 text-[12px] text-chalk-dim/70">
+                            ยังไม่มีโปรเจกต์
+                          </p>
+                        ))}
+                    </div>
+                  );
+                })
               )}
             </div>
 

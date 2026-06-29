@@ -23,6 +23,14 @@ export const CHANGE_BADGE: Record<ChangeType, { label: string; className: string
 // Newest first. SemVer: fix → PATCH, feature → MINOR, breaking → MAJOR.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.15.1",
+    date: "2026-06-29",
+    title: "ผลงานจัดเป็นโฟลเดอร์ตาม workspace",
+    items: [
+      { type: "improvement", text: "ไซด์บาร์ผลงานจัดกลุ่มเป็นโฟลเดอร์: “ส่วนตัว” สำหรับโปรเจกต์ที่ไม่ได้อยู่ workspace ไหน + โฟลเดอร์ของแต่ละ workspace (มีสี/ไอคอน) พับ-กางได้ — ใช้ workspace หรือไม่ใช้ก็ได้" },
+    ],
+  },
+  {
     version: "0.15.0",
     date: "2026-06-29",
     title: "สร้าง workspace แบบมีตัวตน + อัปโหลดไฟล์ร่าง Org DNA",

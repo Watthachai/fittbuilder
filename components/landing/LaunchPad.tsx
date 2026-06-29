@@ -8,6 +8,7 @@ import { createProject } from "@/lib/storage";
 import { setPendingAction } from "@/lib/pending-action";
 import SkillPicker from "@/components/studio/SkillPicker";
 import SkillDropdown from "@/components/studio/SkillDropdown";
+import OrgSelect from "@/components/org/OrgSelect";
 
 const MAX_CHARS = 10_000;
 
@@ -32,6 +33,7 @@ export default function LaunchPad({
   const [detectedSkillId, setDetectedSkillId] = useState<string | null>(null);
   const [detecting, setDetecting] = useState(false);
   const [selectedSkillId, setSelectedSkillId] = useState<string | null>(null);
+  const [selectedOrgId, setSelectedOrgId] = useState<string | null>(null);
   const [plusOpen, setPlusOpen] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -72,6 +74,7 @@ export default function LaunchPad({
         name: prompt.trim().slice(0, 40),
         phase: "define",
         skillId: skillId ?? undefined,
+        orgId: selectedOrgId ?? undefined,
       });
       setPendingAction(project.id, { kind: "express", prompt: prompt.trim() });
       await onLaunch?.();
@@ -90,7 +93,7 @@ export default function LaunchPad({
     setError(null);
     setLaunching(true);
     try {
-      const project = await createProject({ name: "Spec-to-Demo" });
+      const project = await createProject({ name: "Spec-to-Demo", orgId: selectedOrgId ?? undefined });
       setPendingAction(project.id, { kind: "spec" });
       await onLaunch?.();
       router.push(`/project/${project.id}`);
@@ -108,7 +111,7 @@ export default function LaunchPad({
     setError(null);
     setLaunching(true);
     try {
-      const project = await createProject({ name: "Define Session", phase: "define" });
+      const project = await createProject({ name: "Define Session", phase: "define", orgId: selectedOrgId ?? undefined });
       await onLaunch?.();
       router.push(`/project/${project.id}`);
     } catch (e) {
@@ -121,11 +124,9 @@ export default function LaunchPad({
 
   return (
     <div className="glass w-full max-w-2xl rounded-2xl">
-      <div className="flex items-center justify-between border-b border-chalk/10 px-4 py-2">
-        <span className="font-mono text-[11px] uppercase tracking-[0.18em] text-chalk/60">
-          FITT-001 · Demo Brief
-        </span>
-        <span className="font-mono text-[11px] text-chalk/60">
+      <div className="flex items-center justify-between gap-2 border-b border-chalk/10 px-3 py-2">
+        <OrgSelect value={selectedOrgId} onChange={setSelectedOrgId} />
+        <span className="shrink-0 font-mono text-[11px] text-chalk/60">
           {prompt.length}/{MAX_CHARS}
         </span>
       </div>

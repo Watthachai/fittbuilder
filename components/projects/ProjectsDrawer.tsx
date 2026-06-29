@@ -13,8 +13,10 @@ import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "motion/react";
 import {
   Copy,
+  Dna,
   FileCode,
   FolderGit2,
+  Loader2,
   MoreHorizontal,
   Search,
   Share2,
@@ -28,6 +30,7 @@ import {
   getProject,
   listProjects,
 } from "@/lib/storage";
+import { ensureDefaultOrg } from "@/lib/orgs";
 import { encodeShareUrl } from "@/lib/share";
 import type { ProjectSummary } from "@/lib/types";
 
@@ -77,6 +80,18 @@ export default function ProjectsDrawer({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [tab, setTab] = useState<Tab>("mine");
+  const [orgOpening, setOrgOpening] = useState(false);
+
+  const openOrgSetup = async () => {
+    setOrgOpening(true);
+    try {
+      const org = await ensureDefaultOrg();
+      onClose();
+      router.push(`/org/${org.id}`);
+    } catch {
+      setOrgOpening(false);
+    }
+  };
   const [query, setQuery] = useState("");
   // Which row's "⋯" menu is open, plus its fixed-position style (computed from
   // the button rect so the menu escapes the list's overflow clipping).
@@ -264,6 +279,22 @@ export default function ProjectsDrawer({
                 className="w-full bg-transparent py-2 text-sm text-chalk outline-none placeholder:text-chalk-dim/50"
               />
             </div>
+
+            <button
+              onClick={() => void openOrgSetup()}
+              disabled={orgOpening}
+              className="mx-3 mt-2 inline-flex items-center gap-2 rounded-xl border border-night-edge bg-night/40 px-3 py-2 text-sm text-chalk/85 transition hover:border-shine/50 hover:text-chalk disabled:opacity-50"
+            >
+              {orgOpening ? (
+                <Loader2 size={14} className="shrink-0 animate-spin text-shine" />
+              ) : (
+                <Dna size={14} className="shrink-0 text-shine" />
+              )}
+              <span className="flex-1 text-left">ตั้งค่า Org DNA ของคุณ</span>
+              <span className="font-mono text-[10px] uppercase tracking-wider text-chalk-dim">
+                workspace
+              </span>
+            </button>
 
             <div className="scroll-thin mt-3 min-h-0 flex-1 overflow-y-auto px-2 pb-4">
               {loading ? (

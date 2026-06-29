@@ -1,4 +1,5 @@
 import type { ProjectFiles } from "./types";
+import { PRELOADER_SVG } from "./scaffold-preloader";
 
 /**
  * The demo runtime that lives inside the WebContainer: a Vite + React 18 app.
@@ -157,34 +158,60 @@ body { margin: 0; }
 `;
 
 /**
- * A real, interactive starter page (create-vite style) so the preview shows a
- * running app from the first second — not an empty placeholder. The first Build
- * replaces this with the generated demo.
+ * The live "stage" page shown in the preview while the user is interviewed —
+ * not a gimmick, but a calm waiting state: the anthropomorphic preloader (served
+ * from the scaffold's own /public so it works inside the WebContainer) plus a
+ * rotating "what FITT can do" carousel, so the wait teaches the product. The
+ * first Build replaces this with the generated demo.
  */
-const SCAFFOLD_APP = `import { useState } from "react";
+const SCAFFOLD_APP = `import { useEffect, useState } from "react";
+
+const TIPS = [
+  ["AI", "พิมพ์ภาษาธรรมดาเพื่อแก้ — เช่น “เปลี่ยนสีปุ่มเป็นน้ำเงิน” แล้ว AI แก้ให้"],
+  ["npm", "ต้องใช้ไลบรารีอะไร AI ติดตั้ง npm package ให้อัตโนมัติ"],
+  ["</>", "เปิดแท็บ Code เพื่อดู/แก้ไฟล์ทั้งหมดได้เอง แล้วเห็นผลทันที"],
+  ["DNA", "ผูก Org DNA เพื่อให้ดีไซน์และ flow เข้ากับองค์กรของคุณ"],
+  ["zip", "กด Export เป็น .zip หรือแชร์ลิงก์ให้ทีมเปิดดูได้โดยไม่ต้อง login"],
+];
 
 export default function App() {
-  const [count, setCount] = useState(0);
+  const [i, setI] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => setI((v) => (v + 1) % TIPS.length), 3200);
+    return () => clearInterval(id);
+  }, []);
+  const [tag, tip] = TIPS[i];
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center gap-6 bg-black px-6 text-center text-white">
-      <div className="flex items-center gap-2 text-sm">
-        <span className="h-2.5 w-2.5 animate-pulse rounded-full bg-[#64cefb]" />
-        <span className="font-semibold tracking-tight">FITT Builder</span>
-        <span className="text-white/40">· Vite + React</span>
+    <main className="flex min-h-screen flex-col items-center justify-center gap-6 bg-[#0a0a0a] px-6 text-center text-white">
+      <style>{".tip-fade{animation:tipfade .45s ease}@keyframes tipfade{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:none}}"}</style>
+
+      <div className="flex items-center gap-2 text-xs text-white/70">
+        <span className="h-2 w-2 animate-pulse rounded-full bg-[#64cefb]" />
+        <span className="font-semibold tracking-tight text-white">FITT Builder</span>
+        <span className="text-white/40">· Vite + React · รันสดในเบราว์เซอร์</span>
       </div>
-      <h1 className="max-w-xl text-3xl font-semibold leading-snug">
-        เวทีพร้อมแล้ว — โปรเจกต์กำลังรันสดในเบราว์เซอร์
-      </h1>
-      <p className="max-w-md text-sm leading-relaxed text-white/50">
-        ตอบคำถามทางซ้ายเพื่อสร้าง BRD &amp; PRD — เมื่ออนุมัติแล้ว AI จะ generate
-        demo จริงทับหน้านี้ทันที
-      </p>
-      <button
-        onClick={() => setCount((c) => c + 1)}
-        className="rounded-full bg-[#64cefb] px-6 py-2.5 font-medium text-black transition hover:brightness-110"
-      >
-        ลองกดดูว่ามันรันจริง: {count}
-      </button>
+
+      <div className="w-full max-w-sm overflow-hidden rounded-2xl border border-white/10 bg-white shadow-2xl">
+        <img src="/preloader.svg" alt="กำลังเตรียมเวที" className="h-auto w-full" />
+      </div>
+
+      <div>
+        <h1 className="text-2xl font-semibold leading-snug">เวทีพร้อมแล้ว · กำลังรอบทสนทนา</h1>
+        <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-white/55">
+          ตอบคำถามทางซ้ายเพื่อสร้าง BRD &amp; PRD — พออนุมัติแล้ว AI จะ generate
+          demo จริงทับหน้านี้ทันที
+        </p>
+      </div>
+
+      <div className="flex min-h-[3.25rem] w-full max-w-md items-center gap-3 rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3 text-left">
+        <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-[#64cefb]/15 font-mono text-[11px] font-semibold text-[#64cefb]">
+          {tag}
+        </span>
+        <div className="min-w-0">
+          <p className="text-[10px] uppercase tracking-widest text-[#64cefb]">FITT ทำอะไรได้บ้าง</p>
+          <p key={i} className="tip-fade text-sm text-white/80">{tip}</p>
+        </div>
+      </div>
     </main>
   );
 }
@@ -200,6 +227,9 @@ export const SCAFFOLD_FILES: ProjectFiles = {
   "src/main.tsx": SCAFFOLD_MAIN,
   "src/App.tsx": SCAFFOLD_APP,
   "src/index.css": SCAFFOLD_INDEX_CSS,
+  // Served by Vite at /preloader.svg — the scaffold has its own filesystem, so
+  // the asset must live here (it can't reach the FITT app's /public).
+  "public/preloader.svg": PRELOADER_SVG,
 };
 
 /** Dependency names that belong to the canonical scaffold (not user-added). */

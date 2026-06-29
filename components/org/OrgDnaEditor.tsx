@@ -62,6 +62,7 @@ export default function OrgDnaEditor({ orgId }: { orgId: string }) {
   const [icon, setIcon] = useState(DEFAULT_ICON);
   const [dna, setDna] = useState<OrgDna>({});
   const [paste, setPaste] = useState("");
+  const [restored, setRestored] = useState(false);
   const [files, setFiles] = useState<ChatAttachmentInput[]>([]);
   const [drafting, setDrafting] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -103,6 +104,12 @@ export default function OrgDnaEditor({ orgId }: { orgId: string }) {
       setColor(org.color || DEFAULT_COLOR);
       setIcon(org.icon || DEFAULT_ICON);
       setDna(org.dna);
+      // Bring back the data the DNA was last drafted from (paste + extracted file
+      // text are stored together in `sources`) so the user can review/re-draft.
+      if (org.dna.sources?.trim()) {
+        setPaste(org.dna.sources);
+        setRestored(true);
+      }
       setLoading(false);
     })();
     return () => {
@@ -290,11 +297,20 @@ export default function OrgDnaEditor({ orgId }: { orgId: string }) {
           </p>
           <textarea
             value={paste}
-            onChange={(e) => setPaste(e.target.value)}
-            rows={4}
+            onChange={(e) => {
+              setPaste(e.target.value);
+              if (restored) setRestored(false);
+            }}
+            rows={restored ? 8 : 4}
             placeholder="เช่น: เราเป็นเอเจนซีดิจิทัล 30 คน ทีมเล็กตัดสินใจเองได้ ผู้บริหารดูภาพรวม…"
             className="mt-3 w-full resize-y rounded-lg border border-night-edge bg-night px-3 py-2.5 text-[14px] outline-none focus:border-shine"
           />
+          {restored && (
+            <p className="mt-1.5 flex items-center gap-1.5 text-[12px] text-chalk-dim">
+              <RotateCcw size={12} className="text-shine" />
+              โหลดข้อมูลที่เคยใช้ร่างกลับมาให้แล้ว — แก้แล้วกด “ให้ AI ร่าง Org DNA” เพื่อร่างใหม่ได้
+            </p>
+          )}
           {files.length > 0 && (
             <div className="mt-2 flex flex-wrap gap-1.5">
               {files.map((f, i) => (

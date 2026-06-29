@@ -113,7 +113,7 @@ export default function TopBar({
             : "border-night-edge text-chalk-dim hover:border-shine hover:text-chalk"
         }`}
       >
-        <DnaMark size={15} bars={5} className="shrink-0" color={org?.color ?? "var(--shine)"} />
+        <DnaMark size={16} bars={6} rainbow className="shrink-0" />
         <span className="truncate">{org ? `${org.name} · DNA` : "Org DNA"}</span>
       </button>
 

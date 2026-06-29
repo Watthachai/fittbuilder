@@ -23,6 +23,16 @@ export const CHANGE_BADGE: Record<ChangeType, { label: string; className: string
 // Newest first. SemVer: fix → PATCH, feature → MINOR, breaking → MAJOR.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.18.2",
+    date: "2026-06-29",
+    title: "หน้ารอที่มีประโยชน์ + เรียกข้อมูล Org DNA เดิมกลับมา + เกลียว DNA ชัดขึ้น",
+    items: [
+      { type: "improvement", text: "หน้า preview ระหว่างรอ (ก่อน AI สร้าง demo) เปลี่ยนเป็นภาพ preloader + การ์ดหมุนบอกว่า “FITT ทำอะไรได้บ้าง” (แก้ด้วยภาษาคน, ติดตั้ง npm อัตโนมัติ, Export/แชร์ ฯลฯ) แทนปุ่มกดเล่นเดิม" },
+      { type: "fix", text: "หน้าจัดการ workspace เรียกข้อมูลที่เคยใช้ให้ AI ร่าง Org DNA กลับมาให้ในกล่อง (เดิมหายเมื่อปิดหน้า) — ตรวจ/แก้แล้วกดร่างใหม่ได้เลย" },
+      { type: "improvement", text: "ไอคอนเกลียว DNA บนปุ่ม Org DNA ชัดขึ้น (ไล่สีรุ้ง) ให้เห็นการเคลื่อนไหวแบบวิทยาศาสตร์ชัดเจน" },
+    ],
+  },
+  {
     version: "0.18.1",
     date: "2026-06-29",
     title: "badge Org DNA เป็นเกลียว DNA เคลื่อนไหว",

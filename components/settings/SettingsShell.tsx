@@ -68,8 +68,8 @@ export default function SettingsShell({ children }: { children: ReactNode }) {
   const initial = (account?.email || "?").charAt(0).toUpperCase();
 
   return (
-    <div className="flex min-h-screen bg-night text-chalk">
-      <aside className="flex w-60 shrink-0 flex-col border-r border-night-edge px-3 py-5">
+    <div className="flex h-screen bg-night text-chalk">
+      <aside className="flex h-full w-60 shrink-0 flex-col border-r border-night-edge px-3 py-5">
         <Link
           href="/"
           className="flex items-center gap-2 px-2 font-display text-base font-semibold tracking-tight text-chalk"
@@ -130,7 +130,7 @@ export default function SettingsShell({ children }: { children: ReactNode }) {
         </Link>
       </aside>
 
-      <main className="min-h-screen min-w-0 flex-1 overflow-y-auto">{children}</main>
+      <main className="min-w-0 flex-1 overflow-y-auto">{children}</main>
     </div>
   );
 }

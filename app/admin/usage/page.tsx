@@ -52,6 +52,7 @@ const KIND_LABELS: Record<string, string> = {
   extract_answers: "ดึงคำตอบจากเอกสาร",
   code_suggestion: "เติมโค้ดอัตโนมัติ",
   generate_skill: "สร้าง Skill Template (AI)",
+  org_dna: "ร่าง Org DNA (AI)",
 };
 
 const num = (n: number | null | undefined) => Number(n ?? 0).toLocaleString("en-US");
@@ -74,7 +75,7 @@ export default async function AdminUsagePage() {
 
   return (
     <SettingsShell>
-      <div className="mx-auto w-full max-w-6xl px-8 py-10 stitch">
+      <div className="w-full px-8 py-8 stitch">
         <div className="mb-6">
           <h1 className="font-display text-2xl font-semibold">รายงานการใช้งาน AI</h1>
           <p className="mt-1 text-sm text-chalk-dim">

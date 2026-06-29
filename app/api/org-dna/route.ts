@@ -69,7 +69,7 @@ export async function POST(request: Request) {
   }
 
   let usage: TokenUsage | null = null;
-  after(() => void recordUsage({ userId, projectId: null, kind: "agent", usage }));
+  after(() => void recordUsage({ userId, projectId: null, kind: "org_dna", usage }));
 
   try {
     let raw = "";

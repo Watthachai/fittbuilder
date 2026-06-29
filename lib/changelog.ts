@@ -23,6 +23,15 @@ export const CHANGE_BADGE: Record<ChangeType, { label: string; className: string
 // Newest first. SemVer: fix → PATCH, feature → MINOR, breaking → MAJOR.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.16.4",
+    date: "2026-06-29",
+    title: "หน้าตั้งค่าเต็มจอ + sidebar ค้างที่เดิม + แยกหมวด Org DNA ในรายงาน",
+    items: [
+      { type: "improvement", text: "Sidebar หน้าตั้งค่าค้างตาม viewport — ปุ่ม “กลับหน้าแรก” เห็นตลอด ไม่ต้องเลื่อนลง และเนื้อหา/ตารางแสดงเต็มความกว้างจอ" },
+      { type: "improvement", text: "รายงานการใช้ AI แยกหมวด “ร่าง Org DNA (AI)” ออกมาเป็นชนิดของตัวเอง" },
+    ],
+  },
+  {
     version: "0.16.3",
     date: "2026-06-29",
     title: "รวมหน้าตั้งค่าไว้ที่เดียว + อ่านแหล่งข้อมูลง่ายขึ้น",

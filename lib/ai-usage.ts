@@ -12,7 +12,8 @@ export type UsageKind =
   | "detect_preset"
   | "extract_answers"
   | "code_suggestion"
-  | "generate_skill";
+  | "generate_skill"
+  | "org_dna";
 
 /**
  * Estimated Gemini pricing, USD per 1,000,000 tokens. These are ESTIMATES — update

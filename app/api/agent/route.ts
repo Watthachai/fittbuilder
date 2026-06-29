@@ -6,6 +6,7 @@ import { currentUserId, recordUsage } from "@/lib/ai-usage";
 import { MissingApiKeyError, streamParts, type TokenUsage } from "@/lib/gemini";
 import { isBuildPhase, isPhaseId } from "@/lib/phases";
 import { buildAgentSystemPrompt } from "@/lib/prompts";
+import { getProjectOrgDnaContext } from "@/lib/org-context";
 import { resolveSkill } from "@/lib/skills/db";
 import { clientIp, rateLimit } from "@/lib/rate-limit";
 import type { AgentEvent } from "@/lib/types";
@@ -74,12 +75,15 @@ export async function POST(request: Request) {
   }
 
   const agent = await getAgentForPhase(body.phase);
-  const system = buildAgentSystemPrompt(
+  const baseSystem = buildAgentSystemPrompt(
     agent.body,
     body.docs ?? {},
     await resolveSkill(body.skillId),
     body.express
   );
+  // Workspace Org DNA as context so the interview/docs fit the org's reality.
+  const orgCtx = body.projectId ? await getProjectOrgDnaContext(body.projectId) : "";
+  const system = orgCtx ? `${baseSystem}\n\n${orgCtx}` : baseSystem;
   const transcript = body.messages
     .map((m) => `${m.role === "user" ? "ผู้ใช้" : "FITT"}: ${m.content}`)
     .join("\n\n");

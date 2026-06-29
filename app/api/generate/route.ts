@@ -14,6 +14,7 @@ import {
 } from "@/lib/prompts";
 import { clientIp, rateLimit } from "@/lib/rate-limit";
 import { PRESET_IDS } from "@/lib/presets";
+import { getProjectOrgDnaContext } from "@/lib/org-context";
 import { resolveSkill } from "@/lib/skills/db";
 import type { GenerateEvent } from "@/lib/types";
 
@@ -85,7 +86,7 @@ export async function POST(request: Request) {
   // built-in default if the file is unreadable so generation still works.
   const persona = (await getAgent("code-builder").catch(() => null))?.body;
   const skill = await resolveSkill(body.skillId);
-  const system = iteration
+  const baseSystem = iteration
     ? buildIterationSystemPrompt(persona)
     : buildGenerationSystemPrompt(
         buildSpecContext({
@@ -97,6 +98,9 @@ export async function POST(request: Request) {
         persona,
         skill
       );
+  // Workspace Org DNA shapes the build (flow/structure/roles) when present.
+  const orgCtx = body.projectId ? await getProjectOrgDnaContext(body.projectId) : "";
+  const system = orgCtx ? `${baseSystem}\n\n${orgCtx}` : baseSystem;
   let user = iteration
     ? buildIterationUserPrompt(body.prompt, body.previousFiles!)
     : body.prompt;

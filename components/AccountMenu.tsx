@@ -5,8 +5,9 @@ import { createPortal } from "react-dom";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "motion/react";
-import { BarChart3, LogOut, ShieldCheck, X } from "lucide-react";
+import { BarChart3, Dna, Loader2, LogOut, ShieldCheck, X } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { ensureDefaultOrg } from "@/lib/orgs";
 import { useDismiss } from "@/lib/useDismiss";
 import { THEME_OPTIONS, useTheme } from "@/lib/useTheme";
 
@@ -23,7 +24,18 @@ export default function AccountMenu() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [open, setOpen] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
+  const [openingOrg, setOpeningOrg] = useState(false);
   const [theme, setTheme] = useTheme();
+
+  async function openOrgDna() {
+    setOpeningOrg(true);
+    try {
+      const org = await ensureDefaultOrg();
+      router.push(`/org/${org.id}`);
+    } catch {
+      setOpeningOrg(false);
+    }
+  }
 
   useDismiss(open, () => setOpen(false));
 
@@ -181,6 +193,18 @@ export default function AccountMenu() {
             </div>
 
             <div className="mt-4 space-y-2.5">
+              <button
+                onClick={() => void openOrgDna()}
+                disabled={openingOrg}
+                className="flex w-full items-center justify-center gap-2 rounded-full border border-chalk/15 py-2.5 font-display text-sm text-chalk/85 transition hover:bg-chalk/5 hover:text-chalk disabled:opacity-50"
+              >
+                {openingOrg ? (
+                  <Loader2 size={15} className="animate-spin" />
+                ) : (
+                  <Dna size={15} className="text-shine" />
+                )}
+                Org DNA (workspace)
+              </button>
               {isAdmin && (
                 <Link
                   href="/admin/skills"

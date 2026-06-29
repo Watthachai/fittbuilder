@@ -23,6 +23,18 @@ export const CHANGE_BADGE: Record<ChangeType, { label: string; className: string
 // Newest first. SemVer: fix → PATCH, feature → MINOR, breaking → MAJOR.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.14.0",
+    date: "2026-06-29",
+    title: "Workspaces + Org DNA — สร้างให้เข้ากับองค์กรของคุณ",
+    items: [
+      { type: "feature", text: "Workspace + Org DNA: จัดกลุ่มโปรเจกต์เป็น workspace และใส่ DNA องค์กร (4 ฐานราก + archetype 1 ใน 7) ให้ AI ออกแบบ spec/demo ให้เข้ากับวิธีทำงานจริง — มีตัวช่วย AI ร่างจากข้อมูล freeform, แถบความครบถ้วน, สร้าง/ตั้งชื่อ/ลบ workspace ได้" },
+      { type: "feature", text: "เลือก workspace ของโปรเจกต์ได้จากกล่องพิมพ์ brief และเข้าหน้าข้อมูล workspace (Org DNA) จาก dropdown หรือไซด์บาร์" },
+      { type: "improvement", text: "แชต AI: เอาปุ่ม “อื่นๆ” ออก — ถ้าคำตอบไม่ตรงตัวเลือก พิมพ์เองในช่องข้อความได้เลย" },
+      { type: "improvement", text: "หน้า Org DNA / จัดการ Skill / รายงานการใช้ AI ปรับให้ดีไซน์ทิศทางเดียวกันและกว้างขึ้น" },
+      { type: "fix", text: "AI ใส่รูป/วิดีโอพื้นหลังตาม URL ที่ระบุใน brief ได้แล้ว (เดิมถูกตัดทิ้ง) และโหลดได้ใน preview ที่ cross-origin isolated" },
+    ],
+  },
+  {
     version: "0.13.0",
     date: "2026-06-25",
     title: "เห็นเคอร์เซอร์ของเพื่อนร่วมทีมแบบเรียลไทม์",

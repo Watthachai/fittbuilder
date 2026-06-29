@@ -2,13 +2,15 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, Dna, Loader2, Save, Sparkles } from "lucide-react";
-import { getOrg, renameOrg, updateOrgDna, dnaCompleteness } from "@/lib/orgs";
+import { useRouter } from "next/navigation";
+import { ArrowLeft, Dna, Loader2, Save, Sparkles, Trash2 } from "lucide-react";
+import { deleteOrg, getOrg, renameOrg, updateOrgDna, dnaCompleteness } from "@/lib/orgs";
 import { ARCHETYPES, DNA_BLOCKS } from "@/lib/org-dna";
 import { toast } from "@/lib/toast";
 import type { OrgDna } from "@/lib/types";
 
 export default function OrgDnaEditor({ orgId }: { orgId: string }) {
+  const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [found, setFound] = useState(true);
   const [name, setName] = useState("");
@@ -16,6 +18,20 @@ export default function OrgDnaEditor({ orgId }: { orgId: string }) {
   const [paste, setPaste] = useState("");
   const [drafting, setDrafting] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
+  const remove = async () => {
+    if (!window.confirm("ลบ workspace นี้? โปรเจกต์ข้างในจะไม่ถูกลบ แต่จะหลุดออกจาก workspace")) return;
+    setDeleting(true);
+    try {
+      await deleteOrg(orgId);
+      toast.success("ลบ workspace แล้ว");
+      router.push("/");
+    } catch (e) {
+      toast.error("ลบไม่สำเร็จ", { description: e instanceof Error ? e.message : undefined });
+      setDeleting(false);
+    }
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -106,7 +122,7 @@ export default function OrgDnaEditor({ orgId }: { orgId: string }) {
 
   return (
     <main className="min-h-screen bg-night px-6 py-10 text-chalk">
-      <div className="mx-auto w-full max-w-3xl">
+      <div className="mx-auto w-full max-w-6xl">
         <Link
           href="/"
           className="inline-flex items-center gap-1.5 text-sm text-chalk-dim transition hover:text-chalk"
@@ -118,8 +134,10 @@ export default function OrgDnaEditor({ orgId }: { orgId: string }) {
           <span className="grid h-11 w-11 place-items-center rounded-xl bg-shine/10 text-shine">
             <Dna size={22} />
           </span>
-          <div>
-            <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-shine">Org DNA</p>
+          <div className="min-w-0 flex-1">
+            <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-shine">
+              ข้อมูล workspace · Org DNA
+            </p>
             <input
               value={name}
               onChange={(e) => setName(e.target.value)}
@@ -127,6 +145,15 @@ export default function OrgDnaEditor({ orgId }: { orgId: string }) {
               aria-label="ชื่อ workspace"
             />
           </div>
+          <button
+            onClick={() => void remove()}
+            disabled={deleting}
+            className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-night-edge px-3 py-1.5 text-xs text-chalk-dim transition hover:border-halt hover:text-halt disabled:opacity-40"
+            title="ลบ workspace นี้"
+          >
+            {deleting ? <Loader2 size={13} className="animate-spin" /> : <Trash2 size={13} />}
+            ลบ workspace
+          </button>
         </div>
 
         <p className="mt-4 text-sm leading-relaxed text-chalk-dim">
@@ -170,7 +197,7 @@ export default function OrgDnaEditor({ orgId }: { orgId: string }) {
         </section>
 
         {/* 4 building blocks */}
-        <div className="mt-6 space-y-4">
+        <div className="mt-6 grid grid-cols-1 gap-5 md:grid-cols-2">
           {DNA_BLOCKS.map((b) => (
             <div key={b.key}>
               <label className="font-display text-sm font-semibold text-chalk">{b.th}</label>
@@ -189,7 +216,7 @@ export default function OrgDnaEditor({ orgId }: { orgId: string }) {
         <div className="mt-6">
           <label className="font-display text-sm font-semibold text-chalk">รูปแบบองค์กร (Archetype)</label>
           <p className="mb-2 text-[12px] text-chalk-dim">เลือก 1 ใน 7 ที่ใกล้เคียงที่สุด (หรือเว้นไว้)</p>
-          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
             {ARCHETYPES.map((a) => {
               const active = dna.archetype === a.key;
               return (

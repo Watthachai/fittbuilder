@@ -91,13 +91,16 @@ export default function SkillAdmin() {
 
   return (
     <main className="min-h-screen bg-night px-6 py-10 text-chalk">
-      <div className="mx-auto max-w-5xl stitch">
-        <div className="flex items-center justify-between">
+      <div className="mx-auto w-full max-w-6xl stitch">
+        <Link
+          href="/"
+          className="inline-flex items-center gap-1.5 text-sm text-chalk-dim transition hover:text-chalk"
+        >
+          <ArrowLeft size={15} /> กลับหน้าแรก
+        </Link>
+        <div className="mt-4 flex items-center justify-between">
           <div>
-            <Link href="/" className="text-sm text-chalk-dim transition hover:text-chalk">
-              ← FITT Builder
-            </Link>
-            <h1 className="mt-1 font-display text-2xl font-semibold">Skill Templates (Admin)</h1>
+            <h1 className="font-display text-2xl font-semibold">Skill Templates (Admin)</h1>
           </div>
           <button
             onClick={() => setView({ mode: "new" })}

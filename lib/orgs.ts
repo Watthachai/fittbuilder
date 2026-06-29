@@ -82,6 +82,13 @@ export async function updateOrgDna(id: string, dna: OrgDna): Promise<void> {
   if (error) throw error;
 }
 
+/** Delete a workspace. Its projects survive — org_id is set null (FK on delete). */
+export async function deleteOrg(id: string): Promise<void> {
+  const supabase = createClient();
+  const { error } = await supabase.from("fittbuilder_orgs").delete().eq("id", id);
+  if (error) throw error;
+}
+
 /** First workspace, creating a default one if the user has none yet. */
 export async function ensureDefaultOrg(): Promise<OrgRecord> {
   const orgs = await listOrgs();

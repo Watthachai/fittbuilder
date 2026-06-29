@@ -1,6 +1,5 @@
 import { redirect } from "next/navigation";
-import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
+import SettingsShell from "@/components/settings/SettingsShell";
 import { getAdminUser } from "@/lib/admin-server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { estimateCostUsd } from "@/lib/ai-usage";
@@ -74,15 +73,9 @@ export default async function AdminUsagePage() {
   const totalCost = estimateCostUsd(Number(t.prompt_tokens), Number(t.output_tokens));
 
   return (
-    <main className="min-h-screen bg-night px-6 py-10 text-chalk">
-      <div className="mx-auto w-full max-w-6xl stitch">
-        <Link
-          href="/"
-          className="inline-flex items-center gap-1.5 text-sm text-chalk-dim transition hover:text-chalk"
-        >
-          <ArrowLeft size={15} /> กลับหน้าแรก
-        </Link>
-        <div className="mb-6 mt-4">
+    <SettingsShell>
+      <div className="mx-auto w-full max-w-6xl px-8 py-10 stitch">
+        <div className="mb-6">
           <h1 className="font-display text-2xl font-semibold">รายงานการใช้งาน AI</h1>
           <p className="mt-1 text-sm text-chalk-dim">
             โมเดล {GEMINI_MODEL} · ค่าใช้จ่ายเป็น “ประมาณการ” จาก pricing ที่ตั้งไว้
@@ -150,7 +143,7 @@ export default async function AdminUsagePage() {
           </Table>
         </Section>
       </div>
-    </main>
+    </SettingsShell>
   );
 }
 

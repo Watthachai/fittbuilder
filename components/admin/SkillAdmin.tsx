@@ -1,9 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import Link from "next/link";
 import { ArrowLeft, Plus } from "lucide-react";
 import SkillIcon from "@/components/studio/SkillIcon";
+import SettingsShell from "@/components/settings/SettingsShell";
 import { confirm } from "@/lib/confirm";
 import { SKILLS } from "@/lib/skills/registry";
 import type { SkillTemplateRow } from "@/lib/skills/db-mapper";
@@ -97,18 +97,10 @@ export default function SkillAdmin() {
   }
 
   return (
-    <main className="min-h-screen bg-night px-6 py-10 text-chalk">
-      <div className="mx-auto w-full max-w-6xl stitch">
-        <Link
-          href="/"
-          className="inline-flex items-center gap-1.5 text-sm text-chalk-dim transition hover:text-chalk"
-        >
-          <ArrowLeft size={15} /> กลับหน้าแรก
-        </Link>
-        <div className="mt-4 flex items-center justify-between">
-          <div>
-            <h1 className="font-display text-2xl font-semibold">Skill Templates (Admin)</h1>
-          </div>
+    <SettingsShell>
+      <div className="mx-auto w-full max-w-6xl px-8 py-10 stitch">
+        <div className="flex items-center justify-between">
+          <h1 className="font-display text-2xl font-semibold">Skill Templates (Admin)</h1>
           <button
             onClick={() => setView({ mode: "new" })}
             className="inline-flex items-center gap-1.5 rounded-full bg-shine px-4 py-2 font-display text-sm font-semibold text-night transition hover:brightness-110"
@@ -198,6 +190,6 @@ export default function SkillAdmin() {
           </div>
         </section>
       </div>
-    </main>
+    </SettingsShell>
   );
 }

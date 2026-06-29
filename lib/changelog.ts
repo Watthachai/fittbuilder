@@ -23,6 +23,23 @@ export const CHANGE_BADGE: Record<ChangeType, { label: string; className: string
 // Newest first. SemVer: fix → PATCH, feature → MINOR, breaking → MAJOR.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.16.3",
+    date: "2026-06-29",
+    title: "รวมหน้าตั้งค่าไว้ที่เดียว + อ่านแหล่งข้อมูลง่ายขึ้น",
+    items: [
+      { type: "improvement", text: "หน้า Org DNA / จัดการ Skill / รายงานการใช้ AI ย้ายมาอยู่ใต้ sidebar เดียวกัน มีโปรไฟล์ของคุณและเมนูสลับหน้า — ไม่กระจัดกระจายอีกต่อไป" },
+      { type: "improvement", text: "หน้าต่างแหล่งข้อมูล (citation) ใหญ่ขึ้น เต็มจอกว่าเดิม ตัวหนังสืออ่านง่ายขึ้น และเลื่อนไปที่ข้อความที่อ้างอิงให้อัตโนมัติเมื่อเปิด" },
+    ],
+  },
+  {
+    version: "0.16.2",
+    date: "2026-06-29",
+    title: "เก็บประวัติเวอร์ชัน Org DNA",
+    items: [
+      { type: "feature", text: "ทุกครั้งที่ AI ร่าง Org DNA จะเก็บเป็นเวอร์ชัน — เปิด “ประวัติเวอร์ชัน” ดูย้อนหลังและกู้คืนเวอร์ชันก่อนหน้าได้ (การกู้คืนก็ย้อนกลับได้อีก)" },
+    ],
+  },
+  {
     version: "0.16.1",
     date: "2026-06-29",
     title: "แชต AI อ้างอิง Org DNA ได้แล้ว",

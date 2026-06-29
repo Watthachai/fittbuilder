@@ -23,6 +23,14 @@ export const CHANGE_BADGE: Record<ChangeType, { label: string; className: string
 // Newest first. SemVer: fix → PATCH, feature → MINOR, breaking → MAJOR.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.18.5",
+    date: "2026-06-29",
+    title: "บอกชัดว่าพิมพ์คำตอบเองได้เมื่อ AI ให้เลือกตัวเลือก",
+    items: [
+      { type: "improvement", text: "เวลา AI ถามแบบมีตัวเลือกให้กด มีข้อความบอกว่า “ไม่มีตัวเลือกที่ตรง? พิมพ์คำตอบเองในช่องด้านล่างได้เลย” — พิมพ์เองได้อยู่แล้ว (ไม่ต้องมีปุ่ม “อื่นๆ”) แค่เดิมไม่ชัด" },
+    ],
+  },
+  {
     version: "0.18.4",
     date: "2026-06-29",
     title: "เปลี่ยน loader หน้ารอเป็นภาพ “Building Page” ที่ขยับได้จริง",

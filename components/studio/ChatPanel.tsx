@@ -453,6 +453,11 @@ export default function ChatPanel({
               );
             })}
           </div>
+          {activeAsk.allowText !== false && (
+            <p className="mt-2 text-[11px] text-chalk-dim/70">
+              ไม่มีตัวเลือกที่ตรง? พิมพ์คำตอบเองในช่องด้านล่างได้เลย ↓
+            </p>
+          )}
           <div className="mt-2 flex items-center gap-2">
             {activeAsk.multi && (
               <button

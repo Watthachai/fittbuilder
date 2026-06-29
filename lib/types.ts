@@ -88,6 +88,18 @@ export interface OrgDna {
     motivators?: string;
     structure?: string;
   };
+  /** Saved snapshots of the DNA (each AI draft / save) — newest first, capped. */
+  versions?: OrgDnaVersion[];
+}
+
+/** A kept snapshot of an Org DNA draft, so the user can review/restore it. */
+export interface OrgDnaVersion {
+  id: string;
+  createdAt: string;
+  /** How this version was produced. */
+  source: "ai" | "manual";
+  /** The DNA at that point (no nested versions). */
+  snapshot: Omit<OrgDna, "versions">;
 }
 
 /** An organization (workspace): groups projects and carries the Org DNA. */

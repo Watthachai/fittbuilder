@@ -1,19 +1,43 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import Link from "next/link";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, FileText, Loader2, Paperclip, Quote, Save, Sparkles, Trash2, X } from "lucide-react";
+import { FileText, History, Loader2, Paperclip, Quote, RotateCcw, Save, Sparkles, Trash2, X } from "lucide-react";
+import SettingsShell from "@/components/settings/SettingsShell";
 import { deleteOrg, getOrg, updateOrgMeta, updateOrgDna, dnaCompleteness } from "@/lib/orgs";
-import { ARCHETYPES, DNA_BLOCKS } from "@/lib/org-dna";
+import { ARCHETYPES, DNA_BLOCKS, archetypeMeta } from "@/lib/org-dna";
 import { DEFAULT_COLOR, DEFAULT_ICON, WorkspaceIcon } from "@/lib/workspace-style";
 import { confirm } from "@/lib/confirm";
 import { toast } from "@/lib/toast";
-import type { ChatAttachmentInput, OrgDna } from "@/lib/types";
+import type { ChatAttachmentInput, OrgDna, OrgDnaVersion } from "@/lib/types";
 import ColorIconPicker from "./ColorIconPicker";
 import SourceViewer from "./SourceViewer";
 
 const MAX_FILE_BYTES = 4 * 1024 * 1024;
+const MAX_VERSIONS = 12;
+
+/** DNA without its nested version history (what a snapshot stores). */
+function snapshotOf(d: OrgDna): Omit<OrgDna, "versions"> {
+  const copy = { ...d };
+  delete copy.versions;
+  return copy;
+}
+
+function makeVersion(snapshot: Omit<OrgDna, "versions">, source: "ai" | "manual"): OrgDnaVersion {
+  const id =
+    typeof crypto !== "undefined" && crypto.randomUUID
+      ? crypto.randomUUID()
+      : `v-${Math.random().toString(36).slice(2)}`;
+  return { id, createdAt: new Date().toISOString(), source, snapshot };
+}
+
+/** One-line preview of a version for the history list. */
+function versionPreview(s: Omit<OrgDna, "versions">): string {
+  const arch = archetypeMeta(s.archetype);
+  if (arch) return arch.th;
+  return (s.decisionRights || s.structure || s.information || s.motivators || "—").slice(0, 60);
+}
 
 async function fileToAttachment(file: File): Promise<ChatAttachmentInput> {
   const dataUrl = await new Promise<string>((resolve, reject) => {
@@ -43,6 +67,7 @@ export default function OrgDnaEditor({ orgId }: { orgId: string }) {
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [viewer, setViewer] = useState<{ highlight?: string } | null>(null);
+  const [versionsOpen, setVersionsOpen] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const remove = async () => {
@@ -122,7 +147,7 @@ export default function OrgDnaEditor({ orgId }: { orgId: string }) {
           motivators: Boolean(prev.motivators?.trim()),
           structure: Boolean(prev.structure?.trim()),
         };
-        return {
+        const next: Omit<OrgDna, "versions"> = {
           decisionRights: keep.decisionRights ? prev.decisionRights : ai.decisionRights,
           information: keep.information ? prev.information : ai.information,
           motivators: keep.motivators ? prev.motivators : ai.motivators,
@@ -137,9 +162,12 @@ export default function OrgDnaEditor({ orgId }: { orgId: string }) {
             structure: keep.structure ? prev.cites?.structure : ai.cites?.structure,
           },
         };
+        // Keep this draft as a version the user can revisit/restore.
+        const versions = [makeVersion(next, "ai"), ...(prev.versions ?? [])].slice(0, MAX_VERSIONS);
+        return { ...next, versions };
       });
-      toast.success("AI ร่าง Org DNA ให้แล้ว", {
-        description: "ตรวจและแก้ได้ — คลิก 📎 เพื่อดูว่าแต่ละข้อมาจากส่วนไหนของข้อมูลคุณ",
+      toast.success("AI ร่าง Org DNA — เก็บเป็นเวอร์ชันให้แล้ว", {
+        description: "ตรวจและแก้ได้ · กด “ประวัติเวอร์ชัน” เพื่อย้อนดู/กู้คืน · คลิก 📎 ดูที่มา",
       });
     } catch (e) {
       toast.error("ร่าง Org DNA ไม่สำเร็จ", {
@@ -165,37 +193,43 @@ export default function OrgDnaEditor({ orgId }: { orgId: string }) {
     }
   };
 
+  const restore = (v: OrgDnaVersion) => {
+    setDna((prev) => {
+      // Snapshot the current state first so a restore is itself undoable.
+      const current = makeVersion(snapshotOf(prev), "manual");
+      const versions = [current, ...(prev.versions ?? [])].slice(0, MAX_VERSIONS);
+      return { ...v.snapshot, versions };
+    });
+    setVersionsOpen(false);
+    toast.success("กู้คืนเวอร์ชันแล้ว", { description: "อย่าลืมกด “บันทึก Org DNA”" });
+  };
+
   if (loading) {
     return (
-      <main className="grid min-h-screen place-items-center bg-night text-chalk-dim">
-        <Loader2 className="animate-spin" />
-      </main>
+      <SettingsShell>
+        <div className="grid min-h-[60vh] place-items-center text-chalk-dim">
+          <Loader2 className="animate-spin" />
+        </div>
+      </SettingsShell>
     );
   }
   if (!found) {
     return (
-      <main className="grid min-h-screen place-items-center bg-night px-6 text-center">
-        <div>
-          <p className="font-display text-lg text-chalk">ไม่พบ workspace นี้ หรือคุณไม่มีสิทธิ์เข้าถึง</p>
-          <Link href="/" className="mt-4 inline-block text-sm text-shine hover:underline">
-            ← กลับหน้าแรก
-          </Link>
+      <SettingsShell>
+        <div className="grid min-h-[60vh] place-items-center px-6 text-center">
+          <p className="font-display text-lg text-chalk">
+            ไม่พบ workspace นี้ หรือคุณไม่มีสิทธิ์เข้าถึง
+          </p>
         </div>
-      </main>
+      </SettingsShell>
     );
   }
 
   const pct = Math.round(dnaCompleteness(dna) * 100);
 
   return (
-    <main className="min-h-screen bg-night px-6 py-10 text-chalk">
-      <div className="mx-auto w-full max-w-6xl">
-        <Link
-          href="/"
-          className="inline-flex items-center gap-1.5 text-sm text-chalk-dim transition hover:text-chalk"
-        >
-          <ArrowLeft size={15} /> กลับหน้าแรก
-        </Link>
+    <SettingsShell>
+      <div className="mx-auto w-full max-w-5xl px-8 py-10">
 
         <div className="mt-5 flex items-center gap-3">
           <span
@@ -307,14 +341,24 @@ export default function OrgDnaEditor({ orgId }: { orgId: string }) {
           </div>
         </section>
 
-        {dna.sources?.trim() && (
-          <button
-            onClick={() => setViewer({})}
-            className="mt-3 inline-flex items-center gap-1.5 text-[12px] text-chalk-dim transition hover:text-shine"
-          >
-            <FileText size={13} /> ดูแหล่งข้อมูลทั้งหมดที่ AI ใช้
-          </button>
-        )}
+        <div className="mt-3 flex flex-wrap items-center gap-4">
+          {dna.sources?.trim() && (
+            <button
+              onClick={() => setViewer({})}
+              className="inline-flex items-center gap-1.5 text-[12px] text-chalk-dim transition hover:text-shine"
+            >
+              <FileText size={13} /> ดูแหล่งข้อมูลทั้งหมดที่ AI ใช้
+            </button>
+          )}
+          {dna.versions && dna.versions.length > 0 && (
+            <button
+              onClick={() => setVersionsOpen(true)}
+              className="inline-flex items-center gap-1.5 text-[12px] text-chalk-dim transition hover:text-shine"
+            >
+              <History size={13} /> ประวัติเวอร์ชัน ({dna.versions.length})
+            </button>
+          )}
+        </div>
 
         {/* 4 building blocks */}
         <div className="mt-6 grid grid-cols-1 gap-5 md:grid-cols-2">
@@ -393,6 +437,63 @@ export default function OrgDnaEditor({ orgId }: { orgId: string }) {
           onClose={() => setViewer(null)}
         />
       )}
-    </main>
+
+      {versionsOpen &&
+        createPortal(
+          <div
+            className="fixed inset-0 z-[120] flex items-center justify-center bg-black/55 p-4 backdrop-blur-sm"
+            onClick={(e) => {
+              if (e.target === e.currentTarget) setVersionsOpen(false);
+            }}
+          >
+            <div className="glass-strong flex max-h-[85vh] w-[min(92vw,36rem)] flex-col rounded-2xl border border-night-edge p-5 shadow-2xl">
+              <div className="flex items-center justify-between">
+                <h2 className="inline-flex items-center gap-2 font-display text-base font-semibold text-chalk">
+                  <History size={16} className="text-shine" /> ประวัติเวอร์ชัน Org DNA
+                </h2>
+                <button
+                  onClick={() => setVersionsOpen(false)}
+                  className="rounded-sm p-1 text-chalk-dim transition hover:text-chalk"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+              <p className="mt-1 text-[12px] text-chalk-dim">
+                ทุกครั้งที่ AI ร่างหรือคุณกู้คืน จะถูกเก็บเป็นเวอร์ชัน — กดกู้คืนเพื่อย้อนกลับ (เก็บล่าสุด {MAX_VERSIONS})
+              </p>
+              <div className="scroll-thin mt-3 min-h-0 flex-1 space-y-2 overflow-y-auto">
+                {(dna.versions ?? []).map((v, i) => (
+                  <div
+                    key={v.id}
+                    className="flex items-center gap-3 rounded-lg border border-night-edge bg-night px-3 py-2.5"
+                  >
+                    <span
+                      className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium ${
+                        v.source === "ai" ? "bg-shine/15 text-shine" : "bg-chalk/10 text-chalk-dim"
+                      }`}
+                    >
+                      {v.source === "ai" ? "AI ร่าง" : "แก้เอง"}
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-[13px] text-chalk">{versionPreview(v.snapshot)}</p>
+                      <p className="font-mono text-[10px] text-chalk-dim">
+                        {new Date(v.createdAt).toLocaleString("th-TH")}
+                        {i === 0 ? " · ล่าสุด" : ""}
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => restore(v)}
+                      className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-night-edge px-2.5 py-1.5 text-[12px] text-chalk-dim transition hover:border-shine hover:text-chalk"
+                    >
+                      <RotateCcw size={12} /> กู้คืน
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>,
+          document.body
+        )}
+    </SettingsShell>
   );
 }

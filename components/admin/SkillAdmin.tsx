@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, Plus } from "lucide-react";
 import SkillIcon from "@/components/studio/SkillIcon";
+import { confirm } from "@/lib/confirm";
 import { SKILLS } from "@/lib/skills/registry";
 import type { SkillTemplateRow } from "@/lib/skills/db-mapper";
 import SkillTemplateForm from "./SkillTemplateForm";
@@ -61,7 +62,13 @@ export default function SkillAdmin() {
   }
 
   async function remove(row: SkillTemplateRow) {
-    if (!confirm(`ลบ "${row.name}" ถาวร?`)) return;
+    const ok = await confirm({
+      title: `ลบ "${row.name}"?`,
+      message: "ลบ Skill Template นี้ถาวร — กู้คืนไม่ได้",
+      confirmLabel: "ลบ",
+      danger: true,
+    });
+    if (!ok) return;
     await fetch(`/api/admin/skills/${row.id}`, { method: "DELETE" });
     void refresh();
   }

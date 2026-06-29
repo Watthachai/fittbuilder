@@ -17,6 +17,7 @@ import {
   X,
 } from "lucide-react";
 import { buildFileTree, type TreeNode } from "@/lib/file-tree";
+import { confirm } from "@/lib/confirm";
 import type { ProjectFiles } from "@/lib/types";
 
 const MonacoEditor = dynamic(() => import("@monaco-editor/react"), {
@@ -203,8 +204,14 @@ export default function CodePanel({
     if (activePath === oldPath) setActivePath(next);
   };
 
-  const remove = (path: string) => {
-    if (!window.confirm(`ลบไฟล์ ${path}?`)) return;
+  const remove = async (path: string) => {
+    const ok = await confirm({
+      title: `ลบไฟล์ ${path}?`,
+      message: "ลบไฟล์นี้ออกจากโปรเจกต์",
+      confirmLabel: "ลบ",
+      danger: true,
+    });
+    if (!ok) return;
     cancelDebounce();
     if (onDeleteFile(path)) closeTab(path);
   };
@@ -282,7 +289,7 @@ export default function CodePanel({
             <Pencil size={11} />
           </button>
           <button
-            onClick={() => remove(node.path)}
+            onClick={() => void remove(node.path)}
             title="ลบ"
             className="hidden shrink-0 text-chalk-dim transition hover:text-halt group-hover:block"
           >

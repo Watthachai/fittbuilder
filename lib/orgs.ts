@@ -89,10 +89,11 @@ export async function deleteOrg(id: string): Promise<void> {
   if (error) throw error;
 }
 
-/** First workspace, creating a default one if the user has none yet. */
-export async function ensureDefaultOrg(): Promise<OrgRecord> {
+/** The user's first workspace, or null if they have none (no auto-create — the
+ *  user creates their own; there is no default workspace). */
+export async function firstOrg(): Promise<OrgRecord | null> {
   const orgs = await listOrgs();
-  return orgs[0] ?? (await createOrg());
+  return orgs[0] ?? null;
 }
 
 /** Fraction (0..1) of the Org DNA that's filled — for the completeness meter. */

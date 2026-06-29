@@ -30,7 +30,8 @@ import {
   getProject,
   listProjects,
 } from "@/lib/storage";
-import { ensureDefaultOrg } from "@/lib/orgs";
+import { createOrg, firstOrg } from "@/lib/orgs";
+import { confirm, promptText } from "@/lib/confirm";
 import { encodeShareUrl } from "@/lib/share";
 import type { ProjectSummary } from "@/lib/types";
 
@@ -85,7 +86,21 @@ export default function ProjectsDrawer({
   const openOrgSetup = async () => {
     setOrgOpening(true);
     try {
-      const org = await ensureDefaultOrg();
+      let org = await firstOrg();
+      if (!org) {
+        const name = await promptText({
+          title: "สร้าง workspace",
+          message: "ตั้งชื่อพื้นที่ทำงานขององค์กรคุณ แล้วใส่ Org DNA ได้เลย",
+          label: "ชื่อ workspace",
+          placeholder: "เช่น ทีมการตลาด",
+          confirmLabel: "สร้าง",
+        });
+        if (!name) {
+          setOrgOpening(false);
+          return;
+        }
+        org = await createOrg(name);
+      }
       onClose();
       router.push(`/org/${org.id}`);
     } catch {
@@ -209,7 +224,13 @@ export default function ProjectsDrawer({
 
   const handleDelete = async (p: ProjectSummary) => {
     setMenu(null);
-    if (!confirm(`ลบ "${p.name}" ถาวร?`)) return;
+    const ok = await confirm({
+      title: `ลบ "${p.name}"?`,
+      message: "ลบโปรเจกต์นี้ถาวร — กู้คืนไม่ได้",
+      confirmLabel: "ลบ",
+      danger: true,
+    });
+    if (!ok) return;
     await deleteProject(p.id);
     await refresh();
   };

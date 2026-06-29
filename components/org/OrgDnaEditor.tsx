@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { ArrowLeft, Dna, Loader2, Save, Sparkles, Trash2 } from "lucide-react";
 import { deleteOrg, getOrg, renameOrg, updateOrgDna, dnaCompleteness } from "@/lib/orgs";
 import { ARCHETYPES, DNA_BLOCKS } from "@/lib/org-dna";
+import { confirm } from "@/lib/confirm";
 import { toast } from "@/lib/toast";
 import type { OrgDna } from "@/lib/types";
 
@@ -21,7 +22,13 @@ export default function OrgDnaEditor({ orgId }: { orgId: string }) {
   const [deleting, setDeleting] = useState(false);
 
   const remove = async () => {
-    if (!window.confirm("ลบ workspace นี้? โปรเจกต์ข้างในจะไม่ถูกลบ แต่จะหลุดออกจาก workspace")) return;
+    const ok = await confirm({
+      title: "ลบ workspace นี้?",
+      message: "โปรเจกต์ข้างในจะไม่ถูกลบ แต่จะหลุดออกจาก workspace",
+      confirmLabel: "ลบ",
+      danger: true,
+    });
+    if (!ok) return;
     setDeleting(true);
     try {
       await deleteOrg(orgId);

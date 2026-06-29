@@ -56,6 +56,7 @@ import {
 import { createClient } from "@/lib/supabase/client";
 import { emitSystemLog } from "@/lib/team-chat-bus";
 import { toast } from "@/lib/toast";
+import { confirm } from "@/lib/confirm";
 import ChatPanel from "./ChatPanel";
 import LiveCursors from "./LiveCursors";
 import CodePanel from "./CodePanel";
@@ -671,18 +672,18 @@ export default function Studio({ projectId }: { projectId: string }) {
    * matches the spec again; the previous app rides into history for Undo. Always
    * lands in Build with Define/Plan marked approved.
    */
-  const rebuildFromDocs = useCallback(() => {
+  const rebuildFromDocs = useCallback(async () => {
     const current = projectRef.current;
     if (!current || busy || readOnly) return;
     const docs = docsFromFiles(current.files);
     if (!docs.brd || !docs.prd) return;
-    if (
-      !window.confirm(
-        "สร้างเว็บใหม่จาก BRD/PRD ปัจจุบัน? โค้ดที่มีอยู่จะถูกแทนที่ทั้งหมด (ย้อนกลับได้ด้วย Undo)"
-      )
-    ) {
-      return;
-    }
+    const ok = await confirm({
+      title: "สร้างเว็บใหม่จาก BRD/PRD ปัจจุบัน?",
+      message: "โค้ดที่มีอยู่จะถูกแทนที่ทั้งหมด (ย้อนกลับได้ด้วย Undo)",
+      confirmLabel: "สร้างใหม่",
+      danger: true,
+    });
+    if (!ok) return;
     const working = persist({
       ...current,
       phase: "build",

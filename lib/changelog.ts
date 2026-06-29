@@ -23,6 +23,15 @@ export const CHANGE_BADGE: Record<ChangeType, { label: string; className: string
 // Newest first. SemVer: fix → PATCH, feature → MINOR, breaking → MAJOR.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.14.1",
+    date: "2026-06-29",
+    title: "Modal ยืนยันของระบบ + ไม่มี workspace เริ่มต้น",
+    items: [
+      { type: "improvement", text: "เปลี่ยนกล่องยืนยัน/ลบ ทั้งหมดให้เป็น modal ของระบบ (ลบโปรเจกต์/ไฟล์/skill/workspace, สร้างเว็บใหม่จากเอกสาร) — เลิกใช้ป็อปอัปของเบราว์เซอร์" },
+      { type: "fix", text: "เอา workspace เริ่มต้นออก — ลบ workspace หมดแล้วจะไม่มีอันใหม่โผล่มาเอง ผู้ใช้สร้างเองและตั้งชื่อเองได้" },
+    ],
+  },
+  {
     version: "0.14.0",
     date: "2026-06-29",
     title: "Workspaces + Org DNA — สร้างให้เข้ากับองค์กรของคุณ",

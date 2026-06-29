@@ -29,10 +29,10 @@ export default function OrgSelect({
     let cancelled = false;
     (async () => {
       try {
-        let list = await listOrgs();
-        if (list.length === 0) list = [await createOrg()];
+        const list = await listOrgs();
         if (cancelled) return;
         setOrgs(list);
+        // No auto-create — default to the first workspace only if one exists.
         if (!value && list[0]) onChange(list[0].id);
       } catch {
         /* signed-out / offline → leave empty, picker stays hidden */
@@ -52,9 +52,7 @@ export default function OrgSelect({
       </span>
     );
   }
-  if (orgs.length === 0) return null;
-
-  const current = orgs.find((o) => o.id === value) ?? orgs[0];
+  const current = orgs.find((o) => o.id === value) ?? orgs[0] ?? null;
 
   const addOrg = async () => {
     const name = newName.trim();
@@ -80,7 +78,9 @@ export default function OrgSelect({
         title="เลือก workspace ของโปรเจกต์นี้"
       >
         <Building2 size={12} className="shrink-0 text-shine" />
-        <span className="truncate font-display text-[12px]">{current.name}</span>
+        <span className="truncate font-display text-[12px]">
+          {current ? current.name : "เลือก/สร้าง workspace"}
+        </span>
         <ChevronDown size={13} className={`shrink-0 transition-transform ${open ? "rotate-180" : ""}`} />
       </button>
 
@@ -91,6 +91,11 @@ export default function OrgSelect({
             <p className="px-2.5 py-1 font-mono text-[10px] uppercase tracking-wider text-chalk/40">
               Workspace
             </p>
+            {orgs.length === 0 && (
+              <p className="px-2.5 py-1.5 text-[12px] text-chalk-dim">
+                ยังไม่มี workspace — สร้างใหม่ได้เลย
+              </p>
+            )}
             {orgs.map((o) => (
               <div
                 key={o.id}
@@ -105,7 +110,7 @@ export default function OrgSelect({
                 >
                   <Building2 size={14} className="shrink-0 text-chalk-dim" />
                   <span className="min-w-0 flex-1 truncate">{o.name}</span>
-                  {o.id === current.id && <Check size={14} className="shrink-0 text-shine" />}
+                  {o.id === current?.id && <Check size={14} className="shrink-0 text-shine" />}
                 </button>
                 <Link
                   href={`/org/${o.id}`}

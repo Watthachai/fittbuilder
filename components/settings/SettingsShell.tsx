@@ -3,10 +3,12 @@
 import { useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { ArrowLeft, BarChart3, Dna, Loader2, ShieldCheck } from "lucide-react";
+import { ArrowLeft, BarChart3, Loader2, Plus, ShieldCheck } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
-import { firstOrg } from "@/lib/orgs";
+import { listOrgs } from "@/lib/orgs";
 import { openCreateWorkspace } from "@/lib/workspace-modal";
+import { WorkspaceIcon } from "@/lib/workspace-style";
+import type { OrgRecord } from "@/lib/types";
 
 interface Account {
   name: string | null;
@@ -22,7 +24,7 @@ export default function SettingsShell({ children }: { children: ReactNode }) {
   const router = useRouter();
   const [account, setAccount] = useState<Account | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
-  const [orgBusy, setOrgBusy] = useState(false);
+  const [orgs, setOrgs] = useState<OrgRecord[] | null>(null);
 
   useEffect(() => {
     const supabase = createClient();
@@ -36,6 +38,13 @@ export default function SettingsShell({ children }: { children: ReactNode }) {
         avatar: (meta.avatar_url ?? meta.picture ?? null) as string | null,
       });
     });
+    void listOrgs()
+      .then((list) => {
+        if (!cancelled) setOrgs(list);
+      })
+      .catch(() => {
+        if (!cancelled) setOrgs([]);
+      });
     void fetch("/api/me")
       .then((r) => (r.ok ? r.json() : null))
       .then((d: { isAdmin?: boolean } | null) => {
@@ -47,24 +56,13 @@ export default function SettingsShell({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  const goOrgDna = async () => {
-    setOrgBusy(true);
-    try {
-      let org = await firstOrg();
-      if (!org) {
-        org = await openCreateWorkspace();
-        if (!org) {
-          setOrgBusy(false);
-          return;
-        }
-      }
-      router.push(`/org/${org.id}`);
-    } catch {
-      setOrgBusy(false);
-    }
+  const onCreate = async () => {
+    const org = await openCreateWorkspace();
+    if (!org) return;
+    setOrgs((prev) => [...(prev ?? []), org]);
+    router.push(`/org/${org.id}`);
   };
 
-  const onOrg = pathname?.startsWith("/org/") ?? false;
   const initial = (account?.email || "?").charAt(0).toUpperCase();
 
   return (
@@ -101,30 +99,67 @@ export default function SettingsShell({ children }: { children: ReactNode }) {
           </div>
         </div>
 
-        <nav className="mt-5 space-y-1">
-          <button
-            onClick={() => void goOrgDna()}
-            disabled={orgBusy}
-            className={navClass(onOrg)}
-          >
-            {orgBusy ? <Loader2 size={15} className="animate-spin" /> : <Dna size={15} />}
-            Org DNA (workspace)
-          </button>
+        <nav className="mt-5 flex-1 overflow-y-auto">
+          <p className="px-3 pb-1.5 font-display text-[11px] font-semibold uppercase tracking-wide text-chalk-dim/60">
+            Workspaces · Org DNA
+          </p>
+          <div className="space-y-1">
+            {orgs === null ? (
+              <div className="flex items-center gap-2 px-3 py-2 text-sm text-chalk-dim">
+                <Loader2 size={14} className="animate-spin" /> กำลังโหลด…
+              </div>
+            ) : orgs.length === 0 ? (
+              <p className="px-3 py-1.5 text-xs text-chalk-dim">ยังไม่มี workspace</p>
+            ) : (
+              orgs.map((o) => (
+                <Link
+                  key={o.id}
+                  href={`/org/${o.id}`}
+                  className={navClass(pathname === `/org/${o.id}`)}
+                >
+                  <WorkspaceIcon
+                    icon={o.icon}
+                    size={15}
+                    className="shrink-0"
+                    style={{ color: o.color }}
+                  />
+                  <span className="truncate">{o.name}</span>
+                </Link>
+              ))
+            )}
+            <button onClick={() => void onCreate()} className={navClass(false)}>
+              <Plus size={15} className="shrink-0" /> สร้าง workspace ใหม่
+            </button>
+          </div>
+
           {isAdmin && (
-            <NavLink href="/admin/skills" active={pathname === "/admin/skills"} icon={<ShieldCheck size={15} />}>
-              จัดการ Skill Templates
-            </NavLink>
-          )}
-          {isAdmin && (
-            <NavLink href="/admin/usage" active={pathname === "/admin/usage"} icon={<BarChart3 size={15} />}>
-              รายงานการใช้ AI
-            </NavLink>
+            <>
+              <p className="mt-5 px-3 pb-1.5 font-display text-[11px] font-semibold uppercase tracking-wide text-chalk-dim/60">
+                Admin
+              </p>
+              <div className="space-y-1">
+                <NavLink
+                  href="/admin/skills"
+                  active={pathname === "/admin/skills"}
+                  icon={<ShieldCheck size={15} className="shrink-0" />}
+                >
+                  จัดการ Skill Templates
+                </NavLink>
+                <NavLink
+                  href="/admin/usage"
+                  active={pathname === "/admin/usage"}
+                  icon={<BarChart3 size={15} className="shrink-0" />}
+                >
+                  รายงานการใช้ AI
+                </NavLink>
+              </div>
+            </>
           )}
         </nav>
 
         <Link
           href="/"
-          className="mt-auto inline-flex items-center gap-1.5 px-3 py-2 text-sm text-chalk-dim transition hover:text-chalk"
+          className="mt-4 inline-flex items-center gap-1.5 px-3 py-2 text-sm text-chalk-dim transition hover:text-chalk"
         >
           <ArrowLeft size={15} /> กลับหน้าแรก
         </Link>

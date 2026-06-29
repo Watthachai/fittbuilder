@@ -140,11 +140,11 @@ export default async function AdminUsagePage() {
         {/* Charts row */}
         <div className="mb-8 grid grid-cols-1 gap-4 lg:grid-cols-3">
           <Card title="Tokens รายวัน (14 วันล่าสุด)" className="lg:col-span-2">
-            <div className="flex h-44 items-end gap-1.5">
+            <div className="flex h-44 items-stretch gap-1.5">
               {daily.map((d) => (
                 <div
                   key={d.key}
-                  className="group flex flex-1 flex-col justify-end"
+                  className="group flex h-full flex-1 flex-col justify-end"
                   title={`${d.key}: ${num(d.tokens)} tokens`}
                 >
                   <div

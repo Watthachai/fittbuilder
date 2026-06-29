@@ -23,6 +23,15 @@ export const CHANGE_BADGE: Record<ChangeType, { label: string; className: string
 // Newest first. SemVer: fix → PATCH, feature → MINOR, breaking → MAJOR.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.17.1",
+    date: "2026-06-29",
+    title: "กราฟ tokens รายวันขึ้นแล้ว + sidebar แสดงทุก workspace",
+    items: [
+      { type: "fix", text: "กราฟ “Tokens รายวัน (14 วันล่าสุด)” แสดงแท่งได้ถูกต้อง (เดิมแท่งสูง 0 เพราะคอลัมน์ไม่มีความสูงอ้างอิง)" },
+      { type: "fix", text: "Sidebar หน้าตั้งค่าแสดง workspace ทั้งหมดเป็นรายการให้สลับ Org DNA ได้ทุกอัน (เดิมเห็นแค่อันแรก) พร้อมปุ่มสร้าง workspace ใหม่" },
+    ],
+  },
+  {
     version: "0.17.0",
     date: "2026-06-29",
     title: "แดชบอร์ดการใช้ AI: กราฟ + อันดับผู้ใช้พร้อมรูปโปรไฟล์",

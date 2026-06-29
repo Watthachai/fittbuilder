@@ -76,6 +76,16 @@ export interface OrgDna {
   structure?: string;
   archetype?: OrgArchetype | null;
   notes?: string;
+  /** Raw source text the DNA was distilled from (paste + extracted files) — kept
+   *  so each block can cite the passage it came from (NotebookLM-style). */
+  sources?: string;
+  /** Per-block verbatim source quote (the citation into `sources`). */
+  cites?: {
+    decisionRights?: string;
+    information?: string;
+    motivators?: string;
+    structure?: string;
+  };
 }
 
 /** An organization (workspace): groups projects and carries the Org DNA. */

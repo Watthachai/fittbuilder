@@ -35,13 +35,15 @@ const bodySchema = z
     message: "ต้องมีข้อความหรือไฟล์อย่างน้อยหนึ่งอย่าง",
   });
 
-const SYSTEM = `คุณคือที่ปรึกษาด้าน Org DNA (กรอบ Strategy& / PwC) สกัด "Org DNA" จากข้อมูลบริษัทที่ผู้ใช้ให้มา (ภาษาไทยหรืออังกฤษ)
+const SYSTEM = `คุณคือที่ปรึกษาด้าน Org DNA (กรอบ Strategy& / PwC) สกัด "Org DNA" จากข้อมูลบริษัทที่ผู้ใช้ให้มา (ภาษาไทยหรืออังกฤษ) พร้อม "อ้างอิงแหล่งที่มา" แบบ NotebookLM
 
 ตอบกลับเป็น JSON อย่างเดียว ตาม schema นี้:
-{"decisionRights":"","information":"","motivators":"","structure":"","archetype":null,"notes":""}
+{"sourceText":"","decisionRights":"","decisionRightsSource":"","information":"","informationSource":"","motivators":"","motivatorsSource":"","structure":"","structureSource":"","archetype":null,"notes":""}
 
 กติกา:
+- sourceText: ข้อความต้นฉบับของข้อมูลที่ผู้ใช้ให้มา (ทั้งข้อความที่วาง + เนื้อหาที่อ่านได้จากไฟล์แนบ) เรียบเรียงเป็นข้อความเดียวตามจริง ไม่สรุป ไม่แต่งเพิ่ม — ใช้เป็น "แหล่งอ้างอิง"
 - decisionRights / information / motivators / structure: สรุปสั้น กระชับ (1-3 ประโยค) "เฉพาะที่อนุมานได้จากข้อมูลที่ให้มาเท่านั้น" ถ้าด้านไหนไม่มีข้อมูลพอ ให้เว้นเป็น "" (ห้ามแต่งขึ้นเอง)
+- *Source (decisionRightsSource ฯลฯ): คัดข้อความ "ตรงตัวแบบคำต่อคำ" (verbatim) จาก sourceText ที่เป็นที่มาของฐานรากนั้น (1-2 ประโยค) ต้องเป็น substring ของ sourceText จริงๆ ถ้าฐานรากนั้นว่าง ให้ *Source เป็น "" ด้วย
 - archetype: เลือกหนึ่งใน [${ARCHETYPE_KEYS.join(", ")}] ที่ตรงที่สุด หรือ null ถ้าข้อมูลไม่พอจะจัดประเภท
 - notes: จุดที่ข้อมูลยังขาด/ควรถามเพิ่มเพื่อให้ Org DNA สมบูรณ์ (1-2 ประโยค)
 - ตอบเป็นภาษาไทย ยกเว้น archetype ที่เป็น key อังกฤษตาม list`;
@@ -97,6 +99,13 @@ export async function POST(request: Request) {
       structure: str(parsed.structure),
       archetype,
       notes: str(parsed.notes),
+      sources: str(parsed.sourceText),
+      cites: {
+        decisionRights: str(parsed.decisionRightsSource),
+        information: str(parsed.informationSource),
+        motivators: str(parsed.motivatorsSource),
+        structure: str(parsed.structureSource),
+      },
     };
     return Response.json({ dna });
   } catch (error) {

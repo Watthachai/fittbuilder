@@ -55,11 +55,19 @@ export function buildOrgDnaContext(dna: OrgDna | null | undefined): string {
   if (!dna) return "";
   const lines: string[] = [];
   const arch = archetypeMeta(dna.archetype);
+  const cite = (key: keyof NonNullable<OrgDna["cites"]>) => {
+    const q = dna.cites?.[key]?.trim();
+    return q ? ` (อ้างอิงจากข้อมูลบริษัท: "${q}")` : "";
+  };
   if (arch) lines.push(`- รูปแบบองค์กร (archetype): ${arch.en} — ${arch.desc}`);
-  if (dna.decisionRights?.trim()) lines.push(`- สิทธิการตัดสินใจ: ${dna.decisionRights.trim()}`);
-  if (dna.information?.trim()) lines.push(`- ระบบข้อมูลข่าวสาร: ${dna.information.trim()}`);
-  if (dna.motivators?.trim()) lines.push(`- สิ่งจูงใจ: ${dna.motivators.trim()}`);
-  if (dna.structure?.trim()) lines.push(`- โครงสร้างองค์กร: ${dna.structure.trim()}`);
+  if (dna.decisionRights?.trim())
+    lines.push(`- สิทธิการตัดสินใจ: ${dna.decisionRights.trim()}${cite("decisionRights")}`);
+  if (dna.information?.trim())
+    lines.push(`- ระบบข้อมูลข่าวสาร: ${dna.information.trim()}${cite("information")}`);
+  if (dna.motivators?.trim())
+    lines.push(`- สิ่งจูงใจ: ${dna.motivators.trim()}${cite("motivators")}`);
+  if (dna.structure?.trim())
+    lines.push(`- โครงสร้างองค์กร: ${dna.structure.trim()}${cite("structure")}`);
   if (dna.notes?.trim()) lines.push(`- หมายเหตุ: ${dna.notes.trim()}`);
   if (lines.length === 0) return "";
   return `ORG DNA ขององค์กรผู้ใช้ (ใช้เป็นบริบท — ออกแบบ flow/โครงสร้าง/บทบาทให้สอดคล้องกับลักษณะองค์กรนี้ ห้ามแต่งข้อมูลองค์กรที่ไม่ได้ระบุ):

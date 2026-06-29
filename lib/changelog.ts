@@ -23,6 +23,15 @@ export const CHANGE_BADGE: Record<ChangeType, { label: string; className: string
 // Newest first. SemVer: fix → PATCH, feature → MINOR, breaking → MAJOR.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.16.0",
+    date: "2026-06-29",
+    title: "Org DNA อ้างอิงแหล่งข้อมูลได้ (แบบ NotebookLM)",
+    items: [
+      { type: "feature", text: "Org DNA เก็บข้อมูลดิบที่คุณให้ไว้เป็น “แหล่งอ้างอิง” — แต่ละฐานราก (Decision Rights/Information/Motivators/Structure) แสดง 📎 ว่าสกัดมาจากข้อความไหน คลิกเปิดดูต้นฉบับพร้อมไฮไลต์ส่วนที่ใช้" },
+      { type: "improvement", text: "ตอน generate ข้อมูล Org DNA ที่ป้อนให้ AI พ่วงที่มา (อ้างอิงจากข้อมูลบริษัท) เพื่อให้ผลลัพธ์อิงข้อมูลจริงมากขึ้น" },
+    ],
+  },
+  {
     version: "0.15.2",
     date: "2026-06-29",
     title: "เลือก “ส่วนตัว” ตอนสร้างโปรเจกต์ได้",

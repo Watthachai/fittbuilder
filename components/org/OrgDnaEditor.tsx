@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Loader2, Paperclip, Save, Sparkles, Trash2, X } from "lucide-react";
+import { ArrowLeft, FileText, Loader2, Paperclip, Quote, Save, Sparkles, Trash2, X } from "lucide-react";
 import { deleteOrg, getOrg, updateOrgMeta, updateOrgDna, dnaCompleteness } from "@/lib/orgs";
 import { ARCHETYPES, DNA_BLOCKS } from "@/lib/org-dna";
 import { DEFAULT_COLOR, DEFAULT_ICON, WorkspaceIcon } from "@/lib/workspace-style";
@@ -11,6 +11,7 @@ import { confirm } from "@/lib/confirm";
 import { toast } from "@/lib/toast";
 import type { ChatAttachmentInput, OrgDna } from "@/lib/types";
 import ColorIconPicker from "./ColorIconPicker";
+import SourceViewer from "./SourceViewer";
 
 const MAX_FILE_BYTES = 4 * 1024 * 1024;
 
@@ -41,6 +42,7 @@ export default function OrgDnaEditor({ orgId }: { orgId: string }) {
   const [drafting, setDrafting] = useState(false);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [viewer, setViewer] = useState<{ highlight?: string } | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const remove = async () => {
@@ -111,16 +113,34 @@ export default function OrgDnaEditor({ orgId }: { orgId: string }) {
       const data = (await res.json()) as { dna?: OrgDna; error?: string };
       if (!res.ok || !data.dna) throw new Error(data.error ?? "ร่างไม่สำเร็จ");
       const ai = data.dna;
-      // Fill only empty fields — never clobber what the user already wrote.
-      setDna((prev) => ({
-        decisionRights: prev.decisionRights?.trim() ? prev.decisionRights : ai.decisionRights,
-        information: prev.information?.trim() ? prev.information : ai.information,
-        motivators: prev.motivators?.trim() ? prev.motivators : ai.motivators,
-        structure: prev.structure?.trim() ? prev.structure : ai.structure,
-        archetype: prev.archetype ?? ai.archetype ?? null,
-        notes: prev.notes?.trim() ? prev.notes : ai.notes,
-      }));
-      toast.success("AI ร่าง Org DNA ให้แล้ว", { description: "ตรวจและแก้ได้ตามจริง แล้วกดบันทึก" });
+      // Fill only empty fields — never clobber what the user already wrote. Keep
+      // a block's citation only when we actually used the AI's text for it.
+      setDna((prev) => {
+        const keep = {
+          decisionRights: Boolean(prev.decisionRights?.trim()),
+          information: Boolean(prev.information?.trim()),
+          motivators: Boolean(prev.motivators?.trim()),
+          structure: Boolean(prev.structure?.trim()),
+        };
+        return {
+          decisionRights: keep.decisionRights ? prev.decisionRights : ai.decisionRights,
+          information: keep.information ? prev.information : ai.information,
+          motivators: keep.motivators ? prev.motivators : ai.motivators,
+          structure: keep.structure ? prev.structure : ai.structure,
+          archetype: prev.archetype ?? ai.archetype ?? null,
+          notes: prev.notes?.trim() ? prev.notes : ai.notes,
+          sources: ai.sources || prev.sources,
+          cites: {
+            decisionRights: keep.decisionRights ? prev.cites?.decisionRights : ai.cites?.decisionRights,
+            information: keep.information ? prev.cites?.information : ai.cites?.information,
+            motivators: keep.motivators ? prev.cites?.motivators : ai.cites?.motivators,
+            structure: keep.structure ? prev.cites?.structure : ai.cites?.structure,
+          },
+        };
+      });
+      toast.success("AI ร่าง Org DNA ให้แล้ว", {
+        description: "ตรวจและแก้ได้ — คลิก 📎 เพื่อดูว่าแต่ละข้อมาจากส่วนไหนของข้อมูลคุณ",
+      });
     } catch (e) {
       toast.error("ร่าง Org DNA ไม่สำเร็จ", {
         description: e instanceof Error ? e.message : undefined,
@@ -287,20 +307,42 @@ export default function OrgDnaEditor({ orgId }: { orgId: string }) {
           </div>
         </section>
 
+        {dna.sources?.trim() && (
+          <button
+            onClick={() => setViewer({})}
+            className="mt-3 inline-flex items-center gap-1.5 text-[12px] text-chalk-dim transition hover:text-shine"
+          >
+            <FileText size={13} /> ดูแหล่งข้อมูลทั้งหมดที่ AI ใช้
+          </button>
+        )}
+
         {/* 4 building blocks */}
         <div className="mt-6 grid grid-cols-1 gap-5 md:grid-cols-2">
-          {DNA_BLOCKS.map((b) => (
-            <div key={b.key}>
-              <label className="font-display text-sm font-semibold text-chalk">{b.th}</label>
-              <p className="mb-1.5 text-[12px] text-chalk-dim">{b.hint}</p>
-              <textarea
-                value={dna[b.key] ?? ""}
-                onChange={(e) => setField(b.key, e.target.value)}
-                rows={2}
-                className="w-full resize-y rounded-lg border border-night-edge bg-night-panel px-3 py-2.5 text-[14px] outline-none focus:border-shine"
-              />
-            </div>
-          ))}
+          {DNA_BLOCKS.map((b) => {
+            const cite = dna.cites?.[b.key]?.trim();
+            return (
+              <div key={b.key}>
+                <label className="font-display text-sm font-semibold text-chalk">{b.th}</label>
+                <p className="mb-1.5 text-[12px] text-chalk-dim">{b.hint}</p>
+                <textarea
+                  value={dna[b.key] ?? ""}
+                  onChange={(e) => setField(b.key, e.target.value)}
+                  rows={2}
+                  className="w-full resize-y rounded-lg border border-night-edge bg-night-panel px-3 py-2.5 text-[14px] outline-none focus:border-shine"
+                />
+                {cite && (
+                  <button
+                    onClick={() => setViewer({ highlight: cite })}
+                    title="คลิกดูที่มาในข้อมูลของคุณ"
+                    className="mt-1.5 flex w-full items-start gap-1.5 rounded-md border border-night-edge bg-night/50 px-2 py-1.5 text-left text-[11px] text-chalk-dim transition hover:border-shine/50 hover:text-chalk"
+                  >
+                    <Quote size={11} className="mt-0.5 shrink-0 text-shine" />
+                    <span className="line-clamp-2 italic">“{cite}”</span>
+                  </button>
+                )}
+              </div>
+            );
+          })}
         </div>
 
         {/* Archetype */}
@@ -343,6 +385,14 @@ export default function OrgDnaEditor({ orgId }: { orgId: string }) {
           </button>
         </div>
       </div>
+
+      {viewer && dna.sources && (
+        <SourceViewer
+          sources={dna.sources}
+          highlight={viewer.highlight}
+          onClose={() => setViewer(null)}
+        />
+      )}
     </main>
   );
 }

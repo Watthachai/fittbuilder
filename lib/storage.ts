@@ -40,6 +40,7 @@ export async function createProject(options?: {
   name?: string;
   phase?: PhaseId;
   skillId?: string;
+  orgId?: string;
 }): Promise<ProjectRecord> {
   const supabase = createClient();
   // owner_id is stamped by the DB default (auth.uid()) so it always matches the
@@ -50,6 +51,7 @@ export async function createProject(options?: {
       name: options?.name?.trim() || "Untitled",
       phase: options?.phase ?? "define",
       skill_id: options?.skillId ?? null,
+      org_id: options?.orgId ?? null,
     })
     .select(SELECT)
     .single();
@@ -87,7 +89,7 @@ export async function listProjects(): Promise<ProjectSummary[]> {
   // RLS returns owned + shared rows; classify by owner_id, attach role from memberships.
   const { data: rows, error } = await supabase
     .from("fittbuilder_projects")
-    .select("id, owner_id, name, files, created_at, updated_at")
+    .select("id, owner_id, name, files, org_id, created_at, updated_at")
     .order("updated_at", { ascending: false });
   if (error) throw error;
   const { data: memberships } = await supabase
@@ -101,6 +103,7 @@ export async function listProjects(): Promise<ProjectSummary[]> {
       id: r.id,
       name: r.name,
       fileCount: r.files ? Object.keys(r.files as ProjectFiles).length : 0,
+      orgId: (r as { org_id: string | null }).org_id ?? null,
       createdAt: r.created_at,
       updatedAt: r.updated_at,
       access: owner ? "owner" : "member",

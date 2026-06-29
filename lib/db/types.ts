@@ -35,6 +35,33 @@ export interface Database {
         };
         Relationships: [];
       };
+      fittbuilder_orgs: {
+        Row: {
+          id: string;
+          owner_id: string;
+          name: string;
+          org_dna: Json;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          owner_id?: string;
+          name?: string;
+          org_dna?: Json;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          owner_id?: string;
+          name?: string;
+          org_dna?: Json;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
       fittbuilder_projects: {
         Row: {
           id: string;
@@ -48,6 +75,7 @@ export interface Database {
           share_token: string | null;
           share_role: string | null;
           skill_id: string | null;
+          org_id: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -63,6 +91,7 @@ export interface Database {
           share_token?: string | null;
           share_role?: string | null;
           skill_id?: string | null;
+          org_id?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -78,6 +107,7 @@ export interface Database {
           share_token?: string | null;
           share_role?: string | null;
           skill_id?: string | null;
+          org_id?: string | null;
           created_at?: string;
           updated_at?: string;
         };

@@ -1,0 +1,96 @@
+"use client";
+
+import { createClient } from "@/lib/supabase/client";
+import type { Json } from "@/lib/db/types";
+import type { OrgDna, OrgRecord } from "@/lib/types";
+
+const SELECT = "id, owner_id, name, org_dna, created_at, updated_at";
+
+interface OrgRow {
+  id: string;
+  owner_id: string;
+  name: string;
+  org_dna: unknown;
+  created_at: string;
+  updated_at: string;
+}
+
+function rowToOrg(r: OrgRow): OrgRecord {
+  return {
+    id: r.id,
+    ownerId: r.owner_id,
+    name: r.name,
+    dna: (r.org_dna && typeof r.org_dna === "object" ? r.org_dna : {}) as OrgDna,
+    createdAt: r.created_at,
+    updatedAt: r.updated_at,
+  };
+}
+
+/** Workspaces owned by the current user, oldest first (default workspace leads). */
+export async function listOrgs(): Promise<OrgRecord[]> {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from("fittbuilder_orgs")
+    .select(SELECT)
+    .order("created_at", { ascending: true });
+  if (error) throw error;
+  return (data ?? []).map((r) => rowToOrg(r as OrgRow));
+}
+
+export async function getOrg(id: string): Promise<OrgRecord | null> {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from("fittbuilder_orgs")
+    .select(SELECT)
+    .eq("id", id)
+    .maybeSingle();
+  if (error) {
+    console.error("[orgs] getOrg:", error);
+    return null;
+  }
+  return data ? rowToOrg(data as OrgRow) : null;
+}
+
+export async function createOrg(name?: string): Promise<OrgRecord> {
+  const supabase = createClient();
+  // owner_id is stamped by the DB default (auth.uid()) to match the RLS check.
+  const { data, error } = await supabase
+    .from("fittbuilder_orgs")
+    .insert({ name: name?.trim() || "พื้นที่ของฉัน" })
+    .select(SELECT)
+    .single();
+  if (error) throw new Error(error.message || "createOrg failed");
+  return rowToOrg(data as OrgRow);
+}
+
+export async function renameOrg(id: string, name: string): Promise<void> {
+  const supabase = createClient();
+  const { error } = await supabase
+    .from("fittbuilder_orgs")
+    .update({ name: name.trim() || "พื้นที่ของฉัน", updated_at: new Date().toISOString() })
+    .eq("id", id);
+  if (error) throw error;
+}
+
+/** Persist the Org DNA profile (partial allowed — caller passes the full object). */
+export async function updateOrgDna(id: string, dna: OrgDna): Promise<void> {
+  const supabase = createClient();
+  const { error } = await supabase
+    .from("fittbuilder_orgs")
+    .update({ org_dna: dna as unknown as Json, updated_at: new Date().toISOString() })
+    .eq("id", id);
+  if (error) throw error;
+}
+
+/** First workspace, creating a default one if the user has none yet. */
+export async function ensureDefaultOrg(): Promise<OrgRecord> {
+  const orgs = await listOrgs();
+  return orgs[0] ?? (await createOrg());
+}
+
+/** Fraction (0..1) of the Org DNA that's filled — for the completeness meter. */
+export function dnaCompleteness(dna: OrgDna): number {
+  const fields = [dna.decisionRights, dna.information, dna.motivators, dna.structure];
+  const filled = fields.filter((f) => f && f.trim().length > 0).length;
+  return filled / fields.length;
+}

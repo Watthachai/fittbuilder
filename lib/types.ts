@@ -56,6 +56,38 @@ export interface ChatMessage {
   hasDoc?: boolean;
 }
 
+/** One of the 7 Org DNA archetypes (Strategy& / PwC). */
+export type OrgArchetype =
+  | "resilient"
+  | "military-precision"
+  | "just-in-time"
+  | "passive-aggressive"
+  | "fits-and-starts"
+  | "overmanaged"
+  | "outgrown";
+
+/** Org DNA profile — the 4 building blocks + archetype + notes. Every field is
+ *  optional and filled progressively; missing fields are simply omitted from the
+ *  AI context (never fabricated). */
+export interface OrgDna {
+  decisionRights?: string;
+  information?: string;
+  motivators?: string;
+  structure?: string;
+  archetype?: OrgArchetype | null;
+  notes?: string;
+}
+
+/** An organization (workspace): groups projects and carries the Org DNA. */
+export interface OrgRecord {
+  id: string;
+  ownerId: string;
+  name: string;
+  dna: OrgDna;
+  createdAt: string;
+  updatedAt: string;
+}
+
 /** A file shared in the team chat. `path` is the storage object key; the signed
  *  URL is resolved at load time (the bucket is private). */
 export interface TeamChatAttachment {
@@ -145,6 +177,8 @@ export interface ProjectSummary {
   id: string;
   name: string;
   fileCount: number;
+  /** Workspace this project belongs to (null = unassigned / shared-with-me). */
+  orgId: string | null;
   createdAt: string;
   updatedAt: string;
   access: "owner" | "member";

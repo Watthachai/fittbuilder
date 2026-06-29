@@ -23,6 +23,14 @@ export const CHANGE_BADGE: Record<ChangeType, { label: string; className: string
 // Newest first. SemVer: fix → PATCH, feature → MINOR, breaking → MAJOR.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.18.7",
+    date: "2026-06-29",
+    title: "คลิกอ้างอิง Org DNA แล้วไฮไลต์ตรงจุด (แบบ NotebookLM)",
+    items: [
+      { type: "fix", text: "คลิกชิป “อ้างอิง Org DNA” (ทั้งในแชทและหน้า workspace) แล้วเด้งไปไฮไลต์ข้อความต้นฉบับที่ใช้จริง — เดิมโชว์ raw ทั้งก้อนเหมือนกันทุก tag เพราะจับคู่แบบตรงตัวเป๊ะไม่เจอ ตอนนี้จับคู่แบบยืดหยุ่น (ไม่สนช่องว่าง/ตัวพิมพ์) และไฮไลต์ได้หลายช่วงตามวลีที่อ้างอิงจริง" },
+    ],
+  },
+  {
     version: "0.18.6",
     date: "2026-06-29",
     title: "AI ไม่ถามซ้ำสิ่งที่ Org DNA รู้แล้ว + แมวโหลดตอน AI ทำงาน",

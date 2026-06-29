@@ -23,6 +23,14 @@ export const CHANGE_BADGE: Record<ChangeType, { label: string; className: string
 // Newest first. SemVer: fix → PATCH, feature → MINOR, breaking → MAJOR.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.18.1",
+    date: "2026-06-29",
+    title: "badge Org DNA เป็นเกลียว DNA เคลื่อนไหว",
+    items: [
+      { type: "improvement", text: "ไอคอนบนปุ่ม “Org DNA” กลายเป็นเกลียว DNA double-helix เคลื่อนไหวสไตล์วิทยาศาสตร์ (CSS ล้วน) — สีตาม workspace บนปุ่ม และไล่สีรุ้งบนหัว panel · ปิดอัตโนมัติเมื่อผู้ใช้ตั้งค่า “ลดการเคลื่อนไหว”" },
+    ],
+  },
+  {
     version: "0.18.0",
     date: "2026-06-29",
     title: "ปุ่ม Org DNA ใน Studio — ดู/ผูก DNA ของ workspace ได้เลย",

@@ -429,3 +429,116 @@ body {
 .drop-overlay {
   animation: drop-pulse 1.4s ease-in-out infinite;
 }
+
+/* ── Animated DNA double-helix mark (Org DNA badge/panel) ──────────────
+   Each column has two dots oscillating in antiphase; a per-column negative
+   animation-delay makes the crossing travel along the strand, so it twists
+   like a rotating helix. Sized entirely in `em` off the root font-size. */
+.dna-mark {
+  --dna-dur: 2.4s;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.16em;
+  height: 1em;
+  color: var(--shine);
+}
+.dna-mark__col {
+  position: relative;
+  height: 1em;
+  width: 0.2em;
+  --dna-delay: calc(var(--i) * (var(--dna-dur) / var(--dna-n)) * -1);
+}
+.dna-mark__rung {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 0.12em;
+  height: 0.64em;
+  margin: -0.32em 0 0 -0.06em;
+  border-radius: 1em;
+  background: currentColor;
+  opacity: 0.4;
+  animation: dna-rung var(--dna-dur) cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  animation-delay: var(--dna-delay);
+}
+.dna-mark__dot {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 0.32em;
+  height: 0.32em;
+  margin: -0.16em 0 0 -0.16em;
+  border-radius: 50%;
+  background: currentColor;
+  animation: dna-dot-a var(--dna-dur) cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  animation-delay: var(--dna-delay);
+}
+.dna-mark__dot--b {
+  animation-name: dna-dot-b;
+}
+.dna-mark--rainbow .dna-mark__dot {
+  background: hsl(calc(var(--h) * 1deg) 90% 72%);
+}
+.dna-mark--rainbow .dna-mark__rung {
+  background: hsl(calc(var(--h) * 1deg) 90% 70%);
+}
+@keyframes dna-dot-a {
+  0%,
+  100% {
+    transform: translateY(-0.3em) scale(1);
+    opacity: 1;
+  }
+  25% {
+    transform: translateY(0) scale(0.55);
+    opacity: 0.55;
+  }
+  50% {
+    transform: translateY(0.3em) scale(1);
+    opacity: 1;
+  }
+  75% {
+    transform: translateY(0) scale(0.55);
+    opacity: 0.55;
+  }
+}
+@keyframes dna-dot-b {
+  0%,
+  100% {
+    transform: translateY(0.3em) scale(1);
+    opacity: 1;
+  }
+  25% {
+    transform: translateY(0) scale(0.55);
+    opacity: 0.55;
+  }
+  50% {
+    transform: translateY(-0.3em) scale(1);
+    opacity: 1;
+  }
+  75% {
+    transform: translateY(0) scale(0.55);
+    opacity: 0.55;
+  }
+}
+@keyframes dna-rung {
+  0%,
+  100% {
+    transform: scaleY(1);
+    opacity: 0.4;
+  }
+  25%,
+  75% {
+    transform: scaleY(0.12);
+    opacity: 0.15;
+  }
+  50% {
+    transform: scaleY(1);
+    opacity: 0.4;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .dna-mark__dot,
+  .dna-mark__rung {
+    animation-play-state: paused;
+  }
+}

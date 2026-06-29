@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Dna, ExternalLink, Plus, Quote, Sparkles, Unlink, X } from "lucide-react";
+import { ExternalLink, Plus, Quote, Sparkles, Unlink, X } from "lucide-react";
 import Overlay from "@/components/ui/Overlay";
 import GlassSurface from "@/components/ui/GlassSurface";
+import DnaMark from "@/components/ui/DnaMark";
 import SourceViewer from "@/components/org/SourceViewer";
 import { dnaCompleteness, listOrgs } from "@/lib/orgs";
 import { archetypeMeta, DNA_BLOCKS } from "@/lib/org-dna";
@@ -79,8 +80,8 @@ export default function OrgDnaPanel({
       >
         {/* Header */}
         <div className="flex shrink-0 items-center justify-between border-b border-night-edge px-4 py-3">
-          <div className="flex min-w-0 items-center gap-2">
-            <Dna size={16} className="shrink-0 text-shine" />
+          <div className="flex min-w-0 items-center gap-2.5">
+            <DnaMark size={20} bars={6} rainbow className="shrink-0" />
             <h2 className="font-display text-[15px] font-semibold text-chalk">
               Org DNA ของ workspace
             </h2>

@@ -5,7 +5,6 @@ import { useState } from "react";
 import {
   Check,
   Code2,
-  Dna,
   Download,
   Eye,
   FileText,
@@ -16,7 +15,7 @@ import {
   Users,
 } from "lucide-react";
 import { encodeShareUrl } from "@/lib/share";
-import { WorkspaceIcon } from "@/lib/workspace-style";
+import DnaMark from "@/components/ui/DnaMark";
 import type { OrgRecord, ProjectRecord } from "@/lib/types";
 import { downloadZip } from "@/lib/zip";
 import { downloadFittcoreSpec } from "@/lib/fittcore";
@@ -114,11 +113,7 @@ export default function TopBar({
             : "border-night-edge text-chalk-dim hover:border-shine hover:text-chalk"
         }`}
       >
-        {org ? (
-          <WorkspaceIcon icon={org.icon} size={13} className="shrink-0" style={{ color: org.color }} />
-        ) : (
-          <Dna size={13} className="shrink-0 text-shine" />
-        )}
+        <DnaMark size={15} bars={5} className="shrink-0" color={org?.color ?? "var(--shine)"} />
         <span className="truncate">{org ? `${org.name} · DNA` : "Org DNA"}</span>
       </button>
 

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Check, ChevronDown, Loader2, Plus, Settings2 } from "lucide-react";
+import { Check, ChevronDown, Loader2, Plus, Settings2, User } from "lucide-react";
 import { listOrgs } from "@/lib/orgs";
 import { openCreateWorkspace } from "@/lib/workspace-modal";
 import { WorkspaceIcon } from "@/lib/workspace-style";
@@ -18,7 +18,7 @@ export default function OrgSelect({
   onChange,
 }: {
   value: string | null;
-  onChange: (orgId: string) => void;
+  onChange: (orgId: string | null) => void;
 }) {
   const [orgs, setOrgs] = useState<OrgRecord[]>([]);
   const [loading, setLoading] = useState(true);
@@ -31,7 +31,7 @@ export default function OrgSelect({
         const list = await listOrgs();
         if (cancelled) return;
         setOrgs(list);
-        if (!value && list[0]) onChange(list[0].id);
+        // Default = ส่วนตัว (no workspace); the user opts into one explicitly.
       } catch {
         /* signed-out / offline → leave empty */
       } finally {
@@ -41,7 +41,8 @@ export default function OrgSelect({
     return () => {
       cancelled = true;
     };
-  }, [value, onChange]);
+    // Load workspaces once on mount.
+  }, []);
 
   if (loading) {
     return (
@@ -50,7 +51,7 @@ export default function OrgSelect({
       </span>
     );
   }
-  const current = orgs.find((o) => o.id === value) ?? orgs[0] ?? null;
+  const current = value ? orgs.find((o) => o.id === value) ?? null : null;
 
   const handleCreate = async () => {
     setOpen(false);
@@ -68,9 +69,13 @@ export default function OrgSelect({
         className="inline-flex max-w-[220px] items-center gap-1.5 rounded-full border border-chalk/15 bg-chalk/5 px-2.5 py-1 text-chalk/80 transition hover:border-chalk/30"
         title="เลือก workspace ของโปรเจกต์นี้"
       >
-        <WorkspaceIcon icon={current?.icon} size={13} className="shrink-0" style={{ color: current?.color }} />
+        {current ? (
+          <WorkspaceIcon icon={current.icon} size={13} className="shrink-0" style={{ color: current.color }} />
+        ) : (
+          <User size={13} className="shrink-0 text-chalk-dim" />
+        )}
         <span className="truncate font-display text-[12px]">
-          {current ? current.name : "เลือก/สร้าง workspace"}
+          {current ? current.name : "ส่วนตัว"}
         </span>
         <ChevronDown size={13} className={`shrink-0 transition-transform ${open ? "rotate-180" : ""}`} />
       </button>
@@ -82,11 +87,19 @@ export default function OrgSelect({
             <p className="px-2.5 py-1 font-mono text-[10px] uppercase tracking-wider text-chalk/40">
               Workspace
             </p>
-            {orgs.length === 0 && (
-              <p className="px-2.5 py-1.5 text-[12px] text-chalk-dim">
-                ยังไม่มี workspace — สร้างใหม่ได้เลย
-              </p>
-            )}
+            <button
+              onClick={() => {
+                onChange(null);
+                setOpen(false);
+              }}
+              className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-[13px] text-chalk/85 transition hover:bg-chalk/5"
+            >
+              <span className="grid h-6 w-6 shrink-0 place-items-center rounded-md bg-chalk/10 text-chalk-dim">
+                <User size={14} />
+              </span>
+              <span className="min-w-0 flex-1 truncate">ส่วนตัว (ไม่ใช้ workspace)</span>
+              {!value && <Check size={14} className="shrink-0 text-shine" />}
+            </button>
             {orgs.map((o) => (
               <div
                 key={o.id}

@@ -23,6 +23,14 @@ export const CHANGE_BADGE: Record<ChangeType, { label: string; className: string
 // Newest first. SemVer: fix → PATCH, feature → MINOR, breaking → MAJOR.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.15.2",
+    date: "2026-06-29",
+    title: "เลือก “ส่วนตัว” ตอนสร้างโปรเจกต์ได้",
+    items: [
+      { type: "fix", text: "dropdown workspace ในกล่อง brief มีตัวเลือก “ส่วนตัว (ไม่ใช้ workspace)” และตั้งเป็นค่าเริ่มต้น — โปรเจกต์ใหม่จะไม่ถูกยัดเข้า workspace อัตโนมัติอีก ต้องเลือกเองถึงจะเข้า workspace" },
+    ],
+  },
+  {
     version: "0.15.1",
     date: "2026-06-29",
     title: "ผลงานจัดเป็นโฟลเดอร์ตาม workspace",

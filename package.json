@@ -1,6 +1,6 @@
 {
   "name": "fitt-builder-v2",
-  "version": "0.15.1",
+  "version": "0.15.2",
   "private": true,
   "scripts": {
     "dev": "next dev",

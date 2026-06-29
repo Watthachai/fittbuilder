@@ -25,6 +25,7 @@ import {
   getProject,
   newMessage,
   saveProject,
+  setProjectOrg,
   undo as undoProject,
   withHistory,
 } from "@/lib/storage";
@@ -34,7 +35,7 @@ import type {
   DocKind,
   GenerationPhase,
   LiveMessage,
-  OrgDna,
+  OrgRecord,
   ProjectFiles,
   ProjectRecord,
   SpecAnswers,
@@ -65,6 +66,7 @@ import CodePanel from "./CodePanel";
 import DesignPicker from "./DesignPicker";
 import DocPreviewModal from "./DocPreviewModal";
 import PackageSearch from "./PackageSearch";
+import OrgDnaPanel from "./OrgDnaPanel";
 import PhaseStepper from "./PhaseStepper";
 import PreviewPanel from "./PreviewPanel";
 import ShareModal from "./ShareModal";
@@ -158,7 +160,8 @@ export default function Studio({ projectId }: { projectId: string }) {
 
   const [readOnly, setReadOnly] = useState(false);
   const [isOwner, setIsOwner] = useState(false);
-  const [orgDna, setOrgDna] = useState<OrgDna | null>(null);
+  const [org, setOrg] = useState<OrgRecord | null>(null);
+  const [dnaOpen, setDnaOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved">("idle");
   const [skillPickerOpen, setSkillPickerOpen] = useState(false);
@@ -1116,18 +1119,42 @@ export default function Studio({ projectId }: { projectId: string }) {
     wasBgRef.current = bgActive;
   }, [projectGenerating, bgActive, projectId, boot]);
 
-  // Load the project's workspace Org DNA so the chat can render source citations.
+  // Load the project's workspace (Org DNA) — drives the chat citations and the
+  // in-studio Org DNA panel. Reloads whenever the project's workspace changes.
   useEffect(() => {
     const orgId = project?.orgId;
     let cancelled = false;
     void (async () => {
       const o = orgId ? await getOrg(orgId) : null;
-      if (!cancelled) setOrgDna(o?.dna ?? null);
+      if (!cancelled) setOrg(o);
     })();
     return () => {
       cancelled = true;
     };
   }, [project?.orgId]);
+
+  /** Attach/switch/detach this project's workspace from the Org DNA panel. Writes
+   *  org_id directly (autosave omits it) so the next AI turn picks up the DNA. */
+  const attachWorkspace = useCallback(
+    async (orgId: string | null) => {
+      const current = projectRef.current;
+      if (!current) return;
+      const next = { ...current, orgId, updatedAt: new Date().toISOString() };
+      projectRef.current = next;
+      setProject(next);
+      try {
+        await setProjectOrg(projectId, orgId);
+        toast.success(
+          orgId ? "ผูก workspace แล้ว — AI จะอ้างอิง Org DNA" : "เอาออกจาก workspace แล้ว"
+        );
+      } catch (e) {
+        toast.error("อัปเดต workspace ไม่สำเร็จ", {
+          description: e instanceof Error ? e.message : undefined,
+        });
+      }
+    },
+    [projectId]
+  );
 
   // Mirror chatStreaming into a ref so the realtime handler's closure reads the
   // live value (it subscribes once, keyed on projectId, not on every turn).
@@ -1399,6 +1426,8 @@ export default function Studio({ projectId }: { projectId: string }) {
       )}
       <TopBar
         project={project}
+        org={org}
+        onOpenDna={() => setDnaOpen(true)}
         view={view}
         busy={busy}
         readOnly={readOnly}
@@ -1476,7 +1505,7 @@ export default function Studio({ projectId }: { projectId: string }) {
             readOnly={readOnly}
             peers={[...aiPeers.values()]}
             onTyping={broadcastAiTyping}
-            orgDna={orgDna}
+            orgDna={org?.dna ?? null}
           />
         </div>
 
@@ -1563,6 +1592,15 @@ export default function Studio({ projectId }: { projectId: string }) {
           projectId={project.id}
           projectName={project.name}
           onClose={() => setShareOpen(false)}
+        />
+      )}
+
+      {dnaOpen && (
+        <OrgDnaPanel
+          org={org}
+          canAttach={isOwner}
+          onAttach={(id) => void attachWorkspace(id)}
+          onClose={() => setDnaOpen(false)}
         />
       )}
 

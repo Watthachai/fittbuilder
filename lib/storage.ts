@@ -65,6 +65,18 @@ export async function deleteProject(id: string): Promise<void> {
   if (error) throw error;
 }
 
+/** Attach/detach a project to a workspace (null = ส่วนตัว). org_id is omitted from
+ *  projectToRow (so autosave never touches it), so changing it needs a direct
+ *  column update — this is the only writer of org_id after creation. */
+export async function setProjectOrg(projectId: string, orgId: string | null): Promise<void> {
+  const supabase = createClient();
+  const { error } = await supabase
+    .from("fittbuilder_projects")
+    .update({ org_id: orgId, updated_at: new Date().toISOString() })
+    .eq("id", projectId);
+  if (error) throw error;
+}
+
 export async function duplicateProject(id: string): Promise<ProjectRecord | null> {
   const source = await getProject(id);
   if (!source) return null;

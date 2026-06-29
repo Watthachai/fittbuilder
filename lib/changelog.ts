@@ -23,6 +23,15 @@ export const CHANGE_BADGE: Record<ChangeType, { label: string; className: string
 // Newest first. SemVer: fix → PATCH, feature → MINOR, breaking → MAJOR.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.18.0",
+    date: "2026-06-29",
+    title: "ปุ่ม Org DNA ใน Studio — ดู/ผูก DNA ของ workspace ได้เลย",
+    items: [
+      { type: "feature", text: "เพิ่มปุ่ม “Org DNA” บนแถบบนของ Studio: เปิดดูข้อมูลบริษัทของ workspace ที่ AI อ้างอิง (4 ฐานราก + archetype + ความครบ %) และคลิก 📎 ดูที่มาของแต่ละฐานรากในข้อมูลต้นฉบับได้" },
+      { type: "feature", text: "ผูก/เปลี่ยน/เอาออก workspace ของโปรเจกต์ได้จากใน Studio เลย — เดโมที่เป็น “ส่วนตัว” ผูก workspace แล้ว AI จะเริ่มอ้างอิง Org DNA ในเทิร์นถัดไปทันที (เจ้าของโปรเจกต์)" },
+    ],
+  },
+  {
     version: "0.17.1",
     date: "2026-06-29",
     title: "กราฟ tokens รายวันขึ้นแล้ว + sidebar แสดงทุก workspace",

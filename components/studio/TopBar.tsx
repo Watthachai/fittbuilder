@@ -5,6 +5,7 @@ import { useState } from "react";
 import {
   Check,
   Code2,
+  Dna,
   Download,
   Eye,
   FileText,
@@ -15,7 +16,8 @@ import {
   Users,
 } from "lucide-react";
 import { encodeShareUrl } from "@/lib/share";
-import type { ProjectRecord } from "@/lib/types";
+import { WorkspaceIcon } from "@/lib/workspace-style";
+import type { OrgRecord, ProjectRecord } from "@/lib/types";
 import { downloadZip } from "@/lib/zip";
 import { downloadFittcoreSpec } from "@/lib/fittcore";
 import ProjectPresence from "./ProjectPresence";
@@ -23,6 +25,10 @@ import TeamChat from "./TeamChat";
 
 interface TopBarProps {
   project: ProjectRecord;
+  /** The project's workspace (with Org DNA), or null when ส่วนตัว. */
+  org: OrgRecord | null;
+  /** Open the in-studio Org DNA panel. */
+  onOpenDna: () => void;
   view: "preview" | "code";
   busy: boolean;
   /** Viewer (read-only) — shown as a chip instead of the auto-save status. */
@@ -43,6 +49,8 @@ interface TopBarProps {
 
 export default function TopBar({
   project,
+  org,
+  onOpenDna,
   view,
   busy,
   readOnly,
@@ -96,6 +104,23 @@ export default function TopBar({
           {saveState === "saving" ? "กำลังบันทึก…" : saveState === "saved" ? "บันทึกแล้ว" : "เซฟอัตโนมัติ"}
         </span>
       )}
+
+      <button
+        onClick={onOpenDna}
+        title={org ? `Org DNA · ${org.name} — ดูข้อมูลที่ AI อ้างอิง` : "ผูก workspace เพื่อให้ AI อ้างอิง Org DNA"}
+        className={`inline-flex max-w-[180px] items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs transition ${
+          org
+            ? "border-shine/40 bg-shine/[0.06] text-chalk hover:border-shine"
+            : "border-night-edge text-chalk-dim hover:border-shine hover:text-chalk"
+        }`}
+      >
+        {org ? (
+          <WorkspaceIcon icon={org.icon} size={13} className="shrink-0" style={{ color: org.color }} />
+        ) : (
+          <Dna size={13} className="shrink-0 text-shine" />
+        )}
+        <span className="truncate">{org ? `${org.name} · DNA` : "Org DNA"}</span>
+      </button>
 
       <div className="mx-auto flex items-center rounded-sm border border-night-edge p-0.5">
         <button

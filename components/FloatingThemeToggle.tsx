@@ -1,64 +1,38 @@
 "use client";
 
-import { useState, useSyncExternalStore } from "react";
+import { useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import { Monitor, Moon, Sun } from "lucide-react";
 import { useDismiss } from "@/lib/useDismiss";
+import { THEME_OPTIONS, useTheme, type Theme } from "@/lib/useTheme";
 
-type Theme = "system" | "light" | "dark";
-
-const THEME_EVENT = "fitt-theme-change";
-
-function applyTheme(theme: Theme) {
-  const cls = document.documentElement.classList;
-  cls.remove("light", "dark");
-  if (theme === "light" || theme === "dark") cls.add(theme);
-}
-function subscribe(cb: () => void) {
-  window.addEventListener("storage", cb);
-  window.addEventListener(THEME_EVENT, cb);
-  return () => {
-    window.removeEventListener("storage", cb);
-    window.removeEventListener(THEME_EVENT, cb);
-  };
-}
-function getSnapshot(): Theme {
-  const t = localStorage.getItem("fitt-theme");
-  return t === "light" || t === "dark" ? t : "system";
-}
-const getServerSnapshot = (): Theme => "system";
-
-const OPTIONS: { key: Theme; Icon: typeof Monitor; label: string }[] = [
-  { key: "system", Icon: Monitor, label: "ตามเครื่อง" },
-  { key: "light", Icon: Sun, label: "สว่าง" },
-  { key: "dark", Icon: Moon, label: "มืด" },
-];
-
-/** Floating glass theme switcher, bottom-right on every page. */
+/**
+ * Floating glass theme switcher. To stay out of the way it hides at the right
+ * edge, peeking just enough to find, and slides fully out on hover/focus (or
+ * while its menu is open). Reduced-motion users get it fully revealed.
+ */
 export default function FloatingThemeToggle() {
-  const theme = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
+  const [theme, setTheme] = useTheme();
   const [open, setOpen] = useState(false);
-  const Current = (OPTIONS.find((o) => o.key === theme) ?? OPTIONS[0]).Icon;
+  const Current = (THEME_OPTIONS.find((o) => o.key === theme) ?? THEME_OPTIONS[0]).Icon;
 
   useDismiss(open, () => setOpen(false));
 
   const choose = (t: Theme) => {
-    try {
-      localStorage.setItem("fitt-theme", t);
-    } catch {
-      /* private mode — non-fatal */
-    }
-    applyTheme(t);
-    window.dispatchEvent(new Event(THEME_EVENT));
+    setTheme(t);
     setOpen(false);
   };
 
   return (
-    <div className="fixed bottom-5 right-5 z-[60] flex flex-col items-end gap-2 print:hidden">
-      <AnimatePresence>
-        {open && (
-          <>
-            <div className="fixed inset-0 -z-10" onClick={() => setOpen(false)} />
+    <div className="group fixed bottom-6 right-0 z-[60] print:hidden">
+      <div
+        className={`flex flex-col items-end gap-2 pr-5 transition-transform duration-300 ease-out motion-reduce:!translate-x-0 ${
+          open
+            ? "translate-x-0"
+            : "translate-x-[58%] group-hover:translate-x-0 group-focus-within:translate-x-0"
+        }`}
+      >
+        <AnimatePresence>
+          {open && (
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -66,7 +40,7 @@ export default function FloatingThemeToggle() {
               transition={{ duration: 0.16, ease: "easeOut" }}
               className="glass flex flex-col gap-1 rounded-2xl p-1.5 shadow-xl"
             >
-              {OPTIONS.map(({ key, Icon, label }) => (
+              {THEME_OPTIONS.map(({ key, Icon, label }) => (
                 <button
                   key={key}
                   onClick={() => choose(key)}
@@ -81,17 +55,17 @@ export default function FloatingThemeToggle() {
                 </button>
               ))}
             </motion.div>
-          </>
-        )}
-      </AnimatePresence>
+          )}
+        </AnimatePresence>
 
-      <button
-        onClick={() => setOpen((v) => !v)}
-        aria-label="สลับธีม"
-        className="glass grid h-11 w-11 place-items-center rounded-full text-chalk shadow-lg transition hover:text-shine"
-      >
-        <Current size={18} />
-      </button>
+        <button
+          onClick={() => setOpen((v) => !v)}
+          aria-label="สลับธีม"
+          className="glass grid h-11 w-11 place-items-center rounded-full text-chalk shadow-lg transition hover:text-shine"
+        >
+          <Current size={18} />
+        </button>
+      </div>
     </div>
   );
 }

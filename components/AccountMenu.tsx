@@ -8,6 +8,7 @@ import { AnimatePresence, motion } from "motion/react";
 import { BarChart3, LogOut, ShieldCheck, X } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useDismiss } from "@/lib/useDismiss";
+import { THEME_OPTIONS, useTheme } from "@/lib/useTheme";
 
 interface Account {
   email: string;
@@ -22,6 +23,7 @@ export default function AccountMenu() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [open, setOpen] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
+  const [theme, setTheme] = useTheme();
 
   useDismiss(open, () => setOpen(false));
 
@@ -155,7 +157,30 @@ export default function AccountMenu() {
               </div>
             </div>
 
-            <div className="mt-6 space-y-2.5">
+            <div className="mt-6">
+              <p className="mb-2 font-mono text-[11px] uppercase tracking-wider text-chalk/50">
+                ธีม
+              </p>
+              <div className="flex gap-1 rounded-full border border-chalk/15 p-1">
+                {THEME_OPTIONS.map(({ key, Icon, label }) => (
+                  <button
+                    key={key}
+                    onClick={() => setTheme(key)}
+                    aria-pressed={theme === key}
+                    className={`flex flex-1 items-center justify-center gap-1.5 rounded-full py-2 font-display text-xs transition ${
+                      theme === key
+                        ? "bg-shine text-night"
+                        : "text-chalk-dim hover:bg-chalk/5 hover:text-chalk"
+                    }`}
+                  >
+                    <Icon size={14} />
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="mt-4 space-y-2.5">
               {isAdmin && (
                 <Link
                   href="/admin/skills"

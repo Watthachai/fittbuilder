@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Building2, Check, ChevronDown, Dna, Loader2, Plus } from "lucide-react";
+import { Building2, Check, ChevronDown, Loader2, Plus, Settings2 } from "lucide-react";
 import { createOrg, listOrgs } from "@/lib/orgs";
 import type { OrgRecord } from "@/lib/types";
 
@@ -22,6 +22,8 @@ export default function OrgSelect({
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
   const [creating, setCreating] = useState(false);
+  const [naming, setNaming] = useState(false);
+  const [newName, setNewName] = useState("");
 
   useEffect(() => {
     let cancelled = false;
@@ -55,11 +57,15 @@ export default function OrgSelect({
   const current = orgs.find((o) => o.id === value) ?? orgs[0];
 
   const addOrg = async () => {
+    const name = newName.trim();
+    if (!name || creating) return;
     setCreating(true);
     try {
-      const o = await createOrg();
+      const o = await createOrg(name);
       setOrgs((prev) => [...prev, o]);
       onChange(o.id);
+      setNaming(false);
+      setNewName("");
       setOpen(false);
     } finally {
       setCreating(false);
@@ -81,40 +87,70 @@ export default function OrgSelect({
       {open && (
         <>
           <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
-          <div className="absolute left-0 top-full z-50 mt-1.5 w-60 overflow-hidden rounded-xl border border-chalk/12 bg-night-panel p-1.5 shadow-2xl">
+          <div className="absolute left-0 top-full z-50 mt-1.5 w-64 overflow-hidden rounded-xl border border-chalk/12 bg-night-panel p-1.5 shadow-2xl">
             <p className="px-2.5 py-1 font-mono text-[10px] uppercase tracking-wider text-chalk/40">
               Workspace
             </p>
             {orgs.map((o) => (
-              <button
+              <div
                 key={o.id}
-                onClick={() => {
-                  onChange(o.id);
-                  setOpen(false);
-                }}
-                className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-[13px] text-chalk/85 transition hover:bg-chalk/5"
+                className="group flex items-center gap-1 rounded-lg pr-1 transition hover:bg-chalk/5"
               >
-                <Building2 size={14} className="shrink-0 text-chalk-dim" />
-                <span className="min-w-0 flex-1 truncate">{o.name}</span>
-                {o.id === current.id && <Check size={14} className="shrink-0 text-shine" />}
-              </button>
+                <button
+                  onClick={() => {
+                    onChange(o.id);
+                    setOpen(false);
+                  }}
+                  className="flex min-w-0 flex-1 items-center gap-2 px-2.5 py-2 text-left text-[13px] text-chalk/85"
+                >
+                  <Building2 size={14} className="shrink-0 text-chalk-dim" />
+                  <span className="min-w-0 flex-1 truncate">{o.name}</span>
+                  {o.id === current.id && <Check size={14} className="shrink-0 text-shine" />}
+                </button>
+                <Link
+                  href={`/org/${o.id}`}
+                  onClick={() => setOpen(false)}
+                  title="ข้อมูล workspace · Org DNA"
+                  className="grid h-7 w-7 shrink-0 place-items-center rounded-md text-chalk-dim transition hover:bg-chalk/10 hover:text-shine"
+                >
+                  <Settings2 size={14} />
+                </Link>
+              </div>
             ))}
             <div className="my-1 h-px bg-chalk/10" />
-            <button
-              onClick={() => void addOrg()}
-              disabled={creating}
-              className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-[13px] text-chalk/85 transition hover:bg-chalk/5 disabled:opacity-50"
-            >
-              {creating ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}
-              สร้าง workspace ใหม่
-            </button>
-            <Link
-              href={`/org/${current.id}`}
-              onClick={() => setOpen(false)}
-              className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-[13px] text-chalk/85 transition hover:bg-chalk/5"
-            >
-              <Dna size={14} className="text-shine" /> ตั้งค่า Org DNA
-            </Link>
+            {naming ? (
+              <div className="flex items-center gap-1 px-1 py-1">
+                <input
+                  autoFocus
+                  value={newName}
+                  onChange={(e) => setNewName(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") void addOrg();
+                    if (e.key === "Escape") {
+                      setNaming(false);
+                      setNewName("");
+                    }
+                  }}
+                  placeholder="ชื่อ workspace ใหม่"
+                  className="min-w-0 flex-1 rounded-md border border-chalk/15 bg-night px-2 py-1.5 text-[13px] text-chalk outline-none focus:border-shine"
+                />
+                <button
+                  onClick={() => void addOrg()}
+                  disabled={!newName.trim() || creating}
+                  className="grid h-7 w-7 shrink-0 place-items-center rounded-md bg-shine text-night transition hover:brightness-110 disabled:opacity-40"
+                  title="สร้าง"
+                >
+                  {creating ? <Loader2 size={13} className="animate-spin" /> : <Check size={14} />}
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => setNaming(true)}
+                className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-[13px] text-chalk/85 transition hover:bg-chalk/5"
+              >
+                <Plus size={14} /> สร้าง workspace ใหม่
+              </button>
+            )}
           </div>
         </>
       )}

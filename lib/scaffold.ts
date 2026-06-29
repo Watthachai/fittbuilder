@@ -159,10 +159,10 @@ body { margin: 0; }
 
 /**
  * The live "stage" page shown in the preview while the user is interviewed —
- * not a gimmick, but a calm waiting state: the anthropomorphic preloader (served
- * from the scaffold's own /public so it works inside the WebContainer) plus a
- * rotating "what FITT can do" carousel, so the wait teaches the product. The
- * first Build replaces this with the generated demo.
+ * not a gimmick, but a calm waiting state: a SMIL-animated "building" loader
+ * (served from the scaffold's own /public so it works inside the WebContainer)
+ * plus a rotating "what FITT can do" carousel, so the wait teaches the product.
+ * The first Build replaces this with the generated demo.
  */
 const SCAFFOLD_APP = `import { useEffect, useState } from "react";
 
@@ -191,19 +191,13 @@ export default function App() {
         <span className="text-white/40">· Vite + React · รันสดในเบราว์เซอร์</span>
       </div>
 
-      <div className="w-full max-w-sm overflow-hidden rounded-2xl border border-white/10 bg-white shadow-2xl">
-        {/* <object> (not <img>): this preloader animates via an internal <script>,
-            which only runs when the SVG loads as its own document. pointer-events
-            off so it stays decorative. */}
-        <object
-          type="image/svg+xml"
-          data="/preloader.svg"
-          aria-label="กำลังเตรียมเวที"
-          className="pointer-events-none block aspect-[7/4] w-full"
-        >
-          กำลังเตรียมเวที…
-        </object>
-      </div>
+      {/* SMIL-animated SVG (transparent bg) → plays inside a plain <img>, no
+          script and no COEP concerns. */}
+      <img
+        src="/preloader.svg"
+        alt="กำลังเตรียมเวที"
+        className="aspect-square w-full max-w-[260px]"
+      />
 
       <div>
         <h1 className="text-2xl font-semibold leading-snug">เวทีพร้อมแล้ว · กำลังรอบทสนทนา</h1>

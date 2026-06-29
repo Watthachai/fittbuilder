@@ -398,9 +398,18 @@ export default function ChatPanel({
         ))}
         {live && (
           <div>
-            <p className="mb-1 font-mono text-[10px] uppercase tracking-[0.2em] text-chalk-dim">
-              {agentName}
-            </p>
+            <div className="mb-1 flex items-center gap-1.5">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="/cat-mark-loading.svg"
+                alt=""
+                className="h-6 w-6 shrink-0"
+                draggable={false}
+              />
+              <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-chalk-dim">
+                {agentName} · กำลังทำงาน
+              </p>
+            </div>
             <Thinking text={live.thinking} expanded={!live.content} />
             {(live.content || !live.thinking) && (
               <div className="rounded-lg border border-night-edge border-l-2 border-l-shine bg-shine/[0.05] px-3.5 py-2.5 text-chalk">
@@ -454,7 +463,7 @@ export default function ChatPanel({
             })}
           </div>
           {activeAsk.allowText !== false && (
-            <p className="mt-2 text-[11px] text-chalk-dim/70">
+            <p className="mt-2 text-[13px] font-medium text-orange-400">
               ไม่มีตัวเลือกที่ตรง? พิมพ์คำตอบเองในช่องด้านล่างได้เลย ↓
             </p>
           )}

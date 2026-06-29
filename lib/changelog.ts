@@ -23,6 +23,16 @@ export const CHANGE_BADGE: Record<ChangeType, { label: string; className: string
 // Newest first. SemVer: fix → PATCH, feature → MINOR, breaking → MAJOR.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.18.6",
+    date: "2026-06-29",
+    title: "AI ไม่ถามซ้ำสิ่งที่ Org DNA รู้แล้ว + แมวโหลดตอน AI ทำงาน",
+    items: [
+      { type: "improvement", text: "เวลามี Org DNA แล้ว AI จะไม่เปิดด้วยคำถามพื้นฐาน เช่น “ธุรกิจของคุณทำเกี่ยวกับอะไร” — ใช้ข้อมูลจาก DNA + ชื่อ workspace เป็นบริบท แล้วข้ามไปถามเฉพาะรายละเอียดของระบบที่จะสร้างเลย" },
+      { type: "improvement", text: "ระหว่างที่ AI คิด/สร้าง มีไอคอนแมวเคลื่อนไหว (กำลังทำงาน) ในแชท เห็นชัดว่ากำลังทำอยู่" },
+      { type: "improvement", text: "ข้อความ “ไม่มีตัวเลือกที่ตรง? พิมพ์คำตอบเองได้” ทำเป็นสีส้มและตัวใหญ่ขึ้นให้เห็นชัด" },
+    ],
+  },
+  {
     version: "0.18.5",
     date: "2026-06-29",
     title: "บอกชัดว่าพิมพ์คำตอบเองได้เมื่อ AI ให้เลือกตัวเลือก",

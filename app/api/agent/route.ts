@@ -83,10 +83,15 @@ export async function POST(request: Request) {
   );
   // Workspace Org DNA as context so the interview/docs fit the org's reality.
   const orgCtx = body.projectId ? await getProjectOrgDnaContext(body.projectId) : "";
+  // Treat the DNA as already-known facts: don't re-ask what it (or the user's own
+  // messages) already answers, and never open with generic org/business questions.
+  const useDnaRule = orgCtx
+    ? '\n\nสำคัญมาก: ORG DNA ข้างบนคือสิ่งที่ "รู้แล้ว" เกี่ยวกับองค์กรของผู้ใช้ — ห้ามถามซ้ำในสิ่งที่อนุมานได้จากข้อมูลนี้ (ลักษณะองค์กร โครงสร้าง สิทธิ์การตัดสินใจ การไหลของข้อมูล วิธีทำงาน วัฒนธรรม) และห้ามเปิดบทสนทนาด้วยคำถามพื้นฐานทั่วๆ ไป เช่น "ธุรกิจของคุณทำเกี่ยวกับอะไร" ถ้าตอบได้จาก DNA หรือจากสิ่งที่ผู้ใช้พิมพ์มาแล้ว ให้ทักทายสั้นๆ โดยพาดพิงสิ่งที่รู้จาก DNA/บริบท แล้วข้ามไปถามเฉพาะรายละเอียดเฉพาะของระบบที่จะสร้างซึ่ง DNA ยังไม่ครอบคลุม (เช่น ฟีเจอร์/หน้าจอ/ข้อมูลที่ต้องแสดง/บทบาทผู้ใช้ของระบบนี้)'
+    : "";
   const citeRule = orgCtx
     ? '\n\nเมื่อคุณใช้ข้อมูลจาก ORG DNA ข้างต้นในการตอบ/สร้างเอกสาร ให้ปิดท้ายข้อความด้วยบล็อกอ้างอิงหนึ่งบรรทัด:\n```cite\n{"aspects":["structure","decisionRights"]}\n```\nโดย aspects เลือกจาก [decisionRights, information, motivators, structure, archetype] เฉพาะด้านที่ใช้จริง (ถ้าไม่ได้ใช้ Org DNA เลย ไม่ต้องใส่บล็อกนี้)'
     : "";
-  const system = orgCtx ? `${baseSystem}\n\n${orgCtx}${citeRule}` : baseSystem;
+  const system = orgCtx ? `${baseSystem}\n\n${orgCtx}${useDnaRule}${citeRule}` : baseSystem;
   const transcript = body.messages
     .map((m) => `${m.role === "user" ? "ผู้ใช้" : "FITT"}: ${m.content}`)
     .join("\n\n");

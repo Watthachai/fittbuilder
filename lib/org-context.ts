@@ -19,10 +19,14 @@ export async function getProjectOrgDnaContext(projectId: string): Promise<string
     if (!proj?.org_id) return "";
     const { data: org } = await admin
       .from("fittbuilder_orgs")
-      .select("org_dna")
+      .select("name, org_dna")
       .eq("id", proj.org_id)
       .maybeSingle();
-    return buildOrgDnaContext((org?.org_dna ?? null) as OrgDna | null);
+    const dnaCtx = buildOrgDnaContext((org?.org_dna ?? null) as OrgDna | null);
+    if (!dnaCtx) return "";
+    // Lead with the org name so the agent knows who it's building for (and won't
+    // ask "what's your company").
+    return org?.name ? `ชื่อองค์กร/workspace: ${org.name}\n${dnaCtx}` : dnaCtx;
   } catch (e) {
     console.error("[org-context] failed:", e);
     return "";

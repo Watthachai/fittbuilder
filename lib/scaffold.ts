@@ -192,7 +192,17 @@ export default function App() {
       </div>
 
       <div className="w-full max-w-sm overflow-hidden rounded-2xl border border-white/10 bg-white shadow-2xl">
-        <img src="/preloader.svg" alt="กำลังเตรียมเวที" className="h-auto w-full" />
+        {/* <object> (not <img>): this preloader animates via an internal <script>,
+            which only runs when the SVG loads as its own document. pointer-events
+            off so it stays decorative. */}
+        <object
+          type="image/svg+xml"
+          data="/preloader.svg"
+          aria-label="กำลังเตรียมเวที"
+          className="pointer-events-none block aspect-[7/4] w-full"
+        >
+          กำลังเตรียมเวที…
+        </object>
       </div>
 
       <div>

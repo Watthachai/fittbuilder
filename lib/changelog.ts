@@ -23,6 +23,14 @@ export const CHANGE_BADGE: Record<ChangeType, { label: string; className: string
 // Newest first. SemVer: fix → PATCH, feature → MINOR, breaking → MAJOR.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.18.3",
+    date: "2026-06-29",
+    title: "preloader หน้ารอเคลื่อนไหวได้แล้ว",
+    items: [
+      { type: "fix", text: "ภาพ preloader บนหน้ารอขยับได้แล้ว — โหลดเป็น <object> แทน <img> เพราะ SVG ตัวนี้ใช้ script ขับ animation (ไม่เหมือนรูปแมวที่เป็น SMIL จึงเล่นใน <img> ได้)" },
+    ],
+  },
+  {
     version: "0.18.2",
     date: "2026-06-29",
     title: "หน้ารอที่มีประโยชน์ + เรียกข้อมูล Org DNA เดิมกลับมา + เกลียว DNA ชัดขึ้น",

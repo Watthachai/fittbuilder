@@ -23,6 +23,16 @@ export const CHANGE_BADGE: Record<ChangeType, { label: string; className: string
 // Newest first. SemVer: fix → PATCH, feature → MINOR, breaking → MAJOR.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.15.0",
+    date: "2026-06-29",
+    title: "สร้าง workspace แบบมีตัวตน + อัปโหลดไฟล์ร่าง Org DNA",
+    items: [
+      { type: "feature", text: "Modal สร้าง workspace: ตั้งชื่อ + เลือกสีและไอคอน เพื่อแยกหมวดหมู่ — สี/ไอคอนแสดงใน dropdown และหน้า workspace" },
+      { type: "feature", text: "หน้า Org DNA: อัปโหลดไฟล์ข้อมูล (PDF/รูป/เอกสาร) ให้ AI อ่านแล้วร่าง Org DNA ให้ — นอกจากวางข้อความ" },
+      { type: "improvement", text: "แก้ไขสี/ไอคอน/ชื่อ workspace ได้จากหน้าข้อมูล workspace" },
+    ],
+  },
+  {
     version: "0.14.1",
     date: "2026-06-29",
     title: "Modal ยืนยันของระบบ + ไม่มี workspace เริ่มต้น",

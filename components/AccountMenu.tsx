@@ -7,8 +7,8 @@ import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "motion/react";
 import { BarChart3, Dna, Loader2, LogOut, ShieldCheck, X } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
-import { createOrg, firstOrg } from "@/lib/orgs";
-import { promptText } from "@/lib/confirm";
+import { firstOrg } from "@/lib/orgs";
+import { openCreateWorkspace } from "@/lib/workspace-modal";
 import { useDismiss } from "@/lib/useDismiss";
 import { THEME_OPTIONS, useTheme } from "@/lib/useTheme";
 
@@ -33,20 +33,15 @@ export default function AccountMenu() {
     try {
       let org = await firstOrg();
       if (!org) {
-        const name = await promptText({
-          title: "สร้าง workspace",
-          message: "ตั้งชื่อพื้นที่ทำงานขององค์กรคุณ แล้วใส่ Org DNA ได้เลย",
-          label: "ชื่อ workspace",
-          placeholder: "เช่น ทีมการตลาด",
-          confirmLabel: "สร้าง",
-        });
-        if (!name) {
+        setOpen(false);
+        org = await openCreateWorkspace();
+        if (!org) {
           setOpeningOrg(false);
           return;
         }
-        org = await createOrg(name);
+      } else {
+        setOpen(false);
       }
-      setOpen(false);
       router.push(`/org/${org.id}`);
     } catch {
       setOpeningOrg(false);

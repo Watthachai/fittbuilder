@@ -5,6 +5,7 @@ import FloatingThemeToggle from "@/components/FloatingThemeToggle";
 import GlobalGenerationIndicator from "@/components/GlobalGenerationIndicator";
 import Toaster from "@/components/ui/Toaster";
 import ConfirmHost from "@/components/ui/ConfirmHost";
+import CreateWorkspaceHost from "@/components/org/CreateWorkspaceHost";
 
 // Inter is the theme's typeface (docs/brief-plans/design.md); it has no Thai
 // glyphs, so Anuphan sits behind it in the stack for Thai text.
@@ -68,6 +69,7 @@ export default function RootLayout({
         <GlobalGenerationIndicator />
         <Toaster />
         <ConfirmHost />
+        <CreateWorkspaceHost />
       </body>
     </html>
   );

@@ -17,9 +17,23 @@ const ARCHETYPE_KEYS = [
   "outgrown",
 ] as const;
 
-const bodySchema = z.object({
-  text: z.string().trim().min(1).max(20_000),
-});
+const bodySchema = z
+  .object({
+    text: z.string().trim().max(20_000).optional(),
+    attachments: z
+      .array(
+        z.object({
+          name: z.string().max(200),
+          mimeType: z.string().max(120),
+          data: z.string().max(8_000_000),
+        })
+      )
+      .max(5)
+      .optional(),
+  })
+  .refine((b) => (b.text && b.text.length > 0) || (b.attachments && b.attachments.length > 0), {
+    message: "ต้องมีข้อความหรือไฟล์อย่างน้อยหนึ่งอย่าง",
+  });
 
 const SYSTEM = `คุณคือที่ปรึกษาด้าน Org DNA (กรอบ Strategy& / PwC) สกัด "Org DNA" จากข้อมูลบริษัทที่ผู้ใช้ให้มา (ภาษาไทยหรืออังกฤษ)
 
@@ -59,7 +73,8 @@ export async function POST(request: Request) {
     let raw = "";
     for await (const part of streamParts({
       system: SYSTEM,
-      user: body.text,
+      user: body.text?.trim() || "(สกัด Org DNA จากไฟล์ที่แนบมา)",
+      attachments: body.attachments,
       json: true,
       temperature: 0.3,
       abortSignal: AbortSignal.any([request.signal, AbortSignal.timeout(55_000)]),

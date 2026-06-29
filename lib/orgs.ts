@@ -4,12 +4,14 @@ import { createClient } from "@/lib/supabase/client";
 import type { Json } from "@/lib/db/types";
 import type { OrgDna, OrgRecord } from "@/lib/types";
 
-const SELECT = "id, owner_id, name, org_dna, created_at, updated_at";
+const SELECT = "id, owner_id, name, color, icon, org_dna, created_at, updated_at";
 
 interface OrgRow {
   id: string;
   owner_id: string;
   name: string;
+  color: string;
+  icon: string;
   org_dna: unknown;
   created_at: string;
   updated_at: string;
@@ -20,6 +22,8 @@ function rowToOrg(r: OrgRow): OrgRecord {
     id: r.id,
     ownerId: r.owner_id,
     name: r.name,
+    color: r.color,
+    icon: r.icon,
     dna: (r.org_dna && typeof r.org_dna === "object" ? r.org_dna : {}) as OrgDna,
     createdAt: r.created_at,
     updatedAt: r.updated_at,
@@ -51,24 +55,34 @@ export async function getOrg(id: string): Promise<OrgRecord | null> {
   return data ? rowToOrg(data as OrgRow) : null;
 }
 
-export async function createOrg(name?: string): Promise<OrgRecord> {
+export async function createOrg(
+  name?: string,
+  opts?: { color?: string; icon?: string }
+): Promise<OrgRecord> {
   const supabase = createClient();
   // owner_id is stamped by the DB default (auth.uid()) to match the RLS check.
   const { data, error } = await supabase
     .from("fittbuilder_orgs")
-    .insert({ name: name?.trim() || "พื้นที่ของฉัน" })
+    .insert({ name: name?.trim() || "พื้นที่ของฉัน", color: opts?.color, icon: opts?.icon })
     .select(SELECT)
     .single();
   if (error) throw new Error(error.message || "createOrg failed");
   return rowToOrg(data as OrgRow);
 }
 
-export async function renameOrg(id: string, name: string): Promise<void> {
+/** Update a workspace's identity (name/color/icon). Only provided fields change. */
+export async function updateOrgMeta(
+  id: string,
+  patch: { name?: string; color?: string; icon?: string }
+): Promise<void> {
   const supabase = createClient();
-  const { error } = await supabase
-    .from("fittbuilder_orgs")
-    .update({ name: name.trim() || "พื้นที่ของฉัน", updated_at: new Date().toISOString() })
-    .eq("id", id);
+  const row: { name?: string; color?: string; icon?: string; updated_at: string } = {
+    updated_at: new Date().toISOString(),
+  };
+  if (patch.name !== undefined) row.name = patch.name.trim() || "พื้นที่ของฉัน";
+  if (patch.color !== undefined) row.color = patch.color;
+  if (patch.icon !== undefined) row.icon = patch.icon;
+  const { error } = await supabase.from("fittbuilder_orgs").update(row).eq("id", id);
   if (error) throw error;
 }
 

@@ -1,25 +1,47 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Dna, Loader2, Save, Sparkles, Trash2 } from "lucide-react";
-import { deleteOrg, getOrg, renameOrg, updateOrgDna, dnaCompleteness } from "@/lib/orgs";
+import { ArrowLeft, Loader2, Paperclip, Save, Sparkles, Trash2, X } from "lucide-react";
+import { deleteOrg, getOrg, updateOrgMeta, updateOrgDna, dnaCompleteness } from "@/lib/orgs";
 import { ARCHETYPES, DNA_BLOCKS } from "@/lib/org-dna";
+import { DEFAULT_COLOR, DEFAULT_ICON, WorkspaceIcon } from "@/lib/workspace-style";
 import { confirm } from "@/lib/confirm";
 import { toast } from "@/lib/toast";
-import type { OrgDna } from "@/lib/types";
+import type { ChatAttachmentInput, OrgDna } from "@/lib/types";
+import ColorIconPicker from "./ColorIconPicker";
+
+const MAX_FILE_BYTES = 4 * 1024 * 1024;
+
+async function fileToAttachment(file: File): Promise<ChatAttachmentInput> {
+  const dataUrl = await new Promise<string>((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve(r.result as string);
+    r.onerror = () => reject(r.error);
+    r.readAsDataURL(file);
+  });
+  return {
+    name: file.name,
+    mimeType: file.type || "application/octet-stream",
+    data: dataUrl.split(",")[1] ?? "",
+  };
+}
 
 export default function OrgDnaEditor({ orgId }: { orgId: string }) {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [found, setFound] = useState(true);
   const [name, setName] = useState("");
+  const [color, setColor] = useState(DEFAULT_COLOR);
+  const [icon, setIcon] = useState(DEFAULT_ICON);
   const [dna, setDna] = useState<OrgDna>({});
   const [paste, setPaste] = useState("");
+  const [files, setFiles] = useState<ChatAttachmentInput[]>([]);
   const [drafting, setDrafting] = useState(false);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
 
   const remove = async () => {
     const ok = await confirm({
@@ -51,6 +73,8 @@ export default function OrgDnaEditor({ orgId }: { orgId: string }) {
         return;
       }
       setName(org.name);
+      setColor(org.color || DEFAULT_COLOR);
+      setIcon(org.icon || DEFAULT_ICON);
       setDna(org.dna);
       setLoading(false);
     })();
@@ -62,14 +86,27 @@ export default function OrgDnaEditor({ orgId }: { orgId: string }) {
   const setField = (key: keyof OrgDna, value: string) =>
     setDna((prev) => ({ ...prev, [key]: value }));
 
+  const pickFiles = async (list: FileList | null) => {
+    if (!list?.length) return;
+    for (const f of Array.from(list)) {
+      if (f.size > MAX_FILE_BYTES) {
+        toast.warning(`ไฟล์ใหญ่เกิน 4MB: ${f.name}`);
+        continue;
+      }
+      const att = await fileToAttachment(f);
+      setFiles((prev) => [...prev, att]);
+    }
+    if (fileRef.current) fileRef.current.value = "";
+  };
+
   const draft = async () => {
-    if (!paste.trim() || drafting) return;
+    if ((!paste.trim() && files.length === 0) || drafting) return;
     setDrafting(true);
     try {
       const res = await fetch("/api/org-dna", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text: paste.trim() }),
+        body: JSON.stringify({ text: paste.trim() || undefined, attachments: files }),
       });
       const data = (await res.json()) as { dna?: OrgDna; error?: string };
       if (!res.ok || !data.dna) throw new Error(data.error ?? "ร่างไม่สำเร็จ");
@@ -96,8 +133,11 @@ export default function OrgDnaEditor({ orgId }: { orgId: string }) {
   const save = async () => {
     setSaving(true);
     try {
-      await Promise.all([updateOrgDna(orgId, dna), renameOrg(orgId, name)]);
-      toast.success("บันทึก Org DNA แล้ว");
+      await Promise.all([
+        updateOrgDna(orgId, dna),
+        updateOrgMeta(orgId, { name, color, icon }),
+      ]);
+      toast.success("บันทึก workspace แล้ว");
     } catch (e) {
       toast.error("บันทึกไม่สำเร็จ", { description: e instanceof Error ? e.message : undefined });
     } finally {
@@ -138,8 +178,11 @@ export default function OrgDnaEditor({ orgId }: { orgId: string }) {
         </Link>
 
         <div className="mt-5 flex items-center gap-3">
-          <span className="grid h-11 w-11 place-items-center rounded-xl bg-shine/10 text-shine">
-            <Dna size={22} />
+          <span
+            className="grid h-11 w-11 shrink-0 place-items-center rounded-xl"
+            style={{ background: `${color}22`, color }}
+          >
+            <WorkspaceIcon icon={icon} size={22} />
           </span>
           <div className="min-w-0 flex-1">
             <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-shine">
@@ -163,7 +206,12 @@ export default function OrgDnaEditor({ orgId }: { orgId: string }) {
           </button>
         </div>
 
-        <p className="mt-4 text-sm leading-relaxed text-chalk-dim">
+        {/* Identity: color + icon */}
+        <div className="mt-5 rounded-xl border border-night-edge bg-night-panel p-4">
+          <ColorIconPicker color={color} icon={icon} onColor={setColor} onIcon={setIcon} />
+        </div>
+
+        <p className="mt-5 text-sm leading-relaxed text-chalk-dim">
           ใส่ DNA ขององค์กรเพื่อให้ AI ออกแบบ spec/demo ให้เข้ากับวิธีทำงานจริงของคุณ —
           ทุกช่องไม่บังคับ ใส่เท่าที่มี
         </p>
@@ -183,8 +231,8 @@ export default function OrgDnaEditor({ orgId }: { orgId: string }) {
             <h2 className="font-display text-sm font-semibold">ให้ AI ร่างให้จากข้อมูลที่มี</h2>
           </div>
           <p className="mt-1 text-[13px] text-chalk-dim">
-            วางอะไรก็ได้ที่มี — คำอธิบายบริษัท เว็บไซต์ โครงสร้างทีม เอกสาร — AI จะสกัดเป็น 4 ฐานราก
-            ให้ (เติมเฉพาะช่องที่ยังว่าง)
+            วางข้อความ หรืออัปโหลดไฟล์ที่มี — คำอธิบายบริษัท เว็บไซต์ โครงสร้างทีม เอกสาร (PDF/รูป/ข้อความ)
+            — AI จะสกัดเป็น 4 ฐานรากให้ (เติมเฉพาะช่องที่ยังว่าง)
           </p>
           <textarea
             value={paste}
@@ -193,14 +241,50 @@ export default function OrgDnaEditor({ orgId }: { orgId: string }) {
             placeholder="เช่น: เราเป็นเอเจนซีดิจิทัล 30 คน ทีมเล็กตัดสินใจเองได้ ผู้บริหารดูภาพรวม…"
             className="mt-3 w-full resize-y rounded-lg border border-night-edge bg-night px-3 py-2.5 text-[14px] outline-none focus:border-shine"
           />
-          <button
-            onClick={() => void draft()}
-            disabled={!paste.trim() || drafting}
-            className="mt-2 inline-flex items-center gap-2 rounded-lg bg-shine px-4 py-2 font-display text-sm font-semibold text-night transition hover:brightness-110 disabled:opacity-40"
-          >
-            {drafting ? <Loader2 size={15} className="animate-spin" /> : <Sparkles size={15} />}
-            {drafting ? "กำลังร่าง…" : "ให้ AI ร่าง Org DNA"}
-          </button>
+          {files.length > 0 && (
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              {files.map((f, i) => (
+                <span
+                  key={`${f.name}-${i}`}
+                  className="inline-flex items-center gap-1 rounded-md border border-night-edge bg-night px-2 py-1 font-mono text-[11px] text-chalk-dim"
+                >
+                  <Paperclip size={10} className="text-shine" />
+                  <span className="max-w-[180px] truncate">{f.name}</span>
+                  <button
+                    onClick={() => setFiles((prev) => prev.filter((_, j) => j !== i))}
+                    className="transition hover:text-halt"
+                    title="เอาออก"
+                  >
+                    <X size={11} />
+                  </button>
+                </span>
+              ))}
+            </div>
+          )}
+          <input
+            ref={fileRef}
+            type="file"
+            multiple
+            accept="image/*,application/pdf,text/*,.md,.json,.csv"
+            className="hidden"
+            onChange={(e) => void pickFiles(e.target.files)}
+          />
+          <div className="mt-2 flex items-center gap-2">
+            <button
+              onClick={() => fileRef.current?.click()}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-night-edge px-3 py-2 text-sm text-chalk-dim transition hover:border-shine hover:text-chalk"
+            >
+              <Paperclip size={14} /> แนบไฟล์
+            </button>
+            <button
+              onClick={() => void draft()}
+              disabled={(!paste.trim() && files.length === 0) || drafting}
+              className="inline-flex items-center gap-2 rounded-lg bg-shine px-4 py-2 font-display text-sm font-semibold text-night transition hover:brightness-110 disabled:opacity-40"
+            >
+              {drafting ? <Loader2 size={15} className="animate-spin" /> : <Sparkles size={15} />}
+              {drafting ? "กำลังร่าง…" : "ให้ AI ร่าง Org DNA"}
+            </button>
+          </div>
         </section>
 
         {/* 4 building blocks */}

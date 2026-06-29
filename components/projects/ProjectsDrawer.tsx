@@ -30,8 +30,9 @@ import {
   getProject,
   listProjects,
 } from "@/lib/storage";
-import { createOrg, firstOrg } from "@/lib/orgs";
-import { confirm, promptText } from "@/lib/confirm";
+import { firstOrg } from "@/lib/orgs";
+import { confirm } from "@/lib/confirm";
+import { openCreateWorkspace } from "@/lib/workspace-modal";
 import { encodeShareUrl } from "@/lib/share";
 import type { ProjectSummary } from "@/lib/types";
 
@@ -88,20 +89,15 @@ export default function ProjectsDrawer({
     try {
       let org = await firstOrg();
       if (!org) {
-        const name = await promptText({
-          title: "สร้าง workspace",
-          message: "ตั้งชื่อพื้นที่ทำงานขององค์กรคุณ แล้วใส่ Org DNA ได้เลย",
-          label: "ชื่อ workspace",
-          placeholder: "เช่น ทีมการตลาด",
-          confirmLabel: "สร้าง",
-        });
-        if (!name) {
+        onClose();
+        org = await openCreateWorkspace();
+        if (!org) {
           setOrgOpening(false);
           return;
         }
-        org = await createOrg(name);
+      } else {
+        onClose();
       }
-      onClose();
       router.push(`/org/${org.id}`);
     } catch {
       setOrgOpening(false);

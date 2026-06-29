@@ -40,6 +40,8 @@ export interface Database {
           id: string;
           owner_id: string;
           name: string;
+          color: string;
+          icon: string;
           org_dna: Json;
           created_at: string;
           updated_at: string;
@@ -48,6 +50,8 @@ export interface Database {
           id?: string;
           owner_id?: string;
           name?: string;
+          color?: string;
+          icon?: string;
           org_dna?: Json;
           created_at?: string;
           updated_at?: string;
@@ -56,6 +60,8 @@ export interface Database {
           id?: string;
           owner_id?: string;
           name?: string;
+          color?: string;
+          icon?: string;
           org_dna?: Json;
           created_at?: string;
           updated_at?: string;

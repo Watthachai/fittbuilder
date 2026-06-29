@@ -83,6 +83,9 @@ export interface OrgRecord {
   id: string;
   ownerId: string;
   name: string;
+  /** Visual identity for categorization. */
+  color: string;
+  icon: string;
   dna: OrgDna;
   createdAt: string;
   updatedAt: string;

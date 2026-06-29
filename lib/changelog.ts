@@ -23,6 +23,14 @@ export const CHANGE_BADGE: Record<ChangeType, { label: string; className: string
 // Newest first. SemVer: fix → PATCH, feature → MINOR, breaking → MAJOR.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.16.1",
+    date: "2026-06-29",
+    title: "แชต AI อ้างอิง Org DNA ได้แล้ว",
+    items: [
+      { type: "feature", text: "เวลา AI สร้างเอกสาร/ตอบโดยใช้ Org DNA จะมีชิป “อ้างอิง Org DNA” ใต้ข้อความ บอกว่าใช้ด้านไหน (Decision Rights/Structure/…) คลิกแล้วเปิดดูข้อความต้นฉบับในข้อมูลบริษัทพร้อมไฮไลต์" },
+    ],
+  },
+  {
     version: "0.16.0",
     date: "2026-06-29",
     title: "Org DNA อ้างอิงแหล่งข้อมูลได้ (แบบ NotebookLM)",

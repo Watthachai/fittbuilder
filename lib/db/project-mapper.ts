@@ -13,6 +13,7 @@ export interface ProjectRow {
   share_token: string | null;
   share_role: "viewer" | "editor" | null;
   skill_id: string | null;
+  org_id: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -39,6 +40,7 @@ export function rowToProject(row: ProjectRow): ProjectRecord {
     history: row.history ?? [],
     messages: row.messages ?? [],
     skillId: row.skill_id ?? undefined,
+    orgId: row.org_id ?? null,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };

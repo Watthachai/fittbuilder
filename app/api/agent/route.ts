@@ -83,7 +83,10 @@ export async function POST(request: Request) {
   );
   // Workspace Org DNA as context so the interview/docs fit the org's reality.
   const orgCtx = body.projectId ? await getProjectOrgDnaContext(body.projectId) : "";
-  const system = orgCtx ? `${baseSystem}\n\n${orgCtx}` : baseSystem;
+  const citeRule = orgCtx
+    ? '\n\nเมื่อคุณใช้ข้อมูลจาก ORG DNA ข้างต้นในการตอบ/สร้างเอกสาร ให้ปิดท้ายข้อความด้วยบล็อกอ้างอิงหนึ่งบรรทัด:\n```cite\n{"aspects":["structure","decisionRights"]}\n```\nโดย aspects เลือกจาก [decisionRights, information, motivators, structure, archetype] เฉพาะด้านที่ใช้จริง (ถ้าไม่ได้ใช้ Org DNA เลย ไม่ต้องใส่บล็อกนี้)'
+    : "";
+  const system = orgCtx ? `${baseSystem}\n\n${orgCtx}${citeRule}` : baseSystem;
   const transcript = body.messages
     .map((m) => `${m.role === "user" ? "ผู้ใช้" : "FITT"}: ${m.content}`)
     .join("\n\n");

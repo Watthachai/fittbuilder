@@ -13,6 +13,7 @@ import {
   GitCompare,
   ImagePlus,
   Lightbulb,
+  Quote,
   ListChecks,
   Loader2,
   type LucideIcon,
@@ -25,9 +26,16 @@ import {
 } from "lucide-react";
 import { isBuildPhase, type PhaseId } from "@/lib/phases";
 import { useFileDrop } from "@/lib/useFileDrop";
+import { DNA_BLOCKS } from "@/lib/org-dna";
 import DropOverlay from "@/components/ui/DropOverlay";
 import ImageLightbox from "@/components/ui/ImageLightbox";
-import type { AgentAction, ChatAttachmentInput, ChatMessage, LiveMessage } from "@/lib/types";
+import SourceViewer from "@/components/org/SourceViewer";
+import type { AgentAction, ChatAttachmentInput, ChatMessage, LiveMessage, OrgDna } from "@/lib/types";
+
+const CITE_LABELS: Record<string, string> = {
+  ...Object.fromEntries(DNA_BLOCKS.map((b) => [b.key, b.th.split(" (")[0]])),
+  archetype: "รูปแบบองค์กร",
+};
 
 const MAX_FILE_BYTES = 4 * 1024 * 1024; // 4MB/attachment — keeps the SSE body sane
 
@@ -84,6 +92,8 @@ interface ChatPanelProps {
   peers?: { name: string; mode: "typing" | "working" }[];
   /** Called as the user types, so peers can be shown a typing indicator. */
   onTyping?: () => void;
+  /** Workspace Org DNA — powers the source-citation chips on assistant turns. */
+  orgDna?: OrgDna | null;
 }
 
 /**
@@ -211,11 +221,13 @@ export default function ChatPanel({
   readOnly = false,
   peers = [],
   onTyping,
+  orgDna = null,
 }: ChatPanelProps) {
   const [draft, setDraft] = useState("");
   const [picked, setPicked] = useState<string[]>([]);
   const [pickedAskId, setPickedAskId] = useState<string | null>(null);
   const [diffMsg, setDiffMsg] = useState<ChatMessage | null>(null);
+  const [citeView, setCiteView] = useState<{ highlight?: string } | null>(null);
   const [media, setMedia] = useState<ChatAttachmentInput[]>([]);
   const [mediaBusy, setMediaBusy] = useState(false);
   const [lightbox, setLightbox] = useState<{ src: string; alt: string } | null>(null);
@@ -355,6 +367,33 @@ export default function ChatPanel({
                 ดูการเปลี่ยนแปลง ({message.changes.length})
               </button>
             )}
+            {message.role === "assistant" &&
+              message.citations &&
+              message.citations.length > 0 &&
+              orgDna && (
+                <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                  <span className="font-mono text-[10px] uppercase tracking-wider text-chalk-dim">
+                    <Quote size={11} className="mr-1 inline text-shine" />
+                    อ้างอิง Org DNA
+                  </span>
+                  {message.citations.map((key) => {
+                    const quote = orgDna.cites?.[key as keyof NonNullable<OrgDna["cites"]>]?.trim();
+                    return (
+                      <button
+                        key={key}
+                        onClick={() =>
+                          orgDna.sources ? setCiteView({ highlight: quote || undefined }) : undefined
+                        }
+                        disabled={!orgDna.sources}
+                        title={quote ? `จากข้อมูลคุณ: “${quote}”` : "ดูแหล่งข้อมูล"}
+                        className="rounded-full border border-night-edge bg-night px-2 py-0.5 text-[11px] text-chalk-dim transition hover:border-shine/60 hover:text-chalk disabled:opacity-50"
+                      >
+                        {CITE_LABELS[key] ?? key}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
           </div>
         ))}
         {live && (
@@ -597,6 +636,14 @@ export default function ChatPanel({
 
       {lightbox && (
         <ImageLightbox src={lightbox.src} alt={lightbox.alt} onClose={() => setLightbox(null)} />
+      )}
+
+      {citeView && orgDna?.sources && (
+        <SourceViewer
+          sources={orgDna.sources}
+          highlight={citeView.highlight}
+          onClose={() => setCiteView(null)}
+        />
       )}
     </div>
   );

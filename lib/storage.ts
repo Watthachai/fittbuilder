@@ -10,7 +10,7 @@ type ProjInsert = Database["public"]["Tables"]["fittbuilder_projects"]["Insert"]
 
 const HISTORY_LIMIT = 10; // US-004
 
-const SELECT = "id, owner_id, name, files, phase, approved_phases, history, messages, share_token, share_role, skill_id, created_at, updated_at";
+const SELECT = "id, owner_id, name, files, phase, approved_phases, history, messages, share_token, share_role, skill_id, org_id, created_at, updated_at";
 
 async function uid(): Promise<string> {
   const supabase = createClient();

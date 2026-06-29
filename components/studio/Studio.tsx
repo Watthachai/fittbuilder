@@ -34,10 +34,12 @@ import type {
   DocKind,
   GenerationPhase,
   LiveMessage,
+  OrgDna,
   ProjectFiles,
   ProjectRecord,
   SpecAnswers,
 } from "@/lib/types";
+import { getOrg } from "@/lib/orgs";
 import {
   isPreviewSupported,
   prepareWorkdir,
@@ -156,6 +158,7 @@ export default function Studio({ projectId }: { projectId: string }) {
 
   const [readOnly, setReadOnly] = useState(false);
   const [isOwner, setIsOwner] = useState(false);
+  const [orgDna, setOrgDna] = useState<OrgDna | null>(null);
   const [shareOpen, setShareOpen] = useState(false);
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved">("idle");
   const [skillPickerOpen, setSkillPickerOpen] = useState(false);
@@ -420,6 +423,7 @@ export default function Studio({ projectId }: { projectId: string }) {
         }
         const assistantMsg = newMessage("assistant", turn.reply, working.phase);
         if (turn.ask) assistantMsg.ask = turn.ask;
+        if (turn.citations?.length) assistantMsg.citations = turn.citations;
         if (docEntries.length > 0) assistantMsg.hasDoc = true;
         const snap = liveRef.current;
         if (snap?.thinking.trim()) assistantMsg.thinking = snap.thinking.trim();
@@ -1112,6 +1116,19 @@ export default function Studio({ projectId }: { projectId: string }) {
     wasBgRef.current = bgActive;
   }, [projectGenerating, bgActive, projectId, boot]);
 
+  // Load the project's workspace Org DNA so the chat can render source citations.
+  useEffect(() => {
+    const orgId = project?.orgId;
+    let cancelled = false;
+    void (async () => {
+      const o = orgId ? await getOrg(orgId) : null;
+      if (!cancelled) setOrgDna(o?.dna ?? null);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [project?.orgId]);
+
   // Mirror chatStreaming into a ref so the realtime handler's closure reads the
   // live value (it subscribes once, keyed on projectId, not on every turn).
   // Also tells peers when we're running the AI, with a heartbeat so a long turn
@@ -1459,6 +1476,7 @@ export default function Studio({ projectId }: { projectId: string }) {
             readOnly={readOnly}
             peers={[...aiPeers.values()]}
             onTyping={broadcastAiTyping}
+            orgDna={orgDna}
           />
         </div>
 

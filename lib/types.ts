@@ -54,6 +54,8 @@ export interface ChatMessage {
   changes?: FileChange[];
   /** This turn produced/updated this phase's doc → show a "ดูเอกสาร" button. */
   hasDoc?: boolean;
+  /** Org DNA aspects this turn drew on → shown as citation chips. */
+  citations?: string[];
 }
 
 /** One of the 7 Org DNA archetypes (Strategy& / PwC). */
@@ -160,6 +162,8 @@ export interface ProjectRecord {
   messages: ChatMessage[];
   /** Selected domain skill template id (e.g. "erp") — powers domain-expert questioning + build. */
   skillId?: string;
+  /** Workspace this project belongs to (null = ส่วนตัว). */
+  orgId?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -243,6 +247,8 @@ export interface AgentTurn {
   docs: Partial<Record<DocKind, string>>;
   /** Optional clickable choices for the user's next answer. */
   ask?: AgentAsk;
+  /** Org DNA aspects this turn drew on (keys: decisionRights/information/motivators/structure/archetype). */
+  citations?: string[];
 }
 
 /** Server-Sent Events emitted by POST /api/agent. */

@@ -14,6 +14,20 @@ function isDocKind(value: string): value is DocKind {
   return (DOC_KINDS as readonly string[]).includes(value);
 }
 
+const CITE_ASPECTS = ["decisionRights", "information", "motivators", "structure", "archetype"];
+
+/** Parse a ```cite JSON body ({"aspects":[...]}) into known Org DNA aspect keys. */
+function parseCite(json: string): string[] | undefined {
+  try {
+    const raw = JSON.parse(json) as Record<string, unknown>;
+    const arr = Array.isArray(raw.aspects) ? raw.aspects : [];
+    const aspects = arr.filter((a): a is string => typeof a === "string" && CITE_ASPECTS.includes(a));
+    return aspects.length ? Array.from(new Set(aspects)) : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 /** Parse a ```ask JSON body into a validated AgentAsk (ignored if malformed). */
 function parseAsk(json: string): AgentAsk | undefined {
   try {
@@ -40,11 +54,12 @@ function parseAsk(json: string): AgentAsk | undefined {
  */
 export class AgentStreamFilter {
   private buffer = "";
-  private block: DocKind | "ask" | null = null;
+  private block: DocKind | "ask" | "cite" | null = null;
   private body = "";
   private reply = "";
   private docs: Partial<Record<DocKind, string>> = {};
   private ask?: AgentAsk;
+  private citations?: string[];
 
   push(chunk: string): { text: string; actions: { icon: string; label: string }[] } {
     this.buffer += chunk;
@@ -76,8 +91,8 @@ export class AgentStreamFilter {
           break;
         }
         const info = rest.slice(3, nl).trim();
-        if (info === "ask" || isDocKind(info)) {
-          this.block = info as DocKind | "ask";
+        if (info === "ask" || info === "cite" || isDocKind(info)) {
+          this.block = info as DocKind | "ask" | "cite";
           this.body = "";
           this.buffer = rest.slice(nl + 1);
         } else {
@@ -103,6 +118,8 @@ export class AgentStreamFilter {
         this.buffer = afterClose.replace(/^[^\n]*\n?/, "");
         if (this.block === "ask") {
           this.ask = this.ask ?? parseAsk(this.body);
+        } else if (this.block === "cite") {
+          this.citations = this.citations ?? parseCite(this.body);
         } else {
           this.docs[this.block] = this.body.trim();
           actions.push({ icon: "doc", label: `อัปเดต ${DOC_LABELS[this.block]}` });
@@ -124,6 +141,8 @@ export class AgentStreamFilter {
       const body = (this.body + this.buffer).trim();
       if (this.block === "ask") {
         this.ask = this.ask ?? parseAsk(body);
+      } else if (this.block === "cite") {
+        this.citations = this.citations ?? parseCite(body);
       } else if (body) {
         this.docs[this.block] = body;
       }
@@ -138,6 +157,7 @@ export class AgentStreamFilter {
       reply: this.reply.trim() || "อัปเดตเรียบร้อยแล้วครับ",
       docs: this.docs,
       ...(this.ask ? { ask: this.ask } : {}),
+      ...(this.citations ? { citations: this.citations } : {}),
     };
   }
 }

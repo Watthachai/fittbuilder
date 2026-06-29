@@ -229,7 +229,7 @@ export default function OrgDnaEditor({ orgId }: { orgId: string }) {
 
   return (
     <SettingsShell>
-      <div className="mx-auto w-full max-w-5xl px-8 py-10">
+      <div className="w-full px-8 py-10">
 
         <div className="mt-5 flex items-center gap-3">
           <span

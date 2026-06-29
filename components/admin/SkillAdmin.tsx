@@ -98,7 +98,7 @@ export default function SkillAdmin() {
 
   return (
     <SettingsShell>
-      <div className="mx-auto w-full max-w-6xl px-8 py-10 stitch">
+      <div className="w-full px-8 py-10 stitch">
         <div className="flex items-center justify-between">
           <h1 className="font-display text-2xl font-semibold">Skill Templates (Admin)</h1>
           <button

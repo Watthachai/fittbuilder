@@ -23,6 +23,15 @@ export const CHANGE_BADGE: Record<ChangeType, { label: string; className: string
 // Newest first. SemVer: fix → PATCH, feature → MINOR, breaking → MAJOR.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.17.0",
+    date: "2026-06-29",
+    title: "แดชบอร์ดการใช้ AI: กราฟ + อันดับผู้ใช้พร้อมรูปโปรไฟล์",
+    items: [
+      { type: "feature", text: "รายงานการใช้ AI มีกราฟ tokens รายวัน (14 วัน), แท่งแยกตามชนิดการเรียก และ “อันดับผู้ใช้” ที่ใช้สูงสุดเป็นกราฟพร้อมรูปโปรไฟล์ + ค่าใช้จ่าย" },
+      { type: "improvement", text: "หน้า Org DNA และ จัดการ Skill Templates แสดงเต็มความกว้างจอเหมือนหน้ารายงาน" },
+    ],
+  },
+  {
     version: "0.16.4",
     date: "2026-06-29",
     title: "หน้าตั้งค่าเต็มจอ + sidebar ค้างที่เดิม + แยกหมวด Org DNA ในรายงาน",

@@ -169,12 +169,20 @@ export default function Studio({ projectId }: { projectId: string }) {
   const [detectingSkill, setDetectingSkill] = useState(false);
 
   const abortRef = useRef<AbortController | null>(null);
-  // Set true when THIS studio instance unmounts. A detached generation keeps
-  // streaming + persisting to storage (so it finishes in the background) but
-  // must never touch the shared WebContainer again — that container now belongs
-  // to whatever the user navigated to. Per-instance, never reset, which avoids
-  // any race with a future studio that re-opens the same project.
-  const detachedRef = useRef(false);
+  // Generation "epoch", bumped on every unmount / project switch (the [projectId]
+  // effect cleanup below). A generate/agent loop snapshots the epoch when it
+  // starts and re-compares at each WebContainer checkpoint: if it changed, this
+  // loop is detached (the user navigated away) and must stop touching the shared
+  // container — a detached generation keeps streaming + persisting to storage so
+  // it finishes in the background, it just can't write to a container that now
+  // belongs to whatever the user navigated to.
+  //
+  // Why an epoch and not a boolean: React StrictMode runs effects setup→cleanup
+  // →setup on mount in dev, so a boolean set true in cleanup would latch true on
+  // the very first mount and silently block EVERY live preview update for the
+  // whole session. Bumping a counter instead just advances the epoch harmlessly;
+  // loops started afterwards snapshot the new value and stay attached.
+  const epochRef = useRef(0);
   const lastActionRef = useRef<LastAction | null>(null);
   const projectRef = useRef<ProjectRecord | null>(null);
   const liveRef = useRef<LiveMessage | null>(null);
@@ -356,6 +364,7 @@ export default function Studio({ projectId }: { projectId: string }) {
     ): Promise<ProjectRecord | null> => {
       const current = base ?? projectRef.current;
       if (!current) return null;
+      const myEpoch = epochRef.current;
       lastActionRef.current = { kind: "agent", text: userText };
 
       let working = current;
@@ -444,7 +453,7 @@ export default function Studio({ projectId }: { projectId: string }) {
         toast.error("AI สะดุด", { description: message });
         return null;
       } finally {
-        if (detachedRef.current && projectRef.current) {
+        if (myEpoch !== epochRef.current && projectRef.current) {
           await saveProject(projectRef.current).catch(() => {});
         }
         endGeneration(projectId);
@@ -480,6 +489,7 @@ export default function Studio({ projectId }: { projectId: string }) {
       // liveContainer = a dev server is already running (scaffold/app), so we can
       // write each file into it as it streams and let Vite HMR show the build.
       const liveContainer = previewSupported && Boolean(previewUrl);
+      const myEpoch = epochRef.current;
 
       setErrorMessage(null);
       setChatStreaming(true);
@@ -535,11 +545,11 @@ export default function Studio({ projectId }: { projectId: string }) {
             files[event.path] = event.content;
             pushTerminal(`📝 ${event.path}`);
             appendLive((p) => ({ ...p, actions: [...p.actions, { icon: "file", label: event.path }] }));
-            if (liveContainer && !detachedRef.current)
+            if (liveContainer && myEpoch === epochRef.current)
               void writeFile(event.path, event.content).catch(() => {});
           } else if (event.type === "delete") {
             delete files[event.path];
-            if (liveContainer && !detachedRef.current)
+            if (liveContainer && myEpoch === epochRef.current)
               void removeFile(event.path).catch(() => {});
           } else if (event.type === "deps") {
             depsAdded = true;
@@ -568,7 +578,7 @@ export default function Studio({ projectId }: { projectId: string }) {
 
         // Detached (user navigated away): files are already persisted above —
         // skip all container work, it belongs to the foreground project now.
-        if (!detachedRef.current) {
+        if (myEpoch === epochRef.current) {
           if (depsAdded) {
             // package.json changed (new npm packages) → re-mount + reinstall so
             // the generated code that imports them actually runs.
@@ -602,7 +612,7 @@ export default function Studio({ projectId }: { projectId: string }) {
       } finally {
         // If this ran detached (in the background), flush the final state now so
         // a studio re-opening this project reads the result, not a stale save.
-        if (detachedRef.current && projectRef.current) {
+        if (myEpoch !== epochRef.current && projectRef.current) {
           await saveProject(projectRef.current).catch(() => {});
         }
         endGeneration(projectId);
@@ -1086,10 +1096,12 @@ export default function Studio({ projectId }: { projectId: string }) {
       cancelled = true;
       if (saveTimer.current) clearTimeout(saveTimer.current);
       // Don't abort an in-flight generate/agent — let it finish in the background
-      // (the registry keeps it visible site-wide and it persists on done). Mark
-      // this instance detached so its loop stops writing to the shared container,
-      // which is what the old abort guarded against on an SPA project switch.
-      detachedRef.current = true;
+      // (the registry keeps it visible site-wide and it persists on done). Bump
+      // the epoch so any loop started under THIS view detaches and stops writing
+      // to the shared container — what the old abort guarded against on an SPA
+      // project switch. (StrictMode's dev setup→cleanup→setup just advances the
+      // epoch; a boolean here would latch and block every preview update.)
+      epochRef.current += 1;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectId]);
@@ -1108,12 +1120,13 @@ export default function Studio({ projectId }: { projectId: string }) {
   // refresh). setState lives in the async callback, not the effect body.
   const wasBgRef = useRef(false);
   useEffect(() => {
+    const myEpoch = epochRef.current;
     if (wasBgRef.current && !projectGenerating) {
       void getProject(projectId).then((p) => {
         if (!p) return;
         projectRef.current = p;
         setProject(p);
-        if (hasRunnableApp(p.files) && !detachedRef.current) void boot(p.files!);
+        if (hasRunnableApp(p.files) && myEpoch === epochRef.current) void boot(p.files!);
       });
     }
     wasBgRef.current = bgActive;

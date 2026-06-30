@@ -23,6 +23,14 @@ export const CHANGE_BADGE: Record<ChangeType, { label: string; className: string
 // Newest first. SemVer: fix → PATCH, feature → MINOR, breaking → MAJOR.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.18.8",
+    date: "2026-06-30",
+    title: "แก้พรีวิวไม่อัปเดตหลัง Build (WebContainer ค้างหน้า scaffold)",
+    items: [
+      { type: "fix", text: "หลัง AI สร้าง/แก้โค้ดเสร็จ พรีวิว (WebContainer) ค้างอยู่หน้า “เวทีพร้อมแล้ว” ไม่เปลี่ยนเป็นแอปจริง — ทั้งที่แท็บ Code และ “ดูการเปลี่ยนแปลง” อัปเดตแล้ว สาเหตุ: ฟีเจอร์ generate-เบื้องหลังตั้งค่าธง detached ครั้งเดียวแล้วไม่รีเซ็ต พอเจอ React StrictMode (dev) ที่รัน effect แบบ setup→cleanup→setup ธงเลยค้างเป็น true ตั้งแต่เปิดหน้า ทำให้ทุกไฟล์ที่สตรีมไม่ถูกเขียนลง container เลย เปลี่ยนมาใช้ระบบ “epoch” ต่อรอบการสร้างแทน — ค้างไม่ได้อีก และยังกันไฟล์ของโปรเจกต์เก่าไม่ให้เขียนทับ container ของโปรเจกต์ใหม่เหมือนเดิม" },
+    ],
+  },
+  {
     version: "0.18.7",
     date: "2026-06-29",
     title: "คลิกอ้างอิง Org DNA แล้วไฮไลต์ตรงจุด (แบบ NotebookLM)",

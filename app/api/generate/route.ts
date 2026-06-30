@@ -118,7 +118,29 @@ export async function POST(request: Request) {
 
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
-      const send = (event: GenerateEvent) => controller.enqueue(sse(event));
+      // Once the client disconnects (navigation, Escape, or a superseded
+      // request), the controller is closed and any further enqueue throws
+      // ERR_INVALID_STATE. Guard enqueue + close so a disconnect ends the turn
+      // quietly instead of crashing the route with "Controller is already
+      // closed" — the model stream just drains to nothing until the timeout.
+      let closed = false;
+      const send = (event: GenerateEvent) => {
+        if (closed) return;
+        try {
+          controller.enqueue(sse(event));
+        } catch {
+          closed = true;
+        }
+      };
+      const close = () => {
+        if (closed) return;
+        closed = true;
+        try {
+          controller.close();
+        } catch {
+          // already closed by the client — nothing to do
+        }
+      };
       const parser = new FileStreamParser();
       let fileCount = 0;
       const deleted: string[] = [];
@@ -175,7 +197,7 @@ export async function POST(request: Request) {
             note: parser.getReply() || "ไม่มีไฟล์ที่ต้องเปลี่ยน — ลองอธิบายสิ่งที่อยากได้ให้ชัดขึ้นได้ครับ",
             deleted: [],
           });
-          controller.close();
+          close();
           return;
         }
 
@@ -195,7 +217,7 @@ export async function POST(request: Request) {
           note: parser.getReply() || (iteration ? "แก้ไขเรียบร้อยแล้ว" : "สร้าง demo เรียบร้อยแล้ว"),
           deleted,
         });
-        controller.close();
+        close();
       } catch (error) {
         const message =
           error instanceof MissingApiKeyError
@@ -205,7 +227,7 @@ export async function POST(request: Request) {
               : "สร้างไม่สำเร็จ กรุณาลองใหม่อีกครั้ง";
         console.error("[generate] failed:", error);
         send({ type: "error", message });
-        controller.close();
+        close();
       }
     },
     cancel() {

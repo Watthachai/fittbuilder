@@ -334,18 +334,18 @@ export default function ChatPanel({
             {message.role === "assistant" && message.thinking && (
               <Thinking text={message.thinking} expanded={false} />
             )}
+            {message.role === "assistant" && message.actions && (
+              <ActionHistory actions={message.actions} live={false} />
+            )}
             <div
               className={`min-w-0 break-words rounded-lg px-3.5 py-2.5 text-chalk ${
                 message.role === "user"
                   ? "border border-night-edge bg-night"
-                  : "border border-night-edge border-l-2 border-l-shine bg-shine/[0.05]"
+                  : "mt-2 border border-night-edge border-l-2 border-l-shine bg-shine/[0.05]"
               }`}
             >
               <Markdown>{message.content}</Markdown>
             </div>
-            {message.role === "assistant" && message.actions && (
-              <ActionHistory actions={message.actions} live={false} />
-            )}
             {message.role === "assistant" &&
               message.hasDoc &&
               message.phase &&
@@ -411,8 +411,9 @@ export default function ChatPanel({
               </p>
             </div>
             <Thinking text={live.thinking} expanded={!live.content} />
+            <ActionHistory actions={live.actions} live />
             {(live.content || !live.thinking) && (
-              <div className="rounded-lg border border-night-edge border-l-2 border-l-shine bg-shine/[0.05] px-3.5 py-2.5 text-chalk">
+              <div className="mt-2 rounded-lg border border-night-edge border-l-2 border-l-shine bg-shine/[0.05] px-3.5 py-2.5 text-chalk">
                 {live.content ? (
                   <Markdown>{live.content}</Markdown>
                 ) : (
@@ -423,7 +424,6 @@ export default function ChatPanel({
                 <span className="caret-blink text-shine">▍</span>
               </div>
             )}
-            <ActionHistory actions={live.actions} live />
           </div>
         )}
       </div>

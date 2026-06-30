@@ -23,6 +23,15 @@ export const CHANGE_BADGE: Record<ChangeType, { label: string; className: string
 // Newest first. SemVer: fix → PATCH, feature → MINOR, breaking → MAJOR.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.18.9",
+    date: "2026-06-30",
+    title: "ย้าย Action History ขึ้นก่อนคำตอบ + กัน stream ค้างตอนผู้ใช้ออกกลางคัน",
+    items: [
+      { type: "improvement", text: "ในแชท ย้ายการ์ด “Action History” (ความคิด/ติดตั้ง/แก้ไฟล์) ขึ้นไปอยู่เหนือข้อความสรุปของ AI — เรียงตามลำดับที่เกิดจริง (คิด → ลงมือทำ → สรุป) ทั้งข้อความที่บันทึกไว้และตอนกำลังสตรีมสด" },
+      { type: "fix", text: "แก้ /api/generate ค้าง error “Controller is already closed” เวลาผู้ใช้ออก/กดยกเลิก/มีคำขอใหม่มาแทนกลางคัน — เดิม enqueue หลัง stream ปิดแล้วทำให้ route โยน error ตอนนี้กันไว้ให้จบรอบเงียบๆ แทน" },
+    ],
+  },
+  {
     version: "0.18.8",
     date: "2026-06-30",
     title: "แก้พรีวิวไม่อัปเดตหลัง Build (WebContainer ค้างหน้า scaffold)",

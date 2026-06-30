@@ -10,6 +10,7 @@ import {
   FileText,
   FileUp,
   Package,
+  Rocket,
   Share2,
   Undo2,
   Users,
@@ -19,6 +20,7 @@ import DnaMark from "@/components/ui/DnaMark";
 import type { OrgRecord, ProjectRecord } from "@/lib/types";
 import { downloadZip } from "@/lib/zip";
 import { downloadFittcoreSpec } from "@/lib/fittcore";
+import FittcoreExportModal from "./FittcoreExportModal";
 import ProjectPresence from "./ProjectPresence";
 import TeamChat from "./TeamChat";
 
@@ -65,6 +67,7 @@ export default function TopBar({
 }: TopBarProps) {
   const [shared, setShared] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
+  const [runnerOpen, setRunnerOpen] = useState(false);
 
   const share = async () => {
     if (!project.files) return;
@@ -218,10 +221,26 @@ export default function TopBar({
               >
                 <FileUp size={14} className="text-shine" /> Export to FITTCORE V2
               </button>
+              <button
+                onClick={() => {
+                  setMoreOpen(false);
+                  setRunnerOpen(true);
+                }}
+                className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-xs text-chalk/80 transition hover:bg-chalk/5 hover:text-chalk"
+              >
+                <Rocket size={14} className="text-shine" /> ส่งไป Code Runner
+              </button>
             </div>
           </>
         )}
       </div>
+
+      <FittcoreExportModal
+        open={runnerOpen}
+        onClose={() => setRunnerOpen(false)}
+        project={project}
+        orgName={org?.name}
+      />
     </header>
   );
 }

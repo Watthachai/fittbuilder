@@ -1,6 +1,65 @@
 "use client";
 
 import type { ProjectRecord } from "./types";
+import { docsFromFiles } from "./define";
+
+/** One file in the wire payload sent to the Code Runner. */
+export interface FittcoreFile {
+  path: string;
+  content: string;
+}
+
+/**
+ * The machine payload POSTed to the Code Runner (via /api/fittcore).
+ * Mirrors CRN's `POST /internal/projects` request body exactly.
+ */
+export interface FittcorePayload {
+  org_id: string;
+  org_name: string;
+  project_id: string;
+  name: string;
+  brd: string;
+  prd: string;
+  prompts: string[];
+  files: FittcoreFile[];
+}
+
+/** CRN's 202 response to `POST /internal/projects`. */
+export interface FittcoreRunnerResult {
+  project_id: string;
+  job_id: string;
+  build_no: number;
+  org_id: string;
+  git_remote: string;
+  git_branch: string;
+  status: string;
+}
+
+/**
+ * Build the machine-readable hand-off payload for the Code Runner. Unlike
+ * {@link buildFittcoreSpec} (human Markdown), this is the structured JSON the
+ * Runner ingests: brief docs, the user's prompts, and every project file.
+ */
+export function buildFittcorePayload(
+  project: ProjectRecord,
+  orgName?: string
+): FittcorePayload {
+  const files = project.files ?? {};
+  const docs = docsFromFiles(project.files);
+
+  return {
+    org_id: project.orgId ?? "",
+    org_name: orgName ?? "",
+    project_id: project.id,
+    name: project.name,
+    brd: docs.brd ?? "",
+    prd: docs.prd ?? "",
+    prompts: project.messages
+      .filter((m) => m.role === "user")
+      .map((m) => m.content),
+    files: Object.entries(files).map(([path, content]) => ({ path, content })),
+  };
+}
 
 function slug(name: string): string {
   return name.replace(/[^\w฀-๿-]+/g, "-").toLowerCase() || "demo";

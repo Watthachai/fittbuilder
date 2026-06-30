@@ -71,7 +71,8 @@ export default function LaunchPad({
       // Start at Define: the brief is complete, so the studio auto-pilots the
       // full flow (BRD → PRD → build) instead of jumping straight to Build.
       const project = await createProject({
-        name: prompt.trim().slice(0, 40),
+        // Leave the name as the default placeholder; the studio replaces it with
+        // the generated product name (from the demo's <title>) on first build.
         phase: "define",
         skillId: skillId ?? undefined,
         orgId: selectedOrgId ?? undefined,

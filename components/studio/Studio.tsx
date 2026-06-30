@@ -9,7 +9,7 @@ import {
   useSyncExternalStore,
 } from "react";
 import { DOC_PATHS, docOnlyFiles, docsFromFiles, hasRunnableApp } from "@/lib/define";
-import { computeChanges, sanitizeFiles } from "@/lib/files";
+import { computeChanges, deriveProductName, sanitizeFiles } from "@/lib/files";
 import { isBuildPhase, nextPhase, phaseDef, type PhaseId } from "@/lib/phases";
 import { type DesignOption, designStyleDirective, fetchDesignOptions } from "@/lib/design";
 import { extraDepsOf, packageJsonWithDeps, SCAFFOLD_FILES, VITE_CONFIG } from "@/lib/scaffold";
@@ -87,6 +87,14 @@ export interface SpecPayload {
 type LastAction =
   | { kind: "generate"; prompt: string; spec?: SpecPayload }
   | { kind: "agent"; text: string | null };
+
+/** Names assigned automatically at project creation (see createProject callers in
+ *  LaunchPad): a placeholder, the spec/define labels, or the raw prompt prefix.
+ *  These may be replaced by the generated product name; a user-chosen name is not. */
+const AUTO_NAMES = new Set(["", "Untitled", "Spec-to-Demo", "Define Session"]);
+function isAutoName(name: string): boolean {
+  return AUTO_NAMES.has(name.trim());
+}
 
 /** The markdown doc(s) each phase produces (build emits code, not a doc). Define
  *  produces both IDEA and BRD — the preview shows both as tabs. */
@@ -568,6 +576,13 @@ export default function Studio({ projectId }: { projectId: string }) {
         // History was already snapshotted at the start of the turn, so just set
         // the final files here (don't push a second history entry).
         working = { ...working, files };
+        // On the FIRST build (no app existed yet), title the project with the
+        // generated product name (from the demo's <title>, e.g. "ExpenseFlow")
+        // instead of the raw prompt — but never rename an already-titled project.
+        if (!runnable && isAutoName(current.name)) {
+          const productName = deriveProductName(files);
+          if (productName) working = { ...working, name: productName };
+        }
         const assistantMsg = newMessage("assistant", note || "สร้างเรียบร้อยแล้ว", current.phase);
         const snap = liveRef.current;
         if (snap?.thinking.trim()) assistantMsg.thinking = snap.thinking.trim();

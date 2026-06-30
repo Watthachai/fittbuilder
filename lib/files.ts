@@ -46,6 +46,28 @@ export function computeChanges(before: ProjectFiles | null, after: ProjectFiles)
   return changes;
 }
 
+/**
+ * The generated demo always carries its product name in index.html's <title>
+ * (e.g. "ExpenseFlow"). Pull a concise name out of the assembled files so the
+ * project can be titled with the product, not the raw prompt. Returns null when
+ * no usable title exists (so the caller keeps the current name).
+ */
+export function deriveProductName(files: ProjectFiles): string | null {
+  const html = files["index.html"];
+  if (!html) return null;
+  const match = html.match(/<title>([^<]*)<\/title>/i);
+  if (!match) return null;
+  // Drop boilerplate suffixes ("My App — Dashboard", "Foo | Vite") and the
+  // generic scaffold title, then collapse whitespace.
+  const name = match[1]
+    .replace(/\s*[|–—•:-]\s*(dashboard|app|demo|vite|react).*$/i, "")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (!name || /^(fitt demo|vite|react|app|untitled|document)$/i.test(name)) return null;
+  // Keep it short (2–4 words is the product-name shape); cap length defensively.
+  return name.split(" ").slice(0, 4).join(" ").slice(0, 60);
+}
+
 /** Files every generated project must contain (Vite + React + TypeScript). */
 export const REQUIRED_FILES = [
   "package.json",

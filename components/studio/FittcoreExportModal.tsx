@@ -1,14 +1,17 @@
 "use client";
 
 import { useState } from "react";
-import { ChevronDown, FileText, Rocket, Send, Server, X } from "lucide-react";
+import { Braces, ChevronDown, FileText, Rocket, Send, Server, X } from "lucide-react";
 import Markdown from "./Markdown";
 import Overlay from "@/components/ui/Overlay";
 import GlassSurface from "@/components/ui/GlassSurface";
 import type { ProjectRecord } from "@/lib/types";
+import { docsFromFiles } from "@/lib/define";
 import {
   buildFittcorePayload,
   buildFittcoreSpec,
+  fittcoreBodyPreview,
+  FITTCORE_TAG,
   type FittcoreRunnerResult,
 } from "@/lib/fittcore";
 import { toast } from "@/lib/toast";
@@ -38,23 +41,31 @@ export default function FittcoreExportModal({
   const [sending, setSending] = useState(false);
   const [result, setResult] = useState<FittcoreRunnerResult | null>(null);
   const [showSpec, setShowSpec] = useState(false);
+  const [showBody, setShowBody] = useState(false);
 
   if (!open) return null;
 
-  const payload = buildFittcorePayload(project, orgName);
-  const totalChars = payload.files.reduce((n, f) => n + f.content.length, 0);
-  const files = [...payload.files].sort((a, b) => a.path.localeCompare(b.path));
+  const allFiles = project.files ?? {};
+  const files = Object.entries(allFiles)
+    .map(([path, content]) => ({ path, size: content.length }))
+    .sort((a, b) => a.path.localeCompare(b.path));
+  const totalChars = files.reduce((n, f) => n + f.size, 0);
+  const docs = docsFromFiles(project.files);
+  const promptCount = project.messages.filter((m) => m.role === "user").length;
+  const bodyPreview = JSON.stringify(fittcoreBodyPreview(project, orgName), null, 2);
 
   const close = () => {
     if (sending) return;
     setResult(null);
     setShowSpec(false);
+    setShowBody(false);
     onClose();
   };
 
   const send = async () => {
     setSending(true);
     try {
+      const payload = await buildFittcorePayload(project, orgName);
       const res = await fetch("/api/fittcore", {
         method: "POST",
         headers: { "content-type": "application/json" },
@@ -86,7 +97,12 @@ export default function FittcoreExportModal({
               <Server size={16} />
             </span>
             <div className="min-w-0">
-              <p className="font-display text-sm font-semibold text-chalk">ส่งไป FITT Code Runner</p>
+              <div className="flex items-center gap-2">
+                <p className="font-display text-sm font-semibold text-chalk">ส่งไป FITT Code Runner</p>
+                <span className="shrink-0 rounded-full border border-amber-400/40 bg-amber-400/10 px-2 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-wider text-amber-300">
+                  {FITTCORE_TAG}
+                </span>
+              </div>
               <p className="truncate font-mono text-[11px] text-chalk-dim">
                 target · Watthachai/coderunner_test.git
               </p>
@@ -112,18 +128,20 @@ export default function FittcoreExportModal({
               <div className="grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-night-edge bg-night-edge sm:grid-cols-3">
                 <Stat label="โปรเจกต์" value={project.name} />
                 <Stat label="project_id" value={project.id} mono />
-                <Stat label="org_id" value={payload.org_id || "—"} mono />
-                <Stat label="ไฟล์" value={`${payload.files.length} ไฟล์`} />
-                <Stat label="ขนาดรวม" value={kb(totalChars)} />
-                <Stat label="prompts" value={`${payload.prompts.length} ข้อความ`} />
-                <Stat label="BRD" value={payload.brd ? "มี" : "—"} />
-                <Stat label="PRD" value={payload.prd ? "มี" : "—"} />
+                <Stat label="org_id" value={project.orgId || "—"} mono />
+                <Stat label="ไฟล์ (ใน zip)" value={`${files.length} ไฟล์`} />
+                <Stat label="ขนาดรวม (ก่อนบีบ)" value={kb(totalChars)} />
+                <Stat label="prompts" value={`${promptCount} ข้อความ`} />
+                <Stat label="Idea" value={docs.idea ? "มี" : "—"} />
+                <Stat label="BRD" value={docs.brd ? "มี" : "—"} />
+                <Stat label="PRD" value={docs.prd ? "มี" : "—"} />
+                <Stat label="tag" value={FITTCORE_TAG} />
                 {orgName ? <Stat label="org_name" value={orgName} /> : null}
               </div>
 
               {/* File list */}
               <p className="mb-1.5 mt-4 font-display text-xs font-semibold text-chalk-dim">
-                ไฟล์ที่จะส่ง ({files.length})
+                ไฟล์ที่จะ zip แล้วส่ง ({files.length}) — agent ฝั่ง Code Runner จะแตกไฟล์เอง
               </p>
               <ul className="scroll-thin max-h-64 overflow-y-auto rounded-lg border border-night-edge bg-night">
                 {files.map((f) => (
@@ -133,7 +151,7 @@ export default function FittcoreExportModal({
                   >
                     <span className="truncate font-mono text-chalk/85">{f.path}</span>
                     <span className="shrink-0 font-mono text-[11px] text-chalk-dim">
-                      {kb(f.content.length)}
+                      {kb(f.size)}
                     </span>
                   </li>
                 ))}
@@ -157,6 +175,29 @@ export default function FittcoreExportModal({
               {showSpec && (
                 <div className="scroll-thin mt-2 max-h-96 overflow-y-auto rounded-lg border border-night-edge bg-night px-4 py-3">
                   <Markdown>{buildFittcoreSpec(project)}</Markdown>
+                </div>
+              )}
+
+              {/* Collapsible raw body preview (the actual wire shape) */}
+              <button
+                onClick={() => setShowBody((v) => !v)}
+                className="mt-2 flex w-full items-center gap-2 rounded-lg border border-night-edge bg-night px-3 py-2 text-left text-xs text-chalk/80 transition hover:text-chalk"
+              >
+                <Braces size={13} className="text-shine" />
+                <span className="flex-1 font-display font-semibold">ดู body (JSON) ที่จะ POST</span>
+                <ChevronDown
+                  size={15}
+                  className={`shrink-0 text-chalk-dim transition ${showBody ? "rotate-180" : ""}`}
+                />
+              </button>
+              {showBody && (
+                <div className="mt-2 rounded-lg border border-night-edge bg-night">
+                  <p className="border-b border-night-edge px-3 py-1.5 font-mono text-[10px] text-chalk-dim">
+                    POST /api/fittcore → CRN /internal/projects · idea/brd/zip ถูกย่อในตัวอย่างนี้
+                  </p>
+                  <pre className="scroll-thin max-h-96 overflow-auto px-3 py-2.5 font-mono text-[11px] leading-relaxed text-chalk/85">
+                    {bodyPreview}
+                  </pre>
                 </div>
               )}
             </>
@@ -183,7 +224,7 @@ export default function FittcoreExportModal({
               </button>
               <button
                 onClick={() => void send()}
-                disabled={sending || payload.files.length === 0}
+                disabled={sending || files.length === 0}
                 className="inline-flex items-center gap-1.5 rounded-lg bg-shine px-4 py-2 font-display text-sm font-semibold text-night transition hover:bg-shine-soft disabled:cursor-not-allowed disabled:opacity-40"
               >
                 {sending ? (

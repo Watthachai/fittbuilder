@@ -23,6 +23,16 @@ export const CHANGE_BADGE: Record<ChangeType, { label: string; className: string
 // Newest first. SemVer: fix → PATCH, feature → MINOR, breaking → MAJOR.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.19.0",
+    date: "2026-06-30",
+    title: "ส่งไป FITT Code Runner เป็น zip + idea/brd/prd แยก + tag alpha-test",
+    items: [
+      { type: "feature", text: "หน้า “ส่งไป FITT Code Runner” เปลี่ยนจากส่งไฟล์เป็น array มาเป็นบีบอัดทั้งโปรเจกต์เป็น zip (base64) ก้อนเดียว — Code Runner เขียน zip ลง workdir แล้วให้ Claude Code agent แตกไฟล์เอง" },
+      { type: "feature", text: "ส่ง idea/brd/prd แยกเป็น field top-level (เดิมมีแค่ brd/prd) เพื่อให้ CRN ประกอบ build prompt ได้โดยไม่ต้องแตก zip ก่อน — เอกสารชุดนี้ก็ยังอยู่ใน zip ใต้ docs/ ด้วย" },
+      { type: "feature", text: "ติด tag “alpha-test” ทุกครั้งที่ส่ง + โชว์ badge ในหน้าส่ง และเพิ่มปุ่ม “ดู body (JSON)” ให้เห็นรูปแบบ payload จริงก่อนกดส่ง" },
+    ],
+  },
+  {
     version: "0.18.9",
     date: "2026-06-30",
     title: "ย้าย Action History ขึ้นก่อนคำตอบ + กัน stream ค้างตอนผู้ใช้ออกกลางคัน",

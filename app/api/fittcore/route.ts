@@ -28,8 +28,8 @@ export async function POST(request: Request) {
     return Response.json({ error: "เนื้อหาคำขอไม่ถูกต้อง (JSON ไม่สมบูรณ์)" }, { status: 400 });
   }
 
-  if (!payload || typeof payload.name !== "string" || !Array.isArray(payload.files)) {
-    return Response.json({ error: "payload ไม่ครบ — ต้องมี name และ files" }, { status: 400 });
+  if (!payload || typeof payload.name !== "string" || typeof payload.zip_base64 !== "string" || !payload.zip_base64) {
+    return Response.json({ error: "payload ไม่ครบ — ต้องมี name และ zip_base64" }, { status: 400 });
   }
 
   try {

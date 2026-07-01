@@ -14,6 +14,8 @@ import {
   FITTCORE_TAG,
   type FittcoreRunnerResult,
 } from "@/lib/fittcore";
+import { createClient } from "@/lib/supabase/client";
+import { emitSystemLog } from "@/lib/team-chat-bus";
 import { toast } from "@/lib/toast";
 
 /** Human-readable KB from a raw byte/char count. */
@@ -77,6 +79,15 @@ export default function FittcoreExportModal({
       const ok = data as FittcoreRunnerResult;
       setResult(ok);
       toast.success(`ส่งสำเร็จ — build #${ok.build_no}, branch ${ok.git_branch}`);
+      // Post the hand-off to the team chat so everyone sees it was sent (who +
+      // build #) — this persisted message is the shared "sent to Code Runner" record.
+      const { data: { user } } = await createClient().auth.getUser();
+      const meta = user?.user_metadata ?? {};
+      const who = (meta.full_name ?? meta.name ?? user?.email ?? "สมาชิก") as string;
+      emitSystemLog(
+        project.id,
+        `🚀 ${who} ส่ง build ไป Code Runner แล้ว (${FITTCORE_TAG}) — build #${ok.build_no} · branch ${ok.git_branch}`
+      );
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "ส่งไป Code Runner ไม่สำเร็จ");
     } finally {

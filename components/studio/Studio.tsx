@@ -819,6 +819,12 @@ export default function Studio({ projectId }: { projectId: string }) {
     const current = projectRef.current;
     if (!current || readOnly || !gateSatisfied(current)) return;
     const state = approval ?? (await getApprovalState(projectId, current.phase));
+    // Announce the approval in the team chat — parity for solo + shared, so the
+    // activity ("who approved") is visible to everyone in the room.
+    const { data: { user } } = await createClient().auth.getUser();
+    const meta = user?.user_metadata ?? {};
+    const who = (meta.full_name ?? meta.name ?? user?.email ?? "สมาชิก") as string;
+    emitSystemLog(projectId, `✅ ${who} อนุมัติขั้น “${phaseDef(current.phase).user}” แล้ว`);
     // Solo (only the owner approves) → no multi-party gate; just advance.
     if (state.approvers.length <= 1) {
       setApproveOpen(false);
@@ -826,11 +832,6 @@ export default function Studio({ projectId }: { projectId: string }) {
       return;
     }
     await approvePhase(projectId, current.phase);
-    // Log who approved this phase into the team chat (best-effort, live to all).
-    const { data: { user } } = await createClient().auth.getUser();
-    const meta = user?.user_metadata ?? {};
-    const who = (meta.full_name ?? meta.name ?? user?.email ?? "สมาชิก") as string;
-    emitSystemLog(projectId, `${who} อนุมัติขั้น “${phaseDef(current.phase).user}” แล้ว`);
     const fresh = await getApprovalState(projectId, current.phase);
     setApproval(fresh);
     setApproveOpen(false);

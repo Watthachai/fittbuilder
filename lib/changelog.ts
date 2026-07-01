@@ -23,6 +23,15 @@ export const CHANGE_BADGE: Record<ChangeType, { label: string; className: string
 // Newest first. SemVer: fix → PATCH, feature → MINOR, breaking → MAJOR.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.21.1",
+    date: "2026-07-01",
+    title: "แจ้งการอนุมัติ + การส่งไป Code Runner ในห้องแชททีม",
+    items: [
+      { type: "improvement", text: "ทุกครั้งที่อนุมัติเฟส ระบบจะโพสต์ในห้องแชททีมว่า “✅ <ชื่อ> อนุมัติขั้น … แล้ว” — ตอนนี้รวมโปรเจกต์คนเดียวด้วย (เดิมโพสต์เฉพาะโปรเจกต์ที่แชร์หลายคน) เห็นได้ชัดว่าใครอนุมัติอะไรไปแล้ว" },
+      { type: "improvement", text: "เมื่อกดส่ง build ไป Code Runner สำเร็จ จะโพสต์ในห้องแชททีมว่า “🚀 <ชื่อ> ส่ง build ไป Code Runner แล้ว — build #N · branch …” เป็นหลักฐานร่วมกันว่าส่งไปแล้วหรือยัง (ข้อความถูกบันทึกไว้ ไม่หายเมื่อรีเฟรช)" },
+    ],
+  },
+  {
     version: "0.21.0",
     date: "2026-07-01",
     title: "แก้ flow เฟสตัน: ย้อนกลับได้ + ปุ่มสร้างรายงาน Verify/Review + เห็น panel อนุมัติแม้คนเดียว",

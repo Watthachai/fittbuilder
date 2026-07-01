@@ -11,6 +11,7 @@ const rec: ProjectRecord = {
   history: [{ "src/App.tsx": "old" }],
   messages: [{ id: "m1", role: "user", content: "hi", createdAt: "2026-01-01T00:00:00.000Z" }],
   orgId: null,
+  runnerLast: null,
   createdAt: "2026-01-01T00:00:00.000Z",
   updatedAt: "2026-01-02T00:00:00.000Z",
 };
@@ -26,6 +27,7 @@ test("rowToProject reverses projectToRow", () => {
     share_token: null,
     share_role: null,
     org_id: null,
+    runner_last: null,
   });
   expect(back).toEqual(rec);
 });

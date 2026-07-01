@@ -161,6 +161,19 @@ export interface FileChange {
   after: string | null;
 }
 
+/** The last successful hand-off of a project to the FITT Code Runner. Persisted
+ *  as `runner_last` (jsonb) so the studio can show a durable "sent" chip. */
+export interface RunnerSend {
+  buildNo: number;
+  branch: string;
+  jobId: string;
+  status: string;
+  /** Channel tag stamped on the send (e.g. "alpha-test"). */
+  tag: string;
+  /** ISO timestamp of when it was sent. */
+  sentAt: string;
+}
+
 export interface ProjectRecord {
   id: string;
   name: string;
@@ -176,6 +189,8 @@ export interface ProjectRecord {
   skillId?: string;
   /** Workspace this project belongs to (null = ส่วนตัว). */
   orgId?: string | null;
+  /** Last successful send to the FITT Code Runner (null = never sent). */
+  runnerLast?: RunnerSend | null;
   createdAt: string;
   updatedAt: string;
 }

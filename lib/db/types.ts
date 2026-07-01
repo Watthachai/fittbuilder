@@ -82,6 +82,7 @@ export interface Database {
           share_role: string | null;
           skill_id: string | null;
           org_id: string | null;
+          runner_last: Json | null;
           created_at: string;
           updated_at: string;
         };
@@ -98,6 +99,7 @@ export interface Database {
           share_role?: string | null;
           skill_id?: string | null;
           org_id?: string | null;
+          runner_last?: Json | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -114,6 +116,7 @@ export interface Database {
           share_role?: string | null;
           skill_id?: string | null;
           org_id?: string | null;
+          runner_last?: Json | null;
           created_at?: string;
           updated_at?: string;
         };

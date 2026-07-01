@@ -1,5 +1,5 @@
 import type { PhaseId } from "@/lib/phases";
-import type { ChatMessage, ProjectFiles, ProjectRecord } from "@/lib/types";
+import type { ChatMessage, ProjectFiles, ProjectRecord, RunnerSend } from "@/lib/types";
 
 export interface ProjectRow {
   id: string;
@@ -14,6 +14,7 @@ export interface ProjectRow {
   share_role: "viewer" | "editor" | null;
   skill_id: string | null;
   org_id: string | null;
+  runner_last: RunnerSend | null;
   created_at: string;
   updated_at: string;
 }
@@ -41,6 +42,7 @@ export function rowToProject(row: ProjectRow): ProjectRecord {
     messages: row.messages ?? [],
     skillId: row.skill_id ?? undefined,
     orgId: row.org_id ?? null,
+    runnerLast: row.runner_last ?? null,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };

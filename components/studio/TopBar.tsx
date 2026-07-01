@@ -19,7 +19,7 @@ import { encodeShareUrl } from "@/lib/share";
 import DnaMark from "@/components/ui/DnaMark";
 import type { OrgRecord, ProjectRecord } from "@/lib/types";
 import { downloadZip } from "@/lib/zip";
-import { downloadFittcoreSpec } from "@/lib/fittcore";
+import { downloadFittcoreSpec, type FittcoreRunnerResult } from "@/lib/fittcore";
 import FittcoreExportModal from "./FittcoreExportModal";
 import ProjectPresence from "./ProjectPresence";
 import TeamChat from "./TeamChat";
@@ -46,6 +46,8 @@ interface TopBarProps {
   onOpenPackages: () => void;
   /** Owner-only: open the team sharing modal. Omit to hide the button. */
   onTeamShare?: () => void;
+  /** Persist the durable "sent to Code Runner" chip after a successful hand-off. */
+  onRunnerSent?: (result: FittcoreRunnerResult) => void;
 }
 
 export default function TopBar({
@@ -64,6 +66,7 @@ export default function TopBar({
   onOpenSpec,
   onOpenPackages,
   onTeamShare,
+  onRunnerSent,
 }: TopBarProps) {
   const [shared, setShared] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
@@ -187,6 +190,15 @@ export default function TopBar({
           <span className="hidden lg:inline">เชิญทีม</span>
         </button>
       )}
+      {project.runnerLast && (
+        <span
+          title={`ส่งไป Code Runner แล้ว · build #${project.runnerLast.buildNo} · branch ${project.runnerLast.branch} · ${project.runnerLast.tag} · ${new Date(project.runnerLast.sentAt).toLocaleString("th-TH")}`}
+          className="inline-flex shrink-0 items-center gap-1 rounded-full border border-go/40 bg-go/10 px-2 py-1 font-mono text-[10px] text-go"
+        >
+          <Rocket size={11} />
+          <span className="hidden lg:inline">Code Runner</span> #{project.runnerLast.buildNo}
+        </span>
+      )}
       <div className="relative shrink-0">
         <button
           onClick={() => setMoreOpen((v) => !v)}
@@ -245,6 +257,7 @@ export default function TopBar({
         onClose={() => setRunnerOpen(false)}
         project={project}
         orgName={org?.name}
+        onSent={onRunnerSent}
       />
     </header>
   );

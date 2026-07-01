@@ -34,11 +34,14 @@ export default function FittcoreExportModal({
   onClose,
   project,
   orgName,
+  onSent,
 }: {
   open: boolean;
   onClose: () => void;
   project: ProjectRecord;
   orgName?: string;
+  /** Fired on a successful hand-off so the studio can persist the "sent" state. */
+  onSent?: (result: FittcoreRunnerResult) => void;
 }) {
   const [sending, setSending] = useState(false);
   const [result, setResult] = useState<FittcoreRunnerResult | null>(null);
@@ -88,6 +91,7 @@ export default function FittcoreExportModal({
         project.id,
         `🚀 ${who} ส่ง build ไป Code Runner แล้ว (${FITTCORE_TAG}) — build #${ok.build_no} · branch ${ok.git_branch}`
       );
+      onSent?.(ok); // let the studio persist the durable "sent" chip
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "ส่งไป Code Runner ไม่สำเร็จ");
     } finally {

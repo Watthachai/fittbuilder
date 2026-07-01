@@ -3,14 +3,14 @@
 import { createClient } from "@/lib/supabase/client";
 import { projectToRow, rowToProject, type ProjectRow } from "@/lib/db/project-mapper";
 import type { PhaseId } from "./phases";
-import type { ChatMessage, ProjectFiles, ProjectRecord, ProjectSummary, ShareRole } from "./types";
-import type { Database } from "@/lib/db/types";
+import type { ChatMessage, ProjectFiles, ProjectRecord, ProjectSummary, RunnerSend, ShareRole } from "./types";
+import type { Database, Json } from "@/lib/db/types";
 
 type ProjInsert = Database["public"]["Tables"]["fittbuilder_projects"]["Insert"];
 
 const HISTORY_LIMIT = 10; // US-004
 
-const SELECT = "id, owner_id, name, files, phase, approved_phases, history, messages, share_token, share_role, skill_id, org_id, created_at, updated_at";
+const SELECT = "id, owner_id, name, files, phase, approved_phases, history, messages, share_token, share_role, skill_id, org_id, runner_last, created_at, updated_at";
 
 async function uid(): Promise<string> {
   const supabase = createClient();
@@ -73,6 +73,17 @@ export async function setProjectOrg(projectId: string, orgId: string | null): Pr
   const { error } = await supabase
     .from("fittbuilder_projects")
     .update({ org_id: orgId, updated_at: new Date().toISOString() })
+    .eq("id", projectId);
+  if (error) throw error;
+}
+
+/** Persist the last "sent to Code Runner" hand-off (direct column update — like
+ *  setProjectOrg, projectToRow omits runner_last so autosave never clobbers it). */
+export async function setProjectRunner(projectId: string, runner: RunnerSend): Promise<void> {
+  const supabase = createClient();
+  const { error } = await supabase
+    .from("fittbuilder_projects")
+    .update({ runner_last: runner as unknown as Json, updated_at: new Date().toISOString() })
     .eq("id", projectId);
   if (error) throw error;
 }

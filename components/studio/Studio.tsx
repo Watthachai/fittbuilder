@@ -26,6 +26,7 @@ import {
   newMessage,
   saveProject,
   setProjectOrg,
+  setProjectRunner,
   undo as undoProject,
   withHistory,
 } from "@/lib/storage";
@@ -38,8 +39,10 @@ import type {
   OrgRecord,
   ProjectFiles,
   ProjectRecord,
+  RunnerSend,
   SpecAnswers,
 } from "@/lib/types";
+import { FITTCORE_TAG, type FittcoreRunnerResult } from "@/lib/fittcore";
 import { getOrg } from "@/lib/orgs";
 import {
   isPreviewSupported,
@@ -903,6 +906,30 @@ export default function Studio({ projectId }: { projectId: string }) {
     void runAgent(null, current, true);
   }, [readOnly, chatStreaming, runAgent]);
 
+  /** A hand-off to the Code Runner succeeded — persist it (durable "sent" chip)
+   *  and reflect it in the live project state so the TopBar chip shows at once. */
+  const handleRunnerSent = useCallback(
+    (result: FittcoreRunnerResult) => {
+      const current = projectRef.current;
+      if (!current) return;
+      const runner: RunnerSend = {
+        buildNo: result.build_no,
+        branch: result.git_branch,
+        jobId: result.job_id,
+        status: result.status,
+        tag: FITTCORE_TAG,
+        sentAt: new Date().toISOString(),
+      };
+      const next = { ...current, runnerLast: runner };
+      projectRef.current = next;
+      setProject(next);
+      void setProjectRunner(projectId, runner).catch((e) =>
+        console.error("[studio] persist runner send failed:", e)
+      );
+    },
+    [projectId]
+  );
+
   /**
    * Revise a phase's doc from the preview modal: the comment goes into the chat
    * and that phase's agent regenerates the doc (express, one shot). Revising the
@@ -1536,6 +1563,7 @@ export default function Studio({ projectId }: { projectId: string }) {
           }
         }}
         onTeamShare={isOwner ? () => setShareOpen(true) : undefined}
+        onRunnerSent={readOnly ? undefined : handleRunnerSent}
       />
 
       <PhaseStepper

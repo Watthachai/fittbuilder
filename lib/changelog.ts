@@ -23,6 +23,14 @@ export const CHANGE_BADGE: Record<ChangeType, { label: string; className: string
 // Newest first. SemVer: fix → PATCH, feature → MINOR, breaking → MAJOR.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.22.0",
+    date: "2026-07-01",
+    title: "ป้ายสถานะถาวร “ส่ง Code Runner แล้ว · build #N” บน TopBar",
+    items: [
+      { type: "feature", text: "หลังส่ง build ไป Code Runner สำเร็จ จะขึ้นชิปสีเขียว “🚀 Code Runner #N” บนแถบบน บอกว่าส่งไปแล้ว — เก็บลง DB (คอลัมน์ runner_last) จึงอยู่ถาวร ไม่หายเมื่อรีเฟรช และเพื่อนร่วมทีมที่เปิดโปรเจกต์เดียวกันก็เห็น (ชี้เมาส์ดู build/branch/เวลา/ช่องทางได้)" },
+    ],
+  },
+  {
     version: "0.21.1",
     date: "2026-07-01",
     title: "แจ้งการอนุมัติ + การส่งไป Code Runner ในห้องแชททีม",

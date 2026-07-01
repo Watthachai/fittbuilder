@@ -1,7 +1,28 @@
 "use client";
 
-import { ArrowRight, Check, RotateCcw } from "lucide-react";
-import { PHASES, phaseIndex, type PhaseId } from "@/lib/phases";
+import { ArrowRight, Check, FileText, RotateCcw } from "lucide-react";
+import { PHASES, phaseDef, phaseIndex, type PhaseId } from "@/lib/phases";
+
+/** Review phases whose advance gate needs an AI-generated report doc. */
+const REPORT_PHASES: PhaseId[] = ["verify", "review"];
+
+/** Why the current phase can't advance yet (shown as the disabled tooltip). */
+function gateHint(phase: PhaseId): string {
+  switch (phase) {
+    case "define":
+      return "ยังไม่มี BRD — คุยกับ AI ให้ช่วยร่างก่อน";
+    case "plan":
+      return "ยังไม่มี PRD — คุยกับ AI ให้ช่วยร่างก่อน";
+    case "build":
+      return "ยังไม่มีแอป — สั่ง AI ให้สร้างก่อน";
+    case "verify":
+      return "ยังไม่มีรายงาน Verify — กด “สร้างรายงาน Verify” ก่อน";
+    case "review":
+      return "ยังไม่มีรายงาน Review — กด “สร้างรายงาน Review” ก่อน";
+    default:
+      return "ยังทำเฟสนี้ไม่เสร็จ";
+  }
+}
 
 interface PhaseStepperProps {
   phase: PhaseId;
@@ -13,8 +34,10 @@ interface PhaseStepperProps {
   /** Multi-party approval tally for the current phase (null = solo project). */
   approval: { approved: number; total: number; mine: boolean } | null;
   onAdvance: () => void;
-  /** Click a completed step → preview that phase's document (does not move phase). */
-  onPreview: (phase: PhaseId) => void;
+  /** Click a completed step → jump back to that phase or preview its doc. */
+  onStep: (phase: PhaseId) => void;
+  /** Force the current review phase's agent to emit its report doc. */
+  onGenerateDoc: () => void;
   onRework: () => void;
 }
 
@@ -25,7 +48,8 @@ export default function PhaseStepper({
   canRework,
   approval,
   onAdvance,
-  onPreview,
+  onStep,
+  onGenerateDoc,
   onRework,
 }: PhaseStepperProps) {
   const currentIndex = phaseIndex(phase);
@@ -52,8 +76,8 @@ export default function PhaseStepper({
               <button
                 type="button"
                 disabled={!done}
-                onClick={() => done && onPreview(step.id)}
-                title={done ? `ดูเอกสาร ${step.user}` : `${step.user} / ${step.dev} — ${step.blurb}`}
+                onClick={() => done && onStep(step.id)}
+                title={done ? `${step.user} — ย้อนกลับมาแก้ หรือดูเอกสาร` : `${step.user} / ${step.dev} — ${step.blurb}`}
                 className={`inline-flex items-center gap-1.5 rounded-full py-1 pl-1 pr-2.5 text-xs transition ${
                   active
                     ? "bg-shine font-semibold text-night"
@@ -91,6 +115,19 @@ export default function PhaseStepper({
         </button>
       )}
 
+      {/* Escape hatch: if a review phase's report doc doesn't exist yet, let the
+          user (re)generate it so the approve gate can open. */}
+      {REPORT_PHASES.includes(phase) && !canAdvance && (
+        <button
+          onClick={onGenerateDoc}
+          disabled={busy}
+          title={`ให้ผู้ตรวจสอบสร้างรายงาน ${phaseDef(phase).user} ให้ (docs/${phase.toUpperCase()}.md)`}
+          className="inline-flex shrink-0 items-center gap-1.5 rounded-sm border border-shine/50 px-2.5 py-1.5 font-display text-xs font-medium text-shine transition hover:bg-shine/10 disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          <FileText size={12} /> สร้างรายงาน {phaseDef(phase).user}
+        </button>
+      )}
+
       {/* Shared projects: this stays clickable even after you've approved, so you
           can reopen the modal to see who's still pending. Solo: `waiting` is never
           true (no approval tally), so it advances directly. */}
@@ -100,7 +137,7 @@ export default function PhaseStepper({
           disabled={!canAdvance || busy}
           title={
             !canAdvance
-              ? "ยังทำเฟสนี้ไม่เสร็จ"
+              ? gateHint(phase)
               : approval
                 ? waiting
                   ? "คุณอนุมัติแล้ว — รอสมาชิกที่เหลืออนุมัติให้ครบ"

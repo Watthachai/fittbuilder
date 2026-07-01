@@ -806,23 +806,25 @@ export default function Studio({ projectId }: { projectId: string }) {
   const requestApprove = useCallback(async () => {
     const current = projectRef.current;
     if (!current || readOnly || !gateSatisfied(current)) return;
+    // Always open the confirm modal — even solo — so the user sees the approval
+    // roster before advancing. confirmApproval handles solo vs shared.
     const state = approval ?? (await getApprovalState(projectId, current.phase));
-    // Solo project (only the owner can approve) → advance straight away.
-    if (state.approvers.length <= 1) {
-      advancePhase();
-      return;
-    }
-    // Shared → open the confirm modal so the user sees who's already approved
-    // before recording their own approval.
     setApproval(state);
     setApproveOpen(true);
-  }, [approval, projectId, readOnly, advancePhase]);
+  }, [approval, projectId, readOnly]);
 
-  /** Record THIS user's approval (from the confirm modal) and advance once every
-   *  member has approved. */
+  /** Confirm from the modal. Solo → advance straight away; shared → record THIS
+   *  user's approval and advance once every member has approved. */
   const confirmApproval = useCallback(async () => {
     const current = projectRef.current;
     if (!current || readOnly || !gateSatisfied(current)) return;
+    const state = approval ?? (await getApprovalState(projectId, current.phase));
+    // Solo (only the owner approves) → no multi-party gate; just advance.
+    if (state.approvers.length <= 1) {
+      setApproveOpen(false);
+      advancePhase();
+      return;
+    }
     await approvePhase(projectId, current.phase);
     // Log who approved this phase into the team chat (best-effort, live to all).
     const { data: { user } } = await createClient().auth.getUser();
@@ -842,13 +844,11 @@ export default function Studio({ projectId }: { projectId: string }) {
         description: `รออีก ${left} คนอนุมัติก่อนไปต่อ`,
       });
     }
-  }, [projectId, readOnly, advancePhase]);
+  }, [approval, projectId, readOnly, advancePhase]);
 
   /**
-   * Click a completed step → preview that phase's document in a modal. This does
-   * NOT move the workflow back (that confused the flow — the user could re-approve
-   * and "advance" again). To change a doc, edit it in the Code tab, then use the
-   * "สร้างใหม่จากเอกสาร" rework button. Build has no doc → peek at the running app.
+   * Preview a phase's document in a modal (Build has no doc → peek at the running
+   * app). Used by the chat's "ดูเอกสาร" and as the "just look" branch of a step click.
    */
   const previewPhaseDoc = useCallback((target: PhaseId) => {
     if (isBuildPhase(target)) {
@@ -857,6 +857,50 @@ export default function Studio({ projectId }: { projectId: string }) {
     }
     setPreviewPhase(target);
   }, []);
+
+  /**
+   * Click a completed step in the stepper: offer to either jump BACK to that
+   * phase (to rework it — nothing downstream is deleted) or just peek at its doc.
+   * This is the escape hatch when a later phase is stuck. The active phase and
+   * read-only viewers only ever preview.
+   */
+  const handleStepClick = useCallback(
+    async (target: PhaseId) => {
+      const current = projectRef.current;
+      if (!current) return;
+      if (target === current.phase || readOnly) {
+        previewPhaseDoc(target);
+        return;
+      }
+      const back = await confirm({
+        title: `เฟส ${phaseDef(target).user}`,
+        message:
+          "ย้อนกลับมาที่เฟสนี้เพื่อแก้ไขไหม? เอกสาร/โค้ดของเฟสถัดไปยังอยู่ครบ — เลือก “แค่ดูเอกสาร” ถ้าอยากดูเฉยๆ",
+        confirmLabel: "ย้อนกลับมาเฟสนี้",
+        cancelLabel: "แค่ดูเอกสาร",
+      });
+      if (!back) {
+        previewPhaseDoc(target);
+        return;
+      }
+      persist({ ...current, phase: target });
+      setApproval(null);
+      setPreviewPhase(null);
+      pushTerminal(`↩ ย้อนกลับไปเฟส ${phaseDef(target).user}`);
+    },
+    [readOnly, previewPhaseDoc, persist, pushTerminal]
+  );
+
+  /**
+   * Force the current review phase's agent to (re)emit its report doc — the
+   * escape hatch for Verify/Review when the auto-run didn't produce docs/*.md so
+   * the approve gate stays shut. Express = one shot, no back-and-forth.
+   */
+  const generatePhaseDoc = useCallback(() => {
+    const current = projectRef.current;
+    if (!current || readOnly || chatStreaming) return;
+    void runAgent(null, current, true);
+  }, [readOnly, chatStreaming, runAgent]);
 
   /**
    * Revise a phase's doc from the preview modal: the comment goes into the chat
@@ -1500,7 +1544,8 @@ export default function Studio({ projectId }: { projectId: string }) {
         canRework={canRework}
         approval={approvalSummary}
         onAdvance={readOnly ? () => {} : () => void requestApprove()}
-        onPreview={previewPhaseDoc}
+        onStep={handleStepClick}
+        onGenerateDoc={generatePhaseDoc}
         onRework={rebuildFromDocs}
       />
 

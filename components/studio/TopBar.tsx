@@ -78,15 +78,15 @@ export default function TopBar({
   };
 
   return (
-    <header className="flex h-12 shrink-0 items-center gap-3 border-b border-night-edge bg-night-panel px-3">
+    <header className="flex h-12 shrink-0 items-center gap-2 border-b border-night-edge bg-night-panel px-3">
       <Link
         href="/"
-        className="font-display text-sm font-bold tracking-tight text-chalk transition hover:text-shine"
+        className="shrink-0 whitespace-nowrap font-display text-sm font-bold tracking-tight text-chalk transition hover:text-shine"
         title="กลับไปหน้าแรก"
       >
         FITT <span className="text-shine">Builder</span>
       </Link>
-      <span className="text-night-edge">/</span>
+      <span className="shrink-0 text-night-edge">/</span>
       <input
         defaultValue={project.name}
         key={project.id + project.name}
@@ -94,15 +94,15 @@ export default function TopBar({
         onKeyDown={(event) => {
           if (event.key === "Enter") (event.target as HTMLInputElement).blur();
         }}
-        className="w-48 rounded-sm border border-transparent bg-transparent px-2 py-1 font-display text-sm text-chalk outline-none transition focus:border-shine"
+        className="w-24 min-w-0 shrink rounded-sm border border-transparent bg-transparent px-2 py-1 font-display text-sm text-chalk outline-none transition focus:border-shine sm:w-40 xl:w-48"
         aria-label="ชื่อโปรเจกต์"
       />
       {readOnly ? (
-        <span className="inline-flex items-center gap-1 rounded-full border border-night-edge bg-chalk/[0.04] px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider text-chalk-dim">
+        <span className="hidden shrink-0 items-center gap-1 rounded-full border border-night-edge bg-chalk/[0.04] px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider text-chalk-dim md:inline-flex">
           <Eye size={11} /> ดูอย่างเดียว
         </span>
       ) : (
-        <span className="font-mono text-[10px] uppercase tracking-widest text-chalk-dim">
+        <span className="hidden shrink-0 font-mono text-[10px] uppercase tracking-widest text-chalk-dim md:inline">
           {saveState === "saving" ? "กำลังบันทึก…" : saveState === "saved" ? "บันทึกแล้ว" : "เซฟอัตโนมัติ"}
         </span>
       )}
@@ -110,7 +110,7 @@ export default function TopBar({
       <button
         onClick={onOpenDna}
         title={org ? `Org DNA · ${org.name} — ดูข้อมูลที่ AI อ้างอิง` : "ผูก workspace เพื่อให้ AI อ้างอิง Org DNA"}
-        className={`inline-flex max-w-[180px] items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs transition ${
+        className={`inline-flex min-w-0 max-w-[160px] items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs transition ${
           org
             ? "border-shine/40 bg-shine/[0.06] text-chalk hover:border-shine"
             : "border-night-edge text-chalk-dim hover:border-shine hover:text-chalk"
@@ -120,7 +120,7 @@ export default function TopBar({
         <span className="truncate">{org ? `${org.name} · DNA` : "Org DNA"}</span>
       </button>
 
-      <div className="mx-auto flex items-center rounded-sm border border-night-edge p-0.5">
+      <div className="mx-auto flex shrink-0 items-center rounded-sm border border-night-edge p-0.5">
         <button
           onClick={() => onViewChange("preview")}
           className={`inline-flex items-center gap-1.5 rounded-[2px] px-3 py-1 font-display text-xs font-medium transition ${
@@ -142,48 +142,52 @@ export default function TopBar({
       <button
         onClick={onOpenSpec}
         disabled={busy}
-        className="inline-flex items-center gap-1.5 rounded-sm border border-night-edge px-2.5 py-1.5 text-xs text-chalk-dim transition hover:border-shine hover:text-chalk disabled:opacity-40"
+        className="inline-flex shrink-0 items-center gap-1.5 rounded-sm border border-night-edge px-2.5 py-1.5 text-xs text-chalk-dim transition hover:border-shine hover:text-chalk disabled:opacity-40"
         title="สร้างจากเอกสาร BRD/PRD"
       >
-        <FileText size={13} /> Spec
+        <FileText size={13} />
+        <span className="hidden lg:inline">Spec</span>
       </button>
       <button
         onClick={onOpenPackages}
         disabled={!shippable || busy}
-        className="inline-flex items-center gap-1.5 rounded-sm border border-night-edge px-2.5 py-1.5 text-xs text-chalk-dim transition hover:border-shine hover:text-chalk disabled:opacity-40"
+        className="inline-flex shrink-0 items-center gap-1.5 rounded-sm border border-night-edge px-2.5 py-1.5 text-xs text-chalk-dim transition hover:border-shine hover:text-chalk disabled:opacity-40"
         title="ค้นหาและติดตั้ง npm package"
       >
-        <Package size={13} /> Packages
+        <Package size={13} />
+        <span className="hidden lg:inline">Packages</span>
       </button>
       <button
         onClick={onUndo}
         disabled={!canUndo || busy}
-        className="inline-flex items-center gap-1.5 rounded-sm border border-night-edge px-2.5 py-1.5 text-xs text-chalk-dim transition hover:border-shine hover:text-chalk disabled:opacity-40"
+        className="inline-flex shrink-0 items-center gap-1.5 rounded-sm border border-night-edge px-2.5 py-1.5 text-xs text-chalk-dim transition hover:border-shine hover:text-chalk disabled:opacity-40"
         title="ย้อนกลับ (Cmd/Ctrl+Z)"
       >
-        <Undo2 size={13} /> Undo
+        <Undo2 size={13} />
+        <span className="hidden lg:inline">Undo</span>
       </button>
       <ProjectPresence projectId={project.id} />
       <TeamChat projectId={project.id} />
       <button
         onClick={() => void share()}
         disabled={!shippable}
-        className="inline-flex items-center gap-1.5 rounded-sm border border-night-edge px-2.5 py-1.5 text-xs text-chalk-dim transition hover:border-shine hover:text-chalk disabled:opacity-40"
+        className="inline-flex shrink-0 items-center gap-1.5 rounded-sm border border-night-edge px-2.5 py-1.5 text-xs text-chalk-dim transition hover:border-shine hover:text-chalk disabled:opacity-40"
         title="คัดลอกลิงก์แชร์ — เปิดดูได้โดยไม่ต้อง login"
       >
         {shared ? <Check size={13} className="text-go" /> : <Share2 size={13} />}
-        {shared ? "คัดลอกแล้ว" : "แชร์"}
+        <span className="hidden lg:inline">{shared ? "คัดลอกแล้ว" : "แชร์"}</span>
       </button>
       {onTeamShare && (
         <button
           onClick={onTeamShare}
-          className="inline-flex items-center gap-1.5 rounded-sm border border-night-edge px-2.5 py-1.5 text-xs text-chalk-dim transition hover:border-shine hover:text-chalk"
+          className="inline-flex shrink-0 items-center gap-1.5 rounded-sm border border-night-edge px-2.5 py-1.5 text-xs text-chalk-dim transition hover:border-shine hover:text-chalk"
           title="เชิญสมาชิกเข้าทีม"
         >
-          <Users size={13} /> เชิญทีม
+          <Users size={13} />
+          <span className="hidden lg:inline">เชิญทีม</span>
         </button>
       )}
-      <div className="relative">
+      <div className="relative shrink-0">
         <button
           onClick={() => setMoreOpen((v) => !v)}
           disabled={!shippable}
@@ -194,7 +198,8 @@ export default function TopBar({
           }`}
           title="ส่งออก"
         >
-          <Download size={13} /> Export
+          <Download size={13} />
+          <span className="hidden lg:inline">Export</span>
         </button>
         {moreOpen && (
           <>

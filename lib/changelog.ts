@@ -23,6 +23,15 @@ export const CHANGE_BADGE: Record<ChangeType, { label: string; className: string
 // Newest first. SemVer: fix → PATCH, feature → MINOR, breaking → MAJOR.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.20.0",
+    date: "2026-07-01",
+    title: "แถบบนไม่แตกบนจอแคบ + ดูได้ว่าใครอนุมัติเฟสแล้ว",
+    items: [
+      { type: "improvement", text: "แถบเครื่องมือด้านบน (TopBar) รองรับจอแคบ — โลโก้ไม่ตัดบรรทัด, ชื่อโปรเจกต์ย่อได้, และปุ่มรอง (Spec/Packages/Undo/แชร์/เชิญ/Export) ยุบเหลือไอคอนเมื่อจอเล็ก ไม่อัดกันจนอ่านไม่ออก" },
+      { type: "feature", text: "โปรเจกต์ที่แชร์หลายคน: เพิ่มปุ่ม “ผู้อนุมัติ” ข้างปุ่มอนุมัติ กดแล้วเห็นรายชื่อว่าใครอนุมัติเฟสนี้แล้ว (✓) และใครยังไม่อนุมัติ (⏳) — เดิมเห็นแค่ตัวเลข X/Y ไม่รู้ว่าใคร" },
+    ],
+  },
+  {
     version: "0.19.0",
     date: "2026-06-30",
     title: "ส่งไป FITT Code Runner เป็น zip + idea/brd/prd แยก + tag alpha-test",

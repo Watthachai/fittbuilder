@@ -2,9 +2,12 @@
 
 import { ArrowRight, Check, RotateCcw } from "lucide-react";
 import { PHASES, phaseIndex, type PhaseId } from "@/lib/phases";
+import ApprovalRoster from "./ApprovalRoster";
 
 interface PhaseStepperProps {
   phase: PhaseId;
+  /** Current project id — for the shared-project approval roster. */
+  projectId: string;
   busy: boolean;
   /** The current phase's exit gate is satisfied (doc/app ready). */
   canAdvance: boolean;
@@ -20,6 +23,7 @@ interface PhaseStepperProps {
 
 export default function PhaseStepper({
   phase,
+  projectId,
   busy,
   canAdvance,
   canRework,
@@ -90,6 +94,8 @@ export default function PhaseStepper({
           <RotateCcw size={12} /> สร้างใหม่จากเอกสาร
         </button>
       )}
+
+      {approval && <ApprovalRoster projectId={projectId} phase={phase} />}
 
       {!isLast && (
         <button

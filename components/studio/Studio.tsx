@@ -1480,6 +1480,7 @@ export default function Studio({ projectId }: { projectId: string }) {
 
       <PhaseStepper
         phase={project.phase}
+        projectId={projectId}
         busy={phaseBusy}
         canAdvance={!readOnly && gateSatisfied(project)}
         canRework={canRework}

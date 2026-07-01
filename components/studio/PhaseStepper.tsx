@@ -2,12 +2,9 @@
 
 import { ArrowRight, Check, RotateCcw } from "lucide-react";
 import { PHASES, phaseIndex, type PhaseId } from "@/lib/phases";
-import ApprovalRoster from "./ApprovalRoster";
 
 interface PhaseStepperProps {
   phase: PhaseId;
-  /** Current project id — for the shared-project approval roster. */
-  projectId: string;
   busy: boolean;
   /** The current phase's exit gate is satisfied (doc/app ready). */
   canAdvance: boolean;
@@ -23,7 +20,6 @@ interface PhaseStepperProps {
 
 export default function PhaseStepper({
   phase,
-  projectId,
   busy,
   canAdvance,
   canRework,
@@ -95,12 +91,13 @@ export default function PhaseStepper({
         </button>
       )}
 
-      {approval && <ApprovalRoster projectId={projectId} phase={phase} />}
-
+      {/* Shared projects: this stays clickable even after you've approved, so you
+          can reopen the modal to see who's still pending. Solo: `waiting` is never
+          true (no approval tally), so it advances directly. */}
       {!isLast && (
         <button
           onClick={onAdvance}
-          disabled={!canAdvance || busy || waiting}
+          disabled={!canAdvance || busy}
           title={
             !canAdvance
               ? "ยังทำเฟสนี้ไม่เสร็จ"

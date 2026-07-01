@@ -66,6 +66,7 @@ import CodePanel from "./CodePanel";
 import DesignPicker from "./DesignPicker";
 import DocPreviewModal from "./DocPreviewModal";
 import PackageSearch from "./PackageSearch";
+import ApprovalModal from "./ApprovalModal";
 import OrgDnaPanel from "./OrgDnaPanel";
 import PhaseStepper from "./PhaseStepper";
 import PreviewPanel from "./PreviewPanel";
@@ -140,6 +141,7 @@ export default function Studio({ projectId }: { projectId: string }) {
   const [view, setView] = useState<"preview" | "code">("preview");
   const [previewPhase, setPreviewPhase] = useState<PhaseId | null>(null);
   const [approval, setApproval] = useState<ApprovalState | null>(null);
+  const [approveOpen, setApproveOpen] = useState(false);
   const [specOpen, setSpecOpen] = useState(false);
   const [packagesOpen, setPackagesOpen] = useState(false);
   const [leftWidth, setLeftWidth] = useState(400);
@@ -801,14 +803,26 @@ export default function Studio({ projectId }: { projectId: string }) {
    * + all invited members, any role) has approved. The session that lands the
    * final approval performs the advance; others converge on focus/poll.
    */
-  const handleApprove = useCallback(async () => {
+  const requestApprove = useCallback(async () => {
     const current = projectRef.current;
     if (!current || readOnly || !gateSatisfied(current)) return;
     const state = approval ?? (await getApprovalState(projectId, current.phase));
+    // Solo project (only the owner can approve) → advance straight away.
     if (state.approvers.length <= 1) {
       advancePhase();
       return;
     }
+    // Shared → open the confirm modal so the user sees who's already approved
+    // before recording their own approval.
+    setApproval(state);
+    setApproveOpen(true);
+  }, [approval, projectId, readOnly, advancePhase]);
+
+  /** Record THIS user's approval (from the confirm modal) and advance once every
+   *  member has approved. */
+  const confirmApproval = useCallback(async () => {
+    const current = projectRef.current;
+    if (!current || readOnly || !gateSatisfied(current)) return;
     await approvePhase(projectId, current.phase);
     // Log who approved this phase into the team chat (best-effort, live to all).
     const { data: { user } } = await createClient().auth.getUser();
@@ -817,6 +831,7 @@ export default function Studio({ projectId }: { projectId: string }) {
     emitSystemLog(projectId, `${who} อนุมัติขั้น “${phaseDef(current.phase).user}” แล้ว`);
     const fresh = await getApprovalState(projectId, current.phase);
     setApproval(fresh);
+    setApproveOpen(false);
     const done = fresh.approvers.every((a) => fresh.approved.includes(a));
     if (done) {
       advancePhase();
@@ -827,7 +842,7 @@ export default function Studio({ projectId }: { projectId: string }) {
         description: `รออีก ${left} คนอนุมัติก่อนไปต่อ`,
       });
     }
-  }, [approval, projectId, readOnly, advancePhase]);
+  }, [projectId, readOnly, advancePhase]);
 
   /**
    * Click a completed step → preview that phase's document in a modal. This does
@@ -1480,12 +1495,11 @@ export default function Studio({ projectId }: { projectId: string }) {
 
       <PhaseStepper
         phase={project.phase}
-        projectId={projectId}
         busy={phaseBusy}
         canAdvance={!readOnly && gateSatisfied(project)}
         canRework={canRework}
         approval={approvalSummary}
-        onAdvance={readOnly ? () => {} : () => void handleApprove()}
+        onAdvance={readOnly ? () => {} : () => void requestApprove()}
         onPreview={previewPhaseDoc}
         onRework={rebuildFromDocs}
       />
@@ -1605,6 +1619,16 @@ export default function Studio({ projectId }: { projectId: string }) {
       {specOpen && (
         <SpecFlow onClose={() => setSpecOpen(false)} onComplete={handleSpecComplete} />
       )}
+
+      <ApprovalModal
+        key={approveOpen ? `approve-${project.phase}` : "approve-closed"}
+        open={approveOpen}
+        onClose={() => setApproveOpen(false)}
+        projectId={projectId}
+        phase={project.phase}
+        phaseLabel={phaseDef(project.phase).user}
+        onConfirm={confirmApproval}
+      />
 
       {packagesOpen && (
         <PackageSearch

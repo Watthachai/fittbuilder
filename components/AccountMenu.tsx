@@ -5,12 +5,22 @@ import { createPortal } from "react-dom";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "motion/react";
-import { BarChart3, Dna, Loader2, LogOut, ShieldCheck, X } from "lucide-react";
+import { BarChart3, Check, Dna, FileCode, Loader2, LogOut, ShieldCheck, Users, X } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { firstOrg } from "@/lib/orgs";
+import { acceptMyInvite, listMyInvites, type MyInvite } from "@/lib/invites-inbox";
 import { openCreateWorkspace } from "@/lib/workspace-modal";
+import { toast } from "@/lib/toast";
 import { useDismiss } from "@/lib/useDismiss";
 import { THEME_OPTIONS, useTheme } from "@/lib/useTheme";
+
+const ROLE_LABEL: Record<string, string> = {
+  owner: "เจ้าของ",
+  admin: "ผู้ดูแล",
+  member: "สมาชิก",
+  editor: "ผู้แก้ไข",
+  viewer: "ผู้ชม",
+};
 
 interface Account {
   email: string;
@@ -26,7 +36,26 @@ export default function AccountMenu() {
   const [open, setOpen] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
   const [openingOrg, setOpeningOrg] = useState(false);
+  const [invites, setInvites] = useState<MyInvite[]>([]);
+  const [accepting, setAccepting] = useState<string | null>(null);
   const [theme, setTheme] = useTheme();
+
+  async function accept(invite: MyInvite) {
+    setAccepting(invite.inviteId);
+    try {
+      await acceptMyInvite(invite);
+      // Accept redeems every pending invite of that kind for this email, so clear
+      // all of that kind from the list, then land on the accepted entity.
+      setInvites((prev) => prev.filter((i) => i.kind !== invite.kind));
+      setOpen(false);
+      toast.success(`เข้าร่วม ${invite.entityName} แล้ว`);
+      router.push(invite.kind === "org" ? `/org/${invite.entityId}` : `/project/${invite.entityId}`);
+      router.refresh();
+    } catch (e) {
+      toast.error("เข้าร่วมไม่สำเร็จ", { description: e instanceof Error ? e.message : undefined });
+      setAccepting(null);
+    }
+  }
 
   async function openOrgDna() {
     setOpeningOrg(true);
@@ -106,6 +135,27 @@ export default function AccountMenu() {
     };
   }, [account]);
 
+  // Pending invites addressed to this user (project + workspace) — drives the
+  // chip's notification dot and the inbox section in the dropdown.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      if (!account) {
+        if (!cancelled) setInvites([]);
+        return;
+      }
+      try {
+        const list = await listMyInvites();
+        if (!cancelled) setInvites(list);
+      } catch {
+        /* keep empty */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [account]);
+
   async function signOut() {
     setSigningOut(true);
     const supabase = createClient();
@@ -123,13 +173,21 @@ export default function AccountMenu() {
     <div className="relative">
       <button
         onClick={() => setOpen((v) => !v)}
-        className="inline-flex items-center gap-2 rounded-full border border-chalk/20 py-1 pl-1 pr-3 transition hover:border-chalk/40"
+        className="relative inline-flex items-center gap-2 rounded-full border border-chalk/20 py-1 pl-1 pr-3 transition hover:border-chalk/40"
       >
         <Avatar avatarUrl={account.avatarUrl} initial={initial} />
         <span className="max-w-[10rem] truncate font-display text-sm text-chalk/80">{label}</span>
         {isAdmin && (
           <span className="rounded-full bg-shine/15 px-1.5 py-0.5 font-display text-[10px] font-semibold text-shine">
             Admin
+          </span>
+        )}
+        {invites.length > 0 && (
+          <span
+            aria-label={`มีคำเชิญ ${invites.length} รายการ`}
+            className="absolute -right-0.5 -top-0.5 grid h-4 min-w-4 place-items-center rounded-full bg-shine px-1 font-mono text-[9px] font-bold text-night"
+          >
+            {invites.length}
           </span>
         )}
       </button>
@@ -179,6 +237,48 @@ export default function AccountMenu() {
                 </p>
               </div>
             </div>
+
+            {invites.length > 0 && (
+              <div className="mt-6">
+                <p className="mb-2 font-mono text-[11px] uppercase tracking-wider text-chalk/50">
+                  คำเชิญ ({invites.length})
+                </p>
+                <div className="space-y-2">
+                  {invites.map((inv) => {
+                    const isOrg = inv.kind === "org";
+                    const Icon = isOrg ? Users : FileCode;
+                    return (
+                      <div
+                        key={inv.inviteId}
+                        className="flex items-center gap-3 rounded-xl border border-chalk/15 bg-chalk/[0.03] px-3 py-2.5"
+                      >
+                        <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-shine/10 text-shine">
+                          <Icon size={15} />
+                        </span>
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate font-display text-sm text-chalk">{inv.entityName}</p>
+                          <p className="truncate font-mono text-[10px] text-chalk/50">
+                            {isOrg ? "workspace" : "โปรเจกต์"} · {ROLE_LABEL[inv.role] ?? inv.role}
+                          </p>
+                        </div>
+                        <button
+                          onClick={() => void accept(inv)}
+                          disabled={accepting !== null}
+                          className="inline-flex shrink-0 items-center gap-1 rounded-full bg-shine px-3 py-1.5 font-display text-xs font-semibold text-night transition hover:brightness-110 disabled:opacity-50"
+                        >
+                          {accepting === inv.inviteId ? (
+                            <Loader2 size={13} className="animate-spin" />
+                          ) : (
+                            <Check size={13} />
+                          )}
+                          เข้าร่วม
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
 
             <div className="mt-6">
               <p className="mb-2 font-mono text-[11px] uppercase tracking-wider text-chalk/50">

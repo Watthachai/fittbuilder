@@ -446,6 +446,17 @@ export interface Database {
           created_at: string;
         }[];
       };
+      fittbuilder_my_invites: {
+        Args: Record<string, never>;
+        Returns: {
+          kind: string;
+          invite_id: string;
+          entity_id: string;
+          entity_name: string | null;
+          role: string;
+          created_at: string;
+        }[];
+      };
     };
     Enums: Record<string, never>;
     CompositeTypes: Record<string, never>;

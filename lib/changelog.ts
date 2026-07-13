@@ -23,6 +23,14 @@ export const CHANGE_BADGE: Record<ChangeType, { label: string; className: string
 // Newest first. SemVer: fix → PATCH, feature → MINOR, breaking → MAJOR.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.28.0",
+    date: "2026-07-14",
+    title: "กล่องคำเชิญในแอป — กดรับได้เลยไม่ต้องรออีเมล",
+    items: [
+      { type: "feature", text: "เมื่อมีคนเชิญคุณเข้าโปรเจกต์หรือ workspace จะมีตัวเลขแจ้งเตือนบนชิปบัญชี (มุมขวาบน) และในเมนูบัญชีมีการ์ด “คำเชิญ” พร้อมปุ่ม “เข้าร่วม” — กดแล้วเข้าร่วมและพาไปที่โปรเจกต์/workspace นั้นทันที ไม่ต้องรอลิงก์ทางอีเมล (มีประโยชน์มากตอนที่อีเมลยังส่งไม่ได้)" },
+    ],
+  },
+  {
     version: "0.27.2",
     date: "2026-07-14",
     title: "เก็บกวาด workspace “พื้นที่ของฉัน” ซ้ำที่ค้างอยู่",

@@ -23,6 +23,14 @@ export const CHANGE_BADGE: Record<ChangeType, { label: string; className: string
 // Newest first. SemVer: fix → PATCH, feature → MINOR, breaking → MAJOR.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.27.2",
+    date: "2026-07-14",
+    title: "เก็บกวาด workspace “พื้นที่ของฉัน” ซ้ำที่ค้างอยู่",
+    items: [
+      { type: "fix", text: "ลบ workspace “พื้นที่ของฉัน” ซ้ำที่เกิดจากบั๊กก่อนหน้าออกให้ (ลบเฉพาะอันที่ว่างเปล่าจริง ๆ — ไม่มีโปรเจกต์/สมาชิก/คำเชิญ และไม่ใช่อันเก่าสุด) — workspace ที่มีชื่อจริงหรือมีโปรเจกต์ถูกเก็บไว้ครบ ไม่มีข้อมูลสูญ" },
+    ],
+  },
+  {
     version: "0.27.1",
     date: "2026-07-13",
     title: "แก้บั๊ก workspace “พื้นที่ของฉัน” ซ้ำโผล่มาเอง + โปรเจกต์ย้ายเข้า org เอง",

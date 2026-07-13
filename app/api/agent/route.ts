@@ -51,7 +51,7 @@ function sse(event: AgentEvent): Uint8Array {
 }
 
 export async function POST(request: Request) {
-  const limit = rateLimit(`agent:${clientIp(request)}`);
+  const limit = await rateLimit(`agent:${clientIp(request)}`);
   if (!limit.ok) {
     return Response.json(
       { error: `คำขอถี่เกินไป ลองใหม่ใน ${limit.retryAfter} วินาที` },

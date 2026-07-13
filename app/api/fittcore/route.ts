@@ -13,7 +13,7 @@ const RUNNER_URL = process.env.FITTCORE_RUNNER_URL ?? "http://localhost:8080";
  * transport/timeout failures are normalized to a clean `{ error }`.
  */
 export async function POST(request: Request) {
-  const limit = rateLimit(`fittcore:${clientIp(request)}`);
+  const limit = await rateLimit(`fittcore:${clientIp(request)}`);
   if (!limit.ok) {
     return Response.json(
       { error: `คำขอถี่เกินไป ลองใหม่ใน ${limit.retryAfter} วินาที` },

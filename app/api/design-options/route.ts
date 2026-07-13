@@ -37,7 +37,7 @@ function stripFence(text: string): string {
 }
 
 export async function POST(request: Request) {
-  const limit = rateLimit(`design:${clientIp(request)}`, 20);
+  const limit = await rateLimit(`design:${clientIp(request)}`, 20);
   if (!limit.ok) {
     return Response.json({ error: "คำขอถี่เกินไป" }, { status: 429 });
   }

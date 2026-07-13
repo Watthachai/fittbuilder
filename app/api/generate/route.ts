@@ -66,7 +66,7 @@ function sse(event: GenerateEvent): Uint8Array {
 }
 
 export async function POST(request: Request) {
-  const limit = rateLimit(`generate:${clientIp(request)}`);
+  const limit = await rateLimit(`generate:${clientIp(request)}`);
   if (!limit.ok) {
     return Response.json(
       { error: `คำขอถี่เกินไป ลองใหม่ใน ${limit.retryAfter} วินาที` },

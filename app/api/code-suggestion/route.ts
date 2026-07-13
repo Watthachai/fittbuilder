@@ -27,7 +27,7 @@ function stripFences(text: string): string {
 }
 
 export async function POST(request: Request) {
-  const limit = rateLimit(`suggest:${clientIp(request)}`);
+  const limit = await rateLimit(`suggest:${clientIp(request)}`);
   if (!limit.ok) return Response.json({ suggestion: "" });
 
   let body: z.infer<typeof bodySchema>;

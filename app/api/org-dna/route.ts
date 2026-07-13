@@ -49,7 +49,7 @@ const SYSTEM = `คุณคือที่ปรึกษาด้าน Org DN
 - ตอบเป็นภาษาไทย ยกเว้น archetype ที่เป็น key อังกฤษตาม list`;
 
 export async function POST(request: Request) {
-  const limit = rateLimit(`orgdna:${clientIp(request)}`);
+  const limit = await rateLimit(`orgdna:${clientIp(request)}`);
   if (!limit.ok) {
     return Response.json(
       { error: `คำขอถี่เกินไป ลองใหม่ใน ${limit.retryAfter} วินาที` },

@@ -23,6 +23,14 @@ export const CHANGE_BADGE: Record<ChangeType, { label: string; className: string
 // Newest first. SemVer: fix → PATCH, feature → MINOR, breaking → MAJOR.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.26.0",
+    date: "2026-07-13",
+    title: "รองรับสเกลหลายเซิร์ฟเวอร์: rate limit แบบกระจายศูนย์ (Upstash)",
+    items: [
+      { type: "improvement", text: "ตัวจำกัดคำขอ (rate limiter) รองรับ Upstash Redis แล้ว — เมื่อ deploy หลายเครื่องพร้อมกันจะนับคำขอจากที่เดียวร่วมกัน (เดิมต่างเครื่องต่างนับ ทำให้จำกัดจริงหลวมกว่าที่ตั้งไว้) · ถ้าไม่ตั้งค่า Upstash ระบบใช้แบบในหน่วยความจำเหมือนเดิมอัตโนมัติ ไม่ต้องแก้โค้ด" },
+    ],
+  },
+  {
     version: "0.25.0",
     date: "2026-07-13",
     title: "ลิงก์แชร์สาธารณะหมดอายุใน 30 วัน (แพลนฟรี)",

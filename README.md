@@ -98,15 +98,15 @@ npx tsc --noEmit # typecheck
 
 - [x] **Auth** — Supabase Auth (Google OAuth + magic link) + protect `/project/*`
 - [x] **Database** — Supabase Postgres + RLS (ตาราง prefix `fittbuilder_`) แทน localStorage
-- [ ] **Usage metering** — ตาราง `generations` + เช็ค limit ก่อนเรียก AI (Free 5/เดือน)
-      ตอนนี้มีแค่ rate limit ต่อ IP
+- [x] **Usage metering** — เช็ค limit ก่อนเรียก AI (Free 5 generations/เดือน) บนตาราง
+      `fittbuilder_ai_usage` ที่มีอยู่ + ชิปโควตาบน TopBar (`lib/ai-usage.ts` checkGenerationQuota)
 - [ ] **Stripe billing** — checkout + webhook อัปเดต plan
-- [ ] **Rate limiter แบบ distributed** — `lib/rate-limit.ts` เป็น in-memory ต่อ instance;
-      ใช้ Upstash Redis เมื่อ deploy หลาย instance
+- [x] **Rate limiter แบบ distributed** — `lib/rate-limit.ts` ใช้ Upstash Redis เมื่อ deploy
+      หลาย instance (ตั้ง `UPSTASH_REDIS_REST_URL` + `UPSTASH_REDIS_REST_TOKEN`); ไม่ตั้ง = in-memory ต่อ instance
 - [ ] **WebContainers commercial license** — จำเป็นสำหรับ production
       (https://webcontainers.io/enterprise)
-- [ ] Share link หมดอายุ 30 วันสำหรับ free tier (ตอนนี้ join token ไม่หมดอายุ; invite token หมดอายุ 14 วัน)
-- [ ] Real-time co-editing (CRDT) — Spec 2 (ตอนนี้แชร์เป็น async, last-write-wins)
+- [x] Share link หมดอายุ 30 วันสำหรับ free tier (invite token หมดอายุ 14 วันเหมือนเดิม)
+- [ ] Real-time co-editing (CRDT เต็มรูป) — Spec 2; ตอนนี้มี presence + live sync (last-write-wins)
 
 ## Deploy
 

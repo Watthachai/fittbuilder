@@ -11,7 +11,7 @@ export interface NpmHit {
 
 /** Search the public npm registry so the user can find a package to install. */
 export async function GET(request: Request) {
-  const limit = rateLimit(`npm:${clientIp(request)}`);
+  const limit = await rateLimit(`npm:${clientIp(request)}`);
   if (!limit.ok) {
     return Response.json(
       { error: `คำขอถี่เกินไป ลองใหม่ใน ${limit.retryAfter} วินาที` },

@@ -30,14 +30,17 @@ alter table fittbuilder_projects
   add column if not exists org_id uuid references fittbuilder_orgs(id) on delete set null;
 create index if not exists fittbuilder_projects_org_idx on fittbuilder_projects (org_id);
 
--- Backfill: one default workspace per existing project owner, then assign their
--- projects to it. (orgs is new/empty, so a plain insert of distinct owners.)
+-- One-time backfill: give a default workspace to owners who have NONE yet.
+-- GUARDED with `not exists` so re-running db:migrate can never create duplicates
+-- (the original unguarded insert re-ran on every migrate, spawning a new
+-- "พื้นที่ของฉัน" per owner each time — see 0017 for the cleanup).
+--
+-- Projects are intentionally NOT auto-assigned: "ส่วนตัว" (org_id null) is a
+-- valid, desired state, and users bind a project to a workspace explicitly. The
+-- old auto-assign UPDATE swept personal projects into an org on every migrate.
 insert into fittbuilder_orgs (owner_id, name)
-  select distinct owner_id, 'พื้นที่ของฉัน' from fittbuilder_projects;
-
-update fittbuilder_projects p
-  set org_id = o.id
-  from fittbuilder_orgs o
-  where o.owner_id = p.owner_id and p.org_id is null;
+  select distinct p.owner_id, 'พื้นที่ของฉัน'
+  from fittbuilder_projects p
+  where not exists (select 1 from fittbuilder_orgs o where o.owner_id = p.owner_id);
 
 notify pgrst, 'reload schema';

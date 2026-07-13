@@ -23,6 +23,14 @@ export const CHANGE_BADGE: Record<ChangeType, { label: string; className: string
 // Newest first. SemVer: fix → PATCH, feature → MINOR, breaking → MAJOR.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.27.1",
+    date: "2026-07-13",
+    title: "แก้บั๊ก workspace “พื้นที่ของฉัน” ซ้ำโผล่มาเอง + โปรเจกต์ย้ายเข้า org เอง",
+    items: [
+      { type: "fix", text: "แก้ต้นตอ: สคริปต์ตั้งค่าฐานข้อมูล (migration 0012) สร้าง workspace “พื้นที่ของฉัน” ใหม่ + กวาดโปรเจกต์ที่ยังไม่อยู่ workspace เข้า org ทุกครั้งที่รัน ทำให้เกิด workspace ซ้ำและโปรเจกต์ย้ายไปมาเอง — ตอนนี้สร้าง default ให้เฉพาะคนที่ยังไม่มี workspace เลย และไม่ย้ายโปรเจกต์อัตโนมัติอีก (โปรเจกต์ “ส่วนตัว” จะอยู่ส่วนตัวจนกว่าจะผูกเอง)" },
+    ],
+  },
+  {
     version: "0.27.0",
     date: "2026-07-13",
     title: "เห็นชัดขึ้นเมื่อเพื่อนร่วมทีมแก้โปรเจกต์แบบเรียลไทม์",

@@ -5,10 +5,12 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 /**
- * Accept an invitation, then land the user in the project. A `/join/<token>` link
- * is one of two kinds and we resolve which by looking the token up:
- *   1. a project share-link  → `fittbuilder_projects.share_token` (role = share_role)
- *   2. a per-email invite     → `fittbuilder_project_invites.token` (role = invite.role)
+ * Accept an invitation, then land the user where the invite points. A
+ * `/join/<token>` link is one of THREE kinds and we resolve which by looking the
+ * token up:
+ *   1. a project share-link → `fittbuilder_projects.share_token` (role = share_role)
+ *   2. a per-email project invite → `fittbuilder_project_invites.token`
+ *   3. a per-email workspace invite → `fittbuilder_org_invites.token`
  *
  * Identity comes from the authenticated server session, never the client — the
  * accept RPC is keyed on the verified user.id/email so a token can't be redeemed
@@ -45,24 +47,44 @@ export async function joinProject(
     redirect(`/project/${pid}`);
   }
 
-  // ── 2. Per-email invite token? ──────────────────────────────────────────
+  // ── 2. Per-email PROJECT invite token? ──────────────────────────────────
   const { data: invite } = await admin
     .from("fittbuilder_project_invites")
     .select("project_id, email, status, expires_at")
     .eq("token", token)
     .maybeSingle();
-  if (!invite) return "ลิงก์คำเชิญไม่ถูกต้องหรือหมดอายุ";
-  if (invite.status === "revoked") return "คำเชิญนี้ถูกยกเลิกแล้ว";
-  if (new Date(invite.expires_at) < new Date()) return "คำเชิญนี้หมดอายุแล้ว";
-  if (user.email && invite.email.toLowerCase() !== user.email.toLowerCase())
-    return `คำเชิญนี้ส่งถึง ${invite.email} — คุณกำลังเข้าสู่ระบบด้วยอีเมลอื่น`;
+  if (invite) {
+    if (invite.status === "revoked") return "คำเชิญนี้ถูกยกเลิกแล้ว";
+    if (new Date(invite.expires_at) < new Date()) return "คำเชิญนี้หมดอายุแล้ว";
+    if (user.email && invite.email.toLowerCase() !== user.email.toLowerCase())
+      return `คำเชิญนี้ส่งถึง ${invite.email} — คุณกำลังเข้าสู่ระบบด้วยอีเมลอื่น`;
 
-  // Accept by the SERVER-verified email (idempotent — login may have already
-  // accepted it). Passing user.email here, not anything from the client.
-  const { error } = await supabase.rpc("fittbuilder_accept_invites", {
+    // Accept by the SERVER-verified email (idempotent — login may have already
+    // accepted it). Passing user.email here, not anything from the client.
+    const { error } = await supabase.rpc("fittbuilder_accept_invites", {
+      uid: user.id,
+      mail: user.email!,
+    });
+    if (error) return "เข้าร่วมไม่สำเร็จ ลองอีกครั้ง";
+    redirect(`/project/${invite.project_id}`);
+  }
+
+  // ── 3. Per-email WORKSPACE invite token? ────────────────────────────────
+  const { data: orgInvite } = await admin
+    .from("fittbuilder_org_invites")
+    .select("org_id, email, status, expires_at")
+    .eq("token", token)
+    .maybeSingle();
+  if (!orgInvite) return "ลิงก์คำเชิญไม่ถูกต้องหรือหมดอายุ";
+  if (orgInvite.status === "revoked") return "คำเชิญนี้ถูกยกเลิกแล้ว";
+  if (new Date(orgInvite.expires_at) < new Date()) return "คำเชิญนี้หมดอายุแล้ว";
+  if (user.email && orgInvite.email.toLowerCase() !== user.email.toLowerCase())
+    return `คำเชิญนี้ส่งถึง ${orgInvite.email} — คุณกำลังเข้าสู่ระบบด้วยอีเมลอื่น`;
+
+  const { error } = await supabase.rpc("fittbuilder_accept_org_invites", {
     uid: user.id,
     mail: user.email!,
   });
   if (error) return "เข้าร่วมไม่สำเร็จ ลองอีกครั้ง";
-  redirect(`/project/${invite.project_id}`);
+  redirect(`/org/${orgInvite.org_id}`);
 }

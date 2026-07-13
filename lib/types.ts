@@ -217,6 +217,31 @@ export interface ProjectInvite {
   createdAt: string;
 }
 
+/** Workspace roles. 'owner' is implicit (fittbuilder_orgs.owner_id) and can't be
+ *  invited; invites only ever grant 'admin' or 'member'. */
+export type OrgRole = "owner" | "admin" | "member";
+export type OrgInviteRole = "admin" | "member";
+
+export interface OrgMember {
+  orgId: string;
+  userId: string;
+  email: string;
+  name: string | null;
+  role: OrgRole;
+  createdAt: string;
+}
+
+export interface OrgInvite {
+  id: string;
+  orgId: string;
+  email: string;
+  role: OrgInviteRole;
+  token: string;
+  status: "pending" | "accepted" | "revoked";
+  expiresAt: string;
+  createdAt: string;
+}
+
 export interface ProjectSummary {
   id: string;
   name: string;

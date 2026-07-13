@@ -23,6 +23,16 @@ export const CHANGE_BADGE: Record<ChangeType, { label: string; className: string
 // Newest first. SemVer: fix → PATCH, feature → MINOR, breaking → MAJOR.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.23.0",
+    date: "2026-07-13",
+    title: "เชิญทีมเข้า workspace — สมาชิกเห็นทุกโปรเจกต์ร่วมกัน",
+    items: [
+      { type: "feature", text: "เพิ่มระบบสมาชิก workspace: ในหน้า workspace (Org DNA) มีแผง “สมาชิก workspace” เชิญเพื่อนด้วยอีเมลได้ (บทบาทผู้ดูแล/สมาชิก) — คนที่เข้าร่วมจะเห็นและทำงานกับ “ทุกโปรเจกต์” ใน workspace นั้นอัตโนมัติ ไม่ต้องแชร์ทีละโปรเจกต์ พร้อมแชร์ Org DNA ร่วมกัน" },
+      { type: "feature", text: "ลิงก์คำเชิญ workspace เปิดแล้วเห็นชื่อ workspace + บทบาทก่อนตอบรับ (ถ้ายังไม่ล็อกอินระบบพากลับมาที่คำเชิญต่อให้) — ใช้หน้าตอบรับเดียวกับคำเชิญโปรเจกต์" },
+      { type: "improvement", text: "ผู้ดูแล workspace เปลี่ยนบทบาท/เอาสมาชิกออก/ยกเลิกคำเชิญที่ค้างได้ · สมาชิกทั่วไปกด “ออกจาก workspace” เองได้ · เจ้าของ workspace จัดการได้ทั้งหมด (ลบ workspace ได้เฉพาะเจ้าของ)" },
+    ],
+  },
+  {
     version: "0.22.0",
     date: "2026-07-01",
     title: "ป้ายสถานะถาวร “ส่ง Code Runner แล้ว · build #N” บน TopBar",

@@ -40,11 +40,14 @@ export async function GET(request: Request) {
 
   const { data: { user } } = await supabase.auth.getUser();
   if (user?.email) {
-    const { error: rpcError } = await supabase.rpc("fittbuilder_accept_invites", {
-      uid: user.id,
-      mail: user.email,
-    });
+    // Auto-accept any pending invites (project + workspace) addressed to this
+    // verified email, so a fresh signup lands already joined.
+    const [{ error: rpcError }, { error: orgRpcError }] = await Promise.all([
+      supabase.rpc("fittbuilder_accept_invites", { uid: user.id, mail: user.email }),
+      supabase.rpc("fittbuilder_accept_org_invites", { uid: user.id, mail: user.email }),
+    ]);
     if (rpcError) console.error("[auth/callback] invite-accept failed:", rpcError);
+    if (orgRpcError) console.error("[auth/callback] org-invite-accept failed:", orgRpcError);
   }
   return response;
 }

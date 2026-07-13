@@ -362,14 +362,79 @@ export interface Database {
         };
         Relationships: [];
       };
+      fittbuilder_org_members: {
+        Row: {
+          org_id: string;
+          user_id: string;
+          role: string;
+          created_at: string;
+        };
+        Insert: {
+          org_id: string;
+          user_id: string;
+          role: string;
+          created_at?: string;
+        };
+        Update: {
+          org_id?: string;
+          user_id?: string;
+          role?: string;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      fittbuilder_org_invites: {
+        Row: {
+          id: string;
+          org_id: string;
+          email: string;
+          role: string;
+          token: string;
+          status: string;
+          expires_at: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          org_id: string;
+          email: string;
+          role: string;
+          token: string;
+          status?: string;
+          expires_at?: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          org_id?: string;
+          email?: string;
+          role?: string;
+          token?: string;
+          status?: string;
+          expires_at?: string;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
     };
     Views: Record<string, never>;
     Functions: {
       fittbuilder_accept_invites: { Args: { uid: string; mail: string }; Returns: undefined };
+      fittbuilder_accept_org_invites: { Args: { uid: string; mail: string }; Returns: undefined };
       fittbuilder_join_by_token: { Args: { tok: string; uid: string }; Returns: string | null };
       fittbuilder_ai_usage_report: { Args: Record<string, never>; Returns: Json };
       fittbuilder_project_members_detailed: {
         Args: { pid: string };
+        Returns: {
+          user_id: string;
+          email: string | null;
+          name: string | null;
+          role: string;
+          created_at: string;
+        }[];
+      };
+      fittbuilder_org_members_detailed: {
+        Args: { oid: string };
         Returns: {
           user_id: string;
           email: string | null;

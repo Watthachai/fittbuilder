@@ -13,6 +13,7 @@ import { toast } from "@/lib/toast";
 import type { ChatAttachmentInput, OrgDna, OrgDnaVersion } from "@/lib/types";
 import ColorIconPicker from "./ColorIconPicker";
 import SourceViewer from "./SourceViewer";
+import WorkspaceMembers from "./WorkspaceMembers";
 
 const MAX_FILE_BYTES = 4 * 1024 * 1024;
 const MAX_VERSIONS = 12;
@@ -271,6 +272,9 @@ export default function OrgDnaEditor({ orgId }: { orgId: string }) {
         <div className="mt-5 rounded-xl border border-night-edge bg-night-panel p-4">
           <ColorIconPicker color={color} icon={icon} onColor={setColor} onIcon={setIcon} />
         </div>
+
+        {/* Team members + invites */}
+        <WorkspaceMembers orgId={orgId} />
 
         <p className="mt-5 text-sm leading-relaxed text-chalk-dim">
           ใส่ DNA ขององค์กรเพื่อให้ AI ออกแบบ spec/demo ให้เข้ากับวิธีทำงานจริงของคุณ —

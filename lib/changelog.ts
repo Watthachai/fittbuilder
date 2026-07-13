@@ -23,6 +23,14 @@ export const CHANGE_BADGE: Record<ChangeType, { label: string; className: string
 // Newest first. SemVer: fix → PATCH, feature → MINOR, breaking → MAJOR.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.27.0",
+    date: "2026-07-13",
+    title: "เห็นชัดขึ้นเมื่อเพื่อนร่วมทีมแก้โปรเจกต์แบบเรียลไทม์",
+    items: [
+      { type: "improvement", text: "เมื่อเพื่อนร่วมทีมแก้โปรเจกต์แล้วจอของคุณดึงเวอร์ชันล่าสุดเข้ามาให้อัตโนมัติ (มีอยู่เดิม) ตอนนี้จะมีข้อความแจ้ง “🔄 <ชื่อ> อัปเดตโปรเจกต์” ด้วย — เดิมจอเปลี่ยนเองเงียบ ๆ ไม่รู้ว่าใครแก้ · ทำงานร่วมกับป้ายผู้ที่กำลังดู (presence) และเคอร์เซอร์สดที่มีอยู่แล้ว" },
+    ],
+  },
+  {
     version: "0.26.0",
     date: "2026-07-13",
     title: "รองรับสเกลหลายเซิร์ฟเวอร์: rate limit แบบกระจายศูนย์ (Upstash)",

@@ -288,7 +288,7 @@ export default function Studio({ projectId }: { projectId: string }) {
           rtChannelRef.current?.send({
             type: "broadcast",
             event: "updated",
-            payload: { from: clientIdRef.current },
+            payload: { from: clientIdRef.current, name: nameRef.current },
           });
         })
         .catch((e) => {
@@ -1359,13 +1359,18 @@ export default function Studio({ projectId }: { projectId: string }) {
       .on("broadcast", { event: "updated" }, ({ payload }) => {
         if (!payload || payload.from === clientIdRef.current) return; // our own
         if (rtReloadTimer.current) clearTimeout(rtReloadTimer.current);
+        const who = (payload.name as string) || "เพื่อนร่วมทีม";
         rtReloadTimer.current = setTimeout(() => {
           // Re-checked at fire time: state can change during the debounce.
           if (streamingRef.current || abortRef.current || saveTimer.current) return;
           void getProject(projectId).then((p) => {
             if (!p) return;
+            // Only surface the sync when it actually brings in a newer version —
+            // so the collaborator's edit doesn't change the screen silently.
+            const changed = p.updatedAt !== projectRef.current?.updatedAt;
             projectRef.current = p;
             setProject(p);
+            if (changed) toast.info(`🔄 ${who} อัปเดตโปรเจกต์`, { description: "ดึงเวอร์ชันล่าสุดเข้ามาให้แล้ว" });
           });
         }, 400);
       })

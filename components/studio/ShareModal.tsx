@@ -11,6 +11,7 @@ import {
   listInvites,
   listMembers,
   removeMember,
+  renewShareLink,
   revokeInvite,
   setShareLink,
   updateMemberRole,
@@ -28,6 +29,7 @@ export default function ShareModal({ projectId, onClose }: ShareModalProps) {
   // Public link state
   const [linkToken, setLinkToken] = useState<string | null>(null);
   const [linkRole, setLinkRole] = useState<ShareRole>("viewer");
+  const [linkExpiresAt, setLinkExpiresAt] = useState<string | null>(null);
   const [linkBusy, setLinkBusy] = useState(false);
   const [copied, setCopied] = useState(false);
 
@@ -44,6 +46,10 @@ export default function ShareModal({ projectId, onClose }: ShareModalProps) {
   // Error
   const [error, setError] = useState<string | null>(null);
 
+  // "Now" snapshotted once at mount — used to render the link's remaining days.
+  // A lazy initializer keeps the render pure (no Date.now() during render).
+  const [nowMs] = useState(() => Date.now());
+
   // Load initial data
   useEffect(() => {
     let cancelled = false;
@@ -59,8 +65,10 @@ export default function ShareModal({ projectId, onClose }: ShareModalProps) {
         if (tokenResult) {
           setLinkToken(tokenResult.token);
           setLinkRole(tokenResult.role);
+          setLinkExpiresAt(tokenResult.expiresAt);
         } else {
           setLinkToken(null);
+          setLinkExpiresAt(null);
         }
         setMembers(memberList);
         setInvites(inviteList);
@@ -77,6 +85,8 @@ export default function ShareModal({ projectId, onClose }: ShareModalProps) {
     try {
       const tok = await setShareLink(projectId, linkRole);
       setLinkToken(tok);
+      const fresh = await getShareToken(projectId);
+      setLinkExpiresAt(fresh?.expiresAt ?? null);
     } catch (e) {
       setError(e instanceof Error ? e.message : "สร้างลิงก์ไม่สำเร็จ");
     } finally {
@@ -90,8 +100,22 @@ export default function ShareModal({ projectId, onClose }: ShareModalProps) {
     try {
       await disableShareLink(projectId);
       setLinkToken(null);
+      setLinkExpiresAt(null);
     } catch (e) {
       setError(e instanceof Error ? e.message : "ปิดลิงก์ไม่สำเร็จ");
+    } finally {
+      setLinkBusy(false);
+    }
+  }
+
+  async function handleRenewLink() {
+    setLinkBusy(true);
+    setError(null);
+    try {
+      const expiresAt = await renewShareLink(projectId);
+      setLinkExpiresAt(expiresAt);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "ต่ออายุไม่สำเร็จ");
     } finally {
       setLinkBusy(false);
     }
@@ -169,6 +193,9 @@ export default function ShareModal({ projectId, onClose }: ShareModalProps) {
   }
 
   const joinUrl = linkToken ? `${location.origin}/join/${linkToken}` : null;
+  const expMs = linkExpiresAt ? new Date(linkExpiresAt).getTime() : null;
+  const expired = expMs !== null && expMs < nowMs;
+  const daysLeft = expMs !== null ? Math.max(0, Math.ceil((expMs - nowMs) / 86_400_000)) : null;
 
   return (
     <Overlay open onClose={onClose} placement="center" blur>
@@ -259,6 +286,31 @@ export default function ShareModal({ projectId, onClose }: ShareModalProps) {
                 >
                   <Copy size={12} className={copied ? "text-go" : ""} />
                 </button>
+              </div>
+            )}
+
+            {joinUrl && (
+              <div className="flex items-center justify-between gap-2">
+                <span
+                  className={`text-[11px] ${
+                    expired ? "text-halt" : daysLeft !== null && daysLeft <= 5 ? "text-amber-300" : "text-chalk-dim"
+                  }`}
+                >
+                  {expMs === null
+                    ? "ลิงก์นี้ไม่มีวันหมดอายุ"
+                    : expired
+                      ? "ลิงก์หมดอายุแล้ว — ต่ออายุเพื่อให้ใช้ได้อีก"
+                      : `หมดอายุใน ${daysLeft} วัน · ${new Date(expMs).toLocaleDateString("th-TH")}`}
+                </span>
+                {expMs !== null && (
+                  <button
+                    onClick={() => void handleRenewLink()}
+                    disabled={linkBusy}
+                    className="shrink-0 rounded-sm border border-night-edge px-2 py-1 text-[11px] text-chalk-dim transition hover:border-shine hover:text-chalk disabled:opacity-40"
+                  >
+                    ต่ออายุ 30 วัน
+                  </button>
+                )}
               </div>
             )}
           </section>

@@ -7,15 +7,46 @@ function token(): string {
   return crypto.randomUUID().replace(/-/g, "");
 }
 
+/** Free-tier share links expire after 30 days; paid plans never expire (null). */
+const SHARE_TTL_DAYS = 30;
+
+/** Expiry to stamp on a NEW/renewed share link, based on the caller's plan.
+ *  Returns an ISO timestamp for free (and unknown) plans, null for paid. */
+async function shareExpiryForCaller(): Promise<string | null> {
+  const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return new Date(Date.now() + SHARE_TTL_DAYS * 86_400_000).toISOString();
+  const { data: profile } = await supabase
+    .from("fittbuilder_profiles")
+    .select("plan")
+    .eq("id", user.id)
+    .maybeSingle();
+  if ((profile?.plan ?? "free") !== "free") return null; // paid → no expiry
+  return new Date(Date.now() + SHARE_TTL_DAYS * 86_400_000).toISOString();
+}
+
 export async function setShareLink(projectId: string, role: ShareRole): Promise<string> {
   const supabase = createClient();
   const tok = token();
   const { error } = await supabase
     .from("fittbuilder_projects")
-    .update({ share_token: tok, share_role: role })
+    .update({ share_token: tok, share_role: role, share_expires_at: await shareExpiryForCaller() })
     .eq("id", projectId);
   if (error) throw error;
   return tok;
+}
+
+/** Extend an existing share link by another window WITHOUT rotating the token,
+ *  so links already handed out keep working. Returns the new expiry (null=paid). */
+export async function renewShareLink(projectId: string): Promise<string | null> {
+  const supabase = createClient();
+  const expiresAt = await shareExpiryForCaller();
+  const { error } = await supabase
+    .from("fittbuilder_projects")
+    .update({ share_expires_at: expiresAt })
+    .eq("id", projectId);
+  if (error) throw error;
+  return expiresAt;
 }
 
 export async function disableShareLink(projectId: string): Promise<void> {
@@ -29,16 +60,20 @@ export async function disableShareLink(projectId: string): Promise<void> {
 
 export async function getShareToken(
   projectId: string
-): Promise<{ token: string; role: ShareRole } | null> {
+): Promise<{ token: string; role: ShareRole; expiresAt: string | null } | null> {
   const supabase = createClient();
   const { data, error } = await supabase
     .from("fittbuilder_projects")
-    .select("share_token, share_role")
+    .select("share_token, share_role, share_expires_at")
     .eq("id", projectId)
     .maybeSingle();
   if (error) throw error;
   if (!data?.share_token || !data.share_role) return null;
-  return { token: data.share_token, role: data.share_role as ShareRole };
+  return {
+    token: data.share_token,
+    role: data.share_role as ShareRole,
+    expiresAt: data.share_expires_at ?? null,
+  };
 }
 
 export async function listMembers(projectId: string): Promise<ProjectMember[]> {

@@ -23,6 +23,15 @@ export const CHANGE_BADGE: Record<ChangeType, { label: string; className: string
 // Newest first. SemVer: fix → PATCH, feature → MINOR, breaking → MAJOR.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.25.0",
+    date: "2026-07-13",
+    title: "ลิงก์แชร์สาธารณะหมดอายุใน 30 วัน (แพลนฟรี)",
+    items: [
+      { type: "feature", text: "ลิงก์แชร์แบบ “ใครมีลิงก์ก็เข้าได้” ของแพลนฟรีจะหมดอายุใน 30 วัน — เปิดลิงก์ที่หมดอายุจะบอกให้ขอลิงก์ใหม่ (คำเชิญทางอีเมลหมดอายุ 14 วันเหมือนเดิม · แพลนที่ไม่จำกัดลิงก์ไม่หมดอายุ)" },
+      { type: "improvement", text: "หน้าต่างแชร์บอกวันหมดอายุของลิงก์ (“หมดอายุใน N วัน”) และมีปุ่ม “ต่ออายุ 30 วัน” ที่ยืดอายุได้โดยไม่เปลี่ยนลิงก์เดิม — ลิงก์ที่แจกไปแล้วยังใช้ได้ต่อ" },
+    ],
+  },
+  {
     version: "0.24.0",
     date: "2026-07-13",
     title: "โควตาสร้างเดโมแพลนฟรี 5 ครั้ง/เดือน",

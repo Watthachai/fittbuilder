@@ -35,10 +35,12 @@ export async function joinProject(
   // ── 1. Share-link token? ────────────────────────────────────────────────
   const { data: proj } = await admin
     .from("fittbuilder_projects")
-    .select("id, share_role")
+    .select("id, share_role, share_expires_at")
     .eq("share_token", token)
     .maybeSingle();
   if (proj?.share_role) {
+    if (proj.share_expires_at && new Date(proj.share_expires_at) < new Date())
+      return "ลิงก์แชร์นี้หมดอายุแล้ว — ขอลิงก์ใหม่จากเจ้าของโปรเจกต์";
     const { data: pid, error } = await supabase.rpc("fittbuilder_join_by_token", {
       tok: token,
       uid: user.id,

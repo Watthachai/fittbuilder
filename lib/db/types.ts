@@ -80,6 +80,7 @@ export interface Database {
           messages: Json;
           share_token: string | null;
           share_role: string | null;
+          share_expires_at: string | null;
           skill_id: string | null;
           org_id: string | null;
           runner_last: Json | null;
@@ -97,6 +98,7 @@ export interface Database {
           messages?: Json;
           share_token?: string | null;
           share_role?: string | null;
+          share_expires_at?: string | null;
           skill_id?: string | null;
           org_id?: string | null;
           runner_last?: Json | null;
@@ -114,6 +116,7 @@ export interface Database {
           messages?: Json;
           share_token?: string | null;
           share_role?: string | null;
+          share_expires_at?: string | null;
           skill_id?: string | null;
           org_id?: string | null;
           runner_last?: Json | null;

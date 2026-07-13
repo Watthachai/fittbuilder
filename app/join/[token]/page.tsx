@@ -33,13 +33,17 @@ export default async function JoinPage({
 
   const { data: proj } = await admin
     .from("fittbuilder_projects")
-    .select("name, share_role")
+    .select("name, share_role, share_expires_at")
     .eq("share_token", token)
     .maybeSingle();
 
   if (proj?.share_role) {
-    entityName = proj.name;
-    role = proj.share_role;
+    if (proj.share_expires_at && new Date(proj.share_expires_at) < new Date()) {
+      invalidReason = "ลิงก์แชร์นี้หมดอายุแล้ว";
+    } else {
+      entityName = proj.name;
+      role = proj.share_role;
+    }
   } else {
     const { data: invite } = await admin
       .from("fittbuilder_project_invites")

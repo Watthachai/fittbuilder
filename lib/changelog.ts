@@ -23,6 +23,15 @@ export const CHANGE_BADGE: Record<ChangeType, { label: string; className: string
 // Newest first. SemVer: fix → PATCH, feature → MINOR, breaking → MAJOR.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.24.0",
+    date: "2026-07-13",
+    title: "โควตาสร้างเดโมแพลนฟรี 5 ครั้ง/เดือน",
+    items: [
+      { type: "feature", text: "แพลนฟรีสร้างเดโมได้ 5 ครั้ง/เดือน — ก่อนเรียก AI ระบบเช็คโควตา ถ้าใช้ครบจะขึ้นข้อความบอกชัดว่าใช้ครบแล้วและจะรีเซ็ตต้นเดือนหน้า (นับเฉพาะการสร้าง/แก้เดโม kind=generate ต่อผู้ใช้ ต่อเดือน)" },
+      { type: "feature", text: "แถบบนมีชิป “เหลือ N/5” บอกโควตาที่เหลือของเดือนนี้ — เปลี่ยนเป็นสีเหลือง/แดงเมื่อใกล้หมด/หมด (แพลนที่ไม่จำกัดจะไม่โชว์ชิป)" },
+    ],
+  },
+  {
     version: "0.23.0",
     date: "2026-07-13",
     title: "เชิญทีมเข้า workspace — สมาชิกเห็นทุกโปรเจกต์ร่วมกัน",

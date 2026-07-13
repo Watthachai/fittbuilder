@@ -22,6 +22,7 @@ import { downloadZip } from "@/lib/zip";
 import { downloadFittcoreSpec, type FittcoreRunnerResult } from "@/lib/fittcore";
 import FittcoreExportModal from "./FittcoreExportModal";
 import ProjectPresence from "./ProjectPresence";
+import QuotaChip from "./QuotaChip";
 import TeamChat from "./TeamChat";
 
 interface TopBarProps {
@@ -190,6 +191,7 @@ export default function TopBar({
           <span className="hidden lg:inline">เชิญทีม</span>
         </button>
       )}
+      <QuotaChip refreshKey={project.messages.length} />
       {project.runnerLast && (
         <span
           title={`ส่งไป Code Runner แล้ว · build #${project.runnerLast.buildNo} · branch ${project.runnerLast.branch} · ${project.runnerLast.tag} · ${new Date(project.runnerLast.sentAt).toLocaleString("th-TH")}`}

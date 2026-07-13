@@ -74,3 +74,56 @@ export async function recordUsage(params: {
     console.error("[ai-usage] record failed:", e);
   }
 }
+
+/** Free-plan allowance: generations (kind='generate') per calendar month. */
+export const FREE_MONTHLY_GENERATIONS = 5;
+
+export interface GenerationQuota {
+  plan: string;
+  used: number;
+  /** null = unlimited (paid plans / unauthenticated). */
+  limit: number | null;
+  remaining: number | null;
+  allowed: boolean;
+}
+
+/** ISO timestamp for 00:00 UTC on the 1st of the current month. */
+function startOfMonthIso(): string {
+  const now = new Date();
+  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)).toISOString();
+}
+
+/**
+ * The caller's generation allowance for THIS month. Free plan is capped at
+ * {@link FREE_MONTHLY_GENERATIONS} kind='generate' calls; any other plan (or an
+ * unauthenticated caller, which the per-IP rate limit already covers) is
+ * unlimited. Counts the ledger via the service role (ai_usage is RLS deny-all).
+ * Never throws — on any read failure it fails OPEN (allowed) so metering can't
+ * take generation down.
+ */
+export async function checkGenerationQuota(userId: string | null): Promise<GenerationQuota> {
+  if (!userId) return { plan: "anon", used: 0, limit: null, remaining: null, allowed: true };
+  try {
+    const admin = createAdminClient();
+    const { data: profile } = await admin
+      .from("fittbuilder_profiles")
+      .select("plan")
+      .eq("id", userId)
+      .maybeSingle();
+    const plan = profile?.plan ?? "free";
+    if (plan !== "free") return { plan, used: 0, limit: null, remaining: null, allowed: true };
+
+    const { count } = await admin
+      .from("fittbuilder_ai_usage")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", userId)
+      .eq("kind", "generate")
+      .gte("created_at", startOfMonthIso());
+    const used = count ?? 0;
+    const limit = FREE_MONTHLY_GENERATIONS;
+    return { plan, used, limit, remaining: Math.max(0, limit - used), allowed: used < limit };
+  } catch (e) {
+    console.error("[ai-usage] quota check failed (failing open):", e);
+    return { plan: "unknown", used: 0, limit: null, remaining: null, allowed: true };
+  }
+}

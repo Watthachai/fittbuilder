@@ -15,7 +15,7 @@ import {
 import { clientIp, rateLimit } from "@/lib/rate-limit";
 import { PRESET_IDS } from "@/lib/presets";
 import { getProjectOrgDnaContext } from "@/lib/org-context";
-import { resolveSkill } from "@/lib/skills/db";
+import { resolveSkillForProject } from "@/lib/skills/org-resolve";
 import type { GenerateEvent } from "@/lib/types";
 
 // Generation streams file-by-file, so a longer single pass is fine — partial
@@ -100,7 +100,7 @@ export async function POST(request: Request) {
   // The code-builder SKILL.md body is the Build-phase persona; fall back to the
   // built-in default if the file is unreadable so generation still works.
   const persona = (await getAgent("code-builder").catch(() => null))?.body;
-  const skill = await resolveSkill(body.skillId);
+  const skill = await resolveSkillForProject(body.skillId, body.projectId);
   const baseSystem = iteration
     ? buildIterationSystemPrompt(persona)
     : buildGenerationSystemPrompt(

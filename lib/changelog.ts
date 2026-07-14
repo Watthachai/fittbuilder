@@ -23,6 +23,14 @@ export const CHANGE_BADGE: Record<ChangeType, { label: string; className: string
 // Newest first. SemVer: fix → PATCH, feature → MINOR, breaking → MAJOR.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.29.0",
+    date: "2026-07-14",
+    title: "AI Domain Skill Studio — workspace สร้างผู้เชี่ยวชาญ AI ของตัวเองจาก Org DNA",
+    items: [
+      { type: "feature", text: "แต่ละ workspace สร้างผู้เชี่ยวชาญ (specialist) เฉพาะของตัวเองได้จาก Org DNA — AI จะวิเคราะห์ข้อมูลองค์กรแล้วปั้น persona/ความรู้เฉพาะทาง/ชุดคำถามให้อัตโนมัติ เดโมทุกอันที่สร้างใน workspace นั้นจะถูกขับเคลื่อนโดยผู้เชี่ยวชาญนี้เองโดยไม่ต้องเลือกเอง และมีชิป “⚡ ขับเคลื่อนโดย <ชื่อผู้เชี่ยวชาญ>” โชว์บนแถบเครื่องมือของ Studio ให้เห็นชัดว่ากำลังใช้ผู้เชี่ยวชาญตัวไหนอยู่" },
+    ],
+  },
+  {
     version: "0.28.0",
     date: "2026-07-14",
     title: "กล่องคำเชิญในแอป — กดรับได้เลยไม่ต้องรออีเมล",

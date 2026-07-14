@@ -12,6 +12,7 @@ import {
   Package,
   Rocket,
   Share2,
+  Sparkles,
   Undo2,
   Users,
 } from "lucide-react";
@@ -20,6 +21,7 @@ import DnaMark from "@/components/ui/DnaMark";
 import type { OrgRecord, ProjectRecord } from "@/lib/types";
 import { downloadZip } from "@/lib/zip";
 import { downloadFittcoreSpec, type FittcoreRunnerResult } from "@/lib/fittcore";
+import { useOrgSkillName } from "@/lib/skills/use-org-skill";
 import FittcoreExportModal from "./FittcoreExportModal";
 import ProjectPresence from "./ProjectPresence";
 import QuotaChip from "./QuotaChip";
@@ -72,6 +74,7 @@ export default function TopBar({
   const [shared, setShared] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
   const [runnerOpen, setRunnerOpen] = useState(false);
+  const specialist = useOrgSkillName(project.orgId);
 
   const share = async () => {
     if (!project.files) return;
@@ -199,6 +202,14 @@ export default function TopBar({
         >
           <Rocket size={11} />
           <span className="hidden lg:inline">Code Runner</span> #{project.runnerLast.buildNo}
+        </span>
+      )}
+      {specialist && (
+        <span
+          title={`เดโมใน workspace นี้ขับเคลื่อนโดยผู้เชี่ยวชาญ "${specialist}"`}
+          className="inline-flex shrink-0 items-center gap-1 rounded-full border border-shine/40 bg-shine/10 px-2 py-1 font-mono text-[10px] text-shine"
+        >
+          <Sparkles size={11} /> <span className="hidden lg:inline">ขับเคลื่อนโดย</span> {specialist}
         </span>
       )}
       <div className="relative shrink-0">

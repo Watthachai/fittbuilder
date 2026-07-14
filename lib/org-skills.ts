@@ -8,9 +8,10 @@ import type { GeneratedSkill } from "@/lib/types";
 const SELECT =
   "id, slug, name, name_en, tagline, icon, keywords, persona, domain_knowledge, build_guidance, seed_data, design_hints, question_bank, status, created_by, created_at, updated_at, org_id, source";
 
-/** Deterministic slug for a workspace's single v1 specialist. */
+/** Deterministic slug for a workspace's single v1 specialist. Uses the FULL org
+ *  id so two orgs can never collide (a truncated id is only 32 bits). */
 export function orgSkillSlug(orgId: string): string {
-  return `org-${orgId.slice(0, 8)}`;
+  return `org-${orgId}`;
 }
 
 export async function getOrgSkill(orgId: string): Promise<SkillTemplate | null> {

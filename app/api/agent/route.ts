@@ -8,6 +8,7 @@ import { isBuildPhase, isPhaseId } from "@/lib/phases";
 import { buildAgentSystemPrompt } from "@/lib/prompts";
 import { getProjectOrgDnaContext } from "@/lib/org-context";
 import { resolveSkill } from "@/lib/skills/db";
+import { createClient } from "@/lib/supabase/server";
 import { clientIp, rateLimit } from "@/lib/rate-limit";
 import type { AgentEvent } from "@/lib/types";
 
@@ -74,6 +75,21 @@ export async function POST(request: Request) {
     );
   }
 
+  // Authorize projectId against the caller before deriving Org DNA context from
+  // it (getProjectOrgDnaContext reads with the RLS-bypassing admin client). The
+  // specialist here is resolved by skillId only (resolveSkill), not projectId, so
+  // only the Org DNA path needs the guard. An inaccessible project → context off.
+  let ctxProjectId: string | null = null;
+  if (body.projectId) {
+    const supabase = await createClient();
+    const { data: accessible } = await supabase
+      .from("fittbuilder_projects")
+      .select("id")
+      .eq("id", body.projectId)
+      .maybeSingle();
+    if (accessible) ctxProjectId = body.projectId;
+  }
+
   const agent = await getAgentForPhase(body.phase);
   const baseSystem = buildAgentSystemPrompt(
     agent.body,
@@ -82,7 +98,7 @@ export async function POST(request: Request) {
     body.express
   );
   // Workspace Org DNA as context so the interview/docs fit the org's reality.
-  const orgCtx = body.projectId ? await getProjectOrgDnaContext(body.projectId) : "";
+  const orgCtx = ctxProjectId ? await getProjectOrgDnaContext(ctxProjectId) : "";
   // Treat the DNA as already-known facts: don't re-ask what it (or the user's own
   // messages) already answers, and never open with generic org/business questions.
   const useDnaRule = orgCtx
@@ -109,7 +125,7 @@ export async function POST(request: Request) {
   let usage: TokenUsage | null = null;
   const userId = await currentUserId();
   after(() =>
-    void recordUsage({ userId, projectId: body.projectId ?? null, kind: "agent", usage })
+    void recordUsage({ userId, projectId: ctxProjectId, kind: "agent", usage })
   );
 
   const stream = new ReadableStream<Uint8Array>({

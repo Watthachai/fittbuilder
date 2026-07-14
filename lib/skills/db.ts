@@ -3,13 +3,14 @@ import { getSkill, SKILLS } from "./registry";
 import { rowToSkillTemplate, type SkillTemplateRow } from "./db-mapper";
 import type { SkillTemplate } from "./types";
 
-/** Published custom templates (RLS lets any authenticated user read published rows). */
+/** Published GLOBAL templates (org_id null). Org specialists are never returned here. */
 export async function listPublishedSkills(): Promise<SkillTemplate[]> {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("fittbuilder_skill_templates")
     .select("*")
-    .eq("status", "published");
+    .eq("status", "published")
+    .is("org_id", null);
   if (error) {
     console.error("[skills/db] listPublishedSkills failed:", error.message);
     return [];
@@ -17,7 +18,7 @@ export async function listPublishedSkills(): Promise<SkillTemplate[]> {
   return ((data ?? []) as unknown as SkillTemplateRow[]).map(rowToSkillTemplate);
 }
 
-/** A single published custom template by slug. */
+/** A single published GLOBAL template by slug (org_id null). Never resolves an org specialist. */
 export async function getSkillFromDb(slug: string): Promise<SkillTemplate | null> {
   const supabase = await createClient();
   const { data } = await supabase
@@ -25,6 +26,7 @@ export async function getSkillFromDb(slug: string): Promise<SkillTemplate | null
     .select("*")
     .eq("slug", slug)
     .eq("status", "published")
+    .is("org_id", null)
     .maybeSingle();
   return data ? rowToSkillTemplate(data as unknown as SkillTemplateRow) : null;
 }

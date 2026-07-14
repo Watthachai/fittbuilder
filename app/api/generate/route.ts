@@ -16,6 +16,7 @@ import { clientIp, rateLimit } from "@/lib/rate-limit";
 import { PRESET_IDS } from "@/lib/presets";
 import { getProjectOrgDnaContext } from "@/lib/org-context";
 import { resolveSkillForProject } from "@/lib/skills/org-resolve";
+import { createClient } from "@/lib/supabase/server";
 import type { GenerateEvent } from "@/lib/types";
 
 // Generation streams file-by-file, so a longer single pass is fine — partial
@@ -96,11 +97,27 @@ export async function POST(request: Request) {
     );
   }
 
+  // Authorize projectId against the caller BEFORE using it for context lookups
+  // that read with the RLS-bypassing admin client (specialist + Org DNA). Without
+  // this, a caller could pass a victim's projectId and fold that org's specialist
+  // and Org DNA into their own generation. The user-scoped client enforces RLS;
+  // an inaccessible project is treated as absent (context off), never a 500.
+  let ctxProjectId: string | null = null;
+  if (body.projectId) {
+    const supabase = await createClient();
+    const { data: accessible } = await supabase
+      .from("fittbuilder_projects")
+      .select("id")
+      .eq("id", body.projectId)
+      .maybeSingle();
+    if (accessible) ctxProjectId = body.projectId;
+  }
+
   const iteration = Boolean(body.iterationMode && body.previousFiles);
   // The code-builder SKILL.md body is the Build-phase persona; fall back to the
   // built-in default if the file is unreadable so generation still works.
   const persona = (await getAgent("code-builder").catch(() => null))?.body;
-  const skill = await resolveSkillForProject(body.skillId, body.projectId);
+  const skill = await resolveSkillForProject(body.skillId, ctxProjectId);
   const baseSystem = iteration
     ? buildIterationSystemPrompt(persona)
     : buildGenerationSystemPrompt(
@@ -114,7 +131,7 @@ export async function POST(request: Request) {
         skill
       );
   // Workspace Org DNA shapes the build (flow/structure/roles) when present.
-  const orgCtx = body.projectId ? await getProjectOrgDnaContext(body.projectId) : "";
+  const orgCtx = ctxProjectId ? await getProjectOrgDnaContext(ctxProjectId) : "";
   const system = orgCtx ? `${baseSystem}\n\n${orgCtx}` : baseSystem;
   let user = iteration
     ? buildIterationUserPrompt(body.prompt, body.previousFiles!)
@@ -127,7 +144,7 @@ export async function POST(request: Request) {
 
   let usage: TokenUsage | null = null;
   after(() =>
-    void recordUsage({ userId, projectId: body.projectId ?? null, kind: "generate", usage })
+    void recordUsage({ userId, projectId: ctxProjectId, kind: "generate", usage })
   );
 
   const stream = new ReadableStream<Uint8Array>({

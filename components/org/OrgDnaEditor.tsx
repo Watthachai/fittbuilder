@@ -12,6 +12,7 @@ import { confirm } from "@/lib/confirm";
 import { toast } from "@/lib/toast";
 import type { ChatAttachmentInput, OrgDna, OrgDnaVersion } from "@/lib/types";
 import ColorIconPicker from "./ColorIconPicker";
+import DomainSkillStudio from "./DomainSkillStudio";
 import SourceViewer from "./SourceViewer";
 import WorkspaceMembers from "./WorkspaceMembers";
 
@@ -275,6 +276,9 @@ export default function OrgDnaEditor({ orgId }: { orgId: string }) {
 
         {/* Team members + invites */}
         <WorkspaceMembers orgId={orgId} />
+
+        {/* Domain specialist for this workspace */}
+        <DomainSkillStudio orgId={orgId} />
 
         <p className="mt-5 text-sm leading-relaxed text-chalk-dim">
           ใส่ DNA ขององค์กรเพื่อให้ AI ออกแบบ spec/demo ให้เข้ากับวิธีทำงานจริงของคุณ —

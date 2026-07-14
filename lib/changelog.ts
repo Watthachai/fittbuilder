@@ -23,6 +23,14 @@ export const CHANGE_BADGE: Record<ChangeType, { label: string; className: string
 // Newest first. SemVer: fix → PATCH, feature → MINOR, breaking → MAJOR.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.30.2",
+    date: "2026-07-14",
+    title: "ร่างผู้เชี่ยวชาญที่ยังไม่บันทึกไม่หายแล้ว",
+    items: [
+      { type: "improvement", text: "ปั้นผู้เชี่ยวชาญประจำองค์กร: ร่างที่ AI สร้างแต่ยังไม่กด “บันทึก” จะถูกเก็บไว้ให้อัตโนมัติ — ออกจากหน้า/รีเฟรชแล้วกลับมา ร่างยังอยู่ (กู้คืนให้พร้อมกดบันทึก) ไม่ต้อง gen ใหม่ · มีปุ่ม “ล้างร่าง” ถ้าอยากทิ้ง (เก็บแยกต่อ workspace)" },
+    ],
+  },
+  {
     version: "0.30.1",
     date: "2026-07-14",
     title: "แก้บั๊ก: ล็อกอินจาก localhost/UAT เด้งไป production",

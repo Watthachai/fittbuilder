@@ -17,25 +17,57 @@ export default function DomainSkillStudio({ orgId }: { orgId: string }) {
   const [busy, setBusy] = useState(false);
   const [report, setReport] = useState(""); // streamed research text (the "reveal")
   const [draft, setDraft] = useState<GeneratedSkill | null>(null); // parsed result to save
+  const [restored, setRestored] = useState(false); // draft recovered from storage
   const abortRef = useRef<AbortController | null>(null);
   const revealRef = useRef<HTMLDivElement | null>(null);
+
+  // Per-workspace key for an UNSAVED generated draft (survives reload/navigation).
+  const draftKey = `fitt:orgskill-draft:${orgId}`;
+
+  function clearDraftStore() {
+    try {
+      localStorage.removeItem(draftKey);
+    } catch {
+      /* storage unavailable — nothing to clear */
+    }
+  }
 
   // Auto-scroll the reveal panel to the bottom as new tokens arrive.
   useEffect(() => {
     revealRef.current?.scrollTo({ top: revealRef.current.scrollHeight, behavior: "auto" });
   }, [report]);
 
+  // Load the saved specialist, then recover any UNSAVED draft from storage so a
+  // forgotten Save doesn't lose the generation on reload/navigation. All setState
+  // runs after the `await` (async continuation) — never synchronously in the effect.
   useEffect(() => {
     let cancelled = false;
-    void getOrgSkill(orgId)
-      .then((s) => {
-        if (!cancelled) setExisting(s);
-      })
-      .catch(() => {});
+    (async () => {
+      let saved: SkillTemplate | null = null;
+      try {
+        saved = await getOrgSkill(orgId);
+      } catch {
+        /* ignore load failure — treat as no specialist */
+      }
+      if (cancelled) return;
+      setExisting(saved);
+      try {
+        const raw = localStorage.getItem(draftKey);
+        if (!raw) return;
+        const cached = JSON.parse(raw) as { draft?: GeneratedSkill; report?: string };
+        if (cached?.draft && !cancelled) {
+          setDraft(cached.draft);
+          setReport(cached.report ?? "");
+          setRestored(true);
+        }
+      } catch {
+        /* corrupt or unavailable storage — nothing to recover */
+      }
+    })();
     return () => {
       cancelled = true;
     };
-  }, [orgId]);
+  }, [orgId, draftKey]);
 
   // Abort any in-flight stream when the card unmounts.
   useEffect(() => () => abortRef.current?.abort(), []);
@@ -45,13 +77,28 @@ export default function DomainSkillStudio({ orgId }: { orgId: string }) {
     setBusy(true);
     setReport("");
     setDraft(null);
+    setRestored(false);
+    clearDraftStore(); // discard any prior unsaved draft — a fresh gen replaces it
     const ac = new AbortController();
     abortRef.current = ac;
+    let full = ""; // local accumulator so the persisted report isn't a stale closure
     try {
       for await (const ev of streamOrgSkill({ orgId, brief: brief.trim() || undefined }, ac.signal)) {
-        if (ev.type === "text") setReport((r) => r + ev.content);
-        else if (ev.type === "done") setDraft(ev.template ?? null);
-        else if (ev.type === "error") throw new Error(ev.message);
+        if (ev.type === "text") {
+          full += ev.content;
+          setReport((r) => r + ev.content);
+        } else if (ev.type === "done") {
+          const tmpl = ev.template ?? null;
+          setDraft(tmpl);
+          // Persist the unsaved draft so leaving/reloading before Save doesn't lose it.
+          if (tmpl) {
+            try {
+              localStorage.setItem(draftKey, JSON.stringify({ draft: tmpl, report: full }));
+            } catch {
+              /* storage unavailable — draft just won't survive a reload */
+            }
+          }
+        } else if (ev.type === "error") throw new Error(ev.message);
         // ev.type === "thought": research chatter — not surfaced in this card.
       }
     } catch (e) {
@@ -73,10 +120,19 @@ export default function DomainSkillStudio({ orgId }: { orgId: string }) {
       setExisting(saved);
       setDraft(null);
       setReport("");
+      setRestored(false);
+      clearDraftStore();
       toast.success(`บันทึกผู้เชี่ยวชาญ "${saved.name}" แล้ว`);
     } catch (e) {
       toast.error("บันทึกไม่สำเร็จ", { description: e instanceof Error ? e.message : undefined });
     }
+  }
+
+  function discardDraft() {
+    setDraft(null);
+    setReport("");
+    setRestored(false);
+    clearDraftStore();
   }
 
   async function remove() {
@@ -164,7 +220,8 @@ export default function DomainSkillStudio({ orgId }: { orgId: string }) {
       {(busy || report) && (
         <div className="mt-3">
           <p className="mb-1.5 flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-wider text-chalk-dim">
-            <Sparkles size={11} className="text-shine" /> กำลังค้นคว้าและร่างผู้เชี่ยวชาญ
+            <Sparkles size={11} className="text-shine" />{" "}
+            {busy ? "กำลังค้นคว้าและร่างผู้เชี่ยวชาญ" : "ผลการค้นคว้า / ร่างผู้เชี่ยวชาญ"}
           </p>
           <span className="sr-only" aria-live="polite">
             {busy ? "กำลังค้นคว้าและร่างผู้เชี่ยวชาญ…" : draft ? "ร่างเสร็จแล้ว" : ""}
@@ -189,13 +246,23 @@ export default function DomainSkillStudio({ orgId }: { orgId: string }) {
         <div className="mt-3 flex flex-wrap items-center gap-3 rounded-lg border border-go/30 bg-go/[0.06] p-3">
           <div className="min-w-0 flex-1">
             <p className="font-display text-sm font-semibold text-chalk">
-              ร่างเสร็จแล้ว{draft.name ? `: ${draft.name}` : ""}
+              {restored ? "กู้คืนร่างที่ยังไม่บันทึก" : "ร่างเสร็จแล้ว"}
+              {draft.name ? `: ${draft.name}` : ""}
             </p>
             <p className="mt-0.5 text-[12px] text-chalk-dim">
-              {draft.tagline || "ตรวจรายละเอียดด้านบน แล้วกดบันทึกเพื่อเปิดใช้งานใน workspace"}
+              {restored
+                ? "ร่างเดิมที่ยังไม่ได้บันทึก — กดบันทึกเพื่อเปิดใช้งาน หรือสร้างใหม่ทับ"
+                : draft.tagline || "ตรวจรายละเอียดด้านบน แล้วกดบันทึกเพื่อเปิดใช้งานใน workspace"}
               {draft.questionBank?.length ? ` · คำถามเชิงลึก ${draft.questionBank.length} ข้อ` : ""}
             </p>
           </div>
+          <button
+            onClick={discardDraft}
+            className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-night-edge px-3 py-2 text-[12px] text-chalk-dim transition hover:border-halt hover:text-halt"
+            title="ทิ้งร่างนี้ (ไม่บันทึก)"
+          >
+            ล้างร่าง
+          </button>
           <button
             onClick={() => void save()}
             className="inline-flex shrink-0 items-center gap-2 rounded-lg bg-shine px-4 py-2 font-display text-sm font-semibold text-night transition hover:brightness-110"

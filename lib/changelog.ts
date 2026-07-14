@@ -23,6 +23,14 @@ export const CHANGE_BADGE: Record<ChangeType, { label: string; className: string
 // Newest first. SemVer: fix → PATCH, feature → MINOR, breaking → MAJOR.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.30.0",
+    date: "2026-07-14",
+    title: "Living Org DNA — AI จับข้อมูลองค์กรจากแชทมาเก็บเข้า Org DNA ได้ในคลิกเดียว",
+    items: [
+      { type: "feature", text: "ระหว่างที่คุณคุยกับ AI ใน Studio ถ้ามีการเผยข้อมูลองค์กร (เช่น ใครมีอำนาจตัดสินใจ โครงสร้างทีม สิ่งจูงใจ หรือระบบข้อมูลข่าวสาร) AI จะสังเกตเห็นเองแล้วขึ้นชิปเสนอ “เพิ่มเข้า Org DNA” เหนือช่องพิมพ์ — กดยืนยันครั้งเดียวก็บันทึกเข้า Org DNA ของ workspace ทันที (แยกลงบล็อกให้ถูกหมวด และเก็บเป็นเวอร์ชันย้อนดูได้) ทำงานเฉพาะโปรเจกต์ที่ผูก workspace ไว้ ไม่รบกวนบทสนทนา และไม่บันทึกจนกว่าคุณจะกดยืนยันเอง" },
+    ],
+  },
+  {
     version: "0.29.0",
     date: "2026-07-14",
     title: "AI Domain Skill Studio — workspace สร้างผู้เชี่ยวชาญ AI ของตัวเองจาก Org DNA",

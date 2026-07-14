@@ -31,6 +31,7 @@ import DropOverlay from "@/components/ui/DropOverlay";
 import ImageLightbox from "@/components/ui/ImageLightbox";
 import SourceViewer from "@/components/org/SourceViewer";
 import type { AgentAction, ChatAttachmentInput, ChatMessage, LiveMessage, OrgDna } from "@/lib/types";
+import type { DnaCapture } from "@/lib/dna-capture";
 
 const CITE_LABELS: Record<string, string> = {
   ...Object.fromEntries(DNA_BLOCKS.map((b) => [b.key, b.th.split(" (")[0]])),
@@ -54,6 +55,7 @@ async function fileToAttachment(file: File): Promise<ChatAttachmentInput> {
   };
 }
 import DiffViewer from "./DiffViewer";
+import DnaCaptureChip from "./DnaCaptureChip";
 import Markdown from "./Markdown";
 
 /** Grouped action kinds → header icon + a count-aware Thai header label. */
@@ -94,6 +96,12 @@ interface ChatPanelProps {
   onTyping?: () => void;
   /** Workspace Org DNA — powers the source-citation chips on assistant turns. */
   orgDna?: OrgDna | null;
+  /** Living Org DNA: a pending capture the AI noticed, rendered as a confirm chip
+   *  above the input. Absent (or without the handlers) → no chip. */
+  dnaCapture?: DnaCapture | null;
+  onDnaAdd?: () => void;
+  onDnaDismiss?: () => void;
+  dnaSaving?: boolean;
 }
 
 /**
@@ -222,6 +230,10 @@ export default function ChatPanel({
   peers = [],
   onTyping,
   orgDna = null,
+  dnaCapture = null,
+  onDnaAdd,
+  onDnaDismiss,
+  dnaSaving = false,
 }: ChatPanelProps) {
   const [draft, setDraft] = useState("");
   const [picked, setPicked] = useState<string[]>([]);
@@ -500,6 +512,17 @@ export default function ChatPanel({
               {peers.filter((p) => p.mode === "typing").map((p) => p.name).join(", ")} กำลังพิมพ์…
             </p>
           )}
+        </div>
+      )}
+
+      {dnaCapture && onDnaAdd && onDnaDismiss && (
+        <div className="shrink-0">
+          <DnaCaptureChip
+            capture={dnaCapture}
+            onAdd={onDnaAdd}
+            onDismiss={onDnaDismiss}
+            busy={!!dnaSaving}
+          />
         </div>
       )}
 

@@ -43,7 +43,9 @@ import type {
   SpecAnswers,
 } from "@/lib/types";
 import { FITTCORE_TAG, type FittcoreRunnerResult } from "@/lib/fittcore";
-import { getOrg } from "@/lib/orgs";
+import { captureDnaFromText, type DnaCapture } from "@/lib/dna-capture";
+import { appendDnaBlock } from "@/lib/org-dna";
+import { getOrg, updateOrgDna } from "@/lib/orgs";
 import {
   isPreviewSupported,
   prepareWorkdir,
@@ -174,6 +176,10 @@ export default function Studio({ projectId }: { projectId: string }) {
   const [readOnly, setReadOnly] = useState(false);
   const [isOwner, setIsOwner] = useState(false);
   const [org, setOrg] = useState<OrgRecord | null>(null);
+  // Living Org DNA: a pending capture the AI noticed in the last message (one at a
+  // time — a newer capture replaces it), and whether the confirm→write is in flight.
+  const [dnaCapture, setDnaCapture] = useState<DnaCapture | null>(null);
+  const [dnaSaving, setDnaSaving] = useState(false);
   const [dnaOpen, setDnaOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved">("idle");
@@ -1241,12 +1247,35 @@ export default function Studio({ projectId }: { projectId: string }) {
     let cancelled = false;
     void (async () => {
       const o = orgId ? await getOrg(orgId) : null;
-      if (!cancelled) setOrg(o);
+      if (!cancelled) {
+        setOrg(o);
+        // Drop any pending capture from the previous workspace so a stale chip
+        // never crosses projects/orgs (a fresh capture arrives on the next turn).
+        setDnaCapture(null);
+      }
     })();
     return () => {
       cancelled = true;
     };
   }, [project?.orgId]);
+
+  /** Confirm a pending Living Org DNA capture: append it to its block (versioned),
+   *  persist to the org, and reflect it locally. Guarded by dnaSaving. */
+  const addDnaCapture = useCallback(async () => {
+    if (!dnaCapture || !org) return;
+    setDnaSaving(true);
+    try {
+      const next = appendDnaBlock(org.dna, dnaCapture.block, dnaCapture.snippet);
+      await updateOrgDna(org.id, next);
+      setOrg({ ...org, dna: next });
+      toast.success("เพิ่มเข้า Org DNA แล้ว");
+      setDnaCapture(null);
+    } catch (e) {
+      toast.error("เพิ่มไม่สำเร็จ", { description: e instanceof Error ? e.message : undefined });
+    } finally {
+      setDnaSaving(false);
+    }
+  }, [dnaCapture, org]);
 
   /** Attach/switch/detach this project's workspace from the Org DNA panel. Writes
    *  org_id directly (autosave omits it) so the next AI turn picks up the DNA. */
@@ -1621,6 +1650,16 @@ export default function Studio({ projectId }: { projectId: string }) {
               setAttachedPaths([]);
               if (inBuild) handleBuildSubmit(full, media);
               else void runAgent(full, undefined, undefined, media);
+              // Living Org DNA: fire-and-forget classification of the user's own
+              // message. Only when the project has a workspace and the message is
+              // substantive; never awaited so it can't block or disrupt the turn.
+              if (org && full.trim().length >= 12) {
+                void captureDnaFromText(full)
+                  .then((c) => {
+                    if (c) setDnaCapture(c);
+                  })
+                  .catch(() => {});
+              }
             }}
             onCancel={cancel}
             onViewDoc={previewPhaseDoc}
@@ -1628,6 +1667,10 @@ export default function Studio({ projectId }: { projectId: string }) {
             peers={[...aiPeers.values()]}
             onTyping={broadcastAiTyping}
             orgDna={org?.dna ?? null}
+            dnaCapture={dnaCapture}
+            onDnaAdd={() => void addDnaCapture()}
+            onDnaDismiss={() => setDnaCapture(null)}
+            dnaSaving={dnaSaving}
           />
         </div>
 

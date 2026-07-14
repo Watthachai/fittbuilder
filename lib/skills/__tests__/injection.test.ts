@@ -1,6 +1,6 @@
 import { expect, test } from "vitest";
 import { buildAgentSystemPrompt, buildGenerationSystemPrompt } from "@/lib/prompts";
-import { getSkill } from "@/lib/skills/registry";
+import { getSkill, SKILLS } from "@/lib/skills/registry";
 
 const erp = getSkill("erp")!;
 
@@ -27,4 +27,16 @@ test("Interview prompt injects persona + question bank + knowledge when a skill 
 test("Interview prompt omits the domain block when no skill", () => {
   const withoutSkill = buildAgentSystemPrompt("AGENT_BODY", {});
   expect(withoutSkill).not.toContain("บทบาทผู้เชี่ยวชาญโดเมน");
+});
+
+test("Executive Co-pilot is the flagship (first) and injects its framework library", () => {
+  expect(SKILLS[0].id).toBe("exec-copilot");
+  const skill = getSkill("exec-copilot")!;
+  const build = buildGenerationSystemPrompt("SPEC", "PERSONA", skill);
+  // The framework library and Human-in-the-Loop guardrail must survive edits.
+  expect(build).toContain("MECE");
+  expect(build).toContain("5 Whys");
+  expect(build).toContain("Human-in-the-Loop");
+  expect(build).toContain("Decision Matrix");
+  expect(build).toContain("CEO อนุมัติ"); // the approve-to-decide (HITL) button in seed/build
 });

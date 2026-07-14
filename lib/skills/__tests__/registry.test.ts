@@ -1,8 +1,8 @@
 import { expect, test } from "vitest";
 import { SKILLS, SKILL_IDS, getSkill, detectSkillByKeywords } from "@/lib/skills/registry";
 
-test("registry has the six v1 domains", () => {
-  expect(SKILL_IDS).toEqual(["erp", "crm", "ecommerce", "dashboard", "booking", "landing"]);
+test("registry lists the flagship first, then the v1 domains", () => {
+  expect(SKILL_IDS).toEqual(["exec-copilot", "erp", "crm", "ecommerce", "dashboard", "booking", "landing"]);
 });
 
 test("every template has the required fields populated", () => {
@@ -19,12 +19,25 @@ test("every template has the required fields populated", () => {
   }
 });
 
-test("ERP is the deep template (richest content + most questions)", () => {
+test("Executive Co-pilot is the flagship (richest content + a deep question set)", () => {
+  const flagship = getSkill("exec-copilot")!;
+  expect(SKILLS[0].id).toBe("exec-copilot");
+  expect(flagship.questionBank.length).toBeGreaterThanOrEqual(6);
+  // The flagship carries the most domain knowledge of any template.
+  const maxOther = Math.max(
+    ...SKILLS.filter((s) => s.id !== "exec-copilot").map((s) => s.domainKnowledge.length)
+  );
+  expect(flagship.domainKnowledge.length).toBeGreaterThan(maxOther);
+});
+
+test("ERP is the deep operational template (deeper than the shallow v1 domains)", () => {
   const erp = getSkill("erp")!;
   expect(erp.questionBank.length).toBeGreaterThanOrEqual(6);
-  // ERP carries the most domain knowledge of any template.
-  const maxOther = Math.max(...SKILLS.filter((s) => s.id !== "erp").map((s) => s.domainKnowledge.length));
-  expect(erp.domainKnowledge.length).toBeGreaterThan(maxOther);
+  const shallow = ["crm", "ecommerce", "dashboard", "booking", "landing"];
+  const maxShallow = Math.max(
+    ...SKILLS.filter((s) => shallow.includes(s.id)).map((s) => s.domainKnowledge.length)
+  );
+  expect(erp.domainKnowledge.length).toBeGreaterThan(maxShallow);
 });
 
 test("getSkill returns undefined for unknown / nullish", () => {

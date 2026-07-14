@@ -23,6 +23,15 @@ export const CHANGE_BADGE: Record<ChangeType, { label: string; className: string
 // Newest first. SemVer: fix → PATCH, feature → MINOR, breaking → MAJOR.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.31.0",
+    date: "2026-07-14",
+    title: "ผู้เชี่ยวชาญเรือธง: ผู้ช่วยข้างกาย CEO",
+    items: [
+      { type: "feature", text: "เพิ่มผู้เชี่ยวชาญเรือธง “ผู้ช่วยข้างกาย CEO” (Executive Co-pilot) — เลือกใน Skill แล้วกดสร้าง จะได้เดโม “ศูนย์บัญชาการผู้บริหาร”: รับเสียงดิบ → วิเคราะห์อารมณ์/เจตนา → จัดกลุ่มปัญหาแบบ MECE → ขุดรากด้วย 5 Whys → เสนอทางเลือกตัดสินใจ (Decision Matrix) โดย “CEO เป็นคนเคาะ” (Human-in-the-Loop)" },
+      { type: "improvement", text: "ผูกกับ Org DNA ของ workspace อัตโนมัติ — เดโมพูดภาษาองค์กรจริง ไม่ใช่ตัวอย่างกลวงๆ · มาพร้อม Framework Library (MECE · 5 Whys · Working Backwards · Decision Matrix) ที่เราเรียบเรียงเอง" },
+    ],
+  },
+  {
     version: "0.30.2",
     date: "2026-07-14",
     title: "ร่างผู้เชี่ยวชาญที่ยังไม่บันทึกไม่หายแล้ว",

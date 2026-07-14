@@ -1,4 +1,5 @@
 import type { SkillTemplate } from "./types";
+import { EXECUTIVE_COPILOT } from "./executive-copilot";
 import { ERP } from "./erp";
 import { CRM } from "./crm";
 import { ECOMMERCE } from "./ecommerce";
@@ -6,8 +7,11 @@ import { DASHBOARD } from "./dashboard";
 import { BOOKING } from "./booking";
 import { LANDING } from "./landing";
 
-/** All domain skill templates. ERP is the deep one; the rest are shallow (v1). */
-export const SKILLS: SkillTemplate[] = [ERP, CRM, ECOMMERCE, DASHBOARD, BOOKING, LANDING];
+/**
+ * All domain skill templates. Executive Co-pilot is the flagship (listed first);
+ * ERP is the deep operational one; the rest are shallow (v1).
+ */
+export const SKILLS: SkillTemplate[] = [EXECUTIVE_COPILOT, ERP, CRM, ECOMMERCE, DASHBOARD, BOOKING, LANDING];
 
 export const SKILL_IDS: string[] = SKILLS.map((s) => s.id);
 

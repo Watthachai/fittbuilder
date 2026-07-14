@@ -1,4 +1,4 @@
-import type { OrgArchetype, OrgDna } from "@/lib/types";
+import type { OrgArchetype, OrgDna, OrgDnaVersion } from "@/lib/types";
 
 /** The 4 free-text Org DNA blocks (archetype/notes handled separately). */
 export type DnaTextKey = "decisionRights" | "information" | "motivators" | "structure";
@@ -43,6 +43,28 @@ export const ARCHETYPES: {
   { key: "overmanaged", th: "บริหารซ้ำซ้อน", en: "Overmanaged", healthy: false, desc: "ลำดับขั้นเยอะ micro-manage ตัดสินใจช้า" },
   { key: "outgrown", th: "โตเกินโครงสร้าง", en: "Outgrown", healthy: false, desc: "เคยสำเร็จ แต่โตจนระบบเดิมรับไม่ไหว อุ้ยอ้าย" },
 ];
+
+export const MAX_DNA_VERSIONS = 12;
+
+/** Append a captured snippet to one DNA block and record a version (newest-first,
+ *  capped). Pure except for id/timestamp generation. Used by Living Org DNA
+ *  capture and any other incremental DNA edit. */
+export function appendDnaBlock(dna: OrgDna, block: DnaTextKey, snippet: string): OrgDna {
+  const clean = snippet.trim();
+  const existing = dna[block]?.trim();
+  const nextText = existing ? `${existing}\n${clean}` : clean;
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- drop `versions` from the snapshot (intentionally discarded)
+  const { versions: _drop, ...rest } = dna;
+  const snapshot: Omit<OrgDna, "versions"> = { ...rest, [block]: nextText };
+  const version: OrgDnaVersion = {
+    id: crypto.randomUUID(),
+    createdAt: new Date().toISOString(),
+    source: "ai",
+    snapshot,
+  };
+  const versions = [version, ...(dna.versions ?? [])].slice(0, MAX_DNA_VERSIONS);
+  return { ...dna, [block]: nextText, versions };
+}
 
 export function archetypeMeta(key?: OrgArchetype | null) {
   return ARCHETYPES.find((a) => a.key === key) ?? null;

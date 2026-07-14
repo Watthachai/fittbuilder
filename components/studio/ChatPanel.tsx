@@ -515,7 +515,7 @@ export default function ChatPanel({
         </div>
       )}
 
-      {dnaCapture && onDnaAdd && onDnaDismiss && (
+      {!readOnly && dnaCapture && onDnaAdd && onDnaDismiss && (
         <div className="shrink-0">
           <DnaCaptureChip
             capture={dnaCapture}

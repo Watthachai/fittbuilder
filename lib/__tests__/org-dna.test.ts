@@ -25,5 +25,6 @@ describe("appendDnaBlock", () => {
     const out = appendDnaBlock({ versions: many }, "structure", "แยกเป็นบริษัทลูก");
     expect(out.versions).toHaveLength(12);
     expect(out.versions![0].snapshot.structure).toBe("แยกเป็นบริษัทลูก");
+    expect(out.versions!.some((v) => v.id === "v11")).toBe(false);
   });
 });

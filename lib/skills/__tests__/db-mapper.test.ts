@@ -22,4 +22,15 @@ describe("skill db-mapper", () => {
     expect(ins.status).toBe("published");
     expect(rowToSkillTemplate(row).id).toBe("org-abc");
   });
+
+  it("maps a db row into a SkillTemplate", () => {
+    const tpl = rowToSkillTemplate(row);
+    expect(tpl.id).toBe(row.slug);
+    expect(tpl.nameEn).toBe("Bank");
+    expect(tpl.icon).toBe("Landmark");
+    expect(tpl.keywords).toEqual(["bank"]);
+    expect(tpl.domainKnowledge).toBe("d");
+    expect(tpl.questionBank).toEqual([]);
+    expect(tpl.designHints).toBeUndefined();
+  });
 });

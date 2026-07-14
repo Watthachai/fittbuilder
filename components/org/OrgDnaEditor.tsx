@@ -8,6 +8,7 @@ import SettingsShell from "@/components/settings/SettingsShell";
 import { deleteOrg, getOrg, updateOrgMeta, updateOrgDna, dnaCompleteness } from "@/lib/orgs";
 import { ARCHETYPES, DNA_BLOCKS, archetypeMeta } from "@/lib/org-dna";
 import { DEFAULT_COLOR, DEFAULT_ICON, WorkspaceIcon } from "@/lib/workspace-style";
+import { fileToAttachment, MAX_ATTACHMENT_BYTES } from "@/lib/attachments";
 import { confirm } from "@/lib/confirm";
 import { toast } from "@/lib/toast";
 import type { ChatAttachmentInput, OrgDna, OrgDnaVersion } from "@/lib/types";
@@ -17,7 +18,6 @@ import PainPointRadar from "./PainPointRadar";
 import SourceViewer from "./SourceViewer";
 import WorkspaceMembers from "./WorkspaceMembers";
 
-const MAX_FILE_BYTES = 4 * 1024 * 1024;
 const MAX_VERSIONS = 12;
 
 /** DNA without its nested version history (what a snapshot stores). */
@@ -40,20 +40,6 @@ function versionPreview(s: Omit<OrgDna, "versions">): string {
   const arch = archetypeMeta(s.archetype);
   if (arch) return arch.th;
   return (s.decisionRights || s.structure || s.information || s.motivators || "—").slice(0, 60);
-}
-
-async function fileToAttachment(file: File): Promise<ChatAttachmentInput> {
-  const dataUrl = await new Promise<string>((resolve, reject) => {
-    const r = new FileReader();
-    r.onload = () => resolve(r.result as string);
-    r.onerror = () => reject(r.error);
-    r.readAsDataURL(file);
-  });
-  return {
-    name: file.name,
-    mimeType: file.type || "application/octet-stream",
-    data: dataUrl.split(",")[1] ?? "",
-  };
 }
 
 export default function OrgDnaEditor({ orgId }: { orgId: string }) {
@@ -126,7 +112,7 @@ export default function OrgDnaEditor({ orgId }: { orgId: string }) {
   const pickFiles = async (list: FileList | null) => {
     if (!list?.length) return;
     for (const f of Array.from(list)) {
-      if (f.size > MAX_FILE_BYTES) {
+      if (f.size > MAX_ATTACHMENT_BYTES) {
         toast.warning(`ไฟล์ใหญ่เกิน 4MB: ${f.name}`);
         continue;
       }

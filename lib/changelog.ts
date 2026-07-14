@@ -23,6 +23,14 @@ export const CHANGE_BADGE: Record<ChangeType, { label: string; className: string
 // Newest first. SemVer: fix → PATCH, feature → MINOR, breaking → MAJOR.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.32.1",
+    date: "2026-07-14",
+    title: "Pain Point Radar: อัปโหลดไฟล์เป็นเสียงได้แล้ว",
+    items: [
+      { type: "improvement", text: "Pain Point Radar รับ input ได้เหมือนกล่อง “ให้ AI ร่างจากข้อมูลที่มี” — วางข้อความ หรืออัปโหลดไฟล์ (PDF/รูป/เอกสาร เช่น export tickets, รวมรีวิว, ผลสำรวจ) ได้สูงสุด 5 ไฟล์ AI จะสกัดเสียงจากไฟล์มาวิเคราะห์เป็น pain point ให้" },
+    ],
+  },
+  {
     version: "0.32.0",
     date: "2026-07-14",
     title: "Pain Point Radar — เรดาร์ปัญหาองค์กร (FITT Advisor สไลซ์แรก)",

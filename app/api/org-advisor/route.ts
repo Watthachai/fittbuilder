@@ -3,7 +3,7 @@ import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { currentUserId, recordUsage } from "@/lib/ai-usage";
-import { generateText, MissingApiKeyError, type TokenUsage } from "@/lib/gemini";
+import { MissingApiKeyError, streamParts, type TokenUsage } from "@/lib/gemini";
 import { buildOrgDnaContext } from "@/lib/org-dna";
 import { ADVISOR_SYSTEM, parseAdvisorResult } from "@/lib/org-advisor";
 import { clientIp, rateLimit } from "@/lib/rate-limit";
@@ -11,10 +11,25 @@ import type { OrgDna } from "@/lib/types";
 
 export const maxDuration = 120;
 
-const bodySchema = z.object({
-  orgId: z.string().uuid(),
-  feedback: z.string().trim().min(20).max(12_000),
-});
+const bodySchema = z
+  .object({
+    orgId: z.string().uuid(),
+    feedback: z.string().trim().max(12_000).optional(),
+    attachments: z
+      .array(
+        z.object({
+          name: z.string().max(200),
+          mimeType: z.string().max(120),
+          data: z.string().max(8_000_000),
+        })
+      )
+      .max(5)
+      .optional(),
+  })
+  .refine(
+    (b) => (b.feedback && b.feedback.length >= 20) || (b.attachments && b.attachments.length > 0),
+    { message: "ต้องมีเสียง (อย่างน้อย 20 ตัวอักษร) หรือไฟล์อย่างน้อยหนึ่งอย่าง" }
+  );
 
 export async function POST(request: Request) {
   const limit = await rateLimit(`advisor:${clientIp(request)}`, 8);
@@ -26,7 +41,10 @@ export async function POST(request: Request) {
   try {
     body = bodySchema.parse(await request.json());
   } catch {
-    return Response.json({ error: "คำขอไม่ถูกต้อง (วางเสียงจริงอย่างน้อย 20 ตัวอักษร)" }, { status: 400 });
+    return Response.json(
+      { error: "คำขอไม่ถูกต้อง (วางเสียงอย่างน้อย 20 ตัวอักษร หรือแนบไฟล์)" },
+      { status: 400 }
+    );
   }
 
   // Membership gate: the caller must be able to read the org (RLS orgs_select).
@@ -43,10 +61,13 @@ export async function POST(request: Request) {
     .from("fittbuilder_orgs").select("org_dna, name").eq("id", body.orgId).maybeSingle();
   const dnaCtx = buildOrgDnaContext((dnaRow?.org_dna ?? {}) as OrgDna);
 
+  const feedback = body.feedback?.trim() ?? "";
   const user = [
     `องค์กร: ${dnaRow?.name ?? "-"}`,
     dnaCtx ? `\nOrg DNA (บริบท — วิเคราะห์ให้เข้ากับวิธีทำงานจริงขององค์กรนี้):\n${dnaCtx}` : "",
-    `\nเสียงจริงที่ต้องวิเคราะห์ (raw feedback ห้ามแต่งเพิ่ม):\n"""\n${body.feedback}\n"""`,
+    feedback
+      ? `\nเสียงจริงที่ต้องวิเคราะห์ (raw feedback ห้ามแต่งเพิ่ม):\n"""\n${feedback}\n"""`
+      : `\nวิเคราะห์เสียงจริงจากไฟล์ที่แนบมา (ห้ามแต่งข้อมูลนอกเหนือจากไฟล์)`,
   ].filter(Boolean).join("\n");
 
   let usage: TokenUsage | null = null;
@@ -54,18 +75,22 @@ export async function POST(request: Request) {
   after(() => void recordUsage({ userId, projectId: null, kind: "advisor", usage }));
 
   try {
-    const raw = await generateText({
+    let raw = "";
+    for await (const part of streamParts({
       system: ADVISOR_SYSTEM,
       user,
+      attachments: body.attachments,
       json: true,
       temperature: 0.4,
-      maxOutputTokens: 4_096,
+      abortSignal: AbortSignal.any([request.signal, AbortSignal.timeout(110_000)]),
       onUsage: (u) => { usage = u; },
-    });
+    })) {
+      if (!part.thought) raw += part.text;
+    }
     const result = parseAdvisorResult(raw);
     if (!result) {
       return Response.json(
-        { error: "วิเคราะห์ไม่สำเร็จ ลองวางเสียงให้มากขึ้นหรือลองใหม่" },
+        { error: "วิเคราะห์ไม่สำเร็จ ลองวางเสียง/แนบไฟล์ให้มากขึ้นหรือลองใหม่" },
         { status: 502 }
       );
     }

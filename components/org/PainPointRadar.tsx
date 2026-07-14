@@ -1,10 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { AlertTriangle, Check, Loader2, Radar, Sparkles, Trash2 } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { AlertTriangle, Check, Loader2, Paperclip, Radar, Sparkles, Trash2, X } from "lucide-react";
 import Markdown from "@/components/studio/Markdown";
+import { fileToAttachment, MAX_ATTACHMENT_BYTES } from "@/lib/attachments";
 import { toast } from "@/lib/toast";
 import type { AdvisorResult } from "@/lib/org-advisor";
+import type { ChatAttachmentInput } from "@/lib/types";
 
 /**
  * Pain Point Radar — paste real feedback, get a readable executive briefing of
@@ -17,6 +19,8 @@ export default function PainPointRadar({ orgId }: { orgId: string }) {
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<AdvisorResult | null>(null);
   const [approved, setApproved] = useState<Record<number, boolean>>({});
+  const [files, setFiles] = useState<ChatAttachmentInput[]>([]);
+  const fileRef = useRef<HTMLInputElement>(null);
   const storeKey = `fitt:advisor:${orgId}`;
 
   function clearStore() {
@@ -50,9 +54,22 @@ export default function PainPointRadar({ orgId }: { orgId: string }) {
     };
   }, [storeKey]);
 
+  async function pickFiles(list: FileList | null) {
+    if (!list?.length) return;
+    for (const f of Array.from(list)) {
+      if (f.size > MAX_ATTACHMENT_BYTES) {
+        toast.warning(`ไฟล์ใหญ่เกิน 4MB: ${f.name}`);
+        continue;
+      }
+      const att = await fileToAttachment(f);
+      setFiles((prev) => (prev.length >= 5 ? prev : [...prev, att]));
+    }
+    if (fileRef.current) fileRef.current.value = "";
+  }
+
   async function analyze() {
     const text = feedback.trim();
-    if (text.length < 20 || busy) return;
+    if ((text.length < 20 && files.length === 0) || busy) return;
     setBusy(true);
     setResult(null);
     setApproved({});
@@ -60,7 +77,11 @@ export default function PainPointRadar({ orgId }: { orgId: string }) {
       const res = await fetch("/api/org-advisor", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ orgId, feedback: text }),
+        body: JSON.stringify({
+          orgId,
+          feedback: text || undefined,
+          attachments: files.length ? files : undefined,
+        }),
       });
       const data = (await res.json().catch(() => null)) as
         | { result?: AdvisorResult; error?: string }
@@ -82,6 +103,7 @@ export default function PainPointRadar({ orgId }: { orgId: string }) {
   function clearResult() {
     setResult(null);
     setApproved({});
+    setFiles([]);
     clearStore();
   }
 
@@ -94,8 +116,9 @@ export default function PainPointRadar({ orgId }: { orgId: string }) {
         <h2 className="font-display text-sm font-semibold">Pain Point Radar — เรดาร์ปัญหาองค์กร</h2>
       </div>
       <p className="mt-1 text-[13px] text-chalk-dim">
-        วางเสียงจริง (คำบ่นลูกค้า/ฟีดแบ็กพนักงาน/รีวิว) แล้ว AI จะสรุปเป็น pain point จริงขององค์กรคุณ —
-        จัดกลุ่มปัญหา ขุดต้นตอ และเสนอทางเลือกให้ตัดสินใจ โดยผูกกับ Org DNA
+        วางข้อความ หรืออัปโหลดไฟล์ (PDF/รูป/เอกสาร) ที่มีเสียงจริง (คำบ่นลูกค้า/ฟีดแบ็กพนักงาน/รีวิว/
+        export tickets) แล้ว AI จะสรุปเป็น pain point จริงขององค์กรคุณ — จัดกลุ่มปัญหา ขุดต้นตอ
+        และเสนอทางเลือกให้ตัดสินใจ โดยผูกกับ Org DNA
       </p>
 
       <textarea
@@ -105,10 +128,45 @@ export default function PainPointRadar({ orgId }: { orgId: string }) {
         placeholder="วางเสียงจริงที่นี่ เช่น: “แอปช้ามากตอนเย็น”, “ส่งของ 5 วันยังไม่ถึง”, “ขอคืนเงินแล้วเงียบ”, “แอดมินตอบช้า”…"
         className="mt-3 w-full resize-y rounded-lg border border-night-edge bg-night px-3 py-2.5 text-[14px] outline-none focus:border-shine"
       />
+      {files.length > 0 && (
+        <div className="mt-2 flex flex-wrap gap-1.5">
+          {files.map((f, i) => (
+            <span
+              key={`${f.name}-${i}`}
+              className="inline-flex items-center gap-1 rounded-md border border-night-edge bg-night px-2 py-1 font-mono text-[11px] text-chalk-dim"
+            >
+              <Paperclip size={10} className="text-shine" />
+              <span className="max-w-[180px] truncate">{f.name}</span>
+              <button
+                onClick={() => setFiles((prev) => prev.filter((_, j) => j !== i))}
+                className="transition hover:text-halt"
+                title="เอาออก"
+              >
+                <X size={11} />
+              </button>
+            </span>
+          ))}
+        </div>
+      )}
+      <input
+        ref={fileRef}
+        type="file"
+        multiple
+        accept="image/*,application/pdf,text/*,.md,.json,.csv"
+        className="hidden"
+        onChange={(e) => void pickFiles(e.target.files)}
+      />
       <div className="mt-2 flex items-center gap-2">
         <button
+          onClick={() => fileRef.current?.click()}
+          disabled={busy || files.length >= 5}
+          className="inline-flex items-center gap-1.5 rounded-lg border border-night-edge px-3 py-2 text-sm text-chalk-dim transition hover:border-shine hover:text-chalk disabled:opacity-40"
+        >
+          <Paperclip size={14} /> แนบไฟล์
+        </button>
+        <button
           onClick={() => void analyze()}
-          disabled={feedback.trim().length < 20 || busy}
+          disabled={(feedback.trim().length < 20 && files.length === 0) || busy}
           className="inline-flex items-center gap-2 rounded-lg bg-shine px-4 py-2 font-display text-sm font-semibold text-night transition hover:brightness-110 disabled:opacity-40"
         >
           {busy ? <Loader2 size={15} className="animate-spin" /> : <Sparkles size={15} />}

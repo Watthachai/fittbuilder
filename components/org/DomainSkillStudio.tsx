@@ -152,6 +152,11 @@ export default function DomainSkillStudio({ orgId }: { orgId: string }) {
     }
   }
 
+  // The model appends a machine-only ```json block (parsed into `draft`, shown
+  // in the save panel). Hide it from the human-facing reveal — keep only the
+  // research report that precedes it. Same delimiter parseGeneratedSkill uses.
+  const reportText = report.split(/```json/i)[0].trimEnd();
+
   return (
     <section className="mt-7 rounded-xl border border-night-edge bg-night-panel p-4">
       <div className="flex items-center gap-2">
@@ -232,8 +237,8 @@ export default function DomainSkillStudio({ orgId }: { orgId: string }) {
             aria-live="off"
             aria-busy={busy}
           >
-            {report ? (
-              <Markdown>{report}</Markdown>
+            {reportText ? (
+              <Markdown>{reportText}</Markdown>
             ) : (
               <span className="text-sm text-chalk-dim">กำลังอ่าน Org DNA และค้นคว้าโดเมน…</span>
             )}

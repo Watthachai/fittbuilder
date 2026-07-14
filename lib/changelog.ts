@@ -23,6 +23,14 @@ export const CHANGE_BADGE: Record<ChangeType, { label: string; className: string
 // Newest first. SemVer: fix → PATCH, feature → MINOR, breaking → MAJOR.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.31.1",
+    date: "2026-07-14",
+    title: "ปั้นผู้เชี่ยวชาญ: ซ่อน JSON ดิบออกจากผลการค้นคว้า",
+    items: [
+      { type: "fix", text: "ปั้นผู้เชี่ยวชาญประจำองค์กร: ช่อง “ผลการค้นคว้า” เคยโชว์ JSON ดิบต่อท้ายรายงาน (อ่านยาก) — ตอนนี้ตัดบล็อก JSON ที่มีไว้ให้เครื่องอ่านออก เหลือเฉพาะรายงานภาษาไทย ส่วนรายละเอียดร่างยังสรุปให้ในกล่อง “บันทึก” เหมือนเดิม" },
+    ],
+  },
+  {
     version: "0.31.0",
     date: "2026-07-14",
     title: "ผู้เชี่ยวชาญเรือธง: ผู้ช่วยข้างกาย CEO",

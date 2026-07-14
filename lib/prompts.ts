@@ -225,3 +225,17 @@ Rules:
 OUTPUT — STRICT: a single JSON object, nothing else:
 { "answers": { "<questionId>": <string or array>, ... } }`;
 }
+
+/** System prompt for Living Org DNA capture: classify a user chat message into one
+ *  of the 4 Org DNA blocks + extract a concise Thai snippet, or return none. */
+export function buildDnaCaptureSystem(): string {
+  return `คุณเป็นตัวช่วยสกัด "Org DNA" จากข้อความแชทของผู้ใช้ (โมเดล 4 ฐานราก).
+พิจารณาข้อความเดียวที่ผู้ใช้พิมพ์ แล้วตัดสินว่ามัน "เผยข้อมูลเกี่ยวกับวิธีทำงานขององค์กร" หรือไม่ — ถ้าใช่ จัดเข้า 1 ใน 4 บล็อก:
+- decisionRights: ใครมีอำนาจตัดสินใจ/ต้องอนุมัติกี่ขั้น
+- information: ข้อมูลไหลข้ามสายงานไหม, KPI, ระบบ/แหล่งข้อมูล
+- motivators: ผลตอบแทน/รางวัล/แรงจูงใจ/วัฒนธรรมความเสี่ยง
+- structure: โครงสร้าง/ลำดับขั้น/การแบ่งทีมหรือบริษัท
+คืน JSON เท่านั้น รูปแบบ:
+{"block": "decisionRights"|"information"|"motivators"|"structure"|null, "snippet": "ประโยคสรุปสั้นๆ เป็นภาษาไทย (<=140 ตัวอักษร)"}
+ถ้าข้อความเป็นแค่คำสั่งสร้างงาน/คำถามทั่วไป/ไม่ได้บอกลักษณะองค์กร ให้ block=null.`;
+}

@@ -13,6 +13,7 @@ import { toast } from "@/lib/toast";
 import type { ChatAttachmentInput, OrgDna, OrgDnaVersion } from "@/lib/types";
 import ColorIconPicker from "./ColorIconPicker";
 import DomainSkillStudio from "./DomainSkillStudio";
+import PainPointRadar from "./PainPointRadar";
 import SourceViewer from "./SourceViewer";
 import WorkspaceMembers from "./WorkspaceMembers";
 
@@ -279,6 +280,9 @@ export default function OrgDnaEditor({ orgId }: { orgId: string }) {
 
         {/* Domain specialist for this workspace */}
         <DomainSkillStudio orgId={orgId} />
+
+        {/* Pain Point Radar — analyze real feedback into this workspace's actual pain points */}
+        <PainPointRadar orgId={orgId} />
 
         <p className="mt-5 text-sm leading-relaxed text-chalk-dim">
           ใส่ DNA ขององค์กรเพื่อให้ AI ออกแบบ spec/demo ให้เข้ากับวิธีทำงานจริงของคุณ —

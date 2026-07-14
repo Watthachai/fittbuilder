@@ -23,6 +23,15 @@ export const CHANGE_BADGE: Record<ChangeType, { label: string; className: string
 // Newest first. SemVer: fix → PATCH, feature → MINOR, breaking → MAJOR.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.32.0",
+    date: "2026-07-14",
+    title: "Pain Point Radar — เรดาร์ปัญหาองค์กร (FITT Advisor สไลซ์แรก)",
+    items: [
+      { type: "feature", text: "หน้า workspace มีพาเนลใหม่ “Pain Point Radar”: วางเสียงจริง (คำบ่นลูกค้า/ฟีดแบ็กพนักงาน/รีวิว) แล้ว AI วิเคราะห์เป็น pain point จริงขององค์กรคุณ — อ่านอารมณ์ → จัดกลุ่มปัญหาแบบ MECE → ขุดต้นตอ 5 Whys → เสนอทางเลือกให้ “คุณเป็นคนเคาะ” (Human-in-the-Loop) ผูกกับ Org DNA" },
+      { type: "improvement", text: "ผลลัพธ์แสดงเป็นบทสรุปผู้บริหารอ่านง่าย (Markdown) ไม่มี JSON ดิบ · มีดัชนีอารมณ์ · เก็บผลล่าสุดไว้ (รีเฟรชไม่หาย) · ทุกตัวเลขกำกับ “ประมาณการ” และการอนุมัติเป็นแค่การบันทึกการเลือก ไม่สั่งการภายนอก" },
+    ],
+  },
+  {
     version: "0.31.1",
     date: "2026-07-14",
     title: "ปั้นผู้เชี่ยวชาญ: ซ่อน JSON ดิบออกจากผลการค้นคว้า",

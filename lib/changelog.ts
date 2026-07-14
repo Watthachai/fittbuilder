@@ -23,6 +23,15 @@ export const CHANGE_BADGE: Record<ChangeType, { label: string; className: string
 // Newest first. SemVer: fix → PATCH, feature → MINOR, breaking → MAJOR.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.33.0",
+    date: "2026-07-14",
+    title: "แหล่งข้อมูลเดียว: ร่าง Org DNA + หา Pain Point จากที่เดียว",
+    items: [
+      { type: "improvement", text: "ยุบให้เหลือ “ให้ AI ร่างจากข้อมูลที่มี” เป็นหัวข้อใหญ่หลักเดียว — วาง/อัปโหลดข้อมูลบริษัทกองเดียว แล้วเลือกได้ทั้งปุ่ม “ร่าง Org DNA” และปุ่ม “หา Pain Point” ไม่ต้องวางข้อมูลซ้ำสองที่อีก (เดิม Pain Point Radar เป็นกล่องแยก)" },
+      { type: "improvement", text: "ผล Pain Point แสดงเป็นบทสรุปอ่านง่าย (Markdown) + การ์ดกดอนุมัติ (Human-in-the-Loop) ใต้แหล่งข้อมูลเดียวกัน เก็บผลล่าสุดไว้ (รีเฟรชไม่หาย)" },
+    ],
+  },
+  {
     version: "0.32.1",
     date: "2026-07-14",
     title: "Pain Point Radar: อัปโหลดไฟล์เป็นเสียงได้แล้ว",

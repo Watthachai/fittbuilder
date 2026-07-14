@@ -188,7 +188,7 @@ export default function App() {
       <div className="flex items-center gap-2 text-xs text-white/70">
         <span className="h-2 w-2 animate-pulse rounded-full bg-[#64cefb]" />
         <span className="font-semibold tracking-tight text-white">FITT Builder</span>
-        <span className="text-white/40">· Vite + React · รันสดในเบราว์เซอร์</span>
+        <span className="text-white/40">· Code Viewer + Preview Prototype</span>
       </div>
 
       {/* SMIL-animated SVG (transparent bg) → plays inside a plain <img>, no
@@ -200,7 +200,7 @@ export default function App() {
       />
 
       <div>
-        <h1 className="text-2xl font-semibold leading-snug">เวทีพร้อมแล้ว · กำลังรอบทสนทนา</h1>
+        <h1 className="text-2xl font-semibold leading-snug">เวทีของคุณพร้อมแว๊ววว!! · กำลังรอบทสนทนา</h1>
         <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-white/55">
           ตอบคำถามทางซ้ายเพื่อสร้าง BRD &amp; PRD — พออนุมัติแล้ว AI จะ generate
           demo จริงทับหน้านี้ทันที
@@ -246,7 +246,10 @@ export function extraDepsOf(packageJson?: string): Record<string, string> {
   if (!packageJson) return {};
   try {
     const base = baseDeps();
-    const deps = (JSON.parse(packageJson).dependencies ?? {}) as Record<string, unknown>;
+    const deps = (JSON.parse(packageJson).dependencies ?? {}) as Record<
+      string,
+      unknown
+    >;
     const extra: Record<string, string> = {};
     for (const [name, version] of Object.entries(deps)) {
       if (!(name in base) && typeof version === "string") extra[name] = version;

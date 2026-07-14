@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
-import { FileText, History, Loader2, Paperclip, Quote, RotateCcw, Save, Sparkles, Trash2, X } from "lucide-react";
+import { FileText, History, Loader2, Paperclip, Quote, Radar, RotateCcw, Save, Sparkles, Trash2, X } from "lucide-react";
 import SettingsShell from "@/components/settings/SettingsShell";
 import { deleteOrg, getOrg, updateOrgMeta, updateOrgDna, dnaCompleteness } from "@/lib/orgs";
 import { ARCHETYPES, DNA_BLOCKS, archetypeMeta } from "@/lib/org-dna";
@@ -12,9 +12,10 @@ import { fileToAttachment, MAX_ATTACHMENT_BYTES } from "@/lib/attachments";
 import { confirm } from "@/lib/confirm";
 import { toast } from "@/lib/toast";
 import type { ChatAttachmentInput, OrgDna, OrgDnaVersion } from "@/lib/types";
+import type { AdvisorResult } from "@/lib/org-advisor";
 import ColorIconPicker from "./ColorIconPicker";
 import DomainSkillStudio from "./DomainSkillStudio";
-import PainPointRadar from "./PainPointRadar";
+import PainPointResult from "./PainPointResult";
 import SourceViewer from "./SourceViewer";
 import WorkspaceMembers from "./WorkspaceMembers";
 
@@ -54,6 +55,9 @@ export default function OrgDnaEditor({ orgId }: { orgId: string }) {
   const [restored, setRestored] = useState(false);
   const [files, setFiles] = useState<ChatAttachmentInput[]>([]);
   const [drafting, setDrafting] = useState(false);
+  const [painBusy, setPainBusy] = useState(false);
+  const [painResult, setPainResult] = useState<AdvisorResult | null>(null);
+  const [painApproved, setPainApproved] = useState<Record<number, boolean>>({});
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [viewer, setViewer] = useState<{ highlight?: string } | null>(null);
@@ -98,6 +102,17 @@ export default function OrgDnaEditor({ orgId }: { orgId: string }) {
       if (org.dna.sources?.trim()) {
         setPaste(org.dna.sources);
         setRestored(true);
+      }
+      // Recover the last Pain Point analysis (this runs after the getOrg await,
+      // so it's an async continuation — not a synchronous setState in the effect).
+      try {
+        const cachedPain = localStorage.getItem(`fitt:advisor:${orgId}`);
+        if (cachedPain) {
+          const parsed = JSON.parse(cachedPain) as { result?: AdvisorResult };
+          if (parsed?.result?.briefing) setPainResult(parsed.result);
+        }
+      } catch {
+        /* corrupt or unavailable storage — nothing to recover */
       }
       setLoading(false);
     })();
@@ -171,6 +186,49 @@ export default function OrgDnaEditor({ orgId }: { orgId: string }) {
       });
     } finally {
       setDrafting(false);
+    }
+  };
+
+  // Same data hub, different lens: analyze the provided data for pain points.
+  const analyzePain = async () => {
+    if ((!paste.trim() && files.length === 0) || painBusy) return;
+    setPainBusy(true);
+    setPainResult(null);
+    setPainApproved({});
+    try {
+      const res = await fetch("/api/org-advisor", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          orgId,
+          feedback: paste.trim() || undefined,
+          attachments: files.length ? files : undefined,
+        }),
+      });
+      const data = (await res.json().catch(() => null)) as
+        | { result?: AdvisorResult; error?: string }
+        | null;
+      if (!res.ok || !data?.result) throw new Error(data?.error ?? "วิเคราะห์ไม่สำเร็จ");
+      setPainResult(data.result);
+      try {
+        localStorage.setItem(`fitt:advisor:${orgId}`, JSON.stringify({ result: data.result }));
+      } catch {
+        /* storage full/unavailable — the result still shows this session */
+      }
+    } catch (e) {
+      toast.error("หา Pain Point ไม่สำเร็จ", { description: e instanceof Error ? e.message : undefined });
+    } finally {
+      setPainBusy(false);
+    }
+  };
+
+  const clearPain = () => {
+    setPainResult(null);
+    setPainApproved({});
+    try {
+      localStorage.removeItem(`fitt:advisor:${orgId}`);
+    } catch {
+      /* storage unavailable — nothing to clear */
     }
   };
 
@@ -267,9 +325,6 @@ export default function OrgDnaEditor({ orgId }: { orgId: string }) {
         {/* Domain specialist for this workspace */}
         <DomainSkillStudio orgId={orgId} />
 
-        {/* Pain Point Radar — analyze real feedback into this workspace's actual pain points */}
-        <PainPointRadar orgId={orgId} />
-
         <p className="mt-5 text-sm leading-relaxed text-chalk-dim">
           ใส่ DNA ขององค์กรเพื่อให้ AI ออกแบบ spec/demo ให้เข้ากับวิธีทำงานจริงของคุณ —
           ทุกช่องไม่บังคับ ใส่เท่าที่มี
@@ -283,15 +338,18 @@ export default function OrgDnaEditor({ orgId }: { orgId: string }) {
           <span className="font-mono text-xs text-chalk-dim">{pct}% ครบ</span>
         </div>
 
-        {/* AI draft from freeform */}
+        {/* AI draft + pain-point analysis from ONE data hub */}
         <section className="mt-7 rounded-xl border border-night-edge bg-night-panel p-4">
-          <div className="flex items-center gap-2">
-            <Sparkles size={15} className="text-shine" />
-            <h2 className="font-display text-sm font-semibold">ให้ AI ร่างให้จากข้อมูลที่มี</h2>
+          <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-shine">ข้อมูลตั้งต้น</p>
+          <div className="mt-1 flex items-center gap-2">
+            <Sparkles size={18} className="text-shine" />
+            <h2 className="font-display text-lg font-semibold text-chalk">ให้ AI ร่างจากข้อมูลที่มี</h2>
           </div>
           <p className="mt-1 text-[13px] text-chalk-dim">
             วางข้อความ หรืออัปโหลดไฟล์ที่มี — คำอธิบายบริษัท เว็บไซต์ โครงสร้างทีม เอกสาร (PDF/รูป/ข้อความ)
-            — AI จะสกัดเป็น 4 ฐานรากให้ (เติมเฉพาะช่องที่ยังว่าง)
+            รวมถึงเสียงจริง (คำบ่นลูกค้า/ฟีดแบ็ก/รีวิว) — จากข้อมูลกองเดียวนี้ AI ช่วยได้ทั้ง{" "}
+            <b className="text-chalk">ร่าง Org DNA</b> (4 ฐานราก เติมเฉพาะช่องที่ว่าง) และ{" "}
+            <b className="text-chalk">หา Pain Point</b> ขององค์กร
           </p>
           <textarea
             value={paste}
@@ -337,7 +395,7 @@ export default function OrgDnaEditor({ orgId }: { orgId: string }) {
             className="hidden"
             onChange={(e) => void pickFiles(e.target.files)}
           />
-          <div className="mt-2 flex items-center gap-2">
+          <div className="mt-2 flex flex-wrap items-center gap-2">
             <button
               onClick={() => fileRef.current?.click()}
               className="inline-flex items-center gap-1.5 rounded-lg border border-night-edge px-3 py-2 text-sm text-chalk-dim transition hover:border-shine hover:text-chalk"
@@ -346,13 +404,48 @@ export default function OrgDnaEditor({ orgId }: { orgId: string }) {
             </button>
             <button
               onClick={() => void draft()}
-              disabled={(!paste.trim() && files.length === 0) || drafting}
+              disabled={(!paste.trim() && files.length === 0) || drafting || painBusy}
               className="inline-flex items-center gap-2 rounded-lg bg-shine px-4 py-2 font-display text-sm font-semibold text-night transition hover:brightness-110 disabled:opacity-40"
             >
               {drafting ? <Loader2 size={15} className="animate-spin" /> : <Sparkles size={15} />}
               {drafting ? "กำลังร่าง…" : "ให้ AI ร่าง Org DNA"}
             </button>
+            <button
+              onClick={() => void analyzePain()}
+              disabled={(!paste.trim() && files.length === 0) || painBusy || drafting}
+              className="inline-flex items-center gap-2 rounded-lg border border-shine/40 px-4 py-2 font-display text-sm font-semibold text-shine transition hover:bg-shine/10 disabled:opacity-40"
+            >
+              {painBusy ? <Loader2 size={15} className="animate-spin" /> : <Radar size={15} />}
+              {painBusy ? "กำลังวิเคราะห์…" : "หา Pain Point"}
+            </button>
           </div>
+
+          {painBusy && (
+            <p className="mt-3 flex items-center gap-1.5 text-sm text-chalk-dim">
+              <Loader2 size={14} className="animate-spin text-shine" />
+              กำลังอ่านอารมณ์ จัดกลุ่มปัญหา และขุดต้นตอ…
+            </p>
+          )}
+          {painResult && !painBusy && (
+            <div className="mt-4 border-t border-night-edge pt-4">
+              <div className="flex items-center justify-between">
+                <p className="flex items-center gap-1.5 font-display text-sm font-semibold text-chalk">
+                  <Radar size={14} className="text-shine" /> Pain Point ขององค์กร
+                </p>
+                <button
+                  onClick={clearPain}
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-night-edge px-2.5 py-1.5 text-[12px] text-chalk-dim transition hover:border-halt hover:text-halt"
+                >
+                  <Trash2 size={12} /> ล้างผล
+                </button>
+              </div>
+              <PainPointResult
+                result={painResult}
+                approved={painApproved}
+                onToggleApprove={(i) => setPainApproved((p) => ({ ...p, [i]: !p[i] }))}
+              />
+            </div>
+          )}
         </section>
 
         <div className="mt-3 flex flex-wrap items-center gap-4">

@@ -4,7 +4,7 @@
     "hash": "239f3ebf717465dc636818a1a619398d"
   },
   "/Users/itswatthachai/fitt-builder-v2/next-env.d.ts": {
-    "mtime": 1782377164.0294247,
+    "mtime": 1784008363.5086656,
     "hash": "2a74d3909800ca5467fa83b0ab4a4890"
   },
   "/Users/itswatthachai/fitt-builder-v2/proxy.ts": {
@@ -24,8 +24,8 @@
     "hash": "7b917cedca3be297a9201c26e4c59d30"
   },
   "/Users/itswatthachai/fitt-builder-v2/app/layout.tsx": {
-    "mtime": 1782380869.5829105,
-    "hash": "bc9b9e9dd6505e18c4e786887b9748b3"
+    "mtime": 1782708867.218552,
+    "hash": "87042cba108c33e5d075a4a570026659"
   },
   "/Users/itswatthachai/fitt-builder-v2/app/page.tsx": {
     "mtime": 1782285327.3403418,
@@ -36,28 +36,32 @@
     "hash": "277da320b1a1383d6b1b1c2729042f95"
   },
   "/Users/itswatthachai/fitt-builder-v2/app/join/[token]/actions.ts": {
-    "mtime": 1782377084.604159,
-    "hash": "e3dc7c19d1f03238c7f917653539047a"
+    "mtime": 1783936405.1084497,
+    "hash": "1ad819b8f1f8baf39bb4b56dfe0f50cd"
   },
   "/Users/itswatthachai/fitt-builder-v2/app/join/[token]/page.tsx": {
-    "mtime": 1782377145.0875494,
-    "hash": "a3e390af1dc34ec2a09ad8dd7ae0d1c3"
+    "mtime": 1783936415.1254609,
+    "hash": "daf3d05d7d47333c391ef81ffb1db88d"
   },
   "/Users/itswatthachai/fitt-builder-v2/app/changelog/page.tsx": {
     "mtime": 1782278639.413675,
     "hash": "323a02248ff7bd2f88711cacd7884005"
   },
   "/Users/itswatthachai/fitt-builder-v2/app/auth/callback/route.ts": {
-    "mtime": 1782375232.4669032,
-    "hash": "d83bb7e8dcb6ffceb57f6ebc594082ce"
+    "mtime": 1784017120.703457,
+    "hash": "22447ad73ed424d99499466429a36f75"
+  },
+  "/Users/itswatthachai/fitt-builder-v2/app/org/[id]/page.tsx": {
+    "mtime": 1782704689.6386213,
+    "hash": "d57c3396f643765f37b22eb2cb9aa69c"
   },
   "/Users/itswatthachai/fitt-builder-v2/app/projects/page.tsx": {
     "mtime": 1782284907.951537,
     "hash": "aebc4018fde96ee57671c49e0a879a9f"
   },
   "/Users/itswatthachai/fitt-builder-v2/app/admin/usage/page.tsx": {
-    "mtime": 1782278517.2181032,
-    "hash": "bde155d754461d28af2da6d1a3baa3b3"
+    "mtime": 1782721879.3550055,
+    "hash": "207423b3ccf198b210d1dd9074b8425e"
   },
   "/Users/itswatthachai/fitt-builder-v2/app/admin/skills/page.tsx": {
     "mtime": 1782190783.5649328,
@@ -71,25 +75,45 @@
     "mtime": 1781268337.1306767,
     "hash": "83ed4059c1d328000be89e0458874283"
   },
+  "/Users/itswatthachai/fitt-builder-v2/app/api/dna-capture/route.ts": {
+    "mtime": 1784013875.4172385,
+    "hash": "5833fba49fbb019dd56d9eabb34cfd7b"
+  },
   "/Users/itswatthachai/fitt-builder-v2/app/api/detect-skill/route.ts": {
-    "mtime": 1782274432.3542163,
-    "hash": "43a5ded529eccac5748e5a0f8bfc574d"
+    "mtime": 1783936787.6571543,
+    "hash": "5bde90daabd18ca0e3af09a92c6dd63c"
   },
   "/Users/itswatthachai/fitt-builder-v2/app/api/design-options/route.ts": {
-    "mtime": 1782274452.228091,
-    "hash": "1df474cc4a65e182cb85d32c5ceab9be"
+    "mtime": 1783936787.6638374,
+    "hash": "7f80f340ec345755231d317abcf3df0c"
+  },
+  "/Users/itswatthachai/fitt-builder-v2/app/api/fittcore/route.ts": {
+    "mtime": 1783936787.673519,
+    "hash": "92a12caf2ba9cb351abab69fb2ea8fd8"
+  },
+  "/Users/itswatthachai/fitt-builder-v2/app/api/org-advisor/route.ts": {
+    "mtime": 1784023165.749647,
+    "hash": "acb68cfbf711103203d0ddbcd06bc46e"
+  },
+  "/Users/itswatthachai/fitt-builder-v2/app/api/org-dna/route.ts": {
+    "mtime": 1783936787.6836507,
+    "hash": "e5bb89ec121585b7676498e92e6db5de"
+  },
+  "/Users/itswatthachai/fitt-builder-v2/app/api/org-invite-email/route.ts": {
+    "mtime": 1783935387.513006,
+    "hash": "605f0d175d6099a30c12eea538ba0b6a"
   },
   "/Users/itswatthachai/fitt-builder-v2/app/api/npm-search/route.ts": {
-    "mtime": 1781683575.0056438,
-    "hash": "104d3665e6e0a05d3615848ac42336fb"
+    "mtime": 1783936787.6932397,
+    "hash": "3db46c86098d95cce202e7ef6aabc528"
   },
   "/Users/itswatthachai/fitt-builder-v2/app/api/code-suggestion/route.ts": {
-    "mtime": 1782274508.8408499,
-    "hash": "598ac0a2a272e45fecddfd871df447af"
+    "mtime": 1783936787.7032492,
+    "hash": "b1c2d335cd118569f2dd825cb31c6baf"
   },
   "/Users/itswatthachai/fitt-builder-v2/app/api/admin/generate-skill/route.ts": {
-    "mtime": 1782278284.4880867,
-    "hash": "7162ebaff468985d787a695ca2b69090"
+    "mtime": 1784008332.567315,
+    "hash": "30da222b959eb1461526a35c0049fb8e"
   },
   "/Users/itswatthachai/fitt-builder-v2/app/api/admin/skills/route.ts": {
     "mtime": 1782190535.336426,
@@ -100,48 +124,72 @@
     "hash": "bb9992678021e9bc7966a7107e0980f5"
   },
   "/Users/itswatthachai/fitt-builder-v2/app/api/extract-answers/route.ts": {
-    "mtime": 1782274490.6919076,
-    "hash": "9f3d58b2b500dcd860a157975b896519"
+    "mtime": 1783936787.7102752,
+    "hash": "d43be603dbac14dbe3bd6337800d4399"
   },
   "/Users/itswatthachai/fitt-builder-v2/app/api/agent/route.ts": {
-    "mtime": 1782379991.2272582,
-    "hash": "dc29399bb1bd4097c18b5622b0a1351a"
+    "mtime": 1784011568.3580966,
+    "hash": "b47e44333f004ad225b14f82cc98fe92"
   },
   "/Users/itswatthachai/fitt-builder-v2/app/api/me/route.ts": {
     "mtime": 1782192369.8598132,
     "hash": "edb4500b2d946f5c5d1d522add3ec53e"
   },
   "/Users/itswatthachai/fitt-builder-v2/app/api/generate/route.ts": {
-    "mtime": 1782380015.7737932,
-    "hash": "d32015966b850e3b5adacd28d872c4f4"
+    "mtime": 1784011546.7268457,
+    "hash": "faf16c3b967a173d9dac3a95cadebcdd"
   },
   "/Users/itswatthachai/fitt-builder-v2/app/api/detect-preset/route.ts": {
-    "mtime": 1782274468.1431203,
-    "hash": "ae23fc49822352f33edfb70a7e07a396"
+    "mtime": 1783936787.752664,
+    "hash": "7267a6fee3d7e277fbe334089bfe1651"
   },
   "/Users/itswatthachai/fitt-builder-v2/app/api/skills/route.ts": {
     "mtime": 1782190519.4098647,
     "hash": "aa21dfee7854709e0d66d46f0be9d081"
   },
+  "/Users/itswatthachai/fitt-builder-v2/app/api/quota/route.ts": {
+    "mtime": 1783936045.5024543,
+    "hash": "2d40a2d56fce98409f3c53cba9a290fd"
+  },
   "/Users/itswatthachai/fitt-builder-v2/app/api/invite-email/route.ts": {
     "mtime": 1782375647.3841212,
     "hash": "abf82f8b9c062669c6ffb883720ca395"
   },
+  "/Users/itswatthachai/fitt-builder-v2/app/api/org-skill/generate/route.ts": {
+    "mtime": 1784009038.793459,
+    "hash": "d14fadfa8d33b7756961b00b721addb9"
+  },
   "/Users/itswatthachai/fitt-builder-v2/app/login/page.tsx": {
-    "mtime": 1782376257.1221604,
-    "hash": "f770b535baa9193f8ca38faa18500a92"
+    "mtime": 1784017084.6445549,
+    "hash": "fbe75d8ae100f4feaae41f18817f1c73"
   },
   "/Users/itswatthachai/fitt-builder-v2/app/share/page.tsx": {
     "mtime": 1781171876.567143,
     "hash": "f66c90d202a00cfeb41f0607f6365c72"
+  },
+  "/Users/itswatthachai/fitt-builder-v2/scratchpad/run_verify.mjs": {
+    "mtime": 1784007275.1203475,
+    "hash": "6499f5c917f1e2da2882326b2836742c"
+  },
+  "/Users/itswatthachai/fitt-builder-v2/scratchpad/verify_org_skill_rls.sql": {
+    "mtime": 1784011607.1445594,
+    "hash": "593ca6769272f248a8cfe9abce72a6d5"
+  },
+  "/Users/itswatthachai/fitt-builder-v2/supabase/migrations/0017_dedupe_default_orgs.sql": {
+    "mtime": 1783963708.8446693,
+    "hash": "62d3b5040b2034cfe7140b8cc1884533"
   },
   "/Users/itswatthachai/fitt-builder-v2/supabase/migrations/0005_whoami.sql": {
     "mtime": 1782203994.5449452,
     "hash": "ea36e7d72d811878364ad380d5822aad"
   },
   "/Users/itswatthachai/fitt-builder-v2/supabase/migrations/0012_orgs.sql": {
-    "mtime": 1782703851.0531752,
-    "hash": "c30ca940a5af4943613e9f9ab58970de"
+    "mtime": 1783940041.600992,
+    "hash": "3d2fa7d1f9921c6b6e36f24d41c0c3ea"
+  },
+  "/Users/itswatthachai/fitt-builder-v2/supabase/migrations/0013_org_identity.sql": {
+    "mtime": 1782708708.022057,
+    "hash": "0b757dba6bd3d6e1944676449c664648"
   },
   "/Users/itswatthachai/fitt-builder-v2/supabase/migrations/0001_init.sql": {
     "mtime": 1782119559.8886697,
@@ -150,6 +198,10 @@
   "/Users/itswatthachai/fitt-builder-v2/supabase/migrations/0004_owner_default.sql": {
     "mtime": 1782201929.1530898,
     "hash": "518ff26bb8e62a5af2be73df5361d06e"
+  },
+  "/Users/itswatthachai/fitt-builder-v2/supabase/migrations/0016_share_link_expiry.sql": {
+    "mtime": 1783936345.524947,
+    "hash": "2686db4794f6235c378c415b457791a7"
   },
   "/Users/itswatthachai/fitt-builder-v2/supabase/migrations/0011_members_detailed.sql": {
     "mtime": 1782398505.0575466,
@@ -167,9 +219,25 @@
     "mtime": 1782210229.336348,
     "hash": "68d64b66987c5e1425e21acd7c0f817a"
   },
+  "/Users/itswatthachai/fitt-builder-v2/supabase/migrations/0018_my_invites.sql": {
+    "mtime": 1783963884.0949607,
+    "hash": "4c9184d0943c6e5c96cc53f98b15d99d"
+  },
+  "/Users/itswatthachai/fitt-builder-v2/supabase/migrations/0014_runner_last.sql": {
+    "mtime": 1782900565.637058,
+    "hash": "4fdfb69dddd5fb8c68a4e385fb5cd832"
+  },
   "/Users/itswatthachai/fitt-builder-v2/supabase/migrations/0009_project_chat.sql": {
     "mtime": 1782378414.1213071,
     "hash": "b2c9399b941bf6fc98d54e3ec865d4ba"
+  },
+  "/Users/itswatthachai/fitt-builder-v2/supabase/migrations/0015_org_members.sql": {
+    "mtime": 1783935276.7300646,
+    "hash": "b6455a4dc2f0d2408ce561888ee25858"
+  },
+  "/Users/itswatthachai/fitt-builder-v2/supabase/migrations/0019_org_skills.sql": {
+    "mtime": 1784007236.797758,
+    "hash": "70c01223e2d4b36384d8109f35b89c1e"
   },
   "/Users/itswatthachai/fitt-builder-v2/supabase/migrations/0008_ai_usage.sql": {
     "mtime": 1782274355.4470277,
@@ -183,6 +251,10 @@
     "mtime": 1782381378.4379973,
     "hash": "6881ce6fed6270e657e882dded9e8bb7"
   },
+  "/Users/itswatthachai/fitt-builder-v2/supabase/migrations/0020_org_skills_isolation.sql": {
+    "mtime": 1784011490.130723,
+    "hash": "d0d62dd700d96703c53bfa1be5e58db1"
+  },
   "/Users/itswatthachai/fitt-builder-v2/components/FloatingThemeToggle.tsx": {
     "mtime": 1782379116.4242985,
     "hash": "e2f3888b30b2ca2e924ba96ec5f352fc"
@@ -192,8 +264,12 @@
     "hash": "c84e4dae8f5e133d9a581efae028e1f2"
   },
   "/Users/itswatthachai/fitt-builder-v2/components/AccountMenu.tsx": {
-    "mtime": 1782379140.3593726,
-    "hash": "5a098bc957fa9dcac17ca32189a1da66"
+    "mtime": 1783964043.934291,
+    "hash": "dfda19625b531e73b749a8b3757b3347"
+  },
+  "/Users/itswatthachai/fitt-builder-v2/components/ui/ConfirmHost.tsx": {
+    "mtime": 1782708325.947232,
+    "hash": "57eb7e559f4480fe2747ba207d347b4b"
   },
   "/Users/itswatthachai/fitt-builder-v2/components/ui/Toaster.tsx": {
     "mtime": 1782380816.6374047,
@@ -202,6 +278,10 @@
   "/Users/itswatthachai/fitt-builder-v2/components/ui/DropOverlay.tsx": {
     "mtime": 1782381134.4636571,
     "hash": "6e01dae9a0c77c7c0fb8b76e48dbdaf1"
+  },
+  "/Users/itswatthachai/fitt-builder-v2/components/ui/DnaMark.tsx": {
+    "mtime": 1782723961.706972,
+    "hash": "c4104b1acac2a20ea26f4c0ba4f8714d"
   },
   "/Users/itswatthachai/fitt-builder-v2/components/ui/ImageLightbox.tsx": {
     "mtime": 1782383136.3801048,
@@ -215,13 +295,21 @@
     "mtime": 1782295476.5024996,
     "hash": "a46e5f9209ceb6577e5e4c7144fc8c51"
   },
+  "/Users/itswatthachai/fitt-builder-v2/components/settings/SettingsShell.tsx": {
+    "mtime": 1782722101.5117114,
+    "hash": "eee5ba4a42a5d1d0eac6a4b41311ef80"
+  },
   "/Users/itswatthachai/fitt-builder-v2/components/studio/PreviewPanel.tsx": {
     "mtime": 1782375349.5656316,
     "hash": "d1070dab6933fbcc797bcdfe280e72b8"
   },
+  "/Users/itswatthachai/fitt-builder-v2/components/studio/QuotaChip.tsx": {
+    "mtime": 1783936118.6322358,
+    "hash": "abbbfea7d8d366d25f6d1909f5e8668b"
+  },
   "/Users/itswatthachai/fitt-builder-v2/components/studio/SkillIcon.tsx": {
-    "mtime": 1782190373.6496317,
-    "hash": "f3d986b1d64353cf84b0e536c6078c76"
+    "mtime": 1784019723.1224453,
+    "hash": "57d9b9f2214426f6c1b4d361132227f2"
   },
   "/Users/itswatthachai/fitt-builder-v2/components/studio/SkillDropdown.tsx": {
     "mtime": 1782277401.434612,
@@ -232,8 +320,8 @@
     "hash": "b3179ae4d6233479f7e7602f1d057b1a"
   },
   "/Users/itswatthachai/fitt-builder-v2/components/studio/TopBar.tsx": {
-    "mtime": 1782402471.594947,
-    "hash": "17fe8044411a094ae03050e6c3023326"
+    "mtime": 1784010445.863943,
+    "hash": "4d6d5d67856fddda9f56eaf661c5fd04"
   },
   "/Users/itswatthachai/fitt-builder-v2/components/studio/Markdown.tsx": {
     "mtime": 1781774498.0592637,
@@ -248,8 +336,8 @@
     "hash": "10ba9dd366605fb6def6467884f478cc"
   },
   "/Users/itswatthachai/fitt-builder-v2/components/studio/Studio.tsx": {
-    "mtime": 1782402424.2307553,
-    "hash": "11e8be0c7d54cc21aba11dd938208841"
+    "mtime": 1784014644.9889638,
+    "hash": "ee3469c0ada7443666b9bf59d4ce5d6a"
   },
   "/Users/itswatthachai/fitt-builder-v2/components/studio/TerminalPanel.tsx": {
     "mtime": 1782277401.4334826,
@@ -267,6 +355,10 @@
     "mtime": 1782277369.0649333,
     "hash": "6e947731227df43f233ab2bf9d3f58e1"
   },
+  "/Users/itswatthachai/fitt-builder-v2/components/studio/OrgDnaPanel.tsx": {
+    "mtime": 1782724010.6569471,
+    "hash": "79d03675c5f036fdd3771b45a4f6d0bb"
+  },
   "/Users/itswatthachai/fitt-builder-v2/components/studio/DocPreviewModal.tsx": {
     "mtime": 1782295631.6869318,
     "hash": "62410db6d0d7a3fb9ed1a8bf6b440a0f"
@@ -275,13 +367,17 @@
     "mtime": 1782277401.4340665,
     "hash": "f6cd9668b70cfd6685db189ef1e461aa"
   },
+  "/Users/itswatthachai/fitt-builder-v2/components/studio/ApprovalModal.tsx": {
+    "mtime": 1782895789.5851274,
+    "hash": "bcee5b339b1e53da3b13d9e1a901cd34"
+  },
   "/Users/itswatthachai/fitt-builder-v2/components/studio/DiffViewer.tsx": {
     "mtime": 1782296281.3499444,
     "hash": "a8a9fd1b1912c933b041e6c9747500de"
   },
   "/Users/itswatthachai/fitt-builder-v2/components/studio/ChatPanel.tsx": {
-    "mtime": 1782383301.708556,
-    "hash": "60b9bfc0cf3d300d2e9eeec559927dc2"
+    "mtime": 1784015422.6600533,
+    "hash": "0eabd279d81dd31e44b908d50df82958"
   },
   "/Users/itswatthachai/fitt-builder-v2/components/studio/ProjectPresence.tsx": {
     "mtime": 1782376301.4600234,
@@ -291,17 +387,25 @@
     "mtime": 1782383245.5950108,
     "hash": "069168e393a615c5f22805a38a05831d"
   },
+  "/Users/itswatthachai/fitt-builder-v2/components/studio/DnaCaptureChip.tsx": {
+    "mtime": 1784014188.987954,
+    "hash": "1be2705b8a8b1c96c34d2d106a30c1bd"
+  },
   "/Users/itswatthachai/fitt-builder-v2/components/studio/CodePanel.tsx": {
-    "mtime": 1782294451.3541985,
-    "hash": "974b5b43a5e252b07488e5f2e65045c3"
+    "mtime": 1782708220.208036,
+    "hash": "496cb297a9bb89dd8349040bd884720d"
   },
   "/Users/itswatthachai/fitt-builder-v2/components/studio/PhaseStepper.tsx": {
-    "mtime": 1782277369.0598242,
-    "hash": "2d0da7a017af5dffd128e6f14ea68493"
+    "mtime": 1782898941.9552865,
+    "hash": "04fbe287e51bd8f0c12178f65d2329bd"
   },
   "/Users/itswatthachai/fitt-builder-v2/components/studio/ShareModal.tsx": {
-    "mtime": 1782381029.270803,
-    "hash": "176f9bf110693c9a92c44072d138ed5b"
+    "mtime": 1783936610.4794247,
+    "hash": "f65826964d1ae7cad843d12e16f34d27"
+  },
+  "/Users/itswatthachai/fitt-builder-v2/components/studio/FittcoreExportModal.tsx": {
+    "mtime": 1782900669.7177007,
+    "hash": "8cb6b4e89b5fa7f4620adcae614bd7ec"
   },
   "/Users/itswatthachai/fitt-builder-v2/components/landing/LoginShowcase.tsx": {
     "mtime": 1782373375.5166097,
@@ -316,8 +420,8 @@
     "hash": "f376cb00de9e3290cbead40f0b00f0c8"
   },
   "/Users/itswatthachai/fitt-builder-v2/components/landing/LaunchPad.tsx": {
-    "mtime": 1782293998.736111,
-    "hash": "0189645c0dbae0717d3ac46b51aaab30"
+    "mtime": 1782812600.915877,
+    "hash": "a3c0afb4ef10139c1ebadbc39ab2fa56"
   },
   "/Users/itswatthachai/fitt-builder-v2/components/landing/SpecJourney.tsx": {
     "mtime": 1782295637.5411193,
@@ -327,13 +431,45 @@
     "mtime": 1782193098.9858525,
     "hash": "037491cbd38dbaf688d388789d4e1b09"
   },
+  "/Users/itswatthachai/fitt-builder-v2/components/org/WorkspaceMembers.tsx": {
+    "mtime": 1783935575.0326853,
+    "hash": "862d5ead8aabc616a7b1ad59a103d239"
+  },
+  "/Users/itswatthachai/fitt-builder-v2/components/org/PainPointRadar.tsx": {
+    "mtime": 1784023285.0469403,
+    "hash": "18998064a8e3ee74a0307719dead46b7"
+  },
+  "/Users/itswatthachai/fitt-builder-v2/components/org/DomainSkillStudio.tsx": {
+    "mtime": 1784020410.205291,
+    "hash": "cf5f3acb164e20a6b7448439cd9de9a7"
+  },
+  "/Users/itswatthachai/fitt-builder-v2/components/org/SourceViewer.tsx": {
+    "mtime": 1782728973.720623,
+    "hash": "4b86e13df7776667f59787483187c920"
+  },
+  "/Users/itswatthachai/fitt-builder-v2/components/org/ColorIconPicker.tsx": {
+    "mtime": 1782709352.876,
+    "hash": "395ad4dec6980b3546d7ffc6f7e1db40"
+  },
+  "/Users/itswatthachai/fitt-builder-v2/components/org/OrgDnaEditor.tsx": {
+    "mtime": 1784023125.4936187,
+    "hash": "4c3829eea9af972bcd0fcfbef86d0402"
+  },
+  "/Users/itswatthachai/fitt-builder-v2/components/org/OrgSelect.tsx": {
+    "mtime": 1782710852.2826028,
+    "hash": "71d4297504a23743767f9ce26844d312"
+  },
+  "/Users/itswatthachai/fitt-builder-v2/components/org/CreateWorkspaceHost.tsx": {
+    "mtime": 1782709252.5599298,
+    "hash": "b9dc2034aefcc94f979523b045adfe14"
+  },
   "/Users/itswatthachai/fitt-builder-v2/components/projects/ProjectsDrawer.tsx": {
-    "mtime": 1782295614.590134,
-    "hash": "9721e17d3a5de1ec9ba6541d2f6444bc"
+    "mtime": 1782710237.5855944,
+    "hash": "b554ecbcbf17af29614e63c475a43b5f"
   },
   "/Users/itswatthachai/fitt-builder-v2/components/admin/SkillAdmin.tsx": {
-    "mtime": 1782295642.6103988,
-    "hash": "1365bef164948ab08054659adc6308e8"
+    "mtime": 1782721494.520181,
+    "hash": "4429541be951f1058e2d368f9ea03f37"
   },
   "/Users/itswatthachai/fitt-builder-v2/components/admin/SkillTemplateForm.tsx": {
     "mtime": 1782295808.5261905,
@@ -342,6 +478,134 @@
   "/Users/itswatthachai/fitt-builder-v2/components/share/ShareViewer.tsx": {
     "mtime": 1782277369.054822,
     "hash": "221668fd8e571eb8a123e4a0ca5e1a34"
+  },
+  "/Users/itswatthachai/fitt-builder-v2/public/Claude-Code-CyberSecurity-Skill-main/skills/05-malware-analysis/scripts/yara_generator.py": {
+    "mtime": 1782454427.0,
+    "hash": "0b3951fc69a4447d00a89b549a96aac9"
+  },
+  "/Users/itswatthachai/fitt-builder-v2/public/Claude-Code-CyberSecurity-Skill-main/skills/05-malware-analysis/scripts/static_analyzer.py": {
+    "mtime": 1782454427.0,
+    "hash": "161c698af75a52c931e50bb1cef8fbec"
+  },
+  "/Users/itswatthachai/fitt-builder-v2/public/Claude-Code-CyberSecurity-Skill-main/skills/17-mobile-security/scripts/apk_analyzer.py": {
+    "mtime": 1782454427.0,
+    "hash": "fa1f136cf12d37ab2405d6673fe781f6"
+  },
+  "/Users/itswatthachai/fitt-builder-v2/public/Claude-Code-CyberSecurity-Skill-main/skills/03-exploit-development/scripts/payload_generator.py": {
+    "mtime": 1782454427.0,
+    "hash": "15e14ceb2200239ae23fa8bd90be4dce"
+  },
+  "/Users/itswatthachai/fitt-builder-v2/public/Claude-Code-CyberSecurity-Skill-main/skills/09-web-security/scripts/api_security_tester.py": {
+    "mtime": 1782454427.0,
+    "hash": "0e90b3ac1423e6828a52141a7c711fe3"
+  },
+  "/Users/itswatthachai/fitt-builder-v2/public/Claude-Code-CyberSecurity-Skill-main/skills/09-web-security/scripts/owasp_scanner.py": {
+    "mtime": 1782454427.0,
+    "hash": "04c7a118f1c52c178c38edbfba06887c"
+  },
+  "/Users/itswatthachai/fitt-builder-v2/public/Claude-Code-CyberSecurity-Skill-main/skills/12-log-analysis/scripts/anomaly_detector.py": {
+    "mtime": 1782454427.0,
+    "hash": "a6c9cabadbd17a8698108c3a12d95488"
+  },
+  "/Users/itswatthachai/fitt-builder-v2/public/Claude-Code-CyberSecurity-Skill-main/skills/12-log-analysis/scripts/log_parser.py": {
+    "mtime": 1782454427.0,
+    "hash": "e8192290197a40b9946ffbb2e78ffcca"
+  },
+  "/Users/itswatthachai/fitt-builder-v2/public/Claude-Code-CyberSecurity-Skill-main/skills/06-threat-hunting/scripts/mitre_mapper.py": {
+    "mtime": 1782454427.0,
+    "hash": "b7ce75ae9dbc386b9cadeba78d86c88f"
+  },
+  "/Users/itswatthachai/fitt-builder-v2/public/Claude-Code-CyberSecurity-Skill-main/skills/06-threat-hunting/scripts/ioc_extractor.py": {
+    "mtime": 1782454427.0,
+    "hash": "f73ea79a9052d5a30684a202ffe37c80"
+  },
+  "/Users/itswatthachai/fitt-builder-v2/public/Claude-Code-CyberSecurity-Skill-main/skills/19-grc-compliance/scripts/control_mapper.py": {
+    "mtime": 1782454427.0,
+    "hash": "f2c8e951fa8e3acca38438ca5a05aaaf"
+  },
+  "/Users/itswatthachai/fitt-builder-v2/public/Claude-Code-CyberSecurity-Skill-main/skills/19-grc-compliance/scripts/risk_register.py": {
+    "mtime": 1782454427.0,
+    "hash": "572f40c235940afd5b9703bbada84ad2"
+  },
+  "/Users/itswatthachai/fitt-builder-v2/public/Claude-Code-CyberSecurity-Skill-main/skills/04-reverse-engineering/scripts/binary_analyzer.py": {
+    "mtime": 1782454427.0,
+    "hash": "c2b6235cf082feae8bbac8f1f715b9b1"
+  },
+  "/Users/itswatthachai/fitt-builder-v2/public/Claude-Code-CyberSecurity-Skill-main/skills/11-csoc-automation/scripts/alert_triager.py": {
+    "mtime": 1782454427.0,
+    "hash": "cf7d608f789974edb3d7feb232f77cc1"
+  },
+  "/Users/itswatthachai/fitt-builder-v2/public/Claude-Code-CyberSecurity-Skill-main/skills/11-csoc-automation/scripts/report_generator.py": {
+    "mtime": 1782454427.0,
+    "hash": "d8fc0656828aedfd26830ab3eb4d8f79"
+  },
+  "/Users/itswatthachai/fitt-builder-v2/public/Claude-Code-CyberSecurity-Skill-main/skills/07-incident-response/scripts/evidence_collector.py": {
+    "mtime": 1782454427.0,
+    "hash": "52010ea26ef391f5f63fa7560b9a8724"
+  },
+  "/Users/itswatthachai/fitt-builder-v2/public/Claude-Code-CyberSecurity-Skill-main/skills/07-incident-response/scripts/timeline_builder.py": {
+    "mtime": 1782454427.0,
+    "hash": "8b32d457a6b4689ec6e4d7d2ebea54d5"
+  },
+  "/Users/itswatthachai/fitt-builder-v2/public/Claude-Code-CyberSecurity-Skill-main/skills/14-red-team-ops/scripts/engagement_planner.py": {
+    "mtime": 1782454427.0,
+    "hash": "66d052a3faf6df32bee95222642f4391"
+  },
+  "/Users/itswatthachai/fitt-builder-v2/public/Claude-Code-CyberSecurity-Skill-main/skills/15-blue-team-defense/scripts/hardening_checker.py": {
+    "mtime": 1782454427.0,
+    "hash": "c769cc5a86fe7e1884aee50a48547a3c"
+  },
+  "/Users/itswatthachai/fitt-builder-v2/public/Claude-Code-CyberSecurity-Skill-main/skills/18-ot-ics-security/scripts/ics_protocol_analyzer.py": {
+    "mtime": 1782454427.0,
+    "hash": "1b616a7b07e36d80297050d52f32f75d"
+  },
+  "/Users/itswatthachai/fitt-builder-v2/public/Claude-Code-CyberSecurity-Skill-main/skills/10-cloud-security/scripts/iac_scanner.py": {
+    "mtime": 1782454427.0,
+    "hash": "42d952638f07005a3ffb96bc8c32b614"
+  },
+  "/Users/itswatthachai/fitt-builder-v2/public/Claude-Code-CyberSecurity-Skill-main/skills/10-cloud-security/scripts/cloud_auditor.py": {
+    "mtime": 1782454427.0,
+    "hash": "88ede8e792ad7e217950255d1fbe6370"
+  },
+  "/Users/itswatthachai/fitt-builder-v2/public/Claude-Code-CyberSecurity-Skill-main/skills/01-recon-osint/scripts/tech_fingerprint.py": {
+    "mtime": 1782454427.0,
+    "hash": "82cd8ccc1bfd533e0058d23fe543ed96"
+  },
+  "/Users/itswatthachai/fitt-builder-v2/public/Claude-Code-CyberSecurity-Skill-main/skills/01-recon-osint/scripts/subdomain_enum.py": {
+    "mtime": 1782454427.0,
+    "hash": "352b8c8d9530bd5e6bc537da2448c1e9"
+  },
+  "/Users/itswatthachai/fitt-builder-v2/public/Claude-Code-CyberSecurity-Skill-main/skills/01-recon-osint/scripts/dns_recon.py": {
+    "mtime": 1782454427.0,
+    "hash": "44a73428f6a5aca84417d9c5a3943450"
+  },
+  "/Users/itswatthachai/fitt-builder-v2/public/Claude-Code-CyberSecurity-Skill-main/skills/13-crypto-analysis/scripts/tls_auditor.py": {
+    "mtime": 1782454427.0,
+    "hash": "70a36f226bb4e1e1f3a126bf95ebf811"
+  },
+  "/Users/itswatthachai/fitt-builder-v2/public/Claude-Code-CyberSecurity-Skill-main/skills/08-network-security/scripts/pcap_analyzer.py": {
+    "mtime": 1782454427.0,
+    "hash": "c49c38b9a058a45fc9cfbe4a0b765ecc"
+  },
+  "/Users/itswatthachai/fitt-builder-v2/public/Claude-Code-CyberSecurity-Skill-main/skills/02-vulnerability-scanner/scripts/dependency_auditor.py": {
+    "mtime": 1782454427.0,
+    "hash": "f3df52b73f245260c0d9bfdd499cc522"
+  },
+  "/Users/itswatthachai/fitt-builder-v2/public/Claude-Code-CyberSecurity-Skill-main/skills/02-vulnerability-scanner/scripts/config_auditor.py": {
+    "mtime": 1782454427.0,
+    "hash": "fa1fd18c1e2367ebeb14ddf4a7624733"
+  },
+  "/Users/itswatthachai/fitt-builder-v2/public/Claude-Code-CyberSecurity-Skill-main/skills/02-vulnerability-scanner/scripts/cvss_calculator.py": {
+    "mtime": 1782454427.0,
+    "hash": "b08d0022043990c48885b6acad98249b"
+  },
+  "/Users/itswatthachai/fitt-builder-v2/public/Claude-Code-CyberSecurity-Skill-main/skills/16-ai-llm-security/scripts/prompt_injection_tester.py": {
+    "mtime": 1782454427.0,
+    "hash": "4b0ecd03aaef532ad973537db7bb2615"
+  },
+  "/Users/itswatthachai/fitt-builder-v2/public/Claude-Code-CyberSecurity-Skill-main/skills/16-ai-llm-security/scripts/model_supply_chain.py": {
+    "mtime": 1782454427.0,
+    "hash": "0100e5e58bd19b9cbdecad133b65d2a9"
   },
   "/Users/itswatthachai/fitt-builder-v2/scripts/db-query.mjs": {
     "mtime": 1782204973.0121076,
@@ -355,41 +619,65 @@
     "mtime": 1782190511.2803595,
     "hash": "e1dc953e7c9914c81fe16c0c81f4b1c6"
   },
+  "/Users/itswatthachai/fitt-builder-v2/lib/confirm.ts": {
+    "mtime": 1782707927.5812473,
+    "hash": "4ff9afb65197acd3c1b10e08f7cbf44f"
+  },
   "/Users/itswatthachai/fitt-builder-v2/lib/pending-action.ts": {
     "mtime": 1782206392.1726415,
     "hash": "73ded4bb94a46bc5076297473c14bede"
+  },
+  "/Users/itswatthachai/fitt-builder-v2/lib/org-skills.ts": {
+    "mtime": 1784013263.7383914,
+    "hash": "4855cb939f88a151bc0de6265d90a5b5"
+  },
+  "/Users/itswatthachai/fitt-builder-v2/lib/dna-capture.ts": {
+    "mtime": 1784013881.0417755,
+    "hash": "1e9c3ae6a24bec52d498f3678ff5245b"
+  },
+  "/Users/itswatthachai/fitt-builder-v2/lib/workspace-modal.ts": {
+    "mtime": 1782708814.5985198,
+    "hash": "8ef92020feebec6147a47baf8a92d5bb"
   },
   "/Users/itswatthachai/fitt-builder-v2/lib/origin.ts": {
     "mtime": 1782375209.705092,
     "hash": "56b749eea5c8402bf9937018e8031908"
   },
   "/Users/itswatthachai/fitt-builder-v2/lib/ai-usage.ts": {
-    "mtime": 1782374217.4878278,
-    "hash": "3431d4c4799e894fdef761bc8ad67fef"
+    "mtime": 1784021531.2953458,
+    "hash": "85fb0d70549c723cbdef565b13ea4c20"
   },
   "/Users/itswatthachai/fitt-builder-v2/lib/webcontainer.ts": {
     "mtime": 1781777981.0358193,
     "hash": "24f6964819f07cfee7c9a027f34fa985"
   },
+  "/Users/itswatthachai/fitt-builder-v2/lib/org-advisor.ts": {
+    "mtime": 1784021562.4067624,
+    "hash": "c4817bc4d4d54c832aeaa78338b316be"
+  },
   "/Users/itswatthachai/fitt-builder-v2/lib/scaffold.ts": {
-    "mtime": 1782400576.8097632,
-    "hash": "7ffdc317071125c663057c33045f6cfd"
+    "mtime": 1782727728.062822,
+    "hash": "575b3ff347e59cdb50f4766908e87151"
+  },
+  "/Users/itswatthachai/fitt-builder-v2/lib/org-members.ts": {
+    "mtime": 1783935349.127225,
+    "hash": "e7b7a83af5761b7a3b4693d7f1752b85"
   },
   "/Users/itswatthachai/fitt-builder-v2/lib/toast.ts": {
     "mtime": 1782380795.5529783,
     "hash": "b17a551cf2370aa59eb8cd727549b602"
   },
   "/Users/itswatthachai/fitt-builder-v2/lib/storage.ts": {
-    "mtime": 1782703974.2316892,
-    "hash": "b60c00c57a647a6c9fe43204711bfffb"
+    "mtime": 1782900912.7664723,
+    "hash": "b720296e980afb7bf8d5603a12a07487"
   },
   "/Users/itswatthachai/fitt-builder-v2/lib/share.ts": {
     "mtime": 1781171419.114041,
     "hash": "2e9e3e76c532ee8ffb5bf06bc460ec3d"
   },
   "/Users/itswatthachai/fitt-builder-v2/lib/email.ts": {
-    "mtime": 1782115404.0772693,
-    "hash": "e81ef1af99e423c5bd18880c599502bb"
+    "mtime": 1783935373.800821,
+    "hash": "aacf203ce44d2f0fca7d729a66c55f28"
   },
   "/Users/itswatthachai/fitt-builder-v2/lib/useDismiss.ts": {
     "mtime": 1782295450.1895785,
@@ -400,12 +688,20 @@
     "hash": "81619812419b75ff564ecfc3eea7c1c8"
   },
   "/Users/itswatthachai/fitt-builder-v2/lib/changelog.ts": {
-    "mtime": 1782399331.1874766,
-    "hash": "6716d4dccb82985c30acfb7b74600adb"
+    "mtime": 1784023329.8997436,
+    "hash": "4e3feefcb74156414661683f90dcad1e"
+  },
+  "/Users/itswatthachai/fitt-builder-v2/lib/org-dna.ts": {
+    "mtime": 1784013507.2847812,
+    "hash": "6a0b38546360af2be9aac755ef428a96"
   },
   "/Users/itswatthachai/fitt-builder-v2/lib/zip.ts": {
     "mtime": 1781265455.615047,
     "hash": "e3eaf49fc7a28bf632b68a265ff1bc19"
+  },
+  "/Users/itswatthachai/fitt-builder-v2/lib/attachments.ts": {
+    "mtime": 1784023096.9582992,
+    "hash": "1c481725df60e3be83397d53bd2f7a90"
   },
   "/Users/itswatthachai/fitt-builder-v2/lib/phases.ts": {
     "mtime": 1781518889.4747818,
@@ -415,25 +711,37 @@
     "mtime": 1782378782.1836693,
     "hash": "a6bd5e68a0b7d98982b0b3b0459ec815"
   },
+  "/Users/itswatthachai/fitt-builder-v2/lib/approval-roster.ts": {
+    "mtime": 1782895522.5077312,
+    "hash": "c0e7f428c0fc6868d6edb8dc5449cf5c"
+  },
   "/Users/itswatthachai/fitt-builder-v2/lib/prompts.ts": {
-    "mtime": 1782703367.83905,
-    "hash": "fc39fc4379f56070c6269692ddffb09d"
+    "mtime": 1784013865.0139961,
+    "hash": "560ef3f055c1d51794a4ba6eae7b4f99"
   },
   "/Users/itswatthachai/fitt-builder-v2/lib/sse.ts": {
-    "mtime": 1782278309.848468,
-    "hash": "18cb81afa6ee51db879c15ea4bdda573"
+    "mtime": 1784009043.3571494,
+    "hash": "6eb818915769790a2de2635985223f42"
   },
   "/Users/itswatthachai/fitt-builder-v2/lib/types.ts": {
-    "mtime": 1782704003.5178373,
-    "hash": "cc1391c9e070547abf0195f9d33ad2c0"
+    "mtime": 1783935318.8298965,
+    "hash": "8d7b1cef835f34b31fc79849a3a3b357"
+  },
+  "/Users/itswatthachai/fitt-builder-v2/lib/invites-inbox.ts": {
+    "mtime": 1783963908.0514872,
+    "hash": "a500cb7c16c6b38ad2e06c749d54f64a"
   },
   "/Users/itswatthachai/fitt-builder-v2/lib/stream-parse.ts": {
     "mtime": 1781775983.1200094,
     "hash": "45ef5db8f7463553cd73be54b1f91580"
   },
   "/Users/itswatthachai/fitt-builder-v2/lib/fittcore.ts": {
-    "mtime": 1782291511.8743606,
-    "hash": "22510188431443393fd6e98b0127239f"
+    "mtime": 1782808759.5186193,
+    "hash": "30fd27cd01fef61fd1a8fa4f49a3c444"
+  },
+  "/Users/itswatthachai/fitt-builder-v2/lib/workspace-style.ts": {
+    "mtime": 1782709225.1720572,
+    "hash": "94e20a78d339a3621a5708862b9b660e"
   },
   "/Users/itswatthachai/fitt-builder-v2/lib/useTheme.ts": {
     "mtime": 1782379096.2427876,
@@ -460,8 +768,8 @@
     "hash": "b593e606888e4e51dd1fa36cc9b9f07c"
   },
   "/Users/itswatthachai/fitt-builder-v2/lib/orgs.ts": {
-    "mtime": 1782704034.526741,
-    "hash": "64ceac7f5ea44934aea8888b31aef508"
+    "mtime": 1782708793.9298818,
+    "hash": "ba86040def2aa52856b74e9af1850c99"
   },
   "/Users/itswatthachai/fitt-builder-v2/lib/presets.ts": {
     "mtime": 1782125190.71022,
@@ -479,21 +787,29 @@
     "mtime": 1781519273.8722944,
     "hash": "75d62f46bf8b99a7b5c272419dcf4b72"
   },
+  "/Users/itswatthachai/fitt-builder-v2/lib/scaffold-preloader.ts": {
+    "mtime": 1782727434.3221984,
+    "hash": "c4227b6f523402553463fd005f267da8"
+  },
   "/Users/itswatthachai/fitt-builder-v2/lib/rate-limit.ts": {
-    "mtime": 1781171297.7107346,
-    "hash": "fab9346fb709ca2fef934190010fda8d"
+    "mtime": 1783936755.126517,
+    "hash": "dc75c9ad85aab55f54a81e7f10f04b25"
   },
   "/Users/itswatthachai/fitt-builder-v2/lib/agent-stream.ts": {
-    "mtime": 1781774579.958731,
-    "hash": "30637ea361603af34bbd4d4734545e0d"
+    "mtime": 1782718622.766696,
+    "hash": "5da31d2e7605b66ddb319c10c4918c77"
   },
   "/Users/itswatthachai/fitt-builder-v2/lib/files.ts": {
-    "mtime": 1781776881.773038,
-    "hash": "035e42d33e2d81cf80eae29cb97c07c5"
+    "mtime": 1782812549.4798272,
+    "hash": "ace2327ba889b30543332ec4b163eea0"
   },
   "/Users/itswatthachai/fitt-builder-v2/lib/sharing.ts": {
-    "mtime": 1782398565.0150769,
-    "hash": "7b334af052cca82da40820d222d0ec2a"
+    "mtime": 1783936391.2609355,
+    "hash": "de32f95424a8862c6e8fc133db8da776"
+  },
+  "/Users/itswatthachai/fitt-builder-v2/lib/org-context.ts": {
+    "mtime": 1782728346.3261874,
+    "hash": "63c499862f3ed1a98c3e23a3ec209804"
   },
   "/Users/itswatthachai/fitt-builder-v2/lib/agents/registry.ts": {
     "mtime": 1781518909.2344232,
@@ -531,21 +847,37 @@
     "mtime": 1782190187.9031653,
     "hash": "5e69b71d6375ecbcc6d0a6ed6e068397"
   },
+  "/Users/itswatthachai/fitt-builder-v2/lib/__tests__/org-dna.test.ts": {
+    "mtime": 1784015429.56768,
+    "hash": "9a2ee24df6e7133e3b12778f3d3865bc"
+  },
+  "/Users/itswatthachai/fitt-builder-v2/lib/__tests__/rate-limit.test.ts": {
+    "mtime": 1783936849.8927703,
+    "hash": "a34008f3b124c1352f2e868e878d0283"
+  },
+  "/Users/itswatthachai/fitt-builder-v2/lib/__tests__/org-advisor.test.ts": {
+    "mtime": 1784021705.0540705,
+    "hash": "56cc6a4d2e8f106a77ee3136116480cb"
+  },
   "/Users/itswatthachai/fitt-builder-v2/lib/db/types.ts": {
-    "mtime": 1782703911.2670279,
-    "hash": "01a45d7600aa72bdfea98b09461b5e32"
+    "mtime": 1784007642.0199902,
+    "hash": "7f0d2a0f9a491ee9a5daca53ac0cbd63"
   },
   "/Users/itswatthachai/fitt-builder-v2/lib/db/project-mapper.ts": {
-    "mtime": 1782124135.407637,
-    "hash": "d61a11b4a12ab1970264f90623cbc390"
+    "mtime": 1782900597.5723274,
+    "hash": "d9b801a03cdb03867a7785a0e758ebf9"
   },
   "/Users/itswatthachai/fitt-builder-v2/lib/db/__tests__/project-mapper.test.ts": {
-    "mtime": 1782113509.4661803,
-    "hash": "f6b1f42851d0f98cfc469823e409383c"
+    "mtime": 1782900928.4702392,
+    "hash": "c997f15a5bc8e32180ae0ef09af6b89e"
+  },
+  "/Users/itswatthachai/fitt-builder-v2/lib/skills/executive-copilot.ts": {
+    "mtime": 1784019834.2601092,
+    "hash": "f803d3b36013595fe77044bd82f7a6d5"
   },
   "/Users/itswatthachai/fitt-builder-v2/lib/skills/db-mapper.ts": {
-    "mtime": 1782190309.9205513,
-    "hash": "9290e4bb0cb7fadb7365bb2df4d46338"
+    "mtime": 1784007715.2554607,
+    "hash": "72d35a1f15f49b7d0a252def7dd813b4"
   },
   "/Users/itswatthachai/fitt-builder-v2/lib/skills/use-skills.ts": {
     "mtime": 1782191000.7296257,
@@ -554,6 +886,10 @@
   "/Users/itswatthachai/fitt-builder-v2/lib/skills/ecommerce.ts": {
     "mtime": 1782123997.7637498,
     "hash": "43605eb08e44490db1d78ea6f770492f"
+  },
+  "/Users/itswatthachai/fitt-builder-v2/lib/skills/org-resolve.ts": {
+    "mtime": 1784012893.4048975,
+    "hash": "5a0d8bb89c9de4eb9fdffc884f845177"
   },
   "/Users/itswatthachai/fitt-builder-v2/lib/skills/dashboard.ts": {
     "mtime": 1782124019.079343,
@@ -572,8 +908,12 @@
     "hash": "d0a95e90523b29564e3240f4da3e27a4"
   },
   "/Users/itswatthachai/fitt-builder-v2/lib/skills/registry.ts": {
-    "mtime": 1782190560.9975948,
-    "hash": "6eca9091737e3eaae09299351d77208e"
+    "mtime": 1784019710.1668267,
+    "hash": "78b30a36662352bc73a2e432901da238"
+  },
+  "/Users/itswatthachai/fitt-builder-v2/lib/skills/generate.ts": {
+    "mtime": 1784008296.942714,
+    "hash": "bd55e9327754a5380b01ad37c68e7bf5"
   },
   "/Users/itswatthachai/fitt-builder-v2/lib/skills/landing.ts": {
     "mtime": 1782124057.1970434,
@@ -583,25 +923,29 @@
     "mtime": 1782123954.9077578,
     "hash": "c51ccf0ee6cdf2343ff9076e48a18fe0"
   },
+  "/Users/itswatthachai/fitt-builder-v2/lib/skills/use-org-skill.ts": {
+    "mtime": 1784010496.834354,
+    "hash": "cd57e56a9dfb5b6b30f164f6f538063c"
+  },
   "/Users/itswatthachai/fitt-builder-v2/lib/skills/db.ts": {
-    "mtime": 1782190325.4512272,
-    "hash": "1cc802b93ae2e7434dad0f4bcc9aeaf0"
+    "mtime": 1784011502.0448408,
+    "hash": "6acdb3dd69278af334f9a78680003bc3"
   },
   "/Users/itswatthachai/fitt-builder-v2/lib/skills/admin-schema.ts": {
     "mtime": 1782190482.1133635,
     "hash": "245e5ea3c878eefa44435fd805895585"
   },
   "/Users/itswatthachai/fitt-builder-v2/lib/skills/__tests__/injection.test.ts": {
-    "mtime": 1782124664.3290133,
-    "hash": "3c8bf7302f05e16d6c05ee3d80d9bfb4"
+    "mtime": 1784019750.250095,
+    "hash": "9d3749f9efef6fea9f5594cd584072de"
   },
   "/Users/itswatthachai/fitt-builder-v2/lib/skills/__tests__/db-mapper.test.ts": {
-    "mtime": 1782190388.0874906,
-    "hash": "a13af4b72cc998b85396ad840e8a5b33"
+    "mtime": 1784008144.3014557,
+    "hash": "2cb3f7aa8577e3c69a87328c1fe7a045"
   },
   "/Users/itswatthachai/fitt-builder-v2/lib/skills/__tests__/registry.test.ts": {
-    "mtime": 1782124082.9260917,
-    "hash": "04df9ae514d779df3276fb8e331b7a39"
+    "mtime": 1784019856.1861093,
+    "hash": "e7ee7f97d35deecda806d1867fab601b"
   },
   "/Users/itswatthachai/fitt-builder-v2/lib/generation/registry.ts": {
     "mtime": 1782311619.7909672,
@@ -616,8 +960,8 @@
     "hash": "3faa24c0a69b06de7d217ba80e1302a2"
   },
   "/Users/itswatthachai/fitt-builder-v2/README.md": {
-    "mtime": 1782117629.5932643,
-    "hash": "46087fd13d30fdd40174d80c99bcea62"
+    "mtime": 1783936910.1320405,
+    "hash": "d7c48d619f2903ca3b517dc7b70e0a22"
   },
   "/Users/itswatthachai/fitt-builder-v2/cloudbuild.sandbox.yaml": {
     "mtime": 1782374237.7909985,
@@ -671,6 +1015,10 @@
     "mtime": 1781522651.866679,
     "hash": "d62fd212024945b55ee55900cc4dbcbd"
   },
+  "/Users/itswatthachai/fitt-builder-v2/docs/brief-plans/fittcore-handoff-payload.md": {
+    "mtime": 1783932968.3749855,
+    "hash": "15145a25ecb56e7277390db40b5c94a6"
+  },
   "/Users/itswatthachai/fitt-builder-v2/docs/brief-plans/merge-vibecode.md": {
     "mtime": 1781757407.5502546,
     "hash": "ceab6577c5ae7b0df4f4d8d5720d9fbc"
@@ -683,13 +1031,29 @@
     "mtime": 1781265533.407688,
     "hash": "9dfecfd0c6e552cfc09ed497fc9b5a2b"
   },
+  "/Users/itswatthachai/fitt-builder-v2/docs/brief-plans/fittcore-handoff-payload.html": {
+    "mtime": 1783933387.6357157,
+    "hash": "db54212354b4e2361bce14107b4f4493"
+  },
+  "/Users/itswatthachai/fitt-builder-v2/docs/brief-plans/CRN-architecture.md": {
+    "mtime": 1782795307.8376272,
+    "hash": "7d0240cd77026cc3cebe7bc34ba3f702"
+  },
   "/Users/itswatthachai/fitt-builder-v2/docs/superpowers/plans/2026-06-18-streaming-thinking-chat.md": {
     "mtime": 1781767093.3251595,
     "hash": "7c1f7c1c3a72245cb3ba8bd41b2da3d5"
   },
+  "/Users/itswatthachai/fitt-builder-v2/docs/superpowers/plans/2026-07-14-living-org-dna-part-b.md": {
+    "mtime": 1784012777.6881056,
+    "hash": "77862088144c12ffa49eabf63e8a5168"
+  },
   "/Users/itswatthachai/fitt-builder-v2/docs/superpowers/plans/2026-06-22-auth-cloud-storage-sharing.md": {
     "mtime": 1782111933.397592,
     "hash": "c430f0513df0d5612f7156ca6b53ee75"
+  },
+  "/Users/itswatthachai/fitt-builder-v2/docs/superpowers/plans/2026-07-14-domain-skill-studio-part-a.md": {
+    "mtime": 1784006897.6345966,
+    "hash": "0e9b2b5abc18f4e8e307180946e41dcc"
   },
   "/Users/itswatthachai/fitt-builder-v2/docs/superpowers/specs/2026-06-23-admin-skill-templates-design.md": {
     "mtime": 1782190096.8337247,
@@ -707,9 +1071,205 @@
     "mtime": 1781766599.4428906,
     "hash": "0e9ebab9bc4658dcc8eaf4066884e231"
   },
+  "/Users/itswatthachai/fitt-builder-v2/docs/superpowers/specs/2026-07-14-domain-skill-studio-design.md": {
+    "mtime": 1784006473.2532854,
+    "hash": "26777e2930dbfb23f0008bb57d7cefa5"
+  },
+  "/Users/itswatthachai/fitt-builder-v2/public/Claude-Code-CyberSecurity-Skill-main/CODE_OF_CONDUCT.md": {
+    "mtime": 1782454427.0,
+    "hash": "cdb983800d046da668434c78a4957001"
+  },
+  "/Users/itswatthachai/fitt-builder-v2/public/Claude-Code-CyberSecurity-Skill-main/CHANGELOG.md": {
+    "mtime": 1782454427.0,
+    "hash": "6fa602ee68b8546a1262750970ce0e86"
+  },
+  "/Users/itswatthachai/fitt-builder-v2/public/Claude-Code-CyberSecurity-Skill-main/USAGE.md": {
+    "mtime": 1782454427.0,
+    "hash": "ef9ab6bd89c28ff3158f29b7933a161b"
+  },
+  "/Users/itswatthachai/fitt-builder-v2/public/Claude-Code-CyberSecurity-Skill-main/INSTALL.md": {
+    "mtime": 1782454427.0,
+    "hash": "6861a13bd6b39a73205bdbd39eff1b5f"
+  },
+  "/Users/itswatthachai/fitt-builder-v2/public/Claude-Code-CyberSecurity-Skill-main/README.md": {
+    "mtime": 1782454427.0,
+    "hash": "e74095b5fad0825e691a6e19e99b0a8b"
+  },
+  "/Users/itswatthachai/fitt-builder-v2/public/Claude-Code-CyberSecurity-Skill-main/CONTRIBUTING.md": {
+    "mtime": 1782454427.0,
+    "hash": "6d49b853e352fe081c99b08ca74d5627"
+  },
+  "/Users/itswatthachai/fitt-builder-v2/public/Claude-Code-CyberSecurity-Skill-main/SECURITY.md": {
+    "mtime": 1782454427.0,
+    "hash": "b4ac341ce7c7f474c3fd18ea6c2f0ff6"
+  },
+  "/Users/itswatthachai/fitt-builder-v2/public/Claude-Code-CyberSecurity-Skill-main/skills/05-malware-analysis/SKILL.md": {
+    "mtime": 1782454427.0,
+    "hash": "d21c089e184b74af9d0a720dbca83105"
+  },
+  "/Users/itswatthachai/fitt-builder-v2/public/Claude-Code-CyberSecurity-Skill-main/skills/05-malware-analysis/examples/example_usage.md": {
+    "mtime": 1782454427.0,
+    "hash": "cc2901cb9574ac849a81fa00801a372d"
+  },
+  "/Users/itswatthachai/fitt-builder-v2/public/Claude-Code-CyberSecurity-Skill-main/skills/17-mobile-security/SKILL.md": {
+    "mtime": 1782454427.0,
+    "hash": "824823bd8dd29a4c39ace08a62281fea"
+  },
+  "/Users/itswatthachai/fitt-builder-v2/public/Claude-Code-CyberSecurity-Skill-main/skills/17-mobile-security/examples/example_usage.md": {
+    "mtime": 1782454427.0,
+    "hash": "525d3bff0bafe33ad5788ba732769855"
+  },
+  "/Users/itswatthachai/fitt-builder-v2/public/Claude-Code-CyberSecurity-Skill-main/skills/03-exploit-development/SKILL.md": {
+    "mtime": 1782454427.0,
+    "hash": "2a8044c77ee09783c3869551e9466ffc"
+  },
+  "/Users/itswatthachai/fitt-builder-v2/public/Claude-Code-CyberSecurity-Skill-main/skills/03-exploit-development/examples/example_usage.md": {
+    "mtime": 1782454427.0,
+    "hash": "bfffe95242d0d29ee63eaf5bab8eb3c3"
+  },
+  "/Users/itswatthachai/fitt-builder-v2/public/Claude-Code-CyberSecurity-Skill-main/skills/09-web-security/SKILL.md": {
+    "mtime": 1782454427.0,
+    "hash": "2e13e0b8cc69344ffd9ac4561e43e53a"
+  },
+  "/Users/itswatthachai/fitt-builder-v2/public/Claude-Code-CyberSecurity-Skill-main/skills/09-web-security/examples/example_usage.md": {
+    "mtime": 1782454427.0,
+    "hash": "28fe138fb56c90c97c73c94fe0f31c20"
+  },
+  "/Users/itswatthachai/fitt-builder-v2/public/Claude-Code-CyberSecurity-Skill-main/skills/12-log-analysis/SKILL.md": {
+    "mtime": 1782454427.0,
+    "hash": "c463664e156fd85b50028cc38ccd071f"
+  },
+  "/Users/itswatthachai/fitt-builder-v2/public/Claude-Code-CyberSecurity-Skill-main/skills/12-log-analysis/examples/example_usage.md": {
+    "mtime": 1782454427.0,
+    "hash": "1b95e9fdfa6714450369c1ea3e7c8df2"
+  },
+  "/Users/itswatthachai/fitt-builder-v2/public/Claude-Code-CyberSecurity-Skill-main/skills/06-threat-hunting/SKILL.md": {
+    "mtime": 1782454427.0,
+    "hash": "5f6959145a4228599e08bdaf06246214"
+  },
+  "/Users/itswatthachai/fitt-builder-v2/public/Claude-Code-CyberSecurity-Skill-main/skills/06-threat-hunting/examples/example_usage.md": {
+    "mtime": 1782454427.0,
+    "hash": "41d53d97062d8152ede736e825317d29"
+  },
+  "/Users/itswatthachai/fitt-builder-v2/public/Claude-Code-CyberSecurity-Skill-main/skills/19-grc-compliance/SKILL.md": {
+    "mtime": 1782454427.0,
+    "hash": "83bb4126bbe46bf0f327724ce0ba9cb8"
+  },
+  "/Users/itswatthachai/fitt-builder-v2/public/Claude-Code-CyberSecurity-Skill-main/skills/19-grc-compliance/examples/example_usage.md": {
+    "mtime": 1782454427.0,
+    "hash": "2f7e7e2fc56f0f3b5029a740ae4fab97"
+  },
+  "/Users/itswatthachai/fitt-builder-v2/public/Claude-Code-CyberSecurity-Skill-main/skills/04-reverse-engineering/SKILL.md": {
+    "mtime": 1782454427.0,
+    "hash": "e3a59af292ad52db6fb9f0bbb3e87c67"
+  },
+  "/Users/itswatthachai/fitt-builder-v2/public/Claude-Code-CyberSecurity-Skill-main/skills/04-reverse-engineering/examples/example_usage.md": {
+    "mtime": 1782454427.0,
+    "hash": "a27268188c8d7f7edeac5b5800d1ad30"
+  },
+  "/Users/itswatthachai/fitt-builder-v2/public/Claude-Code-CyberSecurity-Skill-main/skills/11-csoc-automation/SKILL.md": {
+    "mtime": 1782454427.0,
+    "hash": "b56010d8a73d04d798b1e05a61657c11"
+  },
+  "/Users/itswatthachai/fitt-builder-v2/public/Claude-Code-CyberSecurity-Skill-main/skills/11-csoc-automation/examples/example_usage.md": {
+    "mtime": 1782454427.0,
+    "hash": "2b2b5c594fa76fbf5561c711e3d1151a"
+  },
+  "/Users/itswatthachai/fitt-builder-v2/public/Claude-Code-CyberSecurity-Skill-main/skills/07-incident-response/SKILL.md": {
+    "mtime": 1782454427.0,
+    "hash": "78d5217845305dbaaa211613b0800f2b"
+  },
+  "/Users/itswatthachai/fitt-builder-v2/public/Claude-Code-CyberSecurity-Skill-main/skills/07-incident-response/examples/example_usage.md": {
+    "mtime": 1782454427.0,
+    "hash": "b7f1b5dcfa1ee416a4eafd5504eb701e"
+  },
+  "/Users/itswatthachai/fitt-builder-v2/public/Claude-Code-CyberSecurity-Skill-main/skills/14-red-team-ops/SKILL.md": {
+    "mtime": 1782454427.0,
+    "hash": "336f52957ec973f7c45071d98df40f40"
+  },
+  "/Users/itswatthachai/fitt-builder-v2/public/Claude-Code-CyberSecurity-Skill-main/skills/14-red-team-ops/examples/example_usage.md": {
+    "mtime": 1782454427.0,
+    "hash": "465e2beb6e3bdd0d3c9a59862d9009d2"
+  },
+  "/Users/itswatthachai/fitt-builder-v2/public/Claude-Code-CyberSecurity-Skill-main/skills/15-blue-team-defense/SKILL.md": {
+    "mtime": 1782454427.0,
+    "hash": "b4b20d428b419664a8d14e7e4f835827"
+  },
+  "/Users/itswatthachai/fitt-builder-v2/public/Claude-Code-CyberSecurity-Skill-main/skills/15-blue-team-defense/examples/example_usage.md": {
+    "mtime": 1782454427.0,
+    "hash": "ea3f50b6ae1badc38c0ce253af173186"
+  },
+  "/Users/itswatthachai/fitt-builder-v2/public/Claude-Code-CyberSecurity-Skill-main/skills/18-ot-ics-security/SKILL.md": {
+    "mtime": 1782454427.0,
+    "hash": "2492a575d65320a0b725f504e78f4214"
+  },
+  "/Users/itswatthachai/fitt-builder-v2/public/Claude-Code-CyberSecurity-Skill-main/skills/18-ot-ics-security/examples/example_usage.md": {
+    "mtime": 1782454427.0,
+    "hash": "e542956613bceddac16f0bdd6c5eecd0"
+  },
+  "/Users/itswatthachai/fitt-builder-v2/public/Claude-Code-CyberSecurity-Skill-main/skills/10-cloud-security/SKILL.md": {
+    "mtime": 1782454427.0,
+    "hash": "0d2ec91983e857f2e3c1906be6616dd8"
+  },
+  "/Users/itswatthachai/fitt-builder-v2/public/Claude-Code-CyberSecurity-Skill-main/skills/10-cloud-security/examples/example_usage.md": {
+    "mtime": 1782454427.0,
+    "hash": "37a373286e4558ef21d7ac1441800fa5"
+  },
+  "/Users/itswatthachai/fitt-builder-v2/public/Claude-Code-CyberSecurity-Skill-main/skills/01-recon-osint/SKILL.md": {
+    "mtime": 1782454427.0,
+    "hash": "b3d51a0124dd832a2b80041f24275dbe"
+  },
+  "/Users/itswatthachai/fitt-builder-v2/public/Claude-Code-CyberSecurity-Skill-main/skills/01-recon-osint/resources/common_subdomains.txt": {
+    "mtime": 1782454427.0,
+    "hash": "b66f59c4375b613ce19f5148483c99e6"
+  },
+  "/Users/itswatthachai/fitt-builder-v2/public/Claude-Code-CyberSecurity-Skill-main/skills/01-recon-osint/examples/example_usage.md": {
+    "mtime": 1782454427.0,
+    "hash": "16bd2cf8ec716e8e0821df02522b2d5f"
+  },
+  "/Users/itswatthachai/fitt-builder-v2/public/Claude-Code-CyberSecurity-Skill-main/skills/13-crypto-analysis/SKILL.md": {
+    "mtime": 1782454427.0,
+    "hash": "b1f4aa68614d33997ad54fd81ad1edd1"
+  },
+  "/Users/itswatthachai/fitt-builder-v2/public/Claude-Code-CyberSecurity-Skill-main/skills/13-crypto-analysis/examples/example_usage.md": {
+    "mtime": 1782454427.0,
+    "hash": "4a7f53490b3c9125fd78cc12c23048dc"
+  },
+  "/Users/itswatthachai/fitt-builder-v2/public/Claude-Code-CyberSecurity-Skill-main/skills/08-network-security/SKILL.md": {
+    "mtime": 1782454427.0,
+    "hash": "ca0208614e65695375cc26cb05020e06"
+  },
+  "/Users/itswatthachai/fitt-builder-v2/public/Claude-Code-CyberSecurity-Skill-main/skills/08-network-security/examples/example_usage.md": {
+    "mtime": 1782454427.0,
+    "hash": "29b528404fb67e934c6470e3fd9fafcd"
+  },
+  "/Users/itswatthachai/fitt-builder-v2/public/Claude-Code-CyberSecurity-Skill-main/skills/02-vulnerability-scanner/SKILL.md": {
+    "mtime": 1782454427.0,
+    "hash": "d3e03985bb169ce37d420d0f38427d35"
+  },
+  "/Users/itswatthachai/fitt-builder-v2/public/Claude-Code-CyberSecurity-Skill-main/skills/02-vulnerability-scanner/examples/example_usage.md": {
+    "mtime": 1782454427.0,
+    "hash": "e68f21167061b0945777383d2a6a08b1"
+  },
+  "/Users/itswatthachai/fitt-builder-v2/public/Claude-Code-CyberSecurity-Skill-main/skills/16-ai-llm-security/SKILL.md": {
+    "mtime": 1782454427.0,
+    "hash": "ff05eef166272e4b0a08d712817eab22"
+  },
+  "/Users/itswatthachai/fitt-builder-v2/public/Claude-Code-CyberSecurity-Skill-main/skills/16-ai-llm-security/examples/example_usage.md": {
+    "mtime": 1782454427.0,
+    "hash": "7dafb7e996b0d8f1b7c4385ad3299bf0"
+  },
   "/Users/itswatthachai/fitt-builder-v2/public/file.svg": {
     "mtime": 1781169756.178297,
     "hash": "d09f95206c3fa0bb9bd9fefabfd0ea71"
+  },
+  "/Users/itswatthachai/fitt-builder-v2/public/Building Page.svg": {
+    "mtime": 1782727341.6706269,
+    "hash": "7a8a5bac0a20c570946c755f898606a3"
+  },
+  "/Users/itswatthachai/fitt-builder-v2/public/cat Mark loading.svg": {
+    "mtime": 1782731026.5966818,
+    "hash": "59035dd103ac6ea33f23fc0788e6704b"
   },
   "/Users/itswatthachai/fitt-builder-v2/public/vercel.svg": {
     "mtime": 1781169756.1792226,
@@ -719,9 +1279,17 @@
     "mtime": 1781169756.1794984,
     "hash": "8e061864f388b47f33a1c3780831193e"
   },
+  "/Users/itswatthachai/fitt-builder-v2/public/cat-mark-loading.svg": {
+    "mtime": 1782727805.9916131,
+    "hash": "4017ef86dc659cde415bba290dbb17ba"
+  },
   "/Users/itswatthachai/fitt-builder-v2/public/cat_playing_animation.svg": {
     "mtime": 1781767414.265295,
     "hash": "73c2d47ef6dc1f9654e1e5134c700c7b"
+  },
+  "/Users/itswatthachai/fitt-builder-v2/public/1_g1OwIeaQayKL0gDYwzkvdQ.png": {
+    "mtime": 1782964719.8157194,
+    "hash": "19e5ccfa402bee3bbe43605695374f81"
   },
   "/Users/itswatthachai/fitt-builder-v2/public/globe.svg": {
     "mtime": 1781169756.178882,
@@ -730,5 +1298,13 @@
   "/Users/itswatthachai/fitt-builder-v2/public/window.svg": {
     "mtime": 1781169756.179237,
     "hash": "a2760511c65806022ad20adf74370ff3"
+  },
+  "/Users/itswatthachai/fitt-builder-v2/public/Dropping text shapes.svg": {
+    "mtime": 1782726592.0390291,
+    "hash": "8eba26ffac6ad9de53c699d9ceb83d0d"
+  },
+  "/Users/itswatthachai/fitt-builder-v2/public/Claude-Code-CyberSecurity-Skill-main/assets/banner.png": {
+    "mtime": 1782454427.0,
+    "hash": "5c0c8cf2e6844ff3846171c6c884562d"
   }
 }

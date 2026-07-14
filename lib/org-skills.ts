@@ -32,11 +32,14 @@ export async function saveOrgSkill(orgId: string, generated: GeneratedSkill): Pr
   if (!user) throw new Error("ไม่พบผู้ใช้");
   // Preserve the original author on update — a regenerate/edit by another
   // member shouldn't overwrite who first created this org's specialist.
-  const { data: existingRow } = await supabase
+  const { data: existingRow, error: existingRowError } = await supabase
     .from("fittbuilder_skill_templates")
     .select("created_by")
     .eq("org_id", orgId)
     .maybeSingle();
+  if (existingRowError) {
+    console.error("[org-skills] created_by pre-check failed:", existingRowError);
+  }
   const row = skillTemplateToInsertRow(generated, {
     slug: orgSkillSlug(orgId), orgId, createdBy: existingRow?.created_by ?? user.id, source: "ai",
   });

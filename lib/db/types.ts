@@ -251,6 +251,8 @@ export interface Database {
           seed_data: string;
           design_hints: string | null;
           question_bank: Json;
+          org_id: string | null;
+          source: string;
           status: string;
           created_by: string | null;
           created_at: string;
@@ -270,6 +272,8 @@ export interface Database {
           seed_data?: string;
           design_hints?: string | null;
           question_bank?: Json;
+          org_id?: string | null;
+          source?: string;
           status?: string;
           created_by?: string | null;
           created_at?: string;
@@ -289,6 +293,8 @@ export interface Database {
           seed_data?: string;
           design_hints?: string | null;
           question_bank?: Json;
+          org_id?: string | null;
+          source?: string;
           status?: string;
           created_by?: string | null;
           created_at?: string;

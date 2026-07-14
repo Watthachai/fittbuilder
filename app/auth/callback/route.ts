@@ -7,7 +7,6 @@ import { requestOrigin } from "@/lib/origin";
 export async function GET(request: Request) {
   const url = new URL(request.url);
   const code = url.searchParams.get("code");
-  const next = url.searchParams.get("next") ?? "/";
   // Public origin behind the Cloud Run proxy (not the 0.0.0.0 bind host).
   const origin = requestOrigin(request);
 
@@ -16,7 +15,21 @@ export async function GET(request: Request) {
   // Cookies must be written to the SAME response we return, or the Set-Cookie
   // headers never reach the browser and the session is lost (redirect loop).
   const cookieStore = await cookies();
+  // `next` rides through OAuth in a one-shot cookie (set by /login), NOT a query —
+  // so the redirect URL matches Supabase's allow list exactly (a `?next=` query
+  // would fail the match and fall back to the Site URL, sending every env to prod).
+  // Falls back to a legacy `?next=` query, then "/".
+  let rawNext = "";
+  try {
+    rawNext = decodeURIComponent(cookieStore.get("sb_next")?.value ?? "");
+  } catch {
+    rawNext = "";
+  }
+  if (!rawNext) rawNext = url.searchParams.get("next") ?? "";
+  // Same-origin only (leading "/", not "//") — never an open redirect.
+  const next = rawNext.startsWith("/") && !rawNext.startsWith("//") ? rawNext : "/";
   const response = NextResponse.redirect(`${origin}${next}`);
+  response.cookies.set("sb_next", "", { path: "/", maxAge: 0 }); // one-shot — consume it
   const supabase = createServerClient<Database>(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,

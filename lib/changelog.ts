@@ -23,6 +23,14 @@ export const CHANGE_BADGE: Record<ChangeType, { label: string; className: string
 // Newest first. SemVer: fix → PATCH, feature → MINOR, breaking → MAJOR.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.30.1",
+    date: "2026-07-14",
+    title: "แก้บั๊ก: ล็อกอินจาก localhost/UAT เด้งไป production",
+    items: [
+      { type: "fix", text: "แก้การ redirect หลังล็อกอิน: เดิมส่ง URL ปลายทางแบบมี `?next=` query ซึ่งไม่ตรงกับ allow-list ของ Supabase ทำให้ทุกสภาพแวดล้อม (localhost, UAT) เด้งกลับไปที่เว็บ production — ตอนนี้ใช้ callback URL แบบตรงเป๊ะ (match allow-list) แล้วพา `next` ผ่าน cookie ชั่วคราวแทน จึงกลับมาที่เว็บเดิมที่ล็อกอินเสมอ (พร้อมกัน open-redirect)" },
+    ],
+  },
+  {
     version: "0.30.0",
     date: "2026-07-14",
     title: "Living Org DNA — AI จับข้อมูลองค์กรจากแชทมาเก็บเข้า Org DNA ได้ในคลิกเดียว",

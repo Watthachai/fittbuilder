@@ -12,20 +12,28 @@ export default function LoginPage() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const supabase = createClient();
-  // Carry the `next` (e.g. /join/<token>) through the OAuth round-trip so the
-  // callback returns the user where they were headed — not silently to "/".
+  // BARE callback URL — no `?next=` query. A query makes the redirect URL fail
+  // Supabase's allow-list match, which silently falls back to the Site URL and
+  // sends every environment (localhost, UAT, …) to production. The bare path
+  // matches the allow list exactly; `next` rides through the round-trip in a
+  // short-lived same-site cookie the /auth/callback route reads instead.
   const redirectTo =
-    typeof window !== "undefined"
-      ? (() => {
-          const raw = new URLSearchParams(location.search).get("next");
-          const next = raw && raw.startsWith("/") ? raw : "/";
-          return `${location.origin}/auth/callback?next=${encodeURIComponent(next)}`;
-        })()
-      : undefined;
+    typeof window !== "undefined" ? `${location.origin}/auth/callback` : undefined;
+
+  /** Stash where to land after auth in a one-shot cookie the callback reads.
+   *  Only same-origin paths (leading "/", not "//") — never an open redirect. */
+  function stashNext() {
+    if (typeof window === "undefined") return;
+    const raw = new URLSearchParams(location.search).get("next");
+    const next = raw && raw.startsWith("/") && !raw.startsWith("//") ? raw : "/";
+    const secure = location.protocol === "https:" ? "; secure" : "";
+    document.cookie = `sb_next=${encodeURIComponent(next)}; path=/; max-age=600; samesite=lax${secure}`;
+  }
 
   async function google() {
     setBusy(true);
     setError(null);
+    stashNext();
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       // `prompt: select_account` forces Google's account chooser every time
@@ -43,6 +51,7 @@ export default function LoginPage() {
     e.preventDefault();
     setBusy(true);
     setError(null);
+    stashNext();
     const { error } = await supabase.auth.signInWithOtp({
       email,
       options: { emailRedirectTo: redirectTo },

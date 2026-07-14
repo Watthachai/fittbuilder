@@ -72,3 +72,10 @@ export function streamGenerateSkill(
   return streamSse<GenerateSkillEvent>("/api/admin/generate-skill", body, signal);
 }
 
+export function streamOrgSkill(
+  body: { orgId: string; brief?: string },
+  signal: AbortSignal
+): AsyncGenerator<GenerateSkillEvent> {
+  return streamSse<GenerateSkillEvent>("/api/org-skill/generate", body, signal);
+}
+

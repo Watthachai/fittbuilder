@@ -435,13 +435,13 @@
     "mtime": 1783935575.0326853,
     "hash": "862d5ead8aabc616a7b1ad59a103d239"
   },
-  "/Users/itswatthachai/fitt-builder-v2/components/org/PainPointRadar.tsx": {
-    "mtime": 1784023285.0469403,
-    "hash": "18998064a8e3ee74a0307719dead46b7"
-  },
   "/Users/itswatthachai/fitt-builder-v2/components/org/DomainSkillStudio.tsx": {
     "mtime": 1784020410.205291,
     "hash": "cf5f3acb164e20a6b7448439cd9de9a7"
+  },
+  "/Users/itswatthachai/fitt-builder-v2/components/org/PainPointResult.tsx": {
+    "mtime": 1784023728.9182143,
+    "hash": "ba2fee7f8f3a5e062038fa89bff21466"
   },
   "/Users/itswatthachai/fitt-builder-v2/components/org/SourceViewer.tsx": {
     "mtime": 1782728973.720623,
@@ -452,8 +452,8 @@
     "hash": "395ad4dec6980b3546d7ffc6f7e1db40"
   },
   "/Users/itswatthachai/fitt-builder-v2/components/org/OrgDnaEditor.tsx": {
-    "mtime": 1784023125.4936187,
-    "hash": "4c3829eea9af972bcd0fcfbef86d0402"
+    "mtime": 1784023876.3091314,
+    "hash": "475724029a4cfe6e5f7920acbf1e0159"
   },
   "/Users/itswatthachai/fitt-builder-v2/components/org/OrgSelect.tsx": {
     "mtime": 1782710852.2826028,
@@ -688,8 +688,8 @@
     "hash": "81619812419b75ff564ecfc3eea7c1c8"
   },
   "/Users/itswatthachai/fitt-builder-v2/lib/changelog.ts": {
-    "mtime": 1784023329.8997436,
-    "hash": "4e3feefcb74156414661683f90dcad1e"
+    "mtime": 1784023938.041157,
+    "hash": "1fcbb6fef5efbd17a6e4be609c5b3f0b"
   },
   "/Users/itswatthachai/fitt-builder-v2/lib/org-dna.ts": {
     "mtime": 1784013507.2847812,

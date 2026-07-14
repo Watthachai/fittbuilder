@@ -1,22 +1,37 @@
 import { expect, test } from "vitest";
 import { parseAdvisorResult } from "@/lib/org-advisor";
 
-test("parses a well-formed result and coerces options", () => {
+test("parses a well-formed result, coercing issues and options", () => {
   const raw = JSON.stringify({
     briefing: "## สรุป\nลูกค้าบ่นเรื่องแอปช้าเป็นหลัก",
     sentimentIndex: 58,
+    sourceText: "แอปช้ามากตอนเย็น. ส่งของ 5 วันยังไม่ถึง.",
+    issues: [
+      { title: "แอปช้า", severity: "critical", detail: "โหลดช้าช่วง peak", cite: "แอปช้ามากตอนเย็น" },
+      { title: "ส่งของช้า", severity: "high", cite: "ส่งของ 5 วันยังไม่ถึง" },
+      { severity: "low", cite: "x" }, // no title → dropped
+    ],
     options: [
-      { title: "แคชชั่วคราว", tradeoffs: "Impact กลาง · เวลา 1 สัปดาห์ (ประมาณการ)", rationale: "บรรเทาเร็ว", recommended: true },
-      { title: "เพิ่ม read replica", tradeoffs: "Impact สูง", rationale: "แก้ราก", recommended: false },
+      { title: "แคชชั่วคราว", tradeoffs: "Impact กลาง (ประมาณการ)", rationale: "บรรเทาเร็ว", recommended: true },
       { notTitle: "ทิ้ง" }, // no title → dropped
     ],
   });
   const r = parseAdvisorResult(raw)!;
   expect(r.briefing).toContain("แอปช้า");
   expect(r.sentimentIndex).toBe(58);
-  expect(r.options).toHaveLength(2);
+  expect(r.sourceText).toContain("ส่งของ 5 วัน");
+  expect(r.issues).toHaveLength(2);
+  expect(r.issues[0]).toMatchObject({ title: "แอปช้า", severity: "critical", cite: "แอปช้ามากตอนเย็น" });
+  expect(r.issues[1].detail).toBe(""); // missing detail → ""
+  expect(r.options).toHaveLength(1);
   expect(r.options[0].recommended).toBe(true);
-  expect(r.options[1].recommended).toBe(false);
+});
+
+test("unknown severity falls back to 'medium'", () => {
+  const r = parseAdvisorResult(
+    JSON.stringify({ briefing: "x", issues: [{ title: "a", severity: "spicy", cite: "" }] })
+  )!;
+  expect(r.issues[0].severity).toBe("medium");
 });
 
 test("clamps sentimentIndex to 0-100 and rounds", () => {
@@ -25,9 +40,11 @@ test("clamps sentimentIndex to 0-100 and rounds", () => {
   expect(parseAdvisorResult(JSON.stringify({ briefing: "x", sentimentIndex: 61.7 }))!.sentimentIndex).toBe(62);
 });
 
-test("missing sentimentIndex → null; missing options → empty array", () => {
+test("missing optional fields → sensible defaults", () => {
   const r = parseAdvisorResult(JSON.stringify({ briefing: "x" }))!;
   expect(r.sentimentIndex).toBeNull();
+  expect(r.sourceText).toBe("");
+  expect(r.issues).toEqual([]);
   expect(r.options).toEqual([]);
 });
 

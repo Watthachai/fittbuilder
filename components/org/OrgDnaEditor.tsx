@@ -60,7 +60,7 @@ export default function OrgDnaEditor({ orgId }: { orgId: string }) {
   const [painApproved, setPainApproved] = useState<Record<number, boolean>>({});
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
-  const [viewer, setViewer] = useState<{ highlight?: string } | null>(null);
+  const [viewer, setViewer] = useState<{ sources: string; highlight?: string } | null>(null);
   const [versionsOpen, setVersionsOpen] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -443,6 +443,7 @@ export default function OrgDnaEditor({ orgId }: { orgId: string }) {
                 result={painResult}
                 approved={painApproved}
                 onToggleApprove={(i) => setPainApproved((p) => ({ ...p, [i]: !p[i] }))}
+                onCite={(cite) => setViewer({ sources: painResult.sourceText, highlight: cite })}
               />
             </div>
           )}
@@ -451,7 +452,7 @@ export default function OrgDnaEditor({ orgId }: { orgId: string }) {
         <div className="mt-3 flex flex-wrap items-center gap-4">
           {dna.sources?.trim() && (
             <button
-              onClick={() => setViewer({})}
+              onClick={() => setViewer({ sources: dna.sources ?? "" })}
               className="inline-flex items-center gap-1.5 text-[12px] text-chalk-dim transition hover:text-shine"
             >
               <FileText size={13} /> ดูแหล่งข้อมูลทั้งหมดที่ AI ใช้
@@ -483,7 +484,7 @@ export default function OrgDnaEditor({ orgId }: { orgId: string }) {
                 />
                 {cite && (
                   <button
-                    onClick={() => setViewer({ highlight: cite })}
+                    onClick={() => setViewer({ sources: dna.sources ?? "", highlight: cite })}
                     title="คลิกดูที่มาในข้อมูลของคุณ"
                     className="mt-1.5 flex w-full items-start gap-1.5 rounded-md border border-night-edge bg-night/50 px-2 py-1.5 text-left text-[11px] text-chalk-dim transition hover:border-shine/50 hover:text-chalk"
                   >
@@ -537,9 +538,9 @@ export default function OrgDnaEditor({ orgId }: { orgId: string }) {
         </div>
       </div>
 
-      {viewer && dna.sources && (
+      {viewer && viewer.sources && (
         <SourceViewer
-          sources={dna.sources}
+          sources={viewer.sources}
           highlight={viewer.highlight}
           onClose={() => setViewer(null)}
         />

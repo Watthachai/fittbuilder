@@ -23,6 +23,14 @@ export const CHANGE_BADGE: Record<ChangeType, { label: string; className: string
 // Newest first. SemVer: fix → PATCH, feature → MINOR, breaking → MAJOR.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.33.1",
+    date: "2026-07-14",
+    title: "Pain Point อ้างอิงที่มาได้ (คลิกดูจากข้อมูลจริง)",
+    items: [
+      { type: "feature", text: "แต่ละ Pain Point มีโควตข้อความจริงจากข้อมูลที่คุณให้มา (แบบ NotebookLM) — คลิกโควตเพื่อเปิดดูที่มาในข้อมูลบริษัท พร้อมไฮไลต์ประโยคต้นทาง (ใช้ตัวดูแหล่งข้อมูลตัวเดียวกับ Org DNA) · แต่ละข้อมีป้ายระดับความรุนแรง (วิกฤต/สูง/กลาง/ต่ำ)" },
+    ],
+  },
+  {
     version: "0.33.0",
     date: "2026-07-14",
     title: "แหล่งข้อมูลเดียว: ร่าง Org DNA + หา Pain Point จากที่เดียว",

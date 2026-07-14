@@ -1,7 +1,7 @@
 # Graph Report - fitt-builder-v2  (2026-07-14)
 
 ## Corpus Check
-- 238 files · ~338,740 words
+- 238 files · ~339,364 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
@@ -10,7 +10,7 @@
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `8d317b3c`
+- Built from commit: `a0c575f9`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 

@@ -108,8 +108,18 @@ export default function OrgDnaEditor({ orgId }: { orgId: string }) {
       try {
         const cachedPain = localStorage.getItem(`fitt:advisor:${orgId}`);
         if (cachedPain) {
-          const parsed = JSON.parse(cachedPain) as { result?: AdvisorResult };
-          if (parsed?.result?.briefing) setPainResult(parsed.result);
+          const cached = (JSON.parse(cachedPain) as { result?: Partial<AdvisorResult> }).result;
+          if (cached?.briefing) {
+            // Normalize older cached shapes (pre-issues/sourceText) so the panel
+            // never reads .length off an undefined array.
+            setPainResult({
+              briefing: cached.briefing,
+              sentimentIndex: cached.sentimentIndex ?? null,
+              sourceText: cached.sourceText ?? "",
+              issues: Array.isArray(cached.issues) ? cached.issues : [],
+              options: Array.isArray(cached.options) ? cached.options : [],
+            });
+          }
         }
       } catch {
         /* corrupt or unavailable storage — nothing to recover */

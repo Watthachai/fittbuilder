@@ -7423,7 +7423,7 @@
       "label": "parseAdvisorResult()",
       "file_type": "code",
       "source_file": "lib/org-advisor.ts",
-      "source_location": "L67",
+      "source_location": "L93",
       "id": "lib_org_advisor_parseadvisorresult",
       "community": 0,
       "norm_label": "parseadvisorresult()"
@@ -7918,7 +7918,7 @@
       "label": "latestVersion()",
       "file_type": "code",
       "source_file": "lib/changelog.ts",
-      "source_location": "L534",
+      "source_location": "L542",
       "id": "lib_changelog_latestversion",
       "community": 2,
       "norm_label": "latestversion()"
@@ -7927,7 +7927,7 @@
       "label": "isChangelogUnseen()",
       "file_type": "code",
       "source_file": "lib/changelog.ts",
-      "source_location": "L538",
+      "source_location": "L546",
       "id": "lib_changelog_ischangelogunseen",
       "community": 2,
       "norm_label": "ischangelogunseen()"
@@ -30664,5 +30664,5 @@
     }
   ],
   "hyperedges": [],
-  "built_at_commit": "8d317b3cc340e0a9e87a66ed6c92f70c4f15af4d"
+  "built_at_commit": "a0c575f9528acc6c6eef488f396115929982c56d"
 }

@@ -23,6 +23,14 @@ export const CHANGE_BADGE: Record<ChangeType, { label: string; className: string
 // Newest first. SemVer: fix → PATCH, feature → MINOR, breaking → MAJOR.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.33.2",
+    date: "2026-07-14",
+    title: "แก้บั๊ก: ผล Pain Point ที่เก็บไว้เดิมทำหน้าค้าง",
+    items: [
+      { type: "fix", text: "ผล Pain Point ที่เคยเก็บไว้ก่อนอัปเดต (ยังไม่มีรายการ pain point/ที่มา) ทำให้หน้า workspace error ตอนโหลด — normalize ข้อมูลเก่าให้ครบรูปแบบตอนกู้คืน ไม่ต้องวิเคราะห์ใหม่" },
+    ],
+  },
+  {
     version: "0.33.1",
     date: "2026-07-14",
     title: "Pain Point อ้างอิงที่มาได้ (คลิกดูจากข้อมูลจริง)",

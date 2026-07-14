@@ -440,8 +440,8 @@
     "hash": "cf5f3acb164e20a6b7448439cd9de9a7"
   },
   "/Users/itswatthachai/fitt-builder-v2/components/org/PainPointResult.tsx": {
-    "mtime": 1784023728.9182143,
-    "hash": "ba2fee7f8f3a5e062038fa89bff21466"
+    "mtime": 1784024552.8028429,
+    "hash": "fb1f2a09f8d5a1f5e6786714300f255e"
   },
   "/Users/itswatthachai/fitt-builder-v2/components/org/SourceViewer.tsx": {
     "mtime": 1782728973.720623,
@@ -452,8 +452,8 @@
     "hash": "395ad4dec6980b3546d7ffc6f7e1db40"
   },
   "/Users/itswatthachai/fitt-builder-v2/components/org/OrgDnaEditor.tsx": {
-    "mtime": 1784023876.3091314,
-    "hash": "475724029a4cfe6e5f7920acbf1e0159"
+    "mtime": 1784024589.6311307,
+    "hash": "a5acb6c18fc1fce52a6d0d7c090f65bc"
   },
   "/Users/itswatthachai/fitt-builder-v2/components/org/OrgSelect.tsx": {
     "mtime": 1782710852.2826028,
@@ -652,8 +652,8 @@
     "hash": "24f6964819f07cfee7c9a027f34fa985"
   },
   "/Users/itswatthachai/fitt-builder-v2/lib/org-advisor.ts": {
-    "mtime": 1784021562.4067624,
-    "hash": "c4817bc4d4d54c832aeaa78338b316be"
+    "mtime": 1784024519.2443871,
+    "hash": "1bf8bcd0f6912702930dacf68d9028eb"
   },
   "/Users/itswatthachai/fitt-builder-v2/lib/scaffold.ts": {
     "mtime": 1782727728.062822,
@@ -688,8 +688,8 @@
     "hash": "81619812419b75ff564ecfc3eea7c1c8"
   },
   "/Users/itswatthachai/fitt-builder-v2/lib/changelog.ts": {
-    "mtime": 1784023938.041157,
-    "hash": "1fcbb6fef5efbd17a6e4be609c5b3f0b"
+    "mtime": 1784024658.7225564,
+    "hash": "67a8cc77bdd3e183fbe7a9913c5a0c8a"
   },
   "/Users/itswatthachai/fitt-builder-v2/lib/org-dna.ts": {
     "mtime": 1784013507.2847812,
@@ -856,8 +856,8 @@
     "hash": "a34008f3b124c1352f2e868e878d0283"
   },
   "/Users/itswatthachai/fitt-builder-v2/lib/__tests__/org-advisor.test.ts": {
-    "mtime": 1784021705.0540705,
-    "hash": "56cc6a4d2e8f106a77ee3136116480cb"
+    "mtime": 1784024615.3029604,
+    "hash": "3ec3c06ba85c339acf9cb4769f9cb838"
   },
   "/Users/itswatthachai/fitt-builder-v2/lib/db/types.ts": {
     "mtime": 1784007642.0199902,

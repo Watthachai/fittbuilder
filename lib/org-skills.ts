@@ -30,8 +30,15 @@ export async function saveOrgSkill(orgId: string, generated: GeneratedSkill): Pr
   const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error("ไม่พบผู้ใช้");
+  // Preserve the original author on update — a regenerate/edit by another
+  // member shouldn't overwrite who first created this org's specialist.
+  const { data: existingRow } = await supabase
+    .from("fittbuilder_skill_templates")
+    .select("created_by")
+    .eq("org_id", orgId)
+    .maybeSingle();
   const row = skillTemplateToInsertRow(generated, {
-    slug: orgSkillSlug(orgId), orgId, createdBy: user.id, source: "ai",
+    slug: orgSkillSlug(orgId), orgId, createdBy: existingRow?.created_by ?? user.id, source: "ai",
   });
   const { data, error } = await supabase
     .from("fittbuilder_skill_templates")

@@ -18,6 +18,12 @@ export default function DomainSkillStudio({ orgId }: { orgId: string }) {
   const [report, setReport] = useState(""); // streamed research text (the "reveal")
   const [draft, setDraft] = useState<GeneratedSkill | null>(null); // parsed result to save
   const abortRef = useRef<AbortController | null>(null);
+  const revealRef = useRef<HTMLDivElement | null>(null);
+
+  // Auto-scroll the reveal panel to the bottom as new tokens arrive.
+  useEffect(() => {
+    revealRef.current?.scrollTo({ top: revealRef.current.scrollHeight, behavior: "auto" });
+  }, [report]);
 
   useEffect(() => {
     let cancelled = false;
@@ -160,9 +166,13 @@ export default function DomainSkillStudio({ orgId }: { orgId: string }) {
           <p className="mb-1.5 flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-wider text-chalk-dim">
             <Sparkles size={11} className="text-shine" /> กำลังค้นคว้าและร่างผู้เชี่ยวชาญ
           </p>
+          <span className="sr-only" aria-live="polite">
+            {busy ? "กำลังค้นคว้าและร่างผู้เชี่ยวชาญ…" : draft ? "ร่างเสร็จแล้ว" : ""}
+          </span>
           <div
+            ref={revealRef}
             className="scroll-thin max-h-72 overflow-y-auto rounded-lg border border-night-edge bg-night/50 px-3 py-2"
-            aria-live="polite"
+            aria-live="off"
             aria-busy={busy}
           >
             {report ? (

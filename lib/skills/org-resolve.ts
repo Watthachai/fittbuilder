@@ -12,10 +12,12 @@ export async function resolveSkillForProject(
   if (skillId) return resolveSkill(skillId);
   if (!projectId) return undefined;
   const admin = createAdminClient();
-  const { data: proj } = await admin
+  const { data: proj, error: projError } = await admin
     .from("fittbuilder_projects").select("org_id").eq("id", projectId).maybeSingle();
+  if (projError) console.error("[org-resolve] project lookup failed:", projError);
   if (!proj?.org_id) return undefined;
-  const { data: row } = await admin
+  const { data: row, error: rowError } = await admin
     .from("fittbuilder_skill_templates").select("*").eq("org_id", proj.org_id).maybeSingle();
+  if (rowError) console.error("[org-resolve] skill template lookup failed:", rowError);
   return row ? rowToSkillTemplate(row as unknown as SkillTemplateRow) : undefined;
 }

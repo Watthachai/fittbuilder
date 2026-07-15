@@ -6,6 +6,24 @@
 
 ---
 
+> ## ⚠️ สถานะจริง (as-built) — อัปเดต 2026-07-15
+>
+> เอกสารด้านล่างเป็น **ดีไซน์เป้าหมาย**. โค้ดที่ deploy จริง (`fitt-coderunner`) ตอนนี้เป็น MVP ที่ยัง**ต่างจากดีไซน์นี้หลายจุด** — เวลาต่อระบบให้ยึด **โค้ดจริง** เป็นหลัก (ตรวจแล้วทีละบรรทัดกับ source):
+>
+> | เรื่อง | ดีไซน์ (เอกสารนี้) | โค้ดจริงตอนนี้ |
+> |---|---|---|
+> | FBD ส่งงาน | FBD → DB กลาง `POST /api/v1/projects/submit` (Bearer) แล้ว FTC DV poll → `POST /internal/trigger` | FBD ยิง**ตรง**เข้า CRN `POST /internal/projects` (`:8080`, ผ่าน proxy `/api/fittcore` ของ FBD) — **ไม่มี auth** (`handleIngest`) |
+> | ส่ง code zip | presigned URL (`sc_zip_url`) | **`zip_base64` แนบมาใน body** (decoder เข้มงวด `DisallowUnknownFields` → ใส่ `zip_uri` จะได้ `400`) |
+> | response ตอนรับงาน | `201` + `estimated_queue_position` | **`202`** + `{project_id, job_id, build_no, org_id, git_remote, git_branch, status:"queued"}` |
+> | รายงานผล build | INSERT `build_events` → DB กลาง fan-out (poll / LISTEN-NOTIFY, flag `notified_fbd`/`notified_ftcdv`) | **ตรงกับดีไซน์** ✓ — `event_type` ∈ `build_started`/`build_done`/`build_failed`; **ไม่มี** HTTP callback และ**ไม่มี**สถานะ `released` |
+> | auth / idempotency / จำกัดขนาด (zip 25MB, brd·prd 400KB, prompts 500×64KB) | ระบุไว้ในดีไซน์ | **ยังไม่ implement** — ถือเป็นช่องที่ต้องเติม (ตอนนี้ ingest ไม่เช็คขนาด ไม่มี 403/413/422, body พัง = `400`) |
+>
+> **สำคัญ — ปลายทางของทีมสร้างตามดีไซน์แล้ว:** ฝั่ง FBD/Gateway/FTC DV (LAN) ทำตาม *ดีไซน์* คือส่ง **`zip_uri`** (LAN IP ให้ CRN คนละเครื่องโหลด zip เองได้) และมี **FTC DV callback endpoint** ที่พร้อมแล้ว (403 แก้แล้ว, callback token ผ่าน). แต่ CRN ตอนนี้รับแค่ `zip_base64` (decoder เข้มงวด → `zip_uri` = 400) และรายงานผลผ่าน `build_events` เท่านั้น. **สองฝั่งจึงยังต่อกันไม่ได้** จนกว่าจะเติมฝั่ง CRN: (1) รับ `zip_uri` แล้ว **HTTP GET โหลด zip** (แทน/เพิ่มจาก base64), (2) หลัง build ยิง **HTTP callback ไป FTC DV** (`POST {FTC_DV}/api/ingest/crn/callback` + Bearer token) เพิ่มจากการเขียน `build_events`. ตัวอย่าง endpoint dev: Gateway `172.168.1.167:8080`, FTC DV `172.168.1.167:3101`.
+>
+> อ้างอิงโค้ด: `internal/api/api.go` (`handleIngest`, route `/internal/projects`), `internal/store/store.go` (`Notify` → `build_events`), `migrations/0001_init.sql` (ตาราง `build_events` + CHECK `event_type`).
+
+---
+
 ## 1. ภาพรวมระบบ (System Overview)
 
 ```

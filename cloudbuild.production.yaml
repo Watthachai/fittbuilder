@@ -31,6 +31,12 @@ substitutions:
   # Sensitive — SET THESE IN THE TRIGGER UI, do not commit real values here.
   _GEMINI_API_KEY: "SET_IN_TRIGGER"
   _SUPABASE_SERVICE_ROLE_KEY: "SET_IN_TRIGGER"
+  # FITT Code Runner Gateway (OPTIONAL — set BOTH in the trigger to enable the
+  # "send to Code Runner" feature in this env). Not preflight-checked, so leaving
+  # them unset just disables the feature (the route returns a clear error) —
+  # never a build break. The Gateway host must be reachable FROM Cloud Run.
+  _FITTCORE_GATEWAY_URL: "SET_IN_TRIGGER"
+  _FITTCORE_GATEWAY_API_KEY: "SET_IN_TRIGGER"
 
 steps:
   # ==================== PREFLIGHT ====================
@@ -112,7 +118,7 @@ steps:
       - "900"
       - --set-env-vars
       - >-
-        ^|^NODE_ENV=production|GEMINI_MODEL=${_GEMINI_MODEL}|ADMIN_EMAILS=${_ADMIN_EMAILS}|NEXT_PUBLIC_SUPABASE_URL=${_NEXT_PUBLIC_SUPABASE_URL}|NEXT_PUBLIC_SUPABASE_ANON_KEY=${_NEXT_PUBLIC_SUPABASE_ANON_KEY}|GEMINI_API_KEY=${_GEMINI_API_KEY}|SUPABASE_SERVICE_ROLE_KEY=${_SUPABASE_SERVICE_ROLE_KEY}
+        ^|^NODE_ENV=production|GEMINI_MODEL=${_GEMINI_MODEL}|ADMIN_EMAILS=${_ADMIN_EMAILS}|NEXT_PUBLIC_SUPABASE_URL=${_NEXT_PUBLIC_SUPABASE_URL}|NEXT_PUBLIC_SUPABASE_ANON_KEY=${_NEXT_PUBLIC_SUPABASE_ANON_KEY}|GEMINI_API_KEY=${_GEMINI_API_KEY}|SUPABASE_SERVICE_ROLE_KEY=${_SUPABASE_SERVICE_ROLE_KEY}|FITTCORE_GATEWAY_URL=${_FITTCORE_GATEWAY_URL}|FITTCORE_GATEWAY_API_KEY=${_FITTCORE_GATEWAY_API_KEY}
     waitFor: [push-build]
 
 images:

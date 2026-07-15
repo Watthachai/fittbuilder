@@ -43,6 +43,7 @@ export interface Database {
           color: string;
           icon: string;
           org_dna: Json;
+          pain_radar: Json | null;
           created_at: string;
           updated_at: string;
         };
@@ -53,6 +54,7 @@ export interface Database {
           color?: string;
           icon?: string;
           org_dna?: Json;
+          pain_radar?: Json | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -63,6 +65,7 @@ export interface Database {
           color?: string;
           icon?: string;
           org_dna?: Json;
+          pain_radar?: Json | null;
           created_at?: string;
           updated_at?: string;
         };

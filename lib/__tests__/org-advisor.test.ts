@@ -1,5 +1,5 @@
 import { expect, test } from "vitest";
-import { parseAdvisorResult } from "@/lib/org-advisor";
+import { normalizeAdvisorResult, parseAdvisorResult } from "@/lib/org-advisor";
 
 test("parses a well-formed result, coercing issues and options", () => {
   const raw = JSON.stringify({
@@ -52,6 +52,16 @@ test("returns null when JSON is invalid or the briefing is empty", () => {
   expect(parseAdvisorResult("not json")).toBeNull();
   expect(parseAdvisorResult(JSON.stringify({ briefing: "   ", sentimentIndex: 50 }))).toBeNull();
   expect(parseAdvisorResult(JSON.stringify({ sentimentIndex: 50 }))).toBeNull();
+});
+
+test("normalizeAdvisorResult backfills missing arrays and rejects empty briefings", () => {
+  // An older persisted shape (pre issues/sourceText) must not crash the panel.
+  const old = normalizeAdvisorResult({ briefing: "เก่า", sentimentIndex: 40, options: [] } as never)!;
+  expect(old.issues).toEqual([]);
+  expect(old.sourceText).toBe("");
+  expect(old.sentimentIndex).toBe(40);
+  expect(normalizeAdvisorResult(null)).toBeNull();
+  expect(normalizeAdvisorResult({ briefing: "" })).toBeNull();
 });
 
 test("recommended defaults to false unless strictly true", () => {

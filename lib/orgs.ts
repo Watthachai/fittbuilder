@@ -3,8 +3,9 @@
 import { createClient } from "@/lib/supabase/client";
 import type { Json } from "@/lib/db/types";
 import type { OrgDna, OrgRecord } from "@/lib/types";
+import type { AdvisorSaved } from "@/lib/org-advisor";
 
-const SELECT = "id, owner_id, name, color, icon, org_dna, created_at, updated_at";
+const SELECT = "id, owner_id, name, color, icon, org_dna, pain_radar, created_at, updated_at";
 
 interface OrgRow {
   id: string;
@@ -13,8 +14,18 @@ interface OrgRow {
   color: string;
   icon: string;
   org_dna: unknown;
+  pain_radar: unknown;
   created_at: string;
   updated_at: string;
+}
+
+/** Accept a stored Pain Point analysis only if it has a briefing; else null. */
+function coercePainRadar(v: unknown): AdvisorSaved | null {
+  if (v && typeof v === "object" && "result" in v) {
+    const r = (v as { result?: { briefing?: unknown } }).result;
+    if (r && typeof r.briefing === "string" && r.briefing.trim()) return v as AdvisorSaved;
+  }
+  return null;
 }
 
 function rowToOrg(r: OrgRow): OrgRecord {
@@ -25,6 +36,7 @@ function rowToOrg(r: OrgRow): OrgRecord {
     color: r.color,
     icon: r.icon,
     dna: (r.org_dna && typeof r.org_dna === "object" ? r.org_dna : {}) as OrgDna,
+    painRadar: coercePainRadar(r.pain_radar),
     createdAt: r.created_at,
     updatedAt: r.updated_at,
   };
@@ -92,6 +104,16 @@ export async function updateOrgDna(id: string, dna: OrgDna): Promise<void> {
   const { error } = await supabase
     .from("fittbuilder_orgs")
     .update({ org_dna: dna as unknown as Json, updated_at: new Date().toISOString() })
+    .eq("id", id);
+  if (error) throw error;
+}
+
+/** Clear the shared Pain Point analysis for the workspace (members-only via RLS). */
+export async function clearOrgPainRadar(id: string): Promise<void> {
+  const supabase = createClient();
+  const { error } = await supabase
+    .from("fittbuilder_orgs")
+    .update({ pain_radar: null, updated_at: new Date().toISOString() })
     .eq("id", id);
   if (error) throw error;
 }

@@ -111,6 +111,8 @@ export interface OrgRecord {
   color: string;
   icon: string;
   dna: OrgDna;
+  /** Latest shared Pain Point Radar analysis (null = none yet). */
+  painRadar: import("./org-advisor").AdvisorSaved | null;
   createdAt: string;
   updatedAt: string;
 }

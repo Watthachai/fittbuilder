@@ -7,6 +7,7 @@ import { MissingApiKeyError, streamParts, type TokenUsage } from "@/lib/gemini";
 import { buildOrgDnaContext } from "@/lib/org-dna";
 import { ADVISOR_SYSTEM, parseAdvisorResult } from "@/lib/org-advisor";
 import { clientIp, rateLimit } from "@/lib/rate-limit";
+import type { Json } from "@/lib/db/types";
 import type { OrgDna } from "@/lib/types";
 
 export const maxDuration = 120;
@@ -94,7 +95,17 @@ export async function POST(request: Request) {
         { status: 502 }
       );
     }
-    return Response.json({ result });
+    // Persist as the workspace's shared latest analysis so every member sees it.
+    // The user-scoped client enforces orgs_update RLS (the caller is a member).
+    // Best-effort — the result still returns even if the save fails.
+    const savedAt = new Date().toISOString();
+    const saved = { result, at: savedAt, by: userId ?? "" };
+    const { error: saveErr } = await supabase
+      .from("fittbuilder_orgs")
+      .update({ pain_radar: saved as unknown as Json, updated_at: savedAt })
+      .eq("id", body.orgId);
+    if (saveErr) console.error("[org-advisor] save failed:", saveErr);
+    return Response.json({ result, savedAt });
   } catch (error) {
     const message = error instanceof MissingApiKeyError ? error.message : "วิเคราะห์ไม่สำเร็จ กรุณาลองใหม่";
     console.error("[org-advisor] failed:", error);

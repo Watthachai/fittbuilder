@@ -23,6 +23,14 @@ export const CHANGE_BADGE: Record<ChangeType, { label: string; className: string
 // Newest first. SemVer: fix → PATCH, feature → MINOR, breaking → MAJOR.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.34.0",
+    date: "2026-07-15",
+    title: "ผล Pain Point เป็นของกลาง — ทั้งทีมเห็นเหมือนกัน",
+    items: [
+      { type: "feature", text: "ผลวิเคราะห์ Pain Point ล่าสุดถูกเก็บเข้า workspace (ไม่ใช่แค่เครื่องคุณ) — สมาชิกทุกคนใน workspace เปิดมาก็เห็นผลเดียวกัน พร้อมเวลาที่อัปเดตล่าสุด · ใครในทีมกดวิเคราะห์ใหม่ก็ทับของเดิมให้ทุกคน · ปุ่ม “ล้างผล” ล้างให้ทั้งทีม" },
+    ],
+  },
+  {
     version: "0.33.2",
     date: "2026-07-14",
     title: "แก้บั๊ก: ผล Pain Point ที่เก็บไว้เดิมทำหน้าค้าง",

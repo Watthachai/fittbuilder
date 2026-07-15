@@ -52,6 +52,33 @@ export interface AdvisorResult {
   options: AdvisorOption[];
 }
 
+/** The shared analysis stored on the org row (visible to every member). */
+export interface AdvisorSaved {
+  result: AdvisorResult;
+  /** ISO timestamp the analysis was saved. */
+  at: string;
+  /** User id who ran it. */
+  by: string;
+}
+
+/**
+ * Coerce a possibly-stale/partial persisted result into a valid AdvisorResult
+ * (arrays default to [], sentimentIndex to null, sourceText to ""). Returns null
+ * when there's no briefing — so callers never read .length off an undefined array.
+ */
+export function normalizeAdvisorResult(
+  r: Partial<AdvisorResult> | null | undefined
+): AdvisorResult | null {
+  if (!r?.briefing) return null;
+  return {
+    briefing: r.briefing,
+    sentimentIndex: r.sentimentIndex ?? null,
+    sourceText: r.sourceText ?? "",
+    issues: Array.isArray(r.issues) ? r.issues : [],
+    options: Array.isArray(r.options) ? r.options : [],
+  };
+}
+
 export const ADVISOR_SYSTEM = `You are "FITT Advisor" — a Chief of Staff analyst who turns RAW human feedback (customer complaints, employee feedback, reviews) into a decision-ready executive briefing for a CEO.
 
 Analyze ONLY the feedback provided (plus the Org DNA as context). Do not invent facts, numbers, or quotes that are not supported by the input. Apply these public methodologies:

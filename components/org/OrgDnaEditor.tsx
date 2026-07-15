@@ -5,13 +5,14 @@ import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { FileText, History, Loader2, Paperclip, Quote, Radar, RotateCcw, Save, Sparkles, Trash2, X } from "lucide-react";
 import SettingsShell from "@/components/settings/SettingsShell";
-import { deleteOrg, getOrg, updateOrgMeta, updateOrgDna, dnaCompleteness } from "@/lib/orgs";
+import { clearOrgPainRadar, deleteOrg, getOrg, updateOrgMeta, updateOrgDna, dnaCompleteness } from "@/lib/orgs";
 import { ARCHETYPES, DNA_BLOCKS, archetypeMeta } from "@/lib/org-dna";
 import { DEFAULT_COLOR, DEFAULT_ICON, WorkspaceIcon } from "@/lib/workspace-style";
 import { fileToAttachment, MAX_ATTACHMENT_BYTES } from "@/lib/attachments";
 import { confirm } from "@/lib/confirm";
 import { toast } from "@/lib/toast";
 import type { ChatAttachmentInput, OrgDna, OrgDnaVersion } from "@/lib/types";
+import { normalizeAdvisorResult } from "@/lib/org-advisor";
 import type { AdvisorResult } from "@/lib/org-advisor";
 import ColorIconPicker from "./ColorIconPicker";
 import DomainSkillStudio from "./DomainSkillStudio";
@@ -57,6 +58,7 @@ export default function OrgDnaEditor({ orgId }: { orgId: string }) {
   const [drafting, setDrafting] = useState(false);
   const [painBusy, setPainBusy] = useState(false);
   const [painResult, setPainResult] = useState<AdvisorResult | null>(null);
+  const [painSavedAt, setPainSavedAt] = useState<string | null>(null);
   const [painApproved, setPainApproved] = useState<Record<number, boolean>>({});
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -103,26 +105,12 @@ export default function OrgDnaEditor({ orgId }: { orgId: string }) {
         setPaste(org.dna.sources);
         setRestored(true);
       }
-      // Recover the last Pain Point analysis (this runs after the getOrg await,
-      // so it's an async continuation — not a synchronous setState in the effect).
-      try {
-        const cachedPain = localStorage.getItem(`fitt:advisor:${orgId}`);
-        if (cachedPain) {
-          const cached = (JSON.parse(cachedPain) as { result?: Partial<AdvisorResult> }).result;
-          if (cached?.briefing) {
-            // Normalize older cached shapes (pre-issues/sourceText) so the panel
-            // never reads .length off an undefined array.
-            setPainResult({
-              briefing: cached.briefing,
-              sentimentIndex: cached.sentimentIndex ?? null,
-              sourceText: cached.sourceText ?? "",
-              issues: Array.isArray(cached.issues) ? cached.issues : [],
-              options: Array.isArray(cached.options) ? cached.options : [],
-            });
-          }
-        }
-      } catch {
-        /* corrupt or unavailable storage — nothing to recover */
+      // Load the workspace's SHARED Pain Point analysis (visible to every member).
+      // Runs after the getOrg await → async continuation, not a sync setState.
+      const savedPain = normalizeAdvisorResult(org.painRadar?.result);
+      if (savedPain) {
+        setPainResult(savedPain);
+        setPainSavedAt(org.painRadar?.at ?? null);
       }
       setLoading(false);
     })();
@@ -216,15 +204,11 @@ export default function OrgDnaEditor({ orgId }: { orgId: string }) {
         }),
       });
       const data = (await res.json().catch(() => null)) as
-        | { result?: AdvisorResult; error?: string }
+        | { result?: AdvisorResult; savedAt?: string; error?: string }
         | null;
       if (!res.ok || !data?.result) throw new Error(data?.error ?? "วิเคราะห์ไม่สำเร็จ");
       setPainResult(data.result);
-      try {
-        localStorage.setItem(`fitt:advisor:${orgId}`, JSON.stringify({ result: data.result }));
-      } catch {
-        /* storage full/unavailable — the result still shows this session */
-      }
+      setPainSavedAt(data.savedAt ?? null);
     } catch (e) {
       toast.error("หา Pain Point ไม่สำเร็จ", { description: e instanceof Error ? e.message : undefined });
     } finally {
@@ -232,13 +216,14 @@ export default function OrgDnaEditor({ orgId }: { orgId: string }) {
     }
   };
 
-  const clearPain = () => {
+  const clearPain = async () => {
     setPainResult(null);
     setPainApproved({});
+    setPainSavedAt(null);
     try {
-      localStorage.removeItem(`fitt:advisor:${orgId}`);
-    } catch {
-      /* storage unavailable — nothing to clear */
+      await clearOrgPainRadar(orgId);
+    } catch (e) {
+      toast.error("ล้างผลไม่สำเร็จ", { description: e instanceof Error ? e.message : undefined });
     }
   };
 
@@ -438,13 +423,19 @@ export default function OrgDnaEditor({ orgId }: { orgId: string }) {
           )}
           {painResult && !painBusy && (
             <div className="mt-4 border-t border-night-edge pt-4">
-              <div className="flex items-center justify-between">
-                <p className="flex items-center gap-1.5 font-display text-sm font-semibold text-chalk">
-                  <Radar size={14} className="text-shine" /> Pain Point ขององค์กร
-                </p>
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <p className="flex items-center gap-1.5 font-display text-sm font-semibold text-chalk">
+                    <Radar size={14} className="text-shine" /> Pain Point ขององค์กร
+                  </p>
+                  <p className="mt-0.5 text-[11px] text-chalk-dim">
+                    ทุกคนใน workspace เห็นผลนี้
+                    {painSavedAt ? ` · อัปเดต ${new Date(painSavedAt).toLocaleString("th-TH")}` : ""}
+                  </p>
+                </div>
                 <button
-                  onClick={clearPain}
-                  className="inline-flex items-center gap-1.5 rounded-lg border border-night-edge px-2.5 py-1.5 text-[12px] text-chalk-dim transition hover:border-halt hover:text-halt"
+                  onClick={() => void clearPain()}
+                  className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-night-edge px-2.5 py-1.5 text-[12px] text-chalk-dim transition hover:border-halt hover:text-halt"
                 >
                   <Trash2 size={12} /> ล้างผล
                 </button>

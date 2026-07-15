@@ -42,7 +42,7 @@ import type {
   RunnerSend,
   SpecAnswers,
 } from "@/lib/types";
-import { FITTCORE_TAG, type FittcoreRunnerResult } from "@/lib/fittcore";
+import { FITTCORE_TAG, type GatewayIngestResult } from "@/lib/fittcore";
 import { captureDnaFromText, type DnaCapture } from "@/lib/dna-capture";
 import { appendDnaBlock } from "@/lib/org-dna";
 import { getOrg, updateOrgDna } from "@/lib/orgs";
@@ -915,14 +915,13 @@ export default function Studio({ projectId }: { projectId: string }) {
   /** A hand-off to the Code Runner succeeded — persist it (durable "sent" chip)
    *  and reflect it in the live project state so the TopBar chip shows at once. */
   const handleRunnerSent = useCallback(
-    (result: FittcoreRunnerResult) => {
+    (result: GatewayIngestResult) => {
       const current = projectRef.current;
       if (!current) return;
       const runner: RunnerSend = {
-        buildNo: result.build_no,
-        branch: result.git_branch,
-        jobId: result.job_id,
-        status: result.status,
+        jobId: result.jobId,
+        state: result.state,
+        duplicate: result.duplicate,
         tag: FITTCORE_TAG,
         sentAt: new Date().toISOString(),
       };

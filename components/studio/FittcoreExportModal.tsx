@@ -12,7 +12,7 @@ import {
   buildFittcoreSpec,
   fittcoreBodyPreview,
   FITTCORE_TAG,
-  type FittcoreRunnerResult,
+  type GatewayIngestResult,
 } from "@/lib/fittcore";
 import { createClient } from "@/lib/supabase/client";
 import { emitSystemLog } from "@/lib/team-chat-bus";
@@ -41,10 +41,10 @@ export default function FittcoreExportModal({
   project: ProjectRecord;
   orgName?: string;
   /** Fired on a successful hand-off so the studio can persist the "sent" state. */
-  onSent?: (result: FittcoreRunnerResult) => void;
+  onSent?: (result: GatewayIngestResult) => void;
 }) {
   const [sending, setSending] = useState(false);
-  const [result, setResult] = useState<FittcoreRunnerResult | null>(null);
+  const [result, setResult] = useState<GatewayIngestResult | null>(null);
   const [showSpec, setShowSpec] = useState(false);
   const [showBody, setShowBody] = useState(false);
 
@@ -76,20 +76,24 @@ export default function FittcoreExportModal({
         headers: { "content-type": "application/json" },
         body: JSON.stringify(payload),
       });
-      const data = (await res.json()) as Partial<FittcoreRunnerResult> & { error?: string };
-      if (!res.ok) throw new Error(data.error ?? `ส่งไม่สำเร็จ (HTTP ${res.status})`);
+      const data = (await res.json()) as Partial<GatewayIngestResult> & { error?: string };
+      if (!res.ok || !data.jobId) throw new Error(data.error ?? `ส่งไม่สำเร็จ (HTTP ${res.status})`);
 
-      const ok = data as FittcoreRunnerResult;
+      const ok = data as GatewayIngestResult;
       setResult(ok);
-      toast.success(`ส่งสำเร็จ — build #${ok.build_no}, branch ${ok.git_branch}`);
+      toast.success(
+        ok.duplicate
+          ? "งานนี้ถูกส่งไปแล้ว — ไม่ส่งซ้ำ (idempotent)"
+          : `ส่งสำเร็จ — เข้าคิวแล้ว (${ok.state})`
+      );
       // Post the hand-off to the team chat so everyone sees it was sent (who +
-      // build #) — this persisted message is the shared "sent to Code Runner" record.
+      // job) — this persisted message is the shared "sent to Code Runner" record.
       const { data: { user } } = await createClient().auth.getUser();
       const meta = user?.user_metadata ?? {};
       const who = (meta.full_name ?? meta.name ?? user?.email ?? "สมาชิก") as string;
       emitSystemLog(
         project.id,
-        `🚀 ${who} ส่ง build ไป Code Runner แล้ว (${FITTCORE_TAG}) — build #${ok.build_no} · branch ${ok.git_branch}`
+        `🚀 ${who} ส่ง build ไป Code Runner แล้ว (${FITTCORE_TAG}) — job ${ok.jobId} · ${ok.state}${ok.duplicate ? " · (ซ้ำ)" : ""}`
       );
       onSent?.(ok); // let the studio persist the durable "sent" chip
     } catch (error) {
@@ -136,7 +140,7 @@ export default function FittcoreExportModal({
         {/* Body */}
         <div className="scroll-thin min-h-0 flex-1 overflow-y-auto px-5 py-4">
           {result ? (
-            <SuccessPanel result={result} />
+            <SuccessPanel result={result} project={project} />
           ) : (
             <>
               {/* Summary */}
@@ -208,7 +212,7 @@ export default function FittcoreExportModal({
               {showBody && (
                 <div className="mt-2 rounded-lg border border-night-edge bg-night">
                   <p className="border-b border-night-edge px-3 py-1.5 font-mono text-[10px] text-chalk-dim">
-                    POST /api/fittcore → CRN /internal/projects · idea/brd/zip ถูกย่อในตัวอย่างนี้
+                    POST /api/fittcore → Gateway /v1/ingest · idea/brd/zip ถูกย่อในตัวอย่างนี้
                   </p>
                   <pre className="scroll-thin max-h-96 overflow-auto px-3 py-2.5 font-mono text-[11px] leading-relaxed text-chalk/85">
                     {bodyPreview}
@@ -271,7 +275,7 @@ function Stat({ label, value, mono }: { label: string; value: string; mono?: boo
   );
 }
 
-function SuccessPanel({ result }: { result: FittcoreRunnerResult }) {
+function SuccessPanel({ result, project }: { result: GatewayIngestResult; project: ProjectRecord }) {
   return (
     <div>
       <div className="flex items-center gap-3 rounded-lg border border-shine/40 bg-shine/[0.06] px-4 py-3">
@@ -280,28 +284,23 @@ function SuccessPanel({ result }: { result: FittcoreRunnerResult }) {
         </span>
         <div>
           <p className="font-display text-sm font-semibold text-chalk">
-            เข้าคิว build แล้ว — build #{result.build_no}
+            {result.duplicate ? "งานนี้ถูกส่งไปแล้ว — ไม่ส่งซ้ำ" : "เข้าคิว build แล้ว"}
           </p>
-          <p className="text-[12px] text-chalk-dim">สถานะ: {result.status}</p>
+          <p className="text-[12px] text-chalk-dim">
+            สถานะ: {result.state}
+            {result.duplicate ? " · idempotent (ยิงซ้ำ key เดิม)" : ""}
+          </p>
         </div>
       </div>
       <div className="mt-3 grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-night-edge bg-night-edge">
-        <Stat label="project_id" value={result.project_id} mono />
-        <Stat label="job_id" value={result.job_id} mono />
-        <Stat label="branch" value={result.git_branch} mono />
-        <Stat label="org_id" value={result.org_id || "—"} mono />
+        <Stat label="job_id" value={result.jobId} mono />
+        <Stat label="state" value={result.state} mono />
+        <Stat label="project_id" value={project.id} mono />
+        <Stat label="org_id" value={project.orgId || "—"} mono />
       </div>
-      <p className="mb-1.5 mt-3 font-mono text-[10px] uppercase tracking-wider text-chalk-dim">
-        git remote
+      <p className="mt-3 rounded-lg border border-night-edge bg-night px-3 py-2 text-[12px] text-chalk-dim">
+        build #, branch และ git remote จะทราบเมื่อ Runner เริ่ม build งานนี้ (ดูสถานะจาก job ภายหลัง)
       </p>
-      <a
-        href={result.git_remote}
-        target="_blank"
-        rel="noreferrer"
-        className="block truncate rounded-lg border border-night-edge bg-night px-3 py-2 font-mono text-[12px] text-shine underline-offset-2 hover:underline"
-      >
-        {result.git_remote}
-      </a>
     </div>
   );
 }

@@ -23,6 +23,15 @@ export const CHANGE_BADGE: Record<ChangeType, { label: string; className: string
 // Newest first. SemVer: fix → PATCH, feature → MINOR, breaking → MAJOR.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.35.0",
+    date: "2026-07-15",
+    title: "ส่งงานเข้า Code Runner ผ่าน Gateway (/v1/ingest)",
+    items: [
+      { type: "feature", text: "เปลี่ยนช่องทางส่ง build จากยิงตรงเข้า Runner มาเป็นผ่าน Gateway `/v1/ingest` — แนบ `X-API-Key` (ตั้งใน env, server-side เท่านั้น) + `Idempotency-Key` (แฮชจากเนื้อ zip: ส่งต้นแบบเดิมซ้ำจะไม่สร้างงานซ้ำ แต่ต้นแบบที่แก้แล้วจะเป็นงานใหม่)" },
+      { type: "improvement", text: "กันพลาดก่อนส่ง: zip ≤25MB, prompts ≤500 (ตัวละ ≤64KB), BRD/PRD ≤400KB, เช็ค integrity ของ zip · จับ error จาก Gateway ให้ชัด (org_mismatch / zip ใหญ่ / payload ผิด) · ผลลัพธ์แสดง job + สถานะ (build#/branch จะทราบตอน Runner เริ่ม build)" },
+    ],
+  },
+  {
     version: "0.34.0",
     date: "2026-07-15",
     title: "ผล Pain Point เป็นของกลาง — ทั้งทีมเห็นเหมือนกัน",

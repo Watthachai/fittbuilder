@@ -163,17 +163,24 @@ export interface FileChange {
   after: string | null;
 }
 
-/** The last successful hand-off of a project to the FITT Code Runner. Persisted
- *  as `runner_last` (jsonb) so the studio can show a durable "sent" chip. */
+/** The last successful hand-off of a project to the FITT Code Runner (via the
+ *  Gateway `/v1/ingest`). Persisted as `runner_last` (jsonb) so the studio can
+ *  show a durable "sent" chip. `buildNo`/`branch` aren't known at ingest — they
+ *  arrive later from job status — so they're optional (and present on legacy
+ *  rows saved before the Gateway migration). */
 export interface RunnerSend {
-  buildNo: number;
-  branch: string;
   jobId: string;
-  status: string;
+  /** Ingest state, e.g. "QUEUED". */
+  state: string;
+  /** True when the Gateway deduplicated this send (idempotent replay). */
+  duplicate?: boolean;
   /** Channel tag stamped on the send (e.g. "alpha-test"). */
   tag: string;
   /** ISO timestamp of when it was sent. */
   sentAt: string;
+  /** Known only after job status resolves (or on legacy rows). */
+  buildNo?: number;
+  branch?: string;
 }
 
 export interface ProjectRecord {

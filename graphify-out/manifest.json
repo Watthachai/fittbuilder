@@ -92,8 +92,8 @@
     "hash": "92a12caf2ba9cb351abab69fb2ea8fd8"
   },
   "/Users/itswatthachai/fitt-builder-v2/app/api/org-advisor/route.ts": {
-    "mtime": 1784023165.749647,
-    "hash": "acb68cfbf711103203d0ddbcd06bc46e"
+    "mtime": 1784087623.072271,
+    "hash": "892d8b2a3735e390a3aea821476e7346"
   },
   "/Users/itswatthachai/fitt-builder-v2/app/api/org-dna/route.ts": {
     "mtime": 1783936787.6836507,
@@ -246,6 +246,10 @@
   "/Users/itswatthachai/fitt-builder-v2/supabase/migrations/0002_skill_id.sql": {
     "mtime": 1782124219.9667723,
     "hash": "a969687acf440181a72faf654d969dc7"
+  },
+  "/Users/itswatthachai/fitt-builder-v2/supabase/migrations/0021_org_pain_radar.sql": {
+    "mtime": 1784087524.0271132,
+    "hash": "c9a9ad69ac774162f9b2176850f74519"
   },
   "/Users/itswatthachai/fitt-builder-v2/supabase/migrations/0010_chat_messenger.sql": {
     "mtime": 1782381378.4379973,
@@ -452,8 +456,8 @@
     "hash": "395ad4dec6980b3546d7ffc6f7e1db40"
   },
   "/Users/itswatthachai/fitt-builder-v2/components/org/OrgDnaEditor.tsx": {
-    "mtime": 1784024921.7531695,
-    "hash": "357615578e10d46b3bc25fc915610309"
+    "mtime": 1784087695.9499002,
+    "hash": "dc71deb380ac8b69049093f6202cf863"
   },
   "/Users/itswatthachai/fitt-builder-v2/components/org/OrgSelect.tsx": {
     "mtime": 1782710852.2826028,
@@ -652,8 +656,8 @@
     "hash": "24f6964819f07cfee7c9a027f34fa985"
   },
   "/Users/itswatthachai/fitt-builder-v2/lib/org-advisor.ts": {
-    "mtime": 1784024519.2443871,
-    "hash": "1bf8bcd0f6912702930dacf68d9028eb"
+    "mtime": 1784087543.173988,
+    "hash": "39e9bb04b9a3e72ec5fdbf8f6335ab72"
   },
   "/Users/itswatthachai/fitt-builder-v2/lib/scaffold.ts": {
     "mtime": 1782727728.062822,
@@ -688,8 +692,8 @@
     "hash": "81619812419b75ff564ecfc3eea7c1c8"
   },
   "/Users/itswatthachai/fitt-builder-v2/lib/changelog.ts": {
-    "mtime": 1784024981.2423875,
-    "hash": "7842e0990e19e7d6990dcc913994d128"
+    "mtime": 1784087775.4305065,
+    "hash": "853a13f18914d064f15eeaaada6b89b5"
   },
   "/Users/itswatthachai/fitt-builder-v2/lib/org-dna.ts": {
     "mtime": 1784013507.2847812,
@@ -724,8 +728,8 @@
     "hash": "6eb818915769790a2de2635985223f42"
   },
   "/Users/itswatthachai/fitt-builder-v2/lib/types.ts": {
-    "mtime": 1783935318.8298965,
-    "hash": "8d7b1cef835f34b31fc79849a3a3b357"
+    "mtime": 1784087550.2464678,
+    "hash": "4a944ee69e6ee0224fade8ae2177a41d"
   },
   "/Users/itswatthachai/fitt-builder-v2/lib/invites-inbox.ts": {
     "mtime": 1783963908.0514872,
@@ -768,8 +772,8 @@
     "hash": "b593e606888e4e51dd1fa36cc9b9f07c"
   },
   "/Users/itswatthachai/fitt-builder-v2/lib/orgs.ts": {
-    "mtime": 1782708793.9298818,
-    "hash": "ba86040def2aa52856b74e9af1850c99"
+    "mtime": 1784087575.0145128,
+    "hash": "abe8b10a906a6f1ac92995e078665c4b"
   },
   "/Users/itswatthachai/fitt-builder-v2/lib/presets.ts": {
     "mtime": 1782125190.71022,
@@ -856,12 +860,12 @@
     "hash": "a34008f3b124c1352f2e868e878d0283"
   },
   "/Users/itswatthachai/fitt-builder-v2/lib/__tests__/org-advisor.test.ts": {
-    "mtime": 1784024615.3029604,
-    "hash": "3ec3c06ba85c339acf9cb4769f9cb838"
+    "mtime": 1784087710.7408447,
+    "hash": "005230bd9a8fb0181b7f138012c27240"
   },
   "/Users/itswatthachai/fitt-builder-v2/lib/db/types.ts": {
-    "mtime": 1784007642.0199902,
-    "hash": "7f0d2a0f9a491ee9a5daca53ac0cbd63"
+    "mtime": 1784087533.9824512,
+    "hash": "7f94f1b5c78777c45dd40e351b15c3dc"
   },
   "/Users/itswatthachai/fitt-builder-v2/lib/db/project-mapper.ts": {
     "mtime": 1782900597.5723274,

@@ -20,7 +20,7 @@ import { encodeShareUrl } from "@/lib/share";
 import DnaMark from "@/components/ui/DnaMark";
 import type { OrgRecord, ProjectRecord } from "@/lib/types";
 import { downloadZip } from "@/lib/zip";
-import { downloadFittcoreSpec, type FittcoreRunnerResult } from "@/lib/fittcore";
+import { downloadFittcoreSpec, type GatewayIngestResult } from "@/lib/fittcore";
 import { useOrgSkillName } from "@/lib/skills/use-org-skill";
 import FittcoreExportModal from "./FittcoreExportModal";
 import ProjectPresence from "./ProjectPresence";
@@ -50,7 +50,7 @@ interface TopBarProps {
   /** Owner-only: open the team sharing modal. Omit to hide the button. */
   onTeamShare?: () => void;
   /** Persist the durable "sent to Code Runner" chip after a successful hand-off. */
-  onRunnerSent?: (result: FittcoreRunnerResult) => void;
+  onRunnerSent?: (result: GatewayIngestResult) => void;
 }
 
 export default function TopBar({
@@ -197,11 +197,12 @@ export default function TopBar({
       <QuotaChip refreshKey={project.messages.length} />
       {project.runnerLast && (
         <span
-          title={`ส่งไป Code Runner แล้ว · build #${project.runnerLast.buildNo} · branch ${project.runnerLast.branch} · ${project.runnerLast.tag} · ${new Date(project.runnerLast.sentAt).toLocaleString("th-TH")}`}
+          title={`ส่งไป Code Runner แล้ว${project.runnerLast.buildNo != null ? ` · build #${project.runnerLast.buildNo}` : ""}${project.runnerLast.jobId ? ` · job ${project.runnerLast.jobId}` : ""}${project.runnerLast.state ? ` · ${project.runnerLast.state}` : ""} · ${project.runnerLast.tag} · ${new Date(project.runnerLast.sentAt).toLocaleString("th-TH")}`}
           className="inline-flex shrink-0 items-center gap-1 rounded-full border border-go/40 bg-go/10 px-2 py-1 font-mono text-[10px] text-go"
         >
           <Rocket size={11} />
-          <span className="hidden lg:inline">Code Runner</span> #{project.runnerLast.buildNo}
+          <span className="hidden lg:inline">Code Runner</span>{" "}
+          {project.runnerLast.buildNo != null ? `#${project.runnerLast.buildNo}` : (project.runnerLast.state ?? "ส่งแล้ว")}
         </span>
       )}
       {specialist && (

@@ -35,15 +35,17 @@ export interface FittcorePayload {
   zip_bytes: number;
 }
 
-/** CRN's 202 response to `POST /internal/projects`. */
-export interface FittcoreRunnerResult {
-  project_id: string;
-  job_id: string;
-  build_no: number;
-  org_id: string;
-  git_remote: string;
-  git_branch: string;
-  status: string;
+/**
+ * The Gateway's response to `POST /v1/ingest`.
+ * - `202 { jobId, state:"QUEUED", duplicate:false }` — accepted, queued
+ * - `200 { jobId, ..., duplicate:true }` — same Idempotency-Key seen before
+ * build number, git remote/branch aren't known at ingest — they come later from
+ * the job's status (a future poll/stream step), so they're NOT in this response.
+ */
+export interface GatewayIngestResult {
+  jobId: string;
+  state: string;
+  duplicate: boolean;
 }
 
 /** Chunked Uint8Array → base64 (btoa over String.fromCharCode blows the call

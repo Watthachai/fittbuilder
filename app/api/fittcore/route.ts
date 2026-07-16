@@ -7,6 +7,14 @@ export const maxDuration = 25;
 const GATEWAY_URL = process.env.FITTCORE_GATEWAY_URL ?? "http://localhost:8080";
 const API_KEY = process.env.FITTCORE_GATEWAY_API_KEY ?? "";
 
+// LOCAL DEV escape hatch. When set, bypass the FITTCORE Gateway and POST
+// straight to a locally-running CRN's no-auth ingest (POST /internal/projects).
+// Lets you test the whole send→build flow on one machine without the friend's
+// Gateway box. Leave UNSET in production — the request then goes through the
+// Gateway (X-API-Key + Idempotency-Key) exactly as before.
+//   .env.local:  FITTCORE_DIRECT_CRN_URL=http://localhost:8080
+const DIRECT_CRN_URL = (process.env.FITTCORE_DIRECT_CRN_URL ?? "").replace(/\/+$/, "");
+
 // Gateway limits — pre-checked here so an oversized/invalid job fails fast
 // without a wasted round-trip (and maps to the Gateway's own 413/422).
 const MAX_ZIP_BYTES = 25 * 1024 * 1024; // 25MB (Gateway 413)
@@ -59,7 +67,8 @@ export async function POST(request: Request) {
     );
   }
 
-  if (!API_KEY) {
+  // Direct-CRN mode is no-auth, so only the Gateway path needs the API key.
+  if (!DIRECT_CRN_URL && !API_KEY) {
     console.error("[fittcore] FITTCORE_GATEWAY_API_KEY is not set");
     return Response.json(
       { error: "ยังไม่ได้ตั้งค่า API key ของ Gateway (FITTCORE_GATEWAY_API_KEY)" },
@@ -76,6 +85,58 @@ export async function POST(request: Request) {
 
   const bad = preCheck(payload);
   if (bad) return Response.json({ error: bad.error }, { status: bad.status });
+
+  // --- LOCAL DEV: talk straight to CRN, bypassing the Gateway ---
+  // CRN's /internal/projects is no-auth and returns a different shape than the
+  // Gateway, so we translate its 202 { job_id, status, build_no } back into the
+  // { jobId, state, duplicate } the Studio expects. CRN has no dedupe, so
+  // duplicate is always false here.
+  if (DIRECT_CRN_URL) {
+    try {
+      const res = await fetch(`${DIRECT_CRN_URL}/internal/projects`, {
+        method: "POST",
+        headers: { "content-type": "application/json", accept: "application/json" },
+        body: JSON.stringify(payload),
+        signal: AbortSignal.timeout(20_000),
+      });
+      const text = await res.text();
+      let body: unknown;
+      try {
+        body = text ? JSON.parse(text) : {};
+      } catch {
+        return Response.json(
+          { error: `CRN ตอบกลับไม่ใช่ JSON (HTTP ${res.status})` },
+          { status: 502 }
+        );
+      }
+      if (!res.ok) {
+        const detail = (body as { error?: string })?.error;
+        return Response.json(
+          { error: `CRN (local) ตอบกลับ HTTP ${res.status}${detail ? `: ${detail}` : ""}` },
+          { status: 502 }
+        );
+      }
+      const crn = body as { job_id?: string; status?: string };
+      if (!crn.job_id) {
+        return Response.json({ error: "CRN ไม่ส่ง job_id กลับมา" }, { status: 502 });
+      }
+      return Response.json(
+        { jobId: crn.job_id, state: (crn.status ?? "queued").toUpperCase(), duplicate: false },
+        { status: 200 }
+      );
+    } catch (error) {
+      const timedOut = error instanceof DOMException && error.name === "TimeoutError";
+      console.error("[fittcore] direct CRN proxy failed:", error);
+      return Response.json(
+        {
+          error: timedOut
+            ? "CRN (local) ไม่ตอบกลับภายในเวลาที่กำหนด"
+            : "เชื่อมต่อ CRN (local) ไม่สำเร็จ — CRN backend รันที่ :8080 อยู่ไหม?",
+        },
+        { status: 502 }
+      );
+    }
+  }
 
   // Same prototype (same zip) → same key → Gateway dedups; a changed prototype
   // → new key → new job. Scoped by project so different projects never collide.

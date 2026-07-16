@@ -23,6 +23,14 @@ export const CHANGE_BADGE: Record<ChangeType, { label: string; className: string
 // Newest first. SemVer: fix → PATCH, feature → MINOR, breaking → MAJOR.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.35.2",
+    date: "2026-07-16",
+    title: "แก้บั๊ก: ออกจากหน้า Builder เร็วๆ หลัง gen แล้วงานหาย",
+    items: [
+      { type: "fix", text: "การบันทึกอัตโนมัติหน่วง 800ms — ถ้าออกจากหน้าโปรเจกต์ภายในช่วงนั้นพอดี (เช่น เพิ่ง build เสร็จแล้วรีบไปหน้าอื่น) ตัวจับเวลาถูกยกเลิกทิ้งโดยไม่ได้บันทึก ทำให้ไฟล์ที่เพิ่งสร้างหาย (เจอนานๆที) — ตอนนี้ flush บันทึกที่ค้างก่อนออกจากหน้าทุกครั้ง" },
+    ],
+  },
+  {
     version: "0.35.1",
     date: "2026-07-16",
     title: "จัดแถบบนสตูดิโอให้โล่งขึ้น",

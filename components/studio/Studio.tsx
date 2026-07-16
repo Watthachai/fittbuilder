@@ -287,6 +287,7 @@ export default function Studio({ projectId }: { projectId: string }) {
     if (saveTimer.current) clearTimeout(saveTimer.current);
     setSaveState("saving");
     saveTimer.current = setTimeout(() => {
+      saveTimer.current = null; // fired → no longer pending (so unmount won't re-save)
       saveProject(local)
         .then(() => {
           setSaveState("saved");
@@ -1201,7 +1202,15 @@ export default function Studio({ projectId }: { projectId: string }) {
     })();
     return () => {
       cancelled = true;
-      if (saveTimer.current) clearTimeout(saveTimer.current);
+      // Flush a pending debounced save before leaving. Without this, navigating
+      // away within the 800ms debounce window (e.g. right after a build finishes)
+      // clears the timer and silently drops the last change. saveProject isn't
+      // tied to React, so it completes even as the studio unmounts.
+      if (saveTimer.current) {
+        clearTimeout(saveTimer.current);
+        saveTimer.current = null;
+        if (projectRef.current) void saveProject(projectRef.current).catch(() => {});
+      }
       // Don't abort an in-flight generate/agent — let it finish in the background
       // (the registry keeps it visible site-wide and it persists on done). Bump
       // the epoch so any loop started under THIS view detaches and stops writing

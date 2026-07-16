@@ -23,6 +23,14 @@ export const CHANGE_BADGE: Record<ChangeType, { label: string; className: string
 // Newest first. SemVer: fix → PATCH, feature → MINOR, breaking → MAJOR.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.35.1",
+    date: "2026-07-16",
+    title: "จัดแถบบนสตูดิโอให้โล่งขึ้น",
+    items: [
+      { type: "improvement", text: "แถบบน (TopBar) เคยอัดปุ่ม/ชิปเยอะเกิน — ย้าย action รอง (Spec · npm package · คัดลอกลิงก์แชร์ · เชิญทีม) เข้าเมนู “⋯ เพิ่มเติม” และย่อชิปผู้เชี่ยวชาญที่ยาวมากให้เหลือไอคอนเล็ก (ชี้เมาส์ดูชื่อได้) · คงตัวหลักไว้: Preview/Code · Undo · สถานะ Code Runner/โควตา · Export" },
+    ],
+  },
+  {
     version: "0.35.0",
     date: "2026-07-15",
     title: "ส่งงานเข้า Code Runner ผ่าน Gateway (/v1/ingest)",

@@ -3,12 +3,12 @@
 import Link from "next/link";
 import { useState } from "react";
 import {
-  Check,
   Code2,
   Download,
   Eye,
   FileText,
   FileUp,
+  MoreHorizontal,
   Package,
   Rocket,
   Share2,
@@ -17,6 +17,7 @@ import {
   Users,
 } from "lucide-react";
 import { encodeShareUrl } from "@/lib/share";
+import { toast } from "@/lib/toast";
 import DnaMark from "@/components/ui/DnaMark";
 import type { OrgRecord, ProjectRecord } from "@/lib/types";
 import { downloadZip } from "@/lib/zip";
@@ -71,7 +72,7 @@ export default function TopBar({
   onTeamShare,
   onRunnerSent,
 }: TopBarProps) {
-  const [shared, setShared] = useState(false);
+  const [actionsOpen, setActionsOpen] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
   const [runnerOpen, setRunnerOpen] = useState(false);
   const specialist = useOrgSkillName(project.orgId);
@@ -80,8 +81,7 @@ export default function TopBar({
     if (!project.files) return;
     const url = await encodeShareUrl({ name: project.name, files: project.files });
     await navigator.clipboard.writeText(url);
-    setShared(true);
-    setTimeout(() => setShared(false), 2000);
+    toast.success("คัดลอกลิงก์แชร์แล้ว — เปิดดูได้โดยไม่ต้อง login");
   };
 
   return (
@@ -147,24 +147,6 @@ export default function TopBar({
       </div>
 
       <button
-        onClick={onOpenSpec}
-        disabled={busy}
-        className="inline-flex shrink-0 items-center gap-1.5 rounded-sm border border-night-edge px-2.5 py-1.5 text-xs text-chalk-dim transition hover:border-shine hover:text-chalk disabled:opacity-40"
-        title="สร้างจากเอกสาร BRD/PRD"
-      >
-        <FileText size={13} />
-        <span className="hidden lg:inline">Spec</span>
-      </button>
-      <button
-        onClick={onOpenPackages}
-        disabled={!shippable || busy}
-        className="inline-flex shrink-0 items-center gap-1.5 rounded-sm border border-night-edge px-2.5 py-1.5 text-xs text-chalk-dim transition hover:border-shine hover:text-chalk disabled:opacity-40"
-        title="ค้นหาและติดตั้ง npm package"
-      >
-        <Package size={13} />
-        <span className="hidden lg:inline">Packages</span>
-      </button>
-      <button
         onClick={onUndo}
         disabled={!canUndo || busy}
         className="inline-flex shrink-0 items-center gap-1.5 rounded-sm border border-night-edge px-2.5 py-1.5 text-xs text-chalk-dim transition hover:border-shine hover:text-chalk disabled:opacity-40"
@@ -175,25 +157,6 @@ export default function TopBar({
       </button>
       <ProjectPresence projectId={project.id} />
       <TeamChat projectId={project.id} />
-      <button
-        onClick={() => void share()}
-        disabled={!shippable}
-        className="inline-flex shrink-0 items-center gap-1.5 rounded-sm border border-night-edge px-2.5 py-1.5 text-xs text-chalk-dim transition hover:border-shine hover:text-chalk disabled:opacity-40"
-        title="คัดลอกลิงก์แชร์ — เปิดดูได้โดยไม่ต้อง login"
-      >
-        {shared ? <Check size={13} className="text-go" /> : <Share2 size={13} />}
-        <span className="hidden lg:inline">{shared ? "คัดลอกแล้ว" : "แชร์"}</span>
-      </button>
-      {onTeamShare && (
-        <button
-          onClick={onTeamShare}
-          className="inline-flex shrink-0 items-center gap-1.5 rounded-sm border border-night-edge px-2.5 py-1.5 text-xs text-chalk-dim transition hover:border-shine hover:text-chalk"
-          title="เชิญสมาชิกเข้าทีม"
-        >
-          <Users size={13} />
-          <span className="hidden lg:inline">เชิญทีม</span>
-        </button>
-      )}
       <QuotaChip refreshKey={project.messages.length} />
       {project.runnerLast && (
         <span
@@ -208,11 +171,77 @@ export default function TopBar({
       {specialist && (
         <span
           title={`เดโมใน workspace นี้ขับเคลื่อนโดยผู้เชี่ยวชาญ "${specialist}"`}
-          className="inline-flex shrink-0 items-center gap-1 rounded-full border border-shine/40 bg-shine/10 px-2 py-1 font-mono text-[10px] text-shine"
+          className="grid size-[26px] shrink-0 place-items-center rounded-full border border-shine/40 bg-shine/10 text-shine"
+          aria-label={`ขับเคลื่อนโดยผู้เชี่ยวชาญ ${specialist}`}
         >
-          <Sparkles size={11} /> <span className="hidden lg:inline">ขับเคลื่อนโดย</span> {specialist}
+          <Sparkles size={12} />
         </span>
       )}
+
+      {/* ⋯ More — secondary actions, kept out of the crowded bar */}
+      <div className="relative shrink-0">
+        <button
+          onClick={() => setActionsOpen((v) => !v)}
+          className={`inline-flex items-center gap-1.5 rounded-sm border px-2 py-1.5 text-xs transition ${
+            actionsOpen
+              ? "border-shine bg-chalk/5 text-chalk"
+              : "border-night-edge text-chalk-dim hover:border-shine hover:text-chalk"
+          }`}
+          title="เพิ่มเติม"
+          aria-label="เพิ่มเติม"
+        >
+          <MoreHorizontal size={15} />
+        </button>
+        {actionsOpen && (
+          <>
+            <div className="fixed inset-0 z-40" onClick={() => setActionsOpen(false)} />
+            <div className="absolute right-0 top-full z-50 mt-1 w-56 overflow-hidden rounded-lg border border-night-edge bg-night-panel py-1 shadow-xl">
+              <button
+                onClick={() => {
+                  setActionsOpen(false);
+                  onOpenSpec();
+                }}
+                disabled={busy}
+                className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-xs text-chalk/80 transition hover:bg-chalk/5 hover:text-chalk disabled:opacity-40"
+              >
+                <FileText size={14} /> สร้างจากเอกสาร (Spec)
+              </button>
+              <button
+                onClick={() => {
+                  setActionsOpen(false);
+                  onOpenPackages();
+                }}
+                disabled={!shippable || busy}
+                className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-xs text-chalk/80 transition hover:bg-chalk/5 hover:text-chalk disabled:opacity-40"
+              >
+                <Package size={14} /> ค้นหา/ติดตั้ง npm package
+              </button>
+              <button
+                onClick={() => {
+                  setActionsOpen(false);
+                  void share();
+                }}
+                disabled={!shippable}
+                className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-xs text-chalk/80 transition hover:bg-chalk/5 hover:text-chalk disabled:opacity-40"
+              >
+                <Share2 size={14} /> คัดลอกลิงก์แชร์
+              </button>
+              {onTeamShare && (
+                <button
+                  onClick={() => {
+                    setActionsOpen(false);
+                    onTeamShare();
+                  }}
+                  className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-xs text-chalk/80 transition hover:bg-chalk/5 hover:text-chalk"
+                >
+                  <Users size={14} /> เชิญทีม
+                </button>
+              )}
+            </div>
+          </>
+        )}
+      </div>
+
       <div className="relative shrink-0">
         <button
           onClick={() => setMoreOpen((v) => !v)}

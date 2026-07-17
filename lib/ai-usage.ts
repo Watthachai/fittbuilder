@@ -79,6 +79,13 @@ export async function recordUsage(params: {
 /** Free-plan allowance: generations (kind='generate') per calendar month. */
 export const FREE_MONTHLY_GENERATIONS = 5;
 
+/**
+ * Master switch for the free-plan generation cap. OFF while the app is internal-
+ * only (not open to external users) — everyone is unlimited (gate open) and the
+ * quota chip auto-hides (limit=null). Flip to true to re-enable metering.
+ */
+const QUOTA_ENABLED = false;
+
 export interface GenerationQuota {
   plan: string;
   used: number;
@@ -112,7 +119,9 @@ export async function checkGenerationQuota(userId: string | null): Promise<Gener
       .eq("id", userId)
       .maybeSingle();
     const plan = profile?.plan ?? "free";
-    if (plan !== "free") return { plan, used: 0, limit: null, remaining: null, allowed: true };
+    // Cap disabled (or a paid plan) → unlimited: gate open + chip hidden.
+    if (!QUOTA_ENABLED || plan !== "free")
+      return { plan, used: 0, limit: null, remaining: null, allowed: true };
 
     const { count } = await admin
       .from("fittbuilder_ai_usage")

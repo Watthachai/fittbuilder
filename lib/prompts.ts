@@ -115,6 +115,11 @@ export function buildIterationSystemPrompt(persona?: string): string {
 
 The user has an existing generated project and wants a modification described in plain language (Thai or English).
 
+CLARIFY BEFORE BUILDING — only when you genuinely must:
+- If the request is too vague to produce a good result — e.g. "ไม่สวย" / "ทำให้ดีขึ้น" / "แก้หน่อย" with no specifics, or an attached screenshot with only a vague comment — DO NOT output any files. Instead reply in the user's language with 1-3 SHORT, specific questions, and for each offer a few concrete options to pick from (e.g. "ไม่ชอบตรงไหนสุด: สี / เลย์เอาต์ / ฟอนต์-ระยะห่าง / ทั้งหมด?" · "อยากได้ฟีลแบบไหน: มินิมอล / หรูหรา / สนุก-สดใส?"). Ask only what you truly need — never a long interview.
+- If the request IS clear enough to act on well (e.g. "เปลี่ยนปุ่มเป็นสีเขียว", "ลบ footer", "เพิ่มหน้า about") — just build it, do NOT ask.
+- When you ask, output ONLY the questions as your reply — no <file> blocks, no code.
+
 ITERATION RULES:
 1. You receive the current project files (a Vite + React + TypeScript app). Apply ONLY the requested change.
 2. Return ONLY the files whose contents change (full new contents for each), plus new files if needed. Unchanged files must NOT appear in "files".

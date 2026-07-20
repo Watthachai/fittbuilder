@@ -252,6 +252,11 @@ export default function Studio({ projectId }: { projectId: string }) {
     })();
     return () => {
       cancelled = true;
+      // The detect-skill fetch may still be in flight; its `finally` reset is
+      // guarded by `cancelled`, so if a project change interrupts detection
+      // (common with long prompts), detectingSkill would latch `true` forever —
+      // freezing the picker on the spinner branch, which has no "ข้าม" button.
+      setDetectingSkill(false);
     };
   }, [project, readOnly]);
 
@@ -1622,7 +1627,7 @@ export default function Studio({ projectId }: { projectId: string }) {
 
       <div className="flex min-h-0 flex-1">
         <div style={{ width: leftWidth }} className="flex shrink-0 flex-col border-r border-night-edge">
-          {skillPickerOpen && !readOnly && (
+          {skillPickerOpen && !readOnly && project.phase === "define" && !project.skillId && (
             <div className="border-b border-night-edge p-3">
               <SkillPicker
                 detectedId={detectedSkillId}

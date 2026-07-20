@@ -23,6 +23,15 @@ export const CHANGE_BADGE: Record<ChangeType, { label: string; className: string
 // Newest first. SemVer: fix → PATCH, feature → MINOR, breaking → MAJOR.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.36.1",
+    date: "2026-07-20",
+    title: "แก้บั๊ก: พาเนลเลือกโดเมนค้างที่หน้า Build (กดข้ามไม่หาย)",
+    items: [
+      { type: "fix", text: "พาเนล “เลือกโดเมนของ demo” เคยผูกกับสวิตช์เปิด/ปิดลอยๆ ที่ไม่ผูกกับเฟส — เปิดตอน Define แล้วพอไปต่อ Plan→Build มันไม่ปิด เลยค้างคาอยู่เหนือแชทที่หน้า Build · ตอนนี้ผูกพาเนลกับเฟส Define เท่านั้น (พอออกจาก Define จะหายเอง ไม่ต้องกดข้าม)" },
+      { type: "fix", text: "แก้สถานะ “กำลังวิเคราะห์โดเมน…” ค้างเป็นจริงถาวรเมื่อโปรเจกต์เปลี่ยนระหว่างวิเคราะห์ (เจอบ่อยตอน prompt ยาว) — ซึ่งทำให้พาเนลค้างที่หน้าสปินเนอร์ที่ “ไม่มีปุ่มข้าม” · ตอนนี้เคลียร์สถานะทุกครั้งที่หยุดวิเคราะห์" },
+    ],
+  },
+  {
     version: "0.36.0",
     date: "2026-07-17",
     title: "AI ถามกลับเมื่อคำสั่งกำกวม (แทนที่จะเดา)",

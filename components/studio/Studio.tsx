@@ -82,6 +82,10 @@ import StatusBar from "./StatusBar";
 import TopBar from "./TopBar";
 
 const MAX_TERMINAL_LINES = 400;
+// Cap the reasoning text persisted per assistant message — it's a collapsed
+// nicety, but uncapped it bloats every autosave payload and the DB row for the
+// life of the project (long sessions were reaching multi-MB records).
+const THINKING_STORE_LIMIT = 20_000;
 
 export interface SpecPayload {
   brd?: string;
@@ -186,6 +190,13 @@ export default function Studio({ projectId }: { projectId: string }) {
   const [skillPickerOpen, setSkillPickerOpen] = useState(false);
   const [detectedSkillId, setDetectedSkillId] = useState<string | null>(null);
   const [detectingSkill, setDetectingSkill] = useState(false);
+  // First runtime error reported from inside the demo iframe (error bridge in
+  // vite.config's transformIndexHtml). Kept until the next generation/reload —
+  // the first error is the root cause, later ones are usually cascades.
+  const [previewRuntimeError, setPreviewRuntimeError] = useState<{
+    message: string;
+    stack: string;
+  } | null>(null);
 
   const abortRef = useRef<AbortController | null>(null);
   // Generation "epoch", bumped on every unmount / project switch (the [projectId]
@@ -260,6 +271,26 @@ export default function Studio({ projectId }: { projectId: string }) {
     };
   }, [project, readOnly]);
 
+  // Error bridge receiver: the demo iframe posts runtime errors (broken
+  // imports, React crashes) that are otherwise invisible outside its console.
+  // Keep the FIRST report (root cause); suppress while a stream is applying
+  // files (mid-stream module graphs are legitimately inconsistent) — the
+  // post-generation iframe reload re-reports anything that truly persists.
+  useEffect(() => {
+    const onMessage = (e: MessageEvent) => {
+      const d = e.data as {
+        __fittPreviewError?: boolean;
+        message?: string;
+        stack?: string;
+      } | null;
+      if (!d || d.__fittPreviewError !== true) return;
+      if (streamingRef.current) return;
+      setPreviewRuntimeError((prev) => prev ?? { message: d.message ?? "", stack: d.stack ?? "" });
+    };
+    window.addEventListener("message", onMessage);
+    return () => window.removeEventListener("message", onMessage);
+  }, []);
+
   const setLiveBoth = useCallback((value: LiveMessage | null) => {
     liveRef.current = value;
     setLive(value);
@@ -324,6 +355,8 @@ export default function Studio({ projectId }: { projectId: string }) {
       onServerReady: (url: string) => {
         setPreviewUrl(url);
         setPreviewKey((k) => k + 1);
+        // Fresh server + fresh document — a still-broken app re-reports itself.
+        setPreviewRuntimeError(null);
       },
       onError: (message: string) => {
         setErrorMessage(message);
@@ -463,7 +496,8 @@ export default function Studio({ projectId }: { projectId: string }) {
         if (turn.citations?.length) assistantMsg.citations = turn.citations;
         if (docEntries.length > 0) assistantMsg.hasDoc = true;
         const snap = liveRef.current;
-        if (snap?.thinking.trim()) assistantMsg.thinking = snap.thinking.trim();
+        if (snap?.thinking.trim())
+          assistantMsg.thinking = snap.thinking.trim().slice(0, THINKING_STORE_LIMIT);
         if (snap?.actions.length) assistantMsg.actions = snap.actions;
         working = appendMessage(working, assistantMsg);
         return persist(working);
@@ -517,6 +551,7 @@ export default function Studio({ projectId }: { projectId: string }) {
       const myEpoch = epochRef.current;
 
       setErrorMessage(null);
+      setPreviewRuntimeError(null);
       setChatStreaming(true);
       setLiveBoth({ thinking: "", content: "", actions: [] });
       if (!liveContainer) setPhase("generating"); // no server yet → overlay until we boot
@@ -531,6 +566,9 @@ export default function Studio({ projectId }: { projectId: string }) {
 
       const controller = new AbortController();
       abortRef.current = controller;
+      // Did this turn stream any write/delete into the live container? Decides
+      // whether a cancel must reboot the container back to the saved state.
+      let wroteLive = false;
 
       try {
         let note = "";
@@ -570,12 +608,16 @@ export default function Studio({ projectId }: { projectId: string }) {
             files[event.path] = event.content;
             pushTerminal(`📝 ${event.path}`);
             appendLive((p) => ({ ...p, actions: [...p.actions, { icon: "file", label: event.path }] }));
-            if (liveContainer && myEpoch === epochRef.current)
+            if (liveContainer && myEpoch === epochRef.current) {
+              wroteLive = true;
               void writeFile(event.path, event.content).catch(() => {});
+            }
           } else if (event.type === "delete") {
             delete files[event.path];
-            if (liveContainer && myEpoch === epochRef.current)
+            if (liveContainer && myEpoch === epochRef.current) {
+              wroteLive = true;
               void removeFile(event.path).catch(() => {});
+            }
           } else if (event.type === "deps") {
             depsAdded = true;
             pushTerminal(`+ ติดตั้ง: ${event.packages.join(", ")}`);
@@ -588,6 +630,11 @@ export default function Studio({ projectId }: { projectId: string }) {
           }
         }
         for (const path of deleted) delete files[path];
+        // Mirror done-event deletes into the live container too — otherwise
+        // ghost files linger there and the Code-panel container sync
+        // (readSource merge) resurrects files the model intentionally removed.
+        if (liveContainer && myEpoch === epochRef.current)
+          for (const path of deleted) void removeFile(path).catch(() => {});
 
         const changes = computeChanges(current.files, files);
         // History was already snapshotted at the start of the turn, so just set
@@ -602,7 +649,8 @@ export default function Studio({ projectId }: { projectId: string }) {
         }
         const assistantMsg = newMessage("assistant", note || "สร้างเรียบร้อยแล้ว", current.phase);
         const snap = liveRef.current;
-        if (snap?.thinking.trim()) assistantMsg.thinking = snap.thinking.trim();
+        if (snap?.thinking.trim())
+          assistantMsg.thinking = snap.thinking.trim().slice(0, THINKING_STORE_LIMIT);
         if (snap?.actions.length) assistantMsg.actions = snap.actions;
         if (changes.length) assistantMsg.changes = changes;
         working = appendMessage(working, assistantMsg);
@@ -617,23 +665,32 @@ export default function Studio({ projectId }: { projectId: string }) {
             await boot(files);
           } else if (liveContainer) {
             setPhase("ready"); // files already streamed into the running server (HMR)
+            // Reload the iframe so the finished app re-evaluates from a clean
+            // document — error reports were suppressed mid-stream, so this
+            // reload is what re-reports any error that truly persists.
+            setPreviewRuntimeError(null);
+            setPreviewKey((k) => k + 1);
           } else {
             await boot(files); // first run with no server → boot it now
           }
         }
       } catch (error) {
         if (controller.signal.aborted) {
-          // Aborted = the user navigated away / switched project mid-stream.
-          // Persist what streamed so far so the work isn't lost (the pre-gen
-          // state is in history for undo). This runs even as Studio unmounts
-          // because the async loop and saveProject aren't tied to React.
-          void saveProject({
-            ...working,
-            files: { ...files },
-            updatedAt: new Date().toISOString(),
-          }).catch(() => {});
+          // Cancelled mid-stream: keep the PRE-generation files as the saved
+          // truth — a half-streamed file set must never become project.files
+          // (hasRunnableApp only checks package.json, so a partial set would
+          // boot to a permanent white screen; the pre-gen snapshot is already
+          // in history for undo).
+          void saveProject({ ...working, updatedAt: new Date().toISOString() }).catch(() => {});
           pushTerminal("✋ ยกเลิกแล้ว");
-          setPhase(runnable || liveContainer ? "ready" : "idle");
+          if (wroteLive && myEpoch === epochRef.current) {
+            // Partial files were streamed into the live container — reboot it
+            // back to the saved state (scaffold when no app existed yet).
+            if (runnable) void boot(current.files!);
+            else void bootScaffold();
+          } else {
+            setPhase(runnable || liveContainer ? "ready" : "idle");
+          }
           return;
         }
         const message = error instanceof Error ? error.message : "เกิดข้อผิดพลาด";
@@ -653,7 +710,7 @@ export default function Studio({ projectId }: { projectId: string }) {
         abortRef.current = null;
       }
     },
-    [appendLive, boot, persist, previewSupported, previewUrl, pushTerminal, setLiveBoth, projectId]
+    [appendLive, boot, bootScaffold, persist, previewSupported, previewUrl, pushTerminal, setLiveBoth, projectId]
   );
 
   /** Resume the build after the user picks a design (or skips → no directive). */
@@ -985,6 +1042,18 @@ export default function Studio({ projectId }: { projectId: string }) {
     void generate(`แก้ error นี้ให้หน่อย:\n${recentErrors}`);
   }, [generate, terminal]);
 
+  /** Feed the iframe-reported runtime error (message + stack) into an AI fix
+   *  turn — the model gets the real error instead of guessing from a white
+   *  screen or the user's "จอขาวครับ". */
+  const fixPreviewError = useCallback(() => {
+    const err = previewRuntimeError;
+    if (!err) return;
+    setPreviewRuntimeError(null);
+    void generate(
+      `ช่วยแก้ error นี้ใน demo:\n\n${err.message}${err.stack ? `\n\nstack:\n${err.stack.slice(0, 1500)}` : ""}`
+    );
+  }, [generate, previewRuntimeError]);
+
   const handleUndo = useCallback(() => {
     const current = projectRef.current;
     if (!current || busy || readOnly) return;
@@ -992,6 +1061,7 @@ export default function Studio({ projectId }: { projectId: string }) {
     if (!reverted) return;
     const saved = persist(reverted);
     setErrorMessage(null);
+    setPreviewRuntimeError(null);
     pushTerminal("↩ undo — ย้อนกลับ 1 ขั้น");
     if (hasRunnableApp(saved.files)) void boot(saved.files!);
   }, [boot, busy, persist, pushTerminal, readOnly]);
@@ -1724,7 +1794,14 @@ export default function Studio({ projectId }: { projectId: string }) {
                 previewKey={previewKey}
                 phase={phase}
                 supported={previewSupported}
-                onRefresh={() => setPreviewKey((k) => k + 1)}
+                runtimeError={previewRuntimeError}
+                onFixError={readOnly ? undefined : fixPreviewError}
+                onDismissError={() => setPreviewRuntimeError(null)}
+                onRefresh={() => {
+                  // Fresh document — a still-broken app re-reports itself.
+                  setPreviewRuntimeError(null);
+                  setPreviewKey((k) => k + 1);
+                }}
                 onPopOut={handlePopOut}
               />
             ) : (

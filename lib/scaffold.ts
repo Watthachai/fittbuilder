@@ -60,11 +60,14 @@ export const DEMO_PACKAGE_JSON = `{
 export const VITE_CONFIG = `import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 
-// Injects the FITT live-cursor forwarder into every served HTML, regardless of
-// the generated index.html — this config is canonical (never authored by the AI),
-// so cursors work over the running prototype for every project.
-const fittCursorForward = {
-  name: "fitt-cursor-forward",
+// Injects the FITT bridge scripts into every served HTML, regardless of the
+// generated index.html — this config is canonical (never authored by the AI).
+// 1) live-cursor forwarder, so cursors work over the running prototype.
+// 2) error reporter: runtime errors inside the demo (broken imports, React
+//    crashes) happen in the IFRAME's console, invisible to the studio — this
+//    posts them to the parent so a white screen becomes an actionable banner.
+const fittBridge = {
+  name: "fitt-bridge",
   transformIndexHtml() {
     return [
       {
@@ -73,12 +76,18 @@ const fittCursorForward = {
         children:
           "(function(){if(window.parent===window)return;var p=false,lx=0,ly=0;addEventListener('mousemove',function(e){lx=e.clientX;ly=e.clientY;if(p)return;p=true;requestAnimationFrame(function(){p=false;parent.postMessage({__fittCursor:true,x:lx/innerWidth,y:ly/innerHeight},'*');});});addEventListener('mouseleave',function(){parent.postMessage({__fittCursor:true,leave:true},'*');});})();",
       },
+      {
+        tag: "script",
+        injectTo: "head",
+        children:
+          "(function(){if(window.parent===window)return;var sent=0;function rpt(kind,message,stack){if(sent>=5)return;sent++;try{parent.postMessage({__fittPreviewError:true,kind:kind,message:String(message||'').slice(0,2000),stack:String(stack||'').slice(0,4000)},'*')}catch(e){}}addEventListener('error',function(e){if(e&&e.error){rpt('error',e.error.message||e.message,e.error.stack||'')}else if(e&&e.message){rpt('error',e.message,(e.filename||'')+(e.lineno?(':'+e.lineno):''))}else{var t=e&&e.target;if(t&&t.tagName==='SCRIPT'){rpt('resource','โหลดสคริปต์ไม่สำเร็จ: '+(t.src||''),'')}}},true);addEventListener('unhandledrejection',function(e){var r=e&&e.reason;rpt('promise',(r&&(r.message||String(r)))||'unhandled rejection',(r&&r.stack)||'')});})();",
+      },
     ];
   },
 };
 
 export default defineConfig({
-  plugins: [react(), fittCursorForward],
+  plugins: [react(), fittBridge],
   server: { host: true },
 });
 `;

@@ -134,9 +134,14 @@ export async function prepareWorkdir(projectId: string): Promise<void> {
 }
 
 /** Persisted node_modules snapshot (IndexedDB), keyed by the package.json it was built from. */
-// v2: invalidate older snapshots that may have cached an incomplete node_modules
-// (from the era when vite was a devDependency and npm omitted it).
-const NM_CACHE_KEY = "node_modules_snapshot_v2";
+// v3: exclude node_modules/.vite from the snapshot. The export runs right after
+// server-ready — racing Vite's dep optimizer, which is still writing .vite/deps
+// as the first page loads. A snapshot frozen mid-write keeps a metadata file
+// whose hash still matches after restore, so Vite trusts the half-written cache
+// and serves truncated chunks → permanent white screen that reloads can't fix
+// (every reload restores the same poisoned snapshot). The key bump also retires
+// any poisoned v2 snapshots users already have.
+const NM_CACHE_KEY = "node_modules_snapshot_v3";
 interface NmSnapshot {
   pkgJson: string;
   snapshot: Uint8Array;
@@ -165,7 +170,10 @@ async function restoreNodeModules(wc: WebContainer, pkgJson: string): Promise<bo
  */
 async function cacheNodeModules(wc: WebContainer, pkgJson: string): Promise<void> {
   try {
-    const snapshot = await wc.export("node_modules", { format: "binary" });
+    const snapshot = await wc.export("node_modules", {
+      format: "binary",
+      excludes: [".vite", ".vite/**"],
+    });
     await idbSet(NM_CACHE_KEY, { pkgJson, snapshot } satisfies NmSnapshot);
   } catch {
     // Snapshot too large / export failed — next run just reinstalls.
@@ -247,6 +255,42 @@ export interface RunCallbacks {
   onTerminal: (line: string) => void;
   onServerReady: (url: string) => void;
   onError: (message: string) => void;
+}
+
+/** The runId that already consumed its one automatic dev-server restart. */
+let autoRestartedRunId = -1;
+
+/**
+ * After server-ready, watch for the dev process dying UNEXPECTEDLY (container
+ * OOM after long sessions, vite crash). Without this the exit goes unnoticed:
+ * the status bar keeps saying "พร้อม" while the iframe points at a dead server
+ * (white screen). Intentional kills (reboot/reset/supersede) null or replace
+ * currentDevProcess first, so the watcher no-ops for them. One automatic
+ * restart per run; a second death surfaces as a real error.
+ */
+function watchDevExit(wc: WebContainer, cb: RunCallbacks, runId: number): void {
+  const dev = currentDevProcess;
+  if (!dev) return;
+  void dev.exit.then(async (code) => {
+    if (currentDevProcess !== dev || runId !== currentRunId) return;
+    currentDevProcess = null;
+    cb.onTerminal(`⚠ dev server หยุดทำงานเอง (exit ${code})`);
+    if (autoRestartedRunId === runId) {
+      cb.onError("dev server หยุดทำงานซ้ำ — กรุณาโหลดหน้าใหม่");
+      return;
+    }
+    autoRestartedRunId = runId;
+    cb.onTerminal("รีสตาร์ต dev server อัตโนมัติ…");
+    const url = await startDev(wc, cb, runId);
+    if (url === "superseded") return;
+    if (url === null) {
+      cb.onError("รีสตาร์ต dev server ไม่สำเร็จ — กรุณาโหลดหน้าใหม่");
+      return;
+    }
+    cb.onServerReady(url);
+    cb.onPhase("ready");
+    watchDevExit(wc, cb, runId); // second death hits the guard above → error
+  });
 }
 
 // Generous ceiling for npm install + Vite cold start inside WebContainer.
@@ -346,6 +390,7 @@ async function execRun(runId: number, files: ProjectFiles, cb: RunCallbacks): Pr
     if (runId !== currentRunId) return;
     cb.onServerReady(url);
     cb.onPhase("ready");
+    watchDevExit(wc, cb, runId);
     // Snapshot only a proven-good node_modules (dev server actually started).
     if (installedFresh) void cacheNodeModules(wc, pkgJson);
   } catch (error) {

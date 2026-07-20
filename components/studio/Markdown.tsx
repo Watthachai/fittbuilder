@@ -1,5 +1,6 @@
 "use client";
 
+import { memo } from "react";
 import ReactMarkdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
 
@@ -49,7 +50,7 @@ const components: Components = {
   hr: () => <hr className="my-3 border-night-edge" />,
 };
 
-export default function Markdown({ children, muted }: { children: string; muted?: boolean }) {
+function Markdown({ children, muted }: { children: string; muted?: boolean }) {
   return (
     <div className={muted ? "text-[12px] text-chalk-dim" : "text-[14px] text-chalk"}>
       <ReactMarkdown remarkPlugins={[remarkGfm]} components={components}>
@@ -58,3 +59,9 @@ export default function Markdown({ children, muted }: { children: string; muted?
     </div>
   );
 }
+
+// Parsing markdown (react-markdown + remark-gfm) is expensive and both props
+// are primitives; without memo, every ChatPanel re-render (each keystroke,
+// each stream chunk) re-parses the ENTIRE transcript — long chats turn that
+// into constant CPU/GC pressure.
+export default memo(Markdown);

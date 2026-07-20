@@ -26,6 +26,11 @@ interface PreviewPanelProps {
   previewKey: number;
   phase: GenerationPhase;
   supported: boolean;
+  /** Runtime error reported from inside the demo iframe (error bridge). */
+  runtimeError: { message: string } | null;
+  /** Feed the runtime error into an AI fix turn (absent for read-only viewers). */
+  onFixError?: () => void;
+  onDismissError: () => void;
   onRefresh: () => void;
   /** Open the demo in its own tab (via a portable /share link). */
   onPopOut: () => void;
@@ -36,6 +41,9 @@ export default function PreviewPanel({
   previewKey,
   phase,
   supported,
+  runtimeError,
+  onFixError,
+  onDismissError,
   onRefresh,
   onPopOut,
 }: PreviewPanelProps) {
@@ -43,6 +51,38 @@ export default function PreviewPanel({
   const active = VIEWPORTS.find((v) => v.id === viewport)!;
   const rootRef = useRef<HTMLDivElement>(null);
   const [isFs, setIsFs] = useState(false);
+  // During a mid-session reboot (deps install, undo, rework) the old dev server
+  // is already dead but `url` still points at it — showing the iframe then is a
+  // guaranteed white screen for the whole install. Show the loader instead.
+  const busyBoot = phase === "generating" || phase === "installing" || phase === "starting";
+
+  // Network watchdog: server-ready is an in-container event — it fires green
+  // even when the user's network (corporate proxy, ad-blocker) blocks
+  // *.webcontainer-api.io, leaving a silently white iframe. Probe the preview
+  // origin once per (re)load; a stale result never shows because the hint is
+  // keyed to the exact url+load it probed.
+  const [probeFailed, setProbeFailed] = useState<string | null>(null);
+  useEffect(() => {
+    if (!url || phase !== "ready") return;
+    const key = `${url}#${previewKey}`;
+    let cancelled = false;
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 10_000);
+    fetch(url, { mode: "no-cors", cache: "no-store", signal: ctrl.signal })
+      .then(() => {
+        if (!cancelled) setProbeFailed(null);
+      })
+      .catch(() => {
+        if (!cancelled) setProbeFailed(key);
+      })
+      .finally(() => clearTimeout(timer));
+    return () => {
+      cancelled = true;
+      ctrl.abort();
+      clearTimeout(timer);
+    };
+  }, [url, previewKey, phase]);
+  const netHint = probeFailed !== null && probeFailed === `${url}#${previewKey}`;
 
   // Fullscreen the whole panel (toolbar stays usable; Esc exits via the browser).
   useEffect(() => {
@@ -107,6 +147,38 @@ export default function PreviewPanel({
         </button>
       </div>
 
+      {/* Runtime error from inside the demo (error bridge) → actionable banner
+          instead of a silent white iframe. */}
+      {runtimeError && !busyBoot && (
+        <div className="flex shrink-0 items-center gap-2.5 border-b border-halt/40 bg-halt/10 px-3 py-2">
+          <span className="shrink-0 font-mono text-[11px] font-semibold text-halt">⚠ แอปมี error</span>
+          <span className="min-w-0 flex-1 truncate font-mono text-[11px] text-chalk-dim" title={runtimeError.message}>
+            {runtimeError.message}
+          </span>
+          {onFixError && (
+            <button
+              onClick={onFixError}
+              className="shrink-0 rounded-md bg-shine px-2.5 py-1 font-display text-[12px] font-semibold text-night transition hover:brightness-110"
+            >
+              ✦ ให้ AI แก้เลย
+            </button>
+          )}
+          <button
+            onClick={onDismissError}
+            aria-label="ปิดแจ้งเตือน"
+            className="shrink-0 rounded-md px-1.5 py-1 text-[12px] text-chalk-dim transition hover:text-chalk"
+          >
+            ✕
+          </button>
+        </div>
+      )}
+      {netHint && !runtimeError && !busyBoot && (
+        <div className="shrink-0 border-b border-amber-400/30 bg-amber-400/10 px-3 py-2 text-[11px] leading-relaxed text-amber-200">
+          เปิด preview ไม่ถึงเซิร์ฟเวอร์ — ถ้าจอว่างเปล่า เครือข่าย/ส่วนขยาย (proxy บริษัท,
+          ad-blocker) อาจบล็อกโดเมน <span className="font-mono">webcontainer-api.io</span> ลองปิดตัวบล็อกหรือเปลี่ยนเครือข่ายแล้วโหลดหน้าใหม่
+        </div>
+      )}
+
       {/* Stage */}
       <div className="bg-grid flex min-h-0 flex-1 items-stretch justify-center overflow-hidden p-0">
         {!supported ? (
@@ -122,7 +194,7 @@ export default function PreviewPanel({
               </button>
             }
           />
-        ) : url ? (
+        ) : url && !busyBoot ? (
           <div
             className="my-0 flex h-full justify-center transition-all"
             style={{ width: isFs || !active.width ? "100%" : `${active.width}px` }}

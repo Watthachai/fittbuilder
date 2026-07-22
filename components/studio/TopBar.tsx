@@ -88,9 +88,11 @@ export default function TopBar({
     <header className="flex h-12 shrink-0 items-center gap-2 border-b border-night-edge bg-night-panel px-3">
       <Link
         href="/"
-        className="shrink-0 whitespace-nowrap font-display text-sm font-bold tracking-tight text-chalk transition hover:text-shine"
+        className="flex shrink-0 items-center gap-2 whitespace-nowrap font-display text-sm font-bold tracking-tight text-chalk transition hover:text-shine"
         title="กลับไปหน้าแรก"
       >
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/logo.png" alt="" className="h-6 w-6 rounded-md" />
         FITT <span className="text-shine">Builder</span>
       </Link>
       <span className="shrink-0 text-night-edge">/</span>

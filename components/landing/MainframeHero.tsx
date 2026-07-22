@@ -199,6 +199,8 @@ export default function MainframeHero() {
             <PanelLeft size={17} />
           </button>
           <Link href="/" className="flex items-center gap-3">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/logo.png" alt="FITT Builder" className="h-9 w-9 rounded-[10px] sm:h-10 sm:w-10" />
             <span
               className="text-[21px] tracking-tight text-chalk sm:text-[26px]"
               style={{ fontFamily: "var(--font-heading)" }}

@@ -32,9 +32,8 @@ const TIERS = [
 function Logo() {
   return (
     <Link href="/" className="inline-flex items-center gap-2.5">
-      <span className="grid h-8 w-8 place-items-center rounded-full border-2 border-chalk">
-        <span className="h-2.5 w-2.5 rounded-full bg-chalk" />
-      </span>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src="/logo.png" alt="" className="h-8 w-8 rounded-lg" />
       <span className="font-display text-base font-semibold tracking-tight text-chalk">
         FITT Builder
       </span>

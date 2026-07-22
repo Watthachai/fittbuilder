@@ -23,6 +23,14 @@ export const CHANGE_BADGE: Record<ChangeType, { label: string; className: string
 // Newest first. SemVer: fix → PATCH, feature → MINOR, breaking → MAJOR.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.42.0",
+    date: "2026-07-22",
+    title: "โลโก้ใหม่ FITT Builder ทั้งเว็บ",
+    items: [
+      { type: "improvement", text: "เปลี่ยนมาใช้โลโก้ F นีออนตัวจริงทุกจุด — favicon/ไอคอนแท็บเบราว์เซอร์ (รวม Apple touch icon), แถบบนหน้าแรก, หน้า login, หน้ารับคำเชิญ, แถบบนสตูดิโอ และเมนูบัญชี (แทนวงกลมจุดเดิม)" },
+    ],
+  },
+  {
     version: "0.41.1",
     date: "2026-07-22",
     title: "แก้ @tag ไม่ขึ้นรายชื่อ + ลิงก์ GIF/รูปแสดงเป็นรูปจริง",

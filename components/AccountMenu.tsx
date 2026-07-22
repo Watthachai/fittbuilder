@@ -212,7 +212,9 @@ export default function AccountMenu() {
                 className="glass max-h-[90vh] w-[min(92vw,22rem)] overflow-y-auto rounded-2xl p-4 shadow-2xl md:mr-2 md:mt-14"
               >
             <div className="flex items-center justify-between">
-              <span className="font-display text-xl font-semibold tracking-tight text-chalk">
+              <span className="flex items-center gap-2.5 font-display text-xl font-semibold tracking-tight text-chalk">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src="/logo.png" alt="" className="h-7 w-7 rounded-lg" />
                 FITT Builder
               </span>
               <button

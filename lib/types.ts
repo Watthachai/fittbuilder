@@ -261,6 +261,8 @@ export interface ProjectSummary {
   updatedAt: string;
   access: "owner" | "member";
   role?: ShareRole;
+  /** Display name of the project's creator — set only for shared (member) rows. */
+  ownerName?: string;
 }
 
 /** Result the model must produce (parsed from its JSON output). */

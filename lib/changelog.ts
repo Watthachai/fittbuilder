@@ -23,6 +23,16 @@ export const CHANGE_BADGE: Record<ChangeType, { label: string; className: string
 // Newest first. SemVer: fix → PATCH, feature → MINOR, breaking → MAJOR.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.38.0",
+    date: "2026-07-22",
+    title: "แนบไฟล์ได้ตั้งแต่หน้าแรก · default workspace · รู้ว่าใครสร้างโปรเจกต์ที่แชร์",
+    items: [
+      { type: "feature", text: "กล่องไอเดียหน้าแรกแนบไฟล์ได้แล้ว (📎 รูป / PDF / เอกสาร สูงสุด 5 ไฟล์ ไฟล์ละ ≤4MB) — AI ใช้ไฟล์ประกอบการทำ BRD ตั้งแต่ตอน “สร้างเลย” เช่น แนบ mockup หรือสเปกเก่า" },
+      { type: "feature", text: "ตัวเลือก workspace มีปุ่ม ★ ตั้งเป็นค่าเริ่มต้น — เปิดหน้าแรกครั้งถัดไปเลือก workspace นั้นให้อัตโนมัติ (กด ★ ซ้ำเพื่อยกเลิก)" },
+      { type: "improvement", text: "รายการ “แชร์กับฉัน” แสดงชื่อคนสร้างโปรเจกต์แล้ว (เดิมมีแค่วันที่) — ดึงชื่อผ่านช่องทางที่จำกัดสิทธิ์เฉพาะสมาชิกของโปรเจกต์นั้น" },
+    ],
+  },
+  {
     version: "0.37.0",
     date: "2026-07-20",
     title: "ยกเครื่องปัญหา “จอขาว” — ตรวจจับ กู้คืน และบอกสาเหตุได้เอง",

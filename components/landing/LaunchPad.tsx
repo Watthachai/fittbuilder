@@ -3,14 +3,19 @@
 import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import { ArrowRight, FileText, MessagesSquare, Plus } from "lucide-react";
+import { ArrowRight, FileText, MessagesSquare, Paperclip, Plus, X } from "lucide-react";
 import { createProject } from "@/lib/storage";
-import { setPendingAction } from "@/lib/pending-action";
+import { setPendingAction, setPendingAttachments } from "@/lib/pending-action";
+import { fileToAttachment, MAX_ATTACHMENT_BYTES } from "@/lib/attachments";
 import SkillPicker from "@/components/studio/SkillPicker";
 import SkillDropdown from "@/components/studio/SkillDropdown";
 import OrgSelect from "@/components/org/OrgSelect";
+import type { ChatAttachmentInput } from "@/lib/types";
 
 const MAX_CHARS = 10_000;
+// Mirrors /api/agent's attachment schema: max 5 files, ≤4MB each.
+const MAX_FILES = 5;
+const FILE_ACCEPT = "image/*,application/pdf,text/*,.md,.json,.csv";
 
 const EXAMPLES = [
   "Landing page สำหรับ coffee shop สไตล์ minimal โทนสีครีม-น้ำตาล",
@@ -35,7 +40,29 @@ export default function LaunchPad({
   const [selectedSkillId, setSelectedSkillId] = useState<string | null>(null);
   const [selectedOrgId, setSelectedOrgId] = useState<string | null>(null);
   const [plusOpen, setPlusOpen] = useState(false);
+  const [attachments, setAttachments] = useState<ChatAttachmentInput[]>([]);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const onPickFiles = async (files: FileList | null) => {
+    if (!files || files.length === 0) return;
+    setError(null);
+    let count = attachments.length; // setState is async — track the running total locally
+    for (const file of Array.from(files)) {
+      if (count >= MAX_FILES) {
+        setError(`แนบได้สูงสุด ${MAX_FILES} ไฟล์`);
+        break;
+      }
+      if (file.size > MAX_ATTACHMENT_BYTES) {
+        setError(`"${file.name}" ใหญ่เกิน 4MB — ข้ามไฟล์นี้`);
+        continue;
+      }
+      const att = await fileToAttachment(file);
+      count++;
+      setAttachments((prev) => [...prev, att]);
+    }
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
 
   // Quick path: detect the domain, show the skill confirm card, then build.
   const launch = async () => {
@@ -77,7 +104,14 @@ export default function LaunchPad({
         skillId: skillId ?? undefined,
         orgId: selectedOrgId ?? undefined,
       });
-      setPendingAction(project.id, { kind: "express", prompt: prompt.trim() });
+      // Note the attached files in the prompt (same convention as ChatPanel) so
+      // they're visible in the transcript; the payloads themselves are too big
+      // for sessionStorage and ride IndexedDB to the studio.
+      const fullPrompt = attachments.length
+        ? `${prompt.trim()}\n\n🖼️ แนบ: ${attachments.map((a) => a.name).join(", ")}`
+        : prompt.trim();
+      setPendingAction(project.id, { kind: "express", prompt: fullPrompt });
+      if (attachments.length) await setPendingAttachments(project.id, attachments);
       await onLaunch?.();
       router.push(`/project/${project.id}`);
     } catch (e) {
@@ -166,6 +200,27 @@ export default function LaunchPad({
         className="block w-full resize-none bg-transparent px-4 py-4 text-lg leading-relaxed text-chalk outline-none placeholder:text-chalk/35"
       />
 
+      {attachments.length > 0 && (
+        <div className="flex flex-wrap gap-1.5 px-4 pb-2">
+          {attachments.map((a, i) => (
+            <span
+              key={`${a.name}-${i}`}
+              className="inline-flex max-w-[220px] items-center gap-1.5 rounded-full border border-chalk/15 bg-chalk/5 py-1 pl-2.5 pr-1 text-[12px] text-chalk/75"
+            >
+              <Paperclip size={11} className="shrink-0 text-shine" />
+              <span className="truncate">{a.name}</span>
+              <button
+                onClick={() => setAttachments((prev) => prev.filter((_, j) => j !== i))}
+                aria-label={`ลบ ${a.name}`}
+                className="grid h-5 w-5 shrink-0 place-items-center rounded-full transition hover:bg-chalk/10 hover:text-chalk"
+              >
+                <X size={11} />
+              </button>
+            </span>
+          ))}
+        </div>
+      )}
+
       <div className="flex flex-wrap items-center gap-2 border-t border-chalk/10 px-4 py-3">
         <div className="relative">
           <motion.button
@@ -212,6 +267,26 @@ export default function LaunchPad({
             )}
           </AnimatePresence>
         </div>
+
+        <input
+          ref={fileInputRef}
+          type="file"
+          hidden
+          multiple
+          accept={FILE_ACCEPT}
+          onChange={(e) => void onPickFiles(e.target.files)}
+        />
+        <motion.button
+          type="button"
+          whileTap={{ scale: 0.92 }}
+          onClick={() => fileInputRef.current?.click()}
+          disabled={launching}
+          aria-label="แนบไฟล์"
+          title="แนบไฟล์ (รูป/PDF/เอกสาร) ให้ AI ใช้ประกอบการสร้าง"
+          className="grid h-9 w-9 place-items-center rounded-full border border-chalk/15 bg-chalk/5 text-chalk/80 transition hover:border-chalk/30 disabled:opacity-40"
+        >
+          <Paperclip size={16} />
+        </motion.button>
 
         <SkillDropdown value={selectedSkillId} onChange={setSelectedSkillId} />
 

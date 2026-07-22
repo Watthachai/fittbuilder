@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Check, ChevronDown, Loader2, Plus, Settings2, User } from "lucide-react";
+import { Check, ChevronDown, Loader2, Plus, Settings2, Star, User } from "lucide-react";
 import { listOrgs } from "@/lib/orgs";
 import { openCreateWorkspace } from "@/lib/workspace-modal";
 import { WorkspaceIcon } from "@/lib/workspace-style";
@@ -13,6 +13,9 @@ import type { OrgRecord } from "@/lib/types";
  * workspace's color + icon for quick categorization, lets them switch, open a
  * workspace's info/Org DNA, or create a new one via the rich create modal.
  */
+/** localStorage key: the workspace preselected on load ("personal" or an org id). */
+const DEFAULT_KEY = "fittbuilder:default-workspace";
+
 export default function OrgSelect({
   value,
   onChange,
@@ -23,6 +26,7 @@ export default function OrgSelect({
   const [orgs, setOrgs] = useState<OrgRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
+  const [defaultSel, setDefaultSel] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -31,18 +35,36 @@ export default function OrgSelect({
         const list = await listOrgs();
         if (cancelled) return;
         setOrgs(list);
-        // Default = ส่วนตัว (no workspace); the user opts into one explicitly.
+        // Apply the saved default workspace (set via the ★ in this menu). The
+        // parent's initial state is always "ส่วนตัว" (null), so this never
+        // overrides an explicit user choice.
+        const def = localStorage.getItem(DEFAULT_KEY);
+        if (def && def !== "personal" && list.some((o) => o.id === def)) onChange(def);
       } catch {
         /* signed-out / offline → leave empty */
       } finally {
-        if (!cancelled) setLoading(false);
+        if (!cancelled) {
+          setDefaultSel(localStorage.getItem(DEFAULT_KEY));
+          setLoading(false);
+        }
       }
     })();
     return () => {
       cancelled = true;
     };
-    // Load workspaces once on mount.
-  }, []);
+    // Load workspaces once on mount (onChange is a stable setState from the parent).
+  }, [onChange]);
+
+  /** Toggle a row as the default workspace (★). Clicking the active ★ clears it. */
+  const toggleDefault = (id: string) => {
+    if (defaultSel === id) {
+      localStorage.removeItem(DEFAULT_KEY);
+      setDefaultSel(null);
+    } else {
+      localStorage.setItem(DEFAULT_KEY, id);
+      setDefaultSel(id);
+    }
+  };
 
   if (loading) {
     return (
@@ -87,19 +109,33 @@ export default function OrgSelect({
             <p className="px-2.5 py-1 font-mono text-[10px] uppercase tracking-wider text-chalk/40">
               Workspace
             </p>
-            <button
-              onClick={() => {
-                onChange(null);
-                setOpen(false);
-              }}
-              className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-[13px] text-chalk/85 transition hover:bg-chalk/5"
-            >
-              <span className="grid h-6 w-6 shrink-0 place-items-center rounded-md bg-chalk/10 text-chalk-dim">
-                <User size={14} />
-              </span>
-              <span className="min-w-0 flex-1 truncate">ส่วนตัว (ไม่ใช้ workspace)</span>
-              {!value && <Check size={14} className="shrink-0 text-shine" />}
-            </button>
+            <div className="group flex items-center gap-1 rounded-lg pr-1 transition hover:bg-chalk/5">
+              <button
+                onClick={() => {
+                  onChange(null);
+                  setOpen(false);
+                }}
+                className="flex min-w-0 flex-1 items-center gap-2 px-2.5 py-2 text-left text-[13px] text-chalk/85"
+              >
+                <span className="grid h-6 w-6 shrink-0 place-items-center rounded-md bg-chalk/10 text-chalk-dim">
+                  <User size={14} />
+                </span>
+                <span className="min-w-0 flex-1 truncate">ส่วนตัว (ไม่ใช้ workspace)</span>
+                {!value && <Check size={14} className="shrink-0 text-shine" />}
+              </button>
+              <button
+                onClick={() => toggleDefault("personal")}
+                title={defaultSel === "personal" ? "เลิกตั้งเป็นค่าเริ่มต้น" : "ตั้งเป็นค่าเริ่มต้น"}
+                aria-label="ตั้งเป็นค่าเริ่มต้น"
+                className="grid h-7 w-7 shrink-0 place-items-center rounded-md transition hover:bg-chalk/10"
+              >
+                <Star
+                  size={13}
+                  fill={defaultSel === "personal" ? "currentColor" : "none"}
+                  className={defaultSel === "personal" ? "text-shine" : "text-chalk-dim/60"}
+                />
+              </button>
+            </div>
             {orgs.map((o) => (
               <div
                 key={o.id}
@@ -120,6 +156,18 @@ export default function OrgSelect({
                   </span>
                   <span className="min-w-0 flex-1 truncate">{o.name}</span>
                   {o.id === current?.id && <Check size={14} className="shrink-0 text-shine" />}
+                </button>
+                <button
+                  onClick={() => toggleDefault(o.id)}
+                  title={defaultSel === o.id ? "เลิกตั้งเป็นค่าเริ่มต้น" : "ตั้งเป็นค่าเริ่มต้น"}
+                  aria-label="ตั้งเป็นค่าเริ่มต้น"
+                  className="grid h-7 w-7 shrink-0 place-items-center rounded-md transition hover:bg-chalk/10"
+                >
+                  <Star
+                    size={13}
+                    fill={defaultSel === o.id ? "currentColor" : "none"}
+                    className={defaultSel === o.id ? "text-shine" : "text-chalk-dim/60"}
+                  />
                 </button>
                 <Link
                   href={`/org/${o.id}`}

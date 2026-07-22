@@ -288,6 +288,7 @@ export default function ProjectsDrawer({
           <span className="block truncate text-sm text-chalk">{p.name}</span>
           <span className="block truncate font-mono text-[10px] text-chalk-dim">
             {formatDate(p.updatedAt)}
+            {p.access === "member" && p.ownerName ? ` · โดย ${p.ownerName}` : ""}
             {p.access === "member" && p.role ? ` · ${p.role}` : ""}
           </span>
         </span>

@@ -435,6 +435,14 @@ export interface Database {
       fittbuilder_accept_org_invites: { Args: { uid: string; mail: string }; Returns: undefined };
       fittbuilder_join_by_token: { Args: { tok: string; uid: string }; Returns: string | null };
       fittbuilder_ai_usage_report: { Args: Record<string, never>; Returns: Json };
+      fittbuilder_shared_project_owners: {
+        Args: Record<string, never>;
+        Returns: {
+          project_id: string;
+          name: string | null;
+          email: string | null;
+        }[];
+      };
       fittbuilder_project_members_detailed: {
         Args: { pid: string };
         Returns: {

@@ -115,11 +115,16 @@ export async function listProjects(): Promise<ProjectSummary[]> {
     .select("id, owner_id, name, files, org_id, created_at, updated_at")
     .order("updated_at", { ascending: false });
   if (error) throw error;
-  const { data: memberships } = await supabase
-    .from("fittbuilder_project_members")
-    .select("project_id, role")
-    .eq("user_id", me);
+  const [{ data: memberships }, { data: owners }] = await Promise.all([
+    supabase.from("fittbuilder_project_members").select("project_id, role").eq("user_id", me),
+    // Creator names for shared rows — profiles_select_own hides other users'
+    // profiles, so this rides a gated security-definer RPC (migration 0022).
+    supabase.rpc("fittbuilder_shared_project_owners"),
+  ]);
   const roleByProject = new Map<string, ShareRole>((memberships ?? []).map((m) => [m.project_id, m.role as ShareRole]));
+  const ownerByProject = new Map<string, string>(
+    (owners ?? []).map((o) => [o.project_id, o.name?.trim() || o.email || ""])
+  );
   return (rows ?? []).map((r) => {
     const owner = r.owner_id === me;
     return {
@@ -131,6 +136,7 @@ export async function listProjects(): Promise<ProjectSummary[]> {
       updatedAt: r.updated_at,
       access: owner ? "owner" : "member",
       role: owner ? undefined : roleByProject.get(r.id),
+      ownerName: owner ? undefined : ownerByProject.get(r.id) || undefined,
     } satisfies ProjectSummary;
   });
 }

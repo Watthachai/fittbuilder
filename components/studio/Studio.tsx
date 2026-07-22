@@ -13,7 +13,7 @@ import { computeChanges, deriveProductName, sanitizeFiles } from "@/lib/files";
 import { isBuildPhase, nextPhase, phaseDef, type PhaseId } from "@/lib/phases";
 import { type DesignOption, designStyleDirective, fetchDesignOptions } from "@/lib/design";
 import { extraDepsOf, packageJsonWithDeps, SCAFFOLD_FILES, VITE_CONFIG } from "@/lib/scaffold";
-import { takePendingAction } from "@/lib/pending-action";
+import { takePendingAction, takePendingAttachments } from "@/lib/pending-action";
 import { encodeShareUrl } from "@/lib/share";
 import { streamAgent, streamGenerate } from "@/lib/sse";
 import {
@@ -807,9 +807,11 @@ export default function Studio({ projectId }: { projectId: string }) {
    * doc. The prompt rides in as the first chat message so the user sees it.
    */
   const runExpressPipeline = useCallback(
-    async (prompt: string, base: ProjectRecord) => {
+    async (prompt: string, base: ProjectRecord, attachments?: ChatAttachmentInput[]) => {
       pushTerminal("⚡ Express: สร้าง BRD จาก brief…");
-      let rec = await runAgent(prompt, { ...base, phase: "define" }, true);
+      // Attachments (LaunchPad uploads) inform the BRD interview turn — the
+      // build then works from the BRD/PRD as usual.
+      let rec = await runAgent(prompt, { ...base, phase: "define" }, true, attachments);
       if (!rec || !docsFromFiles(rec.files).brd) return;
 
       rec = persist({
@@ -1253,7 +1255,11 @@ export default function Studio({ projectId }: { projectId: string }) {
           // Suppress the domain picker; the skill was already chosen at launch.
           skillCheckedRef.current = projectId;
           void bootScaffold(); // warm the preview so the final build HMRs in
-          void runExpressPipeline(pending.prompt, loaded);
+          // Files attached on the LaunchPad ride IndexedDB (too big for
+          // sessionStorage) — fetch them before kicking off the pipeline.
+          void takePendingAttachments(projectId).then((attachments) =>
+            runExpressPipeline(pending.prompt, loaded, attachments ?? undefined)
+          );
         } else {
           setSpecOpen(true);
         }

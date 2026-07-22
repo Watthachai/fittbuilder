@@ -6,7 +6,7 @@ import { AnimatePresence, motion } from "motion/react";
 import { ArrowRight, FileText, MessagesSquare, Paperclip, Plus, X } from "lucide-react";
 import { createProject } from "@/lib/storage";
 import { setPendingAction, setPendingAttachments } from "@/lib/pending-action";
-import { fileToAttachment, MAX_ATTACHMENT_BYTES } from "@/lib/attachments";
+import { ATTACHMENT_ACCEPT, fileToAttachment, MAX_ATTACHMENT_BYTES } from "@/lib/attachments";
 import SkillPicker from "@/components/studio/SkillPicker";
 import SkillDropdown from "@/components/studio/SkillDropdown";
 import OrgSelect from "@/components/org/OrgSelect";
@@ -15,7 +15,6 @@ import type { ChatAttachmentInput } from "@/lib/types";
 const MAX_CHARS = 10_000;
 // Mirrors /api/agent's attachment schema: max 5 files, ≤4MB each.
 const MAX_FILES = 5;
-const FILE_ACCEPT = "image/*,application/pdf,text/*,.md,.json,.csv";
 
 const EXAMPLES = [
   "Landing page สำหรับ coffee shop สไตล์ minimal โทนสีครีม-น้ำตาล",
@@ -57,9 +56,14 @@ export default function LaunchPad({
         setError(`"${file.name}" ใหญ่เกิน 4MB — ข้ามไฟล์นี้`);
         continue;
       }
-      const att = await fileToAttachment(file);
-      count++;
-      setAttachments((prev) => [...prev, att]);
+      try {
+        const att = await fileToAttachment(file);
+        count++;
+        setAttachments((prev) => [...prev, att]);
+      } catch (e) {
+        // Conversion failures (e.g. legacy .xls) carry a user-facing message.
+        setError(e instanceof Error ? e.message : `แนบ "${file.name}" ไม่สำเร็จ`);
+      }
     }
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
@@ -273,7 +277,7 @@ export default function LaunchPad({
           type="file"
           hidden
           multiple
-          accept={FILE_ACCEPT}
+          accept={ATTACHMENT_ACCEPT}
           onChange={(e) => void onPickFiles(e.target.files)}
         />
         <motion.button

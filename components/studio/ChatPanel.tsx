@@ -24,8 +24,10 @@ import {
   Wrench,
   X,
 } from "lucide-react";
+import { toast } from "@/lib/toast";
 import { isBuildPhase, type PhaseId } from "@/lib/phases";
 import { useFileDrop } from "@/lib/useFileDrop";
+import { ATTACHMENT_ACCEPT, fileToAttachment, MAX_ATTACHMENT_BYTES } from "@/lib/attachments";
 import { DNA_BLOCKS } from "@/lib/org-dna";
 import DropOverlay from "@/components/ui/DropOverlay";
 import ImageLightbox from "@/components/ui/ImageLightbox";
@@ -38,22 +40,6 @@ const CITE_LABELS: Record<string, string> = {
   archetype: "รูปแบบองค์กร",
 };
 
-const MAX_FILE_BYTES = 4 * 1024 * 1024; // 4MB/attachment — keeps the SSE body sane
-
-/** Read a File as base64 (no data: prefix) for sending to the model. */
-async function fileToAttachment(file: File): Promise<ChatAttachmentInput> {
-  const dataUrl = await new Promise<string>((resolve, reject) => {
-    const r = new FileReader();
-    r.onload = () => resolve(r.result as string);
-    r.onerror = () => reject(r.error);
-    r.readAsDataURL(file);
-  });
-  return {
-    name: file.name,
-    mimeType: file.type || "application/octet-stream",
-    data: dataUrl.split(",")[1] ?? "",
-  };
-}
 import DiffViewer from "./DiffViewer";
 import DnaCaptureChip from "./DnaCaptureChip";
 import Markdown from "./Markdown";
@@ -251,9 +237,17 @@ export default function ChatPanel({
     setMediaBusy(true);
     try {
       for (const file of Array.from(files)) {
-        if (file.size > MAX_FILE_BYTES) continue; // silently skip oversize; cap is generous
-        const att = await fileToAttachment(file);
-        setMedia((prev) => [...prev, att]);
+        if (file.size > MAX_ATTACHMENT_BYTES) {
+          toast.warning(`ไฟล์ใหญ่เกิน 4MB: ${file.name}`);
+          continue;
+        }
+        try {
+          const att = await fileToAttachment(file);
+          setMedia((prev) => [...prev, att]);
+        } catch (e) {
+          // Conversion failures (e.g. legacy .xls) carry a user-facing message.
+          toast.warning(e instanceof Error ? e.message : `แนบ "${file.name}" ไม่สำเร็จ`);
+        }
       }
     } finally {
       setMediaBusy(false);
@@ -634,7 +628,7 @@ export default function ChatPanel({
                 ref={mediaInputRef}
                 type="file"
                 multiple
-                accept="image/*,application/pdf,text/*,.md,.json,.csv"
+                accept={ATTACHMENT_ACCEPT}
                 className="hidden"
                 onChange={(event) => void onPickMedia(event.target.files)}
               />

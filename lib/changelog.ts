@@ -23,6 +23,15 @@ export const CHANGE_BADGE: Record<ChangeType, { label: string; className: string
 // Newest first. SemVer: fix → PATCH, feature → MINOR, breaking → MAJOR.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.39.0",
+    date: "2026-07-22",
+    title: "แนบไฟล์ Excel แล้ว AI อ่านข้อมูลได้จริง",
+    items: [
+      { type: "fix", text: "แนบ .xlsx แล้ว AI ไม่อ่านข้อมูล — โมเดลอ่านไฟล์ Excel แบบ binary ตรงๆ ไม่ได้ · ตอนนี้ระบบแปลงเป็นตาราง CSV ให้อัตโนมัติตั้งแต่ตอนแนบ (ทุกจุด: แชท, กล่องหน้าแรก, Org DNA) — สูงสุด 1,000 แถว/ชีต รองรับหลายชีต สูตรใช้ค่าผลลัพธ์" },
+      { type: "improvement", text: "ไฟล์ .xls (Excel รุ่นเก่า) จะบอกวิธีแก้ชัดๆ (Save As เป็น .xlsx/.csv) แทนที่จะรับแล้วเงียบ · ไฟล์เสีย/ติดรหัสผ่านก็แจ้งเตือนตรงๆ" },
+    ],
+  },
+  {
     version: "0.38.0",
     date: "2026-07-22",
     title: "แนบไฟล์ได้ตั้งแต่หน้าแรก · default workspace · รู้ว่าใครสร้างโปรเจกต์ที่แชร์",

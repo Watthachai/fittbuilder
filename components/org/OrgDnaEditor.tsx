@@ -8,7 +8,7 @@ import SettingsShell from "@/components/settings/SettingsShell";
 import { clearOrgPainRadar, deleteOrg, getOrg, updateOrgMeta, updateOrgDna, dnaCompleteness } from "@/lib/orgs";
 import { ARCHETYPES, DNA_BLOCKS, archetypeMeta } from "@/lib/org-dna";
 import { DEFAULT_COLOR, DEFAULT_ICON, WorkspaceIcon } from "@/lib/workspace-style";
-import { fileToAttachment, MAX_ATTACHMENT_BYTES } from "@/lib/attachments";
+import { ATTACHMENT_ACCEPT, fileToAttachment, MAX_ATTACHMENT_BYTES } from "@/lib/attachments";
 import { confirm } from "@/lib/confirm";
 import { toast } from "@/lib/toast";
 import type { ChatAttachmentInput, OrgDna, OrgDnaVersion } from "@/lib/types";
@@ -129,8 +129,13 @@ export default function OrgDnaEditor({ orgId }: { orgId: string }) {
         toast.warning(`ไฟล์ใหญ่เกิน 4MB: ${f.name}`);
         continue;
       }
-      const att = await fileToAttachment(f);
-      setFiles((prev) => [...prev, att]);
+      try {
+        const att = await fileToAttachment(f);
+        setFiles((prev) => [...prev, att]);
+      } catch (e) {
+        // Conversion failures (e.g. legacy .xls) carry a user-facing message.
+        toast.warning(e instanceof Error ? e.message : `แนบ "${f.name}" ไม่สำเร็จ`);
+      }
     }
     if (fileRef.current) fileRef.current.value = "";
   };
@@ -386,7 +391,7 @@ export default function OrgDnaEditor({ orgId }: { orgId: string }) {
             ref={fileRef}
             type="file"
             multiple
-            accept="image/*,application/pdf,text/*,.md,.json,.csv"
+            accept={ATTACHMENT_ACCEPT}
             className="hidden"
             onChange={(e) => void pickFiles(e.target.files)}
           />

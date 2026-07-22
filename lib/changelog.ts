@@ -23,6 +23,14 @@ export const CHANGE_BADGE: Record<ChangeType, { label: string; className: string
 // Newest first. SemVer: fix → PATCH, feature → MINOR, breaking → MAJOR.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.40.1",
+    date: "2026-07-22",
+    title: "ไฟล์ที่แนบตอน “สร้างเลย” ไปถึงขั้นตอน build ตรงๆ",
+    items: [
+      { type: "improvement", text: "เดิมไฟล์ที่แนบจากหน้าแรกถูกอ่านแค่ตอนร่าง BRD — demo เลยได้ข้อมูลเท่าที่เอกสารสรุปไว้ · ตอนนี้ตัวสร้าง demo เห็นไฟล์ตัวจริงด้วย เช่น แนบ Excel 40 คอลัมน์ → ตาราง/กราฟใน demo ใช้คอลัมน์จริงครบและข้อมูลตัวอย่างจริงจากไฟล์" },
+    ],
+  },
+  {
     version: "0.40.0",
     date: "2026-07-22",
     title: "แชททีมเด้งให้เห็น + แท็กเพื่อนด้วย @",

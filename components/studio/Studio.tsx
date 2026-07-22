@@ -760,13 +760,20 @@ export default function Studio({ projectId }: { projectId: string }) {
 
   /** Build phase auto-kickoff: generate the demo from the approved BRD/PRD. */
   const buildFromDocs = useCallback(
-    (base?: ProjectRecord) => {
+    (base?: ProjectRecord, attachments?: ChatAttachmentInput[]) => {
       const proj = base ?? projectRef.current;
       const docs = docsFromFiles(proj?.files ?? null);
+      // Attachments (e.g. a LaunchPad-uploaded Excel→CSV) ride into the build
+      // turn itself, so the demo uses the REAL columns/sample rows — not just
+      // whatever the BRD summarized.
+      const dataHint = attachments?.length
+        ? " ผู้ใช้แนบไฟล์ข้อมูลจริงมาด้วย — ใช้โครงสร้างคอลัมน์จริงทั้งหมดและข้อมูลตัวอย่างจริงจากไฟล์ในตาราง/กราฟของ demo"
+        : "";
       void generate(
-        "สร้าง web demo ตามเอกสาร BRD/PRD ที่แนบมา ให้ครบทุกหน้าจอและตรง design direction ที่ระบุ",
+        `สร้าง web demo ตามเอกสาร BRD/PRD ที่แนบมา ให้ครบทุกหน้าจอและตรง design direction ที่ระบุ${dataHint}`,
         { brd: docs.brd?.slice(0, 50_000), prd: docs.prd?.slice(0, 50_000) },
-        proj ?? undefined
+        proj ?? undefined,
+        attachments
       );
     },
     [generate]
@@ -829,7 +836,7 @@ export default function Studio({ projectId }: { projectId: string }) {
         approvedPhases: Array.from(new Set([...(rec.approvedPhases ?? []), "plan" as PhaseId])),
       });
       pushTerminal("⚡ Express: build จาก BRD/PRD…");
-      buildFromDocs(rec);
+      buildFromDocs(rec, attachments);
     },
     [runAgent, persist, buildFromDocs, pushTerminal]
   );

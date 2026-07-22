@@ -23,6 +23,15 @@ export const CHANGE_BADGE: Record<ChangeType, { label: string; className: string
 // Newest first. SemVer: fix → PATCH, feature → MINOR, breaking → MAJOR.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.40.0",
+    date: "2026-07-22",
+    title: "แชททีมเด้งให้เห็น + แท็กเพื่อนด้วย @",
+    items: [
+      { type: "feature", text: "พิมพ์ @ ในห้องแชทเพื่อแท็กสมาชิก — มีรายชื่อขึ้นให้เลือก (ลูกศร/Enter หรือคลิก) ชื่อที่ถูกแท็กไฮไลต์สีฟ้าในบับเบิล และคนที่ถูกแท็กได้แจ้งเตือนพิเศษ 📣" },
+      { type: "improvement", text: "ข้อความใหม่ไม่เงียบอีกต่อไป: ปุ่ม “แชท” เรืองแสงสีฟ้าเป็นจังหวะจนกว่าจะเปิดอ่าน + เอฟเฟกต์ particle เด้ง 1 ครั้งตอนข้อความมาถึง + toast แสดงชื่อคนส่งกับข้อความย่อ (เคารพ reduced-motion)" },
+    ],
+  },
+  {
     version: "0.39.0",
     date: "2026-07-22",
     title: "แนบไฟล์ Excel แล้ว AI อ่านข้อมูลได้จริง",

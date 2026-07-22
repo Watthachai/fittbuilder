@@ -542,3 +542,39 @@ body {
     animation-play-state: paused;
   }
 }
+
+/* Team-chat attention: pulse ring on the chat chip while unread, plus a
+   one-shot particle burst the moment a message arrives (replayed per arrival
+   via a React key). Users were missing incoming team messages entirely. */
+@keyframes chat-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgb(100 206 251 / 0.5);
+  }
+  50% {
+    box-shadow: 0 0 0 7px rgb(100 206 251 / 0);
+  }
+}
+.chat-attention {
+  animation: chat-pulse 1.5s ease-out infinite;
+}
+@keyframes chat-burst {
+  0% {
+    transform: translate(0, 0) scale(1);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(var(--dx), var(--dy)) scale(0.3);
+    opacity: 0;
+  }
+}
+.chat-burst-particle {
+  opacity: 0;
+  animation: chat-burst 700ms ease-out forwards;
+}
+@media (prefers-reduced-motion: reduce) {
+  .chat-attention,
+  .chat-burst-particle {
+    animation: none;
+  }
+}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   CornerUpLeft,
   FileText,
@@ -12,6 +12,7 @@ import {
   X,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { listMembers } from "@/lib/sharing";
 import {
   deleteMessage,
   loadMessages,
@@ -78,8 +79,18 @@ export default function TeamChat({ projectId }: { projectId: string }) {
   const [typers, setTypers] = useState<string[]>([]);
   const [unread, setUnread] = useState(0);
   const [myId, setMyId] = useState("");
+  // Render-safe mirror of meRef.current.name (refs can't be read during render).
+  const [myName, setMyName] = useState("");
   const [replyTarget, setReplyTarget] = useState<TeamChatReplyRef | null>(null);
   const [lightbox, setLightbox] = useState<{ src: string; alt: string } | null>(null);
+  // Bumped per arriving message while closed → remounts <ChatBurst> so the
+  // one-shot particle effect replays. 0 = never fired (no render).
+  const [burst, setBurst] = useState(0);
+  // Project members (RPC) for the @-mention picker; merged with everyone who
+  // has ever spoken in the room, which also covers the owner (not in the RPC).
+  const [memberNames, setMemberNames] = useState<string[]>([]);
+  const [mention, setMention] = useState<{ query: string; index: number } | null>(null);
+  const draftRef = useRef<HTMLTextAreaElement>(null);
 
   const channelRef = useRef<ReturnType<ReturnType<typeof createClient>["channel"]> | null>(null);
   const meRef = useRef<{ id: string; name: string }>({ id: "", name: "" });
@@ -122,13 +133,24 @@ export default function TeamChat({ projectId }: { projectId: string }) {
           id: user.id,
           name: (meta.full_name ?? meta.name ?? user.email ?? "ผู้ใช้") as string,
         };
-        if (!cancelled) setMyId(user.id);
+        if (!cancelled) {
+          setMyId(user.id);
+          setMyName(meRef.current.name);
+        }
       }
       try {
         const initial = await loadMessages(projectId);
         if (!cancelled) setMessages(initial);
       } catch (e) {
         console.error("[team-chat] load failed:", e);
+      }
+      try {
+        const members = await listMembers(projectId);
+        if (!cancelled)
+          setMemberNames(members.map((m) => m.name?.trim() || m.email).filter(Boolean));
+      } catch {
+        // Not readable (e.g. signed-out share view) → mention picker just
+        // falls back to names seen in the transcript.
       }
     })();
 
@@ -146,7 +168,22 @@ export default function TeamChat({ projectId }: { projectId: string }) {
           timers.delete(msg.userId);
           setTypers((prev) => prev.filter((n) => n !== msg.authorName));
         }
-        if (!openRef.current) setUnread((u) => u + 1);
+        if (!openRef.current) {
+          setUnread((u) => u + 1);
+          if (msg.kind === "message") {
+            // Make the arrival impossible to miss: replay the burst on the
+            // chat chip and drop a toast preview (stronger when tagged).
+            setBurst((b) => b + 1);
+            const tagged =
+              !!meRef.current.name && msg.body.includes(`@${meRef.current.name}`);
+            toast.info(
+              tagged
+                ? `📣 ${msg.authorName ?? "ทีม"} แท็กถึงคุณในแชท`
+                : `💬 ${msg.authorName ?? "ทีม"} ส่งข้อความในแชท`,
+              { description: replyExcerpt(msg) }
+            );
+          }
+        }
       })
       .on("broadcast", { event: "typing" }, ({ payload }) => {
         const { id, name } = payload as { id: string; name: string };
@@ -203,6 +240,49 @@ export default function TeamChat({ projectId }: { projectId: string }) {
       scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight });
     });
   }, [open, messages.length]);
+
+  // Everyone taggable: project members + anyone who has spoken (covers the
+  // owner, who isn't in the members RPC). Excludes me — you don't tag yourself.
+  const mentionCandidates = useMemo(() => {
+    const names = new Set<string>(memberNames);
+    for (const m of messages) if (m.kind === "message" && m.authorName) names.add(m.authorName);
+    names.delete(myName);
+    return [...names].filter(Boolean).sort();
+  }, [memberNames, messages, myName]);
+
+  const mentionMatches = mention
+    ? mentionCandidates
+        .filter((n) => n.toLowerCase().includes(mention.query.toLowerCase()))
+        .slice(0, 6)
+    : [];
+
+  /** Names highlighted inside bubbles — includes me (seeing your own tag matters). */
+  const highlightNames = useMemo(
+    () => (myName ? [...mentionCandidates, myName] : mentionCandidates),
+    [mentionCandidates, myName]
+  );
+
+  /** Open/refresh the @-picker from the text before the caret. */
+  const detectMention = (el: HTMLTextAreaElement) => {
+    const upToCaret = el.value.slice(0, el.selectionStart ?? el.value.length);
+    const m = /@([^\s@]*)$/.exec(upToCaret);
+    setMention(m ? { query: m[1], index: 0 } : null);
+  };
+
+  /** Replace the "@query" being typed with the chosen "@Name ". */
+  const applyMention = (name: string) => {
+    const el = draftRef.current;
+    if (!el) return;
+    const caret = el.selectionStart ?? draft.length;
+    const before = draft.slice(0, caret).replace(/@[^\s@]*$/, `@${name} `);
+    const rest = draft.slice(caret);
+    setDraft(before + rest);
+    setMention(null);
+    requestAnimationFrame(() => {
+      el.focus();
+      el.setSelectionRange(before.length, before.length);
+    });
+  };
 
   const broadcastTyping = () => {
     const now = Date.now();
@@ -306,10 +386,13 @@ export default function TeamChat({ projectId }: { projectId: string }) {
         className={`relative inline-flex items-center gap-1.5 rounded-sm border px-2.5 py-1.5 text-xs transition ${
           open
             ? "border-shine text-chalk"
-            : "border-night-edge text-chalk-dim hover:border-shine hover:text-chalk"
+            : unread > 0
+              ? "chat-attention border-shine bg-shine/10 text-chalk"
+              : "border-night-edge text-chalk-dim hover:border-shine hover:text-chalk"
         }`}
         title="ห้องแชททีม"
       >
+        {burst > 0 && <ChatBurst key={burst} />}
         <MessageSquare size={13} /> แชท
         {badge > 0 && (
           <span
@@ -376,6 +459,7 @@ export default function TeamChat({ projectId }: { projectId: string }) {
                 message={m}
                 mine={m.userId === myId}
                 myId={myId}
+                mentionNames={highlightNames}
                 onReply={() =>
                   setReplyTarget({
                     id: m.id,
@@ -400,7 +484,32 @@ export default function TeamChat({ projectId }: { projectId: string }) {
         </div>
 
         {/* Composer */}
-        <div className="shrink-0 border-t border-night-edge p-2.5">
+        <div className="relative shrink-0 border-t border-night-edge p-2.5">
+          {mention && mentionMatches.length > 0 && (
+            <div className="absolute bottom-full left-2.5 z-20 mb-1 w-64 overflow-hidden rounded-xl border border-night-edge bg-night-panel py-1 shadow-2xl">
+              <p className="px-3 py-1 font-mono text-[10px] uppercase tracking-wider text-chalk-dim">
+                แท็กสมาชิก
+              </p>
+              {mentionMatches.map((n, i) => (
+                <button
+                  key={n}
+                  // mousedown (not click) so the textarea doesn't blur first.
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    applyMention(n);
+                  }}
+                  className={`flex w-full items-center gap-2 px-3 py-1.5 text-left text-[13px] transition ${
+                    i === mention.index ? "bg-shine/10 text-chalk" : "text-chalk/80 hover:bg-chalk/5"
+                  }`}
+                >
+                  <span className="grid h-5 w-5 shrink-0 place-items-center rounded-full bg-chalk/15 text-[10px] font-semibold text-chalk/80">
+                    {n.charAt(0).toUpperCase()}
+                  </span>
+                  <span className="truncate">{n}</span>
+                </button>
+              ))}
+            </div>
+          )}
           {replyTarget && (
             <div className="mb-2 flex items-start gap-2 rounded-md border-l-2 border-l-shine border-night-edge bg-night px-2.5 py-1.5">
               <CornerUpLeft size={13} className="mt-0.5 shrink-0 text-shine" />
@@ -475,13 +584,37 @@ export default function TeamChat({ projectId }: { projectId: string }) {
               onChange={(e) => void onPickFiles(e.target.files)}
             />
             <textarea
+              ref={draftRef}
               value={draft}
               rows={1}
               onChange={(e) => {
                 setDraft(e.target.value);
                 broadcastTyping();
+                detectMention(e.currentTarget);
               }}
               onKeyDown={(e) => {
+                // @-picker steals navigation/confirm keys while it's open.
+                if (mention && mentionMatches.length > 0) {
+                  if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+                    e.preventDefault();
+                    const delta = e.key === "ArrowDown" ? 1 : -1;
+                    setMention({
+                      ...mention,
+                      index:
+                        (mention.index + delta + mentionMatches.length) % mentionMatches.length,
+                    });
+                    return;
+                  }
+                  if (e.key === "Enter" || e.key === "Tab") {
+                    e.preventDefault();
+                    applyMention(mentionMatches[mention.index]);
+                    return;
+                  }
+                  if (e.key === "Escape") {
+                    setMention(null);
+                    return;
+                  }
+                }
                 if (e.key === "Enter" && !e.shiftKey) {
                   e.preventDefault();
                   void send();
@@ -516,10 +649,36 @@ export default function TeamChat({ projectId }: { projectId: string }) {
   );
 }
 
+/** Render a message body with known "@Name" tokens highlighted. */
+function renderBody(body: string, names: string[]): ReactNode {
+  if (!body.includes("@") || names.length === 0) return body;
+  const escaped = names
+    .filter(Boolean)
+    .sort((a, b) => b.length - a.length) // longest first so "อาร์ต ทีมA" wins over "อาร์ต"
+    .map((n) => n.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
+  const re = new RegExp(`@(?:${escaped.join("|")})`, "g");
+  const parts: ReactNode[] = [];
+  let last = 0;
+  for (const m of body.matchAll(re)) {
+    const i = m.index ?? 0;
+    if (i > last) parts.push(body.slice(last, i));
+    parts.push(
+      <span key={i} className="rounded bg-shine/15 px-0.5 font-semibold text-shine">
+        {m[0]}
+      </span>
+    );
+    last = i + m[0].length;
+  }
+  if (parts.length === 0) return body;
+  if (last < body.length) parts.push(body.slice(last));
+  return parts;
+}
+
 function ChatBubble({
   message,
   mine,
   myId,
+  mentionNames,
   onReply,
   onReact,
   onDelete,
@@ -528,6 +687,7 @@ function ChatBubble({
   message: TeamChatMessage;
   mine: boolean;
   myId: string;
+  mentionNames: string[];
   onReply: () => void;
   onReact: (emoji: string) => void;
   onDelete: () => void;
@@ -574,7 +734,11 @@ function ChatBubble({
                 mine ? "border border-shine/30 bg-shine/10" : "border border-night-edge bg-night"
               }`}
             >
-              {message.body || <span className="text-chalk-dim">…</span>}
+              {message.body ? (
+                renderBody(message.body, mentionNames)
+              ) : (
+                <span className="text-chalk-dim">…</span>
+              )}
             </div>
           )}
           <div
@@ -682,4 +846,39 @@ function Attachment({
 
 function Dot() {
   return <span className="h-1 w-1 animate-pulse rounded-full bg-chalk-dim" />;
+}
+
+/** Deterministic scatter for the arrival burst (shine · go · gold particles). */
+const BURST_PARTICLES = [
+  { dx: -26, dy: -20, color: "#64cefb", delay: 0 },
+  { dx: 24, dy: -26, color: "#34d399", delay: 40 },
+  { dx: -32, dy: 6, color: "#64cefb", delay: 20 },
+  { dx: 30, dy: 10, color: "#f4d35e", delay: 60 },
+  { dx: -14, dy: -32, color: "#f4d35e", delay: 80 },
+  { dx: 12, dy: -34, color: "#64cefb", delay: 10 },
+  { dx: 36, dy: -8, color: "#34d399", delay: 50 },
+  { dx: -22, dy: 16, color: "#64cefb", delay: 70 },
+];
+
+/** One-shot celebration burst over the chat chip — remounted (via key) per
+ *  arriving message so the CSS animation replays; ends invisible. */
+function ChatBurst() {
+  return (
+    <span aria-hidden className="pointer-events-none absolute -top-1 left-1/2 z-10">
+      {BURST_PARTICLES.map((p, i) => (
+        <span
+          key={i}
+          className="chat-burst-particle absolute h-1.5 w-1.5 rounded-full"
+          style={
+            {
+              background: p.color,
+              animationDelay: `${p.delay}ms`,
+              "--dx": `${p.dx}px`,
+              "--dy": `${p.dy}px`,
+            } as React.CSSProperties
+          }
+        />
+      ))}
+    </span>
+  );
 }

@@ -12,6 +12,7 @@ import {
   X,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { listOrgMembers } from "@/lib/org-members";
 import { listMembers } from "@/lib/sharing";
 import {
   deleteMessage,
@@ -145,9 +146,24 @@ export default function TeamChat({ projectId }: { projectId: string }) {
         console.error("[team-chat] load failed:", e);
       }
       try {
-        const members = await listMembers(projectId);
-        if (!cancelled)
-          setMemberNames(members.map((m) => m.name?.trim() || m.email).filter(Boolean));
+        // Mention roster = project members + (for workspace projects) the org
+        // roster. Org-shared teammates appear in NEITHER project_members NOR
+        // the transcript when they've only approved phases (system rows carry
+        // no author) — which left @ with an empty list.
+        const names: string[] = [];
+        const members = await listMembers(projectId).catch(() => []);
+        names.push(...members.map((m) => m.name?.trim() || m.email));
+        const { data: projRow } = await supabase
+          .from("fittbuilder_projects")
+          .select("org_id")
+          .eq("id", projectId)
+          .maybeSingle();
+        const orgId = (projRow as { org_id: string | null } | null)?.org_id ?? null;
+        if (orgId) {
+          const orgMembers = await listOrgMembers(orgId).catch(() => []);
+          names.push(...orgMembers.map((m) => m.name?.trim() || m.email));
+        }
+        if (!cancelled) setMemberNames([...new Set(names.filter(Boolean))]);
       } catch {
         // Not readable (e.g. signed-out share view) → mention picker just
         // falls back to names seen in the transcript.
@@ -510,6 +526,13 @@ export default function TeamChat({ projectId }: { projectId: string }) {
               ))}
             </div>
           )}
+          {mention && mentionCandidates.length === 0 && (
+            <div className="absolute bottom-full left-2.5 z-20 mb-1 w-72 rounded-xl border border-night-edge bg-night-panel px-3 py-2 shadow-2xl">
+              <p className="text-[12px] leading-relaxed text-chalk-dim">
+                ยังไม่พบรายชื่อสมาชิกในโปรเจกต์นี้ — ลองโหลดหน้าใหม่อีกครั้ง
+              </p>
+            </div>
+          )}
           {replyTarget && (
             <div className="mb-2 flex items-start gap-2 rounded-md border-l-2 border-l-shine border-night-edge bg-night px-2.5 py-1.5">
               <CornerUpLeft size={13} className="mt-0.5 shrink-0 text-shine" />
@@ -649,9 +672,13 @@ export default function TeamChat({ projectId }: { projectId: string }) {
   );
 }
 
-/** Render a message body with known "@Name" tokens highlighted. */
-function renderBody(body: string, names: string[]): ReactNode {
-  if (!body.includes("@") || names.length === 0) return body;
+/** Direct image links (giphy .gif etc.) — rendered as pictures, not bare URLs. */
+const IMAGE_URL_RE = /https?:\/\/[^\s]+\.(?:gif|png|jpe?g|webp)(?:\?[^\s]*)?/gi;
+const URL_RE = /https?:\/\/[^\s]+/g;
+
+/** Highlight known "@Name" tokens inside a plain-text segment. */
+function renderMentions(text: string, names: string[], keyBase: string): ReactNode[] {
+  if (!text.includes("@") || names.length === 0) return [text];
   const escaped = names
     .filter(Boolean)
     .sort((a, b) => b.length - a.length) // longest first so "อาร์ต ทีมA" wins over "อาร์ต"
@@ -659,19 +686,73 @@ function renderBody(body: string, names: string[]): ReactNode {
   const re = new RegExp(`@(?:${escaped.join("|")})`, "g");
   const parts: ReactNode[] = [];
   let last = 0;
-  for (const m of body.matchAll(re)) {
+  for (const m of text.matchAll(re)) {
     const i = m.index ?? 0;
-    if (i > last) parts.push(body.slice(last, i));
+    if (i > last) parts.push(text.slice(last, i));
     parts.push(
-      <span key={i} className="rounded bg-shine/15 px-0.5 font-semibold text-shine">
+      <span key={`${keyBase}-m${i}`} className="rounded bg-shine/15 px-0.5 font-semibold text-shine">
         {m[0]}
       </span>
     );
     last = i + m[0].length;
   }
-  if (parts.length === 0) return body;
-  if (last < body.length) parts.push(body.slice(last));
+  if (parts.length === 0) return [text];
+  if (last < text.length) parts.push(text.slice(last));
   return parts;
+}
+
+/** Body → mentions highlighted + bare links clickable. Image links never reach
+ *  here — ChatBubble strips them out and renders them as pictures. */
+function renderBody(body: string, names: string[]): ReactNode {
+  const parts: ReactNode[] = [];
+  let last = 0;
+  for (const m of body.matchAll(URL_RE)) {
+    const i = m.index ?? 0;
+    if (i > last) parts.push(...renderMentions(body.slice(last, i), names, `t${i}`));
+    parts.push(
+      <a
+        key={`u${i}`}
+        href={m[0]}
+        target="_blank"
+        rel="noreferrer"
+        className="break-all text-shine underline underline-offset-2"
+      >
+        {m[0]}
+      </a>
+    );
+    last = i + m[0].length;
+  }
+  if (parts.length === 0) return renderMentions(body, names, "t0");
+  if (last < body.length) parts.push(...renderMentions(body.slice(last), names, `t${last}`));
+  return parts;
+}
+
+/** External image link → picture (falls back to a plain link if it won't load). */
+function InlineImage({ url, onView }: { url: string; onView: () => void }) {
+  const [failed, setFailed] = useState(false);
+  if (failed)
+    return (
+      <a
+        href={url}
+        target="_blank"
+        rel="noreferrer"
+        className="mt-1 break-all text-[12px] text-shine underline underline-offset-2"
+      >
+        {url}
+      </a>
+    );
+  return (
+    <button onClick={onView} className="mt-1 block" title="คลิกเพื่อดูรูป">
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={url}
+        alt=""
+        referrerPolicy="no-referrer"
+        onError={() => setFailed(true)}
+        className="max-h-56 max-w-full cursor-zoom-in rounded-lg border border-night-edge object-cover"
+      />
+    </button>
+  );
 }
 
 function ChatBubble({
@@ -694,6 +775,11 @@ function ChatBubble({
   onViewImage: (src: string, alt: string) => void;
 }) {
   const initial = (message.authorName || "?").charAt(0).toUpperCase();
+  // Direct image links (e.g. a pasted giphy .gif) render as pictures below the
+  // text instead of a bare URL. COEP is `credentialless`, so cross-origin <img>
+  // loads fine without CORP headers; InlineImage falls back to a link on error.
+  const imageUrls = message.body.match(IMAGE_URL_RE) ?? [];
+  const textBody = imageUrls.reduce((b, u) => b.replace(u, ""), message.body).trim();
   return (
     <div className={`group flex gap-2.5 ${mine ? "flex-row-reverse" : ""}`}>
       {message.authorAvatar ? (
@@ -728,14 +814,14 @@ function ChatBubble({
 
         {/* Bubble + hover toolbar */}
         <div className={`relative flex items-center gap-1 ${mine ? "flex-row-reverse" : ""}`}>
-          {(message.body || message.attachments.length === 0) && (
+          {(textBody || (message.attachments.length === 0 && imageUrls.length === 0)) && (
             <div
               className={`whitespace-pre-wrap break-words rounded-lg px-3 py-2 text-[14px] text-chalk ${
                 mine ? "border border-shine/30 bg-shine/10" : "border border-night-edge bg-night"
               }`}
             >
-              {message.body ? (
-                renderBody(message.body, mentionNames)
+              {textBody ? (
+                renderBody(textBody, mentionNames)
               ) : (
                 <span className="text-chalk-dim">…</span>
               )}
@@ -775,6 +861,10 @@ function ChatBubble({
             )}
           </div>
         </div>
+
+        {imageUrls.map((u, i) => (
+          <InlineImage key={`${u}-${i}`} url={u} onView={() => onViewImage(u, "รูปจากลิงก์")} />
+        ))}
 
         {message.attachments.map((a) => (
           <Attachment key={a.path} att={a} onViewImage={onViewImage} />

@@ -23,6 +23,15 @@ export const CHANGE_BADGE: Record<ChangeType, { label: string; className: string
 // Newest first. SemVer: fix → PATCH, feature → MINOR, breaking → MAJOR.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.41.1",
+    date: "2026-07-22",
+    title: "แก้ @tag ไม่ขึ้นรายชื่อ + ลิงก์ GIF/รูปแสดงเป็นรูปจริง",
+    items: [
+      { type: "fix", text: "@ ไม่ขึ้นรายชื่อในโปรเจกต์ที่แชร์ผ่าน workspace — เพื่อนที่เข้ามาแค่อนุมัติขั้น (ยังไม่เคยพิมพ์) ไม่อยู่ทั้งในสมาชิกโปรเจกต์และประวัติแชท · ตอนนี้ดึงรายชื่อจาก workspace roster มารวมด้วย และถ้ารายชื่อว่างจะบอกตรงๆ แทนที่จะเงียบ" },
+      { type: "feature", text: "วางลิงก์รูป (.gif .png .jpg .webp เช่นลิงก์จาก GIPHY) ในห้องแชท → แสดงเป็นรูป/GIF จริง คลิกดูเต็มจอได้ · ลิงก์อื่นๆ กลายเป็นลิงก์คลิกได้ ไม่ใช่ข้อความเปล่า" },
+    ],
+  },
+  {
     version: "0.41.0",
     date: "2026-07-22",
     title: "คลังไฟล์ของโปรเจกต์ — เลือกไฟล์เดิมจากแชทมาใช้ซ้ำได้",

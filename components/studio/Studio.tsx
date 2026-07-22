@@ -1725,6 +1725,7 @@ export default function Studio({ projectId }: { projectId: string }) {
             </div>
           )}
           <ChatPanel
+            projectId={project.id}
             messages={project.messages}
             busy={phaseBusy}
             streaming={streamingNow}

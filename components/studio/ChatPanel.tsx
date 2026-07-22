@@ -11,6 +11,7 @@ import {
   FilePenLine,
   FileText,
   GitCompare,
+  History,
   ImagePlus,
   Lightbulb,
   Quote,
@@ -28,6 +29,12 @@ import { toast } from "@/lib/toast";
 import { isBuildPhase, type PhaseId } from "@/lib/phases";
 import { useFileDrop } from "@/lib/useFileDrop";
 import { ATTACHMENT_ACCEPT, fileToAttachment, MAX_ATTACHMENT_BYTES } from "@/lib/attachments";
+import {
+  downloadProjectFile,
+  listProjectFiles,
+  uploadAttachment,
+  type ProjectChatFile,
+} from "@/lib/team-chat";
 import { DNA_BLOCKS } from "@/lib/org-dna";
 import DropOverlay from "@/components/ui/DropOverlay";
 import ImageLightbox from "@/components/ui/ImageLightbox";
@@ -54,6 +61,8 @@ const GROUP_META: Record<string, { icon: LucideIcon; header: (n: number) => stri
 const MAX_CHARS = 10_000;
 
 interface ChatPanelProps {
+  /** Backs the file library (list/reuse past uploads in this project's bucket). */
+  projectId: string;
   messages: ChatMessage[];
   /** Input is disabled while the phase's worker runs. */
   busy: boolean;
@@ -200,6 +209,7 @@ function ActionHistory({ actions, live }: { actions: AgentAction[]; live: boolea
 }
 
 export default function ChatPanel({
+  projectId,
   messages,
   busy,
   streaming,
@@ -228,6 +238,10 @@ export default function ChatPanel({
   const [citeView, setCiteView] = useState<{ highlight?: string } | null>(null);
   const [media, setMedia] = useState<ChatAttachmentInput[]>([]);
   const [mediaBusy, setMediaBusy] = useState(false);
+  // File library: every past upload in this project (AI chat + team chat).
+  const [libOpen, setLibOpen] = useState(false);
+  const [libFiles, setLibFiles] = useState<ProjectChatFile[] | null>(null);
+  const [libBusy, setLibBusy] = useState(false);
   const [lightbox, setLightbox] = useState<{ src: string; alt: string } | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const mediaInputRef = useRef<HTMLInputElement>(null);
@@ -244,6 +258,10 @@ export default function ChatPanel({
         try {
           const att = await fileToAttachment(file);
           setMedia((prev) => [...prev, att]);
+          // Mirror the ORIGINAL file into the project's chat bucket so it shows
+          // up in the "ใช้ไฟล์เดิม" library (best-effort; conversions like
+          // xlsx→CSV re-run when it's picked again).
+          void uploadAttachment(projectId, file).catch(() => {});
         } catch (e) {
           // Conversion failures (e.g. legacy .xls) carry a user-facing message.
           toast.warning(e instanceof Error ? e.message : `แนบ "${file.name}" ไม่สำเร็จ`);
@@ -252,6 +270,38 @@ export default function ChatPanel({
     } finally {
       setMediaBusy(false);
       if (mediaInputRef.current) mediaInputRef.current.value = "";
+    }
+  };
+
+  /** Toggle the library; (re)fetch the listing every time it opens. */
+  const toggleLibrary = () => {
+    const opening = !libOpen;
+    setLibOpen(opening);
+    if (!opening) return;
+    setLibBusy(true);
+    listProjectFiles(projectId)
+      .then(setLibFiles)
+      .catch(() => toast.warning("โหลดรายการไฟล์ไม่สำเร็จ"))
+      .finally(() => setLibBusy(false));
+  };
+
+  /** Re-attach a past upload: download from the bucket → same convert path as a
+   *  fresh pick (so Excel becomes readable CSV again). */
+  const pickFromLibrary = async (f: ProjectChatFile) => {
+    setLibOpen(false);
+    if (f.size !== null && f.size > MAX_ATTACHMENT_BYTES) {
+      toast.warning(`ไฟล์ใหญ่เกิน 4MB: ${f.name}`);
+      return;
+    }
+    setMediaBusy(true);
+    try {
+      const file = await downloadProjectFile(f);
+      const att = await fileToAttachment(file);
+      setMedia((prev) => [...prev, att]);
+    } catch (e) {
+      toast.warning(e instanceof Error ? e.message : `ใช้ "${f.name}" ไม่สำเร็จ`);
+    } finally {
+      setMediaBusy(false);
     }
   };
 
@@ -632,6 +682,55 @@ export default function ChatPanel({
                 className="hidden"
                 onChange={(event) => void onPickMedia(event.target.files)}
               />
+              <div className="relative">
+                <button
+                  onClick={toggleLibrary}
+                  disabled={busy || mediaBusy}
+                  title="ใช้ไฟล์เดิม — ไฟล์ที่เคยแนบ/ส่งในโปรเจกต์นี้"
+                  className={`transition disabled:opacity-40 ${
+                    libOpen ? "text-shine" : "text-chalk-dim hover:text-shine"
+                  }`}
+                >
+                  <History size={14} />
+                </button>
+                {libOpen && (
+                  <>
+                    <div className="fixed inset-0 z-40" onClick={() => setLibOpen(false)} />
+                    <div className="scroll-thin absolute bottom-full left-0 z-50 mb-2 max-h-64 w-72 overflow-y-auto rounded-xl border border-night-edge bg-night-panel py-1 shadow-2xl">
+                      <p className="px-3 py-1 font-mono text-[10px] uppercase tracking-wider text-chalk-dim">
+                        ไฟล์ในโปรเจกต์นี้
+                      </p>
+                      {libBusy ? (
+                        <p className="flex items-center gap-2 px-3 py-2 text-[12px] text-chalk-dim">
+                          <Loader2 size={12} className="animate-spin" /> กำลังโหลด…
+                        </p>
+                      ) : !libFiles || libFiles.length === 0 ? (
+                        <p className="px-3 py-2 text-[12px] leading-relaxed text-chalk-dim">
+                          ยังไม่มีไฟล์ — ไฟล์ที่แนบให้ AI หรือส่งในห้องแชททีมจะมารออยู่ที่นี่
+                        </p>
+                      ) : (
+                        libFiles.map((f) => (
+                          <button
+                            key={f.path}
+                            onClick={() => void pickFromLibrary(f)}
+                            className="flex w-full items-center gap-2 px-3 py-1.5 text-left transition hover:bg-chalk/5"
+                          >
+                            <FileText size={13} className="shrink-0 text-shine" />
+                            <span className="min-w-0 flex-1 truncate text-[12px] text-chalk/85">
+                              {f.name}
+                            </span>
+                            {f.size !== null && (
+                              <span className="shrink-0 font-mono text-[10px] text-chalk-dim">
+                                {Math.max(1, Math.round(f.size / 1024))}KB
+                              </span>
+                            )}
+                          </button>
+                        ))
+                      )}
+                    </div>
+                  </>
+                )}
+              </div>
               <span className="font-mono text-[10px] text-chalk-dim">
                 {draft.length}/{MAX_CHARS}
               </span>

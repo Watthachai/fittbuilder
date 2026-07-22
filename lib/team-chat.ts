@@ -105,6 +105,49 @@ export async function loadMessages(projectId: string): Promise<TeamChatMessage[]
   return withSignedUrls(supabase, messages);
 }
 
+/** One reusable file from the project's chat bucket (any past upload). */
+export interface ProjectChatFile {
+  path: string;
+  /** Display name (the random upload prefix stripped). */
+  name: string;
+  size: number | null;
+  createdAt: string | null;
+}
+
+/**
+ * Every file ever uploaded under this project — team-chat attachments AND
+ * AI-chat attachments (ChatPanel mirrors them here) — newest first. Backs the
+ * "ใช้ไฟล์เดิม" picker so people re-attach without re-uploading. Gated by the
+ * bucket's per-project read policy, so only members see the list.
+ */
+export async function listProjectFiles(projectId: string): Promise<ProjectChatFile[]> {
+  const supabase = createClient();
+  const { data, error } = await supabase.storage
+    .from(BUCKET)
+    .list(projectId, { limit: 100, sortBy: { column: "created_at", order: "desc" } });
+  if (error) throw error;
+  return (data ?? [])
+    .filter((e) => e.id) // folders come back with a null id
+    .map((e) => ({
+      path: `${projectId}/${e.name}`,
+      name: e.name.replace(
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}-/i,
+        ""
+      ),
+      size: (e.metadata as { size?: number } | null)?.size ?? null,
+      createdAt: e.created_at ?? null,
+    }));
+}
+
+/** Download a bucket file back into a browser File (for re-attaching to the AI —
+ *  fileToAttachment re-runs conversions like xlsx→CSV on the way in). */
+export async function downloadProjectFile(f: ProjectChatFile): Promise<File> {
+  const supabase = createClient();
+  const { data, error } = await supabase.storage.from(BUCKET).download(f.path);
+  if (error || !data) throw error ?? new Error("ดาวน์โหลดไฟล์ไม่สำเร็จ");
+  return new File([data], f.name, { type: data.type || "application/octet-stream" });
+}
+
 /** Upload one file to the project's chat bucket; returns its attachment record. */
 export async function uploadAttachment(
   projectId: string,

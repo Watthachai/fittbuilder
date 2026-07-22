@@ -23,6 +23,15 @@ export const CHANGE_BADGE: Record<ChangeType, { label: string; className: string
 // Newest first. SemVer: fix → PATCH, feature → MINOR, breaking → MAJOR.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.41.0",
+    date: "2026-07-22",
+    title: "คลังไฟล์ของโปรเจกต์ — เลือกไฟล์เดิมจากแชทมาใช้ซ้ำได้",
+    items: [
+      { type: "feature", text: "ปุ่ม 🕘 ข้างปุ่มแนบไฟล์ในแชท AI — เปิดดูไฟล์ทั้งหมดที่เคยแนบในโปรเจกต์นี้ (ทั้งที่แนบให้ AI และที่ส่งในห้องแชททีม) แล้วคลิกใช้ซ้ำได้เลย ไม่ต้องอัปโหลดใหม่ · ไฟล์ Excel ที่เลือกซ้ำก็ถูกแปลงเป็นตารางให้ AI อ่านเหมือนเดิม" },
+      { type: "improvement", text: "ไฟล์ที่แนบให้ AI ถูกเก็บเข้าคลังของโปรเจกต์อัตโนมัติ (เดิมหายไปหลังส่ง) — ทีมเดียวกันเห็นคลังเดียวกัน สิทธิ์ตามสมาชิกโปรเจกต์" },
+    ],
+  },
+  {
     version: "0.40.1",
     date: "2026-07-22",
     title: "ไฟล์ที่แนบตอน “สร้างเลย” ไปถึงขั้นตอน build ตรงๆ",

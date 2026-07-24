@@ -1,5 +1,19 @@
 @import "tailwindcss";
 
+/* `dark:` utilities resolve against THIS app's theme system (html.dark forced,
+   or OS-dark when the user hasn't picked — same rules as the token flip below),
+   not Tailwind's default media-only behavior. */
+@custom-variant dark {
+  &:where(.dark, .dark *) {
+    @slot;
+  }
+  @media (prefers-color-scheme: dark) {
+    &:where(:root:not(.light):not(.dark), :root:not(.light):not(.dark) *) {
+      @slot;
+    }
+  }
+}
+
 /* ————————————————————————————————————————————————
    FITT Builder design system — "midnight studio"
    Pure-black canvas, white typography, a single

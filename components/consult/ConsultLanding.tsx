@@ -240,18 +240,18 @@ export default function ConsultLanding() {
             </svg>
 
             <div className="relative w-full max-w-[600px]">
-              {/* Dark mode: the video's baked-in white backdrop would end in a
-                  hard rectangle on the black canvas — a white radial glow behind
-                  the card lets that white bleed outward and fade into the dark
-                  (per request: fade the white, keep the card). Light mode is
-                  untouched. */}
+              {/* Dark mode: a BIG two-layer white aura behind the card so its
+                  baked-in white backdrop melts into the black canvas — a bright
+                  core hugging the edges (smooth seam) plus a wide soft spread
+                  reaching far beyond (blurred solid rects cover the corners
+                  evenly, unlike a radial ellipse). Light mode untouched. */}
               <div
                 aria-hidden
-                className="absolute -inset-20 -z-10 hidden dark:block"
-                style={{
-                  background:
-                    "radial-gradient(closest-side, rgba(255,255,255,0.96) 70%, rgba(255,255,255,0.45) 84%, transparent 100%)",
-                }}
+                className="absolute -inset-24 -z-10 hidden rounded-[96px] bg-white/40 blur-[120px] dark:block"
+              />
+              <div
+                aria-hidden
+                className="absolute -inset-6 -z-10 hidden rounded-[48px] bg-white/70 blur-[50px] dark:block"
               />
               <video
                 src={VIDEO_SRC}

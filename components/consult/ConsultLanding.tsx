@@ -240,11 +240,19 @@ export default function ConsultLanding() {
             </svg>
 
             <div className="relative w-full max-w-[600px]">
-              {/* Dark mode: the video's baked-in white backdrop would sit as a
-                  hard white card on the black canvas — a radial mask fades its
-                  edges to transparent so the robot melts into the scene (and
-                  the filter dims the white a touch). Light mode keeps the
-                  blueprint's clean rounded card. */}
+              {/* Dark mode: the video's baked-in white backdrop would end in a
+                  hard rectangle on the black canvas — a white radial glow behind
+                  the card lets that white bleed outward and fade into the dark
+                  (per request: fade the white, keep the card). Light mode is
+                  untouched. */}
+              <div
+                aria-hidden
+                className="absolute -inset-20 -z-10 hidden dark:block"
+                style={{
+                  background:
+                    "radial-gradient(closest-side, rgba(255,255,255,0.96) 70%, rgba(255,255,255,0.45) 84%, transparent 100%)",
+                }}
+              />
               <video
                 src={VIDEO_SRC}
                 autoPlay
@@ -252,7 +260,8 @@ export default function ConsultLanding() {
                 muted
                 playsInline
                 controls={false}
-                className="block w-full select-none rounded-[24px] [filter:brightness(1.02)_contrast(1.04)] dark:[filter:brightness(0.94)_contrast(1.03)] dark:[mask-image:radial-gradient(ellipse_74%_70%_at_50%_46%,black_48%,transparent_80%)] dark:[-webkit-mask-image:radial-gradient(ellipse_74%_70%_at_50%_46%,black_48%,transparent_80%)]"
+                className="block w-full select-none rounded-[24px]"
+                style={{ filter: "brightness(1.02) contrast(1.04)" }}
               />
 
               {/* App icon hovering above the robot's head. The plain outer div

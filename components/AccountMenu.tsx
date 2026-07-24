@@ -308,11 +308,11 @@ export default function AccountMenu() {
             <div className="mt-4 space-y-2.5">
               {isAdmin && (
                 <Link
-                  href="/advisor"
+                  href="/consult"
                   onClick={() => setOpen(false)}
                   className="flex w-full items-center justify-center gap-2 rounded-full border border-shine/40 py-2.5 font-display text-sm text-shine transition hover:bg-shine/10"
                 >
-                  <Stethoscope size={15} /> FITT Advisor
+                  <Stethoscope size={15} /> FITT Consult
                   <span className="rounded-full bg-shine/15 px-1.5 py-0.5 font-mono text-[9px] font-bold uppercase tracking-wider">
                     alpha
                   </span>

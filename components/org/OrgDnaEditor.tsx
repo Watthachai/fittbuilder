@@ -416,10 +416,10 @@ export default function OrgDnaEditor({ orgId }: { orgId: string }) {
               {painBusy ? "กำลังวิเคราะห์…" : "หา Pain Point"}
             </button>
             <Link
-              href={`/advisor?org=${orgId}`}
+              href={`/consult/app?org=${orgId}`}
               className="inline-flex items-center gap-1.5 text-[12px] text-chalk-dim underline-offset-2 transition hover:text-shine hover:underline"
             >
-              เปิด FITT Advisor (ประวัติ + ตรวจสุขภาพธุรกิจ) →
+              เปิด FITT Consult (ประวัติ + ตรวจสุขภาพธุรกิจ) →
             </Link>
           </div>
 
@@ -442,7 +442,7 @@ export default function OrgDnaEditor({ orgId }: { orgId: string }) {
                   </p>
                 </div>
                 <Link
-                  href={`/advisor?org=${orgId}`}
+                  href={`/consult/app?org=${orgId}`}
                   className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-night-edge px-2.5 py-1.5 text-[12px] text-chalk-dim transition hover:border-shine/60 hover:text-shine"
                 >
                   ดูประวัติทั้งหมด →

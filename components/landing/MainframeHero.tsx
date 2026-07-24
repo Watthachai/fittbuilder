@@ -253,10 +253,10 @@ export default function MainframeHero() {
           ))}
           {isAdmin && (
             <Link
-              href="/advisor"
+              href="/consult"
               className="inline-flex items-center gap-1.5 rounded-full px-4 py-1.5 transition hover:bg-chalk/10 hover:text-chalk"
             >
-              FITT Advisor
+              FITT Consult
               <span className="rounded-full bg-shine/15 px-1.5 py-0.5 font-mono text-[9px] font-bold uppercase tracking-wider text-shine">
                 alpha
               </span>
@@ -311,11 +311,11 @@ export default function MainframeHero() {
         ))}
         {isAdmin && (
           <Link
-            href="/advisor"
+            href="/consult"
             onClick={() => setMenuOpen(false)}
             className="inline-flex items-center gap-2 text-[32px] font-medium text-chalk"
           >
-            FITT Advisor
+            FITT Consult
             <span className="rounded-full bg-shine/15 px-2 py-1 font-mono text-[11px] font-bold uppercase tracking-wider text-shine">
               alpha
             </span>

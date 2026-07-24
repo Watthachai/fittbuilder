@@ -251,6 +251,34 @@ export default function ConsultLanding() {
                 style={{ filter: "brightness(1.02) contrast(1.04)" }}
               />
 
+              {/* App icon hovering above the robot's head. The plain outer div
+                  owns the horizontal centering transform — motion writes its own
+                  inline transform and would otherwise clobber -translate-x-1/2. */}
+              <div className="pointer-events-none absolute left-1/2 top-[6%] z-10 -translate-x-1/2">
+                <motion.div
+                  initial={{ opacity: 0, y: -28, scale: 0.6 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  transition={{ type: "spring", damping: 14, stiffness: 120, delay: 0.5 }}
+                >
+                  <motion.div
+                    animate={{ y: [0, -10, 0], rotate: [-2, 2, -2] }}
+                    transition={{ duration: 4.2, ease: "easeInOut", repeat: Infinity }}
+                    className="relative"
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src="/logo.png"
+                      alt=""
+                      className="h-14 w-14 rounded-[16px] shadow-[0_16px_32px_-8px_rgba(0,132,255,0.35)] ring-1 ring-black/10 sm:h-16 sm:w-16 dark:ring-white/15"
+                    />
+                    <span
+                      aria-hidden
+                      className="absolute inset-0 -z-10 rounded-[16px] bg-[#0084FF]/30 blur-xl"
+                    />
+                  </motion.div>
+                </motion.div>
+              </div>
+
               {/* Floating badge: Pain Point (top right) */}
               <FloatingBadge
                 className="absolute -right-4 top-[18%] sm:-right-10 md:-right-14"

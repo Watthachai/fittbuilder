@@ -5,7 +5,7 @@ import { createPortal } from "react-dom";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "motion/react";
-import { BarChart3, Check, Dna, FileCode, Loader2, LogOut, ShieldCheck, Users, X } from "lucide-react";
+import { BarChart3, Check, Dna, FileCode, Loader2, LogOut, ShieldCheck, Stethoscope, Users, X } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { firstOrg } from "@/lib/orgs";
 import { acceptMyInvite, listMyInvites, type MyInvite } from "@/lib/invites-inbox";
@@ -306,6 +306,13 @@ export default function AccountMenu() {
             </div>
 
             <div className="mt-4 space-y-2.5">
+              <Link
+                href="/advisor"
+                onClick={() => setOpen(false)}
+                className="flex w-full items-center justify-center gap-2 rounded-full border border-shine/40 py-2.5 font-display text-sm text-shine transition hover:bg-shine/10"
+              >
+                <Stethoscope size={15} /> FITT Advisor
+              </Link>
               <button
                 onClick={() => void openOrgDna()}
                 disabled={openingOrg}

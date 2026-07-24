@@ -5,7 +5,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { currentUserId, recordUsage } from "@/lib/ai-usage";
 import { MissingApiKeyError, streamParts, type TokenUsage } from "@/lib/gemini";
 import { buildOrgDnaContext } from "@/lib/org-dna";
-import { ADVISOR_SYSTEM, parseAdvisorResult } from "@/lib/org-advisor";
+import { HEALTH_SYSTEM, parseHealthResult } from "@/lib/advisor-health";
 import { clientIp, rateLimit } from "@/lib/rate-limit";
 import type { Json } from "@/lib/db/types";
 import type { OrgDna } from "@/lib/types";
@@ -15,7 +15,7 @@ export const maxDuration = 120;
 const bodySchema = z
   .object({
     orgId: z.string().uuid(),
-    feedback: z.string().trim().max(12_000).optional(),
+    data: z.string().trim().max(12_000).optional(),
     attachments: z
       .array(
         z.object({
@@ -28,14 +28,17 @@ const bodySchema = z
       .optional(),
   })
   .refine(
-    (b) => (b.feedback && b.feedback.length >= 20) || (b.attachments && b.attachments.length > 0),
-    { message: "ต้องมีเสียง (อย่างน้อย 20 ตัวอักษร) หรือไฟล์อย่างน้อยหนึ่งอย่าง" }
+    (b) => (b.data && b.data.length >= 20) || (b.attachments && b.attachments.length > 0),
+    { message: "ต้องมีข้อมูล (อย่างน้อย 20 ตัวอักษร) หรือไฟล์อย่างน้อยหนึ่งอย่าง" }
   );
 
 export async function POST(request: Request) {
   const limit = await rateLimit(`advisor:${clientIp(request)}`, 8);
   if (!limit.ok) {
-    return Response.json({ error: `คำขอถี่เกินไป ลองใหม่ใน ${limit.retryAfter} วินาที` }, { status: 429 });
+    return Response.json(
+      { error: `คำขอถี่เกินไป ลองใหม่ใน ${limit.retryAfter} วินาที` },
+      { status: 429 }
+    );
   }
 
   let body: z.infer<typeof bodySchema>;
@@ -43,32 +46,30 @@ export async function POST(request: Request) {
     body = bodySchema.parse(await request.json());
   } catch {
     return Response.json(
-      { error: "คำขอไม่ถูกต้อง (วางเสียงอย่างน้อย 20 ตัวอักษร หรือแนบไฟล์)" },
+      { error: "คำขอไม่ถูกต้อง (วางข้อมูลอย่างน้อย 20 ตัวอักษร หรือแนบไฟล์)" },
       { status: 400 }
     );
   }
 
-  // Membership gate: the caller must be able to read the org (RLS orgs_select).
-  // The user-scoped client enforces RLS before we touch Org DNA with the admin
-  // client — so a caller can't analyze another workspace's DNA.
+  // Membership gate: the caller must be able to read the org (RLS orgs_select)
+  // before we touch Org DNA with the admin client.
   const supabase = await createClient();
   const { data: org } = await supabase
     .from("fittbuilder_orgs").select("id").eq("id", body.orgId).maybeSingle();
   if (!org) return Response.json({ error: "ไม่มีสิทธิ์เข้าถึง workspace นี้" }, { status: 403 });
 
-  // Org DNA via service role (same trust path as the generation context).
   const admin = createAdminClient();
   const { data: dnaRow } = await admin
     .from("fittbuilder_orgs").select("org_dna, name").eq("id", body.orgId).maybeSingle();
   const dnaCtx = buildOrgDnaContext((dnaRow?.org_dna ?? {}) as OrgDna);
 
-  const feedback = body.feedback?.trim() ?? "";
+  const provided = body.data?.trim() ?? "";
   const user = [
     `องค์กร: ${dnaRow?.name ?? "-"}`,
-    dnaCtx ? `\nOrg DNA (บริบท — วิเคราะห์ให้เข้ากับวิธีทำงานจริงขององค์กรนี้):\n${dnaCtx}` : "",
-    feedback
-      ? `\nเสียงจริงที่ต้องวิเคราะห์ (raw feedback ห้ามแต่งเพิ่ม):\n"""\n${feedback}\n"""`
-      : `\nวิเคราะห์เสียงจริงจากไฟล์ที่แนบมา (ห้ามแต่งข้อมูลนอกเหนือจากไฟล์)`,
+    dnaCtx ? `\nOrg DNA (บริบท — ตีความตัวเลขให้เข้ากับธุรกิจนี้จริงๆ):\n${dnaCtx}` : "",
+    provided
+      ? `\nข้อมูลธุรกิจจริงที่ต้องตรวจ (ห้ามแต่งตัวเลขเพิ่ม):\n"""\n${provided}\n"""`
+      : `\nตรวจสุขภาพจากข้อมูลในไฟล์ที่แนบมา (ห้ามแต่งตัวเลขนอกเหนือจากไฟล์)`,
   ].filter(Boolean).join("\n");
 
   let usage: TokenUsage | null = null;
@@ -78,39 +79,38 @@ export async function POST(request: Request) {
   try {
     let raw = "";
     for await (const part of streamParts({
-      system: ADVISOR_SYSTEM,
+      system: HEALTH_SYSTEM,
       user,
       attachments: body.attachments,
       json: true,
-      temperature: 0.4,
+      temperature: 0.3,
       abortSignal: AbortSignal.any([request.signal, AbortSignal.timeout(110_000)]),
       onUsage: (u) => { usage = u; },
     })) {
       if (!part.thought) raw += part.text;
     }
-    const result = parseAdvisorResult(raw);
+    const result = parseHealthResult(raw);
     if (!result) {
       return Response.json(
-        { error: "วิเคราะห์ไม่สำเร็จ ลองวางเสียง/แนบไฟล์ให้มากขึ้นหรือลองใหม่" },
+        { error: "ตรวจไม่สำเร็จ ลองวางข้อมูล/แนบไฟล์ให้มากขึ้นหรือลองใหม่" },
         { status: 502 }
       );
     }
-    // Persist into the workspace's shared report HISTORY (advisor_reports,
-    // migration 0023 — insert policy gates to org members). Best-effort: the
-    // result still returns even if the save fails.
+    // Persist into the shared report history (best-effort, RLS gates insert).
     const savedAt = new Date().toISOString();
     const { error: saveErr } = await supabase.from("fittbuilder_advisor_reports").insert({
       org_id: body.orgId,
-      kind: "pain_point",
+      kind: "health_check",
       result: result as unknown as Json,
       created_by: userId,
       created_at: savedAt,
     });
-    if (saveErr) console.error("[org-advisor] save failed:", saveErr);
+    if (saveErr) console.error("[advisor-health] save failed:", saveErr);
     return Response.json({ result, savedAt });
   } catch (error) {
-    const message = error instanceof MissingApiKeyError ? error.message : "วิเคราะห์ไม่สำเร็จ กรุณาลองใหม่";
-    console.error("[org-advisor] failed:", error);
+    const message =
+      error instanceof MissingApiKeyError ? error.message : "ตรวจไม่สำเร็จ กรุณาลองใหม่";
+    console.error("[advisor-health] failed:", error);
     return Response.json({ error: message }, { status: 500 });
   }
 }

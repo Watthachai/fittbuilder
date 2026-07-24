@@ -2,17 +2,18 @@
 
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FileText, History, Loader2, Paperclip, Quote, Radar, RotateCcw, Save, Sparkles, Trash2, X } from "lucide-react";
 import SettingsShell from "@/components/settings/SettingsShell";
-import { clearOrgPainRadar, deleteOrg, getOrg, updateOrgMeta, updateOrgDna, dnaCompleteness } from "@/lib/orgs";
+import { deleteOrg, getOrg, updateOrgMeta, updateOrgDna, dnaCompleteness } from "@/lib/orgs";
 import { ARCHETYPES, DNA_BLOCKS, archetypeMeta } from "@/lib/org-dna";
 import { DEFAULT_COLOR, DEFAULT_ICON, WorkspaceIcon } from "@/lib/workspace-style";
 import { ATTACHMENT_ACCEPT, fileToAttachment, MAX_ATTACHMENT_BYTES } from "@/lib/attachments";
 import { confirm } from "@/lib/confirm";
 import { toast } from "@/lib/toast";
 import type { ChatAttachmentInput, OrgDna, OrgDnaVersion } from "@/lib/types";
-import { normalizeAdvisorResult } from "@/lib/org-advisor";
+import { listAdvisorReports } from "@/lib/advisor-reports";
 import type { AdvisorResult } from "@/lib/org-advisor";
 import ColorIconPicker from "./ColorIconPicker";
 import DomainSkillStudio from "./DomainSkillStudio";
@@ -105,14 +106,19 @@ export default function OrgDnaEditor({ orgId }: { orgId: string }) {
         setPaste(org.dna.sources);
         setRestored(true);
       }
-      // Load the workspace's SHARED Pain Point analysis (visible to every member).
-      // Runs after the getOrg await → async continuation, not a sync setState.
-      const savedPain = normalizeAdvisorResult(org.painRadar?.result);
-      if (savedPain) {
-        setPainResult(savedPain);
-        setPainSavedAt(org.painRadar?.at ?? null);
-      }
       setLoading(false);
+      // Show the workspace's latest shared Pain Point here too — source of
+      // truth is the Advisor history table, so this quick lens always matches
+      // what the /advisor system shows.
+      try {
+        const latest = (await listAdvisorReports(orgId)).find((r) => r.kind === "pain_point");
+        if (!cancelled && latest && latest.kind === "pain_point") {
+          setPainResult(latest.result);
+          setPainSavedAt(latest.createdAt);
+        }
+      } catch {
+        // Advisor history unavailable → the hub still works for DNA drafting.
+      }
     })();
     return () => {
       cancelled = true;
@@ -192,7 +198,9 @@ export default function OrgDnaEditor({ orgId }: { orgId: string }) {
     }
   };
 
-  // Same data hub, different lens: analyze the provided data for pain points.
+  // Same data hub, quick lens: analyze the provided data for pain points. The
+  // run is saved into the Advisor history (advisor_reports) by the API, so it
+  // also appears in /advisor with the rest of the team's reports.
   const analyzePain = async () => {
     if ((!paste.trim() && files.length === 0) || painBusy) return;
     setPainBusy(true);
@@ -218,17 +226,6 @@ export default function OrgDnaEditor({ orgId }: { orgId: string }) {
       toast.error("หา Pain Point ไม่สำเร็จ", { description: e instanceof Error ? e.message : undefined });
     } finally {
       setPainBusy(false);
-    }
-  };
-
-  const clearPain = async () => {
-    setPainResult(null);
-    setPainApproved({});
-    setPainSavedAt(null);
-    try {
-      await clearOrgPainRadar(orgId);
-    } catch (e) {
-      toast.error("ล้างผลไม่สำเร็จ", { description: e instanceof Error ? e.message : undefined });
     }
   };
 
@@ -418,6 +415,12 @@ export default function OrgDnaEditor({ orgId }: { orgId: string }) {
               {painBusy ? <Loader2 size={15} className="animate-spin" /> : <Radar size={15} />}
               {painBusy ? "กำลังวิเคราะห์…" : "หา Pain Point"}
             </button>
+            <Link
+              href={`/advisor?org=${orgId}`}
+              className="inline-flex items-center gap-1.5 text-[12px] text-chalk-dim underline-offset-2 transition hover:text-shine hover:underline"
+            >
+              เปิด FITT Advisor (ประวัติ + ตรวจสุขภาพธุรกิจ) →
+            </Link>
           </div>
 
           {painBusy && (
@@ -438,12 +441,12 @@ export default function OrgDnaEditor({ orgId }: { orgId: string }) {
                     {painSavedAt ? ` · อัปเดต ${new Date(painSavedAt).toLocaleString("th-TH")}` : ""}
                   </p>
                 </div>
-                <button
-                  onClick={() => void clearPain()}
-                  className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-night-edge px-2.5 py-1.5 text-[12px] text-chalk-dim transition hover:border-halt hover:text-halt"
+                <Link
+                  href={`/advisor?org=${orgId}`}
+                  className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-night-edge px-2.5 py-1.5 text-[12px] text-chalk-dim transition hover:border-shine/60 hover:text-shine"
                 >
-                  <Trash2 size={12} /> ล้างผล
-                </button>
+                  ดูประวัติทั้งหมด →
+                </Link>
               </div>
               <PainPointResult
                 result={painResult}

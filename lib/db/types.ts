@@ -5,6 +5,33 @@ export type Json = string | number | boolean | null | { [key: string]: Json | un
 export interface Database {
   public: {
     Tables: {
+      fittbuilder_advisor_reports: {
+        Row: {
+          id: string;
+          org_id: string;
+          kind: string;
+          result: Json;
+          created_by: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          org_id: string;
+          kind: string;
+          result: Json;
+          created_by?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          org_id?: string;
+          kind?: string;
+          result?: Json;
+          created_by?: string | null;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
       fittbuilder_profiles: {
         Row: {
           id: string;

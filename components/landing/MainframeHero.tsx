@@ -17,7 +17,6 @@ const VIDEO_SRC =
 const NAV_LINKS = [
   { label: "วิธีใช้", href: "#how" },
   { label: "Spec-to-Demo", href: "#spec" },
-  { label: "ราคา", href: "#pricing" },
 ];
 
 const TYPED = "ยินดีที่แวะมา บอกไอเดียมาได้เลย — วันนี้อยากสร้างอะไร?";
@@ -55,6 +54,9 @@ export default function MainframeHero() {
   const heroRef = useRef<HTMLElement>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [projectsOpen, setProjectsOpen] = useState(false);
+  // FITT Advisor is alpha — its nav entry shows only to admins (/api/me hint;
+  // real gating stays server-side on the Advisor APIs).
+  const [isAdmin, setIsAdmin] = useState(false);
   const [showLaunch, setShowLaunch] = useState(false);
   const [launching, setLaunching] = useState(false);
   const launchingRef = useRef(false);
@@ -132,6 +134,20 @@ export default function MainframeHero() {
   useEffect(() => {
     const t = setTimeout(() => setShowLaunch(true), 400);
     return () => clearTimeout(t);
+  }, []);
+
+  // Admin hint for the alpha Advisor nav entry.
+  useEffect(() => {
+    let cancelled = false;
+    void fetch("/api/me")
+      .then((res) => (res.ok ? (res.json() as Promise<{ isAdmin?: boolean }>) : null))
+      .then((data) => {
+        if (!cancelled) setIsAdmin(Boolean(data?.isAdmin));
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   // Scrub the (non-autoplaying) video by horizontal mouse movement. Waits for
@@ -235,6 +251,17 @@ export default function MainframeHero() {
               {link.label}
             </a>
           ))}
+          {isAdmin && (
+            <Link
+              href="/advisor"
+              className="inline-flex items-center gap-1.5 rounded-full px-4 py-1.5 transition hover:bg-chalk/10 hover:text-chalk"
+            >
+              FITT Advisor
+              <span className="rounded-full bg-shine/15 px-1.5 py-0.5 font-mono text-[9px] font-bold uppercase tracking-wider text-shine">
+                alpha
+              </span>
+            </Link>
+          )}
         </nav>
 
         <div className="hidden items-center gap-2 rounded-full border border-chalk/12 bg-night/40 py-1 pl-3 pr-1 backdrop-blur-xl md:flex">
@@ -282,6 +309,18 @@ export default function MainframeHero() {
             {link.label}
           </a>
         ))}
+        {isAdmin && (
+          <Link
+            href="/advisor"
+            onClick={() => setMenuOpen(false)}
+            className="inline-flex items-center gap-2 text-[32px] font-medium text-chalk"
+          >
+            FITT Advisor
+            <span className="rounded-full bg-shine/15 px-2 py-1 font-mono text-[11px] font-bold uppercase tracking-wider text-shine">
+              alpha
+            </span>
+          </Link>
+        )}
         <button
           onClick={() => {
             setMenuOpen(false);

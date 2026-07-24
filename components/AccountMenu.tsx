@@ -306,13 +306,18 @@ export default function AccountMenu() {
             </div>
 
             <div className="mt-4 space-y-2.5">
-              <Link
-                href="/advisor"
-                onClick={() => setOpen(false)}
-                className="flex w-full items-center justify-center gap-2 rounded-full border border-shine/40 py-2.5 font-display text-sm text-shine transition hover:bg-shine/10"
-              >
-                <Stethoscope size={15} /> FITT Advisor
-              </Link>
+              {isAdmin && (
+                <Link
+                  href="/advisor"
+                  onClick={() => setOpen(false)}
+                  className="flex w-full items-center justify-center gap-2 rounded-full border border-shine/40 py-2.5 font-display text-sm text-shine transition hover:bg-shine/10"
+                >
+                  <Stethoscope size={15} /> FITT Advisor
+                  <span className="rounded-full bg-shine/15 px-1.5 py-0.5 font-mono text-[9px] font-bold uppercase tracking-wider">
+                    alpha
+                  </span>
+                </Link>
+              )}
               <button
                 onClick={() => void openOrgDna()}
                 disabled={openingOrg}

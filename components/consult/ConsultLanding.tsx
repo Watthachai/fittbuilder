@@ -216,7 +216,7 @@ export default function ConsultLanding() {
             initial={{ y: 20, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             transition={{ duration: 0.9, ease: EASE_OUT, delay: 0.3 }}
-            className="pointer-events-none relative flex w-full items-center justify-center py-10 lg:col-span-7 lg:justify-end"
+            className="pointer-events-none relative isolate flex w-full items-center justify-center py-10 lg:col-span-7 lg:justify-end"
           >
             {/* Orbit aura + rings */}
             <div
@@ -239,7 +239,11 @@ export default function ConsultLanding() {
               <circle cx="310" cy="310" r="180" fill="none" stroke="url(#consult-orbit)" strokeWidth="1" strokeDasharray="1 6" />
             </svg>
 
-            <div className="relative w-full max-w-[600px]">
+            {/* `isolate` pins a permanent stacking context: motion strips its
+                inline transform when the entrance animation ends, and without
+                one the -z-10 aura/orbit layers fall BEHIND the page background
+                and vanish (they flashed only during the animation). */}
+            <div className="relative isolate w-full max-w-[600px]">
               {/* Dark mode: a BIG two-layer white aura behind the card so its
                   baked-in white backdrop melts into the black canvas — a bright
                   core hugging the edges (smooth seam) plus a wide soft spread

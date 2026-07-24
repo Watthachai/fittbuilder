@@ -372,7 +372,7 @@ function FloatingBadge({
         animate={{ y: float.y, x: float.x }}
         transition={{ duration: float.duration, ease: "easeInOut", repeat: Infinity }}
         whileHover={{ scale: 1.05, rotate: float.rotate }}
-        className={`pointer-events-auto flex items-center gap-3 rounded-[20px] border border-white/70 bg-gradient-to-br from-white/75 to-white/45 px-5 py-3 ring-1 ring-black/5 backdrop-blur-[20px] dark:border-white/20 dark:from-white/[0.12] dark:to-white/[0.05] dark:ring-white/10 ${shadowClass}`}
+        className={`pointer-events-auto flex items-center gap-3 rounded-[20px] border border-white/70 bg-gradient-to-br from-white/75 to-white/45 px-5 py-3 ring-1 ring-black/5 backdrop-blur-[20px] dark:border-white/15 dark:from-[#16181d]/95 dark:to-[#0b0d10]/90 dark:ring-white/10 ${shadowClass}`}
       >
         <span
           className={`flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br ${iconBg}`}

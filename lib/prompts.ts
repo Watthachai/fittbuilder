@@ -1,5 +1,6 @@
 /** System prompts for the generation model (PRD §6.4, adapted for Gemini). */
 
+import { oversizedFiles } from "./code-health";
 import { truncateDoc } from "./context-builder";
 import { DEMO_PACKAGE_JSON } from "./scaffold";
 import type { DocKind } from "./types";
@@ -88,10 +89,42 @@ ${DEMO_PACKAGE_JSON}
 8. State must work: clickable tabs, working forms, add-to-cart counters, filters — buttons must DO something. Use React hooks.
 9. If the request/documents are in Thai, generate ALL visible content in Thai (the Anuphan font is already loaded).
 10. Never call external APIs or backends. All data is local mock data in the React code.
-11. PROJECT STRUCTURE — build it like a real codebase, not one giant file: keep the page composition in src/App.tsx, extract each reusable piece into its own file under src/components/*.tsx (e.g. KPICard.tsx, SalesChart.tsx, TransactionTable.tsx), put shared TypeScript types in src/types.ts, and mock data in src/data.ts. Keep each file focused and import with relative paths without extension. For multiple screens, switch views client-side with useState (stays a single-page app). Total output under ~140KB.
+11. PROJECT STRUCTURE — follow the PROJECT STRUCTURE contract below to the letter; it is not a style preference. Total output under ~140KB.
 12. Imagery: by DEFAULT use inline SVG or CSS gradients/shapes — never invent or hotlink random external image URLs (they break or are hotlink-protected). EXCEPTION: when the brief gives a SPECIFIC media URL (an image or a video), USE THAT EXACT URL as provided. The preview runs cross-origin isolated, so EVERY external <img>/<video>/<source> MUST carry crossOrigin="anonymous" — otherwise the browser blocks it and nothing shows. Example fullscreen background video:
    <video src="...the given url..." crossOrigin="anonymous" autoPlay loop muted playsInline className="absolute inset-0 h-full w-full object-cover" />
    (If you split into <source>, put crossOrigin on the <video> element.)`;
+
+/**
+ * The file-layout contract, shared by Build and every iteration. Iteration used
+ * to ship WITHOUT any structure rules, so each "แก้ตรงนี้หน่อย" turn rewrote
+ * src/App.tsx whole and it grew monotonically (2,600+ lines seen in the wild:
+ * ~30k output tokens per edit, truncation mid-template, one brace taking the
+ * whole app down). Small files keep an edit — and a syntax error — local.
+ */
+const ARCHITECTURE = `PROJECT STRUCTURE — MANDATORY. Produce a real, browsable codebase (a file tree someone can navigate in VS Code), NEVER one giant App.tsx:
+
+src/
+  main.tsx                  mounts <App /> — nothing else
+  App.tsx                   SHELL ONLY: app chrome + which page is active + render <XxxPage />. Under 120 lines. NO feature markup.
+  index.css                 plain CSS only
+  types.ts                  shared types/interfaces used by more than one file
+  data/                     mock data, one file per entity — data/orders.ts, data/customers.ts
+  lib/                      pure helpers — lib/format.ts (฿ currency, Thai dates, percentages)
+  hooks/                    custom hooks — hooks/useOrderFilters.ts
+  components/
+    layout/                 Sidebar.tsx, TopBar.tsx
+    ui/                     reusable primitives — Card.tsx, Badge.tsx, StatCard.tsx, DataTable.tsx
+    <feature>/              feature blocks — orders/OrderTable.tsx, orders/OrderDetailDrawer.tsx
+  pages/                    ONE file per screen — DashboardPage.tsx, OrdersPage.tsx, SettingsPage.tsx
+
+HARD RULES:
+- ONE exported component per file, named after the file. A local sub-part is allowed only if it is tiny (under 30 lines) and used nowhere else.
+- Keep EVERY file under ~200 lines. If a file is heading past that, stop and split it — extract a component into components/, a hook into hooks/, data into data/, a helper into lib/. A 500-line file is a defect, not a style choice.
+- Never inline long mock arrays inside a component file — they belong in src/data/*.ts and get imported.
+- A screen is NEVER written inside App.tsx. Create src/pages/<Name>Page.tsx and render it from App.tsx.
+- Multiple screens stay a single-page app: App.tsx holds useState for the active page and swaps <XxxPage /> — no router package.
+- A good demo is typically 12-30 source files. Emit leaf files first and App.tsx LAST, so the live preview keeps compiling while the rest streams.
+- Why this is non-negotiable: with small files an edit rewrites 80 lines instead of 2,000 (faster, and it cannot truncate), and a broken file takes down one panel instead of the whole app.`;
 
 const DEFAULT_BUILD_PERSONA =
   "You are FITT Builder, a web application generator for non-technical users (designers, product managers, marketers). You turn a natural-language brief into a complete, runnable web demo.";
@@ -106,6 +139,8 @@ export function buildGenerationSystemPrompt(
   return `${persona ?? DEFAULT_BUILD_PERSONA}
 
 ${PROJECT_RULES}
+
+${ARCHITECTURE}
 
 ${skillBlock}${specContext ? `${specContext}\n\n` : ""}${OUTPUT_CONTRACT}`;
 }
@@ -122,19 +157,40 @@ CLARIFY BEFORE BUILDING — only when you genuinely must:
 
 ITERATION RULES:
 1. You receive the current project files (a Vite + React + TypeScript app). Apply ONLY the requested change.
-2. Return ONLY the files whose contents change (full new contents for each), plus new files if needed. Unchanged files must NOT appear in "files".
+2. Return ONLY the files whose contents change (full new contents for each), plus new files if needed. Unchanged files must NOT appear in "files". Touch the SMALLEST file that owns the change — rewriting a big file to alter ten lines of it wastes the turn and risks truncating it.
 3. List removed files in "deleted".
 4. Keep the existing stack: TypeScript (.tsx) only; NEVER change package.json/vite.config.js/tsconfig.json or add dependencies via files (use the <deps> directive for new npm packages). Use relative imports without file extensions.
 5. Preserve the existing design language and data unless the request says otherwise.
+6. STRUCTURE IS PART OF THE DELIVERABLE. Never grow a file past ~200 lines to fit the change, and never move page/feature code up into App.tsx. If the code you must touch sits inside an already-oversized file, extract exactly that region into a properly-named new file (pages/, components/, hooks/, data/, lib/), import it back, and make your change there — leave the rest of that file untouched. Split as you go; do not rewrite the whole project unless the user asked for it.
+
+${ARCHITECTURE}
 
 ${OUTPUT_CONTRACT}`;
+}
+
+/**
+ * Measured structure debt, fed back every turn — without it the model cannot
+ * tell a 90-line file from a 2,600-line one and keeps appending to the biggest.
+ */
+function renderStructureAudit(files: Record<string, string>): string {
+  const oversized = oversizedFiles(files);
+  if (oversized.length === 0) return "";
+  const list = oversized
+    .slice(0, 5)
+    .map((f) => `- ${f.path} — ${f.lines} lines`)
+    .join("\n");
+  return `STRUCTURE DEBT — these files already broke the ~200-line rule:
+${list}
+Do NOT make them longer. Apply iteration rule 6: extract the region you touch into a new file, import it back, change it there.
+
+`;
 }
 
 export function buildIterationUserPrompt(prompt: string, files: Record<string, string>): string {
   const fileDump = Object.entries(files)
     .map(([path, contents]) => `--- ${path} ---\n${contents}`)
     .join("\n\n");
-  return `CURRENT PROJECT FILES:\n\n${fileDump}\n\nUSER REQUEST: ${prompt}`;
+  return `CURRENT PROJECT FILES:\n\n${fileDump}\n\n${renderStructureAudit(files)}USER REQUEST: ${prompt}`;
 }
 
 /* ——— Conversational phase agents (define/plan/verify/review/ship) ——— */

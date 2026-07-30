@@ -13,9 +13,11 @@ import {
   Paperclip,
   Pencil,
   Plus,
+  Split,
   Trash2,
   X,
 } from "lucide-react";
+import { oversizedFiles } from "@/lib/code-health";
 import { buildFileTree, type TreeNode } from "@/lib/file-tree";
 import { confirm } from "@/lib/confirm";
 import type { ProjectFiles } from "@/lib/types";
@@ -129,6 +131,8 @@ interface CodePanelProps {
   onDeleteFile: (path: string) => boolean;
   /** Attach a file as a reference chip in the chat input (double-click / 📎). */
   onAttachToChat: (path: string) => void;
+  /** Ask the AI to split oversized files (undefined = read-only or busy). */
+  onReorganize?: () => void;
 }
 
 export default function CodePanel({
@@ -138,9 +142,11 @@ export default function CodePanel({
   onRenameFile,
   onDeleteFile,
   onAttachToChat,
+  onReorganize,
 }: CodePanelProps) {
   const tree = useMemo(() => buildFileTree(files), [files]);
   const paths = useMemo(() => (files ? Object.keys(files) : []), [files]);
+  const oversized = useMemo(() => oversizedFiles(files), [files]);
 
   const [openTabs, setOpenTabs] = useState<string[]>([]);
   const [activePath, setActivePath] = useState<string | null>(null);
@@ -358,6 +364,27 @@ export default function CodePanel({
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
+        {/* Structure debt: code piled into one file. Editing it costs a full
+            rewrite per turn and one stray brace blanks the whole demo. */}
+        {oversized.length > 0 && (
+          <div className="flex shrink-0 items-center gap-2.5 border-b border-amber-400/30 bg-amber-400/10 px-3 py-2">
+            <Split size={13} className="shrink-0 text-amber-300" />
+            <span className="min-w-0 flex-1 truncate text-[11px] leading-relaxed text-amber-200">
+              <span className="font-mono">{oversized[0].path}</span> ยาว{" "}
+              {oversized[0].lines.toLocaleString("th-TH")} บรรทัด
+              {oversized.length > 1 && ` (+อีก ${oversized.length - 1} ไฟล์)`} — โค้ดกองในไฟล์เดียว
+              แก้ทีละครั้งช้าและพังง่าย
+            </span>
+            {onReorganize && (
+              <button
+                onClick={onReorganize}
+                className="shrink-0 rounded-md bg-shine px-2.5 py-1 font-display text-[12px] font-semibold text-night transition hover:brightness-110"
+              >
+                ✦ จัดโครงสร้างใหม่
+              </button>
+            )}
+          </div>
+        )}
         {tabs.length > 0 && (
           <div className="scroll-thin flex shrink-0 items-stretch overflow-x-auto border-b border-night-edge bg-night-panel">
             {tabs.map((path) => {

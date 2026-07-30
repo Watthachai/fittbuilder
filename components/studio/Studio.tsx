@@ -9,6 +9,7 @@ import {
   useSyncExternalStore,
 } from "react";
 import { DOC_PATHS, docOnlyFiles, docsFromFiles, hasRunnableApp } from "@/lib/define";
+import { REORGANIZE_PROMPT } from "@/lib/code-health";
 import { computeChanges, deriveProductName, sanitizeFiles } from "@/lib/files";
 import { isBuildPhase, nextPhase, phaseDef, type PhaseId } from "@/lib/phases";
 import { type DesignOption, designStyleDirective, fetchDesignOptions } from "@/lib/design";
@@ -1063,6 +1064,11 @@ export default function Studio({ projectId }: { projectId: string }) {
     );
   }, [generate, previewRuntimeError]);
 
+  /** Split an oversized file set into the standard layout (Code panel banner). */
+  const reorganizeCode = useCallback(() => {
+    void generate(REORGANIZE_PROMPT);
+  }, [generate]);
+
   const handleUndo = useCallback(() => {
     const current = projectRef.current;
     if (!current || busy || readOnly) return;
@@ -1826,6 +1832,7 @@ export default function Studio({ projectId }: { projectId: string }) {
                 onRenameFile={readOnly ? () => false : handleRenameFile}
                 onDeleteFile={readOnly ? () => false : handleDeleteFile}
                 onAttachToChat={attachFile}
+                onReorganize={readOnly || busy ? undefined : reorganizeCode}
               />
             )}
           </div>

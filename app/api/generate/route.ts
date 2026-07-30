@@ -4,7 +4,13 @@ import { getAgent } from "@/lib/agents/registry";
 import { buildSpecContext } from "@/lib/context-builder";
 import { checkGenerationQuota, currentUserId, recordUsage } from "@/lib/ai-usage";
 import { isSafePath, normalizePath, sanitizeCss } from "@/lib/files";
-import { extraDepsOf, packageJsonWithDeps, TSCONFIG, VITE_CONFIG } from "@/lib/scaffold";
+import {
+  extraDepsOf,
+  newPackages,
+  packageJsonWithDeps,
+  TSCONFIG,
+  VITE_CONFIG,
+} from "@/lib/scaffold";
 import { FileStreamParser } from "@/lib/stream-parse";
 import { MissingApiKeyError, streamParts, type TokenUsage } from "@/lib/gemini";
 import {
@@ -175,6 +181,10 @@ export async function POST(request: Request) {
       const parser = new FileStreamParser();
       let fileCount = 0;
       const deleted: string[] = [];
+      // Extra packages already in the project (installed on an earlier turn or
+      // from the package UI) — the base for this turn's package.json AND the
+      // filter that keeps a re-declared package from triggering a reinstall.
+      const extra = iteration ? extraDepsOf(body.previousFiles?.["package.json"]) : {};
       const wantedDeps = new Set<string>();
 
       try {
@@ -209,7 +219,9 @@ export async function POST(request: Request) {
               deleted.push(path);
               send({ type: "delete", path });
             }
-            const fresh = deps.filter((d) => isValidPackageName(d) && !wantedDeps.has(d));
+            const fresh = newPackages(deps.filter(isValidPackageName), extra).filter(
+              (d) => !wantedDeps.has(d)
+            );
             for (const d of fresh) wantedDeps.add(d);
             if (fresh.length) send({ type: "deps", packages: fresh });
           }
@@ -235,7 +247,6 @@ export async function POST(request: Request) {
         // Inject canonical build config so the project always runs: package.json
         // (preserving user-installed extra deps on iteration + any the build asked
         // for via <deps>) + vite.config.js.
-        const extra = iteration ? extraDepsOf(body.previousFiles?.["package.json"]) : {};
         for (const name of wantedDeps) extra[name] = "latest";
         send({ type: "file", path: "package.json", content: packageJsonWithDeps(extra) });
         if (!iteration) {

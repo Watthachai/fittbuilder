@@ -250,6 +250,20 @@ function baseDeps(): Record<string, string> {
   return JSON.parse(DEMO_PACKAGE_JSON).dependencies as Record<string, string>;
 }
 
+/** react / react-dom / vite / @vitejs/plugin-react — never re-resolvable by the model. */
+export const BASE_DEP_NAMES: ReadonlySet<string> = new Set(Object.keys(baseDeps()));
+
+/**
+ * Which <deps> names actually need installing. A declared package that is
+ * already present must be dropped, not re-added: re-adding pins it to "latest"
+ * (a React-18 demo could jump to a React-19-only major) and rewrites
+ * package.json, which invalidates the WebContainer install cache and forces a
+ * full reinstall + container reboot for nothing.
+ */
+export function newPackages(declared: string[], installed: Record<string, string>): string[] {
+  return declared.filter((name) => !BASE_DEP_NAMES.has(name) && !(name in installed));
+}
+
 /** Extra (user-installed) dependencies beyond the canonical scaffold base. */
 export function extraDepsOf(packageJson?: string): Record<string, string> {
   if (!packageJson) return {};

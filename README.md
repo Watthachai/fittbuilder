@@ -66,7 +66,7 @@ prompt / BRD+PRD ─→ POST /api/generate (Gemini, SSE streaming)
 | Var | Required | Default | Notes |
 |---|---|---|---|
 | `GEMINI_API_KEY` (หรือ `GOOGLE_API_KEY`) | ✅ | — | |
-| `GEMINI_MODEL` | — | `gemini-2.5-flash` | |
+| `GEMINI_MODEL` | — | `gemini-3.6-flash` | ถ้าเปลี่ยน ให้เพิ่ม pricing ของโมเดลนั้นใน `lib/ai-usage.ts` ด้วย |
 | `NEXT_PUBLIC_SUPABASE_URL` | ✅ | — | inlined at build time — ต้องตั้งก่อน `next build` |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | ✅ | — | inlined at build time — ต้องตั้งก่อน `next build` |
 | `SUPABASE_SERVICE_ROLE_KEY` | — | — | reserved for future admin use (not currently required) |

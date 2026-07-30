@@ -21,7 +21,7 @@ export function getGeminiClient(): GoogleGenAI {
   return client;
 }
 
-export const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-3.5-flash";
+export const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-3.6-flash";
 
 /** Token counts for one Gemini call (thinking tokens folded into output). */
 export interface TokenUsage {

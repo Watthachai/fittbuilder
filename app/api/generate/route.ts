@@ -11,7 +11,7 @@ import {
   TSCONFIG,
   VITE_CONFIG,
 } from "@/lib/scaffold";
-import { FileStreamParser } from "@/lib/stream-parse";
+import { FileStreamParser, salvageJsonFiles } from "@/lib/stream-parse";
 import { MissingApiKeyError, streamParts, type TokenUsage } from "@/lib/gemini";
 import {
   buildGenerationSystemPrompt,
@@ -232,6 +232,40 @@ export async function POST(request: Request) {
           console.error("[generate] stream ended early, using partial output:", streamError);
         }
 
+        // No <file> block streamed. Before treating that as "nothing to change",
+        // check for a JSON payload: a model that drifts to the old JSON contract
+        // did the work but in the wrong envelope, and dropping it would report
+        // success while the project stays untouched. `fromJson` then redirects
+        // the chat note, since the parser's "reply" is the raw JSON blob.
+        let fromJson = false;
+        let salvagedNote = "";
+        if (fileCount === 0) {
+          const salvaged = salvageJsonFiles(parser.getReply());
+          if (salvaged) {
+            fromJson = true;
+            console.warn(
+              `[generate] model replied in JSON, not <file> blocks — salvaged ${salvaged.files.length} file(s), ${salvaged.deletes.length} delete(s)`
+            );
+            salvagedNote = salvaged.note;
+            for (const file of salvaged.files) {
+              const path = normalizePath(file.path);
+              if (RESERVED_PATHS.has(path) || !isSafePath(path)) continue;
+              fileCount++;
+              send({
+                type: "file",
+                path,
+                content: path.endsWith(".css") ? sanitizeCss(file.content) : file.content,
+              });
+            }
+            for (const target of salvaged.deletes) {
+              const path = normalizePath(target);
+              if (RESERVED_PATHS.has(path) || !isSafePath(path)) continue;
+              deleted.push(path);
+              send({ type: "delete", path });
+            }
+          }
+        }
+
         // The model answered without emitting any files (e.g. it explained a
         // limitation). Surface its note as a normal reply instead of an error.
         if (fileCount === 0) {
@@ -256,7 +290,9 @@ export async function POST(request: Request) {
 
         send({
           type: "done",
-          note: parser.getReply() || (iteration ? "แก้ไขเรียบร้อยแล้ว" : "สร้าง demo เรียบร้อยแล้ว"),
+          note:
+            (fromJson ? salvagedNote : parser.getReply()) ||
+            (iteration ? "แก้ไขเรียบร้อยแล้ว" : "สร้าง demo เรียบร้อยแล้ว"),
           deleted,
         });
         close();

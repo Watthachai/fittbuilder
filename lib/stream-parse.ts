@@ -75,3 +75,66 @@ export class FileStreamParser {
     return tail || this.note.trim();
   }
 }
+
+export interface SalvagedGeneration {
+  files: ParsedFile[];
+  deletes: string[];
+  /** The model's own summary, so the chat shows prose instead of the raw JSON. */
+  note: string;
+}
+
+/**
+ * Recover files from an answer that came back as the legacy JSON payload
+ * (`{"files": …, "deleted": …, "note": …}`) instead of <file> blocks. Returns
+ * null when the text isn't that shape.
+ *
+ * The prompt forbids JSON, but a model that drifts here used to fail SILENTLY:
+ * zero blocks parsed → nothing written → the user reads "แก้ไขเรียบร้อยแล้ว"
+ * while the app is untouched, and burns turns repeating the request. Same
+ * trust-boundary tolerance as sanitizeCss: hold the contract in the prompt,
+ * and don't throw away work the model actually did. Callers log when it fires,
+ * so the drift stays visible instead of becoming the quiet normal.
+ */
+export function salvageJsonFiles(raw: string): SalvagedGeneration | null {
+  const unfenced = raw
+    .trim()
+    .replace(/^```(?:json)?\s*/i, "")
+    .replace(/```\s*$/, "");
+  const start = unfenced.indexOf("{");
+  const end = unfenced.lastIndexOf("}");
+  if (start === -1 || end <= start) return null;
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(unfenced.slice(start, end + 1));
+  } catch {
+    return null;
+  }
+  if (typeof parsed !== "object" || parsed === null) return null;
+  const obj = parsed as Record<string, unknown>;
+
+  const files: ParsedFile[] = [];
+  // Both shapes seen in the wild: an array of {path, content} and a
+  // {path: contents} map (the original JSON contract).
+  if (Array.isArray(obj.files)) {
+    for (const entry of obj.files) {
+      if (typeof entry !== "object" || entry === null) continue;
+      const e = entry as Record<string, unknown>;
+      const content = typeof e.content === "string" ? e.content : e.contents;
+      if (typeof e.path === "string" && typeof content === "string") {
+        files.push({ path: e.path, content });
+      }
+    }
+  } else if (typeof obj.files === "object" && obj.files !== null) {
+    for (const [path, content] of Object.entries(obj.files)) {
+      if (typeof content === "string") files.push({ path, content });
+    }
+  }
+
+  const deletes = Array.isArray(obj.deleted)
+    ? obj.deleted.filter((d): d is string => typeof d === "string")
+    : [];
+  if (files.length === 0 && deletes.length === 0) return null;
+
+  return { files, deletes, note: typeof obj.note === "string" ? obj.note.trim() : "" };
+}

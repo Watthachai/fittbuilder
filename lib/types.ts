@@ -264,15 +264,6 @@ export interface ProjectSummary {
   ownerName?: string;
 }
 
-/** Result the model must produce (parsed from its JSON output). */
-export interface GenerationResult {
-  /** One-or-two sentence summary shown in the chat, same language as the prompt. */
-  note: string;
-  /** Full project on first generation; only changed/new files on iteration. */
-  files: ProjectFiles;
-  /** Paths to delete (iteration mode only). */
-  deleted?: string[];
-}
 
 /** Server-Sent Events emitted by POST /api/generate (incremental, file-by-file). */
 export type GenerateEvent =

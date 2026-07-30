@@ -50,6 +50,7 @@ ${skill.seedData}`;
 export const PACKAGE_JSON_TEMPLATE = DEMO_PACKAGE_JSON;
 
 const OUTPUT_CONTRACT = `OUTPUT FORMAT — STRICT (stream files one at a time):
+0. NEVER answer with JSON. There is no {"files": …}, no "content" key, no "deleted" array — a JSON payload is silently discarded, so the user is told the edit succeeded while nothing changed. Files exist ONLY inside <file> blocks.
 1. Go straight to the file blocks. At most ONE short lead-in line before them — save the real explanation for the final summary (rule 8).
 2. Output EACH file as its own block in this EXACT shape — no markdown code fences, no commentary between blocks:
 <file path="src/App.tsx">
@@ -162,8 +163,8 @@ CLARIFY BEFORE BUILDING — only when you genuinely must:
 
 ITERATION RULES:
 1. You receive the current project files (a Vite + React + TypeScript app). Apply ONLY the requested change.
-2. Return ONLY the files whose contents change (full new contents for each), plus new files if needed. Unchanged files must NOT appear in "files". Touch the SMALLEST file that owns the change — rewriting a big file to alter ten lines of it wastes the turn and risks truncating it.
-3. List removed files in "deleted".
+2. Emit a <file> block ONLY for files whose contents change (full new contents), plus any new file you add. An unchanged file must NOT be emitted at all. Touch the SMALLEST file that owns the change — rewriting a big file to alter ten lines of it wastes the turn and risks truncating it.
+3. Remove a file with a self-closing <delete path="src/Old.tsx"/> tag.
 4. Keep the existing stack: TypeScript (.tsx) only; NEVER change package.json/vite.config.js/tsconfig.json or add dependencies via files. A new npm package installs ITSELF: declare <deps>package-name</deps> in the same turn you import it and it is installed automatically before the app runs (safe, verified picks: lucide-react · recharts · framer-motion · date-fns · clsx · sonner). Never tell the user to run a command, and never work around a missing library by hand. Packages already in package.json need no directive. Use relative imports without file extensions.
 5. Preserve the existing design language and data unless the request says otherwise.
 6. STRUCTURE IS PART OF THE DELIVERABLE. Never grow a file past ~200 lines to fit the change, and never move page/feature code up into App.tsx. If the code you must touch sits inside an already-oversized file, extract exactly that region into a properly-named new file (pages/, components/, hooks/, data/, lib/), import it back, and make your change there — leave the rest of that file untouched. Split as you go; do not rewrite the whole project unless the user asked for it.

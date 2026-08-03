@@ -10,6 +10,7 @@ import {
 } from "react";
 import { DOC_PATHS, docOnlyFiles, docsFromFiles, hasRunnableApp } from "@/lib/define";
 import { REORGANIZE_PROMPT } from "@/lib/code-health";
+import { commitRevision, revisionFiles } from "@/lib/revisions";
 import { buildWandPrompt, parseLoc, type WandTarget } from "@/lib/wand";
 import { patchClassName, patchText } from "@/lib/wand-patch";
 import { computeChanges, deriveProductName, sanitizeFiles } from "@/lib/files";
@@ -158,6 +159,9 @@ export default function Studio({ projectId }: { projectId: string }) {
     target: WandTarget;
     anchor: { x: number; y: number; w: number; h: number };
   } | null>(null);
+  // Counters, not booleans: each bump is one message to the iframe (clear the
+  // selection / re-measure after a patch changed the element's size).
+  const [wandNudge, setWandNudge] = useState({ clear: 0, repaint: 0 });
   const [previewPhase, setPreviewPhase] = useState<PhaseId | null>(null);
   const [approval, setApproval] = useState<ApprovalState | null>(null);
   const [approveOpen, setApproveOpen] = useState(false);
@@ -663,6 +667,22 @@ export default function Studio({ projectId }: { projectId: string }) {
           assistantMsg.thinking = snap.thinking.trim().slice(0, THINKING_STORE_LIMIT);
         if (snap?.actions.length) assistantMsg.actions = snap.actions;
         if (changes.length) assistantMsg.changes = changes;
+        // Checkpoint the result so the chat bubble can offer a rollback. Fire
+        // and forget: a failed checkpoint must never cost the user the build.
+        if (changes.length) {
+          const label = prompt.trim().slice(0, 80);
+          void commitRevision({ projectId, files, label, kind: "ai" }).then((sha) => {
+            if (!sha) return;
+            const withSha = projectRef.current;
+            if (!withSha) return;
+            persist({
+              ...withSha,
+              messages: withSha.messages.map((m) =>
+                m.id === assistantMsg.id ? { ...m, revision: { sha, label } } : m
+              ),
+            });
+          });
+        }
         working = appendMessage(working, assistantMsg);
         persist(working);
 
@@ -1080,7 +1100,16 @@ export default function Studio({ projectId }: { projectId: string }) {
 
   /* ——— Wand: point at an element in the demo and edit exactly it ——— */
 
-  const closeWandTarget = useCallback(() => setWandTarget(null), []);
+  /** Drop the selection (and its glow inside the iframe), stay in wand mode. */
+  const closeWandTarget = useCallback(() => {
+    setWandTarget(null);
+    setWandNudge((n) => ({ ...n, clear: n.clear + 1 }));
+  }, []);
+
+  const exitWand = useCallback(() => {
+    setWandOn(false);
+    setWandTarget(null);
+  }, []);
 
   const handleWandPick = useCallback(
     (target: WandTarget, anchor: { x: number; y: number; w: number; h: number }) =>
@@ -1103,9 +1132,17 @@ export default function Studio({ projectId }: { projectId: string }) {
       const saved = persist(withHistory(current, { ...current.files, [path]: next }));
       pushTerminal(`⚡ ${label} · ${path}`);
       if (previewSupported) void writeFile(path, next).catch(() => {});
+      setWandNudge((n) => ({ ...n, repaint: n.repaint + 1 }));
+      void commitRevision({
+        projectId,
+        files: saved.files ?? {},
+        label,
+        kind: "quick",
+        targetLoc: picked.loc,
+      });
       return Boolean(saved);
     },
-    [persist, previewSupported, pushTerminal, readOnly, wandTarget]
+    [persist, previewSupported, projectId, pushTerminal, readOnly, wandTarget]
   );
 
   const castWand = useCallback(
@@ -1117,6 +1154,7 @@ export default function Studio({ projectId }: { projectId: string }) {
         () => {
           setWandBusy(false);
           setWandTarget(null);
+          setWandNudge((n) => ({ ...n, clear: n.clear + 1 }));
         }
       );
     },
@@ -1134,6 +1172,40 @@ export default function Studio({ projectId }: { projectId: string }) {
     pushTerminal("↩ undo — ย้อนกลับ 1 ขั้น");
     if (hasRunnableApp(saved.files)) void boot(saved.files!);
   }, [boot, busy, persist, pushTerminal, readOnly]);
+
+  /**
+   * Restore the files at `sha`. Appends a NEW checkpoint rather than deleting
+   * history (a revert, not a reset) — so you can always come back forward.
+   */
+  const rollbackTo = useCallback(
+    async (sha: string) => {
+      const current = projectRef.current;
+      if (!current || busy || readOnly) return;
+      const snap = await revisionFiles(projectId, sha);
+      if (!snap) {
+        toast.error("ย้อนกลับไม่ได้", { description: "เวอร์ชันนี้ถูกลบออกจากประวัติแล้ว" });
+        return;
+      }
+      const ok = await confirm({
+        title: `ย้อนกลับไปเวอร์ชัน ${sha}?`,
+        message: `ไฟล์ทั้งหมดจะกลับไปเป็นตอน “${snap.label}” — เวอร์ชันปัจจุบันยังอยู่ในประวัติ กลับมาได้ตลอด`,
+        confirmLabel: "ย้อนกลับ",
+      });
+      if (!ok) return;
+      const saved = persist(withHistory(current, snap.files));
+      setErrorMessage(null);
+      setPreviewRuntimeError(null);
+      pushTerminal(`⎇ ย้อนกลับไป ${sha} · ${snap.label}`);
+      void commitRevision({
+        projectId,
+        files: snap.files,
+        label: `ย้อนกลับไป ${sha}`,
+        kind: "restore",
+      });
+      if (hasRunnableApp(saved.files)) void boot(saved.files!);
+    },
+    [boot, busy, persist, projectId, pushTerminal, readOnly]
+  );
 
   /**
    * Pull the live container's source files into project.files so the Code panel
@@ -1838,6 +1910,7 @@ export default function Studio({ projectId }: { projectId: string }) {
             }}
             onCancel={cancel}
             onViewDoc={previewPhaseDoc}
+            onRollback={readOnly ? undefined : rollbackTo}
             readOnly={readOnly}
             peers={[...aiPeers.values()]}
             onTyping={broadcastAiTyping}
@@ -1907,7 +1980,8 @@ export default function Studio({ projectId }: { projectId: string }) {
                         })
                 }
                 onWandPick={readOnly ? undefined : handleWandPick}
-                onWandCancel={closeWandTarget}
+                onWandExit={exitWand}
+                wandNudge={wandNudge}
               />
             ) : (
               <CodePanel

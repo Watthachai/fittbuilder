@@ -56,6 +56,8 @@ export interface ChatMessage {
   hasDoc?: boolean;
   /** Org DNA aspects this turn drew on → shown as citation chips. */
   citations?: string[];
+  /** Checkpoint this turn produced — shown as a chip you can roll back to. */
+  revision?: { sha: string; label: string };
 }
 
 /** One of the 7 Org DNA archetypes (Strategy& / PwC). */

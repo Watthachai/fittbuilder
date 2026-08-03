@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { ImagePlus, Sparkles, Wand2, X, Zap } from "lucide-react";
+import { Check, ImagePlus, Sparkles, Wand2, X, Zap } from "lucide-react";
 import { ATTACHMENT_ACCEPT, fileToAttachment, MAX_ATTACHMENT_BYTES } from "@/lib/attachments";
 import { shortLoc, type WandTarget } from "@/lib/wand";
 import {
@@ -58,6 +58,7 @@ export default function WandComposer({
   const [text, setText] = useState("");
   const [attachments, setAttachments] = useState<ChatAttachmentInput[]>([]);
   const [label, setLabel] = useState<string | null>(null);
+  const [draft, setDraft] = useState(target.text);
   const fileRef = useRef<HTMLInputElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const pos = place(anchor);
@@ -69,24 +70,37 @@ export default function WandComposer({
     if (mode === "cast") inputRef.current?.focus();
   }, [mode]);
 
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
+  // Esc is owned by PreviewPanel (it leaves wand mode entirely) — one key, one
+  // outcome, whether the demo or this card has focus. ✕ closes just the card.
 
   const quick = (action: ClassAction) => {
     if (onQuickClass(action)) {
-      setLabel(action.label);
-      setTimeout(() => setLabel(null), 1400);
+      flash(action.label);
     } else {
       toast.info("จุดนี้ปรับเร็วไม่ได้", {
         description: "คลาสของ element นี้ถูกคำนวณด้วยโค้ด — พิมพ์บอกในแท็บ “เสก” แทนได้ครับ",
       });
       setMode("cast");
     }
+  };
+
+  const flash = (msg: string) => {
+    setLabel(msg);
+    setTimeout(() => setLabel(null), 1600);
+  };
+
+  /** Commit the text edit — from Enter or the ✓ button, same path. */
+  const applyText = () => {
+    const next = draft.trim();
+    if (!next || next === target.text) return;
+    if (onQuickText(next)) {
+      flash(`แก้ข้อความเป็น “${next}”`);
+      return;
+    }
+    toast.info("ข้อความนี้แก้ตรงๆ ไม่ได้", {
+      description: "ข้างในมีโค้ดหรือ element ซ้อนอยู่ — ใช้แท็บ “เสก” แทน",
+    });
+    setMode("cast");
   };
 
   const attach = async (files: FileList | null) => {
@@ -204,25 +218,25 @@ export default function WandComposer({
               <p className="mb-1 font-display text-[10px] uppercase tracking-widest text-chalk-dim">
                 ข้อความ
               </p>
-              <input
-                defaultValue={target.text}
-                onKeyDown={(e) => {
-                  if (e.key !== "Enter") return;
-                  const next = (e.target as HTMLInputElement).value.trim();
-                  if (!next || next === target.text) return;
-                  if (onQuickText(next)) {
-                    setLabel("แก้ข้อความแล้ว");
-                    setTimeout(() => setLabel(null), 1400);
-                  } else {
-                    toast.info("ข้อความนี้แก้ตรงๆ ไม่ได้", {
-                      description: "ข้างในมีโค้ดหรือ element ซ้อนอยู่ — ใช้แท็บ “เสก” แทน",
-                    });
-                    setMode("cast");
-                  }
-                }}
-                placeholder="พิมพ์ข้อความใหม่ แล้วกด Enter"
-                className="w-full rounded-lg border border-night-edge bg-night px-2.5 py-1.5 text-[12px] text-chalk outline-none focus:border-shine/60"
-              />
+              <div className="flex items-center gap-1.5">
+                <input
+                  value={draft}
+                  onChange={(e) => setDraft(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") applyText();
+                  }}
+                  placeholder="พิมพ์ข้อความใหม่"
+                  className="min-w-0 flex-1 rounded-lg border border-night-edge bg-night px-2.5 py-1.5 text-[12px] text-chalk outline-none focus:border-shine/60"
+                />
+                <button
+                  onClick={applyText}
+                  disabled={!draft.trim() || draft.trim() === target.text}
+                  title="ใช้ข้อความนี้"
+                  className="shrink-0 rounded-lg bg-shine px-2.5 py-1.5 font-display text-[12px] font-semibold text-night transition hover:brightness-110 disabled:opacity-30"
+                >
+                  <Check size={13} />
+                </button>
+              </div>
             </div>
           )}
           <p className="text-[10px] leading-relaxed text-chalk-dim">

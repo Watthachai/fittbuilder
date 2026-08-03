@@ -5,6 +5,47 @@ export type Json = string | number | boolean | null | { [key: string]: Json | un
 export interface Database {
   public: {
     Tables: {
+      fittbuilder_project_revisions: {
+        Row: {
+          id: string;
+          project_id: string;
+          sha: string;
+          parent_sha: string | null;
+          label: string;
+          kind: string;
+          target_loc: string | null;
+          files: Json;
+          author_id: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          project_id: string;
+          sha: string;
+          parent_sha?: string | null;
+          label: string;
+          kind?: string;
+          target_loc?: string | null;
+          files: Json;
+          author_id?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          project_id?: string;
+          sha?: string;
+          parent_sha?: string | null;
+          label?: string;
+          kind?: string;
+          target_loc?: string | null;
+          files?: Json;
+          author_id?: string | null;
+          created_at?: string;
+        };
+        // Every table MUST carry this — one table without it collapses the whole
+        // Database type to `never` for every query in the app.
+        Relationships: [];
+      };
       fittbuilder_advisor_reports: {
         Row: {
           id: string;

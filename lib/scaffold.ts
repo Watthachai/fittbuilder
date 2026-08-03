@@ -73,17 +73,24 @@ const WAND_SCRIPT = `(function () {
     if (box) return;
     var s = document.createElement("style");
     s.textContent =
-      "#__fwbox{position:fixed;pointer-events:none;z-index:2147483646;border-radius:8px;background:rgba(100,206,251,.06);box-shadow:0 0 0 2px #64cefb,0 0 18px 4px rgba(100,206,251,.5),0 0 44px 10px rgba(147,124,255,.22);transition:top .12s cubic-bezier(.4,0,.2,1),left .12s cubic-bezier(.4,0,.2,1),width .12s cubic-bezier(.4,0,.2,1),height .12s cubic-bezier(.4,0,.2,1)}" +
+      "#__fwbox{position:fixed;pointer-events:none;z-index:2147483646;border-radius:8px;overflow:hidden;background:rgba(100,206,251,.06);box-shadow:0 0 0 2px #64cefb,0 0 18px 4px rgba(100,206,251,.5),0 0 44px 10px rgba(147,124,255,.22);transition:top .12s cubic-bezier(.4,0,.2,1),left .12s cubic-bezier(.4,0,.2,1),width .12s cubic-bezier(.4,0,.2,1),height .12s cubic-bezier(.4,0,.2,1)}" +
       "#__fwbox.pick{animation:__fwpulse 1.5s ease-in-out infinite alternate}" +
-      "#__fwbox.busy{animation:__fwbusy 1s ease-in-out infinite alternate}" +
+      "#__fwbox.busy{animation:__fwbusy 1.1s ease-in-out infinite alternate}" +
+      // The casting wave: a rainbow sweep that runs across the element being
+      // rewritten, so the wait reads as "spell in progress" on the thing itself.
+      "#__fwwave{position:absolute;inset:0;opacity:0;transition:opacity .2s;background:linear-gradient(115deg,transparent 18%,rgba(255,86,164,.38) 34%,rgba(100,206,251,.6) 50%,rgba(147,124,255,.55) 64%,rgba(86,255,196,.36) 78%,transparent 92%);background-size:280% 100%}" +
+      "#__fwbox.busy #__fwwave{opacity:1;animation:__fwsweep 1.5s linear infinite}" +
       "#__fwtag{position:fixed;pointer-events:none;z-index:2147483647;font:600 11px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace;color:#06121a;background:#64cefb;padding:2px 7px;border-radius:5px;white-space:nowrap;box-shadow:0 2px 10px rgba(0,0,0,.45)}" +
+      "#__fwtag.busy{background:linear-gradient(90deg,#64cefb,#937cff,#ff56a4,#64cefb);background-size:300% 100%;animation:__fwsweep 2s linear infinite;color:#0a0a0a}" +
       "#__fwdim{position:fixed;inset:0;pointer-events:none;z-index:2147483645;background:rgba(6,8,12,.42)}" +
       "@keyframes __fwpulse{to{box-shadow:0 0 0 2px #64cefb,0 0 30px 8px rgba(100,206,251,.85),0 0 80px 22px rgba(147,124,255,.4)}}" +
-      "@keyframes __fwbusy{from{box-shadow:0 0 0 2px #64cefb,0 0 12px 2px rgba(100,206,251,.5)}to{box-shadow:0 0 0 2px #937cff,0 0 34px 10px rgba(147,124,255,.8)}}" +
-      "@media (prefers-reduced-motion:reduce){#__fwbox{transition:none}#__fwbox.pick,#__fwbox.busy{animation:none}}";
+      "@keyframes __fwbusy{from{box-shadow:0 0 0 2px #64cefb,0 0 14px 3px rgba(100,206,251,.55)}to{box-shadow:0 0 0 2px #937cff,0 0 36px 12px rgba(147,124,255,.85)}}" +
+      "@keyframes __fwsweep{from{background-position:160% 0}to{background-position:-60% 0}}" +
+      "@media (prefers-reduced-motion:reduce){#__fwbox{transition:none}#__fwbox.pick,#__fwbox.busy,#__fwbox.busy #__fwwave,#__fwtag.busy{animation:none}}";
     document.head.appendChild(s);
     dim = document.createElement("div"); dim.id = "__fwdim";
     box = document.createElement("div"); box.id = "__fwbox";
+    box.appendChild(Object.assign(document.createElement("i"), { id: "__fwwave" }));
     tag = document.createElement("div"); tag.id = "__fwtag";
   }
 
@@ -147,7 +154,14 @@ const WAND_SCRIPT = `(function () {
     if (d.__fittWandBusy !== undefined && box) {
       busy = !!d.__fittWandBusy;
       box.className = busy ? "busy" : picked ? "pick" : "";
+      tag.className = busy ? "busy" : "";
+      if (busy) tag.textContent = "กำลังเสก…";
+      else paint();
     }
+    // Composer closed: drop the selection but stay armed for the next pick.
+    if (d.__fittWandClear) { picked = null; hover = null; if (box && box.isConnected) { box.remove(); tag.remove(); dim.remove(); } }
+    // A quick patch just changed the element's size — re-measure after HMR paints.
+    if (d.__fittWandRepaint && picked) setTimeout(paint, 60);
   });
 
   addEventListener("mousemove", function (e) {
@@ -171,9 +185,13 @@ const WAND_SCRIPT = `(function () {
     addEventListener(t, function (e) { if (on) { e.preventDefault(); e.stopPropagation(); } }, true);
   });
 
+  // Esc always LEAVES wand mode (not just the selection) — one predictable way
+  // out, whether focus sits in the demo or in the studio.
   addEventListener("keydown", function (e) {
     if (!on || e.key !== "Escape") return;
-    clear(); parent.postMessage({ __fittWandCancel: true }, "*");
+    e.preventDefault(); e.stopPropagation();
+    on = false; document.documentElement.style.cursor = "";
+    clear(); parent.postMessage({ __fittWandExit: true }, "*");
   }, true);
 
   addEventListener("scroll", schedule, true);

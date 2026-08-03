@@ -83,6 +83,8 @@ interface ChatPanelProps {
   onCancel: () => void;
   /** Open the doc-preview modal for a phase (from a message's "ดูเอกสาร" button). */
   onViewDoc: (phase: PhaseId) => void;
+  /** Restore the files captured at a checkpoint (absent for read-only viewers). */
+  onRollback?: (sha: string) => void | Promise<void>;
   /** Viewer (read-only): hide every write affordance — composer and answer choices. */
   readOnly?: boolean;
   /** Collaborators currently active in this chat (typing or running the AI). */
@@ -222,6 +224,7 @@ export default function ChatPanel({
   onSubmit,
   onCancel,
   onViewDoc,
+  onRollback,
   readOnly = false,
   peers = [],
   onTyping,
@@ -421,6 +424,21 @@ export default function ChatPanel({
               >
                 <GitCompare size={12} className="text-shine" />
                 ดูการเปลี่ยนแปลง ({message.changes.length})
+              </button>
+            )}
+            {/* Checkpoint: content hash of the whole file set after this turn.
+                One click puts the demo back exactly here. */}
+            {message.role === "assistant" && message.revision && onRollback && (
+              <button
+                onClick={() => void onRollback(message.revision!.sha)}
+                title={`ย้อนกลับมาที่เวอร์ชันนี้ (${message.revision.sha})`}
+                className="group/rev mt-2 ml-1.5 inline-flex items-center gap-1.5 rounded-md border border-night-edge bg-night px-2.5 py-1 font-mono text-[11px] text-chalk-dim transition hover:border-shine/60 hover:text-chalk"
+              >
+                <History size={12} className="text-shine" />
+                <span>{message.revision.sha}</span>
+                <span className="hidden font-display text-[10px] text-shine group-hover/rev:inline">
+                  ย้อนกลับ
+                </span>
               </button>
             )}
             {message.role === "assistant" &&

@@ -43,7 +43,10 @@ interface PreviewPanelProps {
   onToggleWand?: () => void;
   /** An element was picked; `anchor` is already in page pixels. */
   onWandPick?: (target: WandTarget, anchor: { x: number; y: number; w: number; h: number }) => void;
-  onWandCancel?: () => void;
+  /** Leave wand mode entirely (Esc anywhere, or the ✕ on the mode bar). */
+  onWandExit?: () => void;
+  /** Bumped by the studio to clear a stale selection / re-measure after a patch. */
+  wandNudge?: { clear: number; repaint: number };
 }
 
 export default function PreviewPanel({
@@ -60,7 +63,8 @@ export default function PreviewPanel({
   wandBusy = false,
   onToggleWand,
   onWandPick,
-  onWandCancel,
+  onWandExit,
+  wandNudge,
 }: PreviewPanelProps) {
   const frameRef = useRef<HTMLIFrameElement>(null);
   const [viewport, setViewport] = useState<Viewport>("desktop");
@@ -115,15 +119,28 @@ export default function PreviewPanel({
     tell({ __fittWandBusy: wandBusy });
   }, [wandBusy, tell]);
 
+  // Esc must work from the studio side too — the iframe only sees it when the
+  // demo has focus, and a user who just clicked the composer does not.
   useEffect(() => {
-    if (!onWandPick && !onWandCancel) return;
+    if (!wandOn || !onWandExit) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      tell({ __fittWand: false });
+      onWandExit();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [wandOn, onWandExit, tell]);
+
+  useEffect(() => {
+    if (!onWandPick && !onWandExit) return;
     const onMessage = (e: MessageEvent) => {
       const d = e.data as
-        | { __fittWandPick?: boolean; __fittWandCancel?: boolean; rect?: WandTarget["rect"] }
+        | { __fittWandPick?: boolean; __fittWandExit?: boolean; rect?: WandTarget["rect"] }
         | null;
       if (!d) return;
-      if (d.__fittWandCancel) {
-        onWandCancel?.();
+      if (d.__fittWandExit) {
+        onWandExit?.();
         return;
       }
       if (!d.__fittWandPick || !d.rect) return;
@@ -140,7 +157,17 @@ export default function PreviewPanel({
     };
     window.addEventListener("message", onMessage);
     return () => window.removeEventListener("message", onMessage);
-  }, [onWandPick, onWandCancel]);
+  }, [onWandPick, onWandExit]);
+
+  // Selection housekeeping driven by the studio (composer closed / patch applied).
+  const nudge = wandNudge?.clear ?? 0;
+  useEffect(() => {
+    if (nudge) tell({ __fittWandClear: true });
+  }, [nudge, tell]);
+  const repaint = wandNudge?.repaint ?? 0;
+  useEffect(() => {
+    if (repaint) tell({ __fittWandRepaint: true });
+  }, [repaint, tell]);
 
   // Fullscreen the whole panel (toolbar stays usable; Esc exits via the browser).
   useEffect(() => {
@@ -219,6 +246,29 @@ export default function PreviewPanel({
           <ExternalLink size={13} />
         </button>
       </div>
+
+      {/* Wand mode is a modal state over someone's app — say so, and always show
+          the way out (Esc is the shortcut, this is the affordance). */}
+      {wandOn && (
+        <div className="flex shrink-0 items-center gap-2.5 border-b border-shine/30 bg-shine/10 px-3 py-2">
+          <Wand2 size={13} className="shrink-0 text-shine" />
+          <span className="min-w-0 flex-1 text-[11px] leading-relaxed text-chalk">
+            {wandBusy ? (
+              <>กำลังเสก… แก้ไขเฉพาะจุดที่เลือกอยู่</>
+            ) : (
+              <>
+                โหมด Wand — เลื่อนเมาส์บนเดโมแล้ว<b className="text-shine">คลิก element</b>ที่อยากแก้
+              </>
+            )}
+          </span>
+          <button
+            onClick={onWandExit}
+            className="shrink-0 rounded-md border border-shine/40 px-2 py-0.5 font-display text-[11px] text-chalk transition hover:bg-shine hover:text-night"
+          >
+            ออก (Esc)
+          </button>
+        </div>
+      )}
 
       {/* Runtime error from inside the demo (error bridge) → actionable banner
           instead of a silent white iframe. */}

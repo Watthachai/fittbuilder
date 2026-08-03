@@ -586,9 +586,24 @@ body {
   opacity: 0;
   animation: chat-burst 700ms ease-out forwards;
 }
+/* Wand composer: springs out of the element it edits. */
+@keyframes wand-pop {
+  from {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.wand-pop {
+  animation: wand-pop 180ms cubic-bezier(0.2, 0.9, 0.3, 1.2);
+}
 @media (prefers-reduced-motion: reduce) {
   .chat-attention,
-  .chat-burst-particle {
+  .chat-burst-particle,
+  .wand-pop {
     animation: none;
   }
 }

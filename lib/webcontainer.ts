@@ -3,6 +3,7 @@
 import type { WebContainer, WebContainerProcess } from "@webcontainer/api";
 import { toFileSystemTree } from "./files";
 import { idbGet, idbSet } from "./idb";
+import { TSCONFIG, VITE_CONFIG } from "./scaffold";
 import type { GenerationPhase, ProjectFiles } from "./types";
 
 /**
@@ -338,7 +339,12 @@ async function execRun(runId: number, files: ProjectFiles, cb: RunCallbacks): Pr
       currentDevProcess = null;
     }
 
-    await wc.mount(toFileSystemTree(files) as Parameters<typeof wc.mount>[0]);
+    // vite.config.js / tsconfig.json are OURS, never the model's — overwrite them
+    // on every mount so projects built before a bridge change (error reporter,
+    // wand, live cursors) pick it up on their next boot, with no rebuild and
+    // without touching the saved project.files.
+    const mounted: ProjectFiles = { ...files, "vite.config.js": VITE_CONFIG, "tsconfig.json": TSCONFIG };
+    await wc.mount(toFileSystemTree(mounted) as Parameters<typeof wc.mount>[0]);
     if (runId !== currentRunId) return;
 
     const pkgJson = files["package.json"];

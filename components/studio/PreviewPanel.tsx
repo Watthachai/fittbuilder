@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import {
   ExternalLink,
   Maximize2,
@@ -9,8 +9,10 @@ import {
   RotateCw,
   Smartphone,
   Tablet,
+  Wand2,
 } from "lucide-react";
 import type { GenerationPhase } from "@/lib/types";
+import type { WandTarget } from "@/lib/wand";
 import BuildingLoader from "./BuildingLoader";
 
 type Viewport = "mobile" | "tablet" | "desktop";
@@ -34,6 +36,14 @@ interface PreviewPanelProps {
   onRefresh: () => void;
   /** Open the demo in its own tab (via a portable /share link). */
   onPopOut: () => void;
+  /* ——— Wand (absent for read-only viewers) ——— */
+  wandOn?: boolean;
+  /** True while an AI wand turn is running — the in-iframe frame pulses. */
+  wandBusy?: boolean;
+  onToggleWand?: () => void;
+  /** An element was picked; `anchor` is already in page pixels. */
+  onWandPick?: (target: WandTarget, anchor: { x: number; y: number; w: number; h: number }) => void;
+  onWandCancel?: () => void;
 }
 
 export default function PreviewPanel({
@@ -46,7 +56,13 @@ export default function PreviewPanel({
   onDismissError,
   onRefresh,
   onPopOut,
+  wandOn = false,
+  wandBusy = false,
+  onToggleWand,
+  onWandPick,
+  onWandCancel,
 }: PreviewPanelProps) {
+  const frameRef = useRef<HTMLIFrameElement>(null);
   const [viewport, setViewport] = useState<Viewport>("desktop");
   const active = VIEWPORTS.find((v) => v.id === viewport)!;
   const rootRef = useRef<HTMLDivElement>(null);
@@ -83,6 +99,48 @@ export default function PreviewPanel({
     };
   }, [url, previewKey, phase]);
   const netHint = probeFailed !== null && probeFailed === `${url}#${previewKey}`;
+
+  // ——— Wand bridge ———
+  // The preview is cross-origin, so selection lives in the iframe (the script the
+  // canonical vite.config injects) and only crosses back as normalized rects.
+  const tell = useCallback((msg: Record<string, unknown>) => {
+    frameRef.current?.contentWindow?.postMessage(msg, "*");
+  }, []);
+
+  // Re-announce on every (re)load too: a fresh document starts with the wand off.
+  useEffect(() => {
+    tell({ __fittWand: wandOn });
+  }, [wandOn, previewKey, url, tell]);
+  useEffect(() => {
+    tell({ __fittWandBusy: wandBusy });
+  }, [wandBusy, tell]);
+
+  useEffect(() => {
+    if (!onWandPick && !onWandCancel) return;
+    const onMessage = (e: MessageEvent) => {
+      const d = e.data as
+        | { __fittWandPick?: boolean; __fittWandCancel?: boolean; rect?: WandTarget["rect"] }
+        | null;
+      if (!d) return;
+      if (d.__fittWandCancel) {
+        onWandCancel?.();
+        return;
+      }
+      if (!d.__fittWandPick || !d.rect) return;
+      const frame = frameRef.current?.getBoundingClientRect();
+      if (!frame) return;
+      // Normalized inside the iframe → page pixels, so the composer lands on the
+      // element even with the panel resized or a banner pushing things down.
+      onWandPick?.(d as unknown as WandTarget, {
+        x: frame.left + d.rect.x * frame.width,
+        y: frame.top + d.rect.y * frame.height,
+        w: d.rect.w * frame.width,
+        h: d.rect.h * frame.height,
+      });
+    };
+    window.addEventListener("message", onMessage);
+    return () => window.removeEventListener("message", onMessage);
+  }, [onWandPick, onWandCancel]);
 
   // Fullscreen the whole panel (toolbar stays usable; Esc exits via the browser).
   useEffect(() => {
@@ -121,6 +179,21 @@ export default function PreviewPanel({
             {url ?? "รอ dev server…"}
           </span>
         </div>
+        {onToggleWand && (
+          <button
+            onClick={onToggleWand}
+            disabled={!url || phase !== "ready"}
+            title="Wand — ชี้ element ในเดโมแล้วแก้ตรงจุด"
+            className={`flex items-center gap-1.5 rounded-sm border px-2 py-1.5 font-display text-[11px] transition disabled:opacity-40 ${
+              wandOn
+                ? "border-shine bg-shine text-night"
+                : "border-night-edge text-chalk-dim hover:text-shine"
+            }`}
+          >
+            <Wand2 size={13} />
+            Wand
+          </button>
+        )}
         <button
           onClick={onRefresh}
           disabled={!url}
@@ -200,8 +273,10 @@ export default function PreviewPanel({
             style={{ width: isFs || !active.width ? "100%" : `${active.width}px` }}
           >
             <iframe
+              ref={frameRef}
               key={previewKey}
               src={url}
+              onLoad={() => tell({ __fittWand: wandOn })}
               sandbox="allow-scripts allow-same-origin allow-forms"
               className={`h-full w-full bg-chalk ${!isFs && active.width ? "border-x border-night-edge" : ""}`}
               title="Demo preview"

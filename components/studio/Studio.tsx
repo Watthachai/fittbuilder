@@ -10,6 +10,8 @@ import {
 } from "react";
 import { DOC_PATHS, docOnlyFiles, docsFromFiles, hasRunnableApp } from "@/lib/define";
 import { REORGANIZE_PROMPT } from "@/lib/code-health";
+import { buildWandPrompt, parseLoc, type WandTarget } from "@/lib/wand";
+import { patchClassName, patchText } from "@/lib/wand-patch";
 import { computeChanges, deriveProductName, sanitizeFiles } from "@/lib/files";
 import { isBuildPhase, nextPhase, phaseDef, type PhaseId } from "@/lib/phases";
 import { type DesignOption, designStyleDirective, fetchDesignOptions } from "@/lib/design";
@@ -78,6 +80,7 @@ import PhaseStepper from "./PhaseStepper";
 import PreviewPanel from "./PreviewPanel";
 import ShareModal from "./ShareModal";
 import SkillPicker from "./SkillPicker";
+import WandComposer from "./WandComposer";
 import SpecFlow, { type SpecResult } from "./SpecFlow";
 import StatusBar from "./StatusBar";
 import TopBar from "./TopBar";
@@ -149,6 +152,12 @@ export default function Studio({ projectId }: { projectId: string }) {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [previewKey, setPreviewKey] = useState(0);
   const [view, setView] = useState<"preview" | "code">("preview");
+  const [wandOn, setWandOn] = useState(false);
+  const [wandBusy, setWandBusy] = useState(false);
+  const [wandTarget, setWandTarget] = useState<{
+    target: WandTarget;
+    anchor: { x: number; y: number; w: number; h: number };
+  } | null>(null);
   const [previewPhase, setPreviewPhase] = useState<PhaseId | null>(null);
   const [approval, setApproval] = useState<ApprovalState | null>(null);
   const [approveOpen, setApproveOpen] = useState(false);
@@ -1069,6 +1078,51 @@ export default function Studio({ projectId }: { projectId: string }) {
     void generate(REORGANIZE_PROMPT);
   }, [generate]);
 
+  /* ——— Wand: point at an element in the demo and edit exactly it ——— */
+
+  const closeWandTarget = useCallback(() => setWandTarget(null), []);
+
+  const handleWandPick = useCallback(
+    (target: WandTarget, anchor: { x: number; y: number; w: number; h: number }) =>
+      setWandTarget({ target, anchor }),
+    []
+  );
+
+  /** Deterministic source patch — no model call, straight to HMR. */
+  const applyWandPatch = useCallback(
+    (patch: (source: string) => string | null, label: string): boolean => {
+      const current = projectRef.current;
+      const picked = wandTarget?.target;
+      if (!current || !picked || readOnly) return false;
+      const { path } = parseLoc(picked.loc);
+      const source = current.files?.[path];
+      if (source === undefined) return false;
+      const next = patch(source);
+      if (next === null || next === source) return false;
+      // Same snapshot-then-write path a generation takes, so Undo covers it too.
+      const saved = persist(withHistory(current, { ...current.files, [path]: next }));
+      pushTerminal(`⚡ ${label} · ${path}`);
+      if (previewSupported) void writeFile(path, next).catch(() => {});
+      return Boolean(saved);
+    },
+    [persist, previewSupported, pushTerminal, readOnly, wandTarget]
+  );
+
+  const castWand = useCallback(
+    (instruction: string, attachments?: ChatAttachmentInput[]) => {
+      const picked = wandTarget?.target;
+      if (!picked) return;
+      setWandBusy(true);
+      void generate(buildWandPrompt(picked, instruction), undefined, undefined, attachments).finally(
+        () => {
+          setWandBusy(false);
+          setWandTarget(null);
+        }
+      );
+    },
+    [generate, wandTarget]
+  );
+
   const handleUndo = useCallback(() => {
     const current = projectRef.current;
     if (!current || busy || readOnly) return;
@@ -1667,6 +1721,24 @@ export default function Studio({ projectId }: { projectId: string }) {
   return (
     <div className="flex h-dvh flex-col overflow-hidden bg-night text-chalk">
       <LiveCursors projectId={projectId} />
+      {wandTarget && !readOnly && (
+        <WandComposer
+          target={wandTarget.target}
+          anchor={wandTarget.anchor}
+          busy={wandBusy}
+          onQuickClass={(action) =>
+            applyWandPatch(
+              (source) => patchClassName(source, wandTarget.target.loc, action),
+              action.label
+            )
+          }
+          onQuickText={(text) =>
+            applyWandPatch((source) => patchText(source, wandTarget.target.loc, text), "แก้ข้อความ")
+          }
+          onCast={castWand}
+          onClose={closeWandTarget}
+        />
+      )}
       {bgActive && (
         <div className="pointer-events-none fixed left-1/2 top-3 z-[60] -translate-x-1/2">
           <span className="glass inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs text-chalk shadow-lg">
@@ -1823,6 +1895,19 @@ export default function Studio({ projectId }: { projectId: string }) {
                   setPreviewKey((k) => k + 1);
                 }}
                 onPopOut={handlePopOut}
+                wandOn={wandOn}
+                wandBusy={wandBusy}
+                onToggleWand={
+                  readOnly
+                    ? undefined
+                    : () =>
+                        setWandOn((v) => {
+                          if (v) setWandTarget(null);
+                          return !v;
+                        })
+                }
+                onWandPick={readOnly ? undefined : handleWandPick}
+                onWandCancel={closeWandTarget}
               />
             ) : (
               <CodePanel

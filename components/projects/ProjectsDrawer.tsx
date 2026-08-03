@@ -206,12 +206,24 @@ export default function ProjectsDrawer({
     }[] = [];
     const personal = match(mine.filter((p) => !p.orgId));
     if (personal.length > 0) {
-      out.push({ key: "__personal", label: "ส่วนตัว", color: null, icon: null, items: personal });
+      out.push({
+        key: "__personal",
+        label: "ส่วนตัว",
+        color: null,
+        icon: null,
+        items: personal,
+      });
     }
     for (const o of orgs) {
       const items = match(mine.filter((p) => p.orgId === o.id));
       if (q && items.length === 0) continue;
-      out.push({ key: o.id, label: o.name, color: o.color, icon: o.icon, items });
+      out.push({
+        key: o.id,
+        label: o.name,
+        color: o.color,
+        icon: o.icon,
+        items,
+      });
     }
     return out;
   }, [mine, orgs, query]);
@@ -288,7 +300,9 @@ export default function ProjectsDrawer({
           <span className="block truncate text-sm text-chalk">{p.name}</span>
           <span className="block truncate font-mono text-[10px] text-chalk-dim">
             {formatDate(p.updatedAt)}
-            {p.access === "member" && p.ownerName ? ` · โดย ${p.ownerName}` : ""}
+            {p.access === "member" && p.ownerName
+              ? ` · โดย ${p.ownerName}`
+              : ""}
             {p.access === "member" && p.role ? ` · ${p.role}` : ""}
           </span>
         </span>
@@ -307,10 +321,10 @@ export default function ProjectsDrawer({
       {menu?.id === p.id &&
         createPortal(
           <>
-            <div className="fixed inset-0 z-[60]" onClick={() => setMenu(null)} />
+            <div className="fixed inset-0 z-60" onClick={() => setMenu(null)} />
             <div
               style={menu.style}
-              className="fixed z-[60] w-44 overflow-hidden rounded-xl border border-chalk/15 bg-night-panel py-1 shadow-xl"
+              className="fixed z-60 w-44 overflow-hidden rounded-xl border border-chalk/15 bg-night-panel py-1 shadow-xl"
             >
               <button
                 onClick={() => handleShare(p)}
@@ -409,7 +423,10 @@ export default function ProjectsDrawer({
               className="mx-3 mt-2 inline-flex items-center gap-2 rounded-xl border border-night-edge bg-night/40 px-3 py-2 text-sm text-chalk/85 transition hover:border-shine/50 hover:text-chalk disabled:opacity-50"
             >
               {orgOpening ? (
-                <Loader2 size={14} className="shrink-0 animate-spin text-shine" />
+                <Loader2
+                  size={14}
+                  className="shrink-0 animate-spin text-shine"
+                />
               ) : (
                 <Dna size={14} className="shrink-0 text-shine" />
               )}
@@ -459,17 +476,25 @@ export default function ProjectsDrawer({
                         {g.color ? (
                           <span
                             className="grid h-5 w-5 shrink-0 place-items-center rounded-md"
-                            style={{ background: `${g.color}22`, color: g.color }}
+                            style={{
+                              background: `${g.color}22`,
+                              color: g.color,
+                            }}
                           >
                             <WorkspaceIcon icon={g.icon} size={12} />
                           </span>
                         ) : (
-                          <FolderGit2 size={14} className="shrink-0 text-chalk-dim" />
+                          <FolderGit2
+                            size={14}
+                            className="shrink-0 text-chalk-dim"
+                          />
                         )}
                         <span className="min-w-0 flex-1 truncate text-left text-[13px] font-medium text-chalk">
                           {g.label}
                         </span>
-                        <span className="font-mono text-[10px] text-chalk-dim">{g.items.length}</span>
+                        <span className="font-mono text-[10px] text-chalk-dim">
+                          {g.items.length}
+                        </span>
                       </button>
                       {isOpen &&
                         (g.items.length > 0 ? (

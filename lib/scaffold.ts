@@ -54,6 +54,133 @@ export const DEMO_PACKAGE_JSON = `{
 }`;
 
 /**
+ * The Wand overlay, injected into every served page.
+ *
+ * Selection has to live INSIDE the iframe: the preview is cross-origin, so the
+ * studio can neither read the demo's DOM nor hit-test it. This script hit-tests,
+ * draws the glow, and posts the pick out; the studio only positions its composer
+ * from the normalized rect (same mapping LiveCursors already does).
+ *
+ * Snapping targets `data-fitt-loc` — the attribute the Babel plugin below stamps
+ * on every JSX host element — so the wand can only ever select something that
+ * maps back to a real line of source the model can edit.
+ */
+const WAND_SCRIPT = `(function () {
+  if (window.parent === window) return;
+  var on = false, hover = null, picked = null, busy = false, box = null, tag = null, dim = null, raf = 0;
+
+  function build() {
+    if (box) return;
+    var s = document.createElement("style");
+    s.textContent =
+      "#__fwbox{position:fixed;pointer-events:none;z-index:2147483646;border-radius:8px;background:rgba(100,206,251,.06);box-shadow:0 0 0 2px #64cefb,0 0 18px 4px rgba(100,206,251,.5),0 0 44px 10px rgba(147,124,255,.22);transition:top .12s cubic-bezier(.4,0,.2,1),left .12s cubic-bezier(.4,0,.2,1),width .12s cubic-bezier(.4,0,.2,1),height .12s cubic-bezier(.4,0,.2,1)}" +
+      "#__fwbox.pick{animation:__fwpulse 1.5s ease-in-out infinite alternate}" +
+      "#__fwbox.busy{animation:__fwbusy 1s ease-in-out infinite alternate}" +
+      "#__fwtag{position:fixed;pointer-events:none;z-index:2147483647;font:600 11px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace;color:#06121a;background:#64cefb;padding:2px 7px;border-radius:5px;white-space:nowrap;box-shadow:0 2px 10px rgba(0,0,0,.45)}" +
+      "#__fwdim{position:fixed;inset:0;pointer-events:none;z-index:2147483645;background:rgba(6,8,12,.42)}" +
+      "@keyframes __fwpulse{to{box-shadow:0 0 0 2px #64cefb,0 0 30px 8px rgba(100,206,251,.85),0 0 80px 22px rgba(147,124,255,.4)}}" +
+      "@keyframes __fwbusy{from{box-shadow:0 0 0 2px #64cefb,0 0 12px 2px rgba(100,206,251,.5)}to{box-shadow:0 0 0 2px #937cff,0 0 34px 10px rgba(147,124,255,.8)}}" +
+      "@media (prefers-reduced-motion:reduce){#__fwbox{transition:none}#__fwbox.pick,#__fwbox.busy{animation:none}}";
+    document.head.appendChild(s);
+    dim = document.createElement("div"); dim.id = "__fwdim";
+    box = document.createElement("div"); box.id = "__fwbox";
+    tag = document.createElement("div"); tag.id = "__fwtag";
+  }
+
+  /** Nearest ancestor (self included) that maps to a real line of source. */
+  function target(el) {
+    while (el && el !== document.documentElement) {
+      if (el.getAttribute && el.getAttribute("data-fitt-loc")) return el;
+      el = el.parentElement;
+    }
+    return null;
+  }
+
+  function paint() {
+    var el = picked || hover;
+    if (!el || !box.isConnected) return;
+    var r = el.getBoundingClientRect();
+    box.style.top = r.top - 2 + "px"; box.style.left = r.left - 2 + "px";
+    box.style.width = r.width + 4 + "px"; box.style.height = r.height + 4 + "px";
+    var above = r.top > 24;
+    tag.style.top = (above ? r.top - 24 : r.bottom + 6) + "px";
+    tag.style.left = Math.max(4, r.left - 2) + "px";
+    tag.textContent = (el.getAttribute("data-fitt-loc") || "").split("/").pop();
+  }
+
+  function schedule() { if (!raf) raf = requestAnimationFrame(function () { raf = 0; paint(); }); }
+
+  function show(el) {
+    build();
+    if (!box.isConnected) { document.body.appendChild(dim); document.body.appendChild(box); document.body.appendChild(tag); }
+    hover = el; paint();
+  }
+
+  function clear() {
+    hover = null; picked = null; busy = false;
+    if (box && box.isConnected) { box.remove(); tag.remove(); dim.remove(); }
+    if (box) { box.className = ""; }
+  }
+
+  function describe(el) {
+    var r = el.getBoundingClientRect();
+    return {
+      loc: el.getAttribute("data-fitt-loc"),
+      tag: el.tagName.toLowerCase(),
+      className: typeof el.className === "string" ? el.className.slice(0, 400) : "",
+      text: (el.textContent || "").replace(/\\s+/g, " ").trim().slice(0, 160),
+      rect: {
+        x: r.left / innerWidth, y: r.top / innerHeight,
+        w: r.width / innerWidth, h: r.height / innerHeight
+      }
+    };
+  }
+
+  addEventListener("message", function (e) {
+    var d = e.data;
+    if (!d || typeof d !== "object") return;
+    if (d.__fittWand !== undefined) {
+      on = !!d.__fittWand;
+      document.documentElement.style.cursor = on ? "crosshair" : "";
+      if (!on) clear();
+    }
+    if (d.__fittWandBusy !== undefined && box) {
+      busy = !!d.__fittWandBusy;
+      box.className = busy ? "busy" : picked ? "pick" : "";
+    }
+  });
+
+  addEventListener("mousemove", function (e) {
+    if (!on || picked) return;
+    var el = target(document.elementFromPoint(e.clientX, e.clientY));
+    if (!el) return;
+    if (el !== hover) show(el); else schedule();
+  }, true);
+
+  addEventListener("click", function (e) {
+    if (!on || picked) return;
+    var el = target(e.target);
+    if (!el) return;
+    e.preventDefault(); e.stopPropagation();
+    picked = el; show(el); box.className = "pick";
+    parent.postMessage(Object.assign({ __fittWandPick: true }, describe(el)), "*");
+  }, true);
+
+  // Swallow the interactions the demo would otherwise run while aiming.
+  ["mousedown", "mouseup", "submit"].forEach(function (t) {
+    addEventListener(t, function (e) { if (on) { e.preventDefault(); e.stopPropagation(); } }, true);
+  });
+
+  addEventListener("keydown", function (e) {
+    if (!on || e.key !== "Escape") return;
+    clear(); parent.postMessage({ __fittWandCancel: true }, "*");
+  }, true);
+
+  addEventListener("scroll", schedule, true);
+  addEventListener("resize", schedule);
+})();`;
+
+/**
  * Canonical vite.config.js (forced by the generator on first build). Uses the
  * React plugin so JSX + Fast Refresh work and components need no `import React`.
  */
@@ -82,14 +209,41 @@ const fittBridge = {
         children:
           "(function(){if(window.parent===window)return;var sent=0;function rpt(kind,message,stack){if(sent>=5)return;sent++;try{parent.postMessage({__fittPreviewError:true,kind:kind,message:String(message||'').slice(0,2000),stack:String(stack||'').slice(0,4000)},'*')}catch(e){}}addEventListener('error',function(e){if(e&&e.error){rpt('error',e.error.message||e.message,e.error.stack||'')}else if(e&&e.message){rpt('error',e.message,(e.filename||'')+(e.lineno?(':'+e.lineno):''))}else{var t=e&&e.target;if(t&&t.tagName==='SCRIPT'){rpt('resource','โหลดสคริปต์ไม่สำเร็จ: '+(t.src||''),'')}}},true);addEventListener('unhandledrejection',function(e){var r=e&&e.reason;rpt('promise',(r&&(r.message||String(r)))||'unhandled rejection',(r&&r.stack)||'')});})();",
       },
+      // 3) Wand: point at an element in the running demo and edit exactly it.
+      { tag: "script", injectTo: "head", children: ${JSON.stringify(WAND_SCRIPT)} },
     ];
   },
 };
 
-export default defineConfig({
-  plugins: [react(), fittBridge],
-  server: { host: true },
+// Stamps data-fitt-loc="src/…/File.tsx:line:col" on every JSX host element so a
+// click in the preview resolves to an exact line of source. Dev only — the
+// exported/built app never carries it.
+const fittLoc = ({ types: t }) => ({
+  name: "fitt-loc",
+  visitor: {
+    JSXOpeningElement(path, state) {
+      const name = path.node.name;
+      // Host elements only (<div>, <button>); a component's own props are its API.
+      if (name.type !== "JSXIdentifier" || !/^[a-z]/.test(name.name)) return;
+      if (!path.node.loc || !state.filename) return;
+      if (path.node.attributes.some((a) => a.type === "JSXAttribute" && a.name.name === "data-fitt-loc")) return;
+      const rel = state.filename.split("/src/")[1];
+      if (!rel) return;
+      const { line, column } = path.node.loc.start;
+      path.node.attributes.push(
+        t.jsxAttribute(
+          t.jsxIdentifier("data-fitt-loc"),
+          t.stringLiteral("src/" + rel + ":" + line + ":" + column)
+        )
+      );
+    },
+  },
 });
+
+export default defineConfig(({ command }) => ({
+  plugins: [react(command === "serve" ? { babel: { plugins: [fittLoc] } } : {}), fittBridge],
+  server: { host: true },
+}));
 `;
 
 /**

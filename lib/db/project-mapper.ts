@@ -19,9 +19,16 @@ export interface ProjectRow {
   updated_at: string;
 }
 
-/** Columns we write on insert/update (owner-managed; id/timestamps are DB-managed). */
+/**
+ * Columns we write on insert/update (id/timestamps are DB-managed).
+ *
+ * owner_id is deliberately ABSENT: it is stamped once by the column default
+ * (auth.uid(), migration 0004) and must never be written again. Sending it made
+ * every autosave rewrite the owner to whoever had the project open, so a shared
+ * editor silently took ownership and the real owner's project fell into
+ * "แชร์กับฉัน" (migration 0024 now pins the column server-side too).
+ */
 export interface ProjectInsertRow {
-  owner_id: string;
   name: string;
   files: ProjectFiles | null;
   phase: string;
@@ -48,9 +55,8 @@ export function rowToProject(row: ProjectRow): ProjectRecord {
   };
 }
 
-export function projectToRow(rec: ProjectRecord, ownerId: string): ProjectInsertRow {
+export function projectToRow(rec: ProjectRecord): ProjectInsertRow {
   return {
-    owner_id: ownerId,
     name: rec.name,
     files: rec.files,
     phase: rec.phase,

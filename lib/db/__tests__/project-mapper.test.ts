@@ -17,7 +17,7 @@ const rec: ProjectRecord = {
 };
 
 test("rowToProject reverses projectToRow", () => {
-  const row = projectToRow(rec, "owner-1");
+  const row = projectToRow(rec);
   const back = rowToProject({
     ...row,
     id: rec.id,
@@ -33,7 +33,11 @@ test("rowToProject reverses projectToRow", () => {
 });
 
 test("null files round-trips", () => {
-  const row = projectToRow({ ...rec, files: null, history: [], approvedPhases: [] }, "o");
+  const row = projectToRow({ ...rec, files: null, history: [], approvedPhases: [] });
   expect(row.files).toBeNull();
   expect(row.history).toEqual([]);
+});
+
+test("projectToRow never writes owner_id (a shared editor must not take ownership)", () => {
+  expect("owner_id" in projectToRow(rec)).toBe(false);
 });

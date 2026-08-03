@@ -29,8 +29,9 @@ export async function getProject(id: string): Promise<ProjectRecord | null> {
 
 export async function saveProject(project: ProjectRecord): Promise<ProjectRecord> {
   const supabase = createClient();
-  const ownerId = await uid();
-  const row = { id: project.id, ...projectToRow(project, ownerId) };
+  // No owner_id here — see ProjectInsertRow. Autosave runs for every editor, so
+  // sending it handed the project to whoever saved last.
+  const row = { id: project.id, ...projectToRow(project) };
   const { data, error } = await supabase.from("fittbuilder_projects").upsert(row as unknown as ProjInsert).select(SELECT).single();
   if (error) throw error;
   return rowToProject(data as unknown as ProjectRow);
@@ -96,10 +97,10 @@ export async function duplicateProject(id: string): Promise<ProjectRecord | null
 
 async function saveProjectAsNew(rec: ProjectRecord): Promise<ProjectRecord> {
   const supabase = createClient();
-  const ownerId = await uid();
+  // A copy belongs to whoever made it — the owner_id default stamps auth.uid().
   const { data, error } = await supabase
     .from("fittbuilder_projects")
-    .insert(projectToRow(rec, ownerId) as unknown as ProjInsert)
+    .insert(projectToRow(rec) as unknown as ProjInsert)
     .select(SELECT)
     .single();
   if (error) throw error;

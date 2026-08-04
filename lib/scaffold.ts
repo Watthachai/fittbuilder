@@ -149,7 +149,7 @@ const ERROR_SCRIPT = `(function () {
  * tab running against an older container can tell, instead of silently
  * reproducing the bug that was just fixed.
  */
-export const SHOT_BRIDGE_VERSION = 9;
+export const SHOT_BRIDGE_VERSION = 10;
 
 /**
  * Screen capture + auto-walk, for building the screen inventory a quotation is
@@ -270,7 +270,7 @@ const SHOT_SCRIPT = `(function () {
    * never anything that leads out (logout, cancel, delete), and never a wrapper
    * that contains other clickable things — that is the list, not the item.
    */
-  function gateCandidate(tried) {
+  function gateCandidate(tried, allowNested) {
     var nodes = document.querySelectorAll("*");
     var best = null, bestScore = -1;
     for (var i = 0; i < nodes.length; i++) {
@@ -283,9 +283,15 @@ const SHOT_SCRIPT = `(function () {
       var r = el.getBoundingClientRect();
       if (r.width < 40 || r.height < 20) continue;
       // A card list is clickable AND contains clickable cards — take the card.
-      var inner = el.querySelectorAll("*"), nested = false;
-      for (var j = 0; j < inner.length; j++) if (hasClick(inner[j])) { nested = true; break; }
-      if (nested) continue;
+      // But a row that wraps its own button would be excluded by that same
+      // rule, and on a "pick an account" screen every candidate looks like
+      // that, leaving nothing to click at all. So the strict pass runs first
+      // and the relaxed one is the second chance.
+      if (!allowNested) {
+        var inner = el.querySelectorAll("*"), nested = false;
+        for (var j = 0; j < inner.length; j++) if (hasClick(inner[j])) { nested = true; break; }
+        if (nested) continue;
+      }
       var score = 0;
       if (GATE_WORDS.test(t) || listed(t, appForward)) score += 120;
       score += Math.min(r.width * r.height, 90000) / 9000; // a card beats a tab
@@ -474,9 +480,16 @@ const SHOT_SCRIPT = `(function () {
       return wanted.length === 0;
     };
     var tried = [];
-    for (var a = 0; a < 8 && !reachable() && !stop; a++) {
-      var cand = gateCandidate(tried);
-      if (!cand) break;
+    for (var a = 0; a < 10 && !reachable() && !stop; a++) {
+      var cand = gateCandidate(tried, false) || gateCandidate(tried, true);
+      if (!cand) {
+        send({
+          __fittWalkStep: true, step: 0, total: total, ok: false,
+          name: "หาทางเข้าเอง",
+          error: "ไม่พบปุ่มที่กดได้บนหน้านี้เลย"
+        });
+        break;
+      }
       tried.push(cand);
       var label = norm(cand.textContent).slice(0, 30) || "(ไม่มีข้อความ)";
       var was = sig();

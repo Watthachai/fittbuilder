@@ -145,12 +145,19 @@ export default function ScreenInventory({
     return () => window.removeEventListener("message", onMessage);
   }, [projectId, refresh]);
 
-  const scan = async () => {
+  /**
+   * @param fromHere Skip the gates and walk from wherever the preview already
+   *   is. Sign-in flows vary wildly (pick an account, then submit, then choose a
+   *   company…); when the automatic pass cannot get through, the user logging in
+   *   themselves is faster than another round of guessing.
+   */
+  const scan = async (fromHere = false) => {
     if (!files || !ready) return;
     const ok = await confirm({
-      title: "สแกนหน้าจอทั้งหมด?",
-      message:
-        "ระบบจะไล่เปิดทีละหน้าในเดโมแล้วเก็บภาพให้เอง (รวม modal ที่เปิดจากปุ่มในหน้านั้น) — ภาพชุดเดิมจะถูกล้างก่อนเริ่ม",
+      title: fromHere ? "สแกนต่อจากหน้านี้?" : "สแกนหน้าจอทั้งหมด?",
+      message: fromHere
+        ? "ระบบจะเริ่มเดินจากหน้าที่เปิดอยู่ตอนนี้ โดยข้ามขั้นตอนเข้าสู่ระบบ/เลือกบริษัท — ใช้เมื่อคุณล็อกอินเองแล้ว · ภาพชุดเดิมจะถูกล้างก่อนเริ่ม"
+        : "ระบบจะไล่เปิดทีละหน้าในเดโมแล้วเก็บภาพให้เอง (รวม modal ที่เปิดจากปุ่มในหน้านั้น) — ภาพชุดเดิมจะถูกล้างก่อนเริ่ม",
       confirmLabel: "เริ่มสแกน",
     });
     if (!ok) return;
@@ -186,7 +193,7 @@ export default function ScreenInventory({
       toPreview({
         __fittWalk: true,
         plan: data.screens,
-        setup: data.setup ?? [],
+        setup: fromHere ? [] : (data.setup ?? []),
         // The app's own vocabulary for "go on" / "get out", added on top of the
         // walker's built-in list so a non-Thai demo is not left guessing.
         words: { forward: data.forward ?? [], avoid: data.avoid ?? [] },
@@ -255,13 +262,23 @@ export default function ScreenInventory({
               <Square size={12} className="text-halt" /> หยุดสแกน
             </button>
           ) : (
-            <button
-              onClick={() => void scan()}
-              disabled={!ready || !files || busy !== null}
-              className="inline-flex items-center gap-1.5 rounded-lg bg-shine px-3 py-1.5 font-display text-[12px] font-semibold text-night transition hover:brightness-110 disabled:opacity-40"
-            >
-              <ScanLine size={13} /> สแกนหน้าจอทั้งหมด
-            </button>
+            <>
+              <button
+                onClick={() => void scan()}
+                disabled={!ready || !files || busy !== null}
+                className="inline-flex items-center gap-1.5 rounded-lg bg-shine px-3 py-1.5 font-display text-[12px] font-semibold text-night transition hover:brightness-110 disabled:opacity-40"
+              >
+                <ScanLine size={13} /> สแกนหน้าจอทั้งหมด
+              </button>
+              <button
+                onClick={() => void scan(true)}
+                disabled={!ready || !files || busy !== null}
+                title="ล็อกอิน/เลือกบริษัทเองในพรีวิวก่อน แล้วกดปุ่มนี้ให้ระบบเดินต่อจากหน้านั้น"
+                className="inline-flex items-center gap-1.5 rounded-lg border border-night-edge px-3 py-1.5 font-display text-[12px] text-chalk-dim transition hover:border-shine/60 hover:text-chalk disabled:opacity-40"
+              >
+                <ScanLine size={13} /> สแกนต่อจากหน้านี้
+              </button>
+            </>
           )}
           <button
             onClick={captureOne}

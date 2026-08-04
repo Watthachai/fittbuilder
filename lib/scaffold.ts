@@ -149,7 +149,7 @@ const ERROR_SCRIPT = `(function () {
  * tab running against an older container can tell, instead of silently
  * reproducing the bug that was just fixed.
  */
-export const SHOT_BRIDGE_VERSION = 13;
+export const SHOT_BRIDGE_VERSION = 14;
 
 /**
  * Screen capture + auto-walk, for building the screen inventory a quotation is
@@ -567,7 +567,15 @@ const SHOT_SCRIPT = `(function () {
         continue;
       }
       last = sig();
+      if (captured[last]) {
+        send({
+          __fittWalkStep: true, step: step, total: total, name: screen.name, ok: false,
+          error: "หน้าเดียวกับ “" + captured[last] + "” ที่เก็บไปแล้ว"
+        });
+        continue;
+      }
       try {
+        captured[sig()] = screen.name;
         send({ __fittShot: true, name: screen.name, parent: null, dataUrl: await shoot() });
         send({ __fittWalkStep: true, step: step, total: total, name: screen.name, ok: true });
       } catch (e) {
@@ -587,8 +595,16 @@ const SHOT_SCRIPT = `(function () {
         }
         await sleep(650);
         var d0 = openDialog(layers0);
+        var st0 = sig();
+        if (captured[st0]) {
+          send({ __fittWalkStep: true, step: step, total: total, name: sub.name, ok: false, error: "หน้าเดียวกับที่เก็บไปแล้ว — ไม่ได้เปิดอะไรใหม่" });
+          if (d0) closeDialog(d0);
+          await sleep(300);
+          continue;
+        }
         try {
           var nm = d0 ? dialogName(d0, sub.name) : sub.name;
+          captured[st0] = nm;
           send({ __fittShot: true, name: nm, parent: screen.name, dataUrl: await shoot() });
           send({ __fittWalkStep: true, step: step, total: total, name: nm, ok: true });
           seen.push(norm(nm));
@@ -615,6 +631,11 @@ const SHOT_SCRIPT = `(function () {
         await sleep(700);
         var dlg = openDialog(layers1);
         if (!dlg) {
+          send({
+            __fittWalkStep: true, step: step, total: total, ok: false,
+            name: "ลองเปิด: “" + probe.t + "”",
+            error: sig() !== mark ? "เปลี่ยนหน้าแทนที่จะเปิดหน้าต่าง" : "กดแล้วไม่มีหน้าต่างเปิด"
+          });
           // No dialog. If the click navigated instead, walk back to this screen
           // so the rest of the pass still runs from where it should.
           if (sig() !== mark && screen.navText) {
@@ -625,8 +646,17 @@ const SHOT_SCRIPT = `(function () {
           continue;
         }
         var name = dialogName(dlg, probe.t);
+        var state = sig();
+        if (captured[state]) {
+          // Same page we already have: the click revealed a sticky layer or
+          // re-rendered the screen, it did not open anything new.
+          closeDialog(dlg);
+          await sleep(300);
+          continue;
+        }
         if (seen.indexOf(norm(name)) === -1) {
           seen.push(norm(name));
+          captured[state] = name;
           step++;
           try {
             send({ __fittShot: true, name: name, parent: screen.name, dataUrl: await shoot() });
@@ -656,6 +686,10 @@ const SHOT_SCRIPT = `(function () {
    * new state worth keeping — and the label of the last thing clicked is what
    * got us there.
    */
+  // Every state photographed this session, keyed by page fingerprint. Shared by
+  // the walk and the recorder: a screen already in the inventory must never be
+  // filed a second time — as a screen, and least of all as a "modal" of itself.
+  var captured = {};
   var rec = false, recPrev = "", lastVia = "", recBusy = false;
   var settleTimer = null, lastSeen = "", stable = 0;
   var seen = {};   // page fingerprint → the name we filed it under
@@ -687,6 +721,7 @@ const SHOT_SCRIPT = `(function () {
 
       var dataUrl = await shoot();
       seen[fingerprint] = name;
+      captured[fingerprint] = name;
       send({
         __fittShot: true, name: name, parent: recPrev || null,
         from: recPrev || null, via: lastVia || null, dataUrl: dataUrl
@@ -714,6 +749,7 @@ const SHOT_SCRIPT = `(function () {
     if (++stable < 2) return;
     stable = -1;
     if (seen[now]) { recPrev = seen[now]; return; }
+    if (captured[now]) { seen[now] = captured[now]; recPrev = captured[now]; return; }
     void capture(now);
   }
 

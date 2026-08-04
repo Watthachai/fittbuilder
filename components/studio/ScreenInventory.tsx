@@ -297,12 +297,18 @@ export default function ScreenInventory({
             </button>
           ) : (
             <>
+              {/* Recording leads: automatic walking has to guess a flow it was
+                  never told, and on a real app that guess keeps being wrong. */}
               <button
-                onClick={() => void scan()}
-                disabled={!ready || !files || busy !== null}
-                className="inline-flex items-center gap-1.5 rounded-lg bg-shine px-3 py-1.5 font-display text-[12px] font-semibold text-night transition hover:brightness-110 disabled:opacity-40"
+                onClick={() => {
+                  indexRef.current = shots.length ? Math.max(...shots.map((x) => x.index)) + 1 : 0;
+                  onStartRecording();
+                }}
+                disabled={!ready || busy !== null || recording}
+                title="กดแล้วใช้เดโมตามปกติ — ระบบเก็บทุกหน้าที่เปลี่ยนพร้อมจำว่ามาจากปุ่มไหน"
+                className="inline-flex items-center gap-1.5 rounded-lg bg-halt px-3 py-1.5 font-display text-[12px] font-semibold text-white transition hover:brightness-110 disabled:opacity-40"
               >
-                <ScanLine size={13} /> สแกนหน้าจอทั้งหมด
+                <Radio size={13} /> อัดการใช้งาน
               </button>
               <button
                 onClick={() => void scan(true)}
@@ -312,19 +318,16 @@ export default function ScreenInventory({
               >
                 <ScanLine size={13} /> สแกนต่อจากหน้านี้
               </button>
+              <button
+                onClick={() => void scan()}
+                disabled={!ready || !files || busy !== null}
+                title="ให้ระบบเดินเอง — ใช้ได้กับเดโมที่ไม่มีหน้าเข้าสู่ระบบหรือเมนูซ่อน"
+                className="inline-flex items-center gap-1.5 rounded-lg border border-night-edge px-3 py-1.5 font-display text-[12px] text-chalk-dim transition hover:border-shine/60 hover:text-chalk disabled:opacity-40"
+              >
+                <ScanLine size={13} /> สแกนอัตโนมัติ
+              </button>
             </>
           )}
-          <button
-            onClick={() => {
-              indexRef.current = shots.length ? Math.max(...shots.map((x) => x.index)) + 1 : 0;
-              onStartRecording();
-            }}
-            disabled={!ready || busy !== null || recording}
-            title="กดแล้วใช้เดโมตามปกติ — ระบบเก็บทุกหน้าที่เปลี่ยนพร้อมจำว่ามาจากปุ่มไหน"
-            className="inline-flex items-center gap-1.5 rounded-lg bg-halt px-3 py-1.5 font-display text-[12px] font-semibold text-white transition hover:brightness-110 disabled:opacity-40"
-          >
-            <Radio size={13} /> อัดการใช้งาน
-          </button>
           <button
             onClick={captureOne}
             disabled={!ready || busy !== null}
@@ -415,8 +418,9 @@ export default function ScreenInventory({
               <Camera size={22} className="text-chalk-dim" />
               <p className="font-display text-sm text-chalk-dim">ยังไม่มีภาพหน้าจอ</p>
               <p className="max-w-md text-xs leading-relaxed text-chalk-dim/70">
-                กด “สแกนหน้าจอทั้งหมด” แล้วระบบจะไล่เปิดทีละหน้าในเดโมเก็บภาพให้เอง
-                — หน้าไหนที่ต้องกรอกข้อมูลก่อน ให้เดินเองแล้วกด “แคปหน้านี้”
+                กด <b className="text-halt">“อัดการใช้งาน”</b> แล้วใช้เดโมตามปกติ — ทุกหน้าที่คุณเปิดและทุก
+                modal ที่กด จะถูกเก็บให้เอง พร้อมจำว่ามาจากปุ่มไหน แล้วดูเป็นผัง Flow ได้ทันที
+                · ส่วน “สแกนอัตโนมัติ” ให้ระบบเดินเอง เหมาะกับเดโมที่ไม่มีหน้าเข้าสู่ระบบ
               </p>
             </div>
           ) : (

@@ -81,6 +81,7 @@ export default function WandComposer({
         description: "คลาสของ element นี้ถูกคำนวณด้วยโค้ด — พิมพ์บอกในแท็บ “เสก” แทนได้ครับ",
       });
       setMode("cast");
+      setText(`${action.label} ให้ element นี้`);
     }
   };
 
@@ -97,10 +98,13 @@ export default function WandComposer({
       flash(`แก้ข้อความเป็น “${next}”`);
       return;
     }
-    toast.info("ข้อความนี้แก้ตรงๆ ไม่ได้", {
-      description: "ข้างในมีโค้ดหรือ element ซ้อนอยู่ — ใช้แท็บ “เสก” แทน",
+    // Be specific about WHY: the value is computed elsewhere (state, props, a
+    // list), so rewriting the tag would not change what renders.
+    toast.info("ค่านี้มาจากที่อื่นในโค้ด", {
+      description: "ไม่ใช่ข้อความคงที่ (เช่นมาจากข้อมูลหรือตัวแปร) — บอกในแท็บ “เสก” ว่าอยากให้เป็นเท่าไหร่",
     });
     setMode("cast");
+    setText(`เปลี่ยนค่าที่แสดงตรงนี้เป็น "${next}"`);
   };
 
   const attach = async (files: FileList | null) => {

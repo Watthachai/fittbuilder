@@ -111,10 +111,32 @@ export function patchText(source: string, loc: string, text: string): string | n
   if (close === -1) return null;
 
   const children = source.slice(end + 1, close);
-  if (/[<{}]/.test(children)) return null; // markup or an expression — hands off
-  const indent = /^\s*\n(\s*)/.exec(children)?.[1];
-  const body = indent ? `\n${indent}${text}\n${indent.slice(2)}` : text;
-  return source.slice(0, end + 1) + body + source.slice(close);
+
+  // Plain literal text.
+  if (!/[<{}]/.test(children)) {
+    const indent = /^\s*\n(\s*)/.exec(children)?.[1];
+    const body = indent ? `\n${indent}${text}\n${indent.slice(2)}` : text;
+    return source.slice(0, end + 1) + body + source.slice(close);
+  }
+
+  // A lone literal expression — {2}, {"ยืนยัน"}, {'x'}, {`x`}. Generated demos
+  // write badges and counters this way constantly, and the value is right there
+  // in the source, so refusing them made the quick tab feel broken.
+  const trimmed = children.trim();
+  const literal = /^\{\s*(?:(['"`])([\s\S]*?)\1|(-?\d+(?:\.\d+)?))\s*\}$/.exec(trimmed);
+  if (literal) {
+    const quote = literal[1];
+    const next = quote
+      ? `{${quote}${text}${quote}}`
+      : /^-?\d+(\.\d+)?$/.test(text)
+        ? `{${text}}`
+        : `{"${text}"}`;
+    return source.slice(0, end + 1) + children.replace(trimmed, next) + source.slice(close);
+  }
+
+  // Anything else (a variable, a call, nested elements) is computed elsewhere —
+  // patching the tag would not change what renders.
+  return null;
 }
 
 /** The palette behind the ⚡ tab: small, opinionated, and conflict-aware. */

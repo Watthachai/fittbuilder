@@ -80,8 +80,33 @@ describe("patchText", () => {
     expect(patchText(FILE, BTN, "ยืนยัน")).toContain(">ยืนยัน</button>");
   });
 
-  it("refuses children that contain markup or expressions", () => {
+  it("refuses children that contain markup", () => {
     expect(patchText(FILE, DIV, "nope")).toBeNull();
+  });
+
+  // The notification badge from the report: <span className="...">{2}</span>
+  it("edits a lone numeric expression, keeping it an expression", () => {
+    const src = `const B = () => <span className="badge">{2}</span>;\n`;
+    expect(patchText(src, "src/B.tsx:1:16", "20")).toBe(
+      `const B = () => <span className="badge">{20}</span>;\n`
+    );
+  });
+
+  it("edits a lone string expression and preserves its quote style", () => {
+    const src = `const B = () => <span>{'บันทึก'}</span>;\n`;
+    expect(patchText(src, "src/B.tsx:1:16", "ยืนยัน")).toContain("{'ยืนยัน'}");
+  });
+
+  it("quotes the replacement when a number becomes text", () => {
+    const src = `const B = () => <span>{2}</span>;\n`;
+    expect(patchText(src, "src/B.tsx:1:16", "ใหม่")).toContain('{"ใหม่"}');
+  });
+
+  it("still refuses a value that comes from somewhere else", () => {
+    const src = `const B = () => <span>{unread}</span>;\n`;
+    expect(patchText(src, "src/B.tsx:1:16", "20")).toBeNull();
+    const call = `const B = () => <span>{fmt(total)}</span>;\n`;
+    expect(patchText(call, "src/B.tsx:1:16", "20")).toBeNull();
   });
 });
 

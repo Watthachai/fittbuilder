@@ -186,19 +186,28 @@ const SHOT_SCRIPT = `(function () {
     });
   }
 
-  /** Click the first visible control whose text matches — exact wins over partial. */
+  var norm = function (s) { return String(s || "").replace(/\\s+/g, " ").trim().toLowerCase(); };
+
+  /**
+   * Click the DEEPEST visible element whose text matches. Depth matters: a
+   * company card or a table row is a <div>, and its text also belongs to every
+   * ancestor up to <body> — clicking the outermost match hits the page wrapper
+   * and does nothing. React events bubble, so the innermost node works.
+   */
   function clickText(text) {
-    if (!text) return false;
-    var want = String(text).trim().toLowerCase();
-    var nodes = document.querySelectorAll("button,a,[role=button],[role=tab],[role=menuitem],li,summary");
+    var want = norm(text);
+    if (!want) return false;
+    var nodes = document.querySelectorAll("button,a,[role],li,summary,label,tr,td,div,span,p,h1,h2,h3,h4");
     var exact = null, partial = null;
     for (var i = 0; i < nodes.length; i++) {
       var el = nodes[i];
       if (!el.offsetParent && getComputedStyle(el).position !== "fixed") continue;
-      var t = (el.textContent || "").replace(/\\s+/g, " ").trim().toLowerCase();
+      var t = norm(el.textContent);
       if (!t) continue;
-      if (t === want) { exact = el; break; }
-      if (!partial && t.indexOf(want) !== -1 && t.length < want.length + 40) partial = el;
+      // Document order runs outer → inner for the same text, so keep the LAST
+      // match: that is the innermost element carrying it.
+      if (t === want) exact = el;
+      else if (t.indexOf(want) !== -1 && t.length <= want.length + 30) partial = el;
     }
     var hit = exact || partial;
     if (!hit) return false;
@@ -206,21 +215,51 @@ const SHOT_SCRIPT = `(function () {
     return true;
   }
 
+  /** Cheap fingerprint of the current view — tells "navigated" from "nothing happened". */
+  function sig() {
+    return norm(document.body.innerText).slice(0, 400) + "|" + location.hash;
+  }
+
   function send(msg) { try { parent.postMessage(msg, "*"); } catch (e) {} }
 
-  async function walk(plan) {
+  async function walk(plan, setup) {
     stop = false;
     var total = 0;
     for (var i = 0; i < plan.length; i++) total += 1 + ((plan[i].subs || []).length);
     var step = 0;
+
+    // Gates first. A demo that opens on sign-in or a company picker goes nowhere
+    // until those are cleared, and every later click then lands on the same
+    // page. These are entry steps, not screens — they are not photographed.
+    for (var g = 0; g < (setup || []).length; g++) {
+      var passed = clickText(setup[g]);
+      send({
+        __fittWalkStep: true, step: 0, total: total, ok: passed,
+        name: "ผ่านหน้ากั้น: " + setup[g],
+        error: passed ? undefined : "ไม่พบปุ่ม “" + setup[g] + "”"
+      });
+      await sleep(900);
+    }
+
+    var last = "";
     for (var s = 0; s < plan.length; s++) {
       if (stop) break;
       var screen = plan[s];
       step++;
-      // The first screen is usually already open; a missing nav item is only a
-      // failure if we cannot then capture anything.
+      var before = sig();
       if (screen.navText) clickText(screen.navText);
-      await sleep(screen.navText ? 700 : 250);
+      await sleep(screen.navText ? 800 : 250);
+      // Nothing moved → the click missed, or a gate is still up. Shooting now
+      // would file a copy of the previous screen under this screen's name — the
+      // exact kind of lie a quotation must not be built on.
+      if (screen.navText && sig() === before && sig() === last) {
+        send({
+          __fittWalkStep: true, step: step, total: total, name: screen.name, ok: false,
+          error: "คลิกแล้วหน้าไม่เปลี่ยน — อาจติดหน้ากั้นหรือชื่อปุ่มไม่ตรง"
+        });
+        continue;
+      }
+      last = sig();
       try {
         send({ __fittShot: true, name: screen.name, parent: null, dataUrl: await shoot() });
         send({ __fittWalkStep: true, step: step, total: total, name: screen.name, ok: true });
@@ -261,7 +300,7 @@ const SHOT_SCRIPT = `(function () {
         .then(function (dataUrl) { send({ __fittShot: true, name: d.name || "หน้าจอ", parent: null, dataUrl: dataUrl }); send({ __fittWalkDone: true }); })
         .catch(function (err) { send({ __fittWalkStep: true, step: 1, total: 1, name: d.name || "หน้าจอ", ok: false, error: String(err && err.message || err) }); send({ __fittWalkDone: true }); });
     }
-    if (d.__fittWalk && Array.isArray(d.plan)) void walk(d.plan);
+    if (d.__fittWalk && Array.isArray(d.plan)) void walk(d.plan, d.setup || []);
     if (d.__fittWalkStop) stop = true;
   });
 })();`;

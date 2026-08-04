@@ -41,11 +41,11 @@ export async function POST(request: Request) {
         usage = u;
       },
     });
-    const screens = parseScreenMap(raw);
-    if (screens.length === 0) {
+    const map = parseScreenMap(raw);
+    if (map.screens.length === 0) {
       return Response.json({ error: "อ่านโครงสร้างหน้าจอไม่ออก ลองแคปเองทีละหน้าได้ครับ" }, { status: 422 });
     }
-    return Response.json({ screens });
+    return Response.json(map);
   } catch (error) {
     if (error instanceof MissingApiKeyError) {
       return Response.json({ error: error.message }, { status: 500 });

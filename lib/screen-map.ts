@@ -25,6 +25,16 @@ export interface ScreenNode {
   subs: ScreenSub[];
 }
 
+export interface ScreenMap {
+  /**
+   * Controls to click, in order, before any screen is reachable — sign in, pick
+   * a company, dismiss a welcome step. Without these the walk photographs the
+   * gate over and over, because every nav click lands on the same page.
+   */
+  setup: string[];
+  screens: ScreenNode[];
+}
+
 /** Page files the architecture contract guarantees, used to sanity-check the map. */
 export function pageFiles(files: ProjectFiles | null | undefined): string[] {
   if (!files) return [];
@@ -36,9 +46,11 @@ export function pageFiles(files: ProjectFiles | null | undefined): string[] {
 export const SCREEN_MAP_SYSTEM = `คุณกำลังอ่านซอร์สโค้ดของเว็บเดโม (Vite + React) แล้วสรุป "แผนผังหน้าจอ" เพื่อเอาไปเดินแคปหน้าจอทีละหน้าโดยอัตโนมัติ
 
 ตอบเป็น JSON อย่างเดียว รูปแบบ:
-{"screens":[{"name":"แดชบอร์ด","navText":"แดชบอร์ด","subs":[{"name":"โมดัลเพิ่มออเดอร์","openBy":"เพิ่มออเดอร์","closeBy":"ปิด"}]}]}
+{"setup":["เข้าสู่ระบบ","บริษัทตัวอย่าง"],"screens":[{"name":"แดชบอร์ด","navText":"แดชบอร์ด","subs":[{"name":"โมดัลเพิ่มออเดอร์","openBy":"เพิ่มออเดอร์","closeBy":"ปิด"}]}]}
 
 กติกา:
+- setup = ลำดับ "ข้อความบนปุ่ม/การ์ด" ที่ต้องคลิกก่อน ถึงจะเข้าถึงหน้าจอหลักได้ เช่น หน้าเข้าสู่ระบบ, หน้าเลือกบริษัท/สาขา, หน้าต้อนรับ — เรียงตามลำดับที่ต้องกดจริง · ถ้าเปิดมาเจอหน้าหลักเลยให้เป็น []
+- อย่าใส่หน้ากั้นเหล่านั้นซ้ำใน screens ถ้ามันไม่ใช่หน้าที่ผู้ใช้กลับมาใช้งานอีก
 - name = ชื่อหน้าจอที่คนอ่านเข้าใจ (ภาษาเดียวกับใน UI) — จะเอาไปใส่ใบเสนอราคา
 - navText = "ข้อความที่มองเห็นบนปุ่ม/เมนู" ที่ต้องคลิกเพื่อไปหน้านั้น ต้องตรงกับข้อความในโค้ดเป๊ะ (ไม่ใช่ชื่อไฟล์ ไม่ใช่ id) · หน้าที่เปิดมาเจอเป็นหน้าแรกให้ navText เป็น ""
 - subs = modal / drawer / panel / ขั้นตอนถัดไป ที่เปิดจากปุ่มในหน้านั้น — openBy/closeBy ก็ต้องเป็นข้อความที่มองเห็นจริงเช่นกัน
@@ -56,21 +68,27 @@ export function buildScreenMapUser(files: ProjectFiles): string {
 }
 
 /** Parse + clamp the model's answer; unusable output yields an empty map. */
-export function parseScreenMap(raw: string): ScreenNode[] {
+export function parseScreenMap(raw: string): ScreenMap {
+  const empty: ScreenMap = { setup: [], screens: [] };
   const start = raw.indexOf("{");
   const end = raw.lastIndexOf("}");
-  if (start === -1 || end <= start) return [];
+  if (start === -1 || end <= start) return empty;
   let parsed: unknown;
   try {
     parsed = JSON.parse(raw.slice(start, end + 1));
   } catch {
-    return [];
+    return empty;
   }
   const screens = (parsed as { screens?: unknown })?.screens;
-  if (!Array.isArray(screens)) return [];
+  if (!Array.isArray(screens)) return empty;
   const text = (v: unknown, max = 80): string =>
     typeof v === "string" ? v.replace(/\s+/g, " ").trim().slice(0, max) : "";
-  return screens
+  const rawSetup = (parsed as { setup?: unknown })?.setup;
+  const setup = (Array.isArray(rawSetup) ? rawSetup : [])
+    .slice(0, 6)
+    .map((v) => text(v))
+    .filter(Boolean);
+  const list = screens
     .slice(0, 40)
     .map((s) => {
       const o = s as Record<string, unknown>;
@@ -91,4 +109,5 @@ export function parseScreenMap(raw: string): ScreenNode[] {
       } satisfies ScreenNode;
     })
     .filter((s) => s.name.length > 0);
+  return { setup, screens: list };
 }

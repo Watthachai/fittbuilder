@@ -15,7 +15,7 @@ import Overlay from "@/components/ui/Overlay";
 import GlassSurface from "@/components/ui/GlassSurface";
 import ImageLightbox from "@/components/ui/ImageLightbox";
 import { clearShots, deleteShot, listShots, uploadShot, type Shot } from "@/lib/shots";
-import { pageFiles, type ScreenNode } from "@/lib/screen-map";
+import { pageFiles, type ScreenMap } from "@/lib/screen-map";
 import { toast } from "@/lib/toast";
 import { confirm } from "@/lib/confirm";
 import type { ProjectFiles } from "@/lib/types";
@@ -126,7 +126,7 @@ export default function ScreenInventory({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ files }),
       });
-      const data = (await res.json()) as { screens?: ScreenNode[]; error?: string };
+      const data = (await res.json()) as Partial<ScreenMap> & { error?: string };
       if (!res.ok || !data.screens?.length) {
         toast.error("อ่านโครงสร้างหน้าจอไม่สำเร็จ", { description: data.error });
         setBusy(null);
@@ -144,7 +144,9 @@ export default function ScreenInventory({
       setShots([]);
       indexRef.current = 0;
       setBusy("walk");
-      toPreview({ __fittWalk: true, plan: data.screens });
+      // Gates (sign-in, company picker) run first — without them every nav click
+      // lands on the same page and the walk photographs it over and over.
+      toPreview({ __fittWalk: true, plan: data.screens, setup: data.setup ?? [] });
     } catch (err) {
       toast.error("สแกนไม่สำเร็จ", { description: err instanceof Error ? err.message : undefined });
       setBusy(null);

@@ -16,6 +16,7 @@ import GlassSurface from "@/components/ui/GlassSurface";
 import ImageLightbox from "@/components/ui/ImageLightbox";
 import { clearShots, deleteShot, listShots, uploadShot, type Shot } from "@/lib/shots";
 import { pageFiles, type ScreenMap } from "@/lib/screen-map";
+import { SHOT_BRIDGE_VERSION } from "@/lib/scaffold";
 import { toast } from "@/lib/toast";
 import { confirm } from "@/lib/confirm";
 import type { ProjectFiles } from "@/lib/types";
@@ -57,7 +58,42 @@ export default function ScreenInventory({
   const [busy, setBusy] = useState<"map" | "walk" | "one" | null>(null);
   const [steps, setSteps] = useState<Step[]>([]);
   const [zoom, setZoom] = useState<string | null>(null);
+  // The capture script lives in the container's vite.config, which is only
+  // rewritten on mount — a studio tab left open keeps running an old copy, and
+  // a fix then looks like it changed nothing. Ask the preview which build it is.
+  // Both pieces are written only from async callbacks (the reply, the timeout),
+  // and the verdict is derived — no state is set while the effect body runs.
+  const [pongVersion, setPongVersion] = useState<number | null>(null);
+  const [pingTimedOut, setPingTimedOut] = useState(false);
+  const [probe, setProbe] = useState(0);
   const indexRef = useRef(0);
+  const bridge: "checking" | "ok" | "stale" =
+    pongVersion !== null
+      ? pongVersion >= SHOT_BRIDGE_VERSION
+        ? "ok"
+        : "stale"
+      : pingTimedOut
+        ? "stale"
+        : "checking";
+
+  useEffect(() => {
+    if (!ready) return;
+    let alive = true;
+    const onPong = (e: MessageEvent) => {
+      const d = e.data as { __fittShotPong?: boolean; v?: number } | null;
+      if (d?.__fittShotPong && alive) setPongVersion(d.v ?? 0);
+    };
+    window.addEventListener("message", onPong);
+    toPreview({ __fittShotPing: true });
+    const timer = setTimeout(() => {
+      if (alive) setPingTimedOut(true);
+    }, 1500);
+    return () => {
+      alive = false;
+      clearTimeout(timer);
+      window.removeEventListener("message", onPong);
+    };
+  }, [ready, toPreview, probe]);
 
   const refresh = useCallback(() => {
     void listShots(projectId).then(setShots);
@@ -238,6 +274,28 @@ export default function ScreenInventory({
             </span>
           )}
         </div>
+
+        {ready && bridge === "stale" && (
+          <div className="flex shrink-0 items-center gap-2.5 border-b border-amber-400/40 bg-amber-400/10 px-5 py-2">
+            <span className="shrink-0 font-mono text-[11px] font-semibold text-amber-300">
+              ⚠ สคริปต์ในพรีวิวเป็นเวอร์ชันเก่า
+            </span>
+            <span className="min-w-0 flex-1 text-[11px] leading-relaxed text-amber-200/90">
+              ตัวแคปฝังอยู่ในไฟล์ตั้งค่าของคอนเทนเนอร์ ซึ่งเขียนใหม่ตอนบูตเท่านั้น —
+              <b> โหลดหน้า studio ใหม่ (F5)</b> ก่อนสแกน ไม่งั้นจะได้ผลเหมือนเดิม
+            </span>
+            <button
+              onClick={() => {
+                setPongVersion(null);
+                setPingTimedOut(false);
+                setProbe((n) => n + 1);
+              }}
+              className="shrink-0 rounded-md border border-amber-400/50 px-2 py-0.5 font-display text-[11px] text-amber-100 transition hover:bg-amber-400/20"
+            >
+              ตรวจอีกครั้ง
+            </button>
+          </div>
+        )}
 
         {steps.length > 0 && (
           <div className="scroll-thin max-h-24 shrink-0 space-y-0.5 overflow-y-auto border-b border-night-edge bg-night/40 px-5 py-2">

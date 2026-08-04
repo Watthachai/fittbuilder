@@ -145,6 +145,13 @@ const ERROR_SCRIPT = `(function () {
 })();`;
 
 /**
+ * Version of the capture bridge. Bump on every change to SHOT_SCRIPT so a studio
+ * tab running against an older container can tell, instead of silently
+ * reproducing the bug that was just fixed.
+ */
+export const SHOT_BRIDGE_VERSION = 2;
+
+/**
  * Screen capture + auto-walk, for building the screen inventory a quotation is
  * written from.
  *
@@ -157,6 +164,11 @@ const ERROR_SCRIPT = `(function () {
  */
 const SHOT_SCRIPT = `(function () {
   if (window.parent === window) return;
+  // Bumped whenever this script changes. These scripts live in vite.config.js,
+  // which is only rewritten when the container mounts — so a studio tab left
+  // open keeps running an old copy, and a fix looks like it did nothing. The
+  // studio compares this against its own constant and says so.
+  var VERSION = ${SHOT_BRIDGE_VERSION};
   var LIB = "https://cdn.jsdelivr.net/npm/html-to-image@1.11.13/dist/html-to-image.js";
   var libP = null, stop = false;
 
@@ -194,9 +206,9 @@ const SHOT_SCRIPT = `(function () {
    * ancestor up to <body> — clicking the outermost match hits the page wrapper
    * and does nothing. React events bubble, so the innermost node works.
    */
-  function clickText(text) {
+  function locate(text) {
     var want = norm(text);
-    if (!want) return false;
+    if (!want) return null;
     var nodes = document.querySelectorAll("button,a,[role],li,summary,label,tr,td,div,span,p,h1,h2,h3,h4");
     var exact = null, partial = null;
     for (var i = 0; i < nodes.length; i++) {
@@ -209,10 +221,47 @@ const SHOT_SCRIPT = `(function () {
       if (t === want) exact = el;
       else if (t.indexOf(want) !== -1 && t.length <= want.length + 30) partial = el;
     }
-    var hit = exact || partial;
+    return exact || partial;
+  }
+
+  function clickText(text) {
+    var hit = locate(text);
     if (!hit) return false;
     hit.click();
     return true;
+  }
+
+  // Words that open a gate. Ordered by how strongly they mean "go forward".
+  var GATE_WORDS = /(เข้าสู่ระบบ|เข้าใช้งาน|ล็อกอิน|เริ่มใช้งาน|เริ่มต้น|ถัดไป|ต่อไป|ดำเนินการต่อ|ตกลง|ยืนยัน|เลือก|เข้า|log ?in|sign ?in|continue|next|start|enter)/i;
+
+  /**
+   * Find something to click when the demo is sitting behind a gate: a sign-in
+   * card, a company picker, a welcome step. Prefers a control whose label means
+   * "go forward", then any prominent enabled button/card — skipping anything
+   * already tried, so a dead end cannot be clicked forever.
+   */
+  function gateCandidate(tried) {
+    var nodes = document.querySelectorAll("button,[role=button],a,div,li");
+    var best = null, bestScore = -1;
+    for (var i = 0; i < nodes.length; i++) {
+      var el = nodes[i];
+      if (tried.indexOf(el) !== -1) continue;
+      if (el.disabled) continue;
+      if (!el.offsetParent) continue;
+      var r = el.getBoundingClientRect();
+      if (r.width < 60 || r.height < 24 || r.width > innerWidth * 0.95) continue;
+      var t = norm(el.textContent);
+      if (!t || t.length > 60) continue;
+      // A container whose text is just its child's is not the clickable thing.
+      if (el.children.length > 3) continue;
+      var score = 0;
+      if (GATE_WORDS.test(t)) score += 100;
+      if (el.tagName === "BUTTON" || el.getAttribute("role") === "button") score += 40;
+      if (/cursor-pointer/.test(el.className || "")) score += 20;
+      score += Math.min(r.width * r.height, 60000) / 6000; // prominence
+      if (score > bestScore) { bestScore = score; best = el; }
+    }
+    return best;
   }
 
   /** Cheap fingerprint of the current view — tells "navigated" from "nothing happened". */
@@ -239,6 +288,39 @@ const SHOT_SCRIPT = `(function () {
         error: passed ? undefined : "ไม่พบปุ่ม “" + setup[g] + "”"
       });
       await sleep(900);
+    }
+
+    // Still boxed in? The map's labels can be wrong, or a gate can need a click
+    // nobody predicted — so try to get through on our own rather than
+    // photographing the same locked screen once per planned screen.
+    var wanted = plan.map(function (p) { return p.navText; }).filter(Boolean);
+    var reachable = function () {
+      for (var i = 0; i < wanted.length; i++) if (locate(wanted[i])) return true;
+      return wanted.length === 0;
+    };
+    var tried = [];
+    for (var a = 0; a < 6 && !reachable() && !stop; a++) {
+      var cand = gateCandidate(tried);
+      if (!cand) break;
+      tried.push(cand);
+      var label = norm(cand.textContent).slice(0, 30) || "(ไม่มีข้อความ)";
+      var was = sig();
+      cand.click();
+      await sleep(950);
+      send({
+        __fittWalkStep: true, step: 0, total: total, ok: sig() !== was,
+        name: "หาทางเข้าเอง: คลิก “" + label + "”",
+        error: sig() !== was ? undefined : "คลิกแล้วไม่มีอะไรเปลี่ยน"
+      });
+    }
+    if (!reachable()) {
+      send({
+        __fittWalkStep: true, step: 0, total: total, ok: false,
+        name: "เข้าหน้าจอหลักไม่ได้",
+        error: "เดโมยังติดหน้ากั้นอยู่ — เข้าไปเองในพรีวิวแล้วใช้ปุ่ม “แคปหน้านี้” ทีละหน้าได้ครับ"
+      });
+      send({ __fittWalkDone: true });
+      return;
     }
 
     var last = "";
@@ -295,6 +377,7 @@ const SHOT_SCRIPT = `(function () {
   addEventListener("message", function (e) {
     var d = e.data;
     if (!d || typeof d !== "object") return;
+    if (d.__fittShotPing) { send({ __fittShotPong: true, v: VERSION }); return; }
     if (d.__fittShotOne) {
       shoot()
         .then(function (dataUrl) { send({ __fittShot: true, name: d.name || "หน้าจอ", parent: null, dataUrl: dataUrl }); send({ __fittWalkDone: true }); })

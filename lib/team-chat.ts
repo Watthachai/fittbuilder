@@ -148,6 +148,22 @@ export async function downloadProjectFile(f: ProjectChatFile): Promise<File> {
   return new File([data], f.name, { type: data.type || "application/octet-stream" });
 }
 
+/**
+ * Short-lived signed URLs for storage keys, as a path→url map. The bucket is
+ * private, so every thumbnail needs one; resolving them in a single call keeps
+ * a chat full of attachments to one round trip.
+ */
+export async function fileUrls(paths: string[]): Promise<Record<string, string>> {
+  if (paths.length === 0) return {};
+  const supabase = createClient();
+  const { data } = await supabase.storage.from(BUCKET).createSignedUrls(paths, 60 * 60 * 4);
+  const map: Record<string, string> = {};
+  for (const row of data ?? []) {
+    if (row.path && row.signedUrl) map[row.path] = row.signedUrl;
+  }
+  return map;
+}
+
 /** Upload one file to the project's chat bucket; returns its attachment record. */
 export async function uploadAttachment(
   projectId: string,

@@ -58,6 +58,8 @@ export interface ChatMessage {
   citations?: string[];
   /** Checkpoint this turn produced — shown as a chip you can roll back to. */
   revision?: { sha: string; label: string };
+  /** Files the user attached to this turn, rendered as thumbnails in the bubble. */
+  media?: { path: string; name: string }[];
 }
 
 /** One of the 7 Org DNA archetypes (Strategy& / PwC). */
@@ -364,4 +366,7 @@ export interface ChatAttachmentInput {
   name: string;
   mimeType: string;
   data: string;
+  /** Storage key once mirrored into the project library — lets the transcript
+   *  show the picture instead of just its file name. */
+  path?: string;
 }

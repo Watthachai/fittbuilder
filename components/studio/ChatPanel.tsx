@@ -32,6 +32,7 @@ import { useFileDrop } from "@/lib/useFileDrop";
 import { ATTACHMENT_ACCEPT, fileToAttachment, MAX_ATTACHMENT_BYTES } from "@/lib/attachments";
 import {
   downloadProjectFile,
+  fileUrls,
   listProjectFiles,
   uploadAttachment,
   type ProjectChatFile,
@@ -247,6 +248,8 @@ export default function ChatPanel({
   const [libFiles, setLibFiles] = useState<ProjectChatFile[] | null>(null);
   const [libBusy, setLibBusy] = useState(false);
   const [lightbox, setLightbox] = useState<{ src: string; alt: string } | null>(null);
+  /** path → short-lived signed URL, for every picture we render. */
+  const [thumbs, setThumbs] = useState<Record<string, string>>({});
   const scrollRef = useRef<HTMLDivElement>(null);
   const mediaInputRef = useRef<HTMLInputElement>(null);
 
@@ -261,11 +264,12 @@ export default function ChatPanel({
         }
         try {
           const att = await fileToAttachment(file);
-          setMedia((prev) => [...prev, att]);
-          // Mirror the ORIGINAL file into the project's chat bucket so it shows
-          // up in the "ใช้ไฟล์เดิม" library (best-effort; conversions like
-          // xlsx→CSV re-run when it's picked again).
-          void uploadAttachment(projectId, file).catch(() => {});
+          // Mirror the ORIGINAL file into the project's chat bucket: it feeds the
+          // "ใช้ไฟล์เดิม" library AND gives the transcript something to render,
+          // so an attached picture shows up as a picture. Best-effort — a failed
+          // upload must not stop the file from reaching the AI.
+          const stored = await uploadAttachment(projectId, file).catch(() => null);
+          setMedia((prev) => [...prev, stored ? { ...att, path: stored.path } : att]);
         } catch (e) {
           // Conversion failures (e.g. legacy .xls) carry a user-facing message.
           toast.warning(e instanceof Error ? e.message : `แนบ "${file.name}" ไม่สำเร็จ`);
@@ -284,7 +288,14 @@ export default function ChatPanel({
     if (!opening) return;
     setLibBusy(true);
     listProjectFiles(projectId)
-      .then(setLibFiles)
+      .then((files) => {
+        setLibFiles(files);
+        // Ten files all called image.png are indistinguishable by name — show them.
+        const pics = files.filter((f) => /\.(png|jpe?g|gif|webp|svg)$/i.test(f.name));
+        if (pics.length) void fileUrls(pics.map((f) => f.path)).then((map) =>
+          setThumbs((prev) => ({ ...prev, ...map }))
+        );
+      })
       .catch(() => toast.warning("โหลดรายการไฟล์ไม่สำเร็จ"))
       .finally(() => setLibBusy(false));
   };
@@ -301,7 +312,7 @@ export default function ChatPanel({
     try {
       const file = await downloadProjectFile(f);
       const att = await fileToAttachment(file);
-      setMedia((prev) => [...prev, att]);
+      setMedia((prev) => [...prev, { ...att, path: f.path }]);
     } catch (e) {
       toast.warning(e instanceof Error ? e.message : `ใช้ "${f.name}" ไม่สำเร็จ`);
     } finally {
@@ -329,6 +340,21 @@ export default function ChatPanel({
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
   }, [messages.length, busy, activeAskId, live]);
+
+  // The bucket is private, so every picture needs a signed URL. Resolve the
+  // whole transcript's worth in one call, and again when new ones appear.
+  const mediaPaths = messages.flatMap((m) => (m.media ?? []).map((x) => x.path)).join("|");
+  useEffect(() => {
+    const paths = mediaPaths ? mediaPaths.split("|") : [];
+    if (paths.length === 0) return;
+    let alive = true;
+    void fileUrls(paths).then((map) => {
+      if (alive) setThumbs((prev) => ({ ...prev, ...map }));
+    });
+    return () => {
+      alive = false;
+    };
+  }, [mediaPaths]);
 
   const send = (text: string) => {
     if ((!text.trim() && media.length === 0) || busy) return;
@@ -393,6 +419,30 @@ export default function ChatPanel({
             <div key={message.id} className="flex items-end justify-end gap-2 pl-8">
               <div className="min-w-0 break-words rounded-2xl rounded-br-sm border border-shine/40 bg-shine/[0.14] px-3.5 py-2.5 text-chalk">
                 <Markdown>{message.content}</Markdown>
+                {message.media && message.media.length > 0 && (
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    {message.media.map((m) =>
+                      thumbs[m.path] ? (
+                        <button
+                          key={m.path}
+                          onClick={() => setLightbox({ src: thumbs[m.path], alt: m.name })}
+                          title={m.name}
+                          className="overflow-hidden rounded-lg border border-shine/30 transition hover:border-shine"
+                        >
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src={thumbs[m.path]} alt={m.name} className="h-24 w-auto max-w-40 object-cover" />
+                        </button>
+                      ) : (
+                        <span
+                          key={m.path}
+                          className="rounded-lg border border-shine/20 px-2 py-1 font-mono text-[10px] text-chalk-dim"
+                        >
+                          {m.name}
+                        </span>
+                      )
+                    )}
+                  </div>
+                )}
               </div>
               {myAvatar ? (
                 /* eslint-disable-next-line @next/next/no-img-element */
@@ -753,9 +803,28 @@ export default function ChatPanel({
                             onClick={() => void pickFromLibrary(f)}
                             className="flex w-full items-center gap-2 px-3 py-1.5 text-left transition hover:bg-chalk/5"
                           >
-                            <FileText size={13} className="shrink-0 text-shine" />
+                            {thumbs[f.path] ? (
+                              /* eslint-disable-next-line @next/next/no-img-element */
+                              <img
+                                src={thumbs[f.path]}
+                                alt=""
+                                className="h-8 w-8 shrink-0 rounded-md border border-night-edge object-cover"
+                              />
+                            ) : (
+                              <FileText size={13} className="shrink-0 text-shine" />
+                            )}
                             <span className="min-w-0 flex-1 truncate text-[12px] text-chalk/85">
                               {f.name}
+                              {f.createdAt && (
+                                <span className="block font-mono text-[10px] text-chalk-dim">
+                                  {new Date(f.createdAt).toLocaleString("th-TH", {
+                                    day: "numeric",
+                                    month: "short",
+                                    hour: "2-digit",
+                                    minute: "2-digit",
+                                  })}
+                                </span>
+                              )}
                             </span>
                             {f.size !== null && (
                               <span className="shrink-0 font-mono text-[10px] text-chalk-dim">

@@ -147,6 +147,18 @@ function gateSatisfied(project: ProjectRecord): boolean {
   }
 }
 
+/**
+ * Pictures the user attached, as storage keys — so the transcript can show the
+ * picture instead of the words "แนบ: image.png". Only images: a CSV thumbnail
+ * would be noise, and its contents already reached the model.
+ */
+function mediaOf(attachments?: ChatAttachmentInput[]): { path: string; name: string }[] | undefined {
+  const pics = (attachments ?? [])
+    .filter((a) => a.path && a.mimeType.startsWith("image/"))
+    .map((a) => ({ path: a.path!, name: a.name }));
+  return pics.length ? pics : undefined;
+}
+
 export default function Studio({ projectId }: { projectId: string }) {
   const [project, setProject] = useState<ProjectRecord | null>(null);
   const [notFound, setNotFound] = useState(false);
@@ -456,7 +468,12 @@ export default function Studio({ projectId }: { projectId: string }) {
 
       let working = current;
       if (userText) {
-        working = persist(appendMessage(working, newMessage("user", userText, working.phase)));
+        working = persist(
+          appendMessage(working, {
+            ...newMessage("user", userText, working.phase),
+            media: mediaOf(attachments),
+          })
+        );
       }
 
       setErrorMessage(null);
@@ -567,7 +584,10 @@ export default function Studio({ projectId }: { projectId: string }) {
       const runnable = hasRunnableApp(current.files);
       const isIteration = runnable && !spec;
 
-      let working = appendMessage(current, newMessage("user", prompt, current.phase));
+      let working = appendMessage(current, {
+        ...newMessage("user", prompt, current.phase),
+        media: mediaOf(attachments),
+      });
       // Snapshot the pre-generation files into history NOW (not only at the end)
       // so a turn interrupted by navigating away is still undoable — paired with
       // the abort-path save below, partial work survives leaving the studio.
@@ -1932,9 +1952,12 @@ export default function Studio({ projectId }: { projectId: string }) {
               const note = attachedPaths.length
                 ? `\n\n📎 อ้างอิงไฟล์: ${attachedPaths.join(", ")}`
                 : "";
-              // Record what was attached in the transcript so it's visible later.
-              const mediaNote = media.length
-                ? `\n\n🖼️ แนบ: ${media.map((m) => m.name).join(", ")}`
+              // Only name what the bubble can't show: pictures render as
+              // thumbnails, so listing them again is noise. Documents (and any
+              // picture whose upload failed) still get a line.
+              const unshown = media.filter((m) => !m.path || !m.mimeType.startsWith("image/"));
+              const mediaNote = unshown.length
+                ? `\n\n🖼️ แนบ: ${unshown.map((m) => m.name).join(", ")}`
                 : "";
               const full = `${text}${note}${mediaNote}`;
               setAttachedPaths([]);

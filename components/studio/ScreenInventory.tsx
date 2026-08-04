@@ -116,6 +116,7 @@ export default function ScreenInventory({
       const d = e.data as
         | {
             __fittShot?: boolean;
+            __fittRecStep?: boolean;
             __fittWalkStep?: boolean;
             __fittWalkDone?: boolean;
             name?: string;
@@ -144,6 +145,9 @@ export default function ScreenInventory({
               description: err instanceof Error ? err.message : undefined,
             })
           );
+      }
+      if (d.__fittRecStep) {
+        setSteps((prev) => [...prev, { name: d.name ?? "?", ok: d.ok !== false, error: d.error }]);
       }
       if (d.__fittWalkStep) {
         setSteps((prev) => [...prev, { name: d.name ?? "?", ok: Boolean(d.ok), error: d.error }]);

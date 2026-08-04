@@ -149,7 +149,7 @@ const ERROR_SCRIPT = `(function () {
  * tab running against an older container can tell, instead of silently
  * reproducing the bug that was just fixed.
  */
-export const SHOT_BRIDGE_VERSION = 12;
+export const SHOT_BRIDGE_VERSION = 13;
 
 /**
  * Screen capture + auto-walk, for building the screen inventory a quotation is
@@ -647,33 +647,20 @@ const SHOT_SCRIPT = `(function () {
    * Driving a generated app blind never stopped needing another special case:
    * gates, accordions, role-gated menus, hand-rolled modals. The person using
    * the demo already knows its flow, so the reliable division of labour is
-   * theirs to navigate and ours to capture — and it yields something the walk
-   * never could: which control led from which screen to which.
+   * theirs to navigate and ours to capture.
+   *
+   * What triggers a capture is the SCREEN SETTLING, not a click. Clicks miss
+   * redirects, keyboard navigation and anything that arrives after data loads,
+   * and firing on the click itself photographs the old view or a spinner. So a
+   * sampler watches the page: when it changes and then holds still, that is a
+   * new state worth keeping — and the label of the last thing clicked is what
+   * got us there.
    */
-  var rec = false, recPrev = "", recSig = "", recBusy = false;
+  var rec = false, recPrev = "", lastVia = "", recBusy = false;
+  var settleTimer = null, lastSeen = "", stable = 0;
+  var seen = {};   // page fingerprint → the name we filed it under
 
-  async function recordNode(via) {
-    if (recBusy) return;
-    recBusy = true;
-    try {
-      var dlg = openDialog(null);
-      var name = dlg ? dialogName(dlg, via) : screenName();
-      var dataUrl = await shoot();
-      send({
-        __fittShot: true, name: name, parent: dlg ? recPrev : null,
-        from: recPrev || null, via: via || null, dataUrl: dataUrl
-      });
-      send({ __fittRecStep: true, name: name, from: recPrev || null, via: via || null });
-      if (!dlg) recPrev = name;
-      recSig = sig();
-    } catch (err) {
-      send({ __fittRecStep: true, name: via || "หน้าจอ", ok: false, error: String(err && err.message || err) });
-    } finally {
-      recBusy = false;
-    }
-  }
-
-  /** The demo's own name for where we are: breadcrumb/heading, else the title. */
+  /** The demo's own name for where we are: active nav item, else a heading. */
   function screenName() {
     var sel = ["[aria-current=page]", "nav [class*=active]", "main h1", "main h2", "h1", "h2"];
     for (var i = 0; i < sel.length; i++) {
@@ -686,16 +673,55 @@ const SHOT_SCRIPT = `(function () {
     return norm(document.title) || "หน้าจอ";
   }
 
+  async function capture(fingerprint) {
+    if (recBusy) return;
+    recBusy = true;
+    try {
+      var dlg = openDialog(null);
+      var name = dlg ? dialogName(dlg, lastVia) : screenName();
+      // Two screens can carry the same heading; keep the names distinct so the
+      // flow map does not fuse them into one frame.
+      var taken = 0;
+      for (var k in seen) if (seen[k] === name) taken++;
+      if (taken) name = name + " (" + (taken + 1) + ")";
+
+      var dataUrl = await shoot();
+      seen[fingerprint] = name;
+      send({
+        __fittShot: true, name: name, parent: recPrev || null,
+        from: recPrev || null, via: lastVia || null, dataUrl: dataUrl
+      });
+      send({ __fittRecStep: true, name: name, ok: true, via: lastVia || null });
+      recPrev = name;
+    } catch (err) {
+      send({ __fittRecStep: true, name: lastVia || "หน้าจอ", ok: false, error: String(err && err.message || err) });
+    } finally {
+      recBusy = false;
+      lastVia = "";
+    }
+  }
+
+  /**
+   * Sample the page; capture once it has been still for two ticks. Revisiting a
+   * screen is recognised by its fingerprint and does not produce a second
+   * frame — that is what filled the map with duplicates of the same screen.
+   */
+  function sample() {
+    if (!rec) return;
+    var now = sig();
+    if (now !== lastSeen) { lastSeen = now; stable = 0; return; }
+    if (stable === -1) return;      // already handled this state
+    if (++stable < 2) return;
+    stable = -1;
+    if (seen[now]) { recPrev = seen[now]; return; }
+    void capture(now);
+  }
+
   addEventListener("click", function (e) {
     if (!rec) return;
-    var el = e.target && e.target.closest ? e.target.closest("button,a,[role],li,tr,div,span") : null;
-    var via = el ? norm(el.textContent).slice(0, 40) : "";
-    // Let the app handle the click first, then see where it took us.
-    setTimeout(function () {
-      if (!rec) return;
-      if (sig() === recSig) return; // nothing moved — not a step
-      void recordNode(via);
-    }, 700);
+    var el = e.target && e.target.closest ? e.target.closest("button,a,[role],li,tr,label,div,span") : null;
+    var t = el ? norm(el.textContent).slice(0, 40) : "";
+    if (t) lastVia = t;
   }, true);
 
   addEventListener("message", function (e) {
@@ -704,7 +730,11 @@ const SHOT_SCRIPT = `(function () {
     if (d.__fittShotPing) { send({ __fittShotPong: true, v: VERSION }); return; }
     if (d.__fittRecord !== undefined) {
       rec = !!d.__fittRecord;
-      if (rec) { recPrev = ""; recSig = ""; void recordNode(null); }
+      if (settleTimer) { clearInterval(settleTimer); settleTimer = null; }
+      if (rec) {
+        recPrev = ""; lastVia = ""; lastSeen = ""; stable = 0; seen = {};
+        settleTimer = setInterval(sample, 350);
+      }
       return;
     }
     if (d.__fittShotOne) {

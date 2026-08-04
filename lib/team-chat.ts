@@ -164,14 +164,29 @@ export async function fileUrls(paths: string[]): Promise<Record<string, string>>
   return map;
 }
 
+/**
+ * Path-safe file name. A pasted screenshot arrives as "image.png" from every
+ * OS, so a library of ten of them is unreadable — generic names get the date
+ * and time appended, which is the only thing that actually distinguishes them.
+ */
+function storageName(original: string): string {
+  const safe = original.replace(/[^\w.\-]/g, "_");
+  const dot = safe.lastIndexOf(".");
+  const base = dot > 0 ? safe.slice(0, dot) : safe;
+  const ext = dot > 0 ? safe.slice(dot) : "";
+  if (!/^(image|screenshot|unnamed|paste[d]?|untitled|_+)$/i.test(base)) return safe;
+  const d = new Date();
+  const two = (n: number) => String(n).padStart(2, "0");
+  return `${base}-${two(d.getMonth() + 1)}${two(d.getDate())}-${two(d.getHours())}${two(d.getMinutes())}${two(d.getSeconds())}${ext}`;
+}
+
 /** Upload one file to the project's chat bucket; returns its attachment record. */
 export async function uploadAttachment(
   projectId: string,
   file: File
 ): Promise<TeamChatAttachment> {
   const supabase = createClient();
-  const safe = file.name.replace(/[^\w.\-]/g, "_");
-  const path = `${projectId}/${crypto.randomUUID()}-${safe}`;
+  const path = `${projectId}/${crypto.randomUUID()}-${storageName(file.name)}`;
   const { error } = await supabase.storage.from(BUCKET).upload(path, file, {
     contentType: file.type || "application/octet-stream",
     upsert: false,

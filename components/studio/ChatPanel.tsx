@@ -85,8 +85,10 @@ interface ChatPanelProps {
   onCancel: () => void;
   /** Open the doc-preview modal for a phase (from a message's "ดูเอกสาร" button). */
   onViewDoc: (phase: PhaseId) => void;
-  /** The signed-in user's profile photo, shown on their own turns. */
+  /** The signed-in user's profile photo + name — used only to tell "you" from
+   *  a teammate; each message carries its own author. */
   myAvatar?: string | null;
+  myName?: string;
   /** Viewer (read-only): hide every write affordance — composer and answer choices. */
   readOnly?: boolean;
   /** Collaborators currently active in this chat (typing or running the AI). */
@@ -227,6 +229,7 @@ export default function ChatPanel({
   onCancel,
   onViewDoc,
   myAvatar,
+  myName,
   readOnly = false,
   peers = [],
   onTyping,
@@ -416,7 +419,14 @@ export default function ChatPanel({
           /* Your own turns read as yours at a glance: right-aligned, shine-tinted,
              with an avatar — the AI's stay full-width and neutral. */
           message.role === "user" ? (
-            <div key={message.id} className="flex items-end justify-end gap-2 pl-8">
+            <div key={message.id} className="flex flex-col items-end pl-8">
+              {/* A shared project has many typists — name the one who isn't you. */}
+              {message.author?.name && message.author.name !== myName && (
+                <span className="mb-1 mr-9 font-mono text-[10px] uppercase tracking-[0.15em] text-chalk-dim">
+                  {message.author.name}
+                </span>
+              )}
+              <div className="flex items-end justify-end gap-2">
               <div className="min-w-0 break-words rounded-2xl rounded-br-sm border border-shine/40 bg-shine/[0.14] px-3.5 py-2.5 text-chalk">
                 <Markdown>{message.content}</Markdown>
                 {message.media && message.media.length > 0 && (
@@ -444,23 +454,31 @@ export default function ChatPanel({
                   </div>
                 )}
               </div>
-              {myAvatar ? (
-                /* eslint-disable-next-line @next/next/no-img-element */
-                <img
-                  src={myAvatar}
-                  alt="คุณ"
-                  title="คุณ"
-                  referrerPolicy="no-referrer"
-                  className="mb-0.5 h-7 w-7 shrink-0 rounded-full object-cover ring-2 ring-shine/50"
-                />
-              ) : (
-                <span
-                  title="คุณ"
-                  className="mb-0.5 grid h-7 w-7 shrink-0 place-items-center rounded-full bg-shine text-night shadow-[0_0_14px_rgba(100,206,251,.35)]"
-                >
-                  <User size={14} />
-                </span>
-              )}
+              {(() => {
+                // Older messages predate author stamping — fall back to the
+                // reader's face ONLY when the message is the reader's own.
+                const mine = !message.author || message.author.name === myName;
+                const face = message.author?.avatar ?? (mine ? myAvatar : null);
+                const who = message.author?.name ?? (mine ? "คุณ" : "เพื่อนร่วมทีม");
+                return face ? (
+                  /* eslint-disable-next-line @next/next/no-img-element */
+                  <img
+                    src={face}
+                    alt={who}
+                    title={who}
+                    referrerPolicy="no-referrer"
+                    className="mb-0.5 h-7 w-7 shrink-0 rounded-full object-cover ring-2 ring-shine/50"
+                  />
+                ) : (
+                  <span
+                    title={who}
+                    className="mb-0.5 grid h-7 w-7 shrink-0 place-items-center rounded-full bg-shine text-night shadow-[0_0_14px_rgba(100,206,251,.35)]"
+                  >
+                    <User size={14} />
+                  </span>
+                );
+              })()}
+              </div>
             </div>
           ) : (
           <div key={message.id}>
@@ -798,10 +816,14 @@ export default function ChatPanel({
                         </p>
                       ) : (
                         libFiles.map((f) => (
-                          <button
+                          <div
                             key={f.path}
+                            className="group/lib flex w-full items-center gap-2 px-3 py-1.5 text-left transition hover:bg-chalk/5"
+                          >
+                          <button
                             onClick={() => void pickFromLibrary(f)}
-                            className="flex w-full items-center gap-2 px-3 py-1.5 text-left transition hover:bg-chalk/5"
+                            title="ใช้ไฟล์นี้ในข้อความถัดไป"
+                            className="flex min-w-0 flex-1 items-center gap-2 text-left"
                           >
                             {thumbs[f.path] ? (
                               /* eslint-disable-next-line @next/next/no-img-element */
@@ -832,6 +854,18 @@ export default function ChatPanel({
                               </span>
                             )}
                           </button>
+                          {/* Look before you attach — a thumbnail this small
+                              cannot tell two screenshots apart. */}
+                          {thumbs[f.path] && (
+                            <button
+                              onClick={() => setLightbox({ src: thumbs[f.path], alt: f.name })}
+                              title="ดูรูปเต็ม"
+                              className="shrink-0 rounded-md p-1 text-chalk-dim transition hover:text-shine"
+                            >
+                              <Eye size={13} />
+                            </button>
+                          )}
+                          </div>
                         ))
                       )}
                     </div>

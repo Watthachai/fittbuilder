@@ -171,6 +171,7 @@ export default function Studio({ projectId }: { projectId: string }) {
   // Bumped whenever a checkpoint lands, so an open History tab refetches.
   const [revisionTick, setRevisionTick] = useState(0);
   const [myAvatar, setMyAvatar] = useState<string | null>(null);
+  const [myName, setMyName] = useState("");
   const [screensOpen, setScreensOpen] = useState(false);
   // Channel into the preview iframe, handed over by PreviewPanel (it owns the ref).
   const previewBridge = useRef<((msg: Record<string, unknown>) => void) | null>(null);
@@ -269,6 +270,7 @@ export default function Studio({ projectId }: { projectId: string }) {
   const rtReloadTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   // AI-chat presence: who else is typing/running the AI in this project right now.
   const nameRef = useRef("");
+  const avatarRef = useRef<string | null>(null);
   const aiPeerTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
   const lastAiTypingSent = useRef(0);
   const [aiPeers, setAiPeers] = useState<Map<string, { name: string; mode: "typing" | "working" }>>(
@@ -472,6 +474,7 @@ export default function Studio({ projectId }: { projectId: string }) {
           appendMessage(working, {
             ...newMessage("user", userText, working.phase),
             media: mediaOf(attachments),
+            author: { name: nameRef.current, avatar: avatarRef.current },
           })
         );
       }
@@ -587,6 +590,7 @@ export default function Studio({ projectId }: { projectId: string }) {
       let working = appendMessage(current, {
         ...newMessage("user", prompt, current.phase),
         media: mediaOf(attachments),
+        author: { name: nameRef.current, avatar: avatarRef.current },
       });
       // Snapshot the pre-generation files into history NOW (not only at the end)
       // so a turn interrupted by navigating away is still undoable — paired with
@@ -1623,6 +1627,8 @@ export default function Studio({ projectId }: { projectId: string }) {
       // Same source the account chip and presence dots use, so it's the face
       // teammates already recognise.
       setMyAvatar((meta.avatar_url ?? meta.picture ?? null) as string | null);
+      setMyName(nameRef.current);
+      avatarRef.current = (meta.avatar_url ?? meta.picture ?? null) as string | null;
     });
 
     const timers = aiPeerTimers.current;
@@ -1977,6 +1983,7 @@ export default function Studio({ projectId }: { projectId: string }) {
             onCancel={cancel}
             onViewDoc={previewPhaseDoc}
             myAvatar={myAvatar}
+            myName={myName}
             readOnly={readOnly}
             peers={[...aiPeers.values()]}
             onTyping={broadcastAiTyping}

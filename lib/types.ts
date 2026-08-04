@@ -60,6 +60,9 @@ export interface ChatMessage {
   revision?: { sha: string; label: string };
   /** Files the user attached to this turn, rendered as thumbnails in the bubble. */
   media?: { path: string; name: string }[];
+  /** Who wrote this turn. A shared project has many typists — without this the
+   *  transcript wears the reader's own face on everyone's messages. */
+  author?: { name?: string; avatar?: string | null };
 }
 
 /** One of the 7 Org DNA archetypes (Strategy& / PwC). */

@@ -38,6 +38,14 @@ export interface ScreenGate {
 
 export interface ScreenMap {
   /**
+   * Words this particular app uses for "go on" and for "get out", read off its
+   * own UI. They ADD to the built-in list rather than replacing it: the
+   * fallback exists for when the map is wrong, so it must not depend entirely
+   * on the same answer being right.
+   */
+  forward: string[];
+  avoid: string[];
+  /**
    * Gates in the order they appear. Without them every nav click lands on the
    * same locked page; with them, each gate is also captured on the way past —
    * a sign-in screen is work the customer is paying for.
@@ -58,6 +66,12 @@ export const SCREEN_MAP_SYSTEM = `คุณกำลังอ่านซอร�
 
 ตอบเป็น JSON อย่างเดียว รูปแบบ:
 {"setup":[{"name":"<ชื่อหน้าที่ต้องผ่าน>","click":"<ข้อความบนปุ่มที่ต้องกด>"}],"screens":[{"name":"<ชื่อหน้าจอ>","navText":"<ข้อความบนเมนู>","expand":"<หัวข้อกลุ่มที่ต้องกางก่อน หรือ \"\">","subs":[{"name":"<ชื่อ modal>","openBy":"<ข้อความบนปุ่มที่เปิด>","closeBy":"<ข้อความบนปุ่มที่ปิด>"}]}]}
+
+และเพิ่ม 2 ช่องนี้ที่ระดับบนสุด:
+{"forward":["<ข้อความบนปุ่มที่แปลว่าไปต่อ>"],"avoid":["<ข้อความบนปุ่มที่พาออกหรืออันตราย>"]}
+- forward = ข้อความบนปุ่ม/การ์ดในแอปนี้ที่หมายถึง "ไปต่อ/ยืนยัน/เลือก/เข้าใช้งาน" (ใช้ภาษาเดียวกับที่แอปเขียนจริง)
+- avoid = ข้อความบนปุ่มที่ห้ามกดระหว่างเดินอัตโนมัติ เพราะพาออกหรือทำลายข้อมูล เช่น ออกจากระบบ ลบ รีเซ็ต ยกเลิก
+- ทั้งสองช่องเอาไว้ให้ระบบใช้ตอนต้องหาทางเข้าเอง ใส่เท่าที่มีจริงในแอป ไม่ต้องแต่งเพิ่ม
 
 ค่าทุกช่องต้องมาจากโค้ดของเดโมที่กำลังอ่านอยู่เท่านั้น ห้ามลอกตัวอย่างข้างบน
 
@@ -95,7 +109,7 @@ export function buildScreenMapUser(files: ProjectFiles): string {
 
 /** Parse + clamp the model's answer; unusable output yields an empty map. */
 export function parseScreenMap(raw: string): ScreenMap {
-  const empty: ScreenMap = { setup: [], screens: [] };
+  const empty: ScreenMap = { setup: [], screens: [], forward: [], avoid: [] };
   const start = raw.indexOf("{");
   const end = raw.lastIndexOf("}");
   if (start === -1 || end <= start) return empty;
@@ -142,5 +156,9 @@ export function parseScreenMap(raw: string): ScreenMap {
       } satisfies ScreenNode;
     })
     .filter((s) => s.name.length > 0);
-  return { setup, screens: list };
+  const words = (key: "forward" | "avoid"): string[] => {
+    const raw = (parsed as Record<string, unknown>)[key];
+    return (Array.isArray(raw) ? raw : []).slice(0, 12).map((v) => text(v, 40)).filter(Boolean);
+  };
+  return { setup, screens: list, forward: words("forward"), avoid: words("avoid") };
 }

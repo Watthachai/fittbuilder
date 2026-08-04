@@ -84,8 +84,28 @@ describe("parseScreenMap", () => {
   });
 
   it("returns nothing usable rather than guessing", () => {
-    expect(parseScreenMap("ขอโทษครับ อ่านไม่ออก")).toEqual({ setup: [], screens: [] });
-    expect(parseScreenMap('{"screens":"nope"}')).toEqual({ setup: [], screens: [] });
+    const nothing = { setup: [], screens: [], forward: [], avoid: [] };
+    expect(parseScreenMap("ขอโทษครับ อ่านไม่ออก")).toEqual(nothing);
+    expect(parseScreenMap('{"screens":"nope"}')).toEqual(nothing);
+  });
+});
+
+describe("the app's own vocabulary", () => {
+  // The built-in keyword lists are Thai/English. Reading the words off the app
+  // being scanned is what lets the fallback work in any language.
+  it("carries forward/avoid words as written in the app", () => {
+    const map = parseScreenMap(
+      `{"forward":["Continue","Select company"],"avoid":["Sign out","Delete"],
+        "screens":[{"name":"Dashboard","navText":"Dashboard"}]}`
+    );
+    expect(map.forward).toEqual(["Continue", "Select company"]);
+    expect(map.avoid).toEqual(["Sign out", "Delete"]);
+  });
+
+  it("is empty when the model offers none, so the built-in list still applies", () => {
+    const map = parseScreenMap(`{"screens":[{"name":"ก"}]}`);
+    expect(map.forward).toEqual([]);
+    expect(map.avoid).toEqual([]);
   });
 });
 

@@ -149,7 +149,7 @@ const ERROR_SCRIPT = `(function () {
  * tab running against an older container can tell, instead of silently
  * reproducing the bug that was just fixed.
  */
-export const SHOT_BRIDGE_VERSION = 6;
+export const SHOT_BRIDGE_VERSION = 7;
 
 /**
  * Screen capture + auto-walk, for building the screen inventory a quotation is
@@ -236,6 +236,14 @@ const SHOT_SCRIPT = `(function () {
 
   // Words that open a gate. Ordered by how strongly they mean "go forward".
   var GATE_WORDS = /(เข้าสู่ระบบ|เข้าใช้งาน|ล็อกอิน|เริ่มใช้งาน|เริ่มต้น|ถัดไป|ต่อไป|ดำเนินการต่อ|ตกลง|ยืนยัน|เลือก|เข้า|log ?in|sign ?in|continue|next|start|enter)/i;
+  // Words this app itself uses, supplied by the map. They ADD to the lists
+  // above, never replace them: this fallback runs precisely when the map got
+  // something wrong, so it must not depend entirely on the map being right.
+  var appForward = [], appAvoid = [];
+  var listed = function (t, arr) {
+    for (var i = 0; i < arr.length; i++) if (arr[i] && t.indexOf(norm(arr[i])) !== -1) return true;
+    return false;
+  };
   // Never click these while hunting for a way in: they take you further out.
   var LEAVE_WORDS = /(ออกจากระบบ|ล็อกเอาต์|ออกจาก|log ?out|sign ?out|ลบ|delete|remove|รีเซ็ต|reset|ยกเลิก|cancel|ปิด|close|ย้อนกลับ|กลับ|back)/i;
 
@@ -271,7 +279,7 @@ const SHOT_SCRIPT = `(function () {
       if (el.disabled || !el.offsetParent) continue;
       if (!hasClick(el)) continue;
       var t = norm(el.textContent);
-      if (!t || t.length > 90 || LEAVE_WORDS.test(t)) continue;
+      if (!t || t.length > 90 || LEAVE_WORDS.test(t) || listed(t, appAvoid)) continue;
       var r = el.getBoundingClientRect();
       if (r.width < 40 || r.height < 20) continue;
       // A card list is clickable AND contains clickable cards — take the card.
@@ -279,7 +287,7 @@ const SHOT_SCRIPT = `(function () {
       for (var j = 0; j < inner.length; j++) if (hasClick(inner[j])) { nested = true; break; }
       if (nested) continue;
       var score = 0;
-      if (GATE_WORDS.test(t)) score += 120;
+      if (GATE_WORDS.test(t) || listed(t, appForward)) score += 120;
       score += Math.min(r.width * r.height, 90000) / 9000; // a card beats a tab
       if (score > bestScore) { bestScore = score; best = el; }
     }
@@ -310,7 +318,7 @@ const SHOT_SCRIPT = `(function () {
       var el = nodes[j];
       if (!el.offsetParent || !hasClick(el) || !el.querySelector("svg")) continue;
       var t = norm(el.textContent);
-      if (!t || t.length > 40 || t === norm(want) || LEAVE_WORDS.test(t)) continue;
+      if (!t || t.length > 40 || t === norm(want) || LEAVE_WORDS.test(t) || listed(t, appAvoid)) continue;
       tries++;
       el.click();
       if (locate(want)) return true;
@@ -334,8 +342,10 @@ const SHOT_SCRIPT = `(function () {
 
   function send(msg) { try { parent.postMessage(msg, "*"); } catch (e) {} }
 
-  async function walk(plan, setup) {
+  async function walk(plan, setup, words) {
     stop = false;
+    appForward = (words && words.forward) || [];
+    appAvoid = (words && words.avoid) || [];
     var total = 0;
     for (var i = 0; i < plan.length; i++) total += 1 + ((plan[i].subs || []).length);
     var step = 0;
@@ -470,7 +480,7 @@ const SHOT_SCRIPT = `(function () {
         .then(function (dataUrl) { send({ __fittShot: true, name: d.name || "หน้าจอ", parent: null, dataUrl: dataUrl }); send({ __fittWalkDone: true }); })
         .catch(function (err) { send({ __fittWalkStep: true, step: 1, total: 1, name: d.name || "หน้าจอ", ok: false, error: String(err && err.message || err) }); send({ __fittWalkDone: true }); });
     }
-    if (d.__fittWalk && Array.isArray(d.plan)) void walk(d.plan, d.setup || []);
+    if (d.__fittWalk && Array.isArray(d.plan)) void walk(d.plan, d.setup || [], d.words || {});
     if (d.__fittWalkStop) stop = true;
   });
 })();`;

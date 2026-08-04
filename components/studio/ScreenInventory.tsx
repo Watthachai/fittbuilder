@@ -183,7 +183,14 @@ export default function ScreenInventory({
       setBusy("walk");
       // Gates (sign-in, company picker) run first — without them every nav click
       // lands on the same page and the walk photographs it over and over.
-      toPreview({ __fittWalk: true, plan: data.screens, setup: data.setup ?? [] });
+      toPreview({
+        __fittWalk: true,
+        plan: data.screens,
+        setup: data.setup ?? [],
+        // The app's own vocabulary for "go on" / "get out", added on top of the
+        // walker's built-in list so a non-Thai demo is not left guessing.
+        words: { forward: data.forward ?? [], avoid: data.avoid ?? [] },
+      });
     } catch (err) {
       toast.error("สแกนไม่สำเร็จ", { description: err instanceof Error ? err.message : undefined });
       setBusy(null);

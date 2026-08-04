@@ -50,6 +50,7 @@ export default function LiveCursors({ projectId }: { projectId: string }) {
     const color = colorFor(clientId);
     let name = "ผู้ใช้";
     let lastSent = 0;
+    let joined = false;
 
     void supabase.auth.getUser().then(({ data: { user } }) => {
       const meta = user?.user_metadata ?? {};
@@ -89,9 +90,15 @@ export default function LiveCursors({ projectId }: { projectId: string }) {
           return m;
         });
       })
-      .subscribe();
+      // Sending before the channel joins (or after it leaves) makes supabase-js
+      // silently fall back to REST per message — wrong transport for ~25
+      // cursor updates a second, and it logs a deprecation warning every time.
+      .subscribe((status) => {
+        joined = status === "SUBSCRIBED";
+      });
 
     const send = (space: CursorSpace, x: number, y: number) => {
+      if (!joined) return;
       const now = Date.now();
       if (now - lastSent < THROTTLE) return;
       lastSent = now;
@@ -101,8 +108,10 @@ export default function LiveCursors({ projectId }: { projectId: string }) {
         payload: { id: clientId, name, color, space, x, y },
       });
     };
-    const leave = () =>
+    const leave = () => {
+      if (!joined) return;
       channel.send({ type: "broadcast", event: "leave", payload: { id: clientId } });
+    };
 
     const onMove = (e: MouseEvent) =>
       send("viewport", e.clientX / window.innerWidth, e.clientY / window.innerHeight);

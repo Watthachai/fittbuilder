@@ -12,7 +12,10 @@ import { createClient } from "@/lib/supabase/client";
  * needed. Ordering and the screen/modal hierarchy live in the file name, which
  * keeps the whole feature free of new tables:
  *
- *   <projectId>/shots/<index>__<parent|_>__<name>.png
+ *   <projectId>/shots/<index>.<parent-b64>.<name-b64>.png
+ *
+ * The separator is "." because base64url's own alphabet contains "_" and "-" —
+ * an underscore separator collided with encoded names and split them apart.
  */
 
 const BUCKET = "project-chat";
@@ -28,24 +31,54 @@ export interface Shot {
   url: string;
 }
 
-const encode = (s: string) => encodeURIComponent(s).replace(/[.*]/g, "_");
-const decode = (s: string) => {
+/**
+ * Names go into the key as base64url.
+ *
+ * Not percent-encoding: Supabase Storage rejects `%` in an object key outright
+ * ("Invalid key"), so encodeURIComponent — the obvious choice — fails on every
+ * Thai screen name. base64url is pure [A-Za-z0-9-_], which the key charset
+ * allows, and it round-trips UTF-8 exactly.
+ */
+const encode = (s: string): string =>
+  btoa(String.fromCharCode(...new TextEncoder().encode(s)))
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=+$/, "");
+
+const decode = (s: string): string => {
   try {
-    return decodeURIComponent(s);
+    const b64 = s.replace(/-/g, "+").replace(/_/g, "/");
+    const bin = atob(b64 + "=".repeat((4 - (b64.length % 4)) % 4));
+    return new TextDecoder().decode(Uint8Array.from(bin, (c) => c.charCodeAt(0)));
   } catch {
     return s;
   }
 };
 
-function nameOf(path: string): { index: number; parent: string | null; name: string } {
+/** The object key for a capture — pure ASCII, sortable by walk order. */
+export function shotKeyFor(
+  projectId: string,
+  shot: { index: number; parent: string | null; name: string }
+): string {
+  const index = String(shot.index).padStart(3, "0");
+  return `${projectId}/shots/${index}.${shot.parent ? encode(shot.parent) : ""}.${encode(
+    shot.name
+  )}.png`;
+}
+
+/** Read back what the key encodes: walk order, parent screen, display name. */
+export function shotMetaFromPath(path: string): {
+  index: number;
+  parent: string | null;
+  name: string;
+} {
   const file = path.split("/").pop() ?? "";
-  const [rawIndex, rawParent, ...rest] = file.replace(/\.png$/, "").split("__");
+  const [rawIndex, rawParent, rawName] = file.replace(/\.png$/, "").split(".");
   const index = Number(rawIndex);
-  const parent = rawParent && rawParent !== "_" ? decode(rawParent) : null;
   return {
     index: Number.isFinite(index) ? index : 0,
-    parent,
-    name: decode(rest.join("__")) || "หน้าจอ",
+    parent: rawParent ? decode(rawParent) : null,
+    name: (rawName && decode(rawName)) || "หน้าจอ",
   };
 }
 
@@ -63,9 +96,7 @@ export async function uploadShot(
   shot: { name: string; parent: string | null; index: number; dataUrl: string }
 ): Promise<Shot> {
   const supabase = createClient();
-  const path = `${projectId}/shots/${String(shot.index).padStart(3, "0")}__${
-    shot.parent ? encode(shot.parent) : "_"
-  }__${encode(shot.name)}.png`;
+  const path = shotKeyFor(projectId, shot);
   const { error } = await supabase.storage
     .from(BUCKET)
     .upload(path, dataUrlToBlob(shot.dataUrl), { contentType: "image/png", upsert: true });
@@ -91,7 +122,7 @@ export async function listShots(projectId: string): Promise<Shot[]> {
   const paths = files.map((f) => `${projectId}/shots/${f.name}`);
   const { data: signed } = await supabase.storage.from(BUCKET).createSignedUrls(paths, 60 * 60 * 8);
   return paths
-    .map((path, i) => ({ path, ...nameOf(path), url: signed?.[i]?.signedUrl ?? "" }))
+    .map((path, i) => ({ path, ...shotMetaFromPath(path), url: signed?.[i]?.signedUrl ?? "" }))
     .sort((a, b) => a.index - b.index);
 }
 

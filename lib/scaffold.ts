@@ -149,7 +149,7 @@ const ERROR_SCRIPT = `(function () {
  * tab running against an older container can tell, instead of silently
  * reproducing the bug that was just fixed.
  */
-export const SHOT_BRIDGE_VERSION = 3;
+export const SHOT_BRIDGE_VERSION = 4;
 
 /**
  * Screen capture + auto-walk, for building the screen inventory a quotation is
@@ -283,9 +283,18 @@ const SHOT_SCRIPT = `(function () {
     return best;
   }
 
-  /** Cheap fingerprint of the current view — tells "navigated" from "nothing happened". */
+  /**
+   * Fingerprint of the current view — tells "navigated" from "nothing happened".
+   *
+   * Hashes the WHOLE visible text. Sampling the first 400 characters read the
+   * sidebar, which is identical on every screen of a normal app layout, so real
+   * navigation looked like no change at all and every screen was skipped.
+   */
   function sig() {
-    return norm(document.body.innerText).slice(0, 400) + "|" + location.hash;
+    var t = norm(document.body.innerText);
+    var h = 5381;
+    for (var i = 0; i < t.length; i++) h = ((h << 5) + h + t.charCodeAt(i)) | 0;
+    return h + ":" + t.length + "|" + location.hash;
   }
 
   function send(msg) { try { parent.postMessage(msg, "*"); } catch (e) {} }
@@ -300,11 +309,19 @@ const SHOT_SCRIPT = `(function () {
     // until those are cleared, and every later click then lands on the same
     // page. These are entry steps, not screens — they are not photographed.
     for (var g = 0; g < (setup || []).length; g++) {
-      var passed = clickText(setup[g]);
+      var gate = setup[g];
+      var click = typeof gate === "string" ? gate : gate.click;
+      var gname = typeof gate === "string" ? gate : (gate.name || click);
+      // A sign-in or company-picker screen is a screen the customer is paying
+      // for — capture it, then pass through it.
+      try {
+        send({ __fittShot: true, name: gname, parent: null, dataUrl: await shoot() });
+      } catch (e0) { /* a gate we cannot photograph still must be cleared */ }
+      var passed = clickText(click);
       send({
         __fittWalkStep: true, step: 0, total: total, ok: passed,
-        name: "ผ่านหน้ากั้น: " + setup[g],
-        error: passed ? undefined : "ไม่พบปุ่ม “" + setup[g] + "”"
+        name: gname,
+        error: passed ? undefined : "ไม่พบปุ่ม “" + click + "”"
       });
       await sleep(900);
     }

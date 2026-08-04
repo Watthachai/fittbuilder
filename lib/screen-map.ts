@@ -25,13 +25,21 @@ export interface ScreenNode {
   subs: ScreenSub[];
 }
 
+/** A screen you must pass THROUGH: sign-in, company picker, welcome step. */
+export interface ScreenGate {
+  /** What the screen is called on the quotation — it is a screen too. */
+  name: string;
+  /** Visible text of the control that moves past it. */
+  click: string;
+}
+
 export interface ScreenMap {
   /**
-   * Controls to click, in order, before any screen is reachable — sign in, pick
-   * a company, dismiss a welcome step. Without these the walk photographs the
-   * gate over and over, because every nav click lands on the same page.
+   * Gates in the order they appear. Without them every nav click lands on the
+   * same locked page; with them, each gate is also captured on the way past —
+   * a sign-in screen is work the customer is paying for.
    */
-  setup: string[];
+  setup: ScreenGate[];
   screens: ScreenNode[];
 }
 
@@ -46,10 +54,11 @@ export function pageFiles(files: ProjectFiles | null | undefined): string[] {
 export const SCREEN_MAP_SYSTEM = `คุณกำลังอ่านซอร์สโค้ดของเว็บเดโม (Vite + React) แล้วสรุป "แผนผังหน้าจอ" เพื่อเอาไปเดินแคปหน้าจอทีละหน้าโดยอัตโนมัติ
 
 ตอบเป็น JSON อย่างเดียว รูปแบบ:
-{"setup":["เข้าสู่ระบบ","บริษัทตัวอย่าง"],"screens":[{"name":"แดชบอร์ด","navText":"แดชบอร์ด","subs":[{"name":"โมดัลเพิ่มออเดอร์","openBy":"เพิ่มออเดอร์","closeBy":"ปิด"}]}]}
+{"setup":[{"name":"หน้าเข้าสู่ระบบ","click":"เข้าสู่ระบบ"},{"name":"หน้าเลือกบริษัท","click":"บริษัท สยามซอฟท์ จำกัด"}],"screens":[{"name":"แดชบอร์ด","navText":"แดชบอร์ด","subs":[{"name":"โมดัลเพิ่มออเดอร์","openBy":"เพิ่มออเดอร์","closeBy":"ปิด"}]}]}
 
 กติกา:
-- setup = ลำดับ "ข้อความบนปุ่ม/การ์ด" ที่ต้องคลิกก่อน ถึงจะเข้าถึงหน้าจอหลักได้ เช่น หน้าเข้าสู่ระบบ, หน้าเลือกบริษัท/สาขา, หน้าต้อนรับ — เรียงตามลำดับที่ต้องกดจริง · ถ้าเปิดมาเจอหน้าหลักเลยให้เป็น []
+- setup = หน้าจอที่ต้องผ่านก่อนถึงจะใช้งานระบบได้ (เข้าสู่ระบบ, เลือกบริษัท/สาขา, หน้าต้อนรับ) เรียงตามลำดับจริง · แต่ละอันมี name (ชื่อหน้าจอสำหรับใบเสนอราคา) และ click (ข้อความบนปุ่ม/การ์ดที่ต้องกดเพื่อผ่านไป) · ถ้าเปิดมาเจอหน้าหลักเลยให้เป็น []
+- หน้าใน setup จะถูก "เก็บภาพด้วย" เพราะมันคือหน้าจอที่ต้องพัฒนาเหมือนกัน — ตั้งชื่อให้ดีเหมือนหน้าอื่น
 - ข้อความใน setup ต้องเป็นข้อความที่ "ปรากฏบนจอจริง" — ถ้าการ์ดแสดงชื่อจากข้อมูลตัวอย่าง ให้ใช้ชื่อจริงตัวแรกจากไฟล์ข้อมูล (เช่นชื่อบริษัทจริงใน src/data) ห้ามแต่งชื่อสมมติเช่น "บริษัทตัวอย่าง"
 - อย่าใส่หน้ากั้นเหล่านั้นซ้ำใน screens ถ้ามันไม่ใช่หน้าที่ผู้ใช้กลับมาใช้งานอีก
 - name = ชื่อหน้าจอที่คนอ่านเข้าใจ (ภาษาเดียวกับใน UI) — จะเอาไปใส่ใบเสนอราคา
@@ -94,10 +103,16 @@ export function parseScreenMap(raw: string): ScreenMap {
   const text = (v: unknown, max = 80): string =>
     typeof v === "string" ? v.replace(/\s+/g, " ").trim().slice(0, max) : "";
   const rawSetup = (parsed as { setup?: unknown })?.setup;
-  const setup = (Array.isArray(rawSetup) ? rawSetup : [])
+  // Tolerates the older shape (a bare string) — then the label doubles as the name.
+  const setup: ScreenGate[] = (Array.isArray(rawSetup) ? rawSetup : [])
     .slice(0, 6)
-    .map((v) => text(v))
-    .filter(Boolean);
+    .map((v) => {
+      if (typeof v === "string") return { name: text(v), click: text(v) };
+      const o = (v ?? {}) as Record<string, unknown>;
+      const click = text(o.click);
+      return { name: text(o.name) || click, click };
+    })
+    .filter((g) => g.click.length > 0);
   const list = screens
     .slice(0, 40)
     .map((s) => {

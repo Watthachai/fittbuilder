@@ -90,13 +90,30 @@ describe("parseScreenMap", () => {
 });
 
 describe("gates", () => {
-  // The reported failure: a demo that opens on sign-in → company picker walked
-  // nowhere, so all 18 captures were the same screen.
-  it("carries the sequence that clears sign-in and company selection", () => {
+  // A sign-in screen and a company picker are screens the customer pays for, so
+  // each one is named — the walk captures it on the way past.
+  it("keeps a name and a control for every gate", () => {
     const { setup } = parseScreenMap(
-      `{"setup":["เข้าสู่ระบบ","บริษัทของคุณ"],"screens":[{"name":"เอกสารทั้งหมด","navText":"เอกสารทั้งหมด"}]}`
+      `{"setup":[{"name":"หน้าเข้าสู่ระบบ","click":"เข้าสู่ระบบ"},
+        {"name":"หน้าเลือกบริษัท","click":"บริษัท สยามซอฟท์ จำกัด"}],
+        "screens":[{"name":"เอกสารทั้งหมด","navText":"เอกสารทั้งหมด"}]}`
     );
-    expect(setup).toEqual(["เข้าสู่ระบบ", "บริษัทของคุณ"]);
+    expect(setup).toEqual([
+      { name: "หน้าเข้าสู่ระบบ", click: "เข้าสู่ระบบ" },
+      { name: "หน้าเลือกบริษัท", click: "บริษัท สยามซอฟท์ จำกัด" },
+    ]);
+  });
+
+  it("still understands the older bare-string shape", () => {
+    expect(parseScreenMap(`{"setup":["เข้าสู่ระบบ"],"screens":[{"name":"ก"}]}`).setup).toEqual([
+      { name: "เข้าสู่ระบบ", click: "เข้าสู่ระบบ" },
+    ]);
+  });
+
+  it("drops a gate with nothing to click", () => {
+    expect(
+      parseScreenMap(`{"setup":[{"name":"หน้าต้อนรับ"}],"screens":[{"name":"ก"}]}`).setup
+    ).toEqual([]);
   });
 
   it("defaults to no gates when the demo opens straight onto a screen", () => {

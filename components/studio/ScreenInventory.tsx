@@ -19,7 +19,7 @@ import GlassSurface from "@/components/ui/GlassSurface";
 import ImageLightbox from "@/components/ui/ImageLightbox";
 import { clearShots, deleteShot, listShots, uploadShot, type Shot } from "@/lib/shots";
 import { pageFiles, type ScreenMap } from "@/lib/screen-map";
-import { hasScreenIndex, screenIndexEntries } from "@/lib/screen-index";
+import { screenIndexCoverage } from "@/lib/screen-index";
 import { SHOT_BRIDGE_VERSION } from "@/lib/scaffold";
 import { toast } from "@/lib/toast";
 import FlowMap from "./FlowMap";
@@ -172,15 +172,7 @@ export default function ScreenInventory({
    * only capture path that is complete by construction — no menu hunting, no
    * role gates, no guessing which button opens which modal.
    */
-  const doors = useMemo(() => {
-    const entries = screenIndexEntries(files);
-    const screensCount = entries.filter((e) => !e.modal).length;
-    return {
-      present: hasScreenIndex(files),
-      screens: screensCount,
-      modals: entries.length - screensCount,
-    };
-  }, [files]);
+  const doors = useMemo(() => screenIndexCoverage(files), [files]);
 
   /** Walk the declared index: click each door, photograph where it lands. */
   const indexScan = async () => {
@@ -338,26 +330,31 @@ export default function ScreenInventory({
             <>
               {/* The declared index leads when the app has one: it is the only
                   path that cannot miss a screen, because the app named them. */}
-              {doors.present ? (
+              {doors.present && (
                 <button
                   onClick={() => void indexScan()}
                   disabled={!ready || busy !== null || recording}
                   title={`เดินตามดัชนีที่ประกาศไว้ในโค้ด — ${doors.screens} หน้า · ${doors.modals} modal`}
                   className="inline-flex items-center gap-1.5 rounded-lg bg-shine px-3 py-1.5 font-display text-[12px] font-semibold text-night transition hover:brightness-110 disabled:opacity-40"
                 >
-                  <ListChecks size={13} /> แคปทุกหน้า ({doors.screens})
+                  <ListChecks size={13} /> แคปทุกหน้า ({doors.screens + doors.modals})
                 </button>
-              ) : (
-                onAddScreenIndex && (
-                  <button
-                    onClick={onAddScreenIndex}
-                    disabled={!files || busy !== null || recording}
-                    title="ให้ AI ใส่ปุ่มซ่อนหนึ่งปุ่มต่อหนึ่งหน้าจอ/modal — ไม่กระทบหน้าตาเดโม แล้วแคปได้ครบทุกหน้าในคลิกเดียว"
-                    className="inline-flex items-center gap-1.5 rounded-lg bg-shine px-3 py-1.5 font-display text-[12px] font-semibold text-night transition hover:brightness-110 disabled:opacity-40"
-                  >
-                    <Sparkles size={13} /> เพิ่มดัชนีหน้าจอ
-                  </button>
-                )
+              )}
+              {/* Same action, two jobs: create the index, or close the gap the
+                  file tree says is still there. */}
+              {onAddScreenIndex && (!doors.present || doors.short) && (
+                <button
+                  onClick={onAddScreenIndex}
+                  disabled={!files || busy !== null || recording}
+                  title="ให้ AI ใส่ปุ่มซ่อนหนึ่งปุ่มต่อหนึ่งหน้าจอ/modal โดยเช็คกับรายชื่อไฟล์จริงในโปรเจกต์ — ไม่กระทบหน้าตาเดโม"
+                  className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 font-display text-[12px] font-semibold transition hover:brightness-110 disabled:opacity-40 ${
+                    doors.present
+                      ? "border border-shine/50 text-shine hover:bg-shine/10"
+                      : "bg-shine text-night"
+                  }`}
+                >
+                  <Sparkles size={13} /> {doors.present ? "เติมดัชนีให้ครบ" : "เพิ่มดัชนีหน้าจอ"}
+                </button>
               )}
               {/* Recording stays: it is the only path that records real flow
                   edges (which button led where), which the index cannot know. */}
@@ -433,16 +430,37 @@ export default function ScreenInventory({
           </div>
         )}
 
-        {/* Why the primary button says "เพิ่มดัชนี" instead of "แคป". Projects
-            generated before the contract have no doors, and one iteration turn
-            adds them without touching a pixel of the demo. */}
-        {files && !doors.present && onAddScreenIndex && (
+        {/* The index graded against the file tree. "AI ใส่ให้แล้ว" and "ครบ" are
+            different claims, and only this one is checkable: the architecture
+            contract puts one screen per src/pages/*.tsx and names modal
+            components after what they are, so the shortfall is countable
+            without running or parsing anything. */}
+        {files && onAddScreenIndex && (!doors.present || doors.short) && (
           <div className="flex shrink-0 items-center gap-2.5 border-b border-shine/30 bg-shine/[0.07] px-5 py-2">
             <Sparkles size={13} className="shrink-0 text-shine" />
             <span className="min-w-0 flex-1 text-[11px] leading-relaxed text-chalk-dim">
-              เดโมนี้ยังไม่มี <b className="text-chalk">ดัชนีหน้าจอ</b> — ปุ่มซ่อน 1 ปุ่มต่อ 1 หน้าจอ/modal
-              ที่ AI ประกาศไว้ในโค้ดเอง ทำให้ระบบเข้าถึงได้ครบทุกหน้าโดยไม่ต้องเดาเมนู
-              (ไม่แสดงผลบนจอ ไม่กระทบหน้าตาเดโม)
+              {doors.present ? (
+                <>
+                  <b className="text-chalk">ดัชนียังไม่ครบ</b> — ประกาศไว้{" "}
+                  <b className="text-shine">
+                    {doors.screens}/{doors.expectedScreens}
+                  </b>{" "}
+                  หน้าจอ ·{" "}
+                  <b className="text-shine">
+                    {doors.modals}/{doors.expectedModals}
+                  </b>{" "}
+                  modal (นับจากไฟล์จริงใน <code className="font-mono">src/pages/</code> และไฟล์{" "}
+                  <code className="font-mono">*Modal.tsx</code>) — กด “เติมดัชนีให้ครบ”
+                  แล้ว AI จะไล่เทียบรายชื่อไฟล์ให้
+                </>
+              ) : (
+                <>
+                  เดโมนี้ยังไม่มี <b className="text-chalk">ดัชนีหน้าจอ</b> — ปุ่มซ่อน 1 ปุ่มต่อ 1
+                  หน้าจอ/modal ที่ AI ประกาศไว้ในโค้ดเอง ทำให้ระบบเข้าถึงได้ครบทุกหน้าโดยไม่ต้องเดาเมนู ·
+                  โปรเจกต์นี้มี <b className="text-chalk">{doors.expectedScreens}</b> หน้าจอ และ{" "}
+                  <b className="text-chalk">{doors.expectedModals}</b> ไฟล์ modal ที่ต้องมีประตู
+                </>
+              )}
             </span>
           </div>
         )}

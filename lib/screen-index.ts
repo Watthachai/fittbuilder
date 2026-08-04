@@ -61,11 +61,91 @@ export function hasScreenIndex(files: ProjectFiles | null | undefined): boolean 
 }
 
 /**
- * The canned prompt behind "เพิ่มดัชนีหน้าจอ": retrofit the index into a
- * project generated before the contract existed. Behaviour-preserving on
- * purpose — the buttons never render, so the demo must look identical after.
+ * What the FILE TREE says the demo has — the checklist the index is graded
+ * against.
+ *
+ * The architecture contract makes this readable without running or parsing
+ * anything: one screen per src/pages/*.tsx, and a modal is a component named
+ * after what it is. Without this, "the AI declared 11 doors" and "the demo has
+ * 28 screens" look identical from the outside, and a quotation quietly bills
+ * for eleven of them.
  */
-export const SCREEN_INDEX_PROMPT = `เพิ่ม "ดัชนีหน้าจอ" ให้โปรเจกต์นี้ เพื่อให้ระบบแคปหน้าจออัตโนมัติเข้าถึงได้ครบทุกหน้า (เป็นการเพิ่มปุ่มที่ซ่อนไว้เท่านั้น — หน้าตา UI ฟีเจอร์ และข้อมูล ต้องเหมือนเดิม 100% ผู้ใช้ต้องไม่เห็นอะไรเปลี่ยนเลย):
+const MODAL_FILE = /\/[A-Z][A-Za-z0-9]*(Modal|Drawer|Dialog|Sheet)s?\.(tsx|jsx)$/;
+
+export interface ScreenSources {
+  /** One screen each, per the architecture contract. */
+  pages: string[];
+  /** Each of these is at least one modal that needs a door. */
+  modals: string[];
+}
+
+export function screenSources(files: ProjectFiles | null | undefined): ScreenSources {
+  const paths = Object.keys(files ?? {});
+  return {
+    pages: paths.filter((p) => /^src\/pages\/.+\.(tsx|jsx)$/.test(p)).sort(),
+    modals: paths.filter((p) => MODAL_FILE.test(`/${p}`)).sort(),
+  };
+}
+
+export interface ScreenIndexCoverage {
+  /** Doors declared in source. */
+  screens: number;
+  modals: number;
+  /** Doors the file tree says should exist. */
+  expectedScreens: number;
+  expectedModals: number;
+  /** Any door at all? */
+  present: boolean;
+  /** Fewer doors than files — the index is incomplete, say so. */
+  short: boolean;
+}
+
+/**
+ * Counts, not names: a screen's Thai label lives inside JSX we do not parse, so
+ * the honest check is "are there as many doors as there are screens", which is
+ * enough to tell a complete index from a partial one.
+ */
+export function screenIndexCoverage(files: ProjectFiles | null | undefined): ScreenIndexCoverage {
+  const entries = screenIndexEntries(files);
+  const screens = entries.filter((e) => !e.modal).length;
+  const modals = entries.length - screens;
+  const src = screenSources(files);
+  return {
+    screens,
+    modals,
+    expectedScreens: src.pages.length,
+    expectedModals: src.modals.length,
+    present: hasScreenIndex(files),
+    short: screens < src.pages.length || modals < src.modals.length,
+  };
+}
+
+/** The file checklist, pasted into the prompt so the model cannot skim past one. */
+function sourceChecklist(files: ProjectFiles): string {
+  const { pages, modals } = screenSources(files);
+  const declared = screenIndexEntries(files);
+  const have = declared.length
+    ? `\n\nตอนนี้ประกาศไว้แล้ว ${declared.filter((e) => !e.modal).length} หน้าจอ + ${declared.filter((e) => e.modal).length} modal — เก็บของเดิมไว้ แล้วเติมส่วนที่ขาดให้ครบ`
+    : "";
+  const list = (title: string, arr: string[]) =>
+    arr.length ? `\n\n${title} (${arr.length} ไฟล์):\n${arr.map((p) => `- ${p}`).join("\n")}` : "";
+  return `${list("ไฟล์หน้าจอในโปรเจกต์นี้ — ต้องมีปุ่มดัชนีครบทุกไฟล์", pages)}${list(
+    "ไฟล์ modal/drawer ในโปรเจกต์นี้ — ต้องมีปุ่มดัชนี (data-fitt-modal) ครบทุกไฟล์ · ไฟล์ที่ชื่อเป็นพหูพจน์เช่น XxxModals.tsx มักมีหลาย modal ในไฟล์เดียว ให้ประกาศครบทุกอัน",
+    modals
+  )}${have}`;
+}
+
+/**
+ * The prompt behind "เพิ่มดัชนีหน้าจอ" / "เติมดัชนีให้ครบ".
+ *
+ * The file checklist is what makes it complete rather than "as many as the
+ * model happened to remember": it is graded against the same list the UI shows.
+ */
+export function buildScreenIndexPrompt(files: ProjectFiles | null | undefined): string {
+  return files ? `${SCREEN_INDEX_BASE}\n${sourceChecklist(files)}` : SCREEN_INDEX_BASE;
+}
+
+const SCREEN_INDEX_BASE = `เพิ่ม "ดัชนีหน้าจอ" ให้โปรเจกต์นี้ เพื่อให้ระบบแคปหน้าจออัตโนมัติเข้าถึงได้ครบทุกหน้า (เป็นการเพิ่มปุ่มที่ซ่อนไว้เท่านั้น — หน้าตา UI ฟีเจอร์ และข้อมูล ต้องเหมือนเดิม 100% ผู้ใช้ต้องไม่เห็นอะไรเปลี่ยนเลย):
 
 1) ที่ src/App.tsx ต่อท้าย JSX ที่ return ใส่บล็อกนี้:
 <div data-fitt-index style={{ display: "none" }}>

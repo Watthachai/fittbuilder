@@ -12,7 +12,7 @@ import { DOC_PATHS, docOnlyFiles, docsFromFiles, hasRunnableApp } from "@/lib/de
 import { REORGANIZE_PROMPT } from "@/lib/code-health";
 import { commitRevision, revisionFiles } from "@/lib/revisions";
 import { buildMissingFilesPrompt, missingImports } from "@/lib/import-check";
-import { SCREEN_INDEX_PROMPT } from "@/lib/screen-index";
+import { buildScreenIndexPrompt } from "@/lib/screen-index";
 import { listShots, uploadShot } from "@/lib/shots";
 import { buildWandPrompt, parseLoc, type WandTarget } from "@/lib/wand";
 import { patchClassName, patchText } from "@/lib/wand-patch";
@@ -1259,7 +1259,7 @@ export default function Studio({ projectId }: { projectId: string }) {
    */
   const addScreenIndex = useCallback(() => {
     setScreensOpen(false);
-    void generate(SCREEN_INDEX_PROMPT);
+    void generate(buildScreenIndexPrompt(projectRef.current?.files ?? null));
   }, [generate]);
 
   /** Create the files the app imports but never got (white-screen root cause). */

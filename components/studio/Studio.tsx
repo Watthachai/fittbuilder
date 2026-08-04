@@ -84,6 +84,7 @@ import ShareModal from "./ShareModal";
 import SkillPicker from "./SkillPicker";
 import WandComposer from "./WandComposer";
 import HistoryPanel from "./HistoryPanel";
+import ScreenInventory from "./ScreenInventory";
 import SpecFlow, { type SpecResult } from "./SpecFlow";
 import StatusBar from "./StatusBar";
 import TopBar from "./TopBar";
@@ -158,6 +159,15 @@ export default function Studio({ projectId }: { projectId: string }) {
   // Bumped whenever a checkpoint lands, so an open History tab refetches.
   const [revisionTick, setRevisionTick] = useState(0);
   const [myAvatar, setMyAvatar] = useState<string | null>(null);
+  const [screensOpen, setScreensOpen] = useState(false);
+  // Channel into the preview iframe, handed over by PreviewPanel (it owns the ref).
+  const previewBridge = useRef<((msg: Record<string, unknown>) => void) | null>(null);
+  const toPreview = useCallback((msg: Record<string, unknown>) => {
+    previewBridge.current?.(msg);
+  }, []);
+  const takeBridge = useCallback((send: (msg: Record<string, unknown>) => void) => {
+    previewBridge.current = send;
+  }, []);
   const [wandOn, setWandOn] = useState(false);
   const [wandBusy, setWandBusy] = useState(false);
   const [wandTarget, setWandTarget] = useState<{
@@ -1812,6 +1822,15 @@ export default function Studio({ projectId }: { projectId: string }) {
   return (
     <div className="flex h-dvh flex-col overflow-hidden bg-night text-chalk">
       <LiveCursors projectId={projectId} />
+      {screensOpen && (
+        <ScreenInventory
+          projectId={projectId}
+          files={project.files}
+          toPreview={toPreview}
+          ready={Boolean(previewUrl) && phase === "ready"}
+          onClose={() => setScreensOpen(false)}
+        />
+      )}
       {wandTarget && !readOnly && (
         <WandComposer
           target={wandTarget.target}
@@ -1860,6 +1879,11 @@ export default function Studio({ projectId }: { projectId: string }) {
             void syncFromContainer();
             setPackagesOpen(true);
           }
+        }}
+        onOpenScreens={() => {
+          // Capture drives the live iframe, so the preview has to be on screen.
+          setView("preview");
+          setScreensOpen(true);
         }}
         onTeamShare={isOwner ? () => setShareOpen(true) : undefined}
         onRunnerSent={readOnly ? undefined : handleRunnerSent}
@@ -2003,6 +2027,7 @@ export default function Studio({ projectId }: { projectId: string }) {
                 wandNudge={wandNudge}
                 missingFiles={missingFiles}
                 onCreateMissingFiles={readOnly ? undefined : createMissingFiles}
+                onBridge={takeBridge}
               />
             ) : view === "history" ? (
               <HistoryPanel

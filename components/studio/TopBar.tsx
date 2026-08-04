@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import {
+  Camera,
   Code2,
   Download,
   Eye,
@@ -49,6 +50,8 @@ interface TopBarProps {
   onUndo: () => void;
   onOpenSpec: () => void;
   onOpenPackages: () => void;
+  /** Screen inventory → quotation (needs a running preview). */
+  onOpenScreens: () => void;
   /** Owner-only: open the team sharing modal. Omit to hide the button. */
   onTeamShare?: () => void;
   /** Persist the durable "sent to Code Runner" chip after a successful hand-off. */
@@ -70,6 +73,7 @@ export default function TopBar({
   onUndo,
   onOpenSpec,
   onOpenPackages,
+  onOpenScreens,
   onTeamShare,
   onRunnerSent,
 }: TopBarProps) {
@@ -227,6 +231,17 @@ export default function TopBar({
                 className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-xs text-chalk/80 transition hover:bg-chalk/5 hover:text-chalk disabled:opacity-40"
               >
                 <Package size={14} /> ค้นหา/ติดตั้ง npm package
+              </button>
+              <button
+                onClick={() => {
+                  setActionsOpen(false);
+                  onOpenScreens();
+                }}
+                disabled={!shippable || busy}
+                title="เก็บภาพทุกหน้าจอและ modal เพื่อทำใบเสนอราคา"
+                className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-xs text-chalk/80 transition hover:bg-chalk/5 hover:text-chalk disabled:opacity-40"
+              >
+                <Camera size={14} /> คลังหน้าจอ (ใบเสนอราคา)
               </button>
               <button
                 onClick={() => {

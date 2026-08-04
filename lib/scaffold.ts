@@ -145,6 +145,128 @@ const ERROR_SCRIPT = `(function () {
 })();`;
 
 /**
+ * Screen capture + auto-walk, for building the screen inventory a quotation is
+ * written from.
+ *
+ * Like everything else here it must run INSIDE the demo: the preview is
+ * cross-origin, so the studio can neither read its DOM nor rasterise it (a
+ * canvas drawn from a cross-origin frame is tainted). html-to-image serialises
+ * the DOM into an SVG foreignObject, so Tailwind styling and recharts SVG come
+ * out intact — and it is loaded lazily, only when a capture is actually asked
+ * for, so normal previews pay nothing.
+ */
+const SHOT_SCRIPT = `(function () {
+  if (window.parent === window) return;
+  var LIB = "https://cdn.jsdelivr.net/npm/html-to-image@1.11.13/dist/html-to-image.js";
+  var libP = null, stop = false;
+
+  function lib() {
+    if (libP) return libP;
+    libP = new Promise(function (res, rej) {
+      var s = document.createElement("script");
+      s.src = LIB;
+      s.onload = function () { res(window.htmlToImage); };
+      s.onerror = function () { rej(new Error("โหลดตัวแคปหน้าจอไม่สำเร็จ")); };
+      document.head.appendChild(s);
+    });
+    return libP;
+  }
+
+  var sleep = function (ms) { return new Promise(function (r) { setTimeout(r, ms); }); };
+
+  function shoot() {
+    return lib().then(function (h) {
+      var bg = getComputedStyle(document.body).backgroundColor;
+      return h.toPng(document.body, {
+        pixelRatio: 1,
+        backgroundColor: bg && bg !== "rgba(0, 0, 0, 0)" ? bg : "#ffffff",
+        // Never photograph our own overlays (wand frame, label, dim).
+        filter: function (n) { return !(n.id && String(n.id).indexOf("__fw") === 0); }
+      });
+    });
+  }
+
+  /** Click the first visible control whose text matches — exact wins over partial. */
+  function clickText(text) {
+    if (!text) return false;
+    var want = String(text).trim().toLowerCase();
+    var nodes = document.querySelectorAll("button,a,[role=button],[role=tab],[role=menuitem],li,summary");
+    var exact = null, partial = null;
+    for (var i = 0; i < nodes.length; i++) {
+      var el = nodes[i];
+      if (!el.offsetParent && getComputedStyle(el).position !== "fixed") continue;
+      var t = (el.textContent || "").replace(/\\s+/g, " ").trim().toLowerCase();
+      if (!t) continue;
+      if (t === want) { exact = el; break; }
+      if (!partial && t.indexOf(want) !== -1 && t.length < want.length + 40) partial = el;
+    }
+    var hit = exact || partial;
+    if (!hit) return false;
+    hit.click();
+    return true;
+  }
+
+  function send(msg) { try { parent.postMessage(msg, "*"); } catch (e) {} }
+
+  async function walk(plan) {
+    stop = false;
+    var total = 0;
+    for (var i = 0; i < plan.length; i++) total += 1 + ((plan[i].subs || []).length);
+    var step = 0;
+    for (var s = 0; s < plan.length; s++) {
+      if (stop) break;
+      var screen = plan[s];
+      step++;
+      // The first screen is usually already open; a missing nav item is only a
+      // failure if we cannot then capture anything.
+      if (screen.navText) clickText(screen.navText);
+      await sleep(screen.navText ? 700 : 250);
+      try {
+        send({ __fittShot: true, name: screen.name, parent: null, dataUrl: await shoot() });
+        send({ __fittWalkStep: true, step: step, total: total, name: screen.name, ok: true });
+      } catch (e) {
+        send({ __fittWalkStep: true, step: step, total: total, name: screen.name, ok: false, error: String(e && e.message || e) });
+      }
+      var subs = screen.subs || [];
+      for (var k = 0; k < subs.length; k++) {
+        if (stop) break;
+        var sub = subs[k];
+        step++;
+        var opened = clickText(sub.openBy);
+        await sleep(650);
+        if (!opened) {
+          send({ __fittWalkStep: true, step: step, total: total, name: sub.name, ok: false, error: "ไม่พบปุ่ม “" + sub.openBy + "”" });
+          continue;
+        }
+        try {
+          send({ __fittShot: true, name: sub.name, parent: screen.name, dataUrl: await shoot() });
+          send({ __fittWalkStep: true, step: step, total: total, name: sub.name, ok: true });
+        } catch (e2) {
+          send({ __fittWalkStep: true, step: step, total: total, name: sub.name, ok: false, error: String(e2 && e2.message || e2) });
+        }
+        if (!clickText(sub.closeBy)) {
+          document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+        }
+        await sleep(400);
+      }
+    }
+    send({ __fittWalkDone: true });
+  }
+
+  addEventListener("message", function (e) {
+    var d = e.data;
+    if (!d || typeof d !== "object") return;
+    if (d.__fittShotOne) {
+      shoot()
+        .then(function (dataUrl) { send({ __fittShot: true, name: d.name || "หน้าจอ", parent: null, dataUrl: dataUrl }); send({ __fittWalkDone: true }); })
+        .catch(function (err) { send({ __fittWalkStep: true, step: 1, total: 1, name: d.name || "หน้าจอ", ok: false, error: String(err && err.message || err) }); send({ __fittWalkDone: true }); });
+    }
+    if (d.__fittWalk && Array.isArray(d.plan)) void walk(d.plan);
+    if (d.__fittWalkStop) stop = true;
+  });
+})();`;
+
+/**
  * The Wand overlay, injected into every served page.
  *
  * Selection has to live INSIDE the iframe: the preview is cross-origin, so the
@@ -328,6 +450,8 @@ const fittBridge = {
       { tag: "script", injectTo: "head", children: ${JSON.stringify(ERROR_SCRIPT)} },
       // 3) Wand: point at an element in the running demo and edit exactly it.
       { tag: "script", injectTo: "head", children: ${JSON.stringify(WAND_SCRIPT)} },
+      // 4) Screen capture + auto-walk, for the screen inventory / quotation.
+      { tag: "script", injectTo: "head", children: ${JSON.stringify(SHOT_SCRIPT)} },
     ];
   },
 };

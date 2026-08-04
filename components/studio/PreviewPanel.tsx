@@ -51,6 +51,8 @@ interface PreviewPanelProps {
   /** Imports with no file behind them — a guaranteed white screen. */
   missingFiles?: MissingImport[];
   onCreateMissingFiles?: () => void;
+  /** Hands the studio a channel into the preview (screen capture drives it). */
+  onBridge?: (send: (msg: Record<string, unknown>) => void) => void;
 }
 
 export default function PreviewPanel({
@@ -71,6 +73,7 @@ export default function PreviewPanel({
   wandNudge,
   missingFiles = [],
   onCreateMissingFiles,
+  onBridge,
 }: PreviewPanelProps) {
   const frameRef = useRef<HTMLIFrameElement>(null);
   const [viewport, setViewport] = useState<Viewport>("desktop");
@@ -116,6 +119,12 @@ export default function PreviewPanel({
   const tell = useCallback((msg: Record<string, unknown>) => {
     frameRef.current?.contentWindow?.postMessage(msg, "*");
   }, []);
+
+  // The iframe ref lives here, so anything that needs to talk to the demo gets
+  // the channel from here rather than reaching for the element itself.
+  useEffect(() => {
+    onBridge?.(tell);
+  }, [onBridge, tell]);
 
   // Re-announce on every (re)load too: a fresh document starts with the wand off.
   useEffect(() => {

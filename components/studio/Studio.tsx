@@ -12,6 +12,7 @@ import { DOC_PATHS, docOnlyFiles, docsFromFiles, hasRunnableApp } from "@/lib/de
 import { REORGANIZE_PROMPT } from "@/lib/code-health";
 import { commitRevision, revisionFiles } from "@/lib/revisions";
 import { buildMissingFilesPrompt, missingImports } from "@/lib/import-check";
+import { listShots, uploadShot } from "@/lib/shots";
 import { buildWandPrompt, parseLoc, type WandTarget } from "@/lib/wand";
 import { patchClassName, patchText } from "@/lib/wand-patch";
 import { computeChanges, deriveProductName, sanitizeFiles } from "@/lib/files";
@@ -174,6 +175,54 @@ export default function Studio({ projectId }: { projectId: string }) {
   const [myName, setMyName] = useState("");
   const [screensOpen, setScreensOpen] = useState(false);
   const [recording, setRecording] = useState(false);
+  const [recCount, setRecCount] = useState(0);
+  const [recLast, setRecLast] = useState<string | null>(null);
+  const recIndex = useRef(0);
+
+  /**
+   * Receive captures WHILE RECORDING.
+   *
+   * This has to live here, not in the inventory panel: recording closes that
+   * panel so the preview is reachable, which unmounted the only listener and
+   * dropped every screenshot the demo posted. The studio outlives the panel.
+   */
+  useEffect(() => {
+    if (!recording) return;
+    let alive = true;
+    void listShots(projectId).then((existing) => {
+      if (alive) recIndex.current = existing.length ? Math.max(...existing.map((s2) => s2.index)) + 1 : 0;
+    });
+    const onMessage = (e: MessageEvent) => {
+      const d = e.data as
+        | { __fittShot?: boolean; name?: string; parent?: string | null; from?: string | null; via?: string | null; dataUrl?: string }
+        | null;
+      if (!d?.__fittShot || !d.dataUrl) return;
+      const name = d.name ?? "หน้าจอ";
+      void uploadShot(projectId, {
+        name,
+        parent: d.parent ?? null,
+        from: d.from ?? null,
+        via: d.via ?? null,
+        index: recIndex.current++,
+        dataUrl: d.dataUrl,
+      })
+        .then(() => {
+          if (!alive) return;
+          setRecCount((c) => c + 1);
+          setRecLast(name);
+        })
+        .catch((err) =>
+          toast.error("เก็บรูปไม่สำเร็จ", {
+            description: err instanceof Error ? err.message : undefined,
+          })
+        );
+    };
+    window.addEventListener("message", onMessage);
+    return () => {
+      alive = false;
+      window.removeEventListener("message", onMessage);
+    };
+  }, [recording, projectId]);
   // Channel into the preview iframe, handed over by PreviewPanel (it owns the ref).
   const previewBridge = useRef<((msg: Record<string, unknown>) => void) | null>(null);
   const toPreview = useCallback((msg: Record<string, unknown>) => {
@@ -1860,6 +1909,8 @@ export default function Studio({ projectId }: { projectId: string }) {
             // Recording needs the preview reachable, so this panel gets out of
             // the way and a slim bar takes over until the user stops.
             setScreensOpen(false);
+            setRecCount(0);
+            setRecLast(null);
             setRecording(true);
             setView("preview");
             toPreview({ __fittRecord: true });
@@ -1875,7 +1926,8 @@ export default function Studio({ projectId }: { projectId: string }) {
               <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-halt" />
             </span>
             <span className="text-[13px] text-chalk">
-              กำลังอัด — ใช้เดโมตามปกติได้เลย ทุกหน้าที่เปลี่ยนจะถูกเก็บให้อัตโนมัติ
+              กำลังอัด · <b className="text-shine">เก็บแล้ว {recCount} หน้า</b>
+              {recLast && <span className="text-chalk-dim"> — ล่าสุด: {recLast}</span>}
             </span>
             <button
               onClick={() => {

@@ -149,7 +149,7 @@ const ERROR_SCRIPT = `(function () {
  * tab running against an older container can tell, instead of silently
  * reproducing the bug that was just fixed.
  */
-export const SHOT_BRIDGE_VERSION = 7;
+export const SHOT_BRIDGE_VERSION = 8;
 
 /**
  * Screen capture + auto-walk, for building the screen inventory a quotation is
@@ -292,6 +292,77 @@ const SHOT_SCRIPT = `(function () {
       if (score > bestScore) { bestScore = score; best = el; }
     }
     return best;
+  }
+
+  /**
+   * The dialog currently on screen, if any.
+   *
+   * Structural, not label-based: role="dialog"/aria-modal covers the common
+   * case, and a large fixed-position layer covers the hand-rolled ones that
+   * generated demos usually produce. This is what lets modals be found without
+   * knowing in advance which button opens them.
+   */
+  function openDialog() {
+    var tagged = document.querySelectorAll('[role="dialog"],[aria-modal="true"]');
+    for (var i = 0; i < tagged.length; i++) if (tagged[i].offsetParent) return tagged[i];
+    var all = document.querySelectorAll("div,section,aside");
+    for (var j = 0; j < all.length; j++) {
+      var el = all[j];
+      if (!el.offsetParent || (el.id || "").indexOf("__fw") === 0) continue;
+      var cs = getComputedStyle(el);
+      if (cs.position !== "fixed") continue;
+      if ((parseInt(cs.zIndex, 10) || 0) < 20) continue;
+      var r = el.getBoundingClientRect();
+      if (r.width * r.height < innerWidth * innerHeight * 0.15) continue;
+      if (!el.querySelector("h1,h2,h3,h4")) continue;
+      return el;
+    }
+    return null;
+  }
+
+  /** What the dialog calls itself — the name that belongs on the quotation. */
+  function dialogName(d, fallback) {
+    var h = d.querySelector("h1,h2,h3,h4");
+    var t = h ? norm(h.textContent) : "";
+    return (t || norm(fallback) || "หน้าต่างย่อย").slice(0, 60);
+  }
+
+  function closeDialog(d) {
+    var btns = d.querySelectorAll("button,[role=button]");
+    for (var i = 0; i < btns.length; i++) {
+      var b = btns[i];
+      var label = norm(b.getAttribute("aria-label") || b.textContent);
+      if (/^(ปิด|close|ยกเลิก|cancel|×|✕|x)$/.test(label)) { b.click(); return; }
+    }
+    document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+    var back = d.parentElement;
+    if (back && getComputedStyle(back).position === "fixed") back.click();
+  }
+
+  // Labels that tend to open something rather than navigate away.
+  var OPENER_WORDS = /(สร้าง|เพิ่ม|ดู|รายละเอียด|แก้ไข|ตั้งค่า|รายงาน|พิมพ์|ส่งออก|อัปโหลด|เลือก|จัดการ|new|add|view|detail|edit|report|print|export|upload|open|manage)/i;
+
+  /**
+   * Buttons on this screen worth probing for a modal, best first. Menu labels
+   * are excluded — clicking those navigates, which is the walk's job, not this.
+   */
+  function modalProbes(skipLabels) {
+    var nodes = document.querySelectorAll("button,[role=button],a,div,span");
+    var out = [];
+    for (var i = 0; i < nodes.length; i++) {
+      var el = nodes[i];
+      if (!el.offsetParent || !hasClick(el)) continue;
+      var t = norm(el.textContent);
+      if (!t || t.length > 40) continue;
+      if (LEAVE_WORDS.test(t) || listed(t, appAvoid)) continue;
+      if (skipLabels.indexOf(t) !== -1) continue;
+      var inner = el.querySelectorAll("*"), nested = false;
+      for (var j = 0; j < inner.length; j++) if (hasClick(inner[j])) { nested = true; break; }
+      if (nested) continue;
+      out.push({ el: el, t: t, score: OPENER_WORDS.test(t) ? 1 : 0 });
+    }
+    out.sort(function (a, b) { return b.score - a.score; });
+    return out;
   }
 
   /**
@@ -445,27 +516,69 @@ const SHOT_SCRIPT = `(function () {
       } catch (e) {
         send({ __fittWalkStep: true, step: step, total: total, name: screen.name, ok: false, error: String(e && e.message || e) });
       }
-      var subs = screen.subs || [];
+      // Modals the map named. A miss here is not the end — the probe below
+      // finds them without needing the label to be right.
+      var subs = screen.subs || [], seen = [];
       for (var k = 0; k < subs.length; k++) {
         if (stop) break;
         var sub = subs[k];
         step++;
-        var opened = clickText(sub.openBy);
-        await sleep(650);
-        if (!opened) {
-          send({ __fittWalkStep: true, step: step, total: total, name: sub.name, ok: false, error: "ไม่พบปุ่ม “" + sub.openBy + "”" });
+        if (!clickText(sub.openBy)) {
+          send({ __fittWalkStep: true, step: step, total: total, name: sub.name, ok: false, error: "ไม่พบปุ่ม “" + sub.openBy + "” — จะลองหาเอง" });
           continue;
         }
+        await sleep(650);
+        var d0 = openDialog();
         try {
-          send({ __fittShot: true, name: sub.name, parent: screen.name, dataUrl: await shoot() });
-          send({ __fittWalkStep: true, step: step, total: total, name: sub.name, ok: true });
+          var nm = d0 ? dialogName(d0, sub.name) : sub.name;
+          send({ __fittShot: true, name: nm, parent: screen.name, dataUrl: await shoot() });
+          send({ __fittWalkStep: true, step: step, total: total, name: nm, ok: true });
+          seen.push(norm(nm));
         } catch (e2) {
           send({ __fittWalkStep: true, step: step, total: total, name: sub.name, ok: false, error: String(e2 && e2.message || e2) });
         }
-        if (!clickText(sub.closeBy)) {
+        if (d0) closeDialog(d0); else if (!clickText(sub.closeBy)) {
           document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
         }
-        await sleep(400);
+        await sleep(450);
+      }
+
+      // Then look for the ones nobody named. Every modal is a screen somebody
+      // has to build, so an inventory that lists none of them under-quotes the
+      // job — and asking the model to guess which button opens what has proved
+      // unreliable. Press the likely buttons and see whether a dialog appears.
+      var navLabels = plan.map(function (p2) { return norm(p2.navText); }).filter(Boolean);
+      var probes = modalProbes(navLabels).slice(0, 6);
+      for (var q = 0; q < probes.length && !stop; q++) {
+        var probe = probes[q];
+        if (!probe.el.isConnected || !probe.el.offsetParent) continue;
+        var mark = sig();
+        probe.el.click();
+        await sleep(700);
+        var dlg = openDialog();
+        if (!dlg) {
+          // No dialog. If the click navigated instead, walk back to this screen
+          // so the rest of the pass still runs from where it should.
+          if (sig() !== mark && screen.navText) {
+            revealMenu(screen.navText, screen.expand);
+            clickText(screen.navText);
+            await sleep(700);
+          }
+          continue;
+        }
+        var name = dialogName(dlg, probe.t);
+        if (seen.indexOf(norm(name)) === -1) {
+          seen.push(norm(name));
+          step++;
+          try {
+            send({ __fittShot: true, name: name, parent: screen.name, dataUrl: await shoot() });
+            send({ __fittWalkStep: true, step: step, total: total, name: name, ok: true });
+          } catch (e3) {
+            send({ __fittWalkStep: true, step: step, total: total, name: name, ok: false, error: String(e3 && e3.message || e3) });
+          }
+        }
+        closeDialog(dlg);
+        await sleep(450);
       }
     }
     send({ __fittWalkDone: true });

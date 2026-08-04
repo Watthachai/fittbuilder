@@ -27,7 +27,9 @@ const components: Components = {
   code: ({ className, children }) => {
     const inline = !className;
     return inline ? (
-      <code className="rounded bg-night px-1 py-0.5 font-mono text-[12px] text-shine">{children}</code>
+      <code className="rounded bg-night px-1 py-0.5 font-mono text-[12px] text-shine [overflow-wrap:anywhere]">
+        {children}
+      </code>
     ) : (
       <code className={`${className ?? ""} font-mono text-[12px]`}>{children}</code>
     );

@@ -419,15 +419,18 @@ export default function ChatPanel({
           /* Your own turns read as yours at a glance: right-aligned, shine-tinted,
              with an avatar — the AI's stay full-width and neutral. */
           message.role === "user" ? (
-            <div key={message.id} className="flex flex-col items-end pl-8">
+            <div key={message.id} className="flex w-full flex-col items-end pl-8">
               {/* A shared project has many typists — name the one who isn't you. */}
               {message.author?.name && message.author.name !== myName && (
                 <span className="mb-1 mr-9 font-mono text-[10px] uppercase tracking-[0.15em] text-chalk-dim">
                   {message.author.name}
                 </span>
               )}
-              <div className="flex items-end justify-end gap-2">
-              <div className="min-w-0 break-words rounded-2xl rounded-br-sm border border-shine/40 bg-shine/[0.14] px-3.5 py-2.5 text-chalk">
+              <div className="flex w-full items-end justify-end gap-2">
+              {/* Bounded and breakable: a file path in inline code has no spaces
+                  to wrap at, so an unconstrained right-aligned bubble grows left
+                  and slides off the panel. */}
+              <div className="min-w-0 max-w-[calc(100%-2.5rem)] break-words [overflow-wrap:anywhere] rounded-2xl rounded-br-sm border border-shine/40 bg-shine/[0.14] px-3.5 py-2.5 text-chalk">
                 <Markdown>{message.content}</Markdown>
                 {message.media && message.media.length > 0 && (
                   <div className="mt-2 flex flex-wrap gap-1.5">
@@ -495,7 +498,7 @@ export default function ChatPanel({
             {message.role === "assistant" && message.actions && (
               <ActionHistory actions={message.actions} live={false} />
             )}
-            <div className="mt-2 min-w-0 break-words rounded-lg border border-night-edge border-l-2 border-l-shine bg-shine/[0.05] px-3.5 py-2.5 text-chalk">
+            <div className="mt-2 min-w-0 break-words [overflow-wrap:anywhere] rounded-lg border border-night-edge border-l-2 border-l-shine bg-shine/[0.05] px-3.5 py-2.5 text-chalk">
               <Markdown>{message.content}</Markdown>
             </div>
             {message.role === "assistant" &&

@@ -149,7 +149,7 @@ const ERROR_SCRIPT = `(function () {
  * tab running against an older container can tell, instead of silently
  * reproducing the bug that was just fixed.
  */
-export const SHOT_BRIDGE_VERSION = 8;
+export const SHOT_BRIDGE_VERSION = 9;
 
 /**
  * Screen capture + auto-walk, for building the screen inventory a quotation is
@@ -302,20 +302,35 @@ const SHOT_SCRIPT = `(function () {
    * generated demos usually produce. This is what lets modals be found without
    * knowing in advance which button opens them.
    */
-  function openDialog() {
+  /** Every large fixed-position layer on screen right now. */
+  function fixedLayers() {
+    var out = [], all = document.querySelectorAll("div,section,aside");
+    for (var i = 0; i < all.length; i++) {
+      var el = all[i];
+      if (!el.offsetParent || (el.id || "").indexOf("__fw") === 0) continue;
+      if (getComputedStyle(el).position !== "fixed") continue;
+      var r = el.getBoundingClientRect();
+      if (r.width * r.height < innerWidth * innerHeight * 0.1) continue;
+      out.push(el);
+    }
+    return out;
+  }
+
+  /**
+   * The dialog that just opened.
+   *
+   * Detected by DIFFERENCE, not by shape: comparing the fixed layers before and
+   * after the click catches hand-rolled modals that carry no role="dialog", no
+   * aria-modal, no heading tag and no particular z-index — which is most of
+   * what a generated demo produces. Requiring any of those meant a modal could
+   * visibly open and still not be captured.
+   */
+  function openDialog(before) {
     var tagged = document.querySelectorAll('[role="dialog"],[aria-modal="true"]');
     for (var i = 0; i < tagged.length; i++) if (tagged[i].offsetParent) return tagged[i];
-    var all = document.querySelectorAll("div,section,aside");
-    for (var j = 0; j < all.length; j++) {
-      var el = all[j];
-      if (!el.offsetParent || (el.id || "").indexOf("__fw") === 0) continue;
-      var cs = getComputedStyle(el);
-      if (cs.position !== "fixed") continue;
-      if ((parseInt(cs.zIndex, 10) || 0) < 20) continue;
-      var r = el.getBoundingClientRect();
-      if (r.width * r.height < innerWidth * innerHeight * 0.15) continue;
-      if (!el.querySelector("h1,h2,h3,h4")) continue;
-      return el;
+    var now = fixedLayers();
+    for (var j = 0; j < now.length; j++) {
+      if (!before || before.indexOf(now[j]) === -1) return now[j];
     }
     return null;
   }
@@ -324,6 +339,14 @@ const SHOT_SCRIPT = `(function () {
   function dialogName(d, fallback) {
     var h = d.querySelector("h1,h2,h3,h4");
     var t = h ? norm(h.textContent) : "";
+    if (!t) {
+      // Demos title their modals with a styled div as often as a heading tag.
+      var big = d.querySelectorAll("[class*=text-lg],[class*=text-xl],[class*=text-2xl],[class*=font-bold],[class*=font-semibold],strong,b");
+      for (var i = 0; i < big.length && !t; i++) {
+        var c = norm(big[i].textContent);
+        if (c && c.length >= 3 && c.length <= 60) t = c;
+      }
+    }
     return (t || norm(fallback) || "หน้าต่างย่อย").slice(0, 60);
   }
 
@@ -489,7 +512,7 @@ const SHOT_SCRIPT = `(function () {
       if (screen.navText && !found) {
         send({
           __fittWalkStep: true, step: step, total: total, name: screen.name, ok: false,
-          error: "ไม่พบเมนู “" + screen.navText + "” บนหน้านี้"
+          error: "ไม่พบเมนู “" + screen.navText + "” บนหน้านี้ — อาจแสดงเฉพาะบางสิทธิ์ผู้ใช้ หรือชื่อไม่ตรง"
         });
         continue;
       }
@@ -523,12 +546,13 @@ const SHOT_SCRIPT = `(function () {
         if (stop) break;
         var sub = subs[k];
         step++;
+        var layers0 = fixedLayers();
         if (!clickText(sub.openBy)) {
           send({ __fittWalkStep: true, step: step, total: total, name: sub.name, ok: false, error: "ไม่พบปุ่ม “" + sub.openBy + "” — จะลองหาเอง" });
           continue;
         }
         await sleep(650);
-        var d0 = openDialog();
+        var d0 = openDialog(layers0);
         try {
           var nm = d0 ? dialogName(d0, sub.name) : sub.name;
           send({ __fittShot: true, name: nm, parent: screen.name, dataUrl: await shoot() });
@@ -552,10 +576,10 @@ const SHOT_SCRIPT = `(function () {
       for (var q = 0; q < probes.length && !stop; q++) {
         var probe = probes[q];
         if (!probe.el.isConnected || !probe.el.offsetParent) continue;
-        var mark = sig();
+        var mark = sig(), layers1 = fixedLayers();
         probe.el.click();
         await sleep(700);
-        var dlg = openDialog();
+        var dlg = openDialog(layers1);
         if (!dlg) {
           // No dialog. If the click navigated instead, walk back to this screen
           // so the rest of the pass still runs from where it should.

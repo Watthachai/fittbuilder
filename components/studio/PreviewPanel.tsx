@@ -175,6 +175,47 @@ export default function PreviewPanel({
     if (repaint) tell({ __fittWandRepaint: true });
   }, [repaint, tell]);
 
+  // Highest-priority problem only. Missing files outrank the compile error they
+  // cause (naming the files is what the user can act on); a runtime error
+  // outranks the network hint, which is a guess.
+  const [showAlso, setShowAlso] = useState(false);
+  const liveError = runtimeError && !busyBoot ? runtimeError : null;
+  const problem: {
+    tone: "halt" | "warn";
+    title: string;
+    body: string;
+    detail?: string;
+    also?: string;
+    action?: { label: string; run: () => void };
+    dismiss?: () => void;
+  } | null = missingFiles.length
+    ? {
+        tone: "warn",
+        title: `ไฟล์หาย ${missingFiles.length}`,
+        body: `${missingFiles.map((m) => m.expected).join(" · ")} — ถูก import ไว้แต่ยังไม่ถูกสร้าง`,
+        detail: missingFiles.map((m) => `${m.expected}  ← ${m.from}`).join("\n"),
+        also: liveError?.message,
+        action: onCreateMissingFiles
+          ? { label: "สร้างไฟล์ที่ขาด", run: onCreateMissingFiles }
+          : undefined,
+      }
+    : liveError
+      ? {
+          tone: "halt",
+          title: "แอปมี error",
+          body: liveError.message,
+          detail: liveError.message,
+          action: onFixError ? { label: "ให้ AI แก้เลย", run: onFixError } : undefined,
+          dismiss: onDismissError,
+        }
+      : netHint
+        ? {
+            tone: "warn",
+            title: "เปิด preview ไม่ถึงเซิร์ฟเวอร์",
+            body: "ถ้าจอว่างเปล่า เครือข่าย/ส่วนขยาย (proxy บริษัท, ad-blocker) อาจบล็อก webcontainer-api.io — ลองปิดตัวบล็อกหรือเปลี่ยนเครือข่ายแล้วโหลดหน้าใหม่",
+          }
+        : null;
+
   // Fullscreen the whole panel (toolbar stays usable; Esc exits via the browser).
   useEffect(() => {
     const onChange = () => setIsFs(document.fullscreenElement === rootRef.current);
@@ -276,60 +317,63 @@ export default function PreviewPanel({
         </div>
       )}
 
-      {/* A missing file is the one white screen we can diagnose without waiting
-          for the container to complain — name the files and offer the fix. */}
-      {missingFiles.length > 0 && (
-        <div className="flex shrink-0 items-center gap-2.5 border-b border-amber-400/40 bg-amber-400/10 px-3 py-2">
-          <span className="shrink-0 font-mono text-[11px] font-semibold text-amber-300">
-            ⚠ ไฟล์หาย {missingFiles.length}
+      {/* ONE problem bar. A missing file and the compile error it causes are the
+          same problem stated twice, and stacking bars pushes the demo off screen —
+          so the most actionable diagnosis wins the slot and the rest stays one
+          click away. */}
+      {problem && (
+        <div
+          className={`flex shrink-0 items-center gap-2.5 border-b px-3 py-2 ${
+            problem.tone === "halt"
+              ? "border-halt/40 bg-halt/10"
+              : "border-amber-400/40 bg-amber-400/10"
+          }`}
+        >
+          <span
+            className={`shrink-0 font-mono text-[11px] font-semibold ${
+              problem.tone === "halt" ? "text-halt" : "text-amber-300"
+            }`}
+          >
+            ⚠ {problem.title}
           </span>
           <span
-            className="min-w-0 flex-1 truncate font-mono text-[11px] text-amber-200/90"
-            title={missingFiles.map((m) => m.expected).join("\n")}
+            className="min-w-0 flex-1 truncate font-mono text-[11px] text-chalk-dim"
+            title={problem.detail}
           >
-            {missingFiles.map((m) => m.expected).join(" · ")} — ถูก import ไว้แต่ยังไม่ถูกสร้าง
+            {problem.body}
           </span>
-          {onCreateMissingFiles && (
+          {/* The cause we suppressed is still one click away, never lost. */}
+          {problem.also && (
             <button
-              onClick={onCreateMissingFiles}
+              onClick={() => setShowAlso((v) => !v)}
+              className="shrink-0 rounded-md border border-night-edge px-2 py-0.5 font-display text-[11px] text-chalk-dim transition hover:text-chalk"
+            >
+              {showAlso ? "ซ่อน error" : "ดู error"}
+            </button>
+          )}
+          {problem.action && (
+            <button
+              onClick={problem.action.run}
               className="shrink-0 rounded-md bg-shine px-2.5 py-1 font-display text-[12px] font-semibold text-night transition hover:brightness-110"
             >
-              ✦ สร้างไฟล์ที่ขาด
+              ✦ {problem.action.label}
+            </button>
+          )}
+          {problem.dismiss && (
+            <button
+              onClick={problem.dismiss}
+              aria-label="ปิดแจ้งเตือน"
+              className="shrink-0 rounded-md px-1.5 py-1 text-[12px] text-chalk-dim transition hover:text-chalk"
+            >
+              ✕
             </button>
           )}
         </div>
       )}
-
-      {/* Runtime error from inside the demo (error bridge) → actionable banner
-          instead of a silent white iframe. */}
-      {runtimeError && !busyBoot && (
-        <div className="flex shrink-0 items-center gap-2.5 border-b border-halt/40 bg-halt/10 px-3 py-2">
-          <span className="shrink-0 font-mono text-[11px] font-semibold text-halt">⚠ แอปมี error</span>
-          <span className="min-w-0 flex-1 truncate font-mono text-[11px] text-chalk-dim" title={runtimeError.message}>
-            {runtimeError.message}
-          </span>
-          {onFixError && (
-            <button
-              onClick={onFixError}
-              className="shrink-0 rounded-md bg-shine px-2.5 py-1 font-display text-[12px] font-semibold text-night transition hover:brightness-110"
-            >
-              ✦ ให้ AI แก้เลย
-            </button>
-          )}
-          <button
-            onClick={onDismissError}
-            aria-label="ปิดแจ้งเตือน"
-            className="shrink-0 rounded-md px-1.5 py-1 text-[12px] text-chalk-dim transition hover:text-chalk"
-          >
-            ✕
-          </button>
-        </div>
-      )}
-      {netHint && !runtimeError && !busyBoot && (
-        <div className="shrink-0 border-b border-amber-400/30 bg-amber-400/10 px-3 py-2 text-[11px] leading-relaxed text-amber-200">
-          เปิด preview ไม่ถึงเซิร์ฟเวอร์ — ถ้าจอว่างเปล่า เครือข่าย/ส่วนขยาย (proxy บริษัท,
-          ad-blocker) อาจบล็อกโดเมน <span className="font-mono">webcontainer-api.io</span> ลองปิดตัวบล็อกหรือเปลี่ยนเครือข่ายแล้วโหลดหน้าใหม่
-        </div>
+      {problem?.also && showAlso && (
+        <pre className="scroll-thin max-h-28 shrink-0 overflow-auto border-b border-night-edge bg-night px-3 py-2 font-mono text-[10px] leading-relaxed text-chalk-dim">
+          {problem.also}
+        </pre>
       )}
 
       {/* Stage */}

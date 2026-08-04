@@ -11,6 +11,7 @@ import {
 import { DOC_PATHS, docOnlyFiles, docsFromFiles, hasRunnableApp } from "@/lib/define";
 import { REORGANIZE_PROMPT } from "@/lib/code-health";
 import { commitRevision, revisionFiles } from "@/lib/revisions";
+import { buildMissingFilesPrompt, missingImports } from "@/lib/import-check";
 import { buildWandPrompt, parseLoc, type WandTarget } from "@/lib/wand";
 import { patchClassName, patchText } from "@/lib/wand-patch";
 import { computeChanges, deriveProductName, sanitizeFiles } from "@/lib/files";
@@ -1161,6 +1162,13 @@ export default function Studio({ projectId }: { projectId: string }) {
     [generate, wandTarget]
   );
 
+  /** Create the files the app imports but never got (white-screen root cause). */
+  const createMissingFiles = useCallback(() => {
+    const missing = missingImports(projectRef.current?.files ?? null);
+    if (missing.length === 0) return;
+    void generate(buildMissingFilesPrompt(missing));
+  }, [generate]);
+
   const handleUndo = useCallback(() => {
     const current = projectRef.current;
     if (!current || busy || readOnly) return;
@@ -1742,6 +1750,9 @@ export default function Studio({ projectId }: { projectId: string }) {
 
   const hasApp = hasRunnableApp(project.files);
   const inBuild = isBuildPhase(project.phase);
+  // Imports with no file behind them — the cause of the "จอขาว" the compile
+  // error only hints at. Derived, never stored: it must follow project.files.
+  const missingFiles = hasApp ? missingImports(project.files) : [];
   // Rework is available once an app exists alongside its BRD/PRD: the user can go
   // back, edit the docs, then regenerate the app from them.
   const reworkDocs = docsFromFiles(project.files);
@@ -1982,6 +1993,8 @@ export default function Studio({ projectId }: { projectId: string }) {
                 onWandPick={readOnly ? undefined : handleWandPick}
                 onWandExit={exitWand}
                 wandNudge={wandNudge}
+                missingFiles={missingFiles}
+                onCreateMissingFiles={readOnly ? undefined : createMissingFiles}
               />
             ) : (
               <CodePanel

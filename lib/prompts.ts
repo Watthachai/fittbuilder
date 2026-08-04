@@ -58,6 +58,7 @@ const OUTPUT_CONTRACT = `OUTPUT FORMAT — STRICT (stream files one at a time):
 </file>
 3. Write COMPLETE file contents every time — never placeholders, "...", or partial files. Do NOT wrap blocks in \`\`\`.
 4. When practical, output a file BEFORE the files that import it, so the live preview stays valid while it streams.
+4b. EVERY relative import must have a real file behind it. If src/App.tsx imports "./components/Sidebar", then src/components/Sidebar.tsx must either already exist or be emitted in THIS SAME turn — an import with no file is not a small mistake, it is a white screen for the whole app (Vite refuses to serve the entry module). Before you finish, re-read your own imports and confirm every one of them resolves.
 5. Use relative paths only (e.g. "src/components/Header.tsx") — never ".." or absolute paths. Do NOT output package.json, vite.config.js, or tsconfig.json (they are provided automatically).
 6. (iteration only) Output ONLY the files that change. To remove a file, output a self-closing tag: <delete path="src/Old.tsx"/>
 7. If your code imports an npm package other than react/react-dom, declare it with a directive: <deps>package-name another-package</deps> (names ONLY, no versions). It is installed automatically. NEVER write "npm install …" or tell the user to run any command — just declare <deps> and import it.

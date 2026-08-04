@@ -54,6 +54,97 @@ export const DEMO_PACKAGE_JSON = `{
 }`;
 
 /**
+ * Error reporter. Runtime errors inside the demo happen in the IFRAME's console,
+ * invisible to the studio — this posts them to the parent so a white screen
+ * becomes an actionable banner.
+ *
+ * The subtle part is compile errors. When Vite fails to transform a module it
+ * answers 500 for that request and mounts <vite-error-overlay>, so all the page
+ * sees is "script failed to load" — a message that tells the user (and the AI
+ * asked to fix it) exactly nothing. The real text — "Failed to resolve import
+ * './components/Sidebar' from 'src/App.tsx'" — lives in the overlay's shadow
+ * root, so we read it there and hold the vague resource error back in case a
+ * compile error is about to explain it properly.
+ */
+const ERROR_SCRIPT = `(function () {
+  if (window.parent === window) return;
+  var sent = 0, sawCompile = false;
+
+  function rpt(kind, message, stack) {
+    if (sent >= 5) return;
+    sent++;
+    try {
+      parent.postMessage({
+        __fittPreviewError: true, kind: kind,
+        message: String(message || "").slice(0, 2000),
+        stack: String(stack || "").slice(0, 4000)
+      }, "*");
+    } catch (e) {}
+  }
+
+  /** Pull message + file + code frame out of Vite's overlay. */
+  function readOverlay(el) {
+    try {
+      var root = el.shadowRoot;
+      if (!root) return null;
+      var q = function (sel) {
+        var n = root.querySelector(sel);
+        return n ? (n.textContent || "").trim() : "";
+      };
+      var message = q(".message-body") || q(".message");
+      if (!message) return null;
+      var file = q(".file"), frame = q(".frame"), stack = q(".stack");
+      return {
+        message: message,
+        stack: [file && ("ไฟล์: " + file), frame, stack].filter(Boolean).join("\\n")
+      };
+    } catch (e) { return null; }
+  }
+
+  function scanOverlay(node) {
+    if (!node || node.nodeType !== 1) return;
+    var el = node.tagName && node.tagName.toLowerCase() === "vite-error-overlay"
+      ? node
+      : node.querySelector && node.querySelector("vite-error-overlay");
+    if (!el) return;
+    // The overlay mounts before its shadow content settles — read on the next frame.
+    setTimeout(function () {
+      var d = readOverlay(el);
+      if (!d) return;
+      sawCompile = true;
+      rpt("compile", d.message, d.stack);
+    }, 40);
+  }
+
+  new MutationObserver(function (muts) {
+    for (var i = 0; i < muts.length; i++) {
+      var added = muts[i].addedNodes;
+      for (var j = 0; j < added.length; j++) scanOverlay(added[j]);
+    }
+  }).observe(document.documentElement, { childList: true, subtree: true });
+  addEventListener("DOMContentLoaded", function () { scanOverlay(document.body); });
+
+  addEventListener("error", function (e) {
+    if (e && e.error) { rpt("error", e.error.message || e.message, e.error.stack || ""); return; }
+    if (e && e.message) { rpt("error", e.message, (e.filename || "") + (e.lineno ? ":" + e.lineno : "")); return; }
+    var t = e && e.target;
+    if (t && t.tagName === "SCRIPT") {
+      var src = t.src || "";
+      // Give the overlay a moment: "failed to load /src/main.tsx" is the symptom,
+      // the compile error is the cause and it reads far better.
+      setTimeout(function () {
+        if (!sawCompile) rpt("resource", "โหลดสคริปต์ไม่สำเร็จ: " + src, "");
+      }, 600);
+    }
+  }, true);
+
+  addEventListener("unhandledrejection", function (e) {
+    var r = e && e.reason;
+    rpt("promise", (r && (r.message || String(r))) || "unhandled rejection", (r && r.stack) || "");
+  });
+})();`;
+
+/**
  * The Wand overlay, injected into every served page.
  *
  * Selection has to live INSIDE the iframe: the preview is cross-origin, so the
@@ -221,12 +312,7 @@ const fittBridge = {
         children:
           "(function(){if(window.parent===window)return;var p=false,lx=0,ly=0;addEventListener('mousemove',function(e){lx=e.clientX;ly=e.clientY;if(p)return;p=true;requestAnimationFrame(function(){p=false;parent.postMessage({__fittCursor:true,x:lx/innerWidth,y:ly/innerHeight},'*');});});addEventListener('mouseleave',function(){parent.postMessage({__fittCursor:true,leave:true},'*');});})();",
       },
-      {
-        tag: "script",
-        injectTo: "head",
-        children:
-          "(function(){if(window.parent===window)return;var sent=0;function rpt(kind,message,stack){if(sent>=5)return;sent++;try{parent.postMessage({__fittPreviewError:true,kind:kind,message:String(message||'').slice(0,2000),stack:String(stack||'').slice(0,4000)},'*')}catch(e){}}addEventListener('error',function(e){if(e&&e.error){rpt('error',e.error.message||e.message,e.error.stack||'')}else if(e&&e.message){rpt('error',e.message,(e.filename||'')+(e.lineno?(':'+e.lineno):''))}else{var t=e&&e.target;if(t&&t.tagName==='SCRIPT'){rpt('resource','โหลดสคริปต์ไม่สำเร็จ: '+(t.src||''),'')}}},true);addEventListener('unhandledrejection',function(e){var r=e&&e.reason;rpt('promise',(r&&(r.message||String(r)))||'unhandled rejection',(r&&r.stack)||'')});})();",
-      },
+      { tag: "script", injectTo: "head", children: ${JSON.stringify(ERROR_SCRIPT)} },
       // 3) Wand: point at an element in the running demo and edit exactly it.
       { tag: "script", injectTo: "head", children: ${JSON.stringify(WAND_SCRIPT)} },
     ];

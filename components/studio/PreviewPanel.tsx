@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import type { GenerationPhase } from "@/lib/types";
 import type { WandTarget } from "@/lib/wand";
+import type { MissingImport } from "@/lib/import-check";
 import BuildingLoader from "./BuildingLoader";
 
 type Viewport = "mobile" | "tablet" | "desktop";
@@ -47,6 +48,9 @@ interface PreviewPanelProps {
   onWandExit?: () => void;
   /** Bumped by the studio to clear a stale selection / re-measure after a patch. */
   wandNudge?: { clear: number; repaint: number };
+  /** Imports with no file behind them — a guaranteed white screen. */
+  missingFiles?: MissingImport[];
+  onCreateMissingFiles?: () => void;
 }
 
 export default function PreviewPanel({
@@ -65,6 +69,8 @@ export default function PreviewPanel({
   onWandPick,
   onWandExit,
   wandNudge,
+  missingFiles = [],
+  onCreateMissingFiles,
 }: PreviewPanelProps) {
   const frameRef = useRef<HTMLIFrameElement>(null);
   const [viewport, setViewport] = useState<Viewport>("desktop");
@@ -267,6 +273,30 @@ export default function PreviewPanel({
           >
             ออก (Esc)
           </button>
+        </div>
+      )}
+
+      {/* A missing file is the one white screen we can diagnose without waiting
+          for the container to complain — name the files and offer the fix. */}
+      {missingFiles.length > 0 && (
+        <div className="flex shrink-0 items-center gap-2.5 border-b border-amber-400/40 bg-amber-400/10 px-3 py-2">
+          <span className="shrink-0 font-mono text-[11px] font-semibold text-amber-300">
+            ⚠ ไฟล์หาย {missingFiles.length}
+          </span>
+          <span
+            className="min-w-0 flex-1 truncate font-mono text-[11px] text-amber-200/90"
+            title={missingFiles.map((m) => m.expected).join("\n")}
+          >
+            {missingFiles.map((m) => m.expected).join(" · ")} — ถูก import ไว้แต่ยังไม่ถูกสร้าง
+          </span>
+          {onCreateMissingFiles && (
+            <button
+              onClick={onCreateMissingFiles}
+              className="shrink-0 rounded-md bg-shine px-2.5 py-1 font-display text-[12px] font-semibold text-night transition hover:brightness-110"
+            >
+              ✦ สร้างไฟล์ที่ขาด
+            </button>
+          )}
         </div>
       )}
 

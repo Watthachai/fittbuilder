@@ -33,15 +33,28 @@ interface WandComposerProps {
 }
 
 const CARD_W = 340;
+/** The card never grows past this; past it, its body scrolls. */
+const CARD_MAX_H = 440;
 
-/** Keep the card on screen next to the element it edits. */
+/**
+ * Keep the whole card on screen, not just its top edge.
+ *
+ * The first version assumed a fixed 300px height, so the quick tab — which is
+ * closer to 440 — hung off the bottom of the window when the picked element sat
+ * low on the page. Prefer below, fall back to above, then clamp both axes to
+ * the viewport; the body scrolls if the window itself is shorter than the card.
+ */
 function place(anchor: { x: number; y: number; w: number; h: number }) {
-  if (typeof window === "undefined") return { left: 0, top: 0 };
+  if (typeof window === "undefined") return { left: 0, top: 0, maxHeight: CARD_MAX_H };
+  const room = window.innerHeight - 16;
+  const maxHeight = Math.min(CARD_MAX_H, room);
   const below = anchor.y + anchor.h + 10;
-  const fitsBelow = below + 300 < window.innerHeight;
+  const fitsBelow = below + maxHeight <= window.innerHeight - 8;
+  const preferred = fitsBelow ? below : anchor.y - maxHeight - 10;
   return {
     left: Math.min(Math.max(8, anchor.x), window.innerWidth - CARD_W - 8),
-    top: fitsBelow ? below : Math.max(8, anchor.y - 310),
+    top: Math.min(Math.max(8, preferred), Math.max(8, window.innerHeight - maxHeight - 8)),
+    maxHeight,
   };
 }
 
@@ -131,11 +144,11 @@ export default function WandComposer({
 
   return (
     <div
-      style={{ left: pos.left, top: pos.top, width: CARD_W }}
-      className="wand-pop fixed z-[70] rounded-2xl border border-shine/30 bg-night-panel/95 shadow-[0_20px_60px_rgba(0,0,0,.55),0_0_40px_rgba(100,206,251,.15)] backdrop-blur-xl"
+      style={{ left: pos.left, top: pos.top, width: CARD_W, maxHeight: pos.maxHeight }}
+      className="wand-pop fixed z-[70] flex flex-col overflow-hidden rounded-2xl border border-shine/30 bg-night-panel/95 shadow-[0_20px_60px_rgba(0,0,0,.55),0_0_40px_rgba(100,206,251,.15)] backdrop-blur-xl"
     >
       {/* Target */}
-      <div className="flex items-center gap-2 border-b border-night-edge px-3 py-2">
+      <div className="flex shrink-0 items-center gap-2 border-b border-night-edge px-3 py-2">
         <Wand2 size={13} className="shrink-0 text-shine" />
         <span className="min-w-0 flex-1 truncate font-mono text-[11px] text-chalk-dim">
           <span className="text-shine">&lt;{target.tag}&gt;</span> · {shortLoc(target.loc)}
@@ -150,7 +163,7 @@ export default function WandComposer({
       </div>
 
       {/* Mode switch */}
-      <div className="flex gap-1 px-3 pt-2">
+      <div className="flex shrink-0 gap-1 px-3 pt-2">
         {(
           [
             { id: "quick", label: "ปรับเร็ว", Icon: Zap, hint: "ไม่ใช้ AI · ทันที" },
@@ -171,7 +184,7 @@ export default function WandComposer({
       </div>
 
       {mode === "quick" ? (
-        <div className="space-y-3 p-3">
+        <div className="scroll-thin min-h-0 flex-1 space-y-3 overflow-y-auto p-3">
           <Row label="สีพื้นหลัง">
             {QUICK_COLORS.map((c) => (
               <button
@@ -248,7 +261,7 @@ export default function WandComposer({
           </p>
         </div>
       ) : (
-        <div className="p-3">
+        <div className="scroll-thin min-h-0 flex-1 overflow-y-auto p-3">
           <textarea
             ref={inputRef}
             value={text}
@@ -311,7 +324,7 @@ export default function WandComposer({
       )}
 
       {label && (
-        <div className="border-t border-night-edge px-3 py-1.5 font-display text-[11px] text-go">
+        <div className="shrink-0 border-t border-night-edge px-3 py-1.5 font-display text-[11px] text-go">
           ✓ {label}
         </div>
       )}

@@ -290,7 +290,14 @@ export default function WandComposer({
             <button
               onClick={cast}
               disabled={busy || !text.trim()}
-              className="flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-shine px-3 py-1.5 font-display text-[12px] font-semibold text-night transition hover:brightness-110 disabled:opacity-40"
+              /* While casting the button IS the progress indicator — it wears the
+                 same rainbow as the wave running over the element, instead of
+                 greying out like a dead control. */
+              className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg px-3 py-1.5 font-display text-[12px] font-semibold transition ${
+                busy
+                  ? "wand-btn wand-btn-on"
+                  : "bg-shine text-night hover:brightness-110 disabled:opacity-40"
+              }`}
             >
               <Sparkles size={12} />
               {busy ? "กำลังเสก…" : "เสก (Enter)"}

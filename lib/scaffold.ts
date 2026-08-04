@@ -169,10 +169,10 @@ const WAND_SCRIPT = `(function () {
       "#__fwbox.busy{animation:__fwbusy 1.1s ease-in-out infinite alternate}" +
       // The casting wave: a rainbow sweep that runs across the element being
       // rewritten, so the wait reads as "spell in progress" on the thing itself.
-      "#__fwwave{position:absolute;inset:0;opacity:0;transition:opacity .2s;background:linear-gradient(115deg,transparent 18%,rgba(255,86,164,.38) 34%,rgba(100,206,251,.6) 50%,rgba(147,124,255,.55) 64%,rgba(86,255,196,.36) 78%,transparent 92%);background-size:280% 100%}" +
-      "#__fwbox.busy #__fwwave{opacity:1;animation:__fwsweep 1.5s linear infinite}" +
+      "#__fwwave{position:absolute;inset:0;opacity:0;transition:opacity .25s;background:linear-gradient(115deg,rgba(255,86,164,.35) 6%,rgba(255,86,164,.82) 24%,rgba(100,206,251,.95) 42%,rgba(147,124,255,.92) 58%,rgba(86,255,196,.8) 74%,rgba(100,206,251,.45) 94%);background-size:230% 100%}" +
+      "#__fwbox.busy #__fwwave{opacity:1;animation:__fwsweep 3.4s linear infinite}" +
       "#__fwtag{position:fixed;pointer-events:none;z-index:2147483647;font:600 11px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace;color:#06121a;background:#64cefb;padding:2px 7px;border-radius:5px;white-space:nowrap;box-shadow:0 2px 10px rgba(0,0,0,.45)}" +
-      "#__fwtag.busy{background:linear-gradient(90deg,#64cefb,#937cff,#ff56a4,#64cefb);background-size:300% 100%;animation:__fwsweep 2s linear infinite;color:#0a0a0a}" +
+      "#__fwtag.busy{background:linear-gradient(90deg,#64cefb,#937cff,#ff56a4,#64cefb);background-size:300% 100%;animation:__fwsweep 3.4s linear infinite;color:#0a0a0a}" +
       "#__fwdim{position:fixed;inset:0;pointer-events:none;z-index:2147483645;background:rgba(6,8,12,.42)}" +
       "@keyframes __fwpulse{to{box-shadow:0 0 0 2px #64cefb,0 0 30px 8px rgba(100,206,251,.85),0 0 80px 22px rgba(147,124,255,.4)}}" +
       "@keyframes __fwbusy{from{box-shadow:0 0 0 2px #64cefb,0 0 14px 3px rgba(100,206,251,.55)}to{box-shadow:0 0 0 2px #937cff,0 0 36px 12px rgba(147,124,255,.85)}}" +

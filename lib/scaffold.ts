@@ -149,7 +149,7 @@ const ERROR_SCRIPT = `(function () {
  * tab running against an older container can tell, instead of silently
  * reproducing the bug that was just fixed.
  */
-export const SHOT_BRIDGE_VERSION = 14;
+export const SHOT_BRIDGE_VERSION = 15;
 
 /**
  * Screen capture + auto-walk, for building the screen inventory a quotation is
@@ -340,10 +340,21 @@ const SHOT_SCRIPT = `(function () {
     var tagged = document.querySelectorAll('[role="dialog"],[aria-modal="true"]');
     for (var i = 0; i < tagged.length; i++) if (tagged[i].offsetParent) return tagged[i];
     var now = fixedLayers();
-    for (var j = 0; j < now.length; j++) {
-      if (!before || before.indexOf(now[j]) === -1) return now[j];
+    if (before) {
+      for (var j = 0; j < now.length; j++) if (before.indexOf(now[j]) === -1) return now[j];
+      return null;
     }
-    return null;
+    // Recording has no before/after pair to diff, so judge by shape instead:
+    // the highest layer that actually contains a title. Taking merely the first
+    // fixed layer picked up sticky headers and named modals after them.
+    var best = null, bestZ = -1;
+    for (var k = 0; k < now.length; k++) {
+      var el = now[k];
+      if (!el.querySelector("h1,h2,h3,h4,[class*=text-lg],[class*=text-xl],[class*=font-bold],[class*=font-semibold]")) continue;
+      var z = parseInt(getComputedStyle(el).zIndex, 10) || 0;
+      if (z >= bestZ) { bestZ = z; best = el; }
+    }
+    return best;
   }
 
   /** What the dialog calls itself — the name that belongs on the quotation. */
@@ -713,18 +724,26 @@ const SHOT_SCRIPT = `(function () {
     try {
       var dlg = openDialog(null);
       var name = dlg ? dialogName(dlg, lastVia) : screenName();
-      // Two screens can carry the same heading; keep the names distinct so the
-      // flow map does not fuse them into one frame.
-      var taken = 0;
-      for (var k in seen) if (seen[k] === name) taken++;
-      if (taken) name = name + " (" + (taken + 1) + ")";
+      // Two states can carry the same heading; keep the names distinct so the
+      // flow map does not fuse them into one frame. Count every variant of the
+      // base name, or the second and third both come out as "(2)".
+      var base = name, taken = 0;
+      for (var k in captured) {
+        var v = captured[k];
+        if (v === base || v.indexOf(base + " (") === 0) taken++;
+      }
+      if (taken) name = base + " (" + (taken + 1) + ")";
 
       var dataUrl = await shoot();
       seen[fingerprint] = name;
       captured[fingerprint] = name;
       send({
-        __fittShot: true, name: name, parent: recPrev || null,
-        from: recPrev || null, via: lastVia || null, dataUrl: dataUrl
+        __fittShot: true, name: name,
+        // parent = "a modal of this screen" (the gallery nests it);
+        // from = "arrived from this screen" (the flow map draws the arrow).
+        parent: dlg ? (recPrev || null) : null,
+        from: recPrev || null,
+        via: lastVia || null, dataUrl: dataUrl
       });
       send({ __fittRecStep: true, name: name, ok: true, via: lastVia || null });
       recPrev = name;

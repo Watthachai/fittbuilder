@@ -12,7 +12,13 @@ import { createClient } from "@/lib/supabase/client";
  * needed. Ordering and the screen/modal hierarchy live in the file name, which
  * keeps the whole feature free of new tables:
  *
- *   <projectId>/shots/<index>.<parent-b64>.<name-b64>.<via-b64>.png
+ *   <projectId>/shots/<index>.<parent-b64>.<name-b64>.<via-b64>.<from-b64>.png
+ *
+ * `parent` and `from` are different questions and were once the same field:
+ * parent means "a modal OF this screen" (the gallery nests it), from means
+ * "arrived FROM this screen" (the flow map draws an arrow). Recording sets a
+ * from on every capture, so sharing one field turned every screen into a
+ * sub-item of the first one.
  *
  * The separator is "." because base64url's own alphabet contains "_" and "-" —
  * an underscore separator collided with encoded names and split them apart.
@@ -24,6 +30,8 @@ export interface Shot {
   path: string;
   /** The control that led here, when the capture came from a recording. */
   via?: string | null;
+  /** The screen this was reached from — the flow edge, not a nesting. */
+  from?: string | null;
   /** Screen or modal name, as it will appear on the quotation. */
   name: string;
   /** Parent screen name for a modal/sub-state; null for a top-level screen. */
@@ -60,14 +68,18 @@ const decode = (s: string): string => {
 /** The object key for a capture — pure ASCII, sortable by walk order. */
 export function shotKeyFor(
   projectId: string,
-  shot: { index: number; parent: string | null; name: string; via?: string | null }
+  shot: { index: number; parent: string | null; name: string; via?: string | null; from?: string | null }
 ): string {
   const index = String(shot.index).padStart(3, "0");
   const parent = shot.parent ? encode(shot.parent) : "";
-  // The 4th segment is optional: keys written before recording existed have
-  // three, and still parse.
-  const via = shot.via ? `.${encode(shot.via)}` : "";
-  return `${projectId}/shots/${index}.${parent}.${encode(shot.name)}${via}.png`;
+  // Trailing segments are optional, so keys written before recording existed
+  // still parse.
+  const tail = shot.from
+    ? `.${shot.via ? encode(shot.via) : ""}.${encode(shot.from)}`
+    : shot.via
+      ? `.${encode(shot.via)}`
+      : "";
+  return `${projectId}/shots/${index}.${parent}.${encode(shot.name)}${tail}.png`;
 }
 
 /** Read back what the key encodes: walk order, parent screen, display name. */
@@ -76,15 +88,17 @@ export function shotMetaFromPath(path: string): {
   parent: string | null;
   name: string;
   via: string | null;
+  from: string | null;
 } {
   const file = path.split("/").pop() ?? "";
-  const [rawIndex, rawParent, rawName, rawVia] = file.replace(/\.png$/, "").split(".");
+  const [rawIndex, rawParent, rawName, rawVia, rawFrom] = file.replace(/\.png$/, "").split(".");
   const index = Number(rawIndex);
   return {
     index: Number.isFinite(index) ? index : 0,
     parent: rawParent ? decode(rawParent) : null,
     name: (rawName && decode(rawName)) || "หน้าจอ",
     via: rawVia ? decode(rawVia) : null,
+    from: rawFrom ? decode(rawFrom) : null,
   };
 }
 
@@ -110,9 +124,7 @@ export async function uploadShot(
   }
 ): Promise<Shot> {
   const supabase = createClient();
-  // A recorded step hangs off the screen it came from, exactly like a modal
-  // hangs off its screen — same shape, so the gallery groups both for free.
-  const path = shotKeyFor(projectId, { ...shot, parent: shot.parent ?? shot.from ?? null });
+  const path = shotKeyFor(projectId, shot);
   const { error } = await supabase.storage
     .from(BUCKET)
     .upload(path, dataUrlToBlob(shot.dataUrl), { contentType: "image/png", upsert: true });
@@ -120,7 +132,8 @@ export async function uploadShot(
   return {
     path,
     name: shot.name,
-    parent: shot.parent ?? shot.from ?? null,
+    parent: shot.parent ?? null,
+    from: shot.from ?? null,
     via: shot.via ?? null,
     index: shot.index,
     url: await signedUrl(path),

@@ -38,13 +38,17 @@ function layout(shots: Shot[]): { nodes: Node[]; edges: Edge[]; w: number; h: nu
   const unique = [...byName.values()];
 
   const depth = new Map<string, number>();
+  // An arrow follows `from` (where the walk came from); a modal with no `from`
+  // hangs off its parent screen.
+  const sourceOf = (s: Shot) => s.from ?? s.parent ?? null;
   const depthOf = (s: Shot, guard = 0): number => {
     if (depth.has(s.name)) return depth.get(s.name)!;
-    if (!s.parent || guard > 20 || !byName.has(s.parent)) {
+    const src = sourceOf(s);
+    if (!src || guard > 20 || !byName.has(src)) {
       depth.set(s.name, 0);
       return 0;
     }
-    const d = depthOf(byName.get(s.parent)!, guard + 1) + 1;
+    const d = depthOf(byName.get(src)!, guard + 1) + 1;
     depth.set(s.name, d);
     return d;
   };
@@ -68,8 +72,9 @@ function layout(shots: Shot[]): { nodes: Node[]; edges: Edge[]; w: number; h: nu
 
   const edges: Edge[] = [];
   for (const s of shots) {
-    if (!s.parent) continue;
-    const from = byShot.get(s.parent);
+    const src = sourceOf(s);
+    if (!src) continue;
+    const from = byShot.get(src);
     const to = byShot.get(s.name);
     if (!from || !to || from === to) continue;
     if (edges.some((e) => e.from === from && e.to === to && e.label === (s.via ?? null))) continue;

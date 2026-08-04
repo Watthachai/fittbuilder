@@ -27,23 +27,42 @@ describe("shot object keys", () => {
       parent: "ออเดอร์",
       name: "โมดัลเพิ่มออเดอร์",
       via: null,
+      from: null,
     });
   });
 
-  // Recording adds the edge: which control led from one screen to the next.
-  it("round-trips the control that led here", () => {
+  // Recording adds the edge: which control led here, and from where. `parent`
+  // stays reserved for a modal nested under its screen — conflating the two
+  // made every recorded screen a sub-item of the first one.
+  it("round-trips a modal: nested under its screen, with its edge", () => {
     const key = shotKeyFor(PID, {
       index: 3,
       parent: "เอกสารทั้งหมด",
+      from: "เอกสารทั้งหมด",
       name: "รายงานสรุปเอกสาร",
       via: "สร้าง Report ทั้งหมด",
     });
     expect(shotMetaFromPath(key)).toEqual({
       index: 3,
       parent: "เอกสารทั้งหมด",
+      from: "เอกสารทั้งหมด",
       name: "รายงานสรุปเอกสาร",
       via: "สร้าง Report ทั้งหมด",
     });
+  });
+
+  it("round-trips a screen: an edge but no nesting", () => {
+    const key = shotKeyFor(PID, {
+      index: 4,
+      parent: null,
+      from: "เอกสารทั้งหมด",
+      name: "ใบแจ้งหนี้",
+      via: "ใบแจ้งหนี้",
+    });
+    const meta = shotMetaFromPath(key);
+    expect(meta.parent).toBeNull();
+    expect(meta.from).toBe("เอกสารทั้งหมด");
+    expect(meta.name).toBe("ใบแจ้งหนี้");
   });
 
   it("still reads keys written before edges existed", () => {

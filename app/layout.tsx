@@ -3,6 +3,7 @@ import { Anuphan, IBM_Plex_Mono, Inter } from "next/font/google";
 import "./globals.css";
 import FloatingThemeToggle from "@/components/FloatingThemeToggle";
 import GlobalGenerationIndicator from "@/components/GlobalGenerationIndicator";
+import VersionWatcher from "@/components/VersionWatcher";
 import Toaster from "@/components/ui/Toaster";
 import ConfirmHost from "@/components/ui/ConfirmHost";
 import CreateWorkspaceHost from "@/components/org/CreateWorkspaceHost";
@@ -67,6 +68,7 @@ export default function RootLayout({
         {children}
         <FloatingThemeToggle />
         <GlobalGenerationIndicator />
+        <VersionWatcher />
         <Toaster />
         <ConfirmHost />
         <CreateWorkspaceHost />

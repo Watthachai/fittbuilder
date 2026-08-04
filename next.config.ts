@@ -27,6 +27,15 @@ const nextConfig: NextConfig = {
           { key: "Cross-Origin-Opener-Policy", value: "same-origin" },
         ],
       },
+      // A deploy is only visible once the document itself is re-fetched. Its
+      // script tags are content-hashed, so a cached document keeps serving the
+      // previous build's chunks and an ordinary refresh appears to do nothing —
+      // which is what taught people to reach for hard-reload. Never store the
+      // HTML; the hashed assets under /_next/static stay immutable.
+      {
+        source: "/((?!_next/static|_next/image).*)",
+        headers: [{ key: "Cache-Control", value: "no-store, must-revalidate" }],
+      },
     ];
   },
 };

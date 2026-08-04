@@ -149,7 +149,7 @@ const ERROR_SCRIPT = `(function () {
  * tab running against an older container can tell, instead of silently
  * reproducing the bug that was just fixed.
  */
-export const SHOT_BRIDGE_VERSION = 10;
+export const SHOT_BRIDGE_VERSION = 11;
 
 /**
  * Screen capture + auto-walk, for building the screen inventory a quotation is
@@ -246,6 +246,10 @@ const SHOT_SCRIPT = `(function () {
   };
   // Never click these while hunting for a way in: they take you further out.
   var LEAVE_WORDS = /(ออกจากระบบ|ล็อกเอาต์|ออกจาก|log ?out|sign ?out|ลบ|delete|remove|รีเซ็ต|reset|ยกเลิก|cancel|ปิด|close|ย้อนกลับ|กลับ|back)/i;
+  // Hunting for a way IN must never create or change anything. Clicking
+  // "สร้างบริษัท" opened a new-company form and wedged the whole pass — the
+  // gate we want says sign in / select / continue, never "make one".
+  var MUTATE_WORDS = /(สร้าง|เพิ่ม|บันทึก|ส่ง|แก้ไข|นำเข้า|อัปโหลด|create|add|new|save|submit|upload|import|edit)/i;
 
   /**
    * Does React have a click handler on this element?
@@ -280,6 +284,7 @@ const SHOT_SCRIPT = `(function () {
       if (!hasClick(el)) continue;
       var t = norm(el.textContent);
       if (!t || t.length > 90 || LEAVE_WORDS.test(t) || listed(t, appAvoid)) continue;
+      if (MUTATE_WORDS.test(t)) continue;
       var r = el.getBoundingClientRect();
       if (r.width < 40 || r.height < 20) continue;
       // A card list is clickable AND contains clickable cards — take the card.
@@ -492,15 +497,31 @@ const SHOT_SCRIPT = `(function () {
       }
       tried.push(cand);
       var label = norm(cand.textContent).slice(0, 30) || "(ไม่มีข้อความ)";
-      var was = sig();
+      var was = sig(), layersBefore = fixedLayers();
       cand.click();
       await sleep(950);
+      var stray = openDialog(layersBefore);
+      if (stray) {
+        // Opened a dialog instead of going anywhere — close it, or the rest of
+        // the pass runs against a blocked screen.
+        closeDialog(stray);
+        await sleep(400);
+        send({
+          __fittWalkStep: true, step: 0, total: total, ok: false,
+          name: "หาทางเข้าเอง: คลิก “" + label + "”",
+          error: "เปิดหน้าต่างซ้อนแทนที่จะเข้าระบบ — ปิดแล้วลองปุ่มอื่น"
+        });
+        continue;
+      }
       send({
         __fittWalkStep: true, step: 0, total: total, ok: sig() !== was,
         name: "หาทางเข้าเอง: คลิก “" + label + "”",
         error: sig() !== was ? undefined : "คลิกแล้วไม่มีอะไรเปลี่ยน"
       });
     }
+    // Never start the walk with something covering the app.
+    var leftover = openDialog(null);
+    if (leftover) { closeDialog(leftover); await sleep(350); }
     if (!reachable()) {
       send({
         __fittWalkStep: true, step: 0, total: total, ok: false,

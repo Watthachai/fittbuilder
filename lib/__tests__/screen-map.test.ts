@@ -89,6 +89,23 @@ describe("parseScreenMap", () => {
   });
 });
 
+describe("collapsible menu groups", () => {
+  // "ไม่พบเมนู ออกแบบเอกสาร PDF" — the menu existed, inside a shut accordion.
+  it("records the group a menu hides inside", () => {
+    const { screens } = parseScreenMap(
+      `{"screens":[{"name":"ออกแบบเอกสาร PDF","navText":"ออกแบบเอกสาร PDF","expand":"ตั้งค่า E-tax"}]}`
+    );
+    expect(screens[0].expand).toBe("ตั้งค่า E-tax");
+  });
+
+  it("leaves expand unset for a top-level menu", () => {
+    const { screens } = parseScreenMap(
+      `{"screens":[{"name":"เอกสารทั้งหมด","navText":"เอกสารทั้งหมด","expand":""}]}`
+    );
+    expect(screens[0].expand).toBeUndefined();
+  });
+});
+
 describe("gates", () => {
   // A sign-in screen and a company picker are screens the customer pays for, so
   // each one is named — the walk captures it on the way past.

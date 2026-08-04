@@ -22,6 +22,9 @@ export interface ScreenNode {
   name: string;
   /** Visible nav text to reach the screen; empty for the landing screen. */
   navText: string;
+  /** Collapsible group this menu hides inside — its children are absent from
+   *  the DOM until the group is opened, so the walk must expand it first. */
+  expand?: string;
   subs: ScreenSub[];
 }
 
@@ -54,7 +57,7 @@ export function pageFiles(files: ProjectFiles | null | undefined): string[] {
 export const SCREEN_MAP_SYSTEM = `คุณกำลังอ่านซอร์สโค้ดของเว็บเดโม (Vite + React) แล้วสรุป "แผนผังหน้าจอ" เพื่อเอาไปเดินแคปหน้าจอทีละหน้าโดยอัตโนมัติ
 
 ตอบเป็น JSON อย่างเดียว รูปแบบ:
-{"setup":[{"name":"หน้าเข้าสู่ระบบ","click":"เข้าสู่ระบบ"},{"name":"หน้าเลือกบริษัท","click":"บริษัท สยามซอฟท์ จำกัด"}],"screens":[{"name":"แดชบอร์ด","navText":"แดชบอร์ด","subs":[{"name":"โมดัลเพิ่มออเดอร์","openBy":"เพิ่มออเดอร์","closeBy":"ปิด"}]}]}
+{"setup":[{"name":"หน้าเข้าสู่ระบบ","click":"เข้าสู่ระบบ"},{"name":"หน้าเลือกบริษัท","click":"บริษัท สยามซอฟท์ จำกัด"}],"screens":[{"name":"แดชบอร์ด","navText":"แดชบอร์ด","expand":"","subs":[{"name":"โมดัลเพิ่มออเดอร์","openBy":"เพิ่มออเดอร์","closeBy":"ปิด"}]}]}
 
 กติกา:
 - setup = หน้าจอที่ต้องผ่านก่อนถึงจะใช้งานระบบได้ (เข้าสู่ระบบ, เลือกบริษัท/สาขา, หน้าต้อนรับ) เรียงตามลำดับจริง · แต่ละอันมี name (ชื่อหน้าจอสำหรับใบเสนอราคา) และ click (ข้อความบนปุ่ม/การ์ดที่ต้องกดเพื่อผ่านไป) · ถ้าเปิดมาเจอหน้าหลักเลยให้เป็น []
@@ -64,6 +67,8 @@ export const SCREEN_MAP_SYSTEM = `คุณกำลังอ่านซอร�
 - name = ชื่อหน้าจอที่คนอ่านเข้าใจ (ภาษาเดียวกับใน UI) — จะเอาไปใส่ใบเสนอราคา
 - navText = "ข้อความที่มองเห็นบนปุ่ม/เมนู" ที่ต้องคลิกเพื่อไปหน้านั้น ต้องตรงกับข้อความในโค้ดเป๊ะ (ไม่ใช่ชื่อไฟล์ ไม่ใช่ id) · หน้าที่เปิดมาเจอเป็นหน้าแรกให้ navText เป็น ""
 - subs = modal / drawer / panel / ขั้นตอนถัดไป ที่เปิดจากปุ่มในหน้านั้น — openBy/closeBy ก็ต้องเป็นข้อความที่มองเห็นจริงเช่นกัน
+- expand = ถ้าเมนูนั้นอยู่ในกลุ่มที่ "พับ/กางได้" (accordion, submenu) ให้ใส่ข้อความของหัวข้อกลุ่มที่ต้องกดเพื่อกางก่อน · ถ้าเมนูอยู่ระดับบนสุดเห็นได้เลย ให้เป็น ""
+- ห้ามใส่ "หัวข้อกลุ่ม" (section label เช่น ETAX & E-RECEIPT, ตั้งค่า, หมวดเอกสาร) เป็นหน้าจอ — ใส่เฉพาะเมนูที่กดแล้วเปลี่ยนหน้าจริงเท่านั้น
 - ใส่ทุกหน้าที่ผู้ใช้เข้าถึงได้ และทุก modal ที่เปิดได้จริง ห้ามเดาสิ่งที่ไม่มีในโค้ด
 - ถ้า modal ต้องกรอกฟอร์มก่อนถึงจะเปิด ให้ข้ามไป (อย่าใส่)
 - ไม่มี markdown ไม่มีคำอธิบาย ตอบ JSON ล้วน`;
@@ -120,6 +125,7 @@ export function parseScreenMap(raw: string): ScreenMap {
       return {
         name: text(o.name) || "หน้าจอ",
         navText: text(o.navText),
+        expand: text(o.expand) || undefined,
         subs: (Array.isArray(o.subs) ? o.subs : [])
           .slice(0, 12)
           .map((x) => {

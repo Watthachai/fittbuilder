@@ -149,7 +149,7 @@ const ERROR_SCRIPT = `(function () {
  * tab running against an older container can tell, instead of silently
  * reproducing the bug that was just fixed.
  */
-export const SHOT_BRIDGE_VERSION = 5;
+export const SHOT_BRIDGE_VERSION = 6;
 
 /**
  * Screen capture + auto-walk, for building the screen inventory a quotation is
@@ -287,6 +287,38 @@ const SHOT_SCRIPT = `(function () {
   }
 
   /**
+   * Make a menu item reachable when it is not on screen.
+   *
+   * A collapsed accordion keeps its children out of the DOM entirely, so
+   * "ไม่พบเมนู" usually means "the group holding it is shut", not "it does not
+   * exist". Open the named group first; failing that, try the toggles — an
+   * element that is clickable, carries an icon and a short label, and is not a
+   * way out — re-checking after each until the target appears.
+   */
+  function revealMenu(want, group) {
+    if (!want || locate(want)) return true;
+    if (group && clickText(group) && locate(want)) return true;
+
+    var flagged = document.querySelectorAll('[aria-expanded="false"],[data-state="closed"]');
+    for (var i = 0; i < flagged.length; i++) {
+      flagged[i].click();
+      if (locate(want)) return true;
+    }
+
+    var nodes = document.querySelectorAll("*"), tries = 0;
+    for (var j = 0; j < nodes.length && tries < 8; j++) {
+      var el = nodes[j];
+      if (!el.offsetParent || !hasClick(el) || !el.querySelector("svg")) continue;
+      var t = norm(el.textContent);
+      if (!t || t.length > 40 || t === norm(want) || LEAVE_WORDS.test(t)) continue;
+      tries++;
+      el.click();
+      if (locate(want)) return true;
+    }
+    return !!locate(want);
+  }
+
+  /**
    * Fingerprint of the current view — tells "navigated" from "nothing happened".
    *
    * Hashes the WHOLE visible text. Sampling the first 400 characters read the
@@ -368,6 +400,7 @@ const SHOT_SCRIPT = `(function () {
       var screen = plan[s];
       step++;
       var before = sig();
+      if (screen.navText) revealMenu(screen.navText, screen.expand);
       var found = screen.navText ? clickText(screen.navText) : true;
       await sleep(screen.navText ? 800 : 250);
       // Two different failures used to share one message. They need different

@@ -172,14 +172,24 @@ const WAND_SCRIPT = `(function () {
       // Fully opaque on purpose: while a cast runs, the element is being rewritten
       // and there is nothing useful to read through it — the moving colour IS the
       // progress. Solid stops (no alpha), so nothing shows through.
-      "#__fwwave{position:absolute;inset:0;opacity:0;transition:opacity .3s;background:linear-gradient(115deg,#ff56a4 0%,#ff7ac0 12%,#64cefb 28%,#4aa8ff 44%,#937cff 60%,#56ffc4 78%,#64cefb 90%,#ff56a4 100%);background-size:210% 100%}" +
+      //
+      // Seamlessness has two hard requirements, and breaking either one puts a
+      // visible edge in the middle of the element:
+      //   1. the gradient runs at 90deg — a diagonal one cannot tile without a
+      //      seam, because at a given y the tile's left and right edges are at
+      //      different points along the gradient axis;
+      //   2. the first and last stop are the same colour, the tile is a fixed
+      //      600px, and the animation travels exactly 600px — one whole tile, so
+      //      the loop restarts on an identical frame.
+      "#__fwwave{position:absolute;inset:0;opacity:0;transition:opacity .3s;background-image:linear-gradient(90deg,#ff56a4 0%,#ff7ac0 10%,#64cefb 28%,#4aa8ff 42%,#937cff 58%,#56ffc4 76%,#64cefb 90%,#ff56a4 100%);background-size:600px 100%;background-repeat:repeat}" +
       "#__fwbox.busy #__fwwave{opacity:.96;animation:__fwsweep 6s linear infinite}" +
       "#__fwtag{position:fixed;pointer-events:none;z-index:2147483647;font:600 11px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace;color:#06121a;background:#64cefb;padding:2px 7px;border-radius:5px;white-space:nowrap;box-shadow:0 2px 10px rgba(0,0,0,.45)}" +
-      "#__fwtag.busy{background:linear-gradient(90deg,#64cefb,#937cff,#ff56a4,#64cefb);background-size:300% 100%;animation:__fwsweep 6s linear infinite;color:#0a0a0a}" +
+      "#__fwtag.busy{background-image:linear-gradient(90deg,#64cefb 0%,#937cff 33%,#ff56a4 66%,#64cefb 100%);background-size:300px 100%;background-repeat:repeat;animation:__fwtagsweep 4s linear infinite;color:#0a0a0a}" +
       "#__fwdim{position:fixed;inset:0;pointer-events:none;z-index:2147483645;background:rgba(6,8,12,.42)}" +
       "@keyframes __fwpulse{to{box-shadow:0 0 0 2px #64cefb,0 0 30px 8px rgba(100,206,251,.85),0 0 80px 22px rgba(147,124,255,.4)}}" +
       "@keyframes __fwbusy{from{box-shadow:0 0 0 2px #64cefb,0 0 14px 3px rgba(100,206,251,.55)}to{box-shadow:0 0 0 2px #937cff,0 0 36px 12px rgba(147,124,255,.85)}}" +
-      "@keyframes __fwsweep{from{background-position:160% 0}to{background-position:-60% 0}}" +
+      "@keyframes __fwsweep{from{background-position:0 0}to{background-position:600px 0}}" +
+      "@keyframes __fwtagsweep{from{background-position:0 0}to{background-position:300px 0}}" +
       "@media (prefers-reduced-motion:reduce){#__fwbox{transition:none}#__fwbox.pick,#__fwbox.busy,#__fwbox.busy #__fwwave,#__fwtag.busy{animation:none}}";
     document.head.appendChild(s);
     dim = document.createElement("div"); dim.id = "__fwdim";

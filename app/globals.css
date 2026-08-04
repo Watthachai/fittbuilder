@@ -589,22 +589,30 @@ body {
 /* The Wand button is the one place the single-accent rule gives way: it is the
    entry point to the "magic" mode, so it carries the same rainbow the casting
    wave sweeps across the element being rewritten. Same palette, one identity. */
+/* Travels exactly one tile (260px) of a 90deg gradient whose first and last
+   stop are the same colour — so the loop restarts on an identical frame and the
+   colours never show a seam. A diagonal gradient cannot tile without one. */
 @keyframes wand-sheen {
+  from {
+    background-position: 0 0;
+  }
   to {
-    background-position: 300% 0;
+    background-position: 260px 0;
   }
 }
 .wand-btn {
   background-image: linear-gradient(
-    100deg,
+    90deg,
     #ff56a4 0%,
-    #64cefb 22%,
-    #937cff 44%,
-    #56ffc4 66%,
-    #64cefb 84%,
+    #ff7ac0 10%,
+    #64cefb 30%,
+    #937cff 52%,
+    #56ffc4 74%,
+    #64cefb 88%,
     #ff56a4 100%
   );
-  background-size: 300% 100%;
+  background-size: 260px 100%;
+  background-repeat: repeat;
   animation: wand-sheen 9s linear infinite;
   color: #06121a;
   border-color: transparent;

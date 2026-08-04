@@ -149,7 +149,7 @@ const ERROR_SCRIPT = `(function () {
  * tab running against an older container can tell, instead of silently
  * reproducing the bug that was just fixed.
  */
-export const SHOT_BRIDGE_VERSION = 15;
+export const SHOT_BRIDGE_VERSION = 16;
 
 /**
  * Screen capture + auto-walk, for building the screen inventory a quotation is
@@ -457,6 +457,148 @@ const SHOT_SCRIPT = `(function () {
   }
 
   function send(msg) { try { parent.postMessage(msg, "*"); } catch (e) {} }
+
+  /** Wait for the view to stop changing — a transition, a fetch, a spinner. */
+  async function settle(max) {
+    var prev = "", same = 0, waited = 0, cap = max || 2600;
+    while (waited < cap) {
+      await sleep(180);
+      waited += 180;
+      var now = sig();
+      if (now === prev) { if (++same >= 2) return now; }
+      else { prev = now; same = 0; }
+    }
+    return sig();
+  }
+
+  /* ——— The screen index: doors the app itself declares ———
+   *
+   * Everything above tries to DISCOVER how to reach a screen and keeps being
+   * wrong on real apps — menus inside shut accordions, role-gated items, a
+   * company picker in the way, hand-rolled modals with no role="dialog". The
+   * app's author knows all of it, so it leaves one hidden button per screen and
+   * per modal and we just click them. Modal entries live in the component that
+   * owns the modal, so they exist only while their screen is mounted — which is
+   * how a modal gets filed under the right parent without any guessing.
+   */
+  function indexEntries(modal) {
+    var all = document.querySelectorAll("[data-fitt-index] [data-fitt-screen]");
+    var out = [];
+    for (var i = 0; i < all.length; i++) {
+      if (all[i].hasAttribute("data-fitt-modal") === !!modal) out.push(all[i]);
+    }
+    return out;
+  }
+
+  function indexNames(modal) {
+    var els = indexEntries(modal), out = [];
+    for (var i = 0; i < els.length; i++) {
+      var n = els[i].getAttribute("data-fitt-screen");
+      if (n && out.indexOf(n) === -1) out.push(n);
+    }
+    return out;
+  }
+
+  /** Re-found by name every time: React re-renders replace the DOM node. */
+  function indexEntry(name, modal) {
+    var els = indexEntries(modal);
+    for (var i = 0; i < els.length; i++) {
+      if (els[i].getAttribute("data-fitt-screen") === name) return els[i];
+    }
+    return null;
+  }
+
+  async function indexWalk() {
+    stop = false;
+    var screens = indexNames(false);
+    if (screens.length === 0) {
+      send({
+        __fittWalkStep: true, step: 0, total: 0, ok: false, name: "ดัชนีหน้าจอ",
+        error: "เดโมนี้ยังไม่มีดัชนีหน้าจอ — กด “เพิ่มดัชนีหน้าจอ” ให้ AI ใส่ให้ก่อน"
+      });
+      send({ __fittWalkDone: true });
+      return;
+    }
+    var total = screens.length, step = 0;
+
+    for (var i = 0; i < screens.length && !stop; i++) {
+      var name = screens[i];
+      step++;
+      var door = indexEntry(name, false);
+      if (!door) {
+        send({ __fittWalkStep: true, step: step, total: total, name: name, ok: false, error: "ปุ่มดัชนีหายไประหว่างเดิน" });
+        continue;
+      }
+      door.click();
+      await settle();
+      // A modal left open from the previous stop would be photographed as part
+      // of this screen — clear it before the shutter.
+      var stray = openDialog(null);
+      if (stray) { closeDialog(stray); await settle(1200); }
+
+      var state = sig();
+      if (captured[state]) {
+        // The door did not move the app. Filing this would put a copy of the
+        // previous screen under this screen's name — the one lie a quotation
+        // must never carry — so say what is wrong instead.
+        send({
+          __fittWalkStep: true, step: step, total: total, name: name, ok: false,
+          error: "ได้หน้าเดียวกับ “" + captured[state] + "” — onClick ของปุ่มดัชนีหน้านี้ยังตั้ง state ไม่ครบ"
+        });
+        continue;
+      }
+      try {
+        captured[state] = name;
+        send({ __fittShot: true, name: name, parent: null, dataUrl: await shoot() });
+        send({ __fittWalkStep: true, step: step, total: total, name: name, ok: true });
+      } catch (e) {
+        send({ __fittWalkStep: true, step: step, total: total, name: name, ok: false, error: String(e && e.message || e) });
+        continue;
+      }
+
+      // Modals this screen declares. They are only in the DOM now, while it is
+      // mounted, so this list is exactly "the modals of this screen".
+      var modals = indexNames(true);
+      total += modals.length;
+      for (var m = 0; m < modals.length && !stop; m++) {
+        var mname = modals[m];
+        step++;
+        var mdoor = indexEntry(mname, true);
+        if (!mdoor) {
+          send({ __fittWalkStep: true, step: step, total: total, name: mname, ok: false, error: "ปุ่มดัชนีของ modal หายไป" });
+          continue;
+        }
+        mdoor.click();
+        await settle(2200);
+        var mstate = sig();
+        if (captured[mstate]) {
+          send({
+            __fittWalkStep: true, step: step, total: total, name: mname, ok: false,
+            error: "กดแล้วหน้าไม่เปลี่ยน — modal อาจไม่ได้เปิดจริง"
+          });
+        } else {
+          try {
+            captured[mstate] = mname;
+            // parent nests it under this screen in the gallery; from/via draw
+            // the arrow on the flow map.
+            send({ __fittShot: true, name: mname, parent: name, from: name, via: mname, dataUrl: await shoot() });
+            send({ __fittWalkStep: true, step: step, total: total, name: mname, ok: true });
+          } catch (e2) {
+            send({ __fittWalkStep: true, step: step, total: total, name: mname, ok: false, error: String(e2 && e2.message || e2) });
+          }
+        }
+        var open = openDialog(null);
+        if (open) closeDialog(open);
+        else document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+        await sleep(450);
+        // A modal that navigated on close would take the rest of this screen's
+        // modals with it — go back through the door.
+        var back = indexEntry(name, false);
+        if (back) { back.click(); await settle(1500); }
+      }
+    }
+    send({ __fittWalkDone: true });
+  }
 
   async function walk(plan, setup, words) {
     stop = false;
@@ -797,6 +939,7 @@ const SHOT_SCRIPT = `(function () {
         .then(function (dataUrl) { send({ __fittShot: true, name: d.name || "หน้าจอ", parent: null, dataUrl: dataUrl }); send({ __fittWalkDone: true }); })
         .catch(function (err) { send({ __fittWalkStep: true, step: 1, total: 1, name: d.name || "หน้าจอ", ok: false, error: String(err && err.message || err) }); send({ __fittWalkDone: true }); });
     }
+    if (d.__fittIndexWalk) void indexWalk();
     if (d.__fittWalk && Array.isArray(d.plan)) void walk(d.plan, d.setup || [], d.words || {});
     if (d.__fittWalkStop) stop = true;
   });

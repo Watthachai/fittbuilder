@@ -1,13 +1,15 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Camera,
   Radio,
   CheckCircle2,
   ImageOff,
+  ListChecks,
   Loader2,
   ScanLine,
+  Sparkles,
   Square,
   Trash2,
   X,
@@ -17,6 +19,7 @@ import GlassSurface from "@/components/ui/GlassSurface";
 import ImageLightbox from "@/components/ui/ImageLightbox";
 import { clearShots, deleteShot, listShots, uploadShot, type Shot } from "@/lib/shots";
 import { pageFiles, type ScreenMap } from "@/lib/screen-map";
+import { hasScreenIndex, screenIndexEntries } from "@/lib/screen-index";
 import { SHOT_BRIDGE_VERSION } from "@/lib/scaffold";
 import { toast } from "@/lib/toast";
 import FlowMap from "./FlowMap";
@@ -47,6 +50,8 @@ interface ScreenInventoryProps {
   files: ProjectFiles | null;
   /** Send a message into the preview iframe (the studio owns the ref). */
   toPreview: (msg: Record<string, unknown>) => void;
+  /** Ask the model to retrofit the hidden screen index into an older project. */
+  onAddScreenIndex?: () => void;
   /** Preview is running — without it there is nothing to photograph. */
   ready: boolean;
   onClose: () => void;
@@ -58,6 +63,7 @@ export default function ScreenInventory({
   onStartRecording,
   files,
   toPreview,
+  onAddScreenIndex,
   ready,
   onClose,
 }: ScreenInventoryProps) {
@@ -160,6 +166,39 @@ export default function ScreenInventory({
     window.addEventListener("message", onMessage);
     return () => window.removeEventListener("message", onMessage);
   }, [projectId, refresh]);
+
+  /**
+   * The doors the app declares for itself. When they exist, walking them is the
+   * only capture path that is complete by construction — no menu hunting, no
+   * role gates, no guessing which button opens which modal.
+   */
+  const doors = useMemo(() => {
+    const entries = screenIndexEntries(files);
+    const screensCount = entries.filter((e) => !e.modal).length;
+    return {
+      present: hasScreenIndex(files),
+      screens: screensCount,
+      modals: entries.length - screensCount,
+    };
+  }, [files]);
+
+  /** Walk the declared index: click each door, photograph where it lands. */
+  const indexScan = async () => {
+    if (!ready) return;
+    const ok = await confirm({
+      title: `แคปทุกหน้าจากดัชนี (${doors.screens} หน้า)?`,
+      message:
+        "ระบบจะเปิดทีละหน้าตามดัชนีที่ AI ประกาศไว้ในโค้ด พร้อม modal ของแต่ละหน้า — ไม่ต้องเดินเมนูเอง · ภาพชุดเดิมจะถูกล้างก่อนเริ่ม",
+      confirmLabel: "เริ่มแคป",
+    });
+    if (!ok) return;
+    setSteps([]);
+    await clearShots(projectId);
+    setShots([]);
+    indexRef.current = 0;
+    setBusy("walk");
+    toPreview({ __fittIndexWalk: true });
+  };
 
   /**
    * @param fromHere Skip the gates and walk from wherever the preview already
@@ -297,8 +336,31 @@ export default function ScreenInventory({
             </button>
           ) : (
             <>
-              {/* Recording leads: automatic walking has to guess a flow it was
-                  never told, and on a real app that guess keeps being wrong. */}
+              {/* The declared index leads when the app has one: it is the only
+                  path that cannot miss a screen, because the app named them. */}
+              {doors.present ? (
+                <button
+                  onClick={() => void indexScan()}
+                  disabled={!ready || busy !== null || recording}
+                  title={`เดินตามดัชนีที่ประกาศไว้ในโค้ด — ${doors.screens} หน้า · ${doors.modals} modal`}
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-shine px-3 py-1.5 font-display text-[12px] font-semibold text-night transition hover:brightness-110 disabled:opacity-40"
+                >
+                  <ListChecks size={13} /> แคปทุกหน้า ({doors.screens})
+                </button>
+              ) : (
+                onAddScreenIndex && (
+                  <button
+                    onClick={onAddScreenIndex}
+                    disabled={!files || busy !== null || recording}
+                    title="ให้ AI ใส่ปุ่มซ่อนหนึ่งปุ่มต่อหนึ่งหน้าจอ/modal — ไม่กระทบหน้าตาเดโม แล้วแคปได้ครบทุกหน้าในคลิกเดียว"
+                    className="inline-flex items-center gap-1.5 rounded-lg bg-shine px-3 py-1.5 font-display text-[12px] font-semibold text-night transition hover:brightness-110 disabled:opacity-40"
+                  >
+                    <Sparkles size={13} /> เพิ่มดัชนีหน้าจอ
+                  </button>
+                )
+              )}
+              {/* Recording stays: it is the only path that records real flow
+                  edges (which button led where), which the index cannot know. */}
               <button
                 onClick={() => {
                   indexRef.current = shots.length ? Math.max(...shots.map((x) => x.index)) + 1 : 0;
@@ -371,6 +433,20 @@ export default function ScreenInventory({
           </div>
         )}
 
+        {/* Why the primary button says "เพิ่มดัชนี" instead of "แคป". Projects
+            generated before the contract have no doors, and one iteration turn
+            adds them without touching a pixel of the demo. */}
+        {files && !doors.present && onAddScreenIndex && (
+          <div className="flex shrink-0 items-center gap-2.5 border-b border-shine/30 bg-shine/[0.07] px-5 py-2">
+            <Sparkles size={13} className="shrink-0 text-shine" />
+            <span className="min-w-0 flex-1 text-[11px] leading-relaxed text-chalk-dim">
+              เดโมนี้ยังไม่มี <b className="text-chalk">ดัชนีหน้าจอ</b> — ปุ่มซ่อน 1 ปุ่มต่อ 1 หน้าจอ/modal
+              ที่ AI ประกาศไว้ในโค้ดเอง ทำให้ระบบเข้าถึงได้ครบทุกหน้าโดยไม่ต้องเดาเมนู
+              (ไม่แสดงผลบนจอ ไม่กระทบหน้าตาเดโม)
+            </span>
+          </div>
+        )}
+
         {/* A wall of green ticks buries the two lines that need attention —
             summarise, and open on the failures. */}
         {steps.length > 0 && (
@@ -418,9 +494,20 @@ export default function ScreenInventory({
               <Camera size={22} className="text-chalk-dim" />
               <p className="font-display text-sm text-chalk-dim">ยังไม่มีภาพหน้าจอ</p>
               <p className="max-w-md text-xs leading-relaxed text-chalk-dim/70">
-                กด <b className="text-halt">“อัดการใช้งาน”</b> แล้วใช้เดโมตามปกติ — ทุกหน้าที่คุณเปิดและทุก
-                modal ที่กด จะถูกเก็บให้เอง พร้อมจำว่ามาจากปุ่มไหน แล้วดูเป็นผัง Flow ได้ทันที
-                · ส่วน “สแกนอัตโนมัติ” ให้ระบบเดินเอง เหมาะกับเดโมที่ไม่มีหน้าเข้าสู่ระบบ
+                {doors.present ? (
+                  <>
+                    กด <b className="text-shine">“แคปทุกหน้า”</b> — ระบบจะเปิดทีละหน้าตามดัชนีที่ AI
+                    ประกาศไว้ในโค้ด ({doors.screens} หน้า · {doors.modals} modal) แล้วเก็บภาพให้ครบเอง
+                    · ถ้าอยากได้ <b className="text-halt">ผัง Flow</b> ว่าปุ่มไหนพาไปหน้าไหน ให้ใช้ “อัดการใช้งาน”
+                    แล้วกดใช้เดโมตามปกติ
+                  </>
+                ) : (
+                  <>
+                    กด <b className="text-shine">“เพิ่มดัชนีหน้าจอ”</b> ให้ AI ฝากปุ่มซ่อนไว้หนึ่งปุ่มต่อหนึ่งหน้าจอ
+                    แล้วค่อยกด “แคปทุกหน้า” จะได้ครบทั้งโปรเจกต์ในคลิกเดียว ·
+                    หรือใช้ <b className="text-halt">“อัดการใช้งาน”</b> เดินเดโมเองแล้วให้ระบบเก็บภาพตาม
+                  </>
+                )}
               </p>
             </div>
           ) : (

@@ -12,6 +12,7 @@ import { DOC_PATHS, docOnlyFiles, docsFromFiles, hasRunnableApp } from "@/lib/de
 import { REORGANIZE_PROMPT } from "@/lib/code-health";
 import { commitRevision, revisionFiles } from "@/lib/revisions";
 import { buildMissingFilesPrompt, missingImports } from "@/lib/import-check";
+import { SCREEN_INDEX_PROMPT } from "@/lib/screen-index";
 import { listShots, uploadShot } from "@/lib/shots";
 import { buildWandPrompt, parseLoc, type WandTarget } from "@/lib/wand";
 import { patchClassName, patchText } from "@/lib/wand-patch";
@@ -1251,6 +1252,16 @@ export default function Studio({ projectId }: { projectId: string }) {
     [generate, wandTarget]
   );
 
+  /**
+   * Retrofit the hidden screen index into a project generated before the
+   * contract existed — one iteration turn, no visible change to the demo, and
+   * the capture walk goes from "guess the menus" to "click the declared doors".
+   */
+  const addScreenIndex = useCallback(() => {
+    setScreensOpen(false);
+    void generate(SCREEN_INDEX_PROMPT);
+  }, [generate]);
+
   /** Create the files the app imports but never got (white-screen root cause). */
   const createMissingFiles = useCallback(() => {
     const missing = missingImports(projectRef.current?.files ?? null);
@@ -1903,6 +1914,7 @@ export default function Studio({ projectId }: { projectId: string }) {
           projectId={projectId}
           files={project.files}
           toPreview={toPreview}
+          onAddScreenIndex={readOnly || busy ? undefined : addScreenIndex}
           ready={Boolean(previewUrl) && phase === "ready"}
           recording={recording}
           onStartRecording={() => {

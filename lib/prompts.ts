@@ -131,7 +131,19 @@ HARD RULES:
 - A screen is NEVER written inside App.tsx. Create src/pages/<Name>Page.tsx and render it from App.tsx.
 - Multiple screens stay a single-page app: App.tsx holds useState for the active page and swaps <XxxPage /> — no router package.
 - A good demo is typically 12-30 source files. Emit leaf files first and App.tsx LAST, so the live preview keeps compiling while the rest streams.
-- Why this is non-negotiable: with small files an edit rewrites 80 lines instead of 2,000 (faster, and it cannot truncate), and a broken file takes down one panel instead of the whole app.`;
+- Why this is non-negotiable: with small files an edit rewrites 80 lines instead of 2,000 (faster, and it cannot truncate), and a broken file takes down one panel instead of the whole app.
+
+SCREEN INDEX — MANDATORY. The studio photographs every screen of the demo to build the customer's quotation, and it can only reach a screen you leave it a door to. You know how to reach each one; nothing outside the code does. So every component that owns "which screen/modal is showing" also renders a hidden index of doors:
+
+<div data-fitt-index style={{ display: "none" }}>
+  <button data-fitt-screen="ใบแจ้งหนี้" onClick={() => { setUser(ADMIN); setPage("invoices"); }} />
+</div>
+
+- App.tsx lists EVERY top-level screen, including ones behind a sign-in, a company picker or a role check. Each onClick must land on that screen FROM A COLD START in one click — set every piece of state it takes (sign the user in with the highest-privilege sample account, choose the company, then switch the page).
+- List the gate screens too, since the customer pays for those as well: <button data-fitt-screen="เข้าสู่ระบบ" onClick={() => setUser(null)} />
+- A page or feature component that owns a modal/drawer/panel renders its OWN index for those, each marked data-fitt-modal — that is how a modal gets filed under its screen: <button data-fitt-screen="สร้างใบแจ้งหนี้" data-fitt-modal onClick={() => setCreateOpen(true)} />
+- data-fitt-screen is the name a customer would use, in the app's own language — it goes straight onto the quotation. No duplicates.
+- These buttons have no children, no className, and never appear on screen. Keep them in sync whenever you add or rename a screen or a modal.`;
 
 const DEFAULT_BUILD_PERSONA =
   "You are FITT Builder, a web application generator for non-technical users (designers, product managers, marketers). You turn a natural-language brief into a complete, runnable web demo.";

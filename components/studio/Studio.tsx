@@ -83,6 +83,7 @@ import PreviewPanel from "./PreviewPanel";
 import ShareModal from "./ShareModal";
 import SkillPicker from "./SkillPicker";
 import WandComposer from "./WandComposer";
+import HistoryPanel from "./HistoryPanel";
 import SpecFlow, { type SpecResult } from "./SpecFlow";
 import StatusBar from "./StatusBar";
 import TopBar from "./TopBar";
@@ -153,7 +154,9 @@ export default function Studio({ projectId }: { projectId: string }) {
   const [terminal, setTerminal] = useState<string[]>([]);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [previewKey, setPreviewKey] = useState(0);
-  const [view, setView] = useState<"preview" | "code">("preview");
+  const [view, setView] = useState<"preview" | "code" | "history">("preview");
+  // Bumped whenever a checkpoint lands, so an open History tab refetches.
+  const [revisionTick, setRevisionTick] = useState(0);
   const [wandOn, setWandOn] = useState(false);
   const [wandBusy, setWandBusy] = useState(false);
   const [wandTarget, setWandTarget] = useState<{
@@ -673,6 +676,7 @@ export default function Studio({ projectId }: { projectId: string }) {
         if (changes.length) {
           const label = prompt.trim().slice(0, 80);
           void commitRevision({ projectId, files, label, kind: "ai" }).then((sha) => {
+            setRevisionTick((t) => t + 1);
             if (!sha) return;
             const withSha = projectRef.current;
             if (!withSha) return;
@@ -1140,7 +1144,7 @@ export default function Studio({ projectId }: { projectId: string }) {
         label,
         kind: "quick",
         targetLoc: picked.loc,
-      });
+      }).then(() => setRevisionTick((t) => t + 1));
       return Boolean(saved);
     },
     [persist, previewSupported, projectId, pushTerminal, readOnly, wandTarget]
@@ -1209,7 +1213,7 @@ export default function Studio({ projectId }: { projectId: string }) {
         files: snap.files,
         label: `ย้อนกลับไป ${sha}`,
         kind: "restore",
-      });
+      }).then(() => setRevisionTick((t) => t + 1));
       if (hasRunnableApp(saved.files)) void boot(saved.files!);
     },
     [boot, busy, persist, projectId, pushTerminal, readOnly]
@@ -1921,7 +1925,6 @@ export default function Studio({ projectId }: { projectId: string }) {
             }}
             onCancel={cancel}
             onViewDoc={previewPhaseDoc}
-            onRollback={readOnly ? undefined : rollbackTo}
             readOnly={readOnly}
             peers={[...aiPeers.values()]}
             onTyping={broadcastAiTyping}
@@ -1995,6 +1998,12 @@ export default function Studio({ projectId }: { projectId: string }) {
                 wandNudge={wandNudge}
                 missingFiles={missingFiles}
                 onCreateMissingFiles={readOnly ? undefined : createMissingFiles}
+              />
+            ) : view === "history" ? (
+              <HistoryPanel
+                projectId={projectId}
+                refreshKey={revisionTick}
+                onRollback={readOnly ? undefined : rollbackTo}
               />
             ) : (
               <CodePanel

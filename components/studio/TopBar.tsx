@@ -8,6 +8,7 @@ import {
   Eye,
   FileText,
   FileUp,
+  History,
   MoreHorizontal,
   Package,
   Rocket,
@@ -34,7 +35,7 @@ interface TopBarProps {
   org: OrgRecord | null;
   /** Open the in-studio Org DNA panel. */
   onOpenDna: () => void;
-  view: "preview" | "code";
+  view: "preview" | "code" | "history";
   busy: boolean;
   /** Viewer (read-only) — shown as a chip instead of the auto-save status. */
   readOnly: boolean;
@@ -44,7 +45,7 @@ interface TopBarProps {
   /** A runnable app exists — share links and zip exports make sense. */
   shippable: boolean;
   onRename: (name: string) => void;
-  onViewChange: (view: "preview" | "code") => void;
+  onViewChange: (view: "preview" | "code" | "history") => void;
   onUndo: () => void;
   onOpenSpec: () => void;
   onOpenPackages: () => void;
@@ -145,6 +146,15 @@ export default function TopBar({
           }`}
         >
           <Code2 size={13} /> Code
+        </button>
+        <button
+          onClick={() => onViewChange("history")}
+          title="ประวัติเวอร์ชัน — ดูและย้อนกลับได้ทุกจุด"
+          className={`inline-flex items-center gap-1.5 rounded-[2px] px-3 py-1 font-display text-xs font-medium transition ${
+            view === "history" ? "bg-shine text-night" : "text-chalk-dim hover:text-chalk"
+          }`}
+        >
+          <History size={13} /> History
         </button>
       </div>
 

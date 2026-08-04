@@ -1,7 +1,8 @@
 "use client";
 
 import { createClient } from "@/lib/supabase/client";
-import type { ProjectFiles } from "./types";
+import { computeChanges } from "./files";
+import type { FileChange, ProjectFiles } from "./types";
 
 /**
  * Addressable checkpoints. Every change that lands — an AI turn or a wand quick
@@ -132,6 +133,21 @@ export async function listRevisions(projectId: string): Promise<Revision[]> {
     targetLoc: (r.target_loc as string | null) ?? null,
     createdAt: r.created_at as string,
   }));
+}
+
+/**
+ * What a revision changed, against its parent. Two jsonb reads, done only when
+ * the user opens a diff — the list itself never carries file contents.
+ */
+export async function revisionChanges(
+  projectId: string,
+  sha: string,
+  parentSha: string | null
+): Promise<FileChange[] | null> {
+  const current = await revisionFiles(projectId, sha);
+  if (!current) return null;
+  const parent = parentSha ? await revisionFiles(projectId, parentSha) : null;
+  return computeChanges(parent?.files ?? null, current.files);
 }
 
 /** The file map stored at `sha`, or null when it has been pruned away. */

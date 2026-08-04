@@ -19,6 +19,7 @@ import { clearShots, deleteShot, listShots, uploadShot, type Shot } from "@/lib/
 import { pageFiles, type ScreenMap } from "@/lib/screen-map";
 import { SHOT_BRIDGE_VERSION } from "@/lib/scaffold";
 import { toast } from "@/lib/toast";
+import FlowMap from "./FlowMap";
 import { confirm } from "@/lib/confirm";
 import type { ProjectFiles } from "@/lib/types";
 
@@ -65,6 +66,7 @@ export default function ScreenInventory({
   const [steps, setSteps] = useState<Step[]>([]);
   const [zoom, setZoom] = useState<string | null>(null);
   const [stepsOpen, setStepsOpen] = useState(false);
+  const [tab, setTab] = useState<"grid" | "flow">("grid");
   // The capture script lives in the container's vite.config, which is only
   // rewritten on mount — a studio tab left open keeps running an old copy, and
   // a fix then looks like it changed nothing. Ask the preview which build it is.
@@ -241,7 +243,7 @@ export default function ScreenInventory({
     <Overlay open onClose={onClose} placement="center">
       <GlassSurface
         strong
-        className="flex max-h-[88vh] w-full max-w-6xl flex-col overflow-hidden rounded-xl"
+        className="flex h-[88vh] w-full max-w-[92vw] flex-col overflow-hidden rounded-xl"
       >
         <div className="flex shrink-0 items-center gap-3 border-b border-night-edge px-5 py-3">
           <Camera size={16} className="text-shine" />
@@ -254,6 +256,24 @@ export default function ScreenInventory({
           <span className="shrink-0 rounded-full bg-night px-2.5 py-1 font-mono text-[11px] text-chalk-dim">
             {screens.length} หน้า · {shots.length - screens.length} ย่อย
           </span>
+          <div className="flex shrink-0 items-center rounded-lg border border-night-edge p-0.5">
+            {(
+              [
+                { id: "grid", label: "แกลเลอรี" },
+                { id: "flow", label: "ผัง Flow" },
+              ] as const
+            ).map((t) => (
+              <button
+                key={t.id}
+                onClick={() => setTab(t.id)}
+                className={`rounded-md px-2.5 py-1 font-display text-[12px] transition ${
+                  tab === t.id ? "bg-shine text-night" : "text-chalk-dim hover:text-chalk"
+                }`}
+              >
+                {t.label}
+              </button>
+            ))}
+          </div>
           <button
             onClick={onClose}
             aria-label="ปิด"
@@ -382,6 +402,9 @@ export default function ScreenInventory({
           </div>
         )}
 
+        {tab === "flow" && shots.length > 0 ? (
+          <FlowMap shots={shots} onZoom={setZoom} />
+        ) : (
         <div className="scroll-thin min-h-0 flex-1 overflow-y-auto px-5 py-4">
           {shots.length === 0 ? (
             <div className="flex flex-col items-center justify-center gap-2 py-16 text-center">
@@ -412,6 +435,7 @@ export default function ScreenInventory({
             </div>
           )}
         </div>
+        )}
       </GlassSurface>
       {zoom && <ImageLightbox src={zoom} onClose={() => setZoom(null)} />}
     </Overlay>

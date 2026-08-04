@@ -169,10 +169,13 @@ const WAND_SCRIPT = `(function () {
       "#__fwbox.busy{animation:__fwbusy 1.1s ease-in-out infinite alternate}" +
       // The casting wave: a rainbow sweep that runs across the element being
       // rewritten, so the wait reads as "spell in progress" on the thing itself.
-      "#__fwwave{position:absolute;inset:0;opacity:0;transition:opacity .25s;background:linear-gradient(115deg,rgba(255,86,164,.35) 6%,rgba(255,86,164,.82) 24%,rgba(100,206,251,.95) 42%,rgba(147,124,255,.92) 58%,rgba(86,255,196,.8) 74%,rgba(100,206,251,.45) 94%);background-size:230% 100%}" +
-      "#__fwbox.busy #__fwwave{opacity:1;animation:__fwsweep 3.4s linear infinite}" +
+      // Fully opaque on purpose: while a cast runs, the element is being rewritten
+      // and there is nothing useful to read through it — the moving colour IS the
+      // progress. Solid stops (no alpha), so nothing shows through.
+      "#__fwwave{position:absolute;inset:0;opacity:0;transition:opacity .3s;background:linear-gradient(115deg,#ff56a4 0%,#ff7ac0 12%,#64cefb 28%,#4aa8ff 44%,#937cff 60%,#56ffc4 78%,#64cefb 90%,#ff56a4 100%);background-size:210% 100%}" +
+      "#__fwbox.busy #__fwwave{opacity:.96;animation:__fwsweep 6s linear infinite}" +
       "#__fwtag{position:fixed;pointer-events:none;z-index:2147483647;font:600 11px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace;color:#06121a;background:#64cefb;padding:2px 7px;border-radius:5px;white-space:nowrap;box-shadow:0 2px 10px rgba(0,0,0,.45)}" +
-      "#__fwtag.busy{background:linear-gradient(90deg,#64cefb,#937cff,#ff56a4,#64cefb);background-size:300% 100%;animation:__fwsweep 3.4s linear infinite;color:#0a0a0a}" +
+      "#__fwtag.busy{background:linear-gradient(90deg,#64cefb,#937cff,#ff56a4,#64cefb);background-size:300% 100%;animation:__fwsweep 6s linear infinite;color:#0a0a0a}" +
       "#__fwdim{position:fixed;inset:0;pointer-events:none;z-index:2147483645;background:rgba(6,8,12,.42)}" +
       "@keyframes __fwpulse{to{box-shadow:0 0 0 2px #64cefb,0 0 30px 8px rgba(100,206,251,.85),0 0 80px 22px rgba(147,124,255,.4)}}" +
       "@keyframes __fwbusy{from{box-shadow:0 0 0 2px #64cefb,0 0 14px 3px rgba(100,206,251,.55)}to{box-shadow:0 0 0 2px #937cff,0 0 36px 12px rgba(147,124,255,.85)}}" +

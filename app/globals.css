@@ -605,7 +605,7 @@ body {
     #ff56a4 100%
   );
   background-size: 300% 100%;
-  animation: wand-sheen 7s linear infinite;
+  animation: wand-sheen 9s linear infinite;
   color: #06121a;
   border-color: transparent;
   box-shadow:
@@ -624,7 +624,7 @@ body {
 }
 /* Armed: brighter, faster, and ringed so "on" is unmistakable. */
 .wand-btn-on {
-  animation-duration: 3s;
+  animation-duration: 5s;
   box-shadow:
     0 0 0 1px rgb(255 255 255 / 0.35) inset,
     0 0 0 2px rgb(100 206 251 / 0.55),

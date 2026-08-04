@@ -149,7 +149,7 @@ const ERROR_SCRIPT = `(function () {
  * tab running against an older container can tell, instead of silently
  * reproducing the bug that was just fixed.
  */
-export const SHOT_BRIDGE_VERSION = 11;
+export const SHOT_BRIDGE_VERSION = 12;
 
 /**
  * Screen capture + auto-walk, for building the screen inventory a quotation is
@@ -642,10 +642,71 @@ const SHOT_SCRIPT = `(function () {
     send({ __fittWalkDone: true });
   }
 
+  /* ——— Recording: the user walks, we take notes ———
+   *
+   * Driving a generated app blind never stopped needing another special case:
+   * gates, accordions, role-gated menus, hand-rolled modals. The person using
+   * the demo already knows its flow, so the reliable division of labour is
+   * theirs to navigate and ours to capture — and it yields something the walk
+   * never could: which control led from which screen to which.
+   */
+  var rec = false, recPrev = "", recSig = "", recBusy = false;
+
+  async function recordNode(via) {
+    if (recBusy) return;
+    recBusy = true;
+    try {
+      var dlg = openDialog(null);
+      var name = dlg ? dialogName(dlg, via) : screenName();
+      var dataUrl = await shoot();
+      send({
+        __fittShot: true, name: name, parent: dlg ? recPrev : null,
+        from: recPrev || null, via: via || null, dataUrl: dataUrl
+      });
+      send({ __fittRecStep: true, name: name, from: recPrev || null, via: via || null });
+      if (!dlg) recPrev = name;
+      recSig = sig();
+    } catch (err) {
+      send({ __fittRecStep: true, name: via || "หน้าจอ", ok: false, error: String(err && err.message || err) });
+    } finally {
+      recBusy = false;
+    }
+  }
+
+  /** The demo's own name for where we are: breadcrumb/heading, else the title. */
+  function screenName() {
+    var sel = ["[aria-current=page]", "nav [class*=active]", "main h1", "main h2", "h1", "h2"];
+    for (var i = 0; i < sel.length; i++) {
+      var el = document.querySelector(sel[i]);
+      if (el && el.offsetParent) {
+        var t = norm(el.textContent);
+        if (t && t.length <= 60) return t;
+      }
+    }
+    return norm(document.title) || "หน้าจอ";
+  }
+
+  addEventListener("click", function (e) {
+    if (!rec) return;
+    var el = e.target && e.target.closest ? e.target.closest("button,a,[role],li,tr,div,span") : null;
+    var via = el ? norm(el.textContent).slice(0, 40) : "";
+    // Let the app handle the click first, then see where it took us.
+    setTimeout(function () {
+      if (!rec) return;
+      if (sig() === recSig) return; // nothing moved — not a step
+      void recordNode(via);
+    }, 700);
+  }, true);
+
   addEventListener("message", function (e) {
     var d = e.data;
     if (!d || typeof d !== "object") return;
     if (d.__fittShotPing) { send({ __fittShotPong: true, v: VERSION }); return; }
+    if (d.__fittRecord !== undefined) {
+      rec = !!d.__fittRecord;
+      if (rec) { recPrev = ""; recSig = ""; void recordNode(null); }
+      return;
+    }
     if (d.__fittShotOne) {
       shoot()
         .then(function (dataUrl) { send({ __fittShot: true, name: d.name || "หน้าจอ", parent: null, dataUrl: dataUrl }); send({ __fittWalkDone: true }); })

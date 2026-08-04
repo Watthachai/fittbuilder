@@ -173,6 +173,7 @@ export default function Studio({ projectId }: { projectId: string }) {
   const [myAvatar, setMyAvatar] = useState<string | null>(null);
   const [myName, setMyName] = useState("");
   const [screensOpen, setScreensOpen] = useState(false);
+  const [recording, setRecording] = useState(false);
   // Channel into the preview iframe, handed over by PreviewPanel (it owns the ref).
   const previewBridge = useRef<((msg: Record<string, unknown>) => void) | null>(null);
   const toPreview = useCallback((msg: Record<string, unknown>) => {
@@ -1854,8 +1855,40 @@ export default function Studio({ projectId }: { projectId: string }) {
           files={project.files}
           toPreview={toPreview}
           ready={Boolean(previewUrl) && phase === "ready"}
+          recording={recording}
+          onStartRecording={() => {
+            // Recording needs the preview reachable, so this panel gets out of
+            // the way and a slim bar takes over until the user stops.
+            setScreensOpen(false);
+            setRecording(true);
+            setView("preview");
+            toPreview({ __fittRecord: true });
+          }}
           onClose={() => setScreensOpen(false)}
         />
+      )}
+      {recording && (
+        <div className="fixed inset-x-0 bottom-4 z-[80] flex justify-center px-4">
+          <div className="glass flex items-center gap-3 rounded-full py-2 pl-4 pr-2 shadow-glass">
+            <span className="relative flex h-2.5 w-2.5 shrink-0">
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-halt opacity-70" />
+              <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-halt" />
+            </span>
+            <span className="text-[13px] text-chalk">
+              กำลังอัด — ใช้เดโมตามปกติได้เลย ทุกหน้าที่เปลี่ยนจะถูกเก็บให้อัตโนมัติ
+            </span>
+            <button
+              onClick={() => {
+                setRecording(false);
+                toPreview({ __fittRecord: false });
+                setScreensOpen(true);
+              }}
+              className="shrink-0 rounded-full bg-shine px-3 py-1 font-display text-[12px] font-semibold text-night transition hover:brightness-110"
+            >
+              หยุดอัด
+            </button>
+          </div>
+        </div>
       )}
       {wandTarget && !readOnly && (
         <WandComposer

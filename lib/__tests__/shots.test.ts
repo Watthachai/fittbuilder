@@ -26,7 +26,31 @@ describe("shot object keys", () => {
       index: 12,
       parent: "ออเดอร์",
       name: "โมดัลเพิ่มออเดอร์",
+      via: null,
     });
+  });
+
+  // Recording adds the edge: which control led from one screen to the next.
+  it("round-trips the control that led here", () => {
+    const key = shotKeyFor(PID, {
+      index: 3,
+      parent: "เอกสารทั้งหมด",
+      name: "รายงานสรุปเอกสาร",
+      via: "สร้าง Report ทั้งหมด",
+    });
+    expect(shotMetaFromPath(key)).toEqual({
+      index: 3,
+      parent: "เอกสารทั้งหมด",
+      name: "รายงานสรุปเอกสาร",
+      via: "สร้าง Report ทั้งหมด",
+    });
+  });
+
+  it("still reads keys written before edges existed", () => {
+    expect(shotMetaFromPath(`${PID}/shots/001..${btoa("x")}.png`.replace(/=+\./, "."))).toHaveProperty(
+      "via",
+      null
+    );
   });
 
   it("sorts by name the way the walk ran (zero-padded index)", () => {

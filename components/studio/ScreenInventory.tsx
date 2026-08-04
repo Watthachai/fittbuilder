@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Camera,
+  Radio,
   CheckCircle2,
   ImageOff,
   Loader2,
@@ -39,6 +40,9 @@ interface Step {
 
 interface ScreenInventoryProps {
   projectId: string;
+  /** Recording runs with this panel closed, so the studio owns the state. */
+  recording: boolean;
+  onStartRecording: () => void;
   files: ProjectFiles | null;
   /** Send a message into the preview iframe (the studio owns the ref). */
   toPreview: (msg: Record<string, unknown>) => void;
@@ -49,6 +53,8 @@ interface ScreenInventoryProps {
 
 export default function ScreenInventory({
   projectId,
+  recording,
+  onStartRecording,
   files,
   toPreview,
   ready,
@@ -112,6 +118,8 @@ export default function ScreenInventory({
             __fittWalkDone?: boolean;
             name?: string;
             parent?: string | null;
+            from?: string | null;
+            via?: string | null;
             dataUrl?: string;
             ok?: boolean;
             error?: string;
@@ -123,6 +131,8 @@ export default function ScreenInventory({
         void uploadShot(projectId, {
           name: d.name ?? "หน้าจอ",
           parent: d.parent ?? null,
+          from: d.from ?? null,
+          via: d.via ?? null,
           index,
           dataUrl: d.dataUrl,
         })
@@ -281,6 +291,17 @@ export default function ScreenInventory({
             </>
           )}
           <button
+            onClick={() => {
+              indexRef.current = shots.length ? Math.max(...shots.map((x) => x.index)) + 1 : 0;
+              onStartRecording();
+            }}
+            disabled={!ready || busy !== null || recording}
+            title="กดแล้วใช้เดโมตามปกติ — ระบบเก็บทุกหน้าที่เปลี่ยนพร้อมจำว่ามาจากปุ่มไหน"
+            className="inline-flex items-center gap-1.5 rounded-lg bg-halt px-3 py-1.5 font-display text-[12px] font-semibold text-white transition hover:brightness-110 disabled:opacity-40"
+          >
+            <Radio size={13} /> อัดการใช้งาน
+          </button>
+          <button
             onClick={captureOne}
             disabled={!ready || busy !== null}
             title="เดินไปหน้าที่ต้องการในเดโมเอง แล้วกดปุ่มนี้"
@@ -430,6 +451,11 @@ function ShotCard({
       <div className="flex items-center gap-2 px-3 py-2">
         <span className="min-w-0 flex-1 truncate font-display text-[12px] text-chalk" title={shot.name}>
           {shot.name}
+          {shot.via && (
+            <span className="block truncate font-mono text-[10px] text-chalk-dim" title={`มาจากการกด “${shot.via}”`}>
+              ← {shot.via}
+            </span>
+          )}
         </span>
         {subs.length > 0 && (
           <span className="shrink-0 rounded-full bg-shine/15 px-1.5 py-0.5 font-mono text-[10px] text-shine">
@@ -451,7 +477,7 @@ function ShotCard({
             <button
               key={sub.path}
               onClick={() => onZoom(sub.url)}
-              title={sub.name}
+              title={sub.via ? `${sub.name} — กด “${sub.via}”` : sub.name}
               className="shrink-0 overflow-hidden rounded-md border border-night-edge transition hover:border-shine/60"
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}

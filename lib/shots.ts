@@ -12,7 +12,7 @@ import { createClient } from "@/lib/supabase/client";
  * needed. Ordering and the screen/modal hierarchy live in the file name, which
  * keeps the whole feature free of new tables:
  *
- *   <projectId>/shots/<index>.<parent-b64>.<name-b64>.png
+ *   <projectId>/shots/<index>.<parent-b64>.<name-b64>.<via-b64>.png
  *
  * The separator is "." because base64url's own alphabet contains "_" and "-" —
  * an underscore separator collided with encoded names and split them apart.
@@ -22,6 +22,8 @@ const BUCKET = "project-chat";
 
 export interface Shot {
   path: string;
+  /** The control that led here, when the capture came from a recording. */
+  via?: string | null;
   /** Screen or modal name, as it will appear on the quotation. */
   name: string;
   /** Parent screen name for a modal/sub-state; null for a top-level screen. */
@@ -58,12 +60,14 @@ const decode = (s: string): string => {
 /** The object key for a capture — pure ASCII, sortable by walk order. */
 export function shotKeyFor(
   projectId: string,
-  shot: { index: number; parent: string | null; name: string }
+  shot: { index: number; parent: string | null; name: string; via?: string | null }
 ): string {
   const index = String(shot.index).padStart(3, "0");
-  return `${projectId}/shots/${index}.${shot.parent ? encode(shot.parent) : ""}.${encode(
-    shot.name
-  )}.png`;
+  const parent = shot.parent ? encode(shot.parent) : "";
+  // The 4th segment is optional: keys written before recording existed have
+  // three, and still parse.
+  const via = shot.via ? `.${encode(shot.via)}` : "";
+  return `${projectId}/shots/${index}.${parent}.${encode(shot.name)}${via}.png`;
 }
 
 /** Read back what the key encodes: walk order, parent screen, display name. */
@@ -71,14 +75,16 @@ export function shotMetaFromPath(path: string): {
   index: number;
   parent: string | null;
   name: string;
+  via: string | null;
 } {
   const file = path.split("/").pop() ?? "";
-  const [rawIndex, rawParent, rawName] = file.replace(/\.png$/, "").split(".");
+  const [rawIndex, rawParent, rawName, rawVia] = file.replace(/\.png$/, "").split(".");
   const index = Number(rawIndex);
   return {
     index: Number.isFinite(index) ? index : 0,
     parent: rawParent ? decode(rawParent) : null,
     name: (rawName && decode(rawName)) || "หน้าจอ",
+    via: rawVia ? decode(rawVia) : null,
   };
 }
 
@@ -93,15 +99,32 @@ function dataUrlToBlob(dataUrl: string): Blob {
 
 export async function uploadShot(
   projectId: string,
-  shot: { name: string; parent: string | null; index: number; dataUrl: string }
+  shot: {
+    name: string;
+    parent: string | null;
+    index: number;
+    dataUrl: string;
+    /** Recording only: which control led here, and from where. */
+    via?: string | null;
+    from?: string | null;
+  }
 ): Promise<Shot> {
   const supabase = createClient();
-  const path = shotKeyFor(projectId, shot);
+  // A recorded step hangs off the screen it came from, exactly like a modal
+  // hangs off its screen — same shape, so the gallery groups both for free.
+  const path = shotKeyFor(projectId, { ...shot, parent: shot.parent ?? shot.from ?? null });
   const { error } = await supabase.storage
     .from(BUCKET)
     .upload(path, dataUrlToBlob(shot.dataUrl), { contentType: "image/png", upsert: true });
   if (error) throw error;
-  return { path, name: shot.name, parent: shot.parent, index: shot.index, url: await signedUrl(path) };
+  return {
+    path,
+    name: shot.name,
+    parent: shot.parent ?? shot.from ?? null,
+    via: shot.via ?? null,
+    index: shot.index,
+    url: await signedUrl(path),
+  };
 }
 
 async function signedUrl(path: string): Promise<string> {

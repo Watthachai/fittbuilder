@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Maximize2, Minus, Plus } from "lucide-react";
 import type { Shot } from "@/lib/shots";
 
@@ -94,7 +94,66 @@ function path(e: Edge): string {
 export default function FlowMap({ shots, onZoom }: { shots: Shot[]; onZoom: (url: string) => void }) {
   const { nodes, edges, w, h } = useMemo(() => layout(shots), [shots]);
   const [view, setView] = useState({ x: 24, y: 24, k: 0.6 });
-  const drag = useRef<{ x: number; y: number; vx: number; vy: number } | null>(null);
+  const wrapRef = useRef<HTMLDivElement>(null);
+
+  const zoomBy = useCallback(
+    (f: number) => setView((v) => ({ ...v, k: Math.min(1.6, Math.max(0.15, v.k * f)) })),
+    []
+  );
+
+  /** Scale and centre the whole graph inside the viewport. */
+  const fit = useCallback(() => {
+    const box = wrapRef.current?.getBoundingClientRect();
+    if (!box) return;
+    const k = Math.min(1, (box.width - 48) / w, (box.height - 48) / h);
+    setView({ k, x: (box.width - w * k) / 2, y: 24 });
+  }, [w, h]);
+
+  useEffect(fit, [fit]);
+
+  // The wheel listener must be non-passive to stop the browser zooming the page
+  // on ctrl+wheel, and React attaches its own as passive — so this one is bound
+  // directly. Plain wheel pans (what a scroll gesture should do); ctrl/⌘ zooms
+  // toward the pointer, the way a canvas is expected to behave.
+  useEffect(() => {
+    const el = wrapRef.current;
+    if (!el) return;
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      if (e.ctrlKey || e.metaKey) {
+        const box = el.getBoundingClientRect();
+        const px = e.clientX - box.left;
+        const py = e.clientY - box.top;
+        setView((v) => {
+          const k = Math.min(1.6, Math.max(0.15, v.k * (e.deltaY < 0 ? 1.12 : 0.89)));
+          const ratio = k / v.k;
+          return { k, x: px - (px - v.x) * ratio, y: py - (py - v.y) * ratio };
+        });
+        return;
+      }
+      setView((v) => ({ ...v, x: v.x - e.deltaX, y: v.y - e.deltaY }));
+    };
+    el.addEventListener("wheel", onWheel, { passive: false });
+    return () => el.removeEventListener("wheel", onWheel);
+  }, []);
+
+  /**
+   * Drag to pan, tracked on the window: pointer capture on a child left the
+   * canvas unmovable, and window listeners keep the drag alive even when the
+   * cursor leaves the panel entirely.
+   */
+  const startPan = (e: React.MouseEvent) => {
+    if (e.button !== 0) return;
+    const start = { x: e.clientX, y: e.clientY, vx: view.x, vy: view.y };
+    const move = (ev: MouseEvent) =>
+      setView((v) => ({ ...v, x: start.vx + (ev.clientX - start.x), y: start.vy + (ev.clientY - start.y) }));
+    const up = () => {
+      window.removeEventListener("mousemove", move);
+      window.removeEventListener("mouseup", up);
+    };
+    window.addEventListener("mousemove", move);
+    window.addEventListener("mouseup", up);
+  };
 
   if (nodes.length === 0) {
     return (
@@ -104,31 +163,11 @@ export default function FlowMap({ shots, onZoom }: { shots: Shot[]; onZoom: (url
     );
   }
 
-  const zoomBy = (f: number) =>
-    setView((v) => ({ ...v, k: Math.min(1.6, Math.max(0.2, v.k * f)) }));
-
   return (
     <div
-      // CSS owns the cursor: reading the drag ref during render is exactly the
-      // kind of tearing the refs lint rule exists to prevent.
-      className="bg-grid relative min-h-0 flex-1 cursor-grab overflow-hidden active:cursor-grabbing"
-      onPointerDown={(e) => {
-        drag.current = { x: e.clientX, y: e.clientY, vx: view.x, vy: view.y };
-        (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
-      }}
-      onPointerMove={(e) => {
-        const d = drag.current;
-        if (!d) return;
-        setView((v) => ({ ...v, x: d.vx + (e.clientX - d.x), y: d.vy + (e.clientY - d.y) }));
-      }}
-      onPointerUp={() => {
-        drag.current = null;
-      }}
-      onWheel={(e) => {
-        if (!e.ctrlKey && !e.metaKey) return;
-        e.preventDefault();
-        zoomBy(e.deltaY < 0 ? 1.1 : 0.9);
-      }}
+      ref={wrapRef}
+      className="bg-grid relative min-h-0 flex-1 cursor-grab select-none overflow-hidden active:cursor-grabbing"
+      onMouseDown={startPan}
     >
       <div
         className="absolute left-0 top-0 origin-top-left"
@@ -175,7 +214,7 @@ export default function FlowMap({ shots, onZoom }: { shots: Shot[]; onZoom: (url
             </p>
             <button
               onClick={() => onZoom(n.shot.url)}
-              onPointerDown={(e) => e.stopPropagation()}
+              onMouseDown={(e) => e.stopPropagation()}
               className="block overflow-hidden rounded-lg border-2 border-night-edge bg-white transition hover:border-shine"
               style={{ width: NODE_W, height: NODE_H }}
             >
@@ -197,7 +236,7 @@ export default function FlowMap({ shots, onZoom }: { shots: Shot[]; onZoom: (url
           <Plus size={13} />
         </button>
         <button
-          onClick={() => setView({ x: 24, y: 24, k: 0.6 })}
+          onClick={fit}
           title="จัดให้พอดี"
           className="rounded-full p-1 text-chalk-dim hover:text-chalk"
         >
@@ -206,7 +245,7 @@ export default function FlowMap({ shots, onZoom }: { shots: Shot[]; onZoom: (url
       </div>
 
       <p className="pointer-events-none absolute bottom-3 left-4 font-mono text-[10px] text-chalk-dim">
-        ลากเพื่อเลื่อน · Ctrl/⌘ + ล้อเมาส์ เพื่อซูม · คลิกเฟรมเพื่อดูเต็ม
+        ลากเพื่อเลื่อน · ล้อเมาส์เลื่อน · Ctrl/⌘ + ล้อ ซูม · คลิกเฟรมดูเต็ม
       </p>
     </div>
   );

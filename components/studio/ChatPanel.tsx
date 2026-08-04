@@ -14,14 +14,15 @@ import {
   History,
   ImagePlus,
   Lightbulb,
-  Quote,
   ListChecks,
   Loader2,
   type LucideIcon,
   Paperclip,
+  Quote,
   Send,
   Sparkles,
   Square,
+  User,
   Wrench,
   X,
 } from "lucide-react";
@@ -385,10 +386,25 @@ export default function ChatPanel({
             </p>
           </div>
         )}
-        {messages.map((message) => (
+        {messages.map((message) =>
+          /* Your own turns read as yours at a glance: right-aligned, shine-tinted,
+             with an avatar — the AI's stay full-width and neutral. */
+          message.role === "user" ? (
+            <div key={message.id} className="flex items-end justify-end gap-2 pl-8">
+              <div className="min-w-0 break-words rounded-2xl rounded-br-sm border border-shine/40 bg-shine/[0.14] px-3.5 py-2.5 text-chalk">
+                <Markdown>{message.content}</Markdown>
+              </div>
+              <span
+                title="คุณ"
+                className="mb-0.5 grid h-7 w-7 shrink-0 place-items-center rounded-full bg-shine text-night shadow-[0_0_14px_rgba(100,206,251,.35)]"
+              >
+                <User size={14} />
+              </span>
+            </div>
+          ) : (
           <div key={message.id}>
             <p className="mb-1 font-mono text-[10px] uppercase tracking-[0.2em] text-chalk-dim">
-              {message.role === "user" ? "คุณ" : agentName}
+              {agentName}
             </p>
             {message.role === "assistant" && message.thinking && (
               <Thinking text={message.thinking} expanded={false} />
@@ -396,13 +412,7 @@ export default function ChatPanel({
             {message.role === "assistant" && message.actions && (
               <ActionHistory actions={message.actions} live={false} />
             )}
-            <div
-              className={`min-w-0 break-words rounded-lg px-3.5 py-2.5 text-chalk ${
-                message.role === "user"
-                  ? "border border-night-edge bg-night"
-                  : "mt-2 border border-night-edge border-l-2 border-l-shine bg-shine/[0.05]"
-              }`}
-            >
+            <div className="mt-2 min-w-0 break-words rounded-lg border border-night-edge border-l-2 border-l-shine bg-shine/[0.05] px-3.5 py-2.5 text-chalk">
               <Markdown>{message.content}</Markdown>
             </div>
             {message.role === "assistant" &&
@@ -469,7 +479,8 @@ export default function ChatPanel({
                 </div>
               )}
           </div>
-        ))}
+          )
+        )}
         {live && (
           <div>
             <div className="mb-1 flex items-center gap-1.5">

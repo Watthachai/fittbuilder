@@ -15,19 +15,36 @@ describe("pageFiles", () => {
 });
 
 describe("buildScreenMapUser", () => {
-  it("sends only the code that decides navigation", () => {
+  it("sends the code that decides navigation, and nothing decorative", () => {
     const user = buildScreenMapUser({
       "src/App.tsx": "APP",
       "src/pages/OrdersPage.tsx": "ORDERS",
       "src/components/layout/Sidebar.tsx": "SIDEBAR",
-      "src/data/orders.ts": "BIGDATA",
       "src/components/ui/Card.tsx": "CARD",
     });
     expect(user).toContain("APP");
     expect(user).toContain("ORDERS");
     expect(user).toContain("SIDEBAR");
-    expect(user).not.toContain("BIGDATA");
     expect(user).not.toContain("CARD");
+  });
+
+  // A company card on a picker screen is labelled from mock data. Without it the
+  // model invents a name that is on no screen, and the walk stalls at the gate.
+  it("includes the sample data that gate labels are drawn from", () => {
+    const user = buildScreenMapUser({
+      "src/App.tsx": "APP",
+      "src/data/companies.ts": 'export const COMPANIES = [{ name: "สยามซอฟท์ จำกัด" }];',
+    });
+    expect(user).toContain("สยามซอฟท์ จำกัด");
+  });
+
+  it("caps each data file so one big fixture cannot eat the prompt", () => {
+    const user = buildScreenMapUser({
+      "src/App.tsx": "APP",
+      "src/data/rows.ts": "x".repeat(9000),
+    });
+    expect(user).toContain("x".repeat(4000));
+    expect(user).not.toContain("x".repeat(4001));
   });
 });
 

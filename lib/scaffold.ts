@@ -149,7 +149,7 @@ const ERROR_SCRIPT = `(function () {
  * tab running against an older container can tell, instead of silently
  * reproducing the bug that was just fixed.
  */
-export const SHOT_BRIDGE_VERSION = 2;
+export const SHOT_BRIDGE_VERSION = 3;
 
 /**
  * Screen capture + auto-walk, for building the screen inventory a quotation is
@@ -233,32 +233,51 @@ const SHOT_SCRIPT = `(function () {
 
   // Words that open a gate. Ordered by how strongly they mean "go forward".
   var GATE_WORDS = /(เข้าสู่ระบบ|เข้าใช้งาน|ล็อกอิน|เริ่มใช้งาน|เริ่มต้น|ถัดไป|ต่อไป|ดำเนินการต่อ|ตกลง|ยืนยัน|เลือก|เข้า|log ?in|sign ?in|continue|next|start|enter)/i;
+  // Never click these while hunting for a way in: they take you further out.
+  var LEAVE_WORDS = /(ออกจากระบบ|ล็อกเอาต์|ออกจาก|log ?out|sign ?out|ลบ|delete|remove|รีเซ็ต|reset|ยกเลิก|cancel|ปิด|close|ย้อนกลับ|กลับ|back)/i;
+
+  /**
+   * Does React have a click handler on this element?
+   *
+   * Guessing "what looks clickable" from tag and size picked tab strips and a
+   * logout button on the reported demo. React stores the element's props on the
+   * DOM node under a __reactProps$… key, so we can ask what is ACTUALLY wired
+   * instead — precise, and available because the preview always runs in dev.
+   */
+  function hasClick(el) {
+    for (var k in el) {
+      if (k.indexOf("__reactProps$") !== 0) continue;
+      var p = el[k];
+      return !!(p && typeof p.onClick === "function");
+    }
+    return false;
+  }
 
   /**
    * Find something to click when the demo is sitting behind a gate: a sign-in
-   * card, a company picker, a welcome step. Prefers a control whose label means
-   * "go forward", then any prominent enabled button/card — skipping anything
-   * already tried, so a dead end cannot be clicked forever.
+   * button, a company card, a welcome step. Only real handlers are considered,
+   * never anything that leads out (logout, cancel, delete), and never a wrapper
+   * that contains other clickable things — that is the list, not the item.
    */
   function gateCandidate(tried) {
-    var nodes = document.querySelectorAll("button,[role=button],a,div,li");
+    var nodes = document.querySelectorAll("*");
     var best = null, bestScore = -1;
     for (var i = 0; i < nodes.length; i++) {
       var el = nodes[i];
       if (tried.indexOf(el) !== -1) continue;
-      if (el.disabled) continue;
-      if (!el.offsetParent) continue;
-      var r = el.getBoundingClientRect();
-      if (r.width < 60 || r.height < 24 || r.width > innerWidth * 0.95) continue;
+      if (el.disabled || !el.offsetParent) continue;
+      if (!hasClick(el)) continue;
       var t = norm(el.textContent);
-      if (!t || t.length > 60) continue;
-      // A container whose text is just its child's is not the clickable thing.
-      if (el.children.length > 3) continue;
+      if (!t || t.length > 90 || LEAVE_WORDS.test(t)) continue;
+      var r = el.getBoundingClientRect();
+      if (r.width < 40 || r.height < 20) continue;
+      // A card list is clickable AND contains clickable cards — take the card.
+      var inner = el.querySelectorAll("*"), nested = false;
+      for (var j = 0; j < inner.length; j++) if (hasClick(inner[j])) { nested = true; break; }
+      if (nested) continue;
       var score = 0;
-      if (GATE_WORDS.test(t)) score += 100;
-      if (el.tagName === "BUTTON" || el.getAttribute("role") === "button") score += 40;
-      if (/cursor-pointer/.test(el.className || "")) score += 20;
-      score += Math.min(r.width * r.height, 60000) / 6000; // prominence
+      if (GATE_WORDS.test(t)) score += 120;
+      score += Math.min(r.width * r.height, 90000) / 9000; // a card beats a tab
       if (score > bestScore) { bestScore = score; best = el; }
     }
     return best;
@@ -299,7 +318,7 @@ const SHOT_SCRIPT = `(function () {
       return wanted.length === 0;
     };
     var tried = [];
-    for (var a = 0; a < 6 && !reachable() && !stop; a++) {
+    for (var a = 0; a < 8 && !reachable() && !stop; a++) {
       var cand = gateCandidate(tried);
       if (!cand) break;
       tried.push(cand);

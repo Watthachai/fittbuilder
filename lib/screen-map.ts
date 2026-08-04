@@ -50,6 +50,7 @@ export const SCREEN_MAP_SYSTEM = `คุณกำลังอ่านซอร�
 
 กติกา:
 - setup = ลำดับ "ข้อความบนปุ่ม/การ์ด" ที่ต้องคลิกก่อน ถึงจะเข้าถึงหน้าจอหลักได้ เช่น หน้าเข้าสู่ระบบ, หน้าเลือกบริษัท/สาขา, หน้าต้อนรับ — เรียงตามลำดับที่ต้องกดจริง · ถ้าเปิดมาเจอหน้าหลักเลยให้เป็น []
+- ข้อความใน setup ต้องเป็นข้อความที่ "ปรากฏบนจอจริง" — ถ้าการ์ดแสดงชื่อจากข้อมูลตัวอย่าง ให้ใช้ชื่อจริงตัวแรกจากไฟล์ข้อมูล (เช่นชื่อบริษัทจริงใน src/data) ห้ามแต่งชื่อสมมติเช่น "บริษัทตัวอย่าง"
 - อย่าใส่หน้ากั้นเหล่านั้นซ้ำใน screens ถ้ามันไม่ใช่หน้าที่ผู้ใช้กลับมาใช้งานอีก
 - name = ชื่อหน้าจอที่คนอ่านเข้าใจ (ภาษาเดียวกับใน UI) — จะเอาไปใส่ใบเสนอราคา
 - navText = "ข้อความที่มองเห็นบนปุ่ม/เมนู" ที่ต้องคลิกเพื่อไปหน้านั้น ต้องตรงกับข้อความในโค้ดเป๊ะ (ไม่ใช่ชื่อไฟล์ ไม่ใช่ id) · หน้าที่เปิดมาเจอเป็นหน้าแรกให้ navText เป็น ""
@@ -60,10 +61,19 @@ export const SCREEN_MAP_SYSTEM = `คุณกำลังอ่านซอร�
 
 /** Only the code that decides navigation — keeps the prompt small and on-topic. */
 export function buildScreenMapUser(files: ProjectFiles): string {
-  const wanted = Object.keys(files)
+  const nav = Object.keys(files)
     .filter((p) => /^src\/(App|pages\/|components\/layout\/)/.test(p) && /\.(tsx|jsx)$/.test(p))
     .sort();
-  const dump = wanted.map((p) => `--- ${p} ---\n${files[p]}`).join("\n\n");
+  // Gate labels are usually DATA, not code: the company card on a picker screen
+  // reads its name from src/data. Without these the model invents a plausible
+  // label ("บริษัทตัวอย่าง") that exists nowhere on screen, and the walk stalls.
+  const data = Object.keys(files)
+    .filter((p) => /^src\/data\//.test(p))
+    .sort();
+  const dump = [
+    ...nav.map((p) => `--- ${p} ---\n${files[p]}`),
+    ...data.map((p) => `--- ${p} (ข้อมูลตัวอย่าง) ---\n${files[p].slice(0, 4000)}`),
+  ].join("\n\n");
   return `ไฟล์ที่เกี่ยวกับการนำทางของเดโมนี้:\n\n${dump}`;
 }
 

@@ -258,10 +258,8 @@ export default function PreviewPanel({
             onClick={onToggleWand}
             disabled={!url || phase !== "ready"}
             title="Wand — ชี้ element ในเดโมแล้วแก้ตรงจุด"
-            className={`flex items-center gap-1.5 rounded-sm border px-2 py-1.5 font-display text-[11px] transition disabled:opacity-40 ${
-              wandOn
-                ? "border-shine bg-shine text-night"
-                : "border-night-edge text-chalk-dim hover:text-shine"
+            className={`wand-btn flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 font-display text-[11px] font-semibold transition disabled:opacity-40 ${
+              wandOn ? "wand-btn-on" : ""
             }`}
           >
             <Wand2 size={13} />

@@ -586,6 +586,56 @@ body {
   opacity: 0;
   animation: chat-burst 700ms ease-out forwards;
 }
+/* The Wand button is the one place the single-accent rule gives way: it is the
+   entry point to the "magic" mode, so it carries the same rainbow the casting
+   wave sweeps across the element being rewritten. Same palette, one identity. */
+@keyframes wand-sheen {
+  to {
+    background-position: 300% 0;
+  }
+}
+.wand-btn {
+  background-image: linear-gradient(
+    100deg,
+    #ff56a4 0%,
+    #64cefb 22%,
+    #937cff 44%,
+    #56ffc4 66%,
+    #64cefb 84%,
+    #ff56a4 100%
+  );
+  background-size: 300% 100%;
+  animation: wand-sheen 7s linear infinite;
+  color: #06121a;
+  border-color: transparent;
+  box-shadow:
+    0 0 0 1px rgb(255 255 255 / 0.18) inset,
+    0 2px 14px rgb(147 124 255 / 0.35);
+}
+.wand-btn:hover:not(:disabled) {
+  filter: saturate(1.15) brightness(1.06);
+  box-shadow:
+    0 0 0 1px rgb(255 255 255 / 0.28) inset,
+    0 3px 22px rgb(147 124 255 / 0.55);
+}
+.wand-btn:disabled {
+  animation: none;
+  filter: grayscale(0.85);
+}
+/* Armed: brighter, faster, and ringed so "on" is unmistakable. */
+.wand-btn-on {
+  animation-duration: 3s;
+  box-shadow:
+    0 0 0 1px rgb(255 255 255 / 0.35) inset,
+    0 0 0 2px rgb(100 206 251 / 0.55),
+    0 4px 28px rgb(147 124 255 / 0.7);
+}
+@media (prefers-reduced-motion: reduce) {
+  .wand-btn {
+    animation: none;
+  }
+}
+
 /* Wand composer: springs out of the element it edits. */
 @keyframes wand-pop {
   from {

@@ -84,6 +84,8 @@ interface ChatPanelProps {
   onCancel: () => void;
   /** Open the doc-preview modal for a phase (from a message's "ดูเอกสาร" button). */
   onViewDoc: (phase: PhaseId) => void;
+  /** The signed-in user's profile photo, shown on their own turns. */
+  myAvatar?: string | null;
   /** Viewer (read-only): hide every write affordance — composer and answer choices. */
   readOnly?: boolean;
   /** Collaborators currently active in this chat (typing or running the AI). */
@@ -223,6 +225,7 @@ export default function ChatPanel({
   onSubmit,
   onCancel,
   onViewDoc,
+  myAvatar,
   readOnly = false,
   peers = [],
   onTyping,
@@ -391,18 +394,33 @@ export default function ChatPanel({
               <div className="min-w-0 break-words rounded-2xl rounded-br-sm border border-shine/40 bg-shine/[0.14] px-3.5 py-2.5 text-chalk">
                 <Markdown>{message.content}</Markdown>
               </div>
-              <span
-                title="คุณ"
-                className="mb-0.5 grid h-7 w-7 shrink-0 place-items-center rounded-full bg-shine text-night shadow-[0_0_14px_rgba(100,206,251,.35)]"
-              >
-                <User size={14} />
-              </span>
+              {myAvatar ? (
+                /* eslint-disable-next-line @next/next/no-img-element */
+                <img
+                  src={myAvatar}
+                  alt="คุณ"
+                  title="คุณ"
+                  referrerPolicy="no-referrer"
+                  className="mb-0.5 h-7 w-7 shrink-0 rounded-full object-cover ring-2 ring-shine/50"
+                />
+              ) : (
+                <span
+                  title="คุณ"
+                  className="mb-0.5 grid h-7 w-7 shrink-0 place-items-center rounded-full bg-shine text-night shadow-[0_0_14px_rgba(100,206,251,.35)]"
+                >
+                  <User size={14} />
+                </span>
+              )}
             </div>
           ) : (
           <div key={message.id}>
-            <p className="mb-1 font-mono text-[10px] uppercase tracking-[0.2em] text-chalk-dim">
-              {agentName}
-            </p>
+            <div className="mb-1 flex items-center gap-1.5">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/logo.png" alt="" className="h-5 w-5 shrink-0 rounded-md" draggable={false} />
+              <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-chalk-dim">
+                {agentName}
+              </p>
+            </div>
             {message.role === "assistant" && message.thinking && (
               <Thinking text={message.thinking} expanded={false} />
             )}

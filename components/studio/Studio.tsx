@@ -157,6 +157,7 @@ export default function Studio({ projectId }: { projectId: string }) {
   const [view, setView] = useState<"preview" | "code" | "history">("preview");
   // Bumped whenever a checkpoint lands, so an open History tab refetches.
   const [revisionTick, setRevisionTick] = useState(0);
+  const [myAvatar, setMyAvatar] = useState<string | null>(null);
   const [wandOn, setWandOn] = useState(false);
   const [wandBusy, setWandBusy] = useState(false);
   const [wandTarget, setWandTarget] = useState<{
@@ -1589,6 +1590,9 @@ export default function Studio({ projectId }: { projectId: string }) {
     void supabase.auth.getUser().then(({ data: { user } }) => {
       const meta = user?.user_metadata ?? {};
       nameRef.current = (meta.full_name ?? meta.name ?? user?.email ?? "เพื่อนร่วมทีม") as string;
+      // Same source the account chip and presence dots use, so it's the face
+      // teammates already recognise.
+      setMyAvatar((meta.avatar_url ?? meta.picture ?? null) as string | null);
     });
 
     const timers = aiPeerTimers.current;
@@ -1925,6 +1929,7 @@ export default function Studio({ projectId }: { projectId: string }) {
             }}
             onCancel={cancel}
             onViewDoc={previewPhaseDoc}
+            myAvatar={myAvatar}
             readOnly={readOnly}
             peers={[...aiPeers.values()]}
             onTyping={broadcastAiTyping}

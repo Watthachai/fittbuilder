@@ -58,6 +58,7 @@ export default function ScreenInventory({
   const [busy, setBusy] = useState<"map" | "walk" | "one" | null>(null);
   const [steps, setSteps] = useState<Step[]>([]);
   const [zoom, setZoom] = useState<string | null>(null);
+  const [stepsOpen, setStepsOpen] = useState(false);
   // The capture script lives in the container's vite.config, which is only
   // rewritten on mount — a studio tab left open keeps running an old copy, and
   // a fix then looks like it changed nothing. Ask the preview which build it is.
@@ -207,6 +208,7 @@ export default function ScreenInventory({
     setShots((prev) => prev.filter((s) => s.path !== shot.path));
   };
 
+  const failed = steps.filter((s) => !s.ok);
   const screens = shots.filter((s) => !s.parent);
   const subsOf = (name: string) => shots.filter((s) => s.parent === name);
   const orphans = shots.filter((s) => s.parent && !screens.some((x) => x.name === s.parent));
@@ -215,7 +217,7 @@ export default function ScreenInventory({
     <Overlay open onClose={onClose} placement="center">
       <GlassSurface
         strong
-        className="flex max-h-[88vh] w-full max-w-5xl flex-col overflow-hidden rounded-xl"
+        className="flex max-h-[88vh] w-full max-w-6xl flex-col overflow-hidden rounded-xl"
       >
         <div className="flex shrink-0 items-center gap-3 border-b border-night-edge px-5 py-3">
           <Camera size={16} className="text-shine" />
@@ -297,19 +299,41 @@ export default function ScreenInventory({
           </div>
         )}
 
+        {/* A wall of green ticks buries the two lines that need attention —
+            summarise, and open on the failures. */}
         {steps.length > 0 && (
-          <div className="scroll-thin max-h-24 shrink-0 space-y-0.5 overflow-y-auto border-b border-night-edge bg-night/40 px-5 py-2">
-            {steps.map((s, i) => (
-              <div key={i} className="flex items-center gap-1.5 font-mono text-[11px]">
-                {s.ok ? (
-                  <CheckCircle2 size={11} className="shrink-0 text-go" />
-                ) : (
+          <div className="shrink-0 border-b border-night-edge bg-night/40 px-5 py-2">
+            <button
+              onClick={() => setStepsOpen((v) => !v)}
+              className="flex w-full items-center gap-2 font-mono text-[11px] text-chalk-dim transition hover:text-chalk"
+            >
+              <CheckCircle2 size={11} className="shrink-0 text-go" />
+              <span className="text-go">{steps.filter((s) => s.ok).length} สำเร็จ</span>
+              {failed.length > 0 && (
+                <>
                   <ImageOff size={11} className="shrink-0 text-halt" />
-                )}
-                <span className={s.ok ? "text-chalk-dim" : "text-halt"}>{s.name}</span>
-                {s.error && <span className="truncate text-chalk-dim/70">— {s.error}</span>}
+                  <span className="text-halt">{failed.length} ไม่สำเร็จ</span>
+                </>
+              )}
+              <span className="ml-auto">{stepsOpen ? "ซ่อน" : "ดูรายละเอียด"}</span>
+            </button>
+            {(stepsOpen || (failed.length > 0 && !busy)) && (
+              <div className="scroll-thin mt-1.5 max-h-28 space-y-0.5 overflow-y-auto">
+                {(stepsOpen ? steps : failed).map((s, i) => (
+                  <div key={i} className="flex items-start gap-1.5 font-mono text-[11px] leading-relaxed">
+                    {s.ok ? (
+                      <CheckCircle2 size={11} className="mt-0.5 shrink-0 text-go" />
+                    ) : (
+                      <ImageOff size={11} className="mt-0.5 shrink-0 text-halt" />
+                    )}
+                    <span className={s.ok ? "shrink-0 text-chalk-dim" : "shrink-0 text-halt"}>
+                      {s.name}
+                    </span>
+                    {s.error && <span className="text-chalk-dim/70">— {s.error}</span>}
+                  </div>
+                ))}
               </div>
-            ))}
+            )}
           </div>
         )}
 
@@ -324,31 +348,22 @@ export default function ScreenInventory({
               </p>
             </div>
           ) : (
-            <div className="space-y-6">
-              {screens.map((screen) => (
-                <section key={screen.path}>
-                  <ShotCard shot={screen} onZoom={setZoom} onDelete={remove} />
-                  {subsOf(screen.name).length > 0 && (
-                    <div className="mt-2 grid grid-cols-2 gap-3 border-l border-night-edge pl-4 lg:grid-cols-3">
-                      {subsOf(screen.name).map((sub) => (
-                        <ShotCard key={sub.path} shot={sub} small onZoom={setZoom} onDelete={remove} />
-                      ))}
-                    </div>
-                  )}
-                </section>
+            /* A grid, not a column of posters: the point of this screen is to
+               see the whole inventory at once and count it. */
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+              {screens.map((screen, i) => (
+                <ShotCard
+                  key={screen.path}
+                  index={i + 1}
+                  shot={screen}
+                  subs={subsOf(screen.name)}
+                  onZoom={setZoom}
+                  onDelete={remove}
+                />
               ))}
-              {orphans.length > 0 && (
-                <section>
-                  <p className="mb-2 font-mono text-[10px] uppercase tracking-widest text-chalk-dim">
-                    ไม่มีหน้าแม่
-                  </p>
-                  <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
-                    {orphans.map((s) => (
-                      <ShotCard key={s.path} shot={s} small onZoom={setZoom} onDelete={remove} />
-                    ))}
-                  </div>
-                </section>
-              )}
+              {orphans.map((s) => (
+                <ShotCard key={s.path} shot={s} subs={[]} onZoom={setZoom} onDelete={remove} />
+              ))}
             </div>
           )}
         </div>
@@ -360,31 +375,43 @@ export default function ScreenInventory({
 
 function ShotCard({
   shot,
-  small,
+  subs,
+  index,
   onZoom,
   onDelete,
 }: {
   shot: Shot;
-  small?: boolean;
+  /** Modals hanging off this screen, shown as a strip inside its card. */
+  subs: Shot[];
+  index?: number;
   onZoom: (url: string) => void;
   onDelete: (shot: Shot) => Promise<void>;
 }) {
   return (
-    <div className="group overflow-hidden rounded-xl border border-night-edge bg-night">
-      <button onClick={() => onZoom(shot.url)} className="block w-full">
+    <div className="group flex flex-col overflow-hidden rounded-xl border border-night-edge bg-night">
+      <button onClick={() => onZoom(shot.url)} className="relative block w-full">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={shot.url}
           alt={shot.name}
-          className={`w-full object-cover object-top transition group-hover:opacity-90 ${
-            small ? "h-28" : "h-56"
-          }`}
+          className="h-36 w-full bg-white object-cover object-top transition group-hover:opacity-90"
         />
+        {index !== undefined && (
+          <span className="absolute left-1.5 top-1.5 rounded-md bg-night/85 px-1.5 py-0.5 font-mono text-[10px] text-chalk-dim">
+            {String(index).padStart(2, "0")}
+          </span>
+        )}
       </button>
+
       <div className="flex items-center gap-2 px-3 py-2">
-        <span className="min-w-0 flex-1 truncate font-display text-[12px] text-chalk">
+        <span className="min-w-0 flex-1 truncate font-display text-[12px] text-chalk" title={shot.name}>
           {shot.name}
         </span>
+        {subs.length > 0 && (
+          <span className="shrink-0 rounded-full bg-shine/15 px-1.5 py-0.5 font-mono text-[10px] text-shine">
+            +{subs.length}
+          </span>
+        )}
         <button
           onClick={() => void onDelete(shot)}
           aria-label="ลบภาพนี้"
@@ -393,6 +420,22 @@ function ShotCard({
           <Trash2 size={12} />
         </button>
       </div>
+
+      {subs.length > 0 && (
+        <div className="scroll-thin flex gap-1.5 overflow-x-auto border-t border-night-edge px-3 py-2">
+          {subs.map((sub) => (
+            <button
+              key={sub.path}
+              onClick={() => onZoom(sub.url)}
+              title={sub.name}
+              className="shrink-0 overflow-hidden rounded-md border border-night-edge transition hover:border-shine/60"
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={sub.url} alt={sub.name} className="h-12 w-20 bg-white object-cover object-top" />
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

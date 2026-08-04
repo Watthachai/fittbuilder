@@ -149,7 +149,7 @@ const ERROR_SCRIPT = `(function () {
  * tab running against an older container can tell, instead of silently
  * reproducing the bug that was just fixed.
  */
-export const SHOT_BRIDGE_VERSION = 4;
+export const SHOT_BRIDGE_VERSION = 5;
 
 /**
  * Screen capture + auto-walk, for building the screen inventory a quotation is
@@ -227,6 +227,9 @@ const SHOT_SCRIPT = `(function () {
   function clickText(text) {
     var hit = locate(text);
     if (!hit) return false;
+    // A long sidebar puts later items below the fold; some UIs ignore clicks on
+    // what they consider off-screen, and it makes the capture land mid-scroll.
+    try { hit.scrollIntoView({ block: "center" }); } catch (e) {}
     hit.click();
     return true;
   }
@@ -365,15 +368,30 @@ const SHOT_SCRIPT = `(function () {
       var screen = plan[s];
       step++;
       var before = sig();
-      if (screen.navText) clickText(screen.navText);
+      var found = screen.navText ? clickText(screen.navText) : true;
       await sleep(screen.navText ? 800 : 250);
-      // Nothing moved → the click missed, or a gate is still up. Shooting now
-      // would file a copy of the previous screen under this screen's name — the
-      // exact kind of lie a quotation must not be built on.
+      // Two different failures used to share one message. They need different
+      // fixes, so they get different words.
+      if (screen.navText && !found) {
+        send({
+          __fittWalkStep: true, step: step, total: total, name: screen.name, ok: false,
+          error: "ไม่พบเมนู “" + screen.navText + "” บนหน้านี้"
+        });
+        continue;
+      }
+      // Some menus only respond after a transition settles — give it one more go
+      // before calling it stuck.
+      if (screen.navText && sig() === before && sig() === last) {
+        await sleep(500);
+        clickText(screen.navText);
+        await sleep(700);
+      }
+      // Still nothing → shooting now would file a copy of the previous screen
+      // under this screen's name, the exact lie a quotation must not carry.
       if (screen.navText && sig() === before && sig() === last) {
         send({
           __fittWalkStep: true, step: step, total: total, name: screen.name, ok: false,
-          error: "คลิกแล้วหน้าไม่เปลี่ยน — อาจติดหน้ากั้นหรือชื่อปุ่มไม่ตรง"
+          error: "กดเมนูแล้วหน้าไม่เปลี่ยน — อาจเป็นหัวข้อกลุ่ม ไม่ใช่หน้าจอจริง"
         });
         continue;
       }

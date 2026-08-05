@@ -1977,6 +1977,7 @@ export default function Studio({ projectId }: { projectId: string }) {
       {screensOpen && (
         <ScreenInventory
           projectId={projectId}
+          projectName={project.name}
           files={project.files}
           toPreview={toPreview}
           onAddScreenIndex={readOnly || busy ? undefined : addScreenIndex}

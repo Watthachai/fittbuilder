@@ -23,6 +23,7 @@ import { screenIndexCoverage } from "@/lib/screen-index";
 import { SHOT_BRIDGE_VERSION } from "@/lib/scaffold";
 import { toast } from "@/lib/toast";
 import FlowMap from "./FlowMap";
+import Quotation from "./Quotation";
 import { confirm } from "@/lib/confirm";
 import type { ProjectFiles } from "@/lib/types";
 
@@ -44,6 +45,8 @@ interface Step {
 
 interface ScreenInventoryProps {
   projectId: string;
+  /** Names the quotation's subject line. */
+  projectName: string;
   /** Recording runs with this panel closed, so the studio owns the state. */
   recording: boolean;
   onStartRecording: () => void;
@@ -59,6 +62,7 @@ interface ScreenInventoryProps {
 
 export default function ScreenInventory({
   projectId,
+  projectName,
   recording,
   onStartRecording,
   files,
@@ -72,7 +76,7 @@ export default function ScreenInventory({
   const [steps, setSteps] = useState<Step[]>([]);
   const [zoom, setZoom] = useState<string | null>(null);
   const [stepsOpen, setStepsOpen] = useState(false);
-  const [tab, setTab] = useState<"grid" | "flow">("grid");
+  const [tab, setTab] = useState<"grid" | "flow" | "quote">("grid");
   // The capture script lives in the container's vite.config, which is only
   // rewritten on mount — a studio tab left open keeps running an old copy, and
   // a fix then looks like it changed nothing. Ask the preview which build it is.
@@ -296,6 +300,7 @@ export default function ScreenInventory({
               [
                 { id: "grid", label: "แกลเลอรี" },
                 { id: "flow", label: "ผัง Flow" },
+                { id: "quote", label: "ใบเสนอราคา" },
               ] as const
             ).map((t) => (
               <button
@@ -503,7 +508,14 @@ export default function ScreenInventory({
           </div>
         )}
 
-        {tab === "flow" && shots.length > 0 ? (
+        {tab === "quote" ? (
+          <Quotation
+            projectId={projectId}
+            projectName={projectName}
+            shots={shots}
+            readOnly={!onAddScreenIndex}
+          />
+        ) : tab === "flow" && shots.length > 0 ? (
           <FlowMap shots={shots} onZoom={setZoom} />
         ) : (
         <div className="scroll-thin min-h-0 flex-1 overflow-y-auto px-5 py-4">

@@ -665,3 +665,190 @@ body {
     animation: none;
   }
 }
+
+/* ——— The quotation, as paper ———
+   Rendered into a portal on <body> so print can hide every sibling and leave
+   exactly this on the page. Always light: a midnight-black A4 is unreadable
+   printed and costs a quarter of a toner cartridge. Values are literal, not
+   tokens — a theme change must never alter a document already sent. */
+.fitt-paper {
+  --ink: #111827;
+  --ink-dim: #6b7280;
+  --rule: #d1d5db;
+  color: var(--ink);
+  background: #fff;
+  font-size: 13px;
+  line-height: 1.6;
+  padding: 18mm 16mm;
+}
+.fitt-paper h1 {
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+.fitt-paper .q-sub {
+  color: var(--ink-dim);
+  margin-top: 2px;
+}
+.fitt-paper .q-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  border-bottom: 2px solid var(--ink);
+  padding-bottom: 10px;
+}
+.fitt-paper .q-meta th {
+  color: var(--ink-dim);
+  font-weight: 400;
+  text-align: right;
+  padding-right: 10px;
+  white-space: nowrap;
+}
+.fitt-paper .q-meta td {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.fitt-paper .q-parties {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  margin: 14px 0 18px;
+}
+.fitt-paper .q-label {
+  color: var(--ink-dim);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.fitt-paper .q-party {
+  font-weight: 600;
+  white-space: pre-line;
+}
+.fitt-paper .q-items {
+  width: 100%;
+  border-collapse: collapse;
+}
+.fitt-paper .q-items th,
+.fitt-paper .q-items td {
+  border-bottom: 1px solid var(--rule);
+  padding: 6px 8px;
+  vertical-align: top;
+}
+.fitt-paper .q-items thead th {
+  background: #f3f4f6;
+  font-weight: 600;
+  text-align: left;
+  border-bottom: 1px solid var(--ink);
+}
+.fitt-paper .q-r {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.fitt-paper .q-c {
+  text-align: center;
+}
+.fitt-paper .q-n {
+  color: var(--ink-dim);
+  width: 28px;
+  text-align: right;
+}
+.fitt-paper .q-sub-item {
+  padding-left: 14px;
+  border-left: 2px solid var(--rule);
+  display: inline-block;
+}
+.fitt-paper .q-note {
+  display: block;
+  color: var(--ink-dim);
+  font-size: 11px;
+}
+.fitt-paper tfoot td {
+  border-bottom: none;
+  padding-top: 6px;
+}
+.fitt-paper .q-grand td {
+  border-top: 2px solid var(--ink);
+  font-size: 15px;
+  font-weight: 700;
+}
+.fitt-paper .q-terms {
+  margin-top: 18px;
+}
+.fitt-paper .q-terms pre {
+  font: inherit;
+  white-space: pre-wrap;
+  margin-top: 4px;
+}
+.fitt-paper .q-sign {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 40px;
+  margin-top: 28px;
+  text-align: center;
+  color: var(--ink-dim);
+}
+.fitt-paper .q-line {
+  border-bottom: 1px dotted var(--ink);
+  height: 42px;
+  margin-bottom: 6px;
+}
+.fitt-paper .q-shots {
+  margin-top: 26px;
+}
+.fitt-paper .q-shots h2 {
+  font-size: 15px;
+  font-weight: 700;
+  border-bottom: 1px solid var(--rule);
+  padding-bottom: 5px;
+}
+.fitt-paper .q-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-top: 10px;
+}
+.fitt-paper .q-grid figure {
+  break-inside: avoid;
+}
+.fitt-paper .q-grid img {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+  object-position: top;
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+}
+.fitt-paper .q-grid figcaption {
+  color: var(--ink-dim);
+  font-size: 10px;
+  margin-top: 3px;
+}
+
+@page {
+  size: A4;
+  margin: 0;
+}
+@media print {
+  /* The paper is a direct child of <body>; everything beside it goes away.
+     display:none rather than visibility:hidden, or the hidden studio still
+     reserves its full height and prints blank pages after the document. */
+  body > *:not(#fitt-print-root) {
+    display: none !important;
+  }
+  #fitt-print-root {
+    position: static !important;
+    inset: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+  }
+  .fitt-paper .q-items thead {
+    display: table-header-group; /* repeat the header on every page */
+  }
+  .fitt-paper .q-items tr,
+  .fitt-paper .q-sign,
+  .fitt-paper .q-terms {
+    break-inside: avoid;
+  }
+}

@@ -46,6 +46,27 @@ export interface Database {
         // Database type to `never` for every query in the app.
         Relationships: [];
       };
+      fittbuilder_project_quotes: {
+        Row: {
+          project_id: string;
+          payload: Json;
+          updated_by: string | null;
+          updated_at: string;
+        };
+        Insert: {
+          project_id: string;
+          payload: Json;
+          updated_by?: string | null;
+          updated_at?: string;
+        };
+        Update: {
+          project_id?: string;
+          payload?: Json;
+          updated_by?: string | null;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
       fittbuilder_advisor_reports: {
         Row: {
           id: string;

@@ -633,6 +633,28 @@ export default function Studio({ projectId }: { projectId: string }) {
     ) => {
       const current = base ?? projectRef.current;
       if (!current || !prompt.trim()) return;
+      /**
+       * One turn at a time — the precondition every entry point funnels through.
+       *
+       * Two overlapping runs each hold their own `working` snapshot of the
+       * project, taken before the other started. Whichever finishes LAST wins,
+       * and it persists a message list and a file set that never saw the other:
+       * the second wand's chat message vanished, the first edit was reverted,
+       * and the first run's `finally` cleared chatStreaming and abortRef while
+       * the second was still streaming — so the studio looked idle and the live
+       * turn could no longer be cancelled. Exactly the reported "แชทหายไปแล้ว
+       * ไม่ทำงานอะไรเลย".
+       *
+       * Not a queue: an iteration prompt is built from the CURRENT files, and a
+       * wand cast additionally carries a file:line that the running turn can
+       * invalidate. A queued cast would edit the wrong line and say nothing.
+       */
+      if (abortRef.current) {
+        toast.info("กำลังแก้ไขอยู่ครับ", {
+          description: "รอรอบนี้เสร็จก่อน หรือกด “หยุด” เพื่อยกเลิกรอบที่กำลังทำอยู่",
+        });
+        return;
+      }
 
       lastActionRef.current = { kind: "generate", prompt, spec };
       const runnable = hasRunnableApp(current.files);
@@ -1214,6 +1236,12 @@ export default function Studio({ projectId }: { projectId: string }) {
       const current = projectRef.current;
       const picked = wandTarget?.target;
       if (!current || !picked || readOnly) return false;
+      // A deterministic patch written mid-stream is silently thrown away: the
+      // running turn ends by persisting its own snapshot of the files.
+      if (abortRef.current) {
+        toast.info("กำลังแก้ไขอยู่ครับ", { description: "รอรอบนี้เสร็จก่อนค่อยปรับนะครับ" });
+        return false;
+      }
       const { path } = parseLoc(picked.loc);
       const source = current.files?.[path];
       if (source === undefined) return false;
@@ -1240,6 +1268,15 @@ export default function Studio({ projectId }: { projectId: string }) {
     (instruction: string, attachments?: ChatAttachmentInput[]) => {
       const picked = wandTarget?.target;
       if (!picked) return;
+      // Refuse here as well as in generate(), so the selection survives: the
+      // .finally() below clears the target, and letting a refused cast run it
+      // would make the user pick the element again for nothing.
+      if (abortRef.current) {
+        toast.info("กำลังแก้ไขอยู่ครับ", {
+          description: "รอรอบนี้เสร็จก่อน หรือกด “หยุด” เพื่อยกเลิกรอบที่กำลังทำอยู่",
+        });
+        return;
+      }
       setWandBusy(true);
       void generate(buildWandPrompt(picked, instruction), undefined, undefined, attachments).finally(
         () => {
@@ -1959,6 +1996,10 @@ export default function Studio({ projectId }: { projectId: string }) {
           target={wandTarget.target}
           anchor={wandTarget.anchor}
           busy={wandBusy}
+          // Any other turn — chat, fix-error, reorganize, add-index — locks the
+          // wand too: they all write the same files through the same one-at-a-
+          // time path, and only this composer used to look available anyway.
+          locked={chatStreaming && !wandBusy}
           onQuickClass={(action) =>
             applyWandPatch(
               (source) => patchClassName(source, wandTarget.target.loc, action),

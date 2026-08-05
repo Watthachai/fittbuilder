@@ -23,7 +23,14 @@ interface WandComposerProps {
   target: WandTarget;
   /** Where the picked element sits on screen, in page pixels. */
   anchor: { x: number; y: number; w: number; h: number };
+  /** This cast is running — the button wears the spell, not a dead grey. */
   busy: boolean;
+  /**
+   * A DIFFERENT turn is running (chat, fix-error, reorganize, add-index…).
+   * Nothing here may commit until it finishes: a second turn would overwrite
+   * the first's files and messages, and a quick patch would be thrown away.
+   */
+  locked: boolean;
   /** Deterministic patch — returns false when the source can't be patched safely. */
   onQuickClass: (action: ClassAction) => boolean;
   onQuickText: (text: string) => boolean;
@@ -62,6 +69,7 @@ export default function WandComposer({
   target,
   anchor,
   busy,
+  locked,
   onQuickClass,
   onQuickText,
   onCast,
@@ -136,7 +144,7 @@ export default function WandComposer({
 
   const cast = () => {
     const instruction = text.trim();
-    if (!instruction || busy) return;
+    if (!instruction || busy || locked) return;
     onCast(instruction, attachments.length ? attachments : undefined);
     setText("");
     setAttachments([]);
@@ -183,8 +191,21 @@ export default function WandComposer({
         ))}
       </div>
 
+      {locked && (
+        <p className="mx-3 mt-2 shrink-0 rounded-lg border border-amber-400/40 bg-amber-400/10 px-2.5 py-1.5 text-[11px] leading-relaxed text-amber-200">
+          กำลังแก้ไขรอบก่อนหน้าอยู่ — ทำได้ทีละรอบครับ เลือกไว้ก่อนได้ พอเสร็จแล้วกดต่อได้เลย
+        </p>
+      )}
+
       {mode === "quick" ? (
-        <div className="scroll-thin min-h-0 flex-1 space-y-3 overflow-y-auto p-3">
+        /* Locked: a quick patch lands in files the running turn is about to
+           overwrite, so the whole panel stops accepting input rather than
+           accepting it and losing it. */
+        <div
+          className={`scroll-thin min-h-0 flex-1 space-y-3 overflow-y-auto p-3 ${
+            busy || locked ? "pointer-events-none opacity-40" : ""
+          }`}
+        >
           <Row label="สีพื้นหลัง">
             {QUICK_COLORS.map((c) => (
               <button
@@ -273,7 +294,7 @@ export default function WandComposer({
               }
             }}
             rows={3}
-            disabled={busy}
+            disabled={busy || locked}
             placeholder={`บอกสิ่งที่อยากให้ <${target.tag}> นี้เป็น เช่น “ใส่ไอคอนตะกร้าหน้าข้อความ”`}
             className="w-full resize-none rounded-lg border border-night-edge bg-night px-2.5 py-2 text-[12px] leading-relaxed text-chalk outline-none focus:border-shine/60 disabled:opacity-50"
           />
@@ -306,7 +327,7 @@ export default function WandComposer({
             </button>
             <button
               onClick={cast}
-              disabled={busy || !text.trim()}
+              disabled={busy || locked || !text.trim()}
               /* While casting the button IS the progress indicator — it wears the
                  same rainbow as the wave running over the element, instead of
                  greying out like a dead control. */
@@ -317,7 +338,7 @@ export default function WandComposer({
               }`}
             >
               <Sparkles size={12} />
-              {busy ? "กำลังเสก…" : "เสก (Enter)"}
+              {busy ? "กำลังเสก…" : locked ? "รอรอบที่กำลังทำอยู่" : "เสก (Enter)"}
             </button>
           </div>
         </div>

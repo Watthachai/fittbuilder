@@ -34,6 +34,18 @@ describe("injected preview scripts", () => {
     for (const src of injectedScripts()) expect(src).not.toContain("${");
   });
 
+  /**
+   * Per CSSOM, offsetParent is null when the element's own computed position is
+   * fixed. Using it as "is this on screen" therefore discards every modal
+   * backdrop — the detector found no dialogs at all, so none could be closed,
+   * and one open modal rode into every later screenshot.
+   */
+  it("never uses offsetParent as a visibility test", () => {
+    const code = (s: string) =>
+      s.replace(/\/\*[\s\S]*?\*\//g, " ").replace(/^\s*\/\/.*$/gm, " ");
+    for (const src of injectedScripts()) expect(code(src)).not.toContain("offsetParent");
+  });
+
   it("stamps the bridge version the studio compares against", () => {
     const bridge = injectedScripts().find((s) => s.includes("__fittShotPong"));
     expect(bridge).toContain(`var VERSION = ${SHOT_BRIDGE_VERSION};`);

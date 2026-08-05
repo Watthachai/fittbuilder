@@ -149,7 +149,7 @@ const ERROR_SCRIPT = `(function () {
  * tab running against an older container can tell, instead of silently
  * reproducing the bug that was just fixed.
  */
-export const SHOT_BRIDGE_VERSION = 17;
+export const SHOT_BRIDGE_VERSION = 18;
 
 /**
  * Screen capture + auto-walk, for building the screen inventory a quotation is
@@ -212,6 +212,26 @@ const SHOT_SCRIPT = `(function () {
   var norm = function (s) { return String(s || "").replace(/\\s+/g, " ").trim().toLowerCase(); };
 
   /**
+   * Is this element actually on screen?
+   *
+   * NOT offsetParent. Per CSSOM, offsetParent is null when the element's own
+   * computed position is fixed — so "if (!el.offsetParent) skip" silently
+   * discarded every fixed layer, which is exactly what a modal backdrop is.
+   * fixedLayers() therefore returned an empty array on every page, every
+   * hand-rolled dialog was invisible to the detector, and a modal that could
+   * not be found could not be closed: it rode along into the next five
+   * screenshots. Measure the box instead — it is zero for display:none and for
+   * a detached node, and it is correct for fixed.
+   */
+  function visible(el) {
+    if (!el || !el.isConnected) return false;
+    var r = el.getBoundingClientRect();
+    if (r.width < 1 || r.height < 1) return false;
+    var s = getComputedStyle(el);
+    return s.visibility !== "hidden" && s.opacity !== "0";
+  }
+
+  /**
    * Click the DEEPEST visible element whose text matches. Depth matters: a
    * company card or a table row is a <div>, and its text also belongs to every
    * ancestor up to <body> — clicking the outermost match hits the page wrapper
@@ -224,7 +244,7 @@ const SHOT_SCRIPT = `(function () {
     var exact = null, partial = null;
     for (var i = 0; i < nodes.length; i++) {
       var el = nodes[i];
-      if (!el.offsetParent && getComputedStyle(el).position !== "fixed") continue;
+      if (!visible(el)) continue;
       var t = norm(el.textContent);
       if (!t) continue;
       // Document order runs outer → inner for the same text, so keep the LAST
@@ -291,7 +311,7 @@ const SHOT_SCRIPT = `(function () {
     for (var i = 0; i < nodes.length; i++) {
       var el = nodes[i];
       if (tried.indexOf(el) !== -1) continue;
-      if (el.disabled || !el.offsetParent) continue;
+      if (el.disabled || !visible(el)) continue;
       if (!hasClick(el)) continue;
       var t = norm(el.textContent);
       if (!t || t.length > 90 || LEAVE_WORDS.test(t) || listed(t, appAvoid)) continue;
@@ -329,7 +349,7 @@ const SHOT_SCRIPT = `(function () {
     var out = [], all = document.querySelectorAll("div,section,aside");
     for (var i = 0; i < all.length; i++) {
       var el = all[i];
-      if (!el.offsetParent || (el.id || "").indexOf("__fw") === 0) continue;
+      if (!visible(el) || (el.id || "").indexOf("__fw") === 0) continue;
       if (getComputedStyle(el).position !== "fixed") continue;
       var r = el.getBoundingClientRect();
       if (r.width * r.height < innerWidth * innerHeight * 0.1) continue;
@@ -349,7 +369,7 @@ const SHOT_SCRIPT = `(function () {
    */
   function openDialog(before) {
     var tagged = document.querySelectorAll('[role="dialog"],[aria-modal="true"]');
-    for (var i = 0; i < tagged.length; i++) if (tagged[i].offsetParent) return tagged[i];
+    for (var i = 0; i < tagged.length; i++) if (visible(tagged[i])) return tagged[i];
     var now = fixedLayers();
     if (before) {
       for (var j = 0; j < now.length; j++) if (before.indexOf(now[j]) === -1) return now[j];
@@ -397,7 +417,7 @@ const SHOT_SCRIPT = `(function () {
     var dr = d.getBoundingClientRect();
     for (var i = 0; i < btns.length; i++) {
       var b = btns[i];
-      if (b.disabled || !b.offsetParent) continue;
+      if (b.disabled || !visible(b)) continue;
       var label = norm(b.getAttribute("aria-label") || b.getAttribute("title") || b.textContent);
       if (CLOSE_LABEL.test(label)) { out.push({ el: b, score: 2 }); continue; }
       if (!label && b.querySelector("svg")) {
@@ -435,11 +455,14 @@ const SHOT_SCRIPT = `(function () {
    */
   function blockingLayer() {
     var tagged = document.querySelectorAll('[role="dialog"],[aria-modal="true"]');
-    for (var i = 0; i < tagged.length; i++) if (tagged[i].offsetParent) return tagged[i];
+    for (var i = 0; i < tagged.length; i++) if (visible(tagged[i])) return tagged[i];
     var now = fixedLayers(), best = null, bestZ = -1;
     for (var k = 0; k < now.length; k++) {
       var el = now[k], r = el.getBoundingClientRect();
       if (r.width < innerWidth * 0.8 || r.height < innerHeight * 0.6) continue;
+      // A decorative full-screen gradient is fixed and covers the page too.
+      // What separates a dialog from wallpaper is that you can act on it.
+      if (!el.querySelector("button,[role=button],input,textarea,select")) continue;
       var z = parseInt(getComputedStyle(el).zIndex, 10) || 0;
       if (z >= bestZ) { bestZ = z; best = el; }
     }
@@ -495,7 +518,7 @@ const SHOT_SCRIPT = `(function () {
     var out = [];
     for (var i = 0; i < nodes.length; i++) {
       var el = nodes[i];
-      if (!el.offsetParent || !hasClick(el)) continue;
+      if (!visible(el) || !hasClick(el)) continue;
       var t = norm(el.textContent);
       if (!t || t.length > 40) continue;
       if (LEAVE_WORDS.test(t) || listed(t, appAvoid)) continue;
@@ -531,7 +554,7 @@ const SHOT_SCRIPT = `(function () {
     var nodes = document.querySelectorAll("*"), tries = 0;
     for (var j = 0; j < nodes.length && tries < 8; j++) {
       var el = nodes[j];
-      if (!el.offsetParent || !hasClick(el) || !el.querySelector("svg")) continue;
+      if (!visible(el) || !hasClick(el) || !el.querySelector("svg")) continue;
       var t = norm(el.textContent);
       if (!t || t.length > 40 || t === norm(want) || LEAVE_WORDS.test(t) || listed(t, appAvoid)) continue;
       tries++;
@@ -896,7 +919,7 @@ const SHOT_SCRIPT = `(function () {
       var probes = modalProbes(navLabels).slice(0, 6);
       for (var q = 0; q < probes.length && !stop; q++) {
         var probe = probes[q];
-        if (!probe.el.isConnected || !probe.el.offsetParent) continue;
+        if (!visible(probe.el)) continue;
         var mark = sig(), layers1 = fixedLayers();
         probe.el.click();
         await sleep(700);
@@ -970,7 +993,7 @@ const SHOT_SCRIPT = `(function () {
     var sel = ["[aria-current=page]", "nav [class*=active]", "main h1", "main h2", "h1", "h2"];
     for (var i = 0; i < sel.length; i++) {
       var el = document.querySelector(sel[i]);
-      if (el && el.offsetParent) {
+      if (el && visible(el)) {
         var t = norm(el.textContent);
         if (t && t.length <= 60) return t;
       }

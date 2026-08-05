@@ -17,6 +17,8 @@ import {
   type ClassAction,
 } from "@/lib/wand-patch";
 import { toast } from "@/lib/toast";
+import { useFileDrop } from "@/lib/useFileDrop";
+import DropOverlay from "@/components/ui/DropOverlay";
 import type { ChatAttachmentInput } from "@/lib/types";
 
 interface WandComposerProps {
@@ -142,6 +144,16 @@ export default function WandComposer({
     }
   };
 
+  // Dropping a reference image is how the chat has always worked; this card was
+  // the one composer that never learned it, so a drop fell through to the
+  // window and the browser navigated away to the file — taking the studio, and
+  // the unsaved turn, with it.
+  const { dragging, dropHandlers } = useFileDrop((files) => {
+    if (busy || locked) return;
+    setMode("cast");
+    void attach(files);
+  });
+
   const cast = () => {
     const instruction = text.trim();
     if (!instruction || busy || locked) return;
@@ -152,9 +164,11 @@ export default function WandComposer({
 
   return (
     <div
+      {...dropHandlers}
       style={{ left: pos.left, top: pos.top, width: CARD_W, maxHeight: pos.maxHeight }}
       className="wand-pop fixed z-[70] flex flex-col overflow-hidden rounded-2xl border border-shine/30 bg-night-panel/95 shadow-[0_20px_60px_rgba(0,0,0,.55),0_0_40px_rgba(100,206,251,.15)] backdrop-blur-xl"
     >
+      {dragging && <DropOverlay label="วางรูปอ้างอิงที่นี่" />}
       {/* Target */}
       <div className="flex shrink-0 items-center gap-2 border-b border-night-edge px-3 py-2">
         <Wand2 size={13} className="shrink-0 text-shine" />
@@ -293,6 +307,13 @@ export default function WandComposer({
                 cast();
               }
             }}
+            onPaste={(e) => {
+              const files = e.clipboardData?.files;
+              if (files && files.length > 0) {
+                e.preventDefault();
+                void attach(files);
+              }
+            }}
             rows={3}
             disabled={busy || locked}
             placeholder={`บอกสิ่งที่อยากให้ <${target.tag}> นี้เป็น เช่น “ใส่ไอคอนตะกร้าหน้าข้อความ”`}
@@ -320,7 +341,7 @@ export default function WandComposer({
             />
             <button
               onClick={() => fileRef.current?.click()}
-              title="แนบรูปอ้างอิง"
+              title="แนบรูปอ้างอิง — ลากวางหรือวาง (⌘V) ก็ได้"
               className="rounded-lg border border-night-edge p-1.5 text-chalk-dim transition hover:text-shine"
             >
               <ImagePlus size={13} />

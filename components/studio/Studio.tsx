@@ -366,6 +366,28 @@ export default function Studio({ projectId }: { projectId: string }) {
   }, [project, readOnly]);
 
   // Error bridge receiver: the demo iframe posts runtime errors (broken
+  /**
+   * A file dropped outside a drop zone must do nothing.
+   *
+   * The browser's default is to NAVIGATE to the dropped file, which replaces
+   * the studio with an image and takes the in-flight turn with it. Both events
+   * have to be prevented: without dragover, no drop event fires at all and the
+   * browser handles it itself. The composers' own handlers run first (React
+   * listens at the root, below window), so their drops still work.
+   */
+  useEffect(() => {
+    const swallow = (e: DragEvent) => {
+      if (!Array.from(e.dataTransfer?.types ?? []).includes("Files")) return;
+      e.preventDefault();
+    };
+    window.addEventListener("dragover", swallow);
+    window.addEventListener("drop", swallow);
+    return () => {
+      window.removeEventListener("dragover", swallow);
+      window.removeEventListener("drop", swallow);
+    };
+  }, []);
+
   // imports, React crashes) that are otherwise invisible outside its console.
   // Keep the FIRST report (root cause); suppress while a stream is applying
   // files (mid-stream module graphs are legitimately inconsistent) — the

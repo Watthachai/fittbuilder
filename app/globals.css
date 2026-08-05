@@ -755,14 +755,27 @@ body {
   text-align: right;
 }
 .fitt-paper .q-sub-item {
-  padding-left: 14px;
+  padding-left: 12px;
   border-left: 2px solid var(--rule);
-  display: inline-block;
 }
-.fitt-paper .q-note {
+.fitt-paper .q-of {
   display: block;
   color: var(--ink-dim);
-  font-size: 11px;
+  font-size: 10px;
+  letter-spacing: 0.04em;
+}
+.fitt-paper .q-name {
+  font-weight: 600;
+}
+/* What the screen does. The reason a customer can read a price and know what
+   they are agreeing to, so it prints at full width, not as a footnote. */
+.fitt-paper .q-note {
+  display: block;
+  color: #374151;
+  font-size: 11.5px;
+  line-height: 1.5;
+  margin-top: 1px;
+  max-width: 62ch;
 }
 .fitt-paper tfoot td {
   border-bottom: none;

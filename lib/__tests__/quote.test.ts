@@ -33,8 +33,11 @@ describe("rowsFromShots", () => {
   it("prices every modal as its own line, marked under its screen", () => {
     const rows = rowsFromShots(INVENTORY);
     expect(rows).toHaveLength(3);
+    // The bare name plus a parent column — not a "A — B" breadcrumb glued into
+    // the name, which the table cannot group on and the paper cannot indent.
     expect(rows[2]).toMatchObject({
-      name: "เอกสารทั้งหมด — สร้าง Report",
+      name: "สร้าง Report",
+      parent: "เอกสารทั้งหมด",
       sub: true,
       size: "S",
       days: SIZE_DAYS.S,
@@ -51,7 +54,7 @@ describe("rowsFromShots", () => {
     expect(rowsFromShots(shuffled).map((r) => r.name)).toEqual([
       "เข้าสู่ระบบ",
       "เอกสารทั้งหมด",
-      "เอกสารทั้งหมด — สร้าง Report",
+      "สร้าง Report",
     ]);
   });
 
@@ -67,12 +70,31 @@ describe("missingRows", () => {
     const doc = newDoc([INVENTORY[0]], "d", "2026-08-05");
     expect(missingRows(doc, INVENTORY).map((r) => r.name)).toEqual([
       "เอกสารทั้งหมด",
-      "เอกสารทั้งหมด — สร้าง Report",
+      "สร้าง Report",
     ]);
   });
 
   it("is empty when everything is already priced", () => {
     expect(missingRows(newDoc(INVENTORY, "d", "2026-08-05"), INVENTORY)).toEqual([]);
+  });
+
+  /**
+   * A modal's name is only unique under its screen: two screens can each own a
+   * "ยืนยันการลบ". Matching on the name alone dropped the second one, and the
+   * quotation quietly billed for one of the two.
+   */
+  it("tells apart two modals that share a name under different screens", () => {
+    const both: Shot[] = [
+      shot({ index: 0, name: "ผู้ใช้งาน" }),
+      shot({ index: 1, name: "ยืนยันการลบ", parent: "ผู้ใช้งาน" }),
+      shot({ index: 2, name: "เอกสาร" }),
+      shot({ index: 3, name: "ยืนยันการลบ", parent: "เอกสาร" }),
+    ];
+    const doc = newDoc(both.slice(0, 2), "d", "2026-08-05");
+    expect(missingRows(doc, both).map((r) => `${r.parent}/${r.name}`)).toEqual([
+      "/เอกสาร",
+      "เอกสาร/ยืนยันการลบ",
+    ]);
   });
 });
 

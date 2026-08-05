@@ -78,8 +78,11 @@ export default function QuotationPrint({ doc, shots }: { doc: QuoteDoc; shots: S
             <tr key={r.id}>
               <td className="q-n">{i + 1}</td>
               <td>
-                <span className={r.sub ? "q-sub-item" : ""}>{r.name || "—"}</span>
-                {r.note && <span className="q-note">{r.note}</span>}
+                <div className={r.sub ? "q-sub-item" : ""}>
+                  {r.sub && r.parent && <span className="q-of">modal ของ {r.parent}</span>}
+                  <span className="q-name">{r.name || "—"}</span>
+                  {r.note && <span className="q-note">{r.note}</span>}
+                </div>
               </td>
               <td className="q-c">{SIZE_LABEL[r.size]}</td>
               <td className="q-r">{r.days}</td>

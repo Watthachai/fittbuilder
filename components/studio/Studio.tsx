@@ -1981,6 +1981,7 @@ export default function Studio({ projectId }: { projectId: string }) {
           files={project.files}
           toPreview={toPreview}
           onAddScreenIndex={readOnly || busy ? undefined : addScreenIndex}
+          readOnly={readOnly}
           ready={Boolean(previewUrl) && phase === "ready"}
           recording={recording}
           onStartRecording={() => {

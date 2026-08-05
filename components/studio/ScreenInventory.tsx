@@ -55,6 +55,8 @@ interface ScreenInventoryProps {
   toPreview: (msg: Record<string, unknown>) => void;
   /** Ask the model to retrofit the hidden screen index into an older project. */
   onAddScreenIndex?: () => void;
+  /** Viewer, or a project you cannot edit — the quotation is read-only then. */
+  readOnly: boolean;
   /** Preview is running — without it there is nothing to photograph. */
   ready: boolean;
   onClose: () => void;
@@ -68,6 +70,7 @@ export default function ScreenInventory({
   files,
   toPreview,
   onAddScreenIndex,
+  readOnly,
   ready,
   onClose,
 }: ScreenInventoryProps) {
@@ -114,8 +117,15 @@ export default function ScreenInventory({
     };
   }, [ready, toPreview, probe]);
 
+  // Whether the first listing has come back. The quotation seeds its line
+  // items from `shots` exactly once, so opening it before storage answers
+  // would seed an empty document — and then "it did not take the modals".
+  const [shotsLoaded, setShotsLoaded] = useState(false);
   const refresh = useCallback(() => {
-    void listShots(projectId).then(setShots);
+    void listShots(projectId).then((list) => {
+      setShots(list);
+      setShotsLoaded(true);
+    });
   }, [projectId]);
 
   useEffect(refresh, [refresh]);
@@ -509,12 +519,19 @@ export default function ScreenInventory({
         )}
 
         {tab === "quote" ? (
-          <Quotation
-            projectId={projectId}
-            projectName={projectName}
-            shots={shots}
-            readOnly={!onAddScreenIndex}
-          />
+          shotsLoaded ? (
+            <Quotation
+              projectId={projectId}
+              projectName={projectName}
+              shots={shots}
+              files={files}
+              readOnly={readOnly}
+            />
+          ) : (
+            <div className="flex flex-1 items-center justify-center gap-2 text-sm text-chalk-dim">
+              <Loader2 size={14} className="animate-spin text-shine" /> กำลังอ่านคลังหน้าจอ…
+            </div>
+          )
         ) : tab === "flow" && shots.length > 0 ? (
           <FlowMap shots={shots} onZoom={setZoom} />
         ) : (

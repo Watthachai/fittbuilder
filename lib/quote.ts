@@ -41,9 +41,16 @@ export interface QuoteRow {
   size: Size;
   /** Man-days. Seeded from the size, then owned by whoever edits it. */
   days: number;
+  /**
+   * What the screen does, in the customer's words. Written by hand or by
+   * "เขียนรายละเอียดด้วย AI", which reads the source — a price with the scope
+   * attached is an estimate; a price alone asks for faith.
+   */
   note: string;
   /** A modal of another row — printed indented, priced the same. */
   sub: boolean;
+  /** The screen this modal belongs to; empty for a top-level screen. */
+  parent: string;
 }
 
 export interface QuoteDoc {
@@ -90,18 +97,31 @@ export function rowsFromShots(shots: Shot[]): QuoteRow[] {
     .sort((a, b) => a.index - b.index)
     .map((s, i) => ({
       id: rowId(s.path, i),
-      name: s.parent ? `${s.parent} — ${s.name}` : s.name,
+      // The bare name, not "parent — child": the parent is its own column so
+      // the table can group and the paper can indent, and a customer reading a
+      // line item wants the modal's name, not a breadcrumb.
+      name: s.name,
       size: s.parent ? ("S" as Size) : ("M" as Size),
       days: s.parent ? SIZE_DAYS.S : SIZE_DAYS.M,
       note: "",
       sub: Boolean(s.parent),
+      parent: s.parent ?? "",
     }));
 }
 
+/** Identity of a line item: a modal's name is only unique under its screen. */
+const rowKey = (r: { name: string; parent: string }) => `${r.parent}\u0000${r.name}`;
+
 /** Rows in the inventory that the quotation does not price yet. */
 export function missingRows(doc: QuoteDoc, shots: Shot[]): QuoteRow[] {
-  const have = new Set(doc.rows.map((r) => r.name));
-  return rowsFromShots(shots).filter((r) => !have.has(r.name));
+  const have = new Set(doc.rows.map(rowKey));
+  return rowsFromShots(shots).filter((r) => !have.has(rowKey(r)));
+}
+
+/** Counts for the panel, so "did it take the modals?" is answerable at a glance. */
+export function rowCounts(doc: QuoteDoc): { screens: number; modals: number } {
+  const modals = doc.rows.filter((r) => r.sub).length;
+  return { screens: doc.rows.length - modals, modals };
 }
 
 export function newDoc(shots: Shot[], projectName: string, today: string): QuoteDoc {
@@ -145,6 +165,7 @@ export function parseDoc(payload: unknown, fallbackDate: string): QuoteDoc | nul
       days: n(r.days, SIZE_DAYS[size]),
       note: str(r.note),
       sub: r.sub === true,
+      parent: str(r.parent),
     };
   });
   return {
@@ -163,7 +184,15 @@ export function parseDoc(payload: unknown, fallbackDate: string): QuoteDoc | nul
 }
 
 export function emptyRow(index: number): QuoteRow {
-  return { id: rowId("custom", index), name: "", size: "M", days: SIZE_DAYS.M, note: "", sub: false };
+  return {
+    id: rowId("custom", index),
+    name: "",
+    size: "M",
+    days: SIZE_DAYS.M,
+    note: "",
+    sub: false,
+    parent: "",
+  };
 }
 
 /**

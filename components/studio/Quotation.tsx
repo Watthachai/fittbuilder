@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { Loader2, Plus, Printer, RefreshCw, Trash2 } from "lucide-react";
+import { CornerDownRight, Loader2, Plus, Printer, RefreshCw, Sparkles, Trash2 } from "lucide-react";
 import {
   emptyRow,
   formatTHB,
@@ -10,6 +10,7 @@ import {
   missingRows,
   newDoc,
   quoteTotals,
+  rowCounts,
   SIZE_DAYS,
   SIZE_HINT,
   SIZE_LABEL,
@@ -19,6 +20,7 @@ import {
 } from "@/lib/quote";
 import { loadQuote, saveQuote } from "@/lib/quote-store";
 import type { Shot } from "@/lib/shots";
+import type { ProjectFiles } from "@/lib/types";
 import { toast } from "@/lib/toast";
 import QuotationPrint from "./QuotationPrint";
 
@@ -39,16 +41,20 @@ export default function Quotation({
   projectId,
   projectName,
   shots,
+  files,
   readOnly,
 }: {
   projectId: string;
   projectName: string;
   shots: Shot[];
+  /** Source of truth for what each screen does — read by the AI pass. */
+  files: ProjectFiles | null;
   readOnly: boolean;
 }) {
   const [doc, setDoc] = useState<QuoteDoc | null>(null);
   const [loading, setLoading] = useState(true);
   const [printing, setPrinting] = useState(false);
+  const [writing, setWriting] = useState(false);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Today is read once, on mount: a document's issue date must not change
   // under the user because they left the tab open past midnight.
@@ -104,6 +110,54 @@ export default function Quotation({
   );
 
   /**
+   * Fill in what each screen does, read off the source.
+   *
+   * Only rows that have no description yet: a human sentence outranks a
+   * generated one, and silently replacing someone's wording is the same
+   * mistake as re-seeding prices from a fresh capture.
+   */
+  const describe = async () => {
+    if (!doc || !files || readOnly) return;
+    const blank = doc.rows.filter((r) => r.name.trim() && !r.note.trim());
+    if (blank.length === 0) {
+      toast.info("ทุกรายการมีคำอธิบายแล้ว", {
+        description: "ถ้าอยากให้เขียนใหม่ ลบข้อความในช่องรายละเอียดก่อนแล้วกดอีกครั้ง",
+      });
+      return;
+    }
+    setWriting(true);
+    try {
+      const res = await fetch("/api/screen-specs", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ files, names: blank.map((r) => r.name) }),
+      });
+      const data = (await res.json()) as { specs?: Record<string, string>; error?: string };
+      if (!res.ok || !data.specs) {
+        toast.error("เขียนรายละเอียดไม่สำเร็จ", { description: data.error });
+        return;
+      }
+      const specs = data.specs;
+      const filled = blank.filter((r) => specs[r.name]).length;
+      edit((d) => ({
+        ...d,
+        rows: d.rows.map((r) =>
+          !r.note.trim() && specs[r.name] ? { ...r, note: specs[r.name] } : r
+        ),
+      }));
+      toast.success(`เขียนรายละเอียดให้ ${filled} รายการ`, {
+        description: "อ่านทวนแล้วแก้ได้เลย — ข้อความนี้จะไปอยู่ในใบเสนอราคา",
+      });
+    } catch (e) {
+      toast.error("เขียนรายละเอียดไม่สำเร็จ", {
+        description: e instanceof Error ? e.message : undefined,
+      });
+    } finally {
+      setWriting(false);
+    }
+  };
+
+  /**
    * Print through the browser: a portal onto document.body plus a print
    * stylesheet that hides every sibling. No PDF library, no server render —
    * ⌘P → "Save as PDF" is a route every OS already has, and it prints exactly
@@ -131,6 +185,7 @@ export default function Quotation({
 
   const t = quoteTotals(doc);
   const missing = missingRows(doc, shots);
+  const counts = rowCounts(doc);
   const setRow = (id: string, patch: Partial<QuoteRow>) =>
     edit((d) => ({ ...d, rows: d.rows.map((r) => (r.id === id ? { ...r, ...patch } : r)) }));
 
@@ -198,12 +253,33 @@ export default function Quotation({
       </div>
 
       {/* Line items */}
-      <div className="mt-5 overflow-hidden rounded-xl border border-night-edge">
+      <div className="mt-5 flex items-center gap-2">
+        <h3 className="font-display text-[12px] text-chalk">รายการ</h3>
+        <span className="rounded-full bg-night px-2 py-0.5 font-mono text-[11px] text-chalk-dim">
+          {counts.screens} หน้าจอ · {counts.modals} modal
+        </span>
+        {!readOnly && files && (
+          <button
+            onClick={() => void describe()}
+            disabled={writing}
+            title="ให้ AI อ่านโค้ดแล้วเขียนว่าแต่ละหน้าทำอะไรได้บ้าง — เติมเฉพาะช่องที่ยังว่าง"
+            className="ml-auto inline-flex items-center gap-1.5 rounded-lg border border-shine/50 px-2.5 py-1 font-display text-[12px] text-shine transition hover:bg-shine/10 disabled:opacity-40"
+          >
+            {writing ? (
+              <Loader2 size={12} className="animate-spin" />
+            ) : (
+              <Sparkles size={12} />
+            )}
+            {writing ? "กำลังเขียน…" : "เขียนรายละเอียดด้วย AI"}
+          </button>
+        )}
+      </div>
+      <div className="mt-1.5 overflow-hidden rounded-xl border border-night-edge">
         <table className="w-full text-[12px]">
           <thead>
             <tr className="border-b border-night-edge bg-night/60 text-left text-chalk-dim">
               <th className="w-8 px-2 py-2 text-right font-display font-medium">#</th>
-              <th className="px-2 py-2 font-display font-medium">รายการ</th>
+              <th className="px-2 py-2 font-display font-medium">รายการ / รายละเอียดการทำงาน</th>
               <th className="w-[150px] px-2 py-2 text-center font-display font-medium">ขนาดงาน</th>
               <th className="w-24 px-2 py-2 text-right font-display font-medium">วัน</th>
               <th className="w-28 px-2 py-2 text-right font-display font-medium">รวม</th>
@@ -217,22 +293,31 @@ export default function Quotation({
                   {i + 1}
                 </td>
                 <td className="px-2 py-1.5">
-                  <input
-                    value={r.name}
-                    onChange={(e) => setRow(r.id, { name: e.target.value })}
-                    placeholder="ชื่อหน้าจอ / งาน"
-                    disabled={readOnly}
-                    className={`w-full rounded-md bg-transparent px-1.5 py-1 text-chalk outline-none focus:bg-night ${
-                      r.sub ? "ml-3 border-l border-night-edge pl-2" : ""
-                    }`}
-                  />
-                  <input
-                    value={r.note}
-                    onChange={(e) => setRow(r.id, { note: e.target.value })}
-                    placeholder="หมายเหตุ (ไม่บังคับ)"
-                    disabled={readOnly}
-                    className="w-full rounded-md bg-transparent px-1.5 py-0.5 text-[11px] text-chalk-dim outline-none placeholder:text-chalk-dim/40 focus:bg-night"
-                  />
+                  {/* A modal is indented under the screen it opens from, and
+                      says so — "did it take the subs?" has to be answerable by
+                      looking, not by counting. */}
+                  <div className={r.sub ? "border-l-2 border-shine/40 pl-2" : ""}>
+                    {r.sub && r.parent && (
+                      <span className="mb-0.5 inline-flex items-center gap-1 font-mono text-[10px] text-shine/80">
+                        <CornerDownRight size={9} /> modal ของ {r.parent}
+                      </span>
+                    )}
+                    <input
+                      value={r.name}
+                      onChange={(e) => setRow(r.id, { name: e.target.value })}
+                      placeholder="ชื่อหน้าจอ / งาน"
+                      disabled={readOnly}
+                      className="w-full rounded-md bg-transparent px-1.5 py-1 text-chalk outline-none focus:bg-night"
+                    />
+                    <textarea
+                      value={r.note}
+                      onChange={(e) => setRow(r.id, { note: e.target.value })}
+                      rows={2}
+                      placeholder="หน้านี้ทำอะไรได้บ้าง — กด “เขียนรายละเอียดด้วย AI” ให้อ่านโค้ดเขียนให้ได้"
+                      disabled={readOnly}
+                      className="w-full resize-y rounded-md bg-transparent px-1.5 py-0.5 text-[11px] leading-relaxed text-chalk-dim outline-none placeholder:text-chalk-dim/40 focus:bg-night"
+                    />
+                  </div>
                 </td>
                 <td className="px-2 py-1.5">
                   <div className="flex justify-center rounded-lg border border-night-edge p-0.5">

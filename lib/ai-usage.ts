@@ -15,7 +15,8 @@ export type UsageKind =
   | "generate_skill"
   | "org_dna"
   | "advisor"
-  | "screen_map";
+  | "screen_map"
+  | "screen_spec";
 
 /**
  * Estimated Gemini pricing, USD per 1,000,000 tokens. These are ESTIMATES — update

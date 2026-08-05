@@ -2019,15 +2019,17 @@ export default function Studio({ projectId }: { projectId: string }) {
           </div>
         </div>
       )}
-      {wandTarget && !readOnly && (
+      {/* Unmounted while its own cast runs: the instruction is already sent, so
+          a card with an empty box that cannot be typed in only competes with
+          the rainbow wave for attention. During a spell the wave IS the UI. */}
+      {wandTarget && !readOnly && !wandBusy && (
         <WandComposer
           target={wandTarget.target}
           anchor={wandTarget.anchor}
-          busy={wandBusy}
           // Any other turn — chat, fix-error, reorganize, add-index — locks the
           // wand too: they all write the same files through the same one-at-a-
           // time path, and only this composer used to look available anyway.
-          locked={chatStreaming && !wandBusy}
+          locked={chatStreaming}
           onQuickClass={(action) =>
             applyWandPatch(
               (source) => patchClassName(source, wandTarget.target.loc, action),

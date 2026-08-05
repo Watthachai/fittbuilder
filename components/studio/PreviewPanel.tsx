@@ -302,18 +302,14 @@ export default function PreviewPanel({
       </div>
 
       {/* Wand mode is a modal state over someone's app — say so, and always show
-          the way out (Esc is the shortcut, this is the affordance). */}
-      {wandOn && (
+          the way out (Esc is the shortcut, this is the affordance).
+          Hidden while a spell runs: the element wears the rainbow, which says
+          "working here" far better than a fourth line of chrome repeating it. */}
+      {wandOn && !wandBusy && (
         <div className="flex shrink-0 items-center gap-2.5 border-b border-shine/30 bg-shine/10 px-3 py-2">
           <Wand2 size={13} className="shrink-0 text-shine" />
           <span className="min-w-0 flex-1 text-[11px] leading-relaxed text-chalk">
-            {wandBusy ? (
-              <>กำลังเสก… แก้ไขเฉพาะจุดที่เลือกอยู่</>
-            ) : (
-              <>
-                โหมด Wand — เลื่อนเมาส์บนเดโมแล้ว<b className="text-shine">คลิก element</b>ที่อยากแก้
-              </>
-            )}
+            โหมด Wand — เลื่อนเมาส์บนเดโมแล้ว<b className="text-shine">คลิก element</b>ที่อยากแก้
           </span>
           <button
             onClick={onWandExit}

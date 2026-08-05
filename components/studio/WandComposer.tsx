@@ -25,10 +25,12 @@ interface WandComposerProps {
   target: WandTarget;
   /** Where the picked element sits on screen, in page pixels. */
   anchor: { x: number; y: number; w: number; h: number };
-  /** This cast is running — the button wears the spell, not a dead grey. */
-  busy: boolean;
   /**
-   * A DIFFERENT turn is running (chat, fix-error, reorganize, add-index…).
+   * A turn is running (chat, fix-error, reorganize, add-index…).
+   * This card is unmounted for the duration of its OWN cast — while a spell is
+   * running the element's rainbow wave is the whole interface — so `locked`
+   * only ever means "something else is busy".
+   *
    * Nothing here may commit until it finishes: a second turn would overwrite
    * the first's files and messages, and a quick patch would be thrown away.
    */
@@ -70,7 +72,6 @@ function place(anchor: { x: number; y: number; w: number; h: number }) {
 export default function WandComposer({
   target,
   anchor,
-  busy,
   locked,
   onQuickClass,
   onQuickText,
@@ -149,14 +150,14 @@ export default function WandComposer({
   // window and the browser navigated away to the file — taking the studio, and
   // the unsaved turn, with it.
   const { dragging, dropHandlers } = useFileDrop((files) => {
-    if (busy || locked) return;
+    if (locked) return;
     setMode("cast");
     void attach(files);
   });
 
   const cast = () => {
     const instruction = text.trim();
-    if (!instruction || busy || locked) return;
+    if (!instruction || locked) return;
     onCast(instruction, attachments.length ? attachments : undefined);
     setText("");
     setAttachments([]);
@@ -217,7 +218,7 @@ export default function WandComposer({
            accepting it and losing it. */
         <div
           className={`scroll-thin min-h-0 flex-1 space-y-3 overflow-y-auto p-3 ${
-            busy || locked ? "pointer-events-none opacity-40" : ""
+            locked ? "pointer-events-none opacity-40" : ""
           }`}
         >
           <Row label="สีพื้นหลัง">
@@ -315,7 +316,7 @@ export default function WandComposer({
               }
             }}
             rows={3}
-            disabled={busy || locked}
+            disabled={locked}
             placeholder={`บอกสิ่งที่อยากให้ <${target.tag}> นี้เป็น เช่น “ใส่ไอคอนตะกร้าหน้าข้อความ”`}
             className="w-full resize-none rounded-lg border border-night-edge bg-night px-2.5 py-2 text-[12px] leading-relaxed text-chalk outline-none focus:border-shine/60 disabled:opacity-50"
           />
@@ -348,18 +349,11 @@ export default function WandComposer({
             </button>
             <button
               onClick={cast}
-              disabled={busy || locked || !text.trim()}
-              /* While casting the button IS the progress indicator — it wears the
-                 same rainbow as the wave running over the element, instead of
-                 greying out like a dead control. */
-              className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg px-3 py-1.5 font-display text-[12px] font-semibold transition ${
-                busy
-                  ? "wand-btn wand-btn-on"
-                  : "bg-shine text-night hover:brightness-110 disabled:opacity-40"
-              }`}
+              disabled={locked || !text.trim()}
+              className="flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-shine px-3 py-1.5 font-display text-[12px] font-semibold text-night transition hover:brightness-110 disabled:opacity-40"
             >
               <Sparkles size={12} />
-              {busy ? "กำลังเสก…" : locked ? "รอรอบที่กำลังทำอยู่" : "เสก (Enter)"}
+              {locked ? "รอรอบที่กำลังทำอยู่" : "เสก (Enter)"}
             </button>
           </div>
         </div>

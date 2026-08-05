@@ -149,7 +149,7 @@ const ERROR_SCRIPT = `(function () {
  * tab running against an older container can tell, instead of silently
  * reproducing the bug that was just fixed.
  */
-export const SHOT_BRIDGE_VERSION = 16;
+export const SHOT_BRIDGE_VERSION = 17;
 
 /**
  * Screen capture + auto-walk, for building the screen inventory a quotation is
@@ -186,15 +186,26 @@ const SHOT_SCRIPT = `(function () {
 
   var sleep = function (ms) { return new Promise(function (r) { setTimeout(r, ms); }); };
 
-  function shoot() {
+  /**
+   * @param clip Frame the VIEWPORT instead of the whole document.
+   *
+   * A modal is position:fixed, so it sits one viewport tall; the page behind it
+   * can be six. Rasterising the whole body then produces a very long image with
+   * the dialog as a small box at the top — the modal "ปิดไม่หมด" in the
+   * reported gallery. Screens still get the full page, which is what you want
+   * to see of a screen.
+   */
+  function shoot(clip) {
     return lib().then(function (h) {
       var bg = getComputedStyle(document.body).backgroundColor;
-      return h.toPng(document.body, {
+      var opts = {
         pixelRatio: 1,
         backgroundColor: bg && bg !== "rgba(0, 0, 0, 0)" ? bg : "#ffffff",
         // Never photograph our own overlays (wand frame, label, dim).
         filter: function (n) { return !(n.id && String(n.id).indexOf("__fw") === 0); }
-      });
+      };
+      if (clip) { opts.width = innerWidth; opts.height = innerHeight; }
+      return h.toPng(document.body, opts);
     });
   }
 
@@ -372,16 +383,104 @@ const SHOT_SCRIPT = `(function () {
     return (t || norm(fallback) || "หน้าต่างย่อย").slice(0, 60);
   }
 
-  function closeDialog(d) {
-    var btns = d.querySelectorAll("button,[role=button]");
+  var CLOSE_LABEL = /^(ปิด|ยกเลิก|ไม่|ย้อนกลับ|กลับ|close|cancel|dismiss|back|×|✕|✖|x)$/;
+
+  /**
+   * Ways out of the dialog, best first.
+   *
+   * A labelled ยกเลิก/Close comes first; failing that, a small icon-only button
+   * near the dialog's top edge — the × that carries no text at all, which is
+   * how most generated modals write it.
+   */
+  function closers(d) {
+    var out = [], btns = d.querySelectorAll("button,[role=button],a");
+    var dr = d.getBoundingClientRect();
     for (var i = 0; i < btns.length; i++) {
       var b = btns[i];
-      var label = norm(b.getAttribute("aria-label") || b.textContent);
-      if (/^(ปิด|close|ยกเลิก|cancel|×|✕|x)$/.test(label)) { b.click(); return; }
+      if (b.disabled || !b.offsetParent) continue;
+      var label = norm(b.getAttribute("aria-label") || b.getAttribute("title") || b.textContent);
+      if (CLOSE_LABEL.test(label)) { out.push({ el: b, score: 2 }); continue; }
+      if (!label && b.querySelector("svg")) {
+        var r = b.getBoundingClientRect();
+        if (r.width <= 56 && r.height <= 56 && r.top - dr.top < 90) out.push({ el: b, score: 1 });
+      }
     }
-    document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+    out.sort(function (a, c) { return c.score - a.score; });
+    return out;
+  }
+
+  function pressEscape() {
+    var init = { key: "Escape", code: "Escape", keyCode: 27, which: 27, bubbles: true };
+    document.dispatchEvent(new KeyboardEvent("keydown", init));
+    document.dispatchEvent(new KeyboardEvent("keyup", init));
+    var focused = document.activeElement;
+    if (focused && focused !== document.body) focused.dispatchEvent(new KeyboardEvent("keydown", init));
+  }
+
+  function closeDialog(d) {
+    var cs = closers(d);
+    if (cs.length) { cs[0].el.click(); return; }
+    pressEscape();
     var back = d.parentElement;
     if (back && getComputedStyle(back).position === "fixed") back.click();
+  }
+
+  /**
+   * A layer that is actually BLOCKING the page — fixed, and covering it.
+   *
+   * "Fixed and contains a title" also describes a sticky header, which is why
+   * naming by shape kept picking headers. Requiring near-full coverage is what
+   * separates a modal backdrop from page chrome, and it is the test that has to
+   * be right before we can say "the dialog is gone".
+   */
+  function blockingLayer() {
+    var tagged = document.querySelectorAll('[role="dialog"],[aria-modal="true"]');
+    for (var i = 0; i < tagged.length; i++) if (tagged[i].offsetParent) return tagged[i];
+    var now = fixedLayers(), best = null, bestZ = -1;
+    for (var k = 0; k < now.length; k++) {
+      var el = now[k], r = el.getBoundingClientRect();
+      if (r.width < innerWidth * 0.8 || r.height < innerHeight * 0.6) continue;
+      var z = parseInt(getComputedStyle(el).zIndex, 10) || 0;
+      if (z >= bestZ) { bestZ = z; best = el; }
+    }
+    return best;
+  }
+
+  /**
+   * Close what is on top and PROVE it closed.
+   *
+   * One fire-and-forget click is what produced the reported gallery: the close
+   * silently failed, the modal stayed up, and the next five screens were each
+   * photographed through it while their own modal "never opened". So every
+   * tactic is followed by a check, and the caller is told when none of them
+   * worked instead of walking on with a dialog in the way.
+   *
+   * @param want Fingerprint to come back to; null means "until nothing blocks".
+   */
+  async function dismiss(want) {
+    var done = function () { return want ? sig() === want : !blockingLayer(); };
+    for (var round = 0; round < 3; round++) {
+      if (done()) return true;
+      var d = blockingLayer() || openDialog(null);
+      if (d) {
+        var cs = closers(d);
+        for (var i = 0; i < cs.length; i++) {
+          cs[i].el.click();
+          await sleep(380);
+          if (done()) return true;
+        }
+      }
+      pressEscape();
+      await sleep(380);
+      if (done()) return true;
+      // The backdrop, clicked in a corner the panel does not cover.
+      var corner = document.elementFromPoint(6, 6);
+      if (corner && corner !== document.body && getComputedStyle(corner).position === "fixed") {
+        corner.click();
+        await sleep(380);
+      }
+    }
+    return done();
   }
 
   // Labels that tend to open something rather than navigate away.
@@ -520,6 +619,10 @@ const SHOT_SCRIPT = `(function () {
       return;
     }
     var total = screens.length, step = 0;
+    // A modal owned by App.tsx (a global "new record" dialog opened from the
+    // header) is in the DOM on every screen. Without this it is attempted once
+    // per screen: one capture and N-1 lines of "กดแล้วหน้าไม่เปลี่ยน".
+    var doneModals = {};
 
     for (var i = 0; i < screens.length && !stop; i++) {
       var name = screens[i];
@@ -531,10 +634,12 @@ const SHOT_SCRIPT = `(function () {
       }
       door.click();
       await settle();
-      // A modal left open from the previous stop would be photographed as part
-      // of this screen — clear it before the shutter.
-      var stray = openDialog(null);
-      if (stray) { closeDialog(stray); await settle(1200); }
+      // Never photograph a screen through a leftover dialog.
+      if (blockingLayer()) {
+        await dismiss(null);
+        door.click();
+        await settle(1500);
+      }
 
       var state = sig();
       if (captured[state]) {
@@ -559,9 +664,11 @@ const SHOT_SCRIPT = `(function () {
       // Modals this screen declares. They are only in the DOM now, while it is
       // mounted, so this list is exactly "the modals of this screen".
       var modals = indexNames(true);
-      total += modals.length;
       for (var m = 0; m < modals.length && !stop; m++) {
         var mname = modals[m];
+        if (doneModals[mname]) continue;
+        doneModals[mname] = true;
+        total++;
         step++;
         var mdoor = indexEntry(mname, true);
         if (!mdoor) {
@@ -579,22 +686,33 @@ const SHOT_SCRIPT = `(function () {
         } else {
           try {
             captured[mstate] = mname;
+            // Framed to the viewport: a fixed dialog over a six-screen-tall
+            // page would otherwise come out as a speck at the top of the image.
             // parent nests it under this screen in the gallery; from/via draw
             // the arrow on the flow map.
-            send({ __fittShot: true, name: mname, parent: name, from: name, via: mname, dataUrl: await shoot() });
+            send({ __fittShot: true, name: mname, parent: name, from: name, via: mname, dataUrl: await shoot(true) });
             send({ __fittWalkStep: true, step: step, total: total, name: mname, ok: true });
           } catch (e2) {
             send({ __fittWalkStep: true, step: step, total: total, name: mname, ok: false, error: String(e2 && e2.message || e2) });
           }
         }
-        var open = openDialog(null);
-        if (open) closeDialog(open);
-        else document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
-        await sleep(450);
-        // A modal that navigated on close would take the rest of this screen's
-        // modals with it — go back through the door.
-        var back = indexEntry(name, false);
-        if (back) { back.click(); await settle(1500); }
+
+        // Prove the screen is back before touching anything else.
+        var back0 = await dismiss(state);
+        if (!back0) {
+          var back = indexEntry(name, false);
+          if (back) { back.click(); await settle(1500); }
+          back0 = sig() === state || !blockingLayer();
+        }
+        if (!back0) {
+          // Carrying an open dialog into the next screen is what turned one
+          // stuck modal into five ruined screenshots. Stop this screen instead.
+          send({
+            __fittWalkStep: true, step: step, total: total, name: mname, ok: false,
+            error: "ปิด modal นี้ไม่ได้ — ข้าม modal ที่เหลือของหน้านี้ไว้ก่อน"
+          });
+          break;
+        }
       }
     }
     send({ __fittWalkDone: true });
@@ -758,7 +876,7 @@ const SHOT_SCRIPT = `(function () {
         try {
           var nm = d0 ? dialogName(d0, sub.name) : sub.name;
           captured[st0] = nm;
-          send({ __fittShot: true, name: nm, parent: screen.name, dataUrl: await shoot() });
+          send({ __fittShot: true, name: nm, parent: screen.name, dataUrl: await shoot(true) });
           send({ __fittWalkStep: true, step: step, total: total, name: nm, ok: true });
           seen.push(norm(nm));
         } catch (e2) {
@@ -812,7 +930,7 @@ const SHOT_SCRIPT = `(function () {
           captured[state] = name;
           step++;
           try {
-            send({ __fittShot: true, name: name, parent: screen.name, dataUrl: await shoot() });
+            send({ __fittShot: true, name: name, parent: screen.name, dataUrl: await shoot(true) });
             send({ __fittWalkStep: true, step: step, total: total, name: name, ok: true });
           } catch (e3) {
             send({ __fittWalkStep: true, step: step, total: total, name: name, ok: false, error: String(e3 && e3.message || e3) });
@@ -876,7 +994,7 @@ const SHOT_SCRIPT = `(function () {
       }
       if (taken) name = base + " (" + (taken + 1) + ")";
 
-      var dataUrl = await shoot();
+      var dataUrl = await shoot(!!dlg);
       seen[fingerprint] = name;
       captured[fingerprint] = name;
       send({

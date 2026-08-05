@@ -1303,12 +1303,18 @@ export default function Studio({ projectId }: { projectId: string }) {
       void generate(buildWandPrompt(picked, instruction), undefined, undefined, attachments).finally(
         () => {
           setWandBusy(false);
-          setWandTarget(null);
-          setWandNudge((n) => ({ ...n, clear: n.clear + 1 }));
+          // A finished cast leaves wand mode. It used to drop only the
+          // selection, so the crosshair and the pick overlay stayed on and the
+          // demo could not simply be used again. Leaving is also the honest
+          // state: the model may have moved or rewritten the element, and the
+          // file:line the wand selects by is no longer guaranteed to point at
+          // it. Quick actions deliberately do NOT exit — those are meant to be
+          // repeated on the same element.
+          exitWand();
         }
       );
     },
-    [generate, wandTarget]
+    [exitWand, generate, wandTarget]
   );
 
   /**

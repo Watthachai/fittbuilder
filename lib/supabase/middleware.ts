@@ -2,10 +2,11 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import type { Database } from "@/lib/db/types";
 
-// /api/version is a build stamp, not data: gating it meant a tab sitting on the
-// login screen (or one whose session lapsed) could never be told a deploy had
-// happened, which is the one moment a stale bundle actually breaks.
-const PUBLIC_PREFIXES = ["/login", "/auth", "/changelog", "/join", "/api/version"];
+// /api/version is a build stamp and /api/health is an uptime probe — neither is
+// user data, and both must answer when nobody is signed in. Gating the version
+// meant a tab on the login screen could never be told a deploy had happened;
+// gating health would mean the monitor reports "up" by reading a redirect.
+const PUBLIC_PREFIXES = ["/login", "/auth", "/changelog", "/join", "/api/version", "/api/health"];
 
 export async function updateSession(request: NextRequest) {
   let response = NextResponse.next({ request });

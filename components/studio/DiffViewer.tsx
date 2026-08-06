@@ -9,7 +9,15 @@ import GlassSurface from "@/components/ui/GlassSurface";
 
 type Status = "added" | "deleted" | "modified";
 
+/**
+ * Both sides null means the bodies were trimmed on save, not that the file was
+ * added and deleted at once — old turns keep their file list but not their text
+ * (see DIFF_BODIES_KEPT). An added file has a body on the after side.
+ */
+const isTrimmed = (c: FileChange) => c.before === null && c.after === null;
+
 function statusOf(c: FileChange): Status {
+  if (isTrimmed(c)) return "modified";
   if (c.before === null) return "added";
   if (c.after === null) return "deleted";
   return "modified";
@@ -33,7 +41,8 @@ function FileDiff({ change }: { change: FileChange }) {
   const status = statusOf(change);
   const meta = STATUS_META[status];
   const Icon = meta.icon;
-  const parts = diffLines(change.before ?? "", change.after ?? "");
+  const trimmed = isTrimmed(change);
+  const parts = trimmed ? [] : diffLines(change.before ?? "", change.after ?? "");
   let added = 0;
   let removed = 0;
   for (const p of parts) {
@@ -53,7 +62,13 @@ function FileDiff({ change }: { change: FileChange }) {
         {added > 0 && <span className="shrink-0 font-mono text-[11px] text-go">+{added}</span>}
         {removed > 0 && <span className="shrink-0 font-mono text-[11px] text-halt">−{removed}</span>}
       </button>
-      {open && (
+      {open && trimmed && (
+        <div className="bg-night-panel px-3 py-2.5 text-[11px] leading-relaxed text-chalk-dim">
+          เทิร์นนี้เก่าแล้ว ระบบจึงไม่ได้เก็บเนื้อไฟล์ไว้ — ไฟล์ที่ถูกแก้ยังแสดงครบ
+          ส่วนโค้ดจริงดูและย้อนกลับได้ที่แท็บ <b className="text-chalk">History</b>
+        </div>
+      )}
+      {open && !trimmed && (
         <div className="scroll-thin max-h-[360px] overflow-auto bg-night-panel font-mono text-[12px] leading-relaxed">
           {parts.map((part, pi) =>
             toLines(part.value).map((line, li) => (

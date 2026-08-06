@@ -55,6 +55,39 @@ export function rowToProject(row: ProjectRow): ProjectRecord {
   };
 }
 
+/**
+ * How many recent turns keep the full text of what they changed.
+ *
+ * Every AI turn stores the before/after body of every file it touched, and
+ * nothing ever removed them: one measured project reached 2 MB of chat log
+ * across 223 turns, read in full on every studio open. People open the diff of
+ * a turn they just ran, essentially never of one from last week — and the
+ * turns that lose their bodies keep their file list and their revision, which
+ * is the durable, content-addressed copy anyway.
+ */
+const DIFF_BODIES_KEPT = 10;
+
+/**
+ * Drop file bodies from old changesets on the way to the database.
+ *
+ * In memory the session keeps everything; only what is PERSISTED is trimmed,
+ * so nothing a user is looking at right now changes under them.
+ */
+function trimOldDiffs(messages: ChatMessage[]): ChatMessage[] {
+  let budget = DIFF_BODIES_KEPT;
+  const out = messages.slice();
+  for (let i = out.length - 1; i >= 0; i--) {
+    const m = out[i];
+    if (!m.changes?.length) continue;
+    if (budget > 0) {
+      budget--;
+      continue;
+    }
+    out[i] = { ...m, changes: m.changes.map((c) => ({ path: c.path, before: null, after: null })) };
+  }
+  return out;
+}
+
 export function projectToRow(rec: ProjectRecord): ProjectInsertRow {
   return {
     name: rec.name,
@@ -62,7 +95,7 @@ export function projectToRow(rec: ProjectRecord): ProjectInsertRow {
     phase: rec.phase,
     approved_phases: rec.approvedPhases ?? [],
     history: rec.history,
-    messages: rec.messages,
+    messages: trimOldDiffs(rec.messages),
     skill_id: rec.skillId ?? null,
   };
 }

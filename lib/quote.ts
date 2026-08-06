@@ -69,6 +69,17 @@ export interface QuoteDoc {
   vatPercent: number;
   /** Percent off the subtotal, before VAT. */
   discountPercent: number;
+  /**
+   * Market rate per man-day to compare against on the paper; 0 hides the
+   * comparison entirely.
+   *
+   * A claim the SENDER makes to their customer, not one we make on their
+   * behalf — so it is proposed by the advisor, accepted by hand, printed as
+   * "โดยประมาณ", and editable afterwards.
+   */
+  marketRatePerDay: number;
+  /** The sentence printed beside the comparison. */
+  marketNote: string;
   terms: string;
 }
 
@@ -136,6 +147,8 @@ export function newDoc(shots: Shot[], projectName: string, today: string): Quote
     ratePerDay: DEFAULT_RATE,
     vatPercent: DEFAULT_VAT,
     discountPercent: 0,
+    marketRatePerDay: 0,
+    marketNote: "",
     terms: DEFAULT_TERMS,
   };
 }
@@ -179,6 +192,8 @@ export function parseDoc(payload: unknown, fallbackDate: string): QuoteDoc | nul
     ratePerDay: n(o.ratePerDay, DEFAULT_RATE),
     vatPercent: n(o.vatPercent, DEFAULT_VAT),
     discountPercent: n(o.discountPercent, 0),
+    marketRatePerDay: n(o.marketRatePerDay, 0),
+    marketNote: str(o.marketNote),
     terms: str(o.terms, DEFAULT_TERMS),
   };
 }
@@ -228,6 +243,26 @@ export function quoteTotals(doc: QuoteDoc): QuoteTotals {
   const net = round2(subtotal - discount);
   const vat = round2((net * clampPercent(doc.vatPercent)) / 100);
   return { days, subtotal, discount, net, vat, grand: round2(net + vat) };
+}
+
+/**
+ * What the same scope would cost at the market rate, and what the customer
+ * saves. Derived, never stored: rows change after the advisor runs, and a
+ * frozen "market total" would quietly stop matching the lines above it.
+ *
+ * Returns null when there is nothing honest to show — no market rate set, or
+ * the quoted price is not actually below it.
+ */
+export function marketComparison(
+  doc: QuoteDoc
+): { market: number; quoted: number; saved: number; percent: number } | null {
+  const rate = num(doc.marketRatePerDay);
+  if (rate <= 0) return null;
+  const { days, net } = quoteTotals(doc);
+  const market = round2(days * rate);
+  const saved = round2(market - net);
+  if (saved <= 0) return null;
+  return { market, quoted: net, saved, percent: Math.round((saved / market) * 100) };
 }
 
 const clampPercent = (n: number) => Math.min(100, Math.max(0, num(n)));

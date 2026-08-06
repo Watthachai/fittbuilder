@@ -2,13 +2,24 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { CornerDownRight, Loader2, Plus, Printer, RefreshCw, Sparkles, Trash2 } from "lucide-react";
+import {
+  CornerDownRight,
+  Handshake,
+  Loader2,
+  Plus,
+  Printer,
+  RefreshCw,
+  Sparkles,
+  Trash2,
+  X,
+} from "lucide-react";
 import {
   emptyRow,
   formatTHB,
   lineTotal,
   missingRows,
   newDoc,
+  marketComparison,
   quoteTotals,
   rowCounts,
   SIZE_DAYS,
@@ -19,6 +30,7 @@ import {
   type Size,
 } from "@/lib/quote";
 import { loadQuote, saveQuote } from "@/lib/quote-store";
+import { marketMidpoint, type QuoteAdvice } from "@/lib/quote-advice";
 import type { Shot } from "@/lib/shots";
 import type { ProjectFiles } from "@/lib/types";
 import { toast } from "@/lib/toast";
@@ -55,6 +67,10 @@ export default function Quotation({
   const [loading, setLoading] = useState(true);
   const [printing, setPrinting] = useState(false);
   const [writing, setWriting] = useState(false);
+  const [pricing, setPricing] = useState(false);
+  // The advisor's proposal, held OUTSIDE the document until it is accepted:
+  // the sender signs their name to the price, so nothing here edits it for them.
+  const [advice, setAdvice] = useState<QuoteAdvice | null>(null);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Today is read once, on mount: a document's issue date must not change
   // under the user because they left the tab open past midnight.
@@ -158,6 +174,73 @@ export default function Quotation({
   };
 
   /**
+   * Ask what this scope goes for, and what to charge.
+   *
+   * The answer is a proposal card, not an edit: market range, a recommended
+   * rate, a second opinion on every line's days, and a sentence to say to the
+   * customer. Accepting it is a separate, explicit click.
+   */
+  const askPrice = async () => {
+    if (!doc || readOnly) return;
+    if (doc.rows.length === 0) {
+      toast.info("ยังไม่มีรายการให้ตั้งราคา");
+      return;
+    }
+    setPricing(true);
+    try {
+      const res = await fetch("/api/quote-advice", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ doc }),
+      });
+      const data = (await res.json()) as { advice?: QuoteAdvice; error?: string };
+      if (!res.ok || !data.advice) {
+        toast.error("ตั้งราคาให้ไม่สำเร็จ", { description: data.error });
+        return;
+      }
+      setAdvice(data.advice);
+    } catch (e) {
+      toast.error("ตั้งราคาให้ไม่สำเร็จ", {
+        description: e instanceof Error ? e.message : undefined,
+      });
+    } finally {
+      setPricing(false);
+    }
+  };
+
+  /** Take the rate (and the market line the paper compares against). */
+  const applyRate = (a: QuoteAdvice) => {
+    edit((d) => ({
+      ...d,
+      ratePerDay: a.suggestedRate,
+      marketRatePerDay: marketMidpoint(a),
+      marketNote: a.pitch,
+    }));
+    setAdvice(null);
+    toast.success(`ใช้เรต ฿${a.suggestedRate.toLocaleString("th-TH")}/วัน แล้ว`);
+  };
+
+  /** Take the rate AND the per-line day counts, matched by name + parent. */
+  const applyAll = (a: QuoteAdvice) => {
+    const byKey = new Map(a.rows.map((r) => [`${r.parent}\u0000${r.name}`, r]));
+    let changed = 0;
+    edit((d) => ({
+      ...d,
+      ratePerDay: a.suggestedRate,
+      marketRatePerDay: marketMidpoint(a),
+      marketNote: a.pitch,
+      rows: d.rows.map((r) => {
+        const hit = byKey.get(`${r.parent}\u0000${r.name}`);
+        if (!hit) return r;
+        if (hit.days !== r.days || hit.size !== r.size) changed++;
+        return { ...r, size: hit.size, days: hit.days };
+      }),
+    }));
+    setAdvice(null);
+    toast.success(`ใช้ราคาที่แนะนำแล้ว · ปรับ ${changed} รายการ`);
+  };
+
+  /**
    * Print through the browser: a portal onto document.body plus a print
    * stylesheet that hides every sibling. No PDF library, no server render —
    * ⌘P → "Save as PDF" is a route every OS already has, and it prints exactly
@@ -186,6 +269,8 @@ export default function Quotation({
   const t = quoteTotals(doc);
   const missing = missingRows(doc, shots);
   const counts = rowCounts(doc);
+  const market = marketComparison(doc);
+  const baht = (n: number) => `฿${formatTHB(n)}`;
   const setRow = (id: string, patch: Partial<QuoteRow>) =>
     edit((d) => ({ ...d, rows: d.rows.map((r) => (r.id === id ? { ...r, ...patch } : r)) }));
 
@@ -273,7 +358,22 @@ export default function Quotation({
             {writing ? "กำลังเขียน…" : "เขียนรายละเอียดด้วย AI"}
           </button>
         )}
+        {!readOnly && (
+          <button
+            onClick={() => void askPrice()}
+            disabled={pricing}
+            title="ให้ AI ดูขอบเขตงานจริงแล้วเสนอเรตต่อวัน เทียบกับราคาตลาด — เสนอเฉยๆ ยังไม่แก้ใบเสนอราคา"
+            className={`inline-flex items-center gap-1.5 rounded-lg border border-shine/50 px-2.5 py-1 font-display text-[12px] text-shine transition hover:bg-shine/10 disabled:opacity-40 ${
+              files ? "" : "ml-auto"
+            }`}
+          >
+            {pricing ? <Loader2 size={12} className="animate-spin" /> : <Handshake size={12} />}
+            {pricing ? "กำลังคิดราคา…" : "ให้ AI ช่วยตั้งราคา"}
+          </button>
+        )}
       </div>
+
+      {advice && <AdviceCard advice={advice} doc={doc} onClose={() => setAdvice(null)} onRate={applyRate} onAll={applyAll} />}
       <div className="mt-1.5 overflow-hidden rounded-xl border border-night-edge">
         <table className="w-full text-[12px]">
           <thead>
@@ -434,6 +534,28 @@ export default function Quotation({
               disabled={readOnly}
             />
           </Field>
+          <Field label="ราคาตลาด/วัน — 0 = ไม่เทียบ">
+            <input
+              type="number"
+              min={0}
+              step={500}
+              value={doc.marketRatePerDay}
+              onChange={(e) => edit((d) => ({ ...d, marketRatePerDay: Number(e.target.value) }))}
+              className={inputCls}
+              disabled={readOnly}
+            />
+          </Field>
+          <div className="sm:col-span-2">
+            <Field label="ประโยคเทียบราคา (พิมพ์ในใบเสนอราคา)">
+              <input
+                value={doc.marketNote}
+                onChange={(e) => edit((d) => ({ ...d, marketNote: e.target.value }))}
+                placeholder="เช่น งานขนาดนี้ในตลาดอยู่ที่ประมาณ … เราเสนอราคาพิเศษให้"
+                className={inputCls}
+                disabled={readOnly}
+              />
+            </Field>
+          </div>
           <div className="sm:col-span-3">
             <Field label="เงื่อนไข">
               <textarea
@@ -464,6 +586,24 @@ export default function Quotation({
               ฿{formatTHB(t.grand)}
             </span>
           </div>
+          {market && (
+            <div className="mt-2.5 rounded-lg border border-go/40 bg-go/10 p-2.5">
+              <div className="flex items-baseline justify-between text-[12px]">
+                <span className="text-chalk-dim">ราคาตลาดโดยประมาณ</span>
+                <span className="font-mono text-chalk-dim line-through">{baht(market.market)}</span>
+              </div>
+              <div className="flex items-baseline justify-between text-[12px]">
+                <span className="text-go">ลูกค้าประหยัด</span>
+                <span className="font-mono font-semibold text-go">
+                  {baht(market.saved)} ({market.percent}%)
+                </span>
+              </div>
+              <p className="mt-1 text-[10px] leading-relaxed text-chalk-dim">
+                เทียบที่ {baht(doc.marketRatePerDay)}/วัน — เป็นการประมาณการ แก้ตัวเลขได้ในช่อง
+                “ราคาตลาด/วัน” และจะพิมพ์ลงใบเสนอราคาด้วย
+              </p>
+            </div>
+          )}
           <button
             onClick={print}
             className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-lg bg-shine px-3 py-2 font-display text-[12px] font-semibold text-night transition hover:brightness-110"
@@ -502,6 +642,129 @@ function Total({ label, value }: { label: string; value: string }) {
     <div className="flex items-baseline justify-between py-0.5 text-[12px]">
       <span className="text-chalk-dim">{label}</span>
       <span className="font-mono text-chalk">{value}</span>
+    </div>
+  );
+}
+
+/**
+ * The advisor's proposal.
+ *
+ * Shown as a card the sender reads and decides on — market range, recommended
+ * rate, the reasoning, and every line the model would re-estimate. Two ways to
+ * take it and one to dismiss it; there is no path where it edits the document
+ * on its own, because the person sending the quotation is the one who has to
+ * defend the number.
+ */
+function AdviceCard({
+  advice,
+  doc,
+  onClose,
+  onRate,
+  onAll,
+}: {
+  advice: QuoteAdvice;
+  doc: QuoteDoc;
+  onClose: () => void;
+  onRate: (a: QuoteAdvice) => void;
+  onAll: (a: QuoteAdvice) => void;
+}) {
+  const baht = (n: number) => `฿${formatTHB(n)}`;
+  // Only the lines the model would actually change — a wall of "same as yours"
+  // buries the two rows worth arguing about.
+  const changed = advice.rows.filter((a) => {
+    const mine = doc.rows.find((r) => r.name === a.name && r.parent === a.parent);
+    return mine && (mine.days !== a.days || mine.size !== a.size);
+  });
+
+  return (
+    <div className="mt-2 rounded-xl border border-shine/40 bg-shine/[0.06] p-3.5">
+      <div className="flex items-start gap-2">
+        <Handshake size={14} className="mt-0.5 shrink-0 text-shine" />
+        <div className="min-w-0 flex-1">
+          <h4 className="font-display text-[13px] font-semibold text-chalk">ข้อเสนอราคาจาก AI</h4>
+          <p className="mt-0.5 text-[11px] leading-relaxed text-chalk-dim">{advice.rationale}</p>
+        </div>
+        <button onClick={onClose} aria-label="ปิด" className="shrink-0 text-chalk-dim hover:text-chalk">
+          <X size={13} />
+        </button>
+      </div>
+
+      <div className="mt-3 grid gap-2 sm:grid-cols-3">
+        <Stat label="ราคาตลาด" value={`${baht(advice.marketLow)}–${baht(advice.marketHigh)}`} sub="ต่อวัน" />
+        <Stat label="แนะนำให้เสนอ" value={baht(advice.suggestedRate)} sub="ต่อวัน" accent />
+        <Stat label="ของคุณตอนนี้" value={baht(doc.ratePerDay)} sub="ต่อวัน" />
+      </div>
+
+      {advice.pitch && (
+        <p className="mt-3 rounded-lg border border-night-edge bg-night px-2.5 py-2 text-[11px] leading-relaxed text-chalk">
+          💬 {advice.pitch}
+        </p>
+      )}
+
+      {changed.length > 0 && (
+        <details className="mt-3">
+          <summary className="cursor-pointer font-display text-[11px] text-chalk-dim hover:text-chalk">
+            เสนอปรับจำนวนวัน {changed.length} รายการ
+          </summary>
+          <div className="scroll-thin mt-1.5 max-h-40 space-y-1 overflow-y-auto">
+            {changed.map((a) => {
+              const mine = doc.rows.find((r) => r.name === a.name && r.parent === a.parent)!;
+              return (
+                <div key={`${a.parent}/${a.name}`} className="text-[11px] leading-relaxed">
+                  <span className="text-chalk">{a.name}</span>{" "}
+                  <span className="font-mono text-chalk-dim">
+                    {mine.days} → <b className="text-shine">{a.days}</b> วัน
+                  </span>
+                  {a.why && <span className="block text-chalk-dim/70">— {a.why}</span>}
+                </div>
+              );
+            })}
+          </div>
+        </details>
+      )}
+
+      <div className="mt-3 flex flex-wrap gap-2">
+        <button
+          onClick={() => onAll(advice)}
+          className="rounded-lg bg-shine px-3 py-1.5 font-display text-[12px] font-semibold text-night transition hover:brightness-110"
+        >
+          ใช้ทั้งหมด (เรต + จำนวนวัน)
+        </button>
+        <button
+          onClick={() => onRate(advice)}
+          className="rounded-lg border border-shine/50 px-3 py-1.5 font-display text-[12px] text-shine transition hover:bg-shine/10"
+        >
+          ใช้เฉพาะเรตต่อวัน
+        </button>
+        <button
+          onClick={onClose}
+          className="rounded-lg border border-night-edge px-3 py-1.5 font-display text-[12px] text-chalk-dim transition hover:text-chalk"
+        >
+          ไม่ใช้ — กรอกเอง
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function Stat({
+  label,
+  value,
+  sub,
+  accent,
+}: {
+  label: string;
+  value: string;
+  sub: string;
+  accent?: boolean;
+}) {
+  return (
+    <div className={`rounded-lg border p-2 ${accent ? "border-shine/50 bg-shine/10" : "border-night-edge bg-night"}`}>
+      <p className="font-display text-[10px] uppercase tracking-widest text-chalk-dim">{label}</p>
+      <p className={`font-display text-[15px] font-semibold ${accent ? "text-shine" : "text-chalk"}`}>
+        {value}
+      </p>
+      <p className="font-mono text-[10px] text-chalk-dim">{sub}</p>
     </div>
   );
 }

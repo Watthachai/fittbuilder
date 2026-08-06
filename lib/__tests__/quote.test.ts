@@ -4,6 +4,7 @@ import {
   emptyRow,
   formatTHB,
   lineTotal,
+  marketComparison,
   missingRows,
   newDoc,
   parseDoc,
@@ -228,5 +229,52 @@ describe("parseDoc", () => {
     expect(doc.rows[0].days).toBe(SIZE_DAYS.M);
     expect(doc.ratePerDay).toBe(DEFAULT_RATE);
     expect(quoteTotals(doc).grand).toBe(SIZE_DAYS.M * DEFAULT_RATE * 1.07);
+  });
+});
+
+describe("marketComparison", () => {
+  const withMarket = (rate: number, over: Partial<QuoteDoc> = {}): QuoteDoc => ({
+    ...newDoc(INVENTORY, "d", "2026-08-05"),
+    marketRatePerDay: rate,
+    ...over,
+  });
+
+  it("prices the same days at the market rate and shows the saving", () => {
+    // 6 days: market 12,000/day = 72,000 vs quoted 48,000
+    const c = marketComparison(withMarket(12_000))!;
+    expect(c.market).toBe(72_000);
+    expect(c.quoted).toBe(48_000);
+    expect(c.saved).toBe(24_000);
+    expect(c.percent).toBe(33);
+  });
+
+  it("compares against the price after discount, which is what is charged", () => {
+    const c = marketComparison(withMarket(12_000, { discountPercent: 10 }))!;
+    expect(c.quoted).toBe(43_200);
+    expect(c.saved).toBe(28_800);
+  });
+
+  /**
+   * Nothing is printed unless there is a real saving. A "market price" below
+   * the quoted price would put "ประหยัด −฿8,000" on a document going to a
+   * customer.
+   */
+  it("shows nothing when the quote is not actually cheaper", () => {
+    expect(marketComparison(withMarket(8_000))).toBeNull();
+    expect(marketComparison(withMarket(6_000))).toBeNull();
+  });
+
+  it("is off by default and off at zero", () => {
+    expect(marketComparison(newDoc(INVENTORY, "d", "2026-08-05"))).toBeNull();
+    expect(marketComparison(withMarket(0))).toBeNull();
+  });
+
+  // Derived, never stored: rows change after the advisor runs.
+  it("follows the rows — deleting work lowers both sides", () => {
+    const doc = withMarket(12_000);
+    const one = { ...doc, rows: doc.rows.slice(0, 1) };
+    const c = marketComparison(one)!;
+    expect(c.market).toBe(2.5 * 12_000);
+    expect(c.quoted).toBe(2.5 * 8_000);
   });
 });

@@ -2,6 +2,7 @@
 
 import {
   formatTHB,
+  marketComparison,
   quoteTotals,
   lineTotal,
   SIZE_LABEL,
@@ -22,6 +23,7 @@ import type { Shot } from "@/lib/shots";
  */
 export default function QuotationPrint({ doc, shots }: { doc: QuoteDoc; shots: Shot[] }) {
   const t = quoteTotals(doc);
+  const market = marketComparison(doc);
   // Thumbnails are the point of the inventory: the customer sees what they are
   // buying, not just a list of names.
   const gallery = shots.filter((s) => s.url);
@@ -130,6 +132,33 @@ export default function QuotationPrint({ doc, shots }: { doc: QuoteDoc; shots: S
           </tr>
         </tfoot>
       </table>
+
+      {/* The saving, stated as an estimate and attributed to nobody but the
+          sender — it is their claim about their market, made editable in the
+          panel for exactly that reason. */}
+      {market && (
+        <section className="q-market">
+          <table>
+            <tbody>
+              <tr>
+                <th>ราคาตลาดโดยประมาณสำหรับขอบเขตงานนี้</th>
+                <td className="q-strike">{formatTHB(market.market)}</td>
+              </tr>
+              <tr>
+                <th>ราคาที่เสนอ</th>
+                <td>{formatTHB(market.quoted)}</td>
+              </tr>
+              <tr className="q-save">
+                <th>ประหยัด</th>
+                <td>
+                  {formatTHB(market.saved)} ({market.percent}%)
+                </td>
+              </tr>
+            </tbody>
+          </table>
+          {doc.marketNote && <p className="q-pitch">{doc.marketNote}</p>}
+        </section>
+      )}
 
       {doc.terms.trim() && (
         <section className="q-terms">

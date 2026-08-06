@@ -786,6 +786,40 @@ body {
   font-size: 15px;
   font-weight: 700;
 }
+.fitt-paper .q-market {
+  margin-top: 16px;
+  border: 1px solid var(--rule);
+  border-left: 3px solid #15803d;
+  border-radius: 3px;
+  padding: 10px 12px;
+}
+.fitt-paper .q-market table {
+  border-collapse: collapse;
+}
+.fitt-paper .q-market th {
+  font-weight: 400;
+  text-align: left;
+  padding-right: 18px;
+}
+.fitt-paper .q-market td {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.fitt-paper .q-strike {
+  color: var(--ink-dim);
+  text-decoration: line-through;
+}
+.fitt-paper .q-save th,
+.fitt-paper .q-save td {
+  color: #15803d;
+  font-weight: 700;
+}
+.fitt-paper .q-pitch {
+  margin-top: 6px;
+  color: #374151;
+  max-width: 70ch;
+}
 .fitt-paper .q-terms {
   margin-top: 18px;
 }
@@ -860,6 +894,7 @@ body {
     display: table-header-group; /* repeat the header on every page */
   }
   .fitt-paper .q-items tr,
+  .fitt-paper .q-market,
   .fitt-paper .q-sign,
   .fitt-paper .q-terms {
     break-inside: avoid;

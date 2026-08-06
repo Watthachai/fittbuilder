@@ -166,6 +166,8 @@ export interface Database {
           owner_id: string;
           name: string;
           files: Json | null;
+          /** Maintained by a trigger (migration 0027) so listing never reads `files`. */
+          file_count: number;
           phase: string;
           approved_phases: Json;
           history: Json;
@@ -184,6 +186,7 @@ export interface Database {
           owner_id?: string;
           name?: string;
           files?: Json | null;
+          file_count?: number;
           phase?: string;
           approved_phases?: Json;
           history?: Json;
@@ -202,6 +205,7 @@ export interface Database {
           owner_id?: string;
           name?: string;
           files?: Json | null;
+          file_count?: number;
           phase?: string;
           approved_phases?: Json;
           history?: Json;

@@ -30,6 +30,7 @@ import {
   getAccess,
   getApprovalState,
   getProject,
+  getProjectPhase,
   newMessage,
   saveProject,
   setProjectOrg,
@@ -444,10 +445,19 @@ export default function Studio({ projectId }: { projectId: string }) {
         .then(() => {
           setSaveState("saved");
           // Tell collaborators a new turn landed so their idle views pull it in.
+          // The version rides along: a project row carries files + 10 history
+          // snapshots + every turn's diffs (5 MB on a real one), so the receiver
+          // must be able to decide whether a download is warranted WITHOUT
+          // doing the download. Without this, two people editing bounced full
+          // rows off each other until Postgres stopped answering.
           rtChannelRef.current?.send({
             type: "broadcast",
             event: "updated",
-            payload: { from: clientIdRef.current, name: nameRef.current },
+            payload: {
+              from: clientIdRef.current,
+              name: nameRef.current,
+              updatedAt: local.updatedAt,
+            },
           });
         })
         .catch((e) => {
@@ -1793,6 +1803,10 @@ export default function Studio({ projectId }: { projectId: string }) {
     channel
       .on("broadcast", { event: "updated" }, ({ payload }) => {
         if (!payload || payload.from === clientIdRef.current) return; // our own
+        // Nothing newer than what we hold → nothing to fetch. Cheap string
+        // compare instead of a multi-megabyte round trip.
+        const theirs = payload.updatedAt as string | undefined;
+        if (theirs && projectRef.current && theirs <= projectRef.current.updatedAt) return;
         if (rtReloadTimer.current) clearTimeout(rtReloadTimer.current);
         const who = (payload.name as string) || "เพื่อนร่วมทีม";
         rtReloadTimer.current = setTimeout(() => {
@@ -1840,12 +1854,17 @@ export default function Studio({ projectId }: { projectId: string }) {
       void refreshApproval();
       // Pull in another member's phase advance — but never clobber active work.
       if (abortRef.current || saveTimer.current) return;
-      void getProject(projectId).then((loaded) => {
+      // Two small columns, not the whole project: this ran on every tab focus
+      // and downloaded files + history + every turn's diffs to compare one
+      // short string.
+      void getProjectPhase(projectId).then((remote) => {
         const cur = projectRef.current;
-        if (loaded && cur && loaded.phase !== cur.phase) {
+        if (!remote || !cur || remote.phase === cur.phase) return;
+        void getProject(projectId).then((loaded) => {
+          if (!loaded) return;
           projectRef.current = loaded;
           setProject(loaded);
-        }
+        });
       });
     };
     window.addEventListener("focus", onFocus);

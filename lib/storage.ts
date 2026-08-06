@@ -10,7 +10,14 @@ type ProjInsert = Database["public"]["Tables"]["fittbuilder_projects"]["Insert"]
 
 const HISTORY_LIMIT = 10; // US-004
 
+/**
+ * The whole project. Genuinely expensive: `files` is the source tree, `history`
+ * is ten more copies of it, and `messages` carries every turn's before/after
+ * file bodies — 5 MB on a real project. Read it only when the studio actually
+ * needs the project, never to answer a question a column could answer.
+ */
 const SELECT = "id, owner_id, name, files, phase, approved_phases, history, messages, share_token, share_role, skill_id, org_id, runner_last, created_at, updated_at";
+
 
 async function uid(): Promise<string> {
   const supabase = createClient();
@@ -32,9 +39,36 @@ export async function saveProject(project: ProjectRecord): Promise<ProjectRecord
   // No owner_id here — see ProjectInsertRow. Autosave runs for every editor, so
   // sending it handed the project to whoever saved last.
   const row = { id: project.id, ...projectToRow(project) };
-  const { data, error } = await supabase.from("fittbuilder_projects").upsert(row as unknown as ProjInsert).select(SELECT).single();
+  // Write only. Selecting the row back doubled every autosave: we just sent
+  // those megabytes, so reading them again tells us nothing we do not hold —
+  // except `updated_at`, which the server stamps and the caller needs.
+  const { data, error } = await supabase
+    .from("fittbuilder_projects")
+    .upsert(row as unknown as ProjInsert)
+    .select("updated_at")
+    .single();
   if (error) throw error;
-  return rowToProject(data as unknown as ProjectRow);
+  return { ...project, updatedAt: (data?.updated_at as string) ?? project.updatedAt };
+}
+
+/**
+ * Just the workflow phase and the version stamp.
+ *
+ * The tab-focus check needs to know whether a collaborator advanced the phase.
+ * It used to answer that by downloading the entire project — files, history and
+ * every turn's diffs — to compare one short string, on every focus.
+ */
+export async function getProjectPhase(
+  id: string
+): Promise<{ phase: PhaseId; updatedAt: string } | null> {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from("fittbuilder_projects")
+    .select("phase, updated_at")
+    .eq("id", id)
+    .maybeSingle();
+  if (error || !data) return null;
+  return { phase: data.phase as PhaseId, updatedAt: data.updated_at as string };
 }
 
 export async function createProject(options?: {
@@ -113,7 +147,10 @@ export async function listProjects(): Promise<ProjectSummary[]> {
   // RLS returns owned + shared rows; classify by owner_id, attach role from memberships.
   const { data: rows, error } = await supabase
     .from("fittbuilder_projects")
-    .select("id, owner_id, name, files, org_id, created_at, updated_at")
+    // NOT `files`. Listing pulled the entire source tree of every project the
+    // user can see, to render a file count. file_count is maintained by a
+    // trigger (migration 0027) precisely so this query stays small.
+    .select("id, owner_id, name, file_count, org_id, created_at, updated_at")
     .order("updated_at", { ascending: false });
   if (error) throw error;
   const [{ data: memberships }, { data: owners }] = await Promise.all([
@@ -131,7 +168,7 @@ export async function listProjects(): Promise<ProjectSummary[]> {
     return {
       id: r.id,
       name: r.name,
-      fileCount: r.files ? Object.keys(r.files as ProjectFiles).length : 0,
+      fileCount: (r as { file_count: number | null }).file_count ?? 0,
       orgId: (r as { org_id: string | null }).org_id ?? null,
       createdAt: r.created_at,
       updatedAt: r.updated_at,

@@ -19,7 +19,13 @@ import { patchClassName, patchText } from "@/lib/wand-patch";
 import { computeChanges, deriveProductName, sanitizeFiles } from "@/lib/files";
 import { isBuildPhase, nextPhase, phaseDef, type PhaseId } from "@/lib/phases";
 import { type DesignOption, designStyleDirective, fetchDesignOptions } from "@/lib/design";
-import { extraDepsOf, packageJsonWithDeps, SCAFFOLD_FILES, VITE_CONFIG } from "@/lib/scaffold";
+import {
+  extraDepsOf,
+  packageJsonWithDeps,
+  SCAFFOLD_FILES,
+  VITE_CONFIG,
+  withRequiredScaffold,
+} from "@/lib/scaffold";
 import { takePendingAction, takePendingAttachments } from "@/lib/pending-action";
 import { encodeShareUrl } from "@/lib/share";
 import { streamAgent, streamGenerate } from "@/lib/sse";
@@ -506,8 +512,11 @@ export default function Studio({ projectId }: { projectId: string }) {
       // `@import "tailwindcss"` self-heals on next boot. vite.config.js is
       // canonical (never authored by the AI) — always boot the current version so
       // older projects pick up the live-cursor forwarder plugin.
+      // withRequiredScaffold fills plumbing the model never writes (index.html
+      // above all) — without it a build that emitted package.json but no
+      // index.html booted a dev server with nothing to serve at "/".
       await runProject(
-        { ...sanitizeFiles(files), "vite.config.js": VITE_CONFIG },
+        { ...sanitizeFiles(withRequiredScaffold(files)), "vite.config.js": VITE_CONFIG },
         runCallbacks()
       );
     },
@@ -718,7 +727,7 @@ export default function Studio({ projectId }: { projectId: string }) {
 
       // Phase docs (+ the existing app on iteration) ride along; streamed files
       // are layered on top so the result lands in zip/share too.
-      const files: ProjectFiles = isIteration
+      const streamed: ProjectFiles = isIteration
         ? { ...(current.files ?? {}) }
         : { ...docOnlyFiles(current.files) };
 
@@ -763,7 +772,7 @@ export default function Studio({ projectId }: { projectId: string }) {
           if (event.type === "status") {
             pushTerminal(`… ${event.message}`);
           } else if (event.type === "file") {
-            files[event.path] = event.content;
+            streamed[event.path] = event.content;
             pushTerminal(`📝 ${event.path}`);
             appendLive((p) => ({ ...p, actions: [...p.actions, { icon: "file", label: event.path }] }));
             if (liveContainer && myEpoch === epochRef.current) {
@@ -771,7 +780,7 @@ export default function Studio({ projectId }: { projectId: string }) {
               void writeFile(event.path, event.content).catch(() => {});
             }
           } else if (event.type === "delete") {
-            delete files[event.path];
+            delete streamed[event.path];
             if (liveContainer && myEpoch === epochRef.current) {
               wroteLive = true;
               void removeFile(event.path).catch(() => {});
@@ -787,13 +796,17 @@ export default function Studio({ projectId }: { projectId: string }) {
             deleted = event.deleted;
           }
         }
-        for (const path of deleted) delete files[path];
+        for (const path of deleted) delete streamed[path];
         // Mirror done-event deletes into the live container too — otherwise
         // ghost files linger there and the Code-panel container sync
         // (readSource merge) resurrects files the model intentionally removed.
         if (liveContainer && myEpoch === epochRef.current)
           for (const path of deleted) void removeFile(path).catch(() => {});
 
+        // Store the plumbing as well as run it: the Code panel, the zip export
+        // and the next boot all read project.files, and a set without
+        // index.html is a broken project everywhere, not only in the preview.
+        const files = withRequiredScaffold(streamed);
         const changes = computeChanges(current.files, files);
         // History was already snapshotted at the start of the turn, so just set
         // the final files here (don't push a second history entry).

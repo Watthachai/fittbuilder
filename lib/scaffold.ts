@@ -1466,6 +1466,46 @@ function baseDeps(): Record<string, string> {
 }
 
 /** react / react-dom / vite / @vitejs/plugin-react — never re-resolvable by the model. */
+/**
+ * Infrastructure the demo cannot run without and the model never writes.
+ *
+ * The generated app is `src/**` plus package.json. Everything here is plumbing
+ * the codegen prompt does not even mention — so it can only arrive from the
+ * scaffold, and if the scaffold is not merged in, it never arrives at all.
+ *
+ * That is exactly what happened: `hasRunnableApp()` returns true as soon as
+ * package.json exists, and the studio then boots the project's own files
+ * verbatim. A build that produced package.json but no index.html therefore
+ * started a dev server with nothing to serve at "/" — Vite answered 404 and the
+ * preview was a permanently white page. The dev server said "พร้อม", because
+ * from its side everything was.
+ *
+ * `src/App.tsx`, `src/main.tsx` and `src/index.css` are deliberately NOT here:
+ * those are the demo's content, and filling them from the scaffold would paint
+ * a placeholder app over a real project's missing file instead of surfacing it.
+ */
+export const SCAFFOLD_REQUIRED: ProjectFiles = {
+  "index.html": SCAFFOLD_INDEX_HTML,
+  ".npmrc": NPMRC,
+  "tsconfig.json": TSCONFIG,
+  "package.json": DEMO_PACKAGE_JSON,
+  "public/preloader.svg": PRELOADER_SVG,
+};
+
+/**
+ * Fill in missing infrastructure. The project's own files always win, so a
+ * package.json the model rewrote (new dependencies) or an index.html it
+ * customised is never clobbered.
+ *
+ * A no-op for a project with no source — during Define/Plan the docs are the
+ * whole project, and stamping plumbing onto it would make an interview look
+ * like a runnable app to `hasRunnableApp()`.
+ */
+export function withRequiredScaffold(files: ProjectFiles): ProjectFiles {
+  const hasSource = Object.keys(files).some((p) => p.startsWith("src/"));
+  return hasSource ? { ...SCAFFOLD_REQUIRED, ...files } : files;
+}
+
 export const BASE_DEP_NAMES: ReadonlySet<string> = new Set(Object.keys(baseDeps()));
 
 /**

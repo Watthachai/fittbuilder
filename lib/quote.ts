@@ -35,6 +35,18 @@ export const SIZE_HINT: Record<Size, string> = {
 export const DEFAULT_RATE = 8_000;
 export const DEFAULT_VAT = 7;
 
+/** Days to pay after an instalment falls due, unless someone changes it. */
+export const PAY_NET_DAYS = 30;
+/** Days the customer gets to test and raise defects before UAT is deemed accepted. */
+export const REVIEW_DAYS = 30;
+
+/** The floor under maintenance: below this a month of support does not pay for itself. */
+export const MA_MIN_MONTHLY = 15_000;
+/** Year-2-onward maintenance, once the first year's warranty runs out. */
+export const MA_DEFAULT_ANNUAL = 90_000;
+/** Months of maintenance already paid for inside the project price. */
+export const MA_INCLUDED_MONTHS = 12;
+
 export interface QuoteRow {
   id: string;
   name: string;
@@ -51,6 +63,73 @@ export interface QuoteRow {
   sub: boolean;
   /** The screen this modal belongs to; empty for a top-level screen. */
   parent: string;
+}
+
+/**
+ * One instalment: what has to happen for it to fall due, and what share of the
+ * total it is.
+ *
+ * Percent is the stored number and the amount is derived — never the other way
+ * round. The scope changes right up to the day the quotation is sent, and a
+ * stored baht figure would quietly stop matching the lines above it.
+ */
+export interface PaymentTerm {
+  id: string;
+  /** What makes this instalment due, in the customer's words. */
+  when: string;
+  /** Share of the grand total. The schedule is only valid summing to 100. */
+  percent: number;
+  /** Days to pay once it falls due. */
+  netDays: number;
+}
+
+/**
+ * The acceptance deal, as fields rather than prose.
+ *
+ * These four numbers are the entire input to the printed clauses — which is the
+ * point: a customer who does not test for `reviewDays` is agreeing to something,
+ * and what they are agreeing to must be derived from the same figures printed in
+ * the payment table, not typed a second time beside it.
+ */
+export interface Acceptance {
+  enabled: boolean;
+  /** Days to test and raise defects, counted from the delivery notice. */
+  reviewDays: number;
+  /** Silence past the window counts as acceptance. */
+  deemedAccepted: boolean;
+  /** Where the work is handed over — named in the clause. */
+  channel: string;
+}
+
+/** Maintenance: quoted with the build, billed separately, never inside `grand`. */
+export interface Maintenance {
+  enabled: boolean;
+  modules: number;
+  /** ฿ per module per month. Clamped up to MA_MIN_MONTHLY when it prints. */
+  perModuleMonthly: number;
+  /** Months already covered by the project price (the warranty). */
+  includedMonths: number;
+  /** The annual fee from year 2 on. */
+  annualFromYear2: number;
+  note: string;
+}
+
+/**
+ * The letterhead — the quoting company's own identity.
+ *
+ * Copied INTO the document rather than joined from the workspace at render
+ * time: a quotation already sent to a customer must not change its letterhead
+ * because someone uploaded a new logo afterwards. The panel has a button to
+ * pull the current one in again.
+ */
+export interface QuoteBrand {
+  logoUrl: string;
+  name: string;
+  taxId: string;
+  address: string;
+  contact: string;
+  /** Partner workspaces print their own paper; everyone else carries our mark. */
+  poweredBy: boolean;
 }
 
 export interface QuoteDoc {
@@ -80,13 +159,92 @@ export interface QuoteDoc {
   marketRatePerDay: number;
   /** The sentence printed beside the comparison. */
   marketNote: string;
+  /** How the total is paid. Empty means the paper prints no schedule at all. */
+  payment: PaymentTerm[];
+  acceptance: Acceptance;
+  ma: Maintenance;
+  brand: QuoteBrand;
   terms: string;
 }
 
+// Payment now has its own table and its own generated clauses, so the free-text
+// block is what is left: scope, exclusions, and anything the sender wants to add.
 export const DEFAULT_TERMS = `• ราคานี้รวมการออกแบบ พัฒนา และทดสอบตามขอบเขตหน้าจอข้างต้น
 • ยังไม่รวมค่าเซิร์ฟเวอร์ โดเมน และบริการภายนอกที่มีค่าใช้จ่ายรายเดือน
-• แก้ไขนอกเหนือขอบเขตคิดเพิ่มตามจริง
-• เงื่อนไขชำระเงิน: มัดจำ 50% ก่อนเริ่มงาน ส่วนที่เหลือเมื่อส่งมอบ`;
+• แก้ไขนอกเหนือขอบเขตคิดเพิ่มตามจริง`;
+
+/** The deal as agreed with FITT Code Runner: 60 on UAT delivery, 40 on acceptance. */
+export function presetUat(): PaymentTerm[] {
+  return [
+    {
+      id: "pay-uat",
+      when: "เมื่อส่งมอบระบบขึ้น UAT ให้ผู้ว่าจ้างตรวจรับ",
+      percent: 60,
+      netDays: PAY_NET_DAYS,
+    },
+    {
+      id: "pay-accept",
+      when: "เมื่อตรวจรับงานเรียบร้อย หรือครบกำหนดตรวจรับโดยไม่มีข้อทักท้วง",
+      percent: 40,
+      netDays: PAY_NET_DAYS,
+    },
+  ];
+}
+
+/** The other common shape: money on signature, the balance on delivery. */
+export function presetSigning(): PaymentTerm[] {
+  return [
+    { id: "pay-sign", when: "เมื่อลงนามในสัญญา", percent: 60, netDays: 7 },
+    { id: "pay-deliver", when: "เมื่อส่งมอบงานครบตามขอบเขต", percent: 40, netDays: PAY_NET_DAYS },
+  ];
+}
+
+/**
+ * n equal instalments.
+ *
+ * Each share is rounded DOWN to two decimals and the remainder lands on the last
+ * one, so the column still sums to exactly 100% — twelve rows of 8.33 add up to
+ * 99.96, and a schedule that does not reach 100 is a schedule that under-bills.
+ */
+export function presetEqual(count: number): PaymentTerm[] {
+  const n = Math.max(1, Math.floor(num(count)));
+  const each = Math.floor(10_000 / n) / 100;
+  return Array.from({ length: n }, (_, i) => ({
+    id: `pay-${i + 1}`,
+    when: i === 0 ? "งวดแรก — เมื่อลงนามในสัญญา" : `งวดที่ ${i + 1}`,
+    percent: i === n - 1 ? round2(100 - each * (n - 1)) : each,
+    netDays: PAY_NET_DAYS,
+  }));
+}
+
+export function emptyTerm(index: number): PaymentTerm {
+  return { id: `pay-${index + 1}-${index}`, when: "", percent: 0, netDays: PAY_NET_DAYS };
+}
+
+export function defaultAcceptance(): Acceptance {
+  return {
+    enabled: true,
+    reviewDays: REVIEW_DAYS,
+    deemedAccepted: true,
+    channel: "สภาพแวดล้อมทดสอบ (UAT) ผ่าน FITT Code Runner",
+  };
+}
+
+export function defaultMaintenance(): Maintenance {
+  return {
+    enabled: false,
+    modules: 1,
+    perModuleMonthly: MA_MIN_MONTHLY,
+    includedMonths: MA_INCLUDED_MONTHS,
+    annualFromYear2: MA_DEFAULT_ANNUAL,
+    note: "",
+  };
+}
+
+/** A letterhead nobody has filled in yet — and therefore one that carries our mark. */
+export function emptyBrand(): QuoteBrand {
+  return { logoUrl: "", name: "", taxId: "", address: "", contact: "", poweredBy: true };
+}
 
 /** A stable id per row — the shot path when it came from one, else a counter. */
 const rowId = (seed: string, i: number) => `${i}:${seed}`;
@@ -149,6 +307,10 @@ export function newDoc(shots: Shot[], projectName: string, today: string): Quote
     discountPercent: 0,
     marketRatePerDay: 0,
     marketNote: "",
+    payment: presetUat(),
+    acceptance: defaultAcceptance(),
+    ma: defaultMaintenance(),
+    brand: emptyBrand(),
     terms: DEFAULT_TERMS,
   };
 }
@@ -168,6 +330,9 @@ export function parseDoc(payload: unknown, fallbackDate: string): QuoteDoc | nul
   if (!Array.isArray(o.rows)) return null;
   const str = (v: unknown, d = "") => (typeof v === "string" ? v : d);
   const n = (v: unknown, d: number) => (typeof v === "number" && Number.isFinite(v) ? v : d);
+  const bool = (v: unknown, d: boolean) => (typeof v === "boolean" ? v : d);
+  const obj = (v: unknown): Record<string, unknown> =>
+    v && typeof v === "object" && !Array.isArray(v) ? (v as Record<string, unknown>) : {};
   const rows: QuoteRow[] = o.rows.map((raw, i) => {
     const r = (raw ?? {}) as Record<string, unknown>;
     const size: Size = r.size === "S" || r.size === "L" ? r.size : "M";
@@ -181,6 +346,14 @@ export function parseDoc(payload: unknown, fallbackDate: string): QuoteDoc | nul
       parent: str(r.parent),
     };
   });
+  // Every quotation written before this feature existed has none of the four
+  // blocks below. They are backfilled with working defaults rather than
+  // rejected: a stored document is somebody's priced work, and losing it to a
+  // schema change is the one outcome worse than showing them a default.
+  const acc = obj(o.acceptance);
+  const ma = obj(o.ma);
+  const brand = obj(o.brand);
+  const fallbackMa = defaultMaintenance();
   return {
     subject: str(o.subject),
     vendor: str(o.vendor),
@@ -194,6 +367,43 @@ export function parseDoc(payload: unknown, fallbackDate: string): QuoteDoc | nul
     discountPercent: n(o.discountPercent, 0),
     marketRatePerDay: n(o.marketRatePerDay, 0),
     marketNote: str(o.marketNote),
+    // An empty array is a real state — someone deleted every instalment — so
+    // only a MISSING schedule gets seeded with the default one.
+    payment: Array.isArray(o.payment)
+      ? o.payment.map((raw, i) => {
+          const t = obj(raw);
+          return {
+            id: str(t.id) || `pay-${i + 1}`,
+            when: str(t.when),
+            percent: n(t.percent, 0),
+            netDays: n(t.netDays, PAY_NET_DAYS),
+          };
+        })
+      : presetUat(),
+    acceptance: {
+      enabled: bool(acc.enabled, true),
+      reviewDays: n(acc.reviewDays, REVIEW_DAYS),
+      deemedAccepted: bool(acc.deemedAccepted, true),
+      channel: str(acc.channel) || defaultAcceptance().channel,
+    },
+    ma: {
+      enabled: bool(ma.enabled, false),
+      modules: n(ma.modules, fallbackMa.modules),
+      perModuleMonthly: n(ma.perModuleMonthly, fallbackMa.perModuleMonthly),
+      includedMonths: n(ma.includedMonths, fallbackMa.includedMonths),
+      annualFromYear2: n(ma.annualFromYear2, fallbackMa.annualFromYear2),
+      note: str(ma.note),
+    },
+    brand: {
+      logoUrl: str(brand.logoUrl),
+      name: str(brand.name),
+      taxId: str(brand.taxId),
+      address: str(brand.address),
+      contact: str(brand.contact),
+      // Defaults to ON: a document whose brand block predates the partner flag
+      // must not silently print as white-label.
+      poweredBy: bool(brand.poweredBy, true),
+    },
     terms: str(o.terms, DEFAULT_TERMS),
   };
 }
@@ -263,6 +473,79 @@ export function marketComparison(
   const saved = round2(market - net);
   if (saved <= 0) return null;
   return { market, quoted: net, saved, percent: Math.round((saved / market) * 100) };
+}
+
+export interface PaymentLine {
+  term: PaymentTerm;
+  amount: number;
+}
+
+export interface PaymentPlan {
+  rows: PaymentLine[];
+  /** What the shares actually add up to — 100 when the schedule is complete. */
+  percentSum: number;
+  balanced: boolean;
+}
+
+/**
+ * The instalment table: each share turned into money.
+ *
+ * The remainder left by rounding lands on the last instalment, so the column
+ * adds up to the grand total exactly — the same discipline `quoteTotals` uses
+ * on the line items, for the same reason.
+ *
+ * It does that ONLY when the shares sum to 100. When they do not, the gap is
+ * real, and folding it into the last row would hide a schedule that bills less
+ * (or more) than the price agreed above it. The panel warns instead.
+ */
+export function paymentSchedule(doc: QuoteDoc): PaymentPlan {
+  const { grand } = quoteTotals(doc);
+  const percentSum = round2(doc.payment.reduce((sum, t) => sum + num(t.percent), 0));
+  const balanced = percentSum === 100;
+  const rows: PaymentLine[] = doc.payment.map((term) => ({
+    term,
+    amount: round2((grand * num(term.percent)) / 100),
+  }));
+  if (balanced && rows.length > 0) {
+    const printed = round2(rows.reduce((sum, r) => sum + r.amount, 0));
+    const last = rows[rows.length - 1];
+    rows[rows.length - 1] = { ...last, amount: round2(last.amount + (grand - printed)) };
+  }
+  return { rows, percentSum, balanced };
+}
+
+export interface MaintenanceTotals {
+  /** Modules billed, after the "at least one" floor. */
+  modules: number;
+  /** Per month across every module, after the floor is applied. */
+  monthly: number;
+  /** What the included months are worth — the warranty, priced. */
+  includedValue: number;
+  /** The year-2-onward annual fee. */
+  annual: number;
+  /** The entered rate was below the floor and was raised. The panel says so. */
+  clamped: boolean;
+}
+
+/**
+ * Maintenance, with the per-module floor applied here and nowhere else.
+ *
+ * A rate typed below MA_MIN_MONTHLY is raised rather than rejected, because the
+ * floor is a commercial rule and the person quoting should see the corrected
+ * number, not a blocked form. `clamped` is how the panel tells them it happened
+ * — the alternative is a paper that quietly disagrees with the screen.
+ */
+export function maintenanceTotals(ma: Maintenance): MaintenanceTotals {
+  const entered = num(ma.perModuleMonthly);
+  const modules = Math.max(1, Math.floor(num(ma.modules)));
+  const monthly = round2(Math.max(MA_MIN_MONTHLY, entered) * modules);
+  return {
+    modules,
+    monthly,
+    includedValue: round2(monthly * Math.max(0, Math.floor(num(ma.includedMonths)))),
+    annual: round2(num(ma.annualFromYear2)),
+    clamped: entered < MA_MIN_MONTHLY,
+  };
 }
 
 const clampPercent = (n: number) => Math.min(100, Math.max(0, num(n)));

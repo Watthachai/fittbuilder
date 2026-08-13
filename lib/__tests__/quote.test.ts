@@ -1,14 +1,25 @@
 import { describe, expect, it } from "vitest";
 import {
   DEFAULT_RATE,
+  defaultMaintenance,
   emptyRow,
   formatTHB,
   lineTotal,
+  MA_DEFAULT_ANNUAL,
+  MA_INCLUDED_MONTHS,
+  MA_MIN_MONTHLY,
+  maintenanceTotals,
   marketComparison,
   missingRows,
   newDoc,
   parseDoc,
+  paymentSchedule,
+  PAY_NET_DAYS,
+  presetEqual,
+  presetSigning,
+  presetUat,
   quoteTotals,
+  REVIEW_DAYS,
   rowsFromShots,
   SIZE_DAYS,
   thaiDate,
@@ -229,6 +240,172 @@ describe("parseDoc", () => {
     expect(doc.rows[0].days).toBe(SIZE_DAYS.M);
     expect(doc.ratePerDay).toBe(DEFAULT_RATE);
     expect(quoteTotals(doc).grand).toBe(SIZE_DAYS.M * DEFAULT_RATE * 1.07);
+  });
+
+  /**
+   * Every quotation stored before the payment/MA/brand blocks existed has none
+   * of them. Those documents are somebody's priced work — losing one to a schema
+   * change is worse than any default we could show instead, so they open, they
+   * keep their prices, and the new blocks arrive usable.
+   */
+  it("opens a document written before payment, MA and brand existed", () => {
+    const old = round({
+      rows: [{ name: "หน้าแรก", size: "L", days: 5 }],
+      ratePerDay: 9_000,
+      vatPercent: 7,
+      vendor: "บริษัทเก่า",
+    })!;
+    expect(old.rows[0]).toMatchObject({ size: "L", days: 5 });
+    expect(old.ratePerDay).toBe(9_000);
+    expect(old.vendor).toBe("บริษัทเก่า");
+    // The new blocks land on working defaults, not on zeroes.
+    expect(old.payment.map((t) => t.percent)).toEqual([60, 40]);
+    expect(paymentSchedule(old).balanced).toBe(true);
+    expect(old.acceptance).toMatchObject({ enabled: true, reviewDays: REVIEW_DAYS });
+    expect(old.ma.annualFromYear2).toBe(MA_DEFAULT_ANNUAL);
+    expect(old.brand.logoUrl).toBe("");
+  });
+
+  it("keeps a deleted schedule deleted instead of re-seeding it", () => {
+    expect(round({ rows: [], payment: [] })!.payment).toEqual([]);
+  });
+
+  it("repairs an instalment row that lost its fields", () => {
+    const doc = round({ rows: [], payment: [{ percent: 100 }, {}] })!;
+    expect(doc.payment[0]).toMatchObject({ percent: 100, netDays: PAY_NET_DAYS });
+    expect(doc.payment[1].percent).toBe(0);
+    // Ids must stay distinct — React keys the editor rows on them.
+    expect(new Set(doc.payment.map((t) => t.id)).size).toBe(2);
+  });
+
+  /**
+   * A brand block that predates the partner flag must not print as white-label:
+   * the mark comes off only when someone is actually a partner.
+   */
+  it("keeps our mark on a letterhead that never heard of partners", () => {
+    expect(round({ rows: [], brand: { name: "บริษัท ก" } })!.brand.poweredBy).toBe(true);
+    expect(round({ rows: [], brand: { poweredBy: false } })!.brand.poweredBy).toBe(false);
+  });
+});
+
+describe("paymentSchedule", () => {
+  // 6 days × 8,000 = 48,000 + 7% VAT = 51,360 grand.
+  const base = (over: Partial<QuoteDoc> = {}): QuoteDoc => ({
+    ...newDoc(INVENTORY, "d", "2026-08-05"),
+    ...over,
+  });
+  const sum = (doc: QuoteDoc) =>
+    Math.round(paymentSchedule(doc).rows.reduce((s, r) => s + r.amount, 0) * 100) / 100;
+
+  it("splits the grand total 60/40 by default", () => {
+    const plan = paymentSchedule(base());
+    expect(plan.balanced).toBe(true);
+    expect(plan.rows.map((r) => r.amount)).toEqual([30_816, 20_544]);
+    expect(sum(base())).toBe(quoteTotals(base()).grand);
+  });
+
+  /**
+   * The instalment column is checked by hand by whoever signs it. Rounding each
+   * share and letting the last one absorb the remainder is what guarantees it
+   * reaches the grand total — three thirds of an odd number otherwise land a
+   * satang short.
+   */
+  it("puts the rounding remainder on the last instalment so the column adds up", () => {
+    const doc = base({ payment: presetEqual(3), rows: [{ ...emptyRow(0), name: "x", days: 1 }] });
+    const { grand } = quoteTotals(doc);
+    expect(sum(doc)).toBe(grand);
+    // Thirds of 8,560: two at 33.33% and a fatter last one carrying the rest.
+    const amounts = paymentSchedule(doc).rows.map((r) => r.amount);
+    expect(amounts[0]).toBe(amounts[1]);
+    expect(amounts[2]).toBeGreaterThan(amounts[1]);
+  });
+
+  it("keeps twelve instalments adding up to the whole price", () => {
+    const doc = base({ payment: presetEqual(12) });
+    expect(paymentSchedule(doc).balanced).toBe(true);
+    expect(sum(doc)).toBe(quoteTotals(doc).grand);
+  });
+
+  /**
+   * An incomplete schedule is reported, never repaired. Folding a missing 5%
+   * into the last row would print a document that bills less than the price
+   * agreed three inches above it — and nobody would see it happen.
+   */
+  it("reports a schedule that does not reach 100% instead of hiding the gap", () => {
+    const doc = base({
+      payment: [
+        { id: "a", when: "ลงนาม", percent: 55, netDays: 30 },
+        { id: "b", when: "ส่งมอบ", percent: 40, netDays: 30 },
+      ],
+    });
+    const plan = paymentSchedule(doc);
+    expect(plan.percentSum).toBe(95);
+    expect(plan.balanced).toBe(false);
+    expect(sum(doc)).toBeLessThan(quoteTotals(doc).grand);
+  });
+
+  it("prints nothing at all when every instalment is deleted", () => {
+    const plan = paymentSchedule(base({ payment: [] }));
+    expect(plan.rows).toEqual([]);
+    expect(plan.balanced).toBe(false);
+  });
+
+  it("survives a half-typed percentage without inventing money", () => {
+    const doc = base({ payment: [{ id: "a", when: "x", percent: NaN, netDays: 30 }] });
+    expect(paymentSchedule(doc).rows[0].amount).toBe(0);
+  });
+
+  it("offers both agreed shapes at 100%", () => {
+    for (const preset of [presetUat(), presetSigning()]) {
+      expect(preset.reduce((s, t) => s + t.percent, 0)).toBe(100);
+    }
+  });
+
+  it("splits n ways to exactly 100%, remainder on the last share", () => {
+    for (const n of [1, 2, 3, 7, 12, 24]) {
+      const terms = presetEqual(n);
+      expect(terms).toHaveLength(n);
+      expect(Math.round(terms.reduce((s, t) => s + t.percent, 0) * 100) / 100).toBe(100);
+    }
+  });
+});
+
+describe("maintenanceTotals", () => {
+  const ma = (over: Partial<ReturnType<typeof defaultMaintenance>> = {}) => ({
+    ...defaultMaintenance(),
+    ...over,
+  });
+
+  it("bills the entered rate per module, per month", () => {
+    const t = maintenanceTotals(ma({ modules: 2, perModuleMonthly: 20_000 }));
+    expect(t.monthly).toBe(40_000);
+    expect(t.clamped).toBe(false);
+  });
+
+  /**
+   * The floor is a commercial rule, so it is applied in the one function both
+   * the panel and the paper read. Enforcing it only in the input would let a
+   * stored document print a rate the business does not sell.
+   */
+  it("raises a rate below the floor and says that it did", () => {
+    const t = maintenanceTotals(ma({ perModuleMonthly: 10_000 }));
+    expect(t.monthly).toBe(MA_MIN_MONTHLY);
+    expect(t.clamped).toBe(true);
+  });
+
+  it("prices the warranty year and the year-2 fee separately", () => {
+    const t = maintenanceTotals(ma());
+    expect(t.includedValue).toBe(MA_MIN_MONTHLY * MA_INCLUDED_MONTHS);
+    expect(t.annual).toBe(MA_DEFAULT_ANNUAL);
+  });
+
+  it("never bills zero modules", () => {
+    expect(maintenanceTotals(ma({ modules: 0 })).modules).toBe(1);
+    expect(maintenanceTotals(ma({ modules: NaN })).monthly).toBe(MA_MIN_MONTHLY);
+  });
+
+  it("is off until someone turns it on", () => {
+    expect(defaultMaintenance().enabled).toBe(false);
   });
 });
 

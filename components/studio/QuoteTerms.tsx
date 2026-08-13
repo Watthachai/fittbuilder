@@ -353,9 +353,13 @@ export default function QuoteTerms({
             )}
 
             <div className="mt-2.5 grid gap-2 sm:grid-cols-3">
-              <MaStat label="ต่อเดือน" value={baht(ma.monthly)} sub={`${ma.modules} module`} />
               <MaStat
-                label={`รวมให้ ${doc.ma.includedMonths} เดือนแรก`}
+                label="ต่อเดือน"
+                value={baht(ma.monthly)}
+                sub={`${baht(ma.perModule)} × ${ma.modules} module`}
+              />
+              <MaStat
+                label={`รวมให้ ${ma.includedMonths} เดือนแรก`}
                 value={baht(ma.includedValue)}
                 sub="อยู่ในราคาโครงการแล้ว"
               />

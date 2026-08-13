@@ -86,7 +86,7 @@ export function acceptanceClauses(doc: QuoteDoc): string[] {
     const t = maintenanceTotals(doc.ma);
     const included =
       t.includedValue > 0
-        ? `ค่าบำรุงรักษาระบบ ${doc.ma.includedMonths} เดือนแรกนับจากวันตรวจรับ รวมอยู่ในราคาตามเอกสารนี้แล้ว `
+        ? `ค่าบำรุงรักษาระบบ ${t.includedMonths} เดือนแรกนับจากวันตรวจรับ รวมอยู่ในราคาตามเอกสารนี้แล้ว `
         : "";
     out.push(
       `${included}หลังจากนั้นคิดค่าบำรุงรักษา ${baht(t.annual)} ต่อปี ` +

@@ -378,8 +378,21 @@ describe("maintenanceTotals", () => {
 
   it("bills the entered rate per module, per month", () => {
     const t = maintenanceTotals(ma({ modules: 2, perModuleMonthly: 20_000 }));
+    expect(t.perModule).toBe(20_000);
     expect(t.monthly).toBe(40_000);
     expect(t.clamped).toBe(false);
+  });
+
+  /**
+   * The paper prints the month count beside the money it is worth, so a
+   * fractional entry would put "12.7 เดือนแรก" next to twelve months' value —
+   * an inconsistency a customer can spot on the page. Both come from here.
+   */
+  it("prints whole months only, matching the value it prices them at", () => {
+    const t = maintenanceTotals(ma({ includedMonths: 12.7 }));
+    expect(t.includedMonths).toBe(12);
+    expect(t.includedValue).toBe(MA_MIN_MONTHLY * 12);
+    expect(maintenanceTotals(ma({ includedMonths: -3 })).includedMonths).toBe(0);
   });
 
   /**

@@ -517,8 +517,12 @@ export function paymentSchedule(doc: QuoteDoc): PaymentPlan {
 export interface MaintenanceTotals {
   /** Modules billed, after the "at least one" floor. */
   modules: number;
-  /** Per month across every module, after the floor is applied. */
+  /** Per module per month, after the floor is applied — the printed rate. */
+  perModule: number;
+  /** Per month across every module. */
   monthly: number;
+  /** Whole months included, after flooring — the number the paper prints. */
+  includedMonths: number;
   /** What the included months are worth — the warranty, priced. */
   includedValue: number;
   /** The year-2-onward annual fee. */
@@ -538,11 +542,18 @@ export interface MaintenanceTotals {
 export function maintenanceTotals(ma: Maintenance): MaintenanceTotals {
   const entered = num(ma.perModuleMonthly);
   const modules = Math.max(1, Math.floor(num(ma.modules)));
-  const monthly = round2(Math.max(MA_MIN_MONTHLY, entered) * modules);
+  const perModule = Math.max(MA_MIN_MONTHLY, entered);
+  const monthly = round2(perModule * modules);
+  // Whole months only, and never negative: the figure is printed beside the
+  // money it is worth, so "12.7 เดือนแรก" priced at twelve months' worth would
+  // be an inconsistency a customer can spot on the page.
+  const includedMonths = Math.max(0, Math.floor(num(ma.includedMonths)));
   return {
     modules,
+    perModule,
     monthly,
-    includedValue: round2(monthly * Math.max(0, Math.floor(num(ma.includedMonths)))),
+    includedMonths,
+    includedValue: round2(monthly * includedMonths),
     annual: round2(num(ma.annualFromYear2)),
     clamped: entered < MA_MIN_MONTHLY,
   };

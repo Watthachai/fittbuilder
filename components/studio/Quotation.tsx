@@ -14,6 +14,7 @@ import {
   X,
 } from "lucide-react";
 import {
+  brandFromOrg,
   emptyRow,
   formatTHB,
   lineTotal,
@@ -96,19 +97,7 @@ export default function Quotation({
       if (saved) return saved;
       const fresh = newDoc(shots, projectName, today);
       const org = orgId ? await getOrg(orgId).catch(() => null) : null;
-      if (!org) return fresh;
-      return {
-        ...fresh,
-        vendor: fresh.vendor || [org.brand.name, org.brand.address].filter(Boolean).join("\n"),
-        brand: {
-          logoUrl: org.brand.logoUrl ?? "",
-          name: org.brand.name ?? "",
-          taxId: org.brand.taxId ?? "",
-          address: org.brand.address ?? "",
-          contact: org.brand.contact ?? "",
-          poweredBy: !org.isPartner,
-        },
-      };
+      return org ? { ...fresh, brand: brandFromOrg(org.brand, org.isPartner) } : fresh;
     };
     void seed().then((d) => {
       if (!alive) return;
@@ -312,28 +301,57 @@ export default function Quotation({
         />
       </div>
 
-      {/* Header — who is quoting whom */}
+      {/* Recipient — the four labelled lines the paper prints as a form.
+          There is no "ผู้เสนอราคา" field here on purpose: the letterhead above
+          already IS the sender, and asking for the same company twice is how a
+          document ends up disagreeing with its own header. */}
       <div className="grid gap-3 sm:grid-cols-2">
-        <Field label="ผู้เสนอราคา (บริษัทเรา)">
-          <textarea
-            value={doc.vendor}
-            onChange={(e) => edit((d) => ({ ...d, vendor: e.target.value }))}
-            rows={2}
-            placeholder="ชื่อบริษัท / ที่อยู่ / เลขผู้เสียภาษี"
+        <Field label="เรียน (ตำแหน่ง / ผู้รับ)">
+          <input
+            value={doc.customerAttn}
+            onChange={(e) => edit((d) => ({ ...d, customerAttn: e.target.value }))}
+            placeholder="เช่น ผู้จัดการฝ่ายไอที"
             className={inputCls}
             disabled={readOnly}
           />
         </Field>
-        <Field label="เรียน (ลูกค้า)">
-          <textarea
-            value={doc.customer}
-            onChange={(e) => edit((d) => ({ ...d, customer: e.target.value }))}
-            rows={2}
-            placeholder="ชื่อลูกค้า / ผู้ติดต่อ"
+        <Field label="ชื่อ (บริษัทลูกค้า)">
+          <input
+            value={doc.customerName}
+            onChange={(e) => edit((d) => ({ ...d, customerName: e.target.value }))}
+            placeholder="บริษัท ตัวอย่าง จำกัด"
             className={inputCls}
             disabled={readOnly}
           />
         </Field>
+        <Field label="ที่อยู่ลูกค้า">
+          <textarea
+            value={doc.customerAddress}
+            onChange={(e) => edit((d) => ({ ...d, customerAddress: e.target.value }))}
+            rows={2}
+            className={inputCls}
+            disabled={readOnly}
+          />
+        </Field>
+        <div className="grid gap-3">
+          <Field label="โทร. ลูกค้า">
+            <input
+              value={doc.customerPhone}
+              onChange={(e) => edit((d) => ({ ...d, customerPhone: e.target.value }))}
+              className={inputCls}
+              disabled={readOnly}
+            />
+          </Field>
+          <Field label="นำเสนอโดย">
+            <input
+              value={doc.presentedBy}
+              onChange={(e) => edit((d) => ({ ...d, presentedBy: e.target.value }))}
+              placeholder="ชื่อผู้ติดต่อฝั่งเรา"
+              className={inputCls}
+              disabled={readOnly}
+            />
+          </Field>
+        </div>
       </div>
       <div className="mt-3 grid gap-3 sm:grid-cols-4">
         <Field label="เรื่อง">

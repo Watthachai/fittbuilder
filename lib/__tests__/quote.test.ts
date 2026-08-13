@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  DEFAULT_ACCENT,
   DEFAULT_RATE,
   defaultMaintenance,
   emptyRow,
@@ -253,17 +254,51 @@ describe("parseDoc", () => {
       rows: [{ name: "หน้าแรก", size: "L", days: 5 }],
       ratePerDay: 9_000,
       vatPercent: 7,
-      vendor: "บริษัทเก่า",
     })!;
     expect(old.rows[0]).toMatchObject({ size: "L", days: 5 });
     expect(old.ratePerDay).toBe(9_000);
-    expect(old.vendor).toBe("บริษัทเก่า");
     // The new blocks land on working defaults, not on zeroes.
     expect(old.payment.map((t) => t.percent)).toEqual([60, 40]);
     expect(paymentSchedule(old).balanced).toBe(true);
     expect(old.acceptance).toMatchObject({ enabled: true, reviewDays: REVIEW_DAYS });
     expect(old.ma.annualFromYear2).toBe(MA_DEFAULT_ANNUAL);
     expect(old.brand.logoUrl).toBe("");
+    expect(old.brand.accent).toBe(DEFAULT_ACCENT);
+  });
+
+  /**
+   * Both parties used to be one free-text blob each. Neither may be dropped by
+   * the split into labelled fields: a quotation that silently forgot who it was
+   * addressed to would be sent that way, because the sender never typed the name
+   * in the first place — the AI or an earlier version did.
+   */
+  it("carries the old free-text parties into the labelled fields", () => {
+    const old = round({
+      rows: [],
+      customer: "บริษัท ลูกค้าเก่า จำกัด",
+      vendor: "บริษัท ผู้ขายเก่า จำกัด\n99 ถนนสาทร กรุงเทพฯ\nโทร 02-000-0000",
+    })!;
+    expect(old.customerName).toBe("บริษัท ลูกค้าเก่า จำกัด");
+    expect(old.brand.name).toBe("บริษัท ผู้ขายเก่า จำกัด");
+    expect(old.brand.address).toBe("99 ถนนสาทร กรุงเทพฯ\nโทร 02-000-0000");
+  });
+
+  it("lets a real letterhead win over the legacy blob", () => {
+    const doc = round({
+      rows: [],
+      vendor: "ของเก่า",
+      brand: { name: "ของใหม่", address: "ที่อยู่ใหม่" },
+    })!;
+    expect(doc.brand.name).toBe("ของใหม่");
+    expect(doc.brand.address).toBe("ที่อยู่ใหม่");
+  });
+
+  // The accent is written into an inline style on the printed page.
+  it("refuses an accent that is not a plain hex colour", () => {
+    expect(round({ rows: [], brand: { accent: "red; content:'x'" } })!.brand.accent).toBe(
+      DEFAULT_ACCENT
+    );
+    expect(round({ rows: [], brand: { accent: "#F7941D" } })!.brand.accent).toBe("#F7941D");
   });
 
   it("keeps a deleted schedule deleted instead of re-seeding it", () => {

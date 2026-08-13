@@ -6,7 +6,7 @@ import { getOrg, updateOrgBrand, uploadOrgLogo } from "@/lib/orgs";
 import { useFileDrop } from "@/lib/useFileDrop";
 import DropOverlay from "@/components/ui/DropOverlay";
 import { toast } from "@/lib/toast";
-import type { QuoteBrand } from "@/lib/quote";
+import { brandFromOrg, DEFAULT_ACCENT, safeAccent, type QuoteBrand } from "@/lib/quote";
 import { Field, inputCls } from "./QuoteFields";
 
 /**
@@ -72,16 +72,9 @@ export default function QuoteBrandBar({
         toast.error("อ่านข้อมูล workspace ไม่ได้");
         return;
       }
-      onChange({
-        logoUrl: org.brand.logoUrl ?? "",
-        name: org.brand.name ?? "",
-        taxId: org.brand.taxId ?? "",
-        address: org.brand.address ?? "",
-        contact: org.brand.contact ?? "",
-        // White-label is granted to the workspace, so it is read from the
-        // workspace — never typed into a document by whoever is editing it.
-        poweredBy: !org.isPartner,
-      });
+      // White-label is granted to the workspace, so `poweredBy` is derived
+      // there — never typed into a document by whoever is editing it.
+      onChange(brandFromOrg(org.brand, org.isPartner));
       toast.success(
         org.isPartner ? "ดึงข้อมูลบริษัทแล้ว — พิมพ์ในนามบริษัทคุณ" : "ดึงข้อมูลบริษัทแล้ว"
       );
@@ -103,6 +96,8 @@ export default function QuoteBrandBar({
         taxId: brand.taxId,
         address: brand.address,
         contact: brand.contact,
+        tagline: brand.tagline,
+        accent: brand.accent,
       });
       toast.success("บันทึกเป็นข้อมูลบริษัทของ workspace แล้ว", {
         description: "ใบเสนอราคาที่สร้างใหม่จะขึ้นหัวกระดาษนี้ให้เอง",
@@ -235,6 +230,39 @@ export default function QuoteBrandBar({
               className={inputCls}
               disabled={readOnly}
             />
+          </Field>
+          <Field label="สโลแกน (พิมพ์ท้ายกระดาษ)">
+            <input
+              value={brand.tagline}
+              onChange={(e) => onChange({ tagline: e.target.value })}
+              placeholder="เช่น Upgrade Your Business"
+              className={inputCls}
+              disabled={readOnly}
+            />
+          </Field>
+          {/*
+            The one colour on the printed page. A brand field, not a constant —
+            a partner's quotation should not carry our accent any more than it
+            should carry our name.
+          */}
+          <Field label="สีประจำเอกสาร (เส้นและหัวข้อ)">
+            <div className="flex items-center gap-2">
+              <input
+                type="color"
+                value={safeAccent(brand.accent)}
+                onChange={(e) => onChange({ accent: e.target.value })}
+                disabled={readOnly}
+                aria-label="สีประจำเอกสาร"
+                className="h-[30px] w-10 shrink-0 cursor-pointer rounded-lg border border-night-edge bg-night disabled:opacity-50"
+              />
+              <input
+                value={brand.accent}
+                onChange={(e) => onChange({ accent: e.target.value })}
+                placeholder={DEFAULT_ACCENT}
+                className={`${inputCls} font-mono`}
+                disabled={readOnly}
+              />
+            </div>
           </Field>
         </div>
       </div>

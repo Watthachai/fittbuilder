@@ -126,6 +126,10 @@ export interface OrgBrand {
   address?: string;
   /** Phone / email / line, one free-text block. */
   contact?: string;
+  /** Printed under the name in the quotation's page footer. */
+  tagline?: string;
+  /** Hex. The single accent colour on the printed quotation. */
+  accent?: string;
 }
 
 /** An organization (workspace): groups projects and carries the Org DNA. */

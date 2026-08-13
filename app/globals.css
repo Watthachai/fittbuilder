@@ -670,76 +670,159 @@ body {
    Rendered into a portal on <body> so print can hide every sibling and leave
    exactly this on the page. Always light: a midnight-black A4 is unreadable
    printed and costs a quarter of a toner cartridge. Values are literal, not
-   tokens — a theme change must never alter a document already sent. */
+   theme tokens — a theme change must never alter a document already sent.
+
+   The one exception is --accent, set inline from the sender's brand: the point
+   of the partner programme is that this is not our document. */
 .fitt-paper {
-  --ink: #111827;
+  --ink: #1f2937;
   --ink-dim: #6b7280;
   --rule: #d1d5db;
+  --accent: #f59e0b;
   color: var(--ink);
   background: #fff;
-  font-size: 13px;
-  line-height: 1.6;
-  padding: 18mm 16mm;
+  font-size: 12.5px;
+  line-height: 1.55;
+  padding: 14mm 14mm 12mm;
 }
-.fitt-paper h1 {
-  font-size: 26px;
-  font-weight: 700;
-  letter-spacing: -0.01em;
+/* The document is one table so <thead> and <tfoot> repeat on every printed
+   page — a quotation whose page two has no letterhead is an anonymous sheet
+   of numbers. See the comment in QuotationPrint.tsx. */
+.fitt-paper .q-sheet {
+  width: 100%;
+  border-collapse: collapse;
 }
-.fitt-paper .q-sub {
-  color: var(--ink-dim);
-  margin-top: 2px;
+.fitt-paper .q-sheet > thead > tr > td,
+.fitt-paper .q-sheet > tbody > tr > td,
+.fitt-paper .q-sheet > tfoot > tr > td {
+  padding: 0;
+  vertical-align: top;
 }
-.fitt-paper .q-head {
+
+/* ---- letterhead ---- */
+.fitt-paper .q-top {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 16px;
-  border-bottom: 2px solid var(--ink);
-  padding-bottom: 10px;
+  gap: 20px;
+}
+/* Sized for the two shapes a company logo actually comes in: a wide wordmark
+   hits the width cap, a square mark hits the height cap. Both then read as a
+   letterhead rather than a favicon. */
+.fitt-paper .q-logo {
+  max-height: 84px;
+  max-width: 200px;
+  object-fit: contain;
+  object-position: left top;
+}
+.fitt-paper .q-mark-name {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--accent);
+}
+.fitt-paper .q-title {
+  text-align: right;
+}
+.fitt-paper h1 {
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+.fitt-paper .q-meta {
+  margin-left: auto;
+  margin-top: 4px;
+  border-collapse: collapse;
 }
 .fitt-paper .q-meta th {
-  color: var(--ink-dim);
-  font-weight: 400;
+  color: var(--ink);
+  font-weight: 600;
   text-align: right;
-  padding-right: 10px;
+  padding: 1px 10px 1px 0;
   white-space: nowrap;
 }
 .fitt-paper .q-meta td {
   font-variant-numeric: tabular-nums;
+  text-align: right;
   white-space: nowrap;
+  padding: 1px 0;
 }
+
+/* ---- the two parties ---- */
 .fitt-paper .q-parties {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 24px;
-  margin: 14px 0 18px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 28px;
+  margin-top: 10px;
 }
-.fitt-paper .q-label {
-  color: var(--ink-dim);
-  font-size: 11px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+.fitt-paper .q-to {
+  border-collapse: collapse;
+  max-width: 62%;
 }
-.fitt-paper .q-party {
+.fitt-paper .q-to th {
   font-weight: 600;
+  text-align: right;
+  white-space: nowrap;
+  padding: 1px 12px 1px 0;
+  vertical-align: top;
+}
+.fitt-paper .q-to td {
+  padding: 1px 0;
   white-space: pre-line;
 }
+.fitt-paper .q-strong {
+  font-weight: 600;
+}
+.fitt-paper .q-from {
+  text-align: right;
+  min-width: 34%;
+}
+.fitt-paper .q-from-label {
+  font-weight: 600;
+}
+.fitt-paper .q-from-person {
+  font-size: 11.5px;
+  color: var(--ink-dim);
+}
+.fitt-paper .q-from-name {
+  font-size: 15px;
+  font-weight: 700;
+  margin-top: 3px;
+}
+.fitt-paper .q-from-line {
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--ink-dim);
+  white-space: pre-line;
+}
+
+.fitt-paper .q-subject {
+  margin-top: 14px;
+  font-weight: 600;
+}
+
+/* ---- line items: two columns, like the paper this replaces ---- */
 .fitt-paper .q-items {
   width: 100%;
   border-collapse: collapse;
-}
-.fitt-paper .q-items th,
-.fitt-paper .q-items td {
-  border-bottom: 1px solid var(--rule);
-  padding: 6px 8px;
-  vertical-align: top;
+  margin-top: 10px;
 }
 .fitt-paper .q-items thead th {
-  background: #f3f4f6;
-  font-weight: 600;
-  text-align: left;
-  border-bottom: 1px solid var(--ink);
+  border-top: 2px dashed var(--accent);
+  border-bottom: 2px dashed var(--accent);
+  padding: 6px 8px;
+  font-weight: 700;
+  text-align: center;
+}
+.fitt-paper .q-items thead th.q-r {
+  text-align: right;
+}
+.fitt-paper .q-items td {
+  padding: 7px 8px;
+  vertical-align: top;
+}
+.fitt-paper .q-items tbody tr + tr td {
+  padding-top: 9px;
 }
 .fitt-paper .q-r {
   text-align: right;
@@ -751,8 +834,12 @@ body {
 }
 .fitt-paper .q-n {
   color: var(--ink-dim);
-  width: 28px;
+  width: 26px;
   text-align: right;
+  white-space: nowrap;
+}
+.fitt-paper .q-empty {
+  color: var(--ink-dim);
 }
 .fitt-paper .q-sub-item {
   padding-left: 12px;
@@ -767,6 +854,14 @@ body {
 .fitt-paper .q-name {
   font-weight: 600;
 }
+/* What the price is made of — small and grey so it justifies the number
+   without competing with it. */
+.fitt-paper .q-basis {
+  display: block;
+  color: var(--ink-dim);
+  font-size: 10.5px;
+  font-variant-numeric: tabular-nums;
+}
 /* What the screen does. The reason a customer can read a price and know what
    they are agreeing to, so it prints at full width, not as a footnote. */
 .fitt-paper .q-note {
@@ -774,24 +869,44 @@ body {
   color: #374151;
   font-size: 11.5px;
   line-height: 1.5;
-  margin-top: 1px;
-  max-width: 62ch;
+  margin-top: 2px;
+  max-width: 66ch;
 }
-.fitt-paper tfoot td {
-  border-bottom: none;
-  padding-top: 6px;
+
+/* ---- totals, right-aligned under a dashed rule ---- */
+.fitt-paper .q-sum {
+  margin-top: 10px;
+  margin-left: auto;
+  border-collapse: collapse;
+  border-top: 2px dashed var(--accent);
 }
-.fitt-paper .q-grand td {
-  border-top: 2px solid var(--ink);
-  font-size: 15px;
+.fitt-paper .q-sum th {
+  font-weight: 600;
+  text-align: right;
+  padding: 4px 18px 4px 0;
+  white-space: nowrap;
+}
+.fitt-paper .q-sum td {
+  border-bottom: 1px dashed var(--accent);
+  padding: 4px 0 4px 40px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  min-width: 120px;
+}
+.fitt-paper .q-net th,
+.fitt-paper .q-net td {
+  font-size: 14px;
   font-weight: 700;
 }
+
+/* ---- market comparison (unchanged in spirit, restyled to match) ---- */
 .fitt-paper .q-market {
-  margin-top: 16px;
+  margin-top: 14px;
   border: 1px solid var(--rule);
   border-left: 3px solid #15803d;
   border-radius: 3px;
-  padding: 10px 12px;
+  padding: 9px 12px;
 }
 .fitt-paper .q-market table {
   border-collapse: collapse;
@@ -816,48 +931,21 @@ body {
   font-weight: 700;
 }
 .fitt-paper .q-pitch {
-  margin-top: 6px;
+  margin-top: 5px;
   color: #374151;
-  max-width: 70ch;
+  max-width: 72ch;
 }
-/* Letterhead. Sits above the document title because a partner sends this on
-   their own paper — their name is the first thing read, ours is a footer. */
-.fitt-paper .q-brand {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  margin-bottom: 14px;
+
+/* ---- the terms half of the document ---- */
+.fitt-paper .q-block {
+  margin-top: 16px;
 }
-.fitt-paper .q-logo {
-  max-height: 52px;
-  max-width: 160px;
-  object-fit: contain;
-}
-.fitt-paper .q-brand-name {
-  font-size: 16px;
+.fitt-paper .q-block h2 {
+  font-size: 12.5px;
   font-weight: 700;
-}
-.fitt-paper .q-brand-line {
-  color: var(--ink-dim);
-  font-size: 11.5px;
-  line-height: 1.45;
-  white-space: pre-line;
-}
-/* Payment schedule, maintenance, clauses — all three share the section heading
-   rule so the second half of the document reads as one run of terms. */
-.fitt-paper .q-pay,
-.fitt-paper .q-ma,
-.fitt-paper .q-clauses {
-  margin-top: 18px;
-}
-.fitt-paper .q-pay h2,
-.fitt-paper .q-ma h2,
-.fitt-paper .q-clauses h2 {
-  font-size: 13px;
-  font-weight: 700;
-  border-bottom: 1px solid var(--ink);
-  padding-bottom: 4px;
-  margin-bottom: 6px;
+  border-bottom: 1px dashed var(--accent);
+  padding-bottom: 3px;
+  margin-bottom: 5px;
 }
 .fitt-paper .q-pay table,
 .fitt-paper .q-ma table {
@@ -869,12 +957,12 @@ body {
 .fitt-paper .q-ma th,
 .fitt-paper .q-ma td {
   border-bottom: 1px solid var(--rule);
-  padding: 5px 8px;
+  padding: 4px 8px;
   vertical-align: top;
   text-align: left;
 }
 .fitt-paper .q-pay thead th {
-  background: #f3f4f6;
+  background: #f6f7f8;
   font-weight: 600;
 }
 .fitt-paper .q-ma th {
@@ -886,60 +974,85 @@ body {
   color: var(--ink);
   font-weight: 700;
 }
-.fitt-paper .q-pay-total td {
+.fitt-paper .q-pay tfoot td {
   border-bottom: none;
   border-top: 2px solid var(--ink);
   font-weight: 700;
-  padding-top: 6px;
+  padding-top: 5px;
 }
 .fitt-paper .q-clauses ol {
   margin: 0;
   padding-left: 20px;
-  max-width: 78ch;
+  max-width: 82ch;
 }
 .fitt-paper .q-clauses li {
-  margin-top: 5px;
-  line-height: 1.55;
-}
-/* Ours only when it is ours: a partner's paper carries no mark of the tool. */
-.fitt-paper .q-powered {
-  margin-top: 22px;
-  padding-top: 8px;
-  border-top: 1px solid var(--rule);
-  color: var(--ink-dim);
-  font-size: 10px;
-  letter-spacing: 0.06em;
-  text-align: center;
-}
-.fitt-paper .q-terms {
-  margin-top: 18px;
+  margin-top: 4px;
+  line-height: 1.5;
 }
 .fitt-paper .q-terms pre {
   font: inherit;
   white-space: pre-wrap;
-  margin-top: 4px;
+}
+
+.fitt-paper .q-thanks {
+  margin-top: 22px;
+  text-align: right;
+  font-weight: 700;
 }
 .fitt-paper .q-sign {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 40px;
-  margin-top: 28px;
+  gap: 44px;
+  margin-top: 20px;
   text-align: center;
   color: var(--ink-dim);
 }
 .fitt-paper .q-line {
   border-bottom: 1px dotted var(--ink);
-  height: 42px;
-  margin-bottom: 6px;
+  height: 40px;
+  margin-bottom: 5px;
 }
+.fitt-paper .q-sign-date {
+  font-size: 10.5px;
+  margin-top: 2px;
+}
+
+/* ---- the mark, repeated at the foot of every page ---- */
+.fitt-paper .q-foot {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 20px;
+  margin-top: 16px;
+  padding-top: 6px;
+  border-top: 2px dashed var(--accent);
+}
+.fitt-paper .q-foot-name {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink-dim);
+  letter-spacing: 0.06em;
+}
+.fitt-paper .q-foot-tag {
+  font-size: 11px;
+  color: var(--accent);
+  font-weight: 600;
+}
+/* Ours only when it is ours: a partner's paper carries no mark of the tool. */
+.fitt-paper .q-powered {
+  color: var(--ink-dim);
+  font-size: 9.5px;
+  letter-spacing: 0.06em;
+}
+
 .fitt-paper .q-shots {
-  margin-top: 26px;
+  margin-top: 22px;
 }
 .fitt-paper .q-shots h2 {
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 700;
-  border-bottom: 1px solid var(--rule);
-  padding-bottom: 5px;
+  border-bottom: 1px dashed var(--accent);
+  padding-bottom: 4px;
 }
 .fitt-paper .q-grid {
   display: grid;
@@ -981,25 +1094,33 @@ body {
     max-height: none !important;
     overflow: visible !important;
   }
-  .fitt-paper .q-items thead {
-    display: table-header-group; /* repeat the header on every page */
+  /* The letterhead and the mark ride along on every page — this pair of rules
+     is the whole reason the document is wrapped in a table. */
+  .fitt-paper .q-sheet > thead {
+    display: table-header-group;
+  }
+  .fitt-paper .q-sheet > tfoot {
+    display: table-footer-group;
+  }
+  .fitt-paper .q-items thead,
+  .fitt-paper .q-pay thead {
+    display: table-header-group; /* repeat the column header on every page */
   }
   /* A clause split across a page break is a real problem on paper, not a
      cosmetic one: the half a reader skims is the half that binds them. Each
-     clause and each terms table stays whole. */
-  .fitt-paper .q-items tr,
+     clause, each row and each terms table stays whole. */
+  .fitt-paper .q-items tbody tr,
+  .fitt-paper .q-pay tbody tr,
   .fitt-paper .q-market,
+  .fitt-paper .q-sum,
   .fitt-paper .q-sign,
-  .fitt-paper .q-terms,
-  .fitt-paper .q-brand,
   .fitt-paper .q-ma,
-  .fitt-paper .q-pay tr,
-  .fitt-paper .q-clauses li {
+  .fitt-paper .q-clauses li,
+  .fitt-paper .q-terms {
     break-inside: avoid;
   }
-  .fitt-paper .q-pay h2,
-  .fitt-paper .q-ma h2,
-  .fitt-paper .q-clauses h2 {
+  .fitt-paper .q-block h2,
+  .fitt-paper .q-shots h2 {
     break-after: avoid;
   }
 }

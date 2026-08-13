@@ -1,4 +1,5 @@
 import type { Shot } from "./shots";
+import type { OrgBrand } from "./types";
 
 /**
  * The quotation: what the screen inventory is FOR.
@@ -128,16 +129,43 @@ export interface QuoteBrand {
   taxId: string;
   address: string;
   contact: string;
+  /** Printed under the name in the page footer, e.g. "Upgrade Your Business". */
+  tagline: string;
+  /**
+   * The one colour on the paper — rules, labels, the footer mark.
+   *
+   * A brand field rather than a constant because the whole point of the partner
+   * programme is that this is not our document. Hex only; it is written straight
+   * into an inline style on the printed page.
+   */
+  accent: string;
   /** Partner workspaces print their own paper; everyone else carries our mark. */
   poweredBy: boolean;
 }
 
+/** Amber. Reads on paper, survives a black-and-white printer as a mid grey. */
+export const DEFAULT_ACCENT = "#f59e0b";
+/** Anything else could be injected into the printed page's inline style. */
+const HEX = /^#[0-9a-fA-F]{6}$/;
+export const safeAccent = (v: string): string => (HEX.test(v) ? v : DEFAULT_ACCENT);
+
 export interface QuoteDoc {
   /** What the job is, on the paper's subject line. */
   subject: string;
-  /** Free-text header fields — whatever the sender puts on their paper. */
-  vendor: string;
-  customer: string;
+  /**
+   * Who the customer is, as four labelled lines — เรียน / ชื่อ / ที่อยู่ / โทร.
+   *
+   * Split rather than one textarea because a Thai quotation's recipient block is
+   * read as a form: the accounts department looks for "ชื่อ" to check the legal
+   * entity and "ที่อยู่" to check the tax address. A free-text blob puts the
+   * burden of that layout on whoever is typing at 6pm.
+   */
+  customerAttn: string;
+  customerName: string;
+  customerAddress: string;
+  customerPhone: string;
+  /** The person sending it — printed under "นำเสนอโดย". */
+  presentedBy: string;
   quoteNo: string;
   /** ISO date (yyyy-mm-dd); the printed page formats it Thai. */
   issuedAt: string;
@@ -241,9 +269,39 @@ export function defaultMaintenance(): Maintenance {
   };
 }
 
+/**
+ * Copy a workspace's company identity into a document's letterhead.
+ *
+ * `poweredBy` is derived from the workspace's partner status and is never typed
+ * by whoever is editing — white-label is granted to the company, not chosen per
+ * quotation. The one function both the seeding path and the "ดึงจาก workspace"
+ * button call, so those two can never disagree about what a pull means.
+ */
+export function brandFromOrg(brand: OrgBrand, isPartner: boolean): QuoteBrand {
+  return {
+    logoUrl: brand.logoUrl ?? "",
+    name: brand.name ?? "",
+    taxId: brand.taxId ?? "",
+    address: brand.address ?? "",
+    contact: brand.contact ?? "",
+    tagline: brand.tagline ?? "",
+    accent: safeAccent(brand.accent ?? ""),
+    poweredBy: !isPartner,
+  };
+}
+
 /** A letterhead nobody has filled in yet — and therefore one that carries our mark. */
 export function emptyBrand(): QuoteBrand {
-  return { logoUrl: "", name: "", taxId: "", address: "", contact: "", poweredBy: true };
+  return {
+    logoUrl: "",
+    name: "",
+    taxId: "",
+    address: "",
+    contact: "",
+    tagline: "",
+    accent: DEFAULT_ACCENT,
+    poweredBy: true,
+  };
 }
 
 /** A stable id per row — the shot path when it came from one, else a counter. */
@@ -296,8 +354,11 @@ export function rowCounts(doc: QuoteDoc): { screens: number; modals: number } {
 export function newDoc(shots: Shot[], projectName: string, today: string): QuoteDoc {
   return {
     subject: projectName ? `พัฒนาระบบ ${projectName}` : "พัฒนาระบบตามขอบเขตหน้าจอ",
-    vendor: "",
-    customer: "",
+    customerAttn: "",
+    customerName: "",
+    customerAddress: "",
+    customerPhone: "",
+    presentedBy: "",
     quoteNo: `Q-${today.replace(/-/g, "")}`,
     issuedAt: today,
     validDays: 30,
@@ -354,10 +415,22 @@ export function parseDoc(payload: unknown, fallbackDate: string): QuoteDoc | nul
   const ma = obj(o.ma);
   const brand = obj(o.brand);
   const fallbackMa = defaultMaintenance();
+  // Documents written before the letterhead existed kept both parties as one
+  // free-text blob each. Neither is dropped: the vendor blob's first line is a
+  // company name and the rest is an address often enough to be the right guess,
+  // and a wrong guess is a field someone retypes — a dropped one is a document
+  // that silently lost who it was addressed to.
+  const [legacyName = "", ...legacyRest] = str(o.vendor)
+    .split("\n")
+    .map((s) => s.trim())
+    .filter(Boolean);
   return {
     subject: str(o.subject),
-    vendor: str(o.vendor),
-    customer: str(o.customer),
+    customerAttn: str(o.customerAttn),
+    customerName: str(o.customerName) || str(o.customer),
+    customerAddress: str(o.customerAddress),
+    customerPhone: str(o.customerPhone),
+    presentedBy: str(o.presentedBy),
     quoteNo: str(o.quoteNo),
     issuedAt: str(o.issuedAt) || fallbackDate,
     validDays: n(o.validDays, 30),
@@ -396,10 +469,12 @@ export function parseDoc(payload: unknown, fallbackDate: string): QuoteDoc | nul
     },
     brand: {
       logoUrl: str(brand.logoUrl),
-      name: str(brand.name),
+      name: str(brand.name) || legacyName,
       taxId: str(brand.taxId),
-      address: str(brand.address),
+      address: str(brand.address) || legacyRest.join("\n"),
       contact: str(brand.contact),
+      tagline: str(brand.tagline),
+      accent: safeAccent(str(brand.accent)),
       // Defaults to ON: a document whose brand block predates the partner flag
       // must not silently print as white-label.
       poweredBy: bool(brand.poweredBy, true),
@@ -580,6 +655,14 @@ export function thaiDate(iso: string): string {
     "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม",
   ];
   return `${d} ${months[m - 1]} ${y + 543}`;
+}
+
+/** yyyy-mm-dd → "13/08/2569" — the compact form a header block wants. */
+export function thaiDateShort(iso: string): string {
+  const [y, m, d] = iso.split("-").map(Number);
+  if (!y || !m || !d) return iso;
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${pad(d)}/${pad(m)}/${y + 543}`;
 }
 
 /** issuedAt + validDays, as an ISO date. */

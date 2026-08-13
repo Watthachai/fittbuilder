@@ -133,6 +133,11 @@ export interface Database {
           icon: string;
           org_dna: Json;
           pain_radar: Json | null;
+          /** Company identity printed on quotations (migration 0029). */
+          brand: Json;
+          /** White-label. Pinned against anon/authenticated by a trigger — an
+           *  Update that sets it through the Data API is silently ignored. */
+          is_partner: boolean;
           created_at: string;
           updated_at: string;
         };
@@ -144,6 +149,8 @@ export interface Database {
           icon?: string;
           org_dna?: Json;
           pain_radar?: Json | null;
+          brand?: Json;
+          is_partner?: boolean;
           created_at?: string;
           updated_at?: string;
         };
@@ -155,6 +162,8 @@ export interface Database {
           icon?: string;
           org_dna?: Json;
           pain_radar?: Json | null;
+          brand?: Json;
+          is_partner?: boolean;
           created_at?: string;
           updated_at?: string;
         };

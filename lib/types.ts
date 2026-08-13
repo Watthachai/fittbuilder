@@ -109,6 +109,25 @@ export interface OrgDnaVersion {
   snapshot: Omit<OrgDna, "versions">;
 }
 
+/**
+ * The company behind a workspace, as it appears on paper.
+ *
+ * Separate from `color`/`icon`, which exist to tell workspaces apart in a
+ * picker. This is the legal identity a quotation is sent under — every field is
+ * something a customer reads on a document, so all of it is optional and none
+ * of it is guessed.
+ */
+export interface OrgBrand {
+  /** Public URL in the `org-brand` bucket. */
+  logoUrl?: string;
+  /** Legal name, as it should be printed. */
+  name?: string;
+  taxId?: string;
+  address?: string;
+  /** Phone / email / line, one free-text block. */
+  contact?: string;
+}
+
 /** An organization (workspace): groups projects and carries the Org DNA. */
 export interface OrgRecord {
   id: string;
@@ -118,6 +137,14 @@ export interface OrgRecord {
   color: string;
   icon: string;
   dna: OrgDna;
+  /** Company identity printed on quotations sent from this workspace. */
+  brand: OrgBrand;
+  /**
+   * White-label: this workspace sends quotations on its own paper, with no
+   * "Powered by FITT Builder". Granted by us, never by the workspace owner —
+   * the column is pinned against the Data API by a trigger (migration 0029).
+   */
+  isPartner: boolean;
   /** Latest shared Pain Point Radar analysis (null = none yet). */
   createdAt: string;
   updatedAt: string;

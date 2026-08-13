@@ -2,12 +2,15 @@
 
 import { createClient } from "@/lib/supabase/client";
 import type { Json } from "@/lib/db/types";
-import type { OrgDna, OrgRecord } from "@/lib/types";
+import type { OrgBrand, OrgDna, OrgRecord } from "@/lib/types";
 
 // Analyses no longer live on the org row: FITT Advisor reports moved to their
 // own history table (fittbuilder_advisor_reports, migration 0023). The old
 // orgs.pain_radar column is dead data, backfilled into that table.
-const SELECT = "id, owner_id, name, color, icon, org_dna, created_at, updated_at";
+const SELECT =
+  "id, owner_id, name, color, icon, org_dna, brand, is_partner, created_at, updated_at";
+
+const LOGO_BUCKET = "org-brand";
 
 interface OrgRow {
   id: string;
@@ -16,6 +19,8 @@ interface OrgRow {
   color: string;
   icon: string;
   org_dna: unknown;
+  brand: unknown;
+  is_partner: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -28,6 +33,8 @@ function rowToOrg(r: OrgRow): OrgRecord {
     color: r.color,
     icon: r.icon,
     dna: (r.org_dna && typeof r.org_dna === "object" ? r.org_dna : {}) as OrgDna,
+    brand: (r.brand && typeof r.brand === "object" ? r.brand : {}) as OrgBrand,
+    isPartner: r.is_partner === true,
     createdAt: r.created_at,
     updatedAt: r.updated_at,
   };
@@ -87,6 +94,36 @@ export async function updateOrgMeta(
   if (patch.icon !== undefined) row.icon = patch.icon;
   const { error } = await supabase.from("fittbuilder_orgs").update(row).eq("id", id);
   if (error) throw error;
+}
+
+/** Persist the company identity printed on this workspace's quotations. */
+export async function updateOrgBrand(id: string, brand: OrgBrand): Promise<void> {
+  const supabase = createClient();
+  const { error } = await supabase
+    .from("fittbuilder_orgs")
+    .update({ brand: brand as unknown as Json, updated_at: new Date().toISOString() })
+    .eq("id", id);
+  if (error) throw error;
+}
+
+/**
+ * Upload a logo and return the URL to print.
+ *
+ * The name carries a timestamp rather than overwriting a fixed key: quotations
+ * copy this URL in, and reusing the key would silently reprint every past
+ * document with the new logo — including ones a customer has already signed.
+ *
+ * The bucket is public, so this URL needs no signing and never expires.
+ */
+export async function uploadOrgLogo(orgId: string, file: File): Promise<string> {
+  const supabase = createClient();
+  const ext = file.name.split(".").pop()?.toLowerCase() || "png";
+  const path = `${orgId}/logo-${Date.now()}.${ext}`;
+  const { error } = await supabase.storage
+    .from(LOGO_BUCKET)
+    .upload(path, file, { contentType: file.type, upsert: false });
+  if (error) throw error;
+  return supabase.storage.from(LOGO_BUCKET).getPublicUrl(path).data.publicUrl;
 }
 
 /** Persist the Org DNA profile (partial allowed — caller passes the full object). */

@@ -2010,6 +2010,7 @@ export default function Studio({ projectId }: { projectId: string }) {
         <ScreenInventory
           projectId={projectId}
           projectName={project.name}
+          orgId={project.orgId ?? null}
           files={project.files}
           toPreview={toPreview}
           onAddScreenIndex={readOnly || busy ? undefined : addScreenIndex}

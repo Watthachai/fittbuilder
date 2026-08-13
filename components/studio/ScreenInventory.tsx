@@ -47,6 +47,8 @@ interface ScreenInventoryProps {
   projectId: string;
   /** Names the quotation's subject line. */
   projectName: string;
+  /** Workspace the project belongs to — its company identity heads the quotation. */
+  orgId: string | null;
   /** Recording runs with this panel closed, so the studio owns the state. */
   recording: boolean;
   onStartRecording: () => void;
@@ -65,6 +67,7 @@ interface ScreenInventoryProps {
 export default function ScreenInventory({
   projectId,
   projectName,
+  orgId,
   recording,
   onStartRecording,
   files,
@@ -523,6 +526,7 @@ export default function ScreenInventory({
             <Quotation
               projectId={projectId}
               projectName={projectName}
+              orgId={orgId}
               shots={shots}
               files={files}
               readOnly={readOnly}

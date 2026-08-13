@@ -31,10 +31,14 @@ import {
 } from "@/lib/quote";
 import { loadQuote, saveQuote } from "@/lib/quote-store";
 import { marketMidpoint, type QuoteAdvice } from "@/lib/quote-advice";
+import { getOrg } from "@/lib/orgs";
 import type { Shot } from "@/lib/shots";
 import type { ProjectFiles } from "@/lib/types";
 import { toast } from "@/lib/toast";
 import QuotationPrint from "./QuotationPrint";
+import QuoteBrandBar from "./QuoteBrandBar";
+import QuoteTerms from "./QuoteTerms";
+import { Field, inputCls, Total } from "./QuoteFields";
 
 /**
  * Phase 2 of the inventory: turn captured screens into a priced quotation.
@@ -52,12 +56,15 @@ const SIZES: Size[] = ["S", "M", "L"];
 export default function Quotation({
   projectId,
   projectName,
+  orgId,
   shots,
   files,
   readOnly,
 }: {
   projectId: string;
   projectName: string;
+  /** The workspace whose company identity heads the paper — null if unbound. */
+  orgId: string | null;
   shots: Shot[];
   /** Source of truth for what each screen does — read by the AI pass. */
   files: ProjectFiles | null;
@@ -78,17 +85,36 @@ export default function Quotation({
 
   useEffect(() => {
     let alive = true;
-    void loadQuote(projectId, today)
-      .then((saved) => {
-        if (!alive) return;
-        setDoc(saved ?? newDoc(shots, projectName, today));
-        setLoading(false);
-      })
-      .catch(() => {
-        if (!alive) return;
-        setDoc(newDoc(shots, projectName, today));
-        setLoading(false);
-      });
+    /**
+     * A FRESH document takes the workspace's letterhead; a stored one keeps its
+     * own. That asymmetry is the point: the brand is copied into the document at
+     * birth, so reopening a quotation sent months ago shows the header it was
+     * sent with, not whatever the company logo is today.
+     */
+    const seed = async () => {
+      const saved = await loadQuote(projectId, today).catch(() => null);
+      if (saved) return saved;
+      const fresh = newDoc(shots, projectName, today);
+      const org = orgId ? await getOrg(orgId).catch(() => null) : null;
+      if (!org) return fresh;
+      return {
+        ...fresh,
+        vendor: fresh.vendor || [org.brand.name, org.brand.address].filter(Boolean).join("\n"),
+        brand: {
+          logoUrl: org.brand.logoUrl ?? "",
+          name: org.brand.name ?? "",
+          taxId: org.brand.taxId ?? "",
+          address: org.brand.address ?? "",
+          contact: org.brand.contact ?? "",
+          poweredBy: !org.isPartner,
+        },
+      };
+    };
+    void seed().then((d) => {
+      if (!alive) return;
+      setDoc(d);
+      setLoading(false);
+    });
     return () => {
       alive = false;
     };
@@ -276,6 +302,16 @@ export default function Quotation({
 
   return (
     <div className="scroll-thin min-h-0 flex-1 overflow-y-auto px-5 py-4">
+      {/* Letterhead — whose paper this is */}
+      <div className="mb-3">
+        <QuoteBrandBar
+          brand={doc.brand}
+          orgId={orgId}
+          readOnly={readOnly}
+          onChange={(patch) => edit((d) => ({ ...d, brand: { ...d.brand, ...patch } }))}
+        />
+      </div>
+
       {/* Header — who is quoting whom */}
       <div className="grid gap-3 sm:grid-cols-2">
         <Field label="ผู้เสนอราคา (บริษัทเรา)">
@@ -616,32 +652,12 @@ export default function Quotation({
         </div>
       </div>
 
+      {/* The promises: when the money arrives, what counts as acceptance, MA. */}
+      <QuoteTerms doc={doc} readOnly={readOnly} onEdit={edit} />
+
       {printing &&
         typeof document !== "undefined" &&
         createPortal(<QuotationPrint doc={doc} shots={shots} />, document.body)}
-    </div>
-  );
-}
-
-const inputCls =
-  "w-full rounded-lg border border-night-edge bg-night px-2.5 py-1.5 text-[12px] text-chalk outline-none focus:border-shine/60 disabled:opacity-50";
-
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <label className="block">
-      <span className="mb-1 block font-display text-[10px] uppercase tracking-widest text-chalk-dim">
-        {label}
-      </span>
-      {children}
-    </label>
-  );
-}
-
-function Total({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex items-baseline justify-between py-0.5 text-[12px]">
-      <span className="text-chalk-dim">{label}</span>
-      <span className="font-mono text-chalk">{value}</span>
     </div>
   );
 }

@@ -46,6 +46,43 @@ export interface Database {
         // Database type to `never` for every query in the app.
         Relationships: [];
       };
+      /** RLS on, no policies (migration 0030) — service role only. */
+      fittbuilder_partner_leads: {
+        Row: {
+          id: string;
+          name: string;
+          company: string;
+          email: string;
+          phone: string;
+          note: string;
+          source: string;
+          status: "new" | "contacted" | "won" | "lost";
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          name: string;
+          company: string;
+          email: string;
+          phone?: string;
+          note?: string;
+          source?: string;
+          status?: "new" | "contacted" | "won" | "lost";
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          name?: string;
+          company?: string;
+          email?: string;
+          phone?: string;
+          note?: string;
+          source?: string;
+          status?: "new" | "contacted" | "won" | "lost";
+          created_at?: string;
+        };
+        Relationships: [];
+      };
       fittbuilder_project_quotes: {
         Row: {
           project_id: string;

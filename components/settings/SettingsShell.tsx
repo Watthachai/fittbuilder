@@ -3,7 +3,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { ArrowLeft, BarChart3, Loader2, Plus, ShieldCheck } from "lucide-react";
+import { ArrowLeft, BarChart3, Handshake, Loader2, Plus, ShieldCheck } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { listOrgs } from "@/lib/orgs";
 import { openCreateWorkspace } from "@/lib/workspace-modal";
@@ -151,6 +151,13 @@ export default function SettingsShell({ children }: { children: ReactNode }) {
                   icon={<BarChart3 size={15} className="shrink-0" />}
                 >
                   รายงานการใช้ AI
+                </NavLink>
+                <NavLink
+                  href="/admin/partners"
+                  active={pathname === "/admin/partners"}
+                  icon={<Handshake size={15} className="shrink-0" />}
+                >
+                  คำขอเป็น Partner
                 </NavLink>
               </div>
             </>

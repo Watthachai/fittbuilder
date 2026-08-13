@@ -6,7 +6,20 @@ import type { Database } from "@/lib/db/types";
 // user data, and both must answer when nobody is signed in. Gating the version
 // meant a tab on the login screen could never be told a deploy had happened;
 // gating health would mean the monitor reports "up" by reading a redirect.
-const PUBLIC_PREFIXES = ["/login", "/auth", "/changelog", "/join", "/api/version", "/api/health"];
+//
+// /partner and its form endpoint are public for the obvious reason: the people
+// it is written for do not have an account yet. Redirecting them to /login is
+// redirecting away the only visitors that page exists to reach.
+const PUBLIC_PREFIXES = [
+  "/login",
+  "/auth",
+  "/changelog",
+  "/join",
+  "/partner",
+  "/api/version",
+  "/api/health",
+  "/api/partner-lead",
+];
 
 export async function updateSession(request: NextRequest) {
   let response = NextResponse.next({ request });

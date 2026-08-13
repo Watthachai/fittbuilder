@@ -119,9 +119,12 @@ export default function Home() {
       <footer className="relative z-10 border-t border-chalk/10 bg-night/70 py-8 backdrop-blur-2xl">
         <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-3 px-6 sm:flex-row">
           <Logo />
-          <span className="font-mono text-[12px] text-chalk/50">
-            สร้าง demo แรกของคุณภายใน 60 วินาที — ฟรี
-          </span>
+          <div className="flex items-center gap-5 font-mono text-[12px] text-chalk/50">
+            <Link href="/partner" className="transition hover:text-shine">
+              เป็น Partner กับเรา
+            </Link>
+            <span>สร้าง demo แรกของคุณภายใน 60 วินาที — ฟรี</span>
+          </div>
         </div>
       </footer>
     </div>

@@ -52,6 +52,64 @@ export async function sendProjectInviteEmail(args: InviteEmailArgs): Promise<{ s
   return { success: true };
 }
 
+export interface PartnerLeadEmailArgs {
+  /** Where the notification goes — us, not them. */
+  to: string;
+  name: string;
+  company: string;
+  email: string;
+  phone: string;
+  note: string;
+  /** Link into /admin/partners so the notification is one click from the list. */
+  adminLink: string;
+}
+
+/**
+ * Notify us that someone asked to become a partner.
+ *
+ * Unlike the invite mails this one has no template yet, so its id comes from
+ * DMAIL_PARTNER_TEMPLATE_ID. Until that is set the function reports
+ * `sent: false` and sends nothing — the lead is already in the database by the
+ * time this runs, so a missing template costs a notification, never an enquiry.
+ */
+export function buildPartnerLeadPayload(
+  args: PartnerLeadEmailArgs,
+  templateId: string
+): DmailPayload {
+  return {
+    templateId,
+    to: [{ email: args.to, name: "FITT Builder" }],
+    subject: `Partner ใหม่: ${args.company} (${args.name})`,
+    variables: {
+      name: args.name,
+      companyName: args.company,
+      branchName: args.phone || "-",
+      roleText: args.email,
+      invitationLink: args.adminLink,
+      senderName: args.note || "-",
+      year: new Date().getFullYear().toString(),
+    },
+  };
+}
+
+export async function sendPartnerLeadEmail(
+  args: PartnerLeadEmailArgs
+): Promise<{ sent: boolean }> {
+  const apiKey = process.env.DMAIL_API_KEY;
+  const templateId = process.env.DMAIL_PARTNER_TEMPLATE_ID;
+  if (!apiKey || !templateId) {
+    console.warn("[email] partner-lead notification off (DMAIL_PARTNER_TEMPLATE_ID unset)");
+    return { sent: false };
+  }
+  const res = await fetch(DMAIL_API_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "X-API-Key": apiKey },
+    body: JSON.stringify(buildPartnerLeadPayload(args, templateId)),
+  });
+  if (!res.ok) throw new Error(`DMAIL error ${res.status}: ${await res.text()}`);
+  return { sent: true };
+}
+
 export interface OrgInviteEmailArgs {
   to: string;
   orgName: string;

@@ -54,7 +54,7 @@ Return ONLY the text to insert at the cursor.`;
     const raw = await generateText({
       system: SYSTEM,
       user,
-      temperature: 0.2,
+      level: "low",
       maxOutputTokens: 256,
       // Cancel the Gemini call if the editor cancels the completion (or on timeout).
       abortSignal: AbortSignal.any([request.signal, AbortSignal.timeout(20_000)]),

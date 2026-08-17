@@ -35,7 +35,7 @@ export async function POST(request: Request) {
       await generateText({
         system: DETECT_PRESET_SYSTEM,
         user: excerpt,
-        temperature: 0,
+        level: "low",
         maxOutputTokens: 2048,
         onUsage: (u) => {
           usage = u;

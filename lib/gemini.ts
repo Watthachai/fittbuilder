@@ -1,4 +1,4 @@
-import { GoogleGenAI, type Part } from "@google/genai";
+import { GoogleGenAI, ThinkingLevel, type Part } from "@google/genai";
 import type { ChatAttachmentInput } from "@/lib/types";
 
 /** Server-only Gemini client. Never import from client components. */
@@ -21,7 +21,22 @@ export function getGeminiClient(): GoogleGenAI {
   return client;
 }
 
-export const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-3.6-flash";
+export const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-3.7-flash";
+
+/**
+ * How hard the model thinks before answering — the only quality/cost lever
+ * Gemini 3.x still exposes.
+ *
+ * `temperature`, `topP` and `topK` stopped doing anything as of 3.6: the API
+ * accepts them and silently ignores them, which is worse than rejecting them
+ * because a codebase can go on looking like it tunes them. Verified against the
+ * live API — thinking tokens were identical with and without `temperature`.
+ *
+ * - `low`    classification, extraction, short mechanical edits
+ * - `medium` the default; what Google recommends for real code and agent work
+ * - `high`   the hardest reasoning only — costs noticeably more tokens
+ */
+export type ThinkLevel = "low" | "medium" | "high";
 
 /** Token counts for one Gemini call (thinking tokens folded into output). */
 export interface TokenUsage {
@@ -38,7 +53,8 @@ export interface StreamTextOptions {
   /** Stream Gemini thought summaries (parts flagged thought:true) too. */
   thinking?: boolean;
   maxOutputTokens?: number;
-  temperature?: number;
+  /** Reasoning effort. Omitted = the model's own default (medium). */
+  level?: ThinkLevel;
   abortSignal?: AbortSignal;
   /** Web grounding: googleSearch (search) and/or urlContext (read given URLs). */
   tools?: ("googleSearch" | "urlContext")[];
@@ -49,6 +65,13 @@ export interface StreamTextOptions {
 }
 
 const TEXT_PART_LIMIT = 100_000; // cap decoded text files so one attachment can't blow the context
+
+/** Our lowercase level → the SDK's enum values. */
+const THINK_LEVEL: Record<ThinkLevel, ThinkingLevel> = {
+  low: ThinkingLevel.LOW,
+  medium: ThinkingLevel.MEDIUM,
+  high: ThinkingLevel.HIGH,
+};
 
 /** Turn user attachments into Gemini content parts: image/PDF as inlineData, any
  *  other file decoded to a labelled text part so the model reads its contents. */
@@ -79,10 +102,18 @@ export async function* streamParts(options: StreamTextOptions): AsyncGenerator<S
     contents,
     config: {
       systemInstruction: options.system,
-      temperature: options.temperature ?? 0.7,
       maxOutputTokens: options.maxOutputTokens ?? 65536,
       ...(options.json ? { responseMimeType: "application/json" } : {}),
-      ...(options.thinking ? { thinkingConfig: { includeThoughts: true } } : {}),
+      // One config block for both knobs — a second `thinkingConfig` key would
+      // overwrite the first, silently dropping whichever came earlier.
+      ...(options.thinking || options.level
+        ? {
+            thinkingConfig: {
+              ...(options.thinking ? { includeThoughts: true } : {}),
+              ...(options.level ? { thinkingLevel: THINK_LEVEL[options.level] } : {}),
+            },
+          }
+        : {}),
       ...(options.tools?.length
         ? {
             tools: options.tools.map((t) =>

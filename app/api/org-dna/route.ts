@@ -78,7 +78,7 @@ export async function POST(request: Request) {
       user: body.text?.trim() || "(สกัด Org DNA จากไฟล์ที่แนบมา)",
       attachments: body.attachments,
       json: true,
-      temperature: 0.3,
+      level: "medium",
       abortSignal: AbortSignal.any([request.signal, AbortSignal.timeout(55_000)]),
       onUsage: (u) => {
         usage = u;

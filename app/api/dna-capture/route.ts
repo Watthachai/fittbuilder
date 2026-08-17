@@ -26,7 +26,7 @@ export async function POST(request: Request) {
       system: buildDnaCaptureSystem(),
       user: body.text.slice(0, 4_000),
       json: true,
-      temperature: 0,
+      level: "low",
       maxOutputTokens: 512,
       onUsage: (u) => { usage = u; },
     });

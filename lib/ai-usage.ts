@@ -24,17 +24,41 @@ export type UsageKind =
  * to the real figures from https://ai.google.dev/pricing for your model. Cost in
  * the admin report is labelled "ประมาณการ".
  */
-const PRICING: Record<string, { input: number; output: number }> = {
+interface Price {
+  input: number;
+  output: number;
+}
+
+/**
+ * Google's introductory rate for the 3.7/3.6 Flash pair. It ENDS on this date
+ * and doubles.
+ *
+ * The date is encoded rather than the number pasted in, because the failure mode
+ * of pasting is silent: the admin report would keep showing half the real cost
+ * from January onwards and nobody would have a reason to look.
+ */
+const INTRO_UNTIL = Date.UTC(2027, 0, 1); // 2027-01-01
+const FLASH_INTRO: Price = { input: 0.75, output: 3.75 };
+const FLASH_STANDARD: Price = { input: 1.5, output: 7.5 };
+
+const PRICING: Record<string, Price | (() => Price)> = {
   // Paid tier, USD per 1M tokens (output includes thinking tokens).
-  "gemini-3.6-flash": { input: 1.5, output: 7.5 },
+  "gemini-3.7-flash": () => (Date.now() < INTRO_UNTIL ? FLASH_INTRO : FLASH_STANDARD),
+  "gemini-3.6-flash": () => (Date.now() < INTRO_UNTIL ? FLASH_INTRO : FLASH_STANDARD),
   "gemini-3.5-flash": { input: 1.5, output: 9.0 },
   "gemini-2.5-flash": { input: 0.3, output: 2.5 },
 };
-const DEFAULT_PRICE = { input: 1.5, output: 7.5 };
+const DEFAULT_PRICE = FLASH_STANDARD;
+
+/** The configured model's rate right now — resolving any dated promotion. */
+export function currentPrice(): Price {
+  const p = PRICING[GEMINI_MODEL] ?? DEFAULT_PRICE;
+  return typeof p === "function" ? p() : p;
+}
 
 /** Estimated USD cost for a token split, using the configured model's pricing. */
 export function estimateCostUsd(promptTokens: number, outputTokens: number): number {
-  const p = PRICING[GEMINI_MODEL] ?? DEFAULT_PRICE;
+  const p = currentPrice();
   return (promptTokens / 1_000_000) * p.input + (outputTokens / 1_000_000) * p.output;
 }
 

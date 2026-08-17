@@ -61,7 +61,7 @@ export async function POST(request: Request) {
     const raw = await generateText({
       system: DESIGN_OPTIONS_SYSTEM,
       user,
-      temperature: 0.9,
+      level: "medium",
       maxOutputTokens: 4096,
       onUsage: (u) => {
         usage = u;

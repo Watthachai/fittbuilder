@@ -41,7 +41,7 @@ export async function POST(request: Request) {
       system: QUOTE_ADVICE_SYSTEM,
       user: buildQuoteAdviceUser(doc),
       json: true,
-      temperature: 0.3,
+      level: "medium",
       maxOutputTokens: 8192,
       onUsage: (u) => {
         usage = u;

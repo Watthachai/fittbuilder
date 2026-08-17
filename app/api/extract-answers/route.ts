@@ -39,7 +39,7 @@ export async function POST(request: Request) {
       system: buildExtractAnswersSystem(JSON.stringify(preset.questions, null, 2)),
       user: body.documentText.slice(0, 24_000),
       json: true,
-      temperature: 0,
+      level: "low",
       maxOutputTokens: 4096,
       onUsage: (u) => {
         usage = u;

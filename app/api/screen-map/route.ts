@@ -35,7 +35,7 @@ export async function POST(request: Request) {
       system: SCREEN_MAP_SYSTEM,
       user: buildScreenMapUser(body.files as ProjectFiles),
       json: true,
-      temperature: 0,
+      level: "low",
       maxOutputTokens: 8192,
       onUsage: (u) => {
         usage = u;

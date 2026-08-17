@@ -82,7 +82,7 @@ export async function POST(request: Request) {
       user,
       attachments: body.attachments,
       json: true,
-      temperature: 0.4,
+      level: "medium",
       abortSignal: AbortSignal.any([request.signal, AbortSignal.timeout(110_000)]),
       onUsage: (u) => { usage = u; },
     })) {

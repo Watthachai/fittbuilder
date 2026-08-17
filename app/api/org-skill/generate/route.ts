@@ -63,7 +63,7 @@ export async function POST(request: Request) {
           system: SKILL_SYSTEM,
           user,
           thinking: true,
-          temperature: 0.7,
+          level: "medium",
           abortSignal: AbortSignal.any([request.signal, AbortSignal.timeout(ATTEMPT_TIMEOUT_MS)]),
           onUsage: (u) => { usage = u; },
         })) {

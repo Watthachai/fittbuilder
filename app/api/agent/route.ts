@@ -140,7 +140,7 @@ export async function POST(request: Request) {
           system,
           user,
           attachments: body.attachments,
-          temperature: 0.6,
+          level: "medium",
           thinking: true,
           abortSignal: AbortSignal.any([request.signal, AbortSignal.timeout(ATTEMPT_TIMEOUT_MS)]),
           onUsage: (u) => {

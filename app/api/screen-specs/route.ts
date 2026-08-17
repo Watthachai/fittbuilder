@@ -36,7 +36,7 @@ export async function POST(request: Request) {
       system: SCREEN_SPEC_SYSTEM,
       user: buildScreenSpecUser(body.files as ProjectFiles, body.names),
       json: true,
-      temperature: 0.2,
+      level: "low",
       maxOutputTokens: 8192,
       onUsage: (u) => {
         usage = u;

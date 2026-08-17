@@ -196,7 +196,7 @@ export async function POST(request: Request) {
             attachments: body.attachments,
             thinking: true,
             abortSignal: abort,
-            temperature: 0.6,
+            level: "medium",
             onUsage: (u) => {
               usage = u;
             },

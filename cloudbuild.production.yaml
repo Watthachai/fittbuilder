@@ -26,7 +26,10 @@ substitutions:
   # Public (shipped to the browser) — safe to commit.
   _NEXT_PUBLIC_SUPABASE_URL: "https://YOUR-PROJECT.supabase.co"
   _NEXT_PUBLIC_SUPABASE_ANON_KEY: "YOUR_SUPABASE_ANON_KEY"
-  _GEMINI_MODEL: "gemini-3.6-flash"
+  # Pinning the model here OVERRIDES the default in lib/gemini.ts — this value
+  # always wins, whether or not the trigger sets it. Keep it in step with the
+  # code default, or an upgrade lands in the repo and never reaches production.
+  _GEMINI_MODEL: "gemini-3.7-flash"
   _ADMIN_EMAILS: "YOUR_ADMIN_EMAILS"
   # Sensitive — SET THESE IN THE TRIGGER UI, do not commit real values here.
   _GEMINI_API_KEY: "SET_IN_TRIGGER"
@@ -37,6 +40,20 @@ substitutions:
   # never a build break. The Gateway host must be reachable FROM Cloud Run.
   _FITTCORE_GATEWAY_URL: "SET_IN_TRIGGER"
   _FITTCORE_GATEWAY_API_KEY: "SET_IN_TRIGGER"
+  # Email (OPTIONAL). Empty — not "SET_IN_TRIGGER" — so an unset variable is
+  # FALSY in the app and the feature turns itself off cleanly. A placeholder
+  # string would be truthy and the code would try to send with a bogus key.
+  #   _DMAIL_API_KEY              คำเชิญร่วมโปรเจกต์/workspace (ถ้าไม่ตั้ง = ไม่ส่งอีเมล)
+  #   _DMAIL_PARTNER_TEMPLATE_ID  template แจ้งเตือน partner lead
+  #   _PARTNER_LEAD_NOTIFY_EMAIL  ปลายทางที่จะได้อีเมลแจ้ง lead ใหม่
+  _DMAIL_API_KEY: ""
+  _DMAIL_PARTNER_TEMPLATE_ID: ""
+  _PARTNER_LEAD_NOTIFY_EMAIL: ""
+  # Rate limiting (OPTIONAL but wanted in production). Without Upstash the
+  # limiter falls back to per-instance memory, which resets on every cold start
+  # — so a public form is only really protected once these are set.
+  _UPSTASH_REDIS_REST_URL: ""
+  _UPSTASH_REDIS_REST_TOKEN: ""
 
 steps:
   # ==================== PREFLIGHT ====================
@@ -118,7 +135,7 @@ steps:
       - "900"
       - --set-env-vars
       - >-
-        ^|^NODE_ENV=production|GEMINI_MODEL=${_GEMINI_MODEL}|ADMIN_EMAILS=${_ADMIN_EMAILS}|NEXT_PUBLIC_SUPABASE_URL=${_NEXT_PUBLIC_SUPABASE_URL}|NEXT_PUBLIC_SUPABASE_ANON_KEY=${_NEXT_PUBLIC_SUPABASE_ANON_KEY}|GEMINI_API_KEY=${_GEMINI_API_KEY}|SUPABASE_SERVICE_ROLE_KEY=${_SUPABASE_SERVICE_ROLE_KEY}|FITTCORE_GATEWAY_URL=${_FITTCORE_GATEWAY_URL}|FITTCORE_GATEWAY_API_KEY=${_FITTCORE_GATEWAY_API_KEY}
+        ^|^NODE_ENV=production|GEMINI_MODEL=${_GEMINI_MODEL}|ADMIN_EMAILS=${_ADMIN_EMAILS}|NEXT_PUBLIC_SUPABASE_URL=${_NEXT_PUBLIC_SUPABASE_URL}|NEXT_PUBLIC_SUPABASE_ANON_KEY=${_NEXT_PUBLIC_SUPABASE_ANON_KEY}|GEMINI_API_KEY=${_GEMINI_API_KEY}|SUPABASE_SERVICE_ROLE_KEY=${_SUPABASE_SERVICE_ROLE_KEY}|FITTCORE_GATEWAY_URL=${_FITTCORE_GATEWAY_URL}|FITTCORE_GATEWAY_API_KEY=${_FITTCORE_GATEWAY_API_KEY}|DMAIL_API_KEY=${_DMAIL_API_KEY}|DMAIL_PARTNER_TEMPLATE_ID=${_DMAIL_PARTNER_TEMPLATE_ID}|PARTNER_LEAD_NOTIFY_EMAIL=${_PARTNER_LEAD_NOTIFY_EMAIL}|UPSTASH_REDIS_REST_URL=${_UPSTASH_REDIS_REST_URL}|UPSTASH_REDIS_REST_TOKEN=${_UPSTASH_REDIS_REST_TOKEN}
     waitFor: [push-build]
 
 images:

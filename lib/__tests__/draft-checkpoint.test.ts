@@ -19,8 +19,15 @@ import { readFileSync } from "node:fs";
 const studio = readFileSync("components/studio/Studio.tsx", "utf8");
 const storage = readFileSync("lib/storage.ts", "utf8");
 
-/** The body of the generate() turn — where the stream is consumed. */
-const turn = studio.slice(studio.indexOf("const generate = useCallback"));
+/**
+ * The generate() turn — where the stream is consumed. Bounded at the next
+ * callback, or the slice would run to the end of the file and sweep in the
+ * recovery dialog's own handlers.
+ */
+const turn = studio.slice(
+  studio.indexOf("const generate = useCallback"),
+  studio.indexOf("const handleUndo = useCallback")
+);
 
 describe("generation checkpoints", () => {
   it("parks streamed files while the turn is still running", () => {
@@ -31,6 +38,20 @@ describe("generation checkpoints", () => {
   it("throttles by time, so one build does not write a draft per file", () => {
     expect(studio).toMatch(/DRAFT_INTERVAL_MS/);
     expect(turn).toMatch(/Date\.now\(\) - lastDraftAt >= DRAFT_INTERVAL_MS/);
+  });
+
+  /**
+   * Found on the first live run: a 28-file build finished but left its 24-file
+   * draft behind, so the next open would have offered stale work back as if it
+   * were unfinished. The checkpoint is fired without awaiting (so it never slows
+   * the stream), which means one can still be in flight when the turn ends — the
+   * delete has to queue behind them, not race them.
+   */
+  it("clears only after every checkpoint has landed", () => {
+    expect(turn).toContain("draftWrites");
+    expect(turn).toMatch(/draftWrites\s*\.then\(\(\) => clearDraft/);
+    // A bare clearDraft call is the race coming back.
+    expect(turn).not.toMatch(/void clearDraft\(projectId\)/);
   });
 
   it("drops the draft once the turn resolves, either way", () => {

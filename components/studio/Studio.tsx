@@ -779,6 +779,15 @@ export default function Studio({ projectId }: { projectId: string }) {
       // whether a cancel must reboot the container back to the saved state.
       let wroteLive = false;
       let lastDraftAt = 0;
+      /**
+       * Draft writes are fired without awaiting so a checkpoint never slows the
+       * stream — which means one can still be in flight when the turn ends.
+       * Chaining them makes the clear the LAST write. Without this the delete
+       * lands before a checkpoint's upsert and a finished turn leaves a stale
+       * draft behind, which the next open offers back as unfinished work (seen
+       * on the first live run: 24-file draft surviving a 28-file build).
+       */
+      let draftWrites: Promise<unknown> = Promise.resolve();
 
       try {
         let note = "";
@@ -825,7 +834,10 @@ export default function Studio({ projectId }: { projectId: string }) {
             // interrupt the generation it is protecting.
             if (Date.now() - lastDraftAt >= DRAFT_INTERVAL_MS) {
               lastDraftAt = Date.now();
-              void saveDraft(projectId, { ...streamed }, prompt).catch(() => {});
+              const snapshot = { ...streamed };
+              draftWrites = draftWrites
+                .then(() => saveDraft(projectId, snapshot, prompt))
+                .catch(() => {});
             }
             pushTerminal(`📝 ${event.path}`);
             appendLive((p) => ({ ...p, actions: [...p.actions, { icon: "file", label: event.path }] }));
@@ -898,7 +910,7 @@ export default function Studio({ projectId }: { projectId: string }) {
         working = appendMessage(working, assistantMsg);
         persist(working);
         // The complete set is saved — the partial has nothing left to protect.
-        void clearDraft(projectId).catch(() => {});
+        void draftWrites.then(() => clearDraft(projectId)).catch(() => {});
 
         // Detached (user navigated away): files are already persisted above —
         // skip all container work, it belongs to the foreground project now.
@@ -928,7 +940,7 @@ export default function Studio({ projectId }: { projectId: string }) {
           void saveProject({ ...working, updatedAt: new Date().toISOString() }).catch(() => {});
           // Cancelling is a decision, not a crash: the user does not want this
           // half-turn offered back to them next time they open the project.
-          void clearDraft(projectId).catch(() => {});
+          void draftWrites.then(() => clearDraft(projectId)).catch(() => {});
           pushTerminal("✋ ยกเลิกแล้ว");
           if (wroteLive && myEpoch === epochRef.current) {
             // Partial files were streamed into the live container — reboot it

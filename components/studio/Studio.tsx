@@ -42,7 +42,6 @@ import {
   type ApprovalState,
   getAccess,
   getApprovalState,
-  setProjectVersion,
   getProject,
   getProjectPhase,
   newMessage,
@@ -2041,20 +2040,24 @@ export default function Studio({ projectId }: { projectId: string }) {
    * downstream (export, Code Runner, quotation, preview) keeps working on
    * `files` with no idea versions exist.
    *
-   * The current files are saved BEFORE the swap — switching mid-edit must not be
-   * a way to lose work — and the preview is rebooted afterwards because the file
-   * set under it has entirely changed.
+   * The files on screen are handed to the switch and parked as the outgoing
+   * version — switching mid-edit must not be a way to lose work — and the
+   * preview is rebooted afterwards because the file set under it has entirely
+   * changed.
    */
   const changeVersion = async (next: VersionKey) => {
     if (!project || readOnly || switchingVersion || next === activeVersion) return;
     setSwitchingVersion(true);
     try {
+      // Seeded = the version being LEFT had nothing parked before this switch,
+      // so the one being entered is starting from a copy of it. Asked before the
+      // switch, because after it the outgoing version is always parked.
+      const seeded = !(await parkedVersions(project.id)).includes(next);
+      // One transaction: files, pointer and both version rows move together, or
+      // none of them do. It also writes `files`, so no save follows it — a save
+      // here would only send the same megabytes back a second time.
       const files = await switchVersion(project.id, activeVersion, next, project.files ?? {});
-      const seeded = !(await parkedVersions(project.id)).includes(activeVersion);
-      const updated = { ...project, files, updatedAt: new Date().toISOString() };
-      setProject(updated);
-      await saveProject(updated);
-      await setProjectVersion(project.id, next);
+      setProject({ ...project, files, updatedAt: new Date().toISOString() });
       setActiveVersion(next);
       toast.success(`สลับไปเวอร์ชัน${VERSION_LABEL[next]}แล้ว`, {
         description: seeded

@@ -129,21 +129,6 @@ export async function setProjectRunner(projectId: string, runner: RunnerSend): P
   if (error) throw error;
 }
 
-/**
- * Point the project at a version. The ONLY writer of `active_version`.
- *
- * Kept off the ordinary save path on purpose — see projectToRow. A stale record
- * flowing through autosave must never be able to move this.
- */
-export async function setProjectVersion(id: string, key: string): Promise<void> {
-  const supabase = createClient();
-  const { error } = await supabase
-    .from("fittbuilder_projects")
-    .update({ active_version: key })
-    .eq("id", id);
-  if (error) throw error;
-}
-
 export async function duplicateProject(id: string): Promise<ProjectRecord | null> {
   return duplicateProjectAs(id, (name) => `${name} (copy)`);
 }

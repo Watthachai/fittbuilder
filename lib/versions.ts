@@ -55,13 +55,17 @@ export async function parkedVersions(projectId: string): Promise<VersionKey[]> {
 /**
  * Switch the project to `to`, returning that version's files.
  *
- * Park the version being left, take back the one being entered. Done in that
- * order on purpose: if the write of the outgoing version fails we stop before
- * anything is deleted, so the worst case is an unchanged project rather than a
- * version that exists in neither place.
+ * One call, one transaction (migration 0033). It used to be four separate
+ * writes — park the outgoing version, delete the incoming one's row, save the
+ * files, move the pointer — and a real project was found stopped between them:
+ * the pointer said "ปกติ" while `files` held the Premium build, so the phase bar
+ * named one product and an export would have shipped the other.
+ *
+ * The outgoing files are SENT rather than read from the row inside the function
+ * because saves are debounced: the row can still hold the previous step.
  *
  * A version that has never existed is SEEDED from the current files — the first
- * switch to Premium is what creates it, starting from whatever Standard is now.
+ * switch to Premium starts from whatever Standard is now.
  */
 export async function switchVersion(
   projectId: string,
@@ -71,33 +75,12 @@ export async function switchVersion(
 ): Promise<ProjectFiles> {
   if (from === to) return currentFiles;
   const supabase = createClient();
-
-  const { error: parkError } = await supabase.from(TABLE).upsert(
-    { project_id: projectId, key: from, files: currentFiles as unknown as Json, updated_at: new Date().toISOString() },
-    { onConflict: "project_id,key" }
-  );
-  if (parkError) throw parkError;
-
-  const { data, error } = await supabase
-    .from(TABLE)
-    .select("files")
-    .eq("project_id", projectId)
-    .eq("key", to)
-    .maybeSingle();
-  if (error) throw error;
-
-  const next = (data?.files as ProjectFiles | undefined) ?? currentFiles;
-
-  // Only one copy of each version may exist: the incoming one now lives in
-  // `projects.files`, so its parked row has to go or the next switch would
-  // restore a stale snapshot over newer work.
-  if (data) {
-    const { error: dropError } = await supabase
-      .from(TABLE)
-      .delete()
-      .eq("project_id", projectId)
-      .eq("key", to);
-    if (dropError) throw dropError;
-  }
-  return next;
+  const { data, error } = await supabase.rpc("fittbuilder_switch_version", {
+    pid: projectId,
+    from_key: from,
+    to_key: to,
+    outgoing: currentFiles as unknown as Json,
+  });
+  if (error) throw new Error(error.message);
+  return data as unknown as ProjectFiles;
 }

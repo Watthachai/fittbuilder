@@ -606,6 +606,12 @@ export interface Database {
       fittbuilder_join_by_token: { Args: { tok: string; uid: string }; Returns: string | null };
       /** Push a snapshot onto the undo stack; returns the new depth. */
       fittbuilder_history_push: { Args: { pid: string; snapshot: Json }; Returns: number };
+      /** Move a project between tier versions in one transaction; returns the
+       *  files that are now active. */
+      fittbuilder_switch_version: {
+        Args: { pid: string; from_key: string; to_key: string; outgoing: Json };
+        Returns: Json;
+      };
       /** Pop the newest snapshot into `files` and return it (null when empty). */
       fittbuilder_history_pop: { Args: { pid: string }; Returns: Json | null };
       fittbuilder_ai_usage_report: { Args: Record<string, never>; Returns: Json };

@@ -871,6 +871,12 @@ body {
   line-height: 1.5;
   margin-top: 2px;
   max-width: 66ch;
+  /* Scope is written as a numbered outline with blank lines between sections —
+     that shape IS the meaning, and HTML collapses every newline in it by
+     default, so what was typed and what printed did not match. Wrapping still
+     happens (pre-wrap, not pre) because the column is narrower than the lines
+     people paste in. */
+  white-space: pre-wrap;
 }
 
 /* ---- totals, right-aligned under a dashed rule ---- */

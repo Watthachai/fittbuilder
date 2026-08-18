@@ -115,9 +115,9 @@ export default function QuoteBrandBar({
 
       <div className="flex items-center gap-2">
         <Building2 size={13} className="text-shine" />
-        <h3 className="font-display text-[12px] text-chalk">หัวกระดาษ — บริษัทผู้เสนอราคา</h3>
+        <h3 className="font-display text-[14px] text-chalk">หัวกระดาษ — บริษัทผู้เสนอราคา</h3>
         {!brand.poweredBy && (
-          <span className="inline-flex items-center gap-1 rounded-full border border-go/50 bg-go/10 px-2 py-0.5 font-mono text-[10px] text-go">
+          <span className="inline-flex items-center gap-1 rounded-full border border-go/50 bg-go/10 px-2 py-0.5 font-mono text-[11.5px] text-go">
             <BadgeCheck size={10} /> Partner
           </span>
         )}
@@ -127,7 +127,7 @@ export default function QuoteBrandBar({
               onClick={() => void pull()}
               disabled={busy !== null}
               title="ดึงชื่อบริษัท ที่อยู่ เลขผู้เสียภาษี และโลโก้ที่บันทึกไว้ที่ workspace มาใส่ใบนี้"
-              className="inline-flex items-center gap-1.5 rounded-lg border border-night-edge px-2.5 py-1 font-display text-[11px] text-chalk-dim transition hover:border-shine/60 hover:text-chalk disabled:opacity-40"
+              className="inline-flex items-center gap-1.5 rounded-lg border border-night-edge px-2.5 py-1 font-display text-[12.5px] text-chalk-dim transition hover:border-shine/60 hover:text-chalk disabled:opacity-40"
             >
               {busy === "pull" ? <Loader2 size={11} className="animate-spin" /> : <Download size={11} />}
               ดึงจาก workspace
@@ -136,7 +136,7 @@ export default function QuoteBrandBar({
               onClick={() => void push()}
               disabled={busy !== null}
               title="ทำให้หัวกระดาษนี้เป็นค่าเริ่มต้นของ workspace — ใบเสนอราคาใบถัดไปจะขึ้นให้เอง"
-              className="inline-flex items-center gap-1.5 rounded-lg border border-night-edge px-2.5 py-1 font-display text-[11px] text-chalk-dim transition hover:border-shine/60 hover:text-chalk disabled:opacity-40"
+              className="inline-flex items-center gap-1.5 rounded-lg border border-night-edge px-2.5 py-1 font-display text-[12.5px] text-chalk-dim transition hover:border-shine/60 hover:text-chalk disabled:opacity-40"
             >
               {busy === "push" ? <Loader2 size={11} className="animate-spin" /> : <Save size={11} />}
               บันทึกเป็นค่าเริ่มต้น
@@ -161,7 +161,7 @@ export default function QuoteBrandBar({
               <button
                 onClick={() => fileInput.current?.click()}
                 disabled={busy !== null}
-                className="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 font-display text-[10px] text-chalk-dim transition hover:text-shine disabled:opacity-40"
+                className="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 font-display text-[11.5px] text-chalk-dim transition hover:text-shine disabled:opacity-40"
               >
                 {busy === "upload" ? (
                   <Loader2 size={10} className="animate-spin" />
@@ -268,13 +268,13 @@ export default function QuoteBrandBar({
       </div>
 
       {brand.poweredBy && (
-        <p className="mt-2.5 text-[10px] leading-relaxed text-chalk-dim">
+        <p className="mt-2.5 text-[11.5px] leading-relaxed text-chalk-dim">
           ใบเสนอราคาจะมีข้อความ “Powered by FITT Builder” ท้ายกระดาษ — เปิดเป็น Partner แล้วจะเอาออกให้
           {orgId ? " (กด “ดึงจาก workspace” หลังได้สิทธิ์ Partner)" : ""}
         </p>
       )}
       {!orgId && (
-        <p className="mt-2.5 text-[10px] leading-relaxed text-chalk-dim">
+        <p className="mt-2.5 text-[11.5px] leading-relaxed text-chalk-dim">
           โปรเจกต์นี้ยังไม่ได้ผูกกับ workspace — กรอกหัวกระดาษที่นี่ได้ แต่อัปโหลดโลโก้และบันทึกเป็น
           ค่าเริ่มต้นยังทำไม่ได้
         </p>

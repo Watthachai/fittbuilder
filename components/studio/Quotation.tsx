@@ -393,8 +393,8 @@ export default function Quotation({
 
       {/* Line items */}
       <div className="mt-5 flex items-center gap-2">
-        <h3 className="font-display text-[12px] text-chalk">รายการ</h3>
-        <span className="rounded-full bg-night px-2 py-0.5 font-mono text-[11px] text-chalk-dim">
+        <h3 className="font-display text-[14px] text-chalk">รายการ</h3>
+        <span className="rounded-full bg-night px-2 py-0.5 font-mono text-[12.5px] text-chalk-dim">
           {counts.screens} หน้าจอ · {counts.modals} modal
         </span>
         {!readOnly && files && (
@@ -402,7 +402,7 @@ export default function Quotation({
             onClick={() => void describe()}
             disabled={writing}
             title="ให้ AI อ่านโค้ดแล้วเขียนว่าแต่ละหน้าทำอะไรได้บ้าง — เติมเฉพาะช่องที่ยังว่าง"
-            className="ml-auto inline-flex items-center gap-1.5 rounded-lg border border-shine/50 px-2.5 py-1 font-display text-[12px] text-shine transition hover:bg-shine/10 disabled:opacity-40"
+            className="ml-auto inline-flex items-center gap-1.5 rounded-lg border border-shine/50 px-2.5 py-1 font-display text-[14px] text-shine transition hover:bg-shine/10 disabled:opacity-40"
           >
             {writing ? (
               <Loader2 size={12} className="animate-spin" />
@@ -417,7 +417,7 @@ export default function Quotation({
             onClick={() => void askPrice()}
             disabled={pricing}
             title="ให้ AI ดูขอบเขตงานจริงแล้วเสนอเรตต่อวัน เทียบกับราคาตลาด — เสนอเฉยๆ ยังไม่แก้ใบเสนอราคา"
-            className={`inline-flex items-center gap-1.5 rounded-lg border border-shine/50 px-2.5 py-1 font-display text-[12px] text-shine transition hover:bg-shine/10 disabled:opacity-40 ${
+            className={`inline-flex items-center gap-1.5 rounded-lg border border-shine/50 px-2.5 py-1 font-display text-[14px] text-shine transition hover:bg-shine/10 disabled:opacity-40 ${
               files ? "" : "ml-auto"
             }`}
           >
@@ -429,7 +429,7 @@ export default function Quotation({
 
       {advice && <AdviceCard advice={advice} doc={doc} onClose={() => setAdvice(null)} onRate={applyRate} onAll={applyAll} />}
       <div className="mt-1.5 overflow-hidden rounded-xl border border-night-edge">
-        <table className="w-full text-[12px]">
+        <table className="w-full text-[14px]">
           <thead>
             <tr className="border-b border-night-edge bg-night/60 text-left text-chalk-dim">
               <th className="w-8 px-2 py-2 text-right font-display font-medium">#</th>
@@ -443,7 +443,7 @@ export default function Quotation({
           <tbody>
             {doc.rows.map((r, i) => (
               <tr key={r.id} className="group border-b border-night-edge/60 last:border-0">
-                <td className="px-2 py-1.5 text-right font-mono text-[11px] text-chalk-dim">
+                <td className="px-2 py-1.5 text-right font-mono text-[12.5px] text-chalk-dim">
                   {i + 1}
                 </td>
                 <td className="px-2 py-1.5">
@@ -452,7 +452,7 @@ export default function Quotation({
                       looking, not by counting. */}
                   <div className={r.sub ? "border-l-2 border-shine/40 pl-2" : ""}>
                     {r.sub && r.parent && (
-                      <span className="mb-0.5 inline-flex items-center gap-1 font-mono text-[10px] text-shine/80">
+                      <span className="mb-0.5 inline-flex items-center gap-1 font-mono text-[11.5px] text-shine/80">
                         <CornerDownRight size={9} /> modal ของ {r.parent}
                       </span>
                     )}
@@ -466,10 +466,10 @@ export default function Quotation({
                     <textarea
                       value={r.note}
                       onChange={(e) => setRow(r.id, { note: e.target.value })}
-                      rows={2}
+                      rows={4}
                       placeholder="หน้านี้ทำอะไรได้บ้าง — กด “เขียนรายละเอียดด้วย AI” ให้อ่านโค้ดเขียนให้ได้"
                       disabled={readOnly}
-                      className="w-full resize-y rounded-md bg-transparent px-1.5 py-0.5 text-[11px] leading-relaxed text-chalk-dim outline-none placeholder:text-chalk-dim/40 focus:bg-night"
+                      className="w-full resize-y rounded-md bg-transparent px-1.5 py-0.5 text-[13.5px] leading-relaxed text-chalk-dim outline-none placeholder:text-chalk-dim/40 focus:bg-night"
                     />
                   </div>
                 </td>
@@ -485,7 +485,7 @@ export default function Quotation({
                         // send a wrong price.
                         onClick={() => setRow(r.id, { size: s, days: SIZE_DAYS[s] })}
                         title={SIZE_HINT[s]}
-                        className={`flex-1 rounded-md px-1.5 py-0.5 font-display text-[11px] transition ${
+                        className={`flex-1 rounded-md px-1.5 py-0.5 font-display text-[12.5px] transition ${
                           r.size === s ? "bg-shine text-night" : "text-chalk-dim hover:text-chalk"
                         }`}
                       >
@@ -536,7 +536,7 @@ export default function Quotation({
         <div className="mt-2 flex flex-wrap items-center gap-2">
           <button
             onClick={() => edit((d) => ({ ...d, rows: [...d.rows, emptyRow(d.rows.length)] }))}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-night-edge px-2.5 py-1.5 font-display text-[12px] text-chalk-dim transition hover:border-shine/60 hover:text-chalk"
+            className="inline-flex items-center gap-1.5 rounded-lg border border-night-edge px-2.5 py-1.5 font-display text-[14px] text-chalk-dim transition hover:border-shine/60 hover:text-chalk"
           >
             <Plus size={12} /> เพิ่มรายการ
           </button>
@@ -544,7 +544,7 @@ export default function Quotation({
             <button
               onClick={() => edit((d) => ({ ...d, rows: [...d.rows, ...missing] }))}
               title="เพิ่มเฉพาะหน้าที่ยังไม่มีในใบเสนอราคา — ราคาที่แก้ไว้แล้วไม่ถูกเขียนทับ"
-              className="inline-flex items-center gap-1.5 rounded-lg border border-shine/50 px-2.5 py-1.5 font-display text-[12px] text-shine transition hover:bg-shine/10"
+              className="inline-flex items-center gap-1.5 rounded-lg border border-shine/50 px-2.5 py-1.5 font-display text-[14px] text-shine transition hover:bg-shine/10"
             >
               <RefreshCw size={12} /> ซิงค์จากคลังหน้าจอ (+{missing.length})
             </button>
@@ -635,24 +635,24 @@ export default function Quotation({
             </>
           )}
           <div className="mt-2 flex items-baseline justify-between border-t border-night-edge pt-2.5">
-            <span className="font-display text-[12px] text-chalk">รวมทั้งสิ้น</span>
+            <span className="font-display text-[14px] text-chalk">รวมทั้งสิ้น</span>
             <span className="font-display text-lg font-semibold text-shine">
               ฿{formatTHB(t.grand)}
             </span>
           </div>
           {market && (
             <div className="mt-2.5 rounded-lg border border-go/40 bg-go/10 p-2.5">
-              <div className="flex items-baseline justify-between text-[12px]">
+              <div className="flex items-baseline justify-between text-[14px]">
                 <span className="text-chalk-dim">ราคาตลาดโดยประมาณ</span>
                 <span className="font-mono text-chalk-dim line-through">{baht(market.market)}</span>
               </div>
-              <div className="flex items-baseline justify-between text-[12px]">
+              <div className="flex items-baseline justify-between text-[14px]">
                 <span className="text-go">ลูกค้าประหยัด</span>
                 <span className="font-mono font-semibold text-go">
                   {baht(market.saved)} ({market.percent}%)
                 </span>
               </div>
-              <p className="mt-1 text-[10px] leading-relaxed text-chalk-dim">
+              <p className="mt-1 text-[11.5px] leading-relaxed text-chalk-dim">
                 เทียบที่ {baht(doc.marketRatePerDay)}/วัน — เป็นการประมาณการ แก้ตัวเลขได้ในช่อง
                 “ราคาตลาด/วัน” และจะพิมพ์ลงใบเสนอราคาด้วย
               </p>
@@ -660,11 +660,11 @@ export default function Quotation({
           )}
           <button
             onClick={print}
-            className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-lg bg-shine px-3 py-2 font-display text-[12px] font-semibold text-night transition hover:brightness-110"
+            className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-lg bg-shine px-3 py-2 font-display text-[14px] font-semibold text-night transition hover:brightness-110"
           >
             <Printer size={13} /> พิมพ์ / บันทึกเป็น PDF
           </button>
-          <p className="mt-1.5 text-center text-[10px] leading-relaxed text-chalk-dim">
+          <p className="mt-1.5 text-center text-[11.5px] leading-relaxed text-chalk-dim">
             ในหน้าต่างพิมพ์ เลือกปลายทางเป็น “Save as PDF” · ภาพหน้าจอทั้งหมดจะไปเป็นภาคผนวกท้ายเอกสาร
           </p>
         </div>
@@ -715,8 +715,8 @@ function AdviceCard({
       <div className="flex items-start gap-2">
         <Handshake size={14} className="mt-0.5 shrink-0 text-shine" />
         <div className="min-w-0 flex-1">
-          <h4 className="font-display text-[13px] font-semibold text-chalk">ข้อเสนอราคาจาก AI</h4>
-          <p className="mt-0.5 text-[11px] leading-relaxed text-chalk-dim">{advice.rationale}</p>
+          <h4 className="font-display text-[15px] font-semibold text-chalk">ข้อเสนอราคาจาก AI</h4>
+          <p className="mt-0.5 text-[12.5px] leading-relaxed text-chalk-dim">{advice.rationale}</p>
         </div>
         <button onClick={onClose} aria-label="ปิด" className="shrink-0 text-chalk-dim hover:text-chalk">
           <X size={13} />
@@ -730,21 +730,21 @@ function AdviceCard({
       </div>
 
       {advice.pitch && (
-        <p className="mt-3 rounded-lg border border-night-edge bg-night px-2.5 py-2 text-[11px] leading-relaxed text-chalk">
+        <p className="mt-3 rounded-lg border border-night-edge bg-night px-2.5 py-2 text-[12.5px] leading-relaxed text-chalk">
           💬 {advice.pitch}
         </p>
       )}
 
       {changed.length > 0 && (
         <details className="mt-3">
-          <summary className="cursor-pointer font-display text-[11px] text-chalk-dim hover:text-chalk">
+          <summary className="cursor-pointer font-display text-[12.5px] text-chalk-dim hover:text-chalk">
             เสนอปรับจำนวนวัน {changed.length} รายการ
           </summary>
           <div className="scroll-thin mt-1.5 max-h-40 space-y-1 overflow-y-auto">
             {changed.map((a) => {
               const mine = doc.rows.find((r) => r.name === a.name && r.parent === a.parent)!;
               return (
-                <div key={`${a.parent}/${a.name}`} className="text-[11px] leading-relaxed">
+                <div key={`${a.parent}/${a.name}`} className="text-[12.5px] leading-relaxed">
                   <span className="text-chalk">{a.name}</span>{" "}
                   <span className="font-mono text-chalk-dim">
                     {mine.days} → <b className="text-shine">{a.days}</b> วัน
@@ -760,19 +760,19 @@ function AdviceCard({
       <div className="mt-3 flex flex-wrap gap-2">
         <button
           onClick={() => onAll(advice)}
-          className="rounded-lg bg-shine px-3 py-1.5 font-display text-[12px] font-semibold text-night transition hover:brightness-110"
+          className="rounded-lg bg-shine px-3 py-1.5 font-display text-[14px] font-semibold text-night transition hover:brightness-110"
         >
           ใช้ทั้งหมด (เรต + จำนวนวัน)
         </button>
         <button
           onClick={() => onRate(advice)}
-          className="rounded-lg border border-shine/50 px-3 py-1.5 font-display text-[12px] text-shine transition hover:bg-shine/10"
+          className="rounded-lg border border-shine/50 px-3 py-1.5 font-display text-[14px] text-shine transition hover:bg-shine/10"
         >
           ใช้เฉพาะเรตต่อวัน
         </button>
         <button
           onClick={onClose}
-          className="rounded-lg border border-night-edge px-3 py-1.5 font-display text-[12px] text-chalk-dim transition hover:text-chalk"
+          className="rounded-lg border border-night-edge px-3 py-1.5 font-display text-[14px] text-chalk-dim transition hover:text-chalk"
         >
           ไม่ใช้ — กรอกเอง
         </button>
@@ -794,11 +794,11 @@ function Stat({
 }) {
   return (
     <div className={`rounded-lg border p-2 ${accent ? "border-shine/50 bg-shine/10" : "border-night-edge bg-night"}`}>
-      <p className="font-display text-[10px] uppercase tracking-widest text-chalk-dim">{label}</p>
+      <p className="font-display text-[11.5px] uppercase tracking-widest text-chalk-dim">{label}</p>
       <p className={`font-display text-[15px] font-semibold ${accent ? "text-shine" : "text-chalk"}`}>
         {value}
       </p>
-      <p className="font-mono text-[10px] text-chalk-dim">{sub}</p>
+      <p className="font-mono text-[11.5px] text-chalk-dim">{sub}</p>
     </div>
   );
 }

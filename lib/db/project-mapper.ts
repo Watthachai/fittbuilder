@@ -14,8 +14,6 @@ export interface ProjectRow {
   share_role: "viewer" | "editor" | null;
   skill_id: string | null;
   org_id: string | null;
-  /** Which tier version `files` holds (migration 0031). */
-  active_version: string | null;
   runner_last: RunnerSend | null;
   created_at: string;
   updated_at: string;
@@ -38,7 +36,6 @@ export interface ProjectInsertRow {
   history: ProjectFiles[];
   messages: ChatMessage[];
   skill_id: string | null;
-  active_version: string;
 }
 
 export function rowToProject(row: ProjectRow): ProjectRecord {
@@ -53,7 +50,6 @@ export function rowToProject(row: ProjectRow): ProjectRecord {
     skillId: row.skill_id ?? undefined,
     orgId: row.org_id ?? null,
     runnerLast: row.runner_last ?? null,
-    activeVersion: row.active_version ?? "standard",
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -101,8 +97,10 @@ export function projectToRow(rec: ProjectRecord): ProjectInsertRow {
     history: rec.history,
     messages: trimOldDiffs(rec.messages),
     skill_id: rec.skillId ?? null,
-    // Written on every ordinary save so switching versions needs no second
-    // write path — the switch updates the record and the autosave carries it.
-    active_version: rec.activeVersion ?? "standard",
+    // active_version is DELIBERATELY not written here. Ordinary saves are built
+    // from whatever record the caller holds, and a caller holding one captured
+    // before a version switch would write the OLD version back — pointing the
+    // row at files belonging to the other tier. Only setProjectVersion writes
+    // that column.
   };
 }

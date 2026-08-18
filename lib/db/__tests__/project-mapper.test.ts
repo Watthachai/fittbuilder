@@ -12,7 +12,6 @@ const rec: ProjectRecord = {
   messages: [{ id: "m1", role: "user", content: "hi", createdAt: "2026-01-01T00:00:00.000Z" }],
   orgId: null,
   runnerLast: null,
-  activeVersion: "standard",
   createdAt: "2026-01-01T00:00:00.000Z",
   updatedAt: "2026-01-02T00:00:00.000Z",
 };

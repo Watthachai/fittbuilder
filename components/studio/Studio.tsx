@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import {
-  isVersionKey,
+  activeVersionOf,
   parkedVersions,
   switchVersion,
   VERSION_LABEL,
@@ -42,6 +42,7 @@ import {
   type ApprovalState,
   getAccess,
   getApprovalState,
+  setProjectVersion,
   getProject,
   getProjectPhase,
   newMessage,
@@ -286,8 +287,15 @@ export default function Studio({ projectId }: { projectId: string }) {
 
   const [readOnly, setReadOnly] = useState(false);
   const [switchingVersion, setSwitchingVersion] = useState(false);
-  const activeVersion: VersionKey =
-    project?.activeVersion && isVersionKey(project.activeVersion) ? project.activeVersion : "standard";
+  /**
+   * Which tier version is being edited.
+   *
+   * Its own state, NOT derived from `project` — the record travels through
+   * autosave paths that rebuild it from older copies, and a stale one would flip
+   * the studio to the other version mid-edit. Read from the DB on load, moved
+   * only by changeVersion.
+   */
+  const [activeVersion, setActiveVersion] = useState<VersionKey>("standard");
   const [isOwner, setIsOwner] = useState(false);
   const [org, setOrg] = useState<OrgRecord | null>(null);
   // Living Org DNA: a pending capture the AI noticed in the last message (one at a
@@ -1577,6 +1585,12 @@ export default function Studio({ projectId }: { projectId: string }) {
       projectRef.current = loaded;
       setProject(loaded);
 
+      // Which tier version this project is pointed at. Read straight from the
+      // row rather than carried on the record — see the activeVersion comment.
+      const version = await activeVersionOf(projectId).catch(() => "standard" as VersionKey);
+      if (cancelled) return;
+      setActiveVersion(version);
+
       // Determine role-based access (owner vs. member/viewer).
       const access = await getAccess(projectId);
       if (cancelled) return;
@@ -2031,9 +2045,11 @@ export default function Studio({ projectId }: { projectId: string }) {
     try {
       const files = await switchVersion(project.id, activeVersion, next, project.files ?? {});
       const seeded = !(await parkedVersions(project.id)).includes(activeVersion);
-      const updated = { ...project, files, activeVersion: next, updatedAt: new Date().toISOString() };
+      const updated = { ...project, files, updatedAt: new Date().toISOString() };
       setProject(updated);
       await saveProject(updated);
+      await setProjectVersion(project.id, next);
+      setActiveVersion(next);
       toast.success(`สลับไปเวอร์ชัน${VERSION_LABEL[next]}แล้ว`, {
         description: seeded
           ? "เริ่มจากไฟล์ชุดเดิม — สั่ง AI เพิ่มฟีเจอร์ได้เลย งานจะไม่ไปกระทบอีกเวอร์ชัน"

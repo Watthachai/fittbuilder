@@ -32,6 +32,18 @@ export function isVersionKey(v: string): v is VersionKey {
   return (VERSION_KEYS as readonly string[]).includes(v);
 }
 
+/** Which version the project is pointed at right now. */
+export async function activeVersionOf(projectId: string): Promise<VersionKey> {
+  const supabase = createClient();
+  const { data } = await supabase
+    .from("fittbuilder_projects")
+    .select("active_version")
+    .eq("id", projectId)
+    .maybeSingle();
+  const key = data?.active_version ?? "standard";
+  return isVersionKey(key) ? key : "standard";
+}
+
 /** Which stored versions exist besides the active one. */
 export async function parkedVersions(projectId: string): Promise<VersionKey[]> {
   const supabase = createClient();

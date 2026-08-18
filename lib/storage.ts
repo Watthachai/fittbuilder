@@ -16,7 +16,7 @@ const HISTORY_LIMIT = 10; // US-004
  * file bodies — 5 MB on a real project. Read it only when the studio actually
  * needs the project, never to answer a question a column could answer.
  */
-const SELECT = "id, owner_id, name, files, phase, approved_phases, history, messages, share_token, share_role, skill_id, org_id, runner_last, active_version, created_at, updated_at";
+const SELECT = "id, owner_id, name, files, phase, approved_phases, history, messages, share_token, share_role, skill_id, org_id, runner_last, created_at, updated_at";
 
 
 async function uid(): Promise<string> {
@@ -120,6 +120,21 @@ export async function setProjectRunner(projectId: string, runner: RunnerSend): P
     .from("fittbuilder_projects")
     .update({ runner_last: runner as unknown as Json, updated_at: new Date().toISOString() })
     .eq("id", projectId);
+  if (error) throw error;
+}
+
+/**
+ * Point the project at a version. The ONLY writer of `active_version`.
+ *
+ * Kept off the ordinary save path on purpose — see projectToRow. A stale record
+ * flowing through autosave must never be able to move this.
+ */
+export async function setProjectVersion(id: string, key: string): Promise<void> {
+  const supabase = createClient();
+  const { error } = await supabase
+    .from("fittbuilder_projects")
+    .update({ active_version: key })
+    .eq("id", id);
   if (error) throw error;
 }
 

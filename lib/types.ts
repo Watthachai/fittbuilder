@@ -237,11 +237,6 @@ export interface ProjectRecord {
   orgId?: string | null;
   /** Last successful send to the FITT Code Runner (null = never sent). */
   runnerLast?: RunnerSend | null;
-  /**
-   * Which sellable version `files` currently holds ("standard" | "premium").
-   * The other version is parked in fittbuilder_project_versions (0031).
-   */
-  activeVersion?: string;
   createdAt: string;
   updatedAt: string;
 }

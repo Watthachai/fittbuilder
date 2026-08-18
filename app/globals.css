@@ -1125,6 +1125,14 @@ body {
   .fitt-paper .q-terms {
     break-inside: avoid;
   }
+  /* …except the one row that IS the whole scope. Keeping a row whole is right
+     when a row is a line item; the lump-sum row is a document, routinely taller
+     than the page it sits on. Told to stay whole it cannot fit anywhere, so the
+     printer pushes it to the next page — leaving page one empty and breaking it
+     across pages anyway. Let it flow. */
+  .fitt-paper .q-items tbody tr.q-lump {
+    break-inside: auto;
+  }
   .fitt-paper .q-block h2,
   .fitt-paper .q-shots h2 {
     break-after: avoid;

@@ -522,6 +522,22 @@ describe("printed scope", () => {
   // `pre` would stop wrapping and run long pasted lines off the page.
     expect(block).not.toMatch(/white-space:\s*pre;/);
   });
+
+  /**
+   * Keeping a row whole is right when a row is a line item. The lump-sum row is
+   * a document — routinely taller than the page it sits on — and a row that
+   * cannot fit anywhere gets pushed to the next page, leaving the first one
+   * blank and breaking across pages regardless. Reported with a screenshot of
+   * exactly that empty first page.
+   */
+  it("lets the one-line scope flow across pages instead of blanking one", () => {
+    const css = readFileSync("app/globals.css", "utf8");
+    const print = css.slice(css.indexOf("@media print"));
+    const rule = print.slice(print.indexOf("tr.q-lump"));
+    expect(rule.slice(0, 60)).toContain("break-inside: auto");
+    // And it has to be more specific than the blanket row rule it overrides.
+    expect(print).toContain(".fitt-paper .q-items tbody tr.q-lump");
+  });
 });
 
 /**

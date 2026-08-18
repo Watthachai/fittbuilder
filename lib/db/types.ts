@@ -298,6 +298,27 @@ export interface Database {
         };
         Relationships: [];
       };
+      fittbuilder_project_drafts: {
+        Row: {
+          project_id: string;
+          files: Json;
+          prompt: string;
+          updated_at: string;
+        };
+        Insert: {
+          project_id: string;
+          files: Json;
+          prompt?: string;
+          updated_at?: string;
+        };
+        Update: {
+          project_id?: string;
+          files?: Json;
+          prompt?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
       fittbuilder_project_members: {
         Row: {
           project_id: string;

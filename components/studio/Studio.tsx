@@ -22,6 +22,7 @@ import { buildPremiumContext, premiumOptionsFor } from "@/lib/skills/premium";
 import { getSkill } from "@/lib/skills/registry";
 import { screenIndexEntries } from "@/lib/screen-index";
 import PremiumPicker from "@/components/studio/PremiumPicker";
+import DraftRecovery from "@/components/studio/DraftRecovery";
 import type { PremiumOption } from "@/lib/skills/types";
 import { buildMissingFilesPrompt, missingImports } from "@/lib/import-check";
 import { buildScreenIndexPrompt } from "@/lib/screen-index";
@@ -53,6 +54,10 @@ import {
   saveProject,
   setProjectOrg,
   setProjectRunner,
+  clearDraft,
+  loadDraft,
+  saveDraft,
+  type GenerationDraft,
   undo as undoProject,
   withHistory,
 } from "@/lib/storage";
@@ -116,6 +121,16 @@ const MAX_TERMINAL_LINES = 400;
 // nicety, but uncapped it bloats every autosave payload and the DB row for the
 // life of the project (long sessions were reaching multi-MB records).
 const THINKING_STORE_LIMIT = 20_000;
+
+/**
+ * How often a running generation parks what it has produced so far.
+ *
+ * The stream is held by the tab, so a reload ends it. Five seconds bounds what a
+ * reload can cost regardless of how many files a build writes or how big they
+ * are — and it is long enough that a normal turn checkpoints a handful of times,
+ * not once per file.
+ */
+const DRAFT_INTERVAL_MS = 5_000;
 
 export interface SpecPayload {
   brd?: string;
@@ -294,6 +309,8 @@ export default function Studio({ projectId }: { projectId: string }) {
   const [switchingVersion, setSwitchingVersion] = useState(false);
   /** Offered right after a Premium version is seeded — see PremiumPicker. */
   const [premiumOffer, setPremiumOffer] = useState<PremiumOption[]>([]);
+  /** An interrupted generation's output, waiting to be taken or thrown away. */
+  const [draft, setDraft] = useState<GenerationDraft | null>(null);
   /**
    * Which tier version is being edited.
    *
@@ -761,6 +778,7 @@ export default function Studio({ projectId }: { projectId: string }) {
       // Did this turn stream any write/delete into the live container? Decides
       // whether a cancel must reboot the container back to the saved state.
       let wroteLive = false;
+      let lastDraftAt = 0;
 
       try {
         let note = "";
@@ -798,6 +816,17 @@ export default function Studio({ projectId }: { projectId: string }) {
             pushTerminal(`… ${event.message}`);
           } else if (event.type === "file") {
             streamed[event.path] = event.content;
+            // Park what has arrived so far. This stream belongs to the tab —
+            // reloading the page ends it — and until this existed a reload at
+            // file 11 of 12 lost all twelve, because files reached the database
+            // only when a turn ENDED. Throttled by time rather than by file
+            // count so a build of large files costs the same as one of many
+            // small ones, and fire-and-forget: a failed checkpoint must not
+            // interrupt the generation it is protecting.
+            if (Date.now() - lastDraftAt >= DRAFT_INTERVAL_MS) {
+              lastDraftAt = Date.now();
+              void saveDraft(projectId, { ...streamed }, prompt).catch(() => {});
+            }
             pushTerminal(`📝 ${event.path}`);
             appendLive((p) => ({ ...p, actions: [...p.actions, { icon: "file", label: event.path }] }));
             if (liveContainer && myEpoch === epochRef.current) {
@@ -868,6 +897,8 @@ export default function Studio({ projectId }: { projectId: string }) {
         }
         working = appendMessage(working, assistantMsg);
         persist(working);
+        // The complete set is saved — the partial has nothing left to protect.
+        void clearDraft(projectId).catch(() => {});
 
         // Detached (user navigated away): files are already persisted above —
         // skip all container work, it belongs to the foreground project now.
@@ -895,6 +926,9 @@ export default function Studio({ projectId }: { projectId: string }) {
           // boot to a permanent white screen; the pre-gen snapshot is already
           // in history for undo).
           void saveProject({ ...working, updatedAt: new Date().toISOString() }).catch(() => {});
+          // Cancelling is a decision, not a crash: the user does not want this
+          // half-turn offered back to them next time they open the project.
+          void clearDraft(projectId).catch(() => {});
           pushTerminal("✋ ยกเลิกแล้ว");
           if (wroteLive && myEpoch === epochRef.current) {
             // Partial files were streamed into the live container — reboot it
@@ -1609,6 +1643,13 @@ export default function Studio({ projectId }: { projectId: string }) {
       if (cancelled) return;
       setIsOwner(access?.access === "owner");
       setReadOnly(access?.role === "viewer");
+
+      // Did a previous turn die with its tab? Offer back what it produced —
+      // never apply it silently, because a half-streamed set is not a runnable
+      // project (see saveDraft).
+      void loadDraft(projectId).then((d) => {
+        if (!cancelled && d) setDraft(d);
+      });
 
       setPreviewSupported(isPreviewSupported());
       // Wipe a previous project's files from the shared workdir before booting
@@ -2388,6 +2429,29 @@ export default function Studio({ projectId }: { projectId: string }) {
       {specOpen && (
         <SpecFlow onClose={() => setSpecOpen(false)} onComplete={handleSpecComplete} />
       )}
+
+      <DraftRecovery
+        draft={draft}
+        onDiscard={() => {
+          setDraft(null);
+          void clearDraft(projectId).catch(() => {});
+        }}
+        onRecover={() => {
+          const current = projectRef.current;
+          if (!current || !draft) return;
+          // Through the scaffold guard: the set was cut mid-stream and may be
+          // missing index.html, which every consumer of project.files assumes.
+          const files = withRequiredScaffold(draft.files);
+          const recovered = Object.keys(draft.files).length;
+          setDraft(null);
+          void clearDraft(projectId).catch(() => {});
+          // withHistory so Undo covers the recovery itself — taking the draft
+          // back must not be a one-way door.
+          const saved = persist(withHistory(current, files));
+          pushTerminal(`↺ กู้คืนไฟล์จากรอบที่ค้างไว้ (${recovered} ไฟล์)`);
+          if (hasRunnableApp(saved.files)) void boot(saved.files!);
+        }}
+      />
 
       <PremiumPicker
         // Remounted per offer so a previous selection never carries over into

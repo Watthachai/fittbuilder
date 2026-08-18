@@ -263,6 +263,66 @@ export async function approvePhase(projectId: string, phase: string): Promise<vo
   if (error) throw new Error(error.message);
 }
 
+/* ---------- unfinished generations ---------- */
+
+/**
+ * What a turn has produced so far, kept where it can be offered back rather than
+ * applied.
+ *
+ * The stream lives in the browser (see lib/generation/registry.ts), so closing
+ * or reloading the tab ends it. Files used to reach the database only when a
+ * turn finished, which made a reload at file 11 of 12 cost all twelve.
+ *
+ * Deliberately NOT written into `files`: a half-streamed set has no index.html
+ * yet, and the saved project must stay the last COMPLETE one or it boots to a
+ * white screen (migration 0034).
+ */
+export async function saveDraft(
+  projectId: string,
+  files: ProjectFiles,
+  prompt: string
+): Promise<void> {
+  const supabase = createClient();
+  const { error } = await supabase.from("fittbuilder_project_drafts").upsert(
+    {
+      project_id: projectId,
+      files: files as unknown as Json,
+      prompt,
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: "project_id" }
+  );
+  if (error) throw new Error(error.message);
+}
+
+export interface GenerationDraft {
+  files: ProjectFiles;
+  prompt: string;
+  updatedAt: string;
+}
+
+/** The unfinished turn for this project, if one was interrupted. */
+export async function loadDraft(projectId: string): Promise<GenerationDraft | null> {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from("fittbuilder_project_drafts")
+    .select("files, prompt, updated_at")
+    .eq("project_id", projectId)
+    .maybeSingle();
+  if (error || !data) return null;
+  return {
+    files: data.files as unknown as ProjectFiles,
+    prompt: data.prompt,
+    updatedAt: data.updated_at,
+  };
+}
+
+/** Drop the draft — the turn finished, one way or the other. */
+export async function clearDraft(projectId: string): Promise<void> {
+  const supabase = createClient();
+  await supabase.from("fittbuilder_project_drafts").delete().eq("project_id", projectId);
+}
+
 /* ---------- undo stack (lives in the database, migration 0032) ---------- */
 
 /**

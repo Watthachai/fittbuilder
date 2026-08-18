@@ -49,6 +49,20 @@ describe("generation checkpoints", () => {
     expect(record).toBeLessThan(guard);
   });
 
+  /**
+   * createClient() reads cookies(), and Next forbids that once the response has
+   * been handed off — "used cookies() inside after()". Building the client
+   * inside the stream made every server-side checkpoint throw, silently, and a
+   * turn whose tab closed left a partial draft and nothing else. Found only by
+   * closing a real tab mid-generation and reading the server log.
+   */
+  it("builds its database client before the response is handed off", () => {
+    const park = route.slice(route.indexOf("const parkDraft"));
+    expect(park.slice(0, 400)).not.toContain("await createClient()");
+    // Created once, up where the request context is still alive.
+    expect(route).toMatch(/db = await createClient\(\)/);
+  });
+
   it("throttles by time, so one build does not write a draft per file", () => {
     expect(route).toMatch(/DRAFT_INTERVAL_MS/);
     expect(route).toMatch(/Date\.now\(\) - lastPark >= DRAFT_INTERVAL_MS/);

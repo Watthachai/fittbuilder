@@ -113,9 +113,21 @@ export async function POST(request: Request) {
   // and Org DNA into their own generation. The user-scoped client enforces RLS;
   // an inaccessible project is treated as absent (context off), never a 500.
   let ctxProjectId: string | null = null;
+  /**
+   * Built HERE, while the request context still exists, and reused for the rest
+   * of the turn.
+   *
+   * createClient() reads cookies(), and Next forbids that once the response has
+   * been handed off — a client created later inside the stream throws "used
+   * cookies() inside after()". Every server-side checkpoint failed silently that
+   * way, including the final one, so a turn whose tab closed left a partial
+   * draft and nothing else. Create the client once; the token it captured is
+   * good for the life of the turn.
+   */
+  let db: Awaited<ReturnType<typeof createClient>> | null = null;
   if (body.projectId) {
-    const supabase = await createClient();
-    const { data: accessible } = await supabase
+    db = await createClient();
+    const { data: accessible } = await db
       .from("fittbuilder_projects")
       .select("id")
       .eq("id", body.projectId)
@@ -181,9 +193,8 @@ export async function POST(request: Request) {
       let lastPark = 0;
       /** Park the turn's output where a returning browser will be offered it. */
       const parkDraft = async () => {
-        if (!ctxProjectId) return;
+        if (!ctxProjectId || !db) return;
         try {
-          const db = await createClient();
           await db.from("fittbuilder_project_drafts").upsert(
             {
               project_id: ctxProjectId,

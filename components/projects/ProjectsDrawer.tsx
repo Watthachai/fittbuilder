@@ -13,6 +13,7 @@ import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "motion/react";
 import {
   ChevronDown,
+  Columns2,
   Copy,
   Dna,
   FileCode,
@@ -433,6 +434,23 @@ export default function ProjectsDrawer({
               <span className="flex-1 text-left">ตั้งค่า Org DNA ของคุณ</span>
               <span className="font-mono text-[10px] uppercase tracking-wider text-chalk-dim">
                 workspace
+              </span>
+            </button>
+
+            {/* Two demos, one screen — the pitch move: show the customer the
+                standard build, then switch tabs to what Premium adds. Closes the
+                drawer on the way out, like every other destination here. */}
+            <button
+              onClick={() => {
+                onClose();
+                router.push("/compare");
+              }}
+              className="mx-3 mt-2 inline-flex items-center gap-2 rounded-xl border border-night-edge bg-night/40 px-3 py-2 text-sm text-chalk/85 transition hover:border-shine/50 hover:text-chalk"
+            >
+              <Columns2 size={14} className="shrink-0 text-shine" />
+              <span className="flex-1 text-left">เทียบเดโมหลายตัว</span>
+              <span className="font-mono text-[10px] uppercase tracking-wider text-chalk-dim">
+                ใหม่
               </span>
             </button>
 

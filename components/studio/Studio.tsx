@@ -1,7 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import {
+  isVersionKey,
+  parkedVersions,
+  switchVersion,
+  VERSION_LABEL,
+  type VersionKey,
+} from "@/lib/versions";
 import {
   useCallback,
   useEffect,
@@ -34,7 +40,6 @@ import {
   appendMessage,
   approvePhase,
   type ApprovalState,
-  duplicateProjectAs,
   getAccess,
   getApprovalState,
   getProject,
@@ -280,8 +285,9 @@ export default function Studio({ projectId }: { projectId: string }) {
   }, []);
 
   const [readOnly, setReadOnly] = useState(false);
-  const [forkingTier, setForkingTier] = useState(false);
-  const router = useRouter();
+  const [switchingVersion, setSwitchingVersion] = useState(false);
+  const activeVersion: VersionKey =
+    project?.activeVersion && isVersionKey(project.activeVersion) ? project.activeVersion : "standard";
   const [isOwner, setIsOwner] = useState(false);
   const [org, setOrg] = useState<OrgRecord | null>(null);
   // Living Org DNA: a pending capture the AI noticed in the last message (one at a
@@ -2008,37 +2014,38 @@ export default function Studio({ projectId }: { projectId: string }) {
       : { ...SCAFFOLD_FILES, ...(project.files ?? {}) };
 
   /**
-   * Fork this demo into a second project for a paid tier.
+   * Switch which sellable version the studio is editing.
    *
-   * Tiers must be separate builds: a Standard/Premium switch inside one app
-   * ships the paid code inside the free customer's zip, and Code Runner cannot
-   * produce two different products from one file set. Lands the user in the new
-   * project so the next chat turn adds the premium features only there.
+   * Standard and Premium are two BUILDS of one project: the active one lives in
+   * `project.files` and the other is parked in its own table, so everything
+   * downstream (export, Code Runner, quotation, preview) keeps working on
+   * `files` with no idea versions exist.
+   *
+   * The current files are saved BEFORE the swap — switching mid-edit must not be
+   * a way to lose work — and the preview is rebooted afterwards because the file
+   * set under it has entirely changed.
    */
-  const forkTier = async () => {
-    if (!project || readOnly) return;
-    setForkingTier(true);
+  const changeVersion = async (next: VersionKey) => {
+    if (!project || readOnly || switchingVersion || next === activeVersion) return;
+    setSwitchingVersion(true);
     try {
-      const copy = await duplicateProjectAs(project.id, (name) => {
-        // Names often trail off with a dash the model left behind
-        // ("บ้านโซฟา —"); appending blindly gives "— — Premium".
-        const base = name.replace(/[\s\u2014\u2013-]+$/, "").trim() || name;
-        return /premium/i.test(base) ? `${base} (copy)` : `${base} — Premium`;
+      const files = await switchVersion(project.id, activeVersion, next, project.files ?? {});
+      const seeded = !(await parkedVersions(project.id)).includes(activeVersion);
+      const updated = { ...project, files, activeVersion: next, updatedAt: new Date().toISOString() };
+      setProject(updated);
+      await saveProject(updated);
+      toast.success(`สลับไปเวอร์ชัน${VERSION_LABEL[next]}แล้ว`, {
+        description: seeded
+          ? "เริ่มจากไฟล์ชุดเดิม — สั่ง AI เพิ่มฟีเจอร์ได้เลย งานจะไม่ไปกระทบอีกเวอร์ชัน"
+          : "Export ตอนนี้จะได้ zip ของเวอร์ชันนี้",
       });
-      if (!copy) {
-        toast.error("แยกเวอร์ชันไม่สำเร็จ");
-        return;
-      }
-      toast.success(`สร้าง “${copy.name}” แล้ว`, {
-        description: "สั่ง AI เพิ่มฟีเจอร์พรีเมียมในโปรเจกต์นี้ได้เลย — export จะเป็นคนละ zip กับตัวเดิม",
-      });
-      router.push(`/project/${copy.id}`);
+      await boot(files);
     } catch (e) {
-      toast.error("แยกเวอร์ชันไม่สำเร็จ", {
+      toast.error("สลับเวอร์ชันไม่สำเร็จ", {
         description: e instanceof Error ? e.message : undefined,
       });
     } finally {
-      setForkingTier(false);
+      setSwitchingVersion(false);
     }
   };
 
@@ -2159,8 +2166,9 @@ export default function Studio({ projectId }: { projectId: string }) {
 
       <PhaseStepper
         phase={project.phase}
-        onForkTier={readOnly || !project.files ? undefined : forkTier}
-        forking={forkingTier}
+        version={project.files ? activeVersion : undefined}
+        onVersionChange={readOnly ? undefined : changeVersion}
+        switching={switchingVersion}
         busy={phaseBusy}
         canAdvance={!readOnly && gateSatisfied(project)}
         canRework={canRework}

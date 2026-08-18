@@ -16,7 +16,7 @@ const HISTORY_LIMIT = 10; // US-004
  * file bodies — 5 MB on a real project. Read it only when the studio actually
  * needs the project, never to answer a question a column could answer.
  */
-const SELECT = "id, owner_id, name, files, phase, approved_phases, history, messages, share_token, share_role, skill_id, org_id, runner_last, created_at, updated_at";
+const SELECT = "id, owner_id, name, files, phase, approved_phases, history, messages, share_token, share_role, skill_id, org_id, runner_last, active_version, created_at, updated_at";
 
 
 async function uid(): Promise<string> {

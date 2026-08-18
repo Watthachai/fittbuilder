@@ -1,6 +1,7 @@
 "use client";
 
-import { ArrowRight, Check, FileText, Layers, Loader2, RotateCcw } from "lucide-react";
+import { ArrowRight, Check, FileText, Loader2, RotateCcw, Sparkles } from "lucide-react";
+import { VERSION_KEYS, VERSION_LABEL, type VersionKey } from "@/lib/versions";
 import { PHASES, phaseDef, phaseIndex, type PhaseId } from "@/lib/phases";
 
 /** Review phases whose advance gate needs an AI-generated report doc. */
@@ -39,9 +40,11 @@ interface PhaseStepperProps {
   /** Force the current review phase's agent to emit its report doc. */
   onGenerateDoc: () => void;
   onRework: () => void;
-  /** Fork this demo into a second project for a paid tier (omit to hide). */
-  onForkTier?: () => void;
-  forking?: boolean;
+  /** Which sellable version is being edited (omit to hide the switch). */
+  version?: VersionKey;
+  /** Switch the studio to the other version. */
+  onVersionChange?: (key: VersionKey) => void;
+  switching?: boolean;
 }
 
 export default function PhaseStepper({
@@ -54,8 +57,9 @@ export default function PhaseStepper({
   onStep,
   onGenerateDoc,
   onRework,
-  onForkTier,
-  forking = false,
+  version,
+  onVersionChange,
+  switching = false,
 }: PhaseStepperProps) {
   const currentIndex = phaseIndex(phase);
   const isLast = currentIndex === PHASES.length - 1;
@@ -110,22 +114,44 @@ export default function PhaseStepper({
       </ol>
 
       {/*
-        Selling a tier means shipping a SEPARATE build — a switch inside one app
-        would put the paid code in the free customer's zip. This is the action
-        that creates that second project, so it sits in the open between the
-        phase steps and the phase actions, not buried in an overflow menu.
+        The version switch. Standard and Premium are two BUILDS of one project —
+        each exports its own zip, so Code Runner produces two different products.
+        A switch inside the generated app would instead ship the paid code in the
+        free customer's bundle, which is why the prompt forbids one and this bar
+        carries it instead. Sits in the open between the phase steps and the
+        phase actions: whoever is about to press "อนุมัติ & ไปต่อ" is exactly who
+        needs to know which version they are shipping.
       */}
       <div className="hidden flex-1 sm:block" />
-      {onForkTier && (
-        <button
-          onClick={onForkTier}
-          disabled={busy || forking}
-          title="คัดลอกเดโมนี้เป็นอีกโปรเจกต์สำหรับรุ่นที่ขายแพงกว่า — export แยกเป็นคนละ zip ส่งเข้า Code Runner คนละงาน"
-          className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-amber-400/45 bg-amber-400/10 px-3 py-1.5 font-display text-xs font-semibold text-amber-300 transition hover:border-amber-400/80 hover:bg-amber-400/20 disabled:cursor-not-allowed disabled:opacity-40"
-        >
-          {forking ? <Loader2 size={12} className="animate-spin" /> : <Layers size={12} />}
-          แยกเป็นเวอร์ชัน Premium
-        </button>
+      {version && onVersionChange && (
+        <div className="flex shrink-0 items-center gap-1 rounded-full border border-night-edge bg-night p-0.5">
+          {VERSION_KEYS.map((key) => {
+            const active = key === version;
+            return (
+              <button
+                key={key}
+                onClick={() => !active && onVersionChange(key)}
+                disabled={busy || switching}
+                title={
+                  active
+                    ? `กำลังแก้เวอร์ชัน${VERSION_LABEL[key]} — Export จะได้ zip ของเวอร์ชันนี้`
+                    : `สลับไปแก้เวอร์ชัน${VERSION_LABEL[key]} (เก็บงานเวอร์ชันนี้ไว้ให้อัตโนมัติ)`
+                }
+                className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 font-display text-xs transition disabled:cursor-not-allowed disabled:opacity-50 ${
+                  active
+                    ? key === "premium"
+                      ? "bg-amber-400/90 font-semibold text-night"
+                      : "bg-chalk/90 font-semibold text-night"
+                    : "text-chalk-dim hover:text-chalk"
+                }`}
+              >
+                {switching && !active && <Loader2 size={11} className="animate-spin" />}
+                {key === "premium" && <Sparkles size={11} />}
+                {VERSION_LABEL[key]}
+              </button>
+            );
+          })}
+        </div>
       )}
       <div className="hidden flex-1 sm:block" />
 

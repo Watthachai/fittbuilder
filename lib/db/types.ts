@@ -46,6 +46,28 @@ export interface Database {
         // Database type to `never` for every query in the app.
         Relationships: [];
       };
+      /** Inactive tier versions; the ACTIVE one lives in projects.files (0031). */
+      fittbuilder_project_versions: {
+        Row: {
+          project_id: string;
+          key: string;
+          files: Json;
+          updated_at: string;
+        };
+        Insert: {
+          project_id: string;
+          key: string;
+          files: Json;
+          updated_at?: string;
+        };
+        Update: {
+          project_id?: string;
+          key?: string;
+          files?: Json;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
       /** RLS on, no policies (migration 0030) — service role only. */
       fittbuilder_partner_leads: {
         Row: {
@@ -214,6 +236,8 @@ export interface Database {
           files: Json | null;
           /** Maintained by a trigger (migration 0027) so listing never reads `files`. */
           file_count: number;
+          /** Which tier version projects.files currently holds (migration 0031). */
+          active_version: string;
           phase: string;
           approved_phases: Json;
           history: Json;
@@ -233,6 +257,7 @@ export interface Database {
           name?: string;
           files?: Json | null;
           file_count?: number;
+          active_version?: string;
           phase?: string;
           approved_phases?: Json;
           history?: Json;
@@ -252,6 +277,7 @@ export interface Database {
           name?: string;
           files?: Json | null;
           file_count?: number;
+          active_version?: string;
           phase?: string;
           approved_phases?: Json;
           history?: Json;

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   useCallback,
   useEffect,
@@ -33,6 +34,7 @@ import {
   appendMessage,
   approvePhase,
   type ApprovalState,
+  duplicateProjectAs,
   getAccess,
   getApprovalState,
   getProject,
@@ -278,6 +280,8 @@ export default function Studio({ projectId }: { projectId: string }) {
   }, []);
 
   const [readOnly, setReadOnly] = useState(false);
+  const [forkingTier, setForkingTier] = useState(false);
+  const router = useRouter();
   const [isOwner, setIsOwner] = useState(false);
   const [org, setOrg] = useState<OrgRecord | null>(null);
   // Living Org DNA: a pending capture the AI noticed in the last message (one at a
@@ -2003,6 +2007,41 @@ export default function Studio({ projectId }: { projectId: string }) {
       ? project.files
       : { ...SCAFFOLD_FILES, ...(project.files ?? {}) };
 
+  /**
+   * Fork this demo into a second project for a paid tier.
+   *
+   * Tiers must be separate builds: a Standard/Premium switch inside one app
+   * ships the paid code inside the free customer's zip, and Code Runner cannot
+   * produce two different products from one file set. Lands the user in the new
+   * project so the next chat turn adds the premium features only there.
+   */
+  const forkTier = async () => {
+    if (!project || readOnly) return;
+    setForkingTier(true);
+    try {
+      const copy = await duplicateProjectAs(project.id, (name) => {
+        // Names often trail off with a dash the model left behind
+        // ("บ้านโซฟา —"); appending blindly gives "— — Premium".
+        const base = name.replace(/[\s\u2014\u2013-]+$/, "").trim() || name;
+        return /premium/i.test(base) ? `${base} (copy)` : `${base} — Premium`;
+      });
+      if (!copy) {
+        toast.error("แยกเวอร์ชันไม่สำเร็จ");
+        return;
+      }
+      toast.success(`สร้าง “${copy.name}” แล้ว`, {
+        description: "สั่ง AI เพิ่มฟีเจอร์พรีเมียมในโปรเจกต์นี้ได้เลย — export จะเป็นคนละ zip กับตัวเดิม",
+      });
+      router.push(`/project/${copy.id}`);
+    } catch (e) {
+      toast.error("แยกเวอร์ชันไม่สำเร็จ", {
+        description: e instanceof Error ? e.message : undefined,
+      });
+    } finally {
+      setForkingTier(false);
+    }
+  };
+
   return (
     <div className="flex h-dvh flex-col overflow-hidden bg-night text-chalk">
       <LiveCursors projectId={projectId} />
@@ -2120,6 +2159,8 @@ export default function Studio({ projectId }: { projectId: string }) {
 
       <PhaseStepper
         phase={project.phase}
+        onForkTier={readOnly || !project.files ? undefined : forkTier}
+        forking={forkingTier}
         busy={phaseBusy}
         canAdvance={!readOnly && gateSatisfied(project)}
         canRework={canRework}

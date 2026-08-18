@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowRight, Check, FileText, RotateCcw } from "lucide-react";
+import { ArrowRight, Check, FileText, Layers, Loader2, RotateCcw } from "lucide-react";
 import { PHASES, phaseDef, phaseIndex, type PhaseId } from "@/lib/phases";
 
 /** Review phases whose advance gate needs an AI-generated report doc. */
@@ -39,6 +39,9 @@ interface PhaseStepperProps {
   /** Force the current review phase's agent to emit its report doc. */
   onGenerateDoc: () => void;
   onRework: () => void;
+  /** Fork this demo into a second project for a paid tier (omit to hide). */
+  onForkTier?: () => void;
+  forking?: boolean;
 }
 
 export default function PhaseStepper({
@@ -51,6 +54,8 @@ export default function PhaseStepper({
   onStep,
   onGenerateDoc,
   onRework,
+  onForkTier,
+  forking = false,
 }: PhaseStepperProps) {
   const currentIndex = phaseIndex(phase);
   const isLast = currentIndex === PHASES.length - 1;
@@ -62,7 +67,7 @@ export default function PhaseStepper({
 
   return (
     <div className="flex h-11 shrink-0 items-center gap-2 border-b border-night-edge bg-night-panel px-3">
-      <ol className="scroll-thin flex min-w-0 flex-1 items-center gap-1 overflow-x-auto">
+      <ol className="scroll-thin flex min-w-0 shrink items-center gap-1 overflow-x-auto">
         {PHASES.map((step, index) => {
           const done = index < currentIndex;
           const active = index === currentIndex;
@@ -103,6 +108,26 @@ export default function PhaseStepper({
           );
         })}
       </ol>
+
+      {/*
+        Selling a tier means shipping a SEPARATE build — a switch inside one app
+        would put the paid code in the free customer's zip. This is the action
+        that creates that second project, so it sits in the open between the
+        phase steps and the phase actions, not buried in an overflow menu.
+      */}
+      <div className="hidden flex-1 sm:block" />
+      {onForkTier && (
+        <button
+          onClick={onForkTier}
+          disabled={busy || forking}
+          title="คัดลอกเดโมนี้เป็นอีกโปรเจกต์สำหรับรุ่นที่ขายแพงกว่า — export แยกเป็นคนละ zip ส่งเข้า Code Runner คนละงาน"
+          className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-amber-400/45 bg-amber-400/10 px-3 py-1.5 font-display text-xs font-semibold text-amber-300 transition hover:border-amber-400/80 hover:bg-amber-400/20 disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          {forking ? <Loader2 size={12} className="animate-spin" /> : <Layers size={12} />}
+          แยกเป็นเวอร์ชัน Premium
+        </button>
+      )}
+      <div className="hidden flex-1 sm:block" />
 
       {canRework && (
         <button

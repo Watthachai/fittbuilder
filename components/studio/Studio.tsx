@@ -57,6 +57,8 @@ import {
   clearDraft,
   loadDraft,
   saveDraft,
+  isDraftLive,
+  DRAFT_STALE_MS,
   type GenerationDraft,
   undo as undoProject,
   withHistory,
@@ -1659,8 +1661,23 @@ export default function Studio({ projectId }: { projectId: string }) {
       // Did a previous turn die with its tab? Offer back what it produced —
       // never apply it silently, because a half-streamed set is not a runnable
       // project (see saveDraft).
+      //
+      // A draft whose heartbeat is still moving belongs to a turn running RIGHT
+      // NOW, in another tab or a teammate's browser. Offering that one back
+      // would put two writers on one project, so wait out the stale window and
+      // look again: if it went quiet the turn died and the work is ours to
+      // offer. If it is still beating, someone is working — leave them alone.
       void loadDraft(projectId).then((d) => {
-        if (!cancelled && d) setDraft(d);
+        if (cancelled || !d) return;
+        if (!isDraftLive(d)) {
+          setDraft(d);
+          return;
+        }
+        setTimeout(() => {
+          void loadDraft(projectId).then((again) => {
+            if (!cancelled && again && !isDraftLive(again)) setDraft(again);
+          });
+        }, DRAFT_STALE_MS);
       });
 
       setPreviewSupported(isPreviewSupported());

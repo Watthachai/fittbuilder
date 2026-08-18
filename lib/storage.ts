@@ -288,7 +288,11 @@ export async function saveDraft(
       project_id: projectId,
       files: files as unknown as Json,
       prompt,
+      // Doubles as a heartbeat: a timestamp that keeps moving means the turn is
+      // still alive somewhere, which is what tells a live run apart from a dead
+      // one (migration 0035).
       updated_at: new Date().toISOString(),
+      updated_by: await uid(),
     },
     { onConflict: "project_id" }
   );
@@ -299,6 +303,22 @@ export interface GenerationDraft {
   files: ProjectFiles;
   prompt: string;
   updatedAt: string;
+  /** Who was generating. Null for drafts written before 0035. */
+  updatedBy: string | null;
+}
+
+/**
+ * How long a draft's heartbeat may go quiet before its turn counts as dead.
+ *
+ * Checkpoints land every 5s (DRAFT_INTERVAL_MS in Studio), so three missed ones
+ * is a generous margin for a slow request — and still short enough that someone
+ * whose tab crashed is not left staring at "generating" for minutes.
+ */
+export const DRAFT_STALE_MS = 20_000;
+
+/** Is this draft still being written, or did its turn die? */
+export function isDraftLive(draft: GenerationDraft, now = Date.now()): boolean {
+  return now - new Date(draft.updatedAt).getTime() < DRAFT_STALE_MS;
 }
 
 /** The unfinished turn for this project, if one was interrupted. */
@@ -306,7 +326,7 @@ export async function loadDraft(projectId: string): Promise<GenerationDraft | nu
   const supabase = createClient();
   const { data, error } = await supabase
     .from("fittbuilder_project_drafts")
-    .select("files, prompt, updated_at")
+    .select("files, prompt, updated_at, updated_by")
     .eq("project_id", projectId)
     .maybeSingle();
   if (error || !data) return null;
@@ -314,6 +334,7 @@ export async function loadDraft(projectId: string): Promise<GenerationDraft | nu
     files: data.files as unknown as ProjectFiles,
     prompt: data.prompt,
     updatedAt: data.updated_at,
+    updatedBy: data.updated_by,
   };
 }
 

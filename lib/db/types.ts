@@ -304,12 +304,14 @@ export interface Database {
           files: Json;
           prompt: string;
           updated_at: string;
+          updated_by: string | null;
         };
         Insert: {
           project_id: string;
           files: Json;
           prompt?: string;
           updated_at?: string;
+          updated_by?: string | null;
         };
         Update: {
           project_id?: string;

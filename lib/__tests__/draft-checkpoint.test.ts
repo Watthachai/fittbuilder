@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
+import { DRAFT_STALE_MS, isDraftLive, type GenerationDraft } from "@/lib/storage";
 
 /**
  * A generation must survive losing its tab.
@@ -69,10 +70,43 @@ describe("generation checkpoints", () => {
     expect(save).not.toContain("fittbuilder_projects");
   });
 
+  /**
+   * A draft looks the same whether the tab died a minute ago or another tab is
+   * writing to it right now. Its `updated_at` is rewritten by every checkpoint,
+   * so a timestamp that keeps moving is the difference — and offering back work
+   * that is still being produced puts two writers on one project.
+   */
+  describe("live vs dead", () => {
+    const at = (ms: number): GenerationDraft => ({
+      files: {},
+      prompt: "",
+      updatedAt: new Date(ms).toISOString(),
+      updatedBy: null,
+    });
+
+    it("counts a beating heartbeat as a turn still running", () => {
+      const now = 1_000_000;
+      expect(isDraftLive(at(now - 1_000), now)).toBe(true);
+      expect(isDraftLive(at(now - (DRAFT_STALE_MS - 1)), now)).toBe(true);
+    });
+
+    it("counts a quiet one as dead, so its work can be offered back", () => {
+      const now = 1_000_000;
+      expect(isDraftLive(at(now - DRAFT_STALE_MS), now)).toBe(false);
+      expect(isDraftLive(at(now - 60_000), now)).toBe(false);
+    });
+
+    it("waits out the window before deciding, never on the first look alone", () => {
+      const mount = studio.slice(studio.indexOf("void loadDraft(projectId)"));
+      expect(mount.slice(0, 700)).toContain("isDraftLive");
+      expect(mount.slice(0, 700)).toContain("DRAFT_STALE_MS");
+    });
+  });
+
   it("offers a recovered draft rather than applying it on load", () => {
     // loadDraft must feed a decision, not a write.
     const mount = studio.slice(studio.indexOf("void loadDraft(projectId)"));
-    expect(mount.slice(0, 200)).toContain("setDraft");
-    expect(mount.slice(0, 200)).not.toContain("persist");
+    expect(mount.slice(0, 700)).toContain("setDraft");
+    expect(mount.slice(0, 700)).not.toContain("persist");
   });
 });

@@ -13,6 +13,7 @@ import {
   thaiDateShort,
   validUntil,
   type QuoteDoc,
+  lumpSumScope,
 } from "@/lib/quote";
 import { acceptanceClauses } from "@/lib/quote-clauses";
 import type { Shot } from "@/lib/shots";
@@ -147,7 +148,24 @@ export default function QuotationPrint({ doc, shots }: { doc: QuoteDoc; shots: S
                   </tr>
                 </thead>
                 <tbody>
-                  {doc.rows.map((r, i) => (
+                  {/* One agreed figure: the scope still prints in full, but as
+                      the description of a single line rather than as prices to
+                      be argued with one by one. */}
+                  {doc.lumpSum.enabled && (
+                    <tr>
+                      <td className="q-n">1</td>
+                      <td>
+                        <div>
+                          <span className="q-name">
+                            {doc.lumpSum.title || doc.subject || "—"}
+                          </span>
+                          <span className="q-note">{lumpSumScope(doc)}</span>
+                        </div>
+                      </td>
+                      <td className="q-r">{formatTHB(t.subtotal)}</td>
+                    </tr>
+                  )}
+                  {!doc.lumpSum.enabled && doc.rows.map((r, i) => (
                     <tr key={r.id}>
                       <td className="q-n">{i + 1}</td>
                       <td>
@@ -167,7 +185,7 @@ export default function QuotationPrint({ doc, shots }: { doc: QuoteDoc; shots: S
                       <td className="q-r">{formatTHB(lineTotal(r, doc.ratePerDay))}</td>
                     </tr>
                   ))}
-                  {doc.rows.length === 0 && (
+                  {!doc.lumpSum.enabled && doc.rows.length === 0 && (
                     <tr>
                       <td className="q-n" />
                       <td className="q-empty">—</td>

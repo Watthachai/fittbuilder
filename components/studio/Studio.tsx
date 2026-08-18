@@ -2225,6 +2225,7 @@ export default function Studio({ projectId }: { projectId: string }) {
       <TopBar
         project={project}
         org={org}
+        activeVersion={activeVersion}
         onOpenDna={() => setDnaOpen(true)}
         view={view}
         busy={busy}

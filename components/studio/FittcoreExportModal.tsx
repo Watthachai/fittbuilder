@@ -5,6 +5,7 @@ import { Braces, ChevronDown, FileText, Rocket, Send, Server, X } from "lucide-r
 import Markdown from "./Markdown";
 import Overlay from "@/components/ui/Overlay";
 import GlassSurface from "@/components/ui/GlassSurface";
+import type { VersionKey } from "@/lib/versions";
 import type { ProjectRecord } from "@/lib/types";
 import { docsFromFiles } from "@/lib/define";
 import {
@@ -34,12 +35,16 @@ export default function FittcoreExportModal({
   onClose,
   project,
   orgName,
+  activeVersion,
   onSent,
 }: {
   open: boolean;
   onClose: () => void;
   project: ProjectRecord;
   orgName?: string;
+  /** Which tier is being handed off — marks zip_name so Code Runner can tell
+   *  the paid build from the free one (same project_id, different product). */
+  activeVersion: VersionKey;
   /** Fired on a successful hand-off so the studio can persist the "sent" state. */
   onSent?: (result: GatewayIngestResult) => void;
 }) {
@@ -57,7 +62,7 @@ export default function FittcoreExportModal({
   const totalChars = files.reduce((n, f) => n + f.size, 0);
   const docs = docsFromFiles(project.files);
   const promptCount = project.messages.filter((m) => m.role === "user").length;
-  const bodyPreview = JSON.stringify(fittcoreBodyPreview(project, orgName), null, 2);
+  const bodyPreview = JSON.stringify(fittcoreBodyPreview(project, orgName, activeVersion), null, 2);
 
   const close = () => {
     if (sending) return;
@@ -70,7 +75,7 @@ export default function FittcoreExportModal({
   const send = async () => {
     setSending(true);
     try {
-      const payload = await buildFittcorePayload(project, orgName);
+      const payload = await buildFittcorePayload(project, orgName, activeVersion);
       const res = await fetch("/api/fittcore", {
         method: "POST",
         headers: { "content-type": "application/json" },

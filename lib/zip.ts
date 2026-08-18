@@ -1,9 +1,20 @@
 "use client";
 
 import type { ProjectFiles } from "./types";
+import { versionTag, type VersionKey } from "./versions";
 
-/** Export the generated project as a downloadable .zip (US-012). */
-export async function downloadZip(files: ProjectFiles, projectName: string): Promise<void> {
+/**
+ * Export the generated project as a downloadable .zip (US-012).
+ *
+ * `version` marks the tier in the filename. Without it both tiers download as
+ * the same name and the browser silently appends "(1)" — leaving two files that
+ * differ by a paid feature and nothing else to tell them apart.
+ */
+export async function downloadZip(
+  files: ProjectFiles,
+  projectName: string,
+  version: VersionKey = "standard"
+): Promise<void> {
   const { default: JSZip } = await import("jszip");
   const zip = new JSZip();
   for (const [path, contents] of Object.entries(files)) {
@@ -17,7 +28,8 @@ export async function downloadZip(files: ProjectFiles, projectName: string): Pro
   const url = URL.createObjectURL(blob);
   const anchor = document.createElement("a");
   anchor.href = url;
-  anchor.download = `${projectName.replace(/[^\w฀-๿-]+/g, "-").toLowerCase() || "demo"}.zip`;
+  const base = projectName.replace(/[^\w฀-๿-]+/g, "-").toLowerCase() || "demo";
+  anchor.download = `${base}${versionTag(version)}.zip`;
   anchor.click();
   URL.revokeObjectURL(url);
 }

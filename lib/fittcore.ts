@@ -2,6 +2,7 @@
 
 import type { ProjectFiles, ProjectRecord } from "./types";
 import { docsFromFiles } from "./define";
+import { versionTag, type VersionKey } from "./versions";
 
 /** Build channel tag stamped on every hand-off while the integration is in alpha. */
 export const FITTCORE_TAG = "alpha-test";
@@ -83,7 +84,8 @@ function promptsOf(project: ProjectRecord): string[] {
  */
 export async function buildFittcorePayload(
   project: ProjectRecord,
-  orgName?: string
+  orgName?: string,
+  version: VersionKey = "standard"
 ): Promise<FittcorePayload> {
   const files = project.files ?? {};
   const docs = docsFromFiles(project.files);
@@ -99,7 +101,10 @@ export async function buildFittcorePayload(
     brd: docs.brd ?? "",
     prd: docs.prd ?? "",
     prompts: promptsOf(project),
-    zip_name: `${slug(project.name)}.zip`,
+    // The tier rides in the filename: same project_id, same name, genuinely
+    // different product. Without it Code Runner receives two builds it cannot
+    // tell apart, and the paid one can overwrite the free one's artifact.
+    zip_name: `${slug(project.name)}${versionTag(version)}.zip`,
     zip_base64: zip.base64,
     file_count: zip.count,
     zip_bytes: zip.bytes,
@@ -113,7 +118,8 @@ export async function buildFittcorePayload(
  */
 export function fittcoreBodyPreview(
   project: ProjectRecord,
-  orgName?: string
+  orgName?: string,
+  version: VersionKey = "standard"
 ): Record<string, unknown> {
   const files = project.files ?? {};
   const docs = docsFromFiles(project.files);
@@ -129,7 +135,7 @@ export function fittcoreBodyPreview(
     brd: elide(docs.brd),
     prd: elide(docs.prd),
     prompts: promptsOf(project),
-    zip_name: `${slug(project.name)}.zip`,
+    zip_name: `${slug(project.name)}${versionTag(version)}.zip`,
     zip_base64: `‹base64 · zip ${count} ไฟล์›`,
     file_count: count,
     zip_bytes: 0,

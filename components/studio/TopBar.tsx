@@ -26,6 +26,7 @@ import { downloadZip } from "@/lib/zip";
 import { downloadFittcoreSpec, type GatewayIngestResult } from "@/lib/fittcore";
 import { useOrgSkillName } from "@/lib/skills/use-org-skill";
 import FittcoreExportModal from "./FittcoreExportModal";
+import type { VersionKey } from "@/lib/versions";
 import ProjectPresence from "./ProjectPresence";
 import QuotaChip from "./QuotaChip";
 import TeamChat from "./TeamChat";
@@ -43,6 +44,8 @@ interface TopBarProps {
   /** Save status, shown in the fixed-height bar (no layout shift). */
   saveState: "idle" | "saving" | "saved";
   canUndo: boolean;
+  /** Which tier the project is pointed at — marks the exported filenames. */
+  activeVersion: VersionKey;
   /** A runnable app exists — share links and zip exports make sense. */
   shippable: boolean;
   onRename: (name: string) => void;
@@ -68,6 +71,7 @@ export default function TopBar({
   saveState,
   canUndo,
   shippable,
+  activeVersion,
   onRename,
   onViewChange,
   onUndo,
@@ -293,7 +297,7 @@ export default function TopBar({
               <button
                 onClick={() => {
                   setMoreOpen(false);
-                  if (project.files) void downloadZip(project.files, project.name);
+                  if (project.files) void downloadZip(project.files, project.name, activeVersion);
                 }}
                 className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-xs text-chalk/80 transition hover:bg-chalk/5 hover:text-chalk"
               >
@@ -323,6 +327,7 @@ export default function TopBar({
       </div>
 
       <FittcoreExportModal
+        activeVersion={activeVersion}
         open={runnerOpen}
         onClose={() => setRunnerOpen(false)}
         project={project}

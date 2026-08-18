@@ -28,6 +28,19 @@ export const VERSION_LABEL: Record<VersionKey, string> = {
 
 const TABLE = "fittbuilder_project_versions";
 
+/**
+ * What a tier adds to an exported filename.
+ *
+ * Both export paths — the zip the user downloads and the zip_name handed to Code
+ * Runner — have to agree, or the same project ships two files called the same
+ * thing and nobody downstream can tell the paid build from the free one. The
+ * standard tier gets no marker: it is the product, and every existing export
+ * already has that name.
+ */
+export function versionTag(key: VersionKey): string {
+  return key === "standard" ? "" : `-${key}`;
+}
+
 export function isVersionKey(v: string): v is VersionKey {
   return (VERSION_KEYS as readonly string[]).includes(v);
 }

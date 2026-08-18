@@ -30,6 +30,10 @@ import type { GenerateEvent } from "@/lib/types";
 export const maxDuration = 300;
 const ATTEMPT_TIMEOUT_MS = 240_000;
 
+/** How often the server parks what it has produced. Mirrors the studio's own
+ *  cadence — see DRAFT_INTERVAL_MS in Studio.tsx. */
+const DRAFT_INTERVAL_MS = 5_000;
+
 /** package.json + vite.config.js + tsconfig.json are injected canonically, not taken from the model. */
 const RESERVED_PATHS = new Set(["package.json", "vite.config.js", "tsconfig.json"]);
 
@@ -161,7 +165,44 @@ export async function POST(request: Request) {
       // quietly instead of crashing the route with "Controller is already
       // closed" — the model stream just drains to nothing until the timeout.
       let closed = false;
+
+      /**
+       * Everything this turn has produced, kept server-side.
+       *
+       * The model call is deliberately NOT tied to request.signal — it runs to
+       * completion whether or not anyone is still listening. Until now nobody
+       * wrote that down: the browser was the only writer, so closing the tab
+       * threw away work the server had already paid for and finished.
+       *
+       * Recorded BEFORE the `closed` guard on purpose. Once the client is gone
+       * there is nothing to enqueue, and that is exactly when this matters.
+       */
+      const produced: Record<string, string> = {};
+      let lastPark = 0;
+      /** Park the turn's output where a returning browser will be offered it. */
+      const parkDraft = async () => {
+        if (!ctxProjectId) return;
+        try {
+          const db = await createClient();
+          await db.from("fittbuilder_project_drafts").upsert(
+            {
+              project_id: ctxProjectId,
+              files: produced,
+              prompt: body.prompt,
+              updated_at: new Date().toISOString(),
+              updated_by: userId,
+            },
+            { onConflict: "project_id" }
+          );
+        } catch (e) {
+          // Losing a checkpoint must never take the generation down with it.
+          console.error("[generate] draft checkpoint failed:", e);
+        }
+      };
+
       const send = (event: GenerateEvent) => {
+        if (event.type === "file") produced[event.path] = event.content;
+        else if (event.type === "delete") delete produced[event.path];
         if (closed) return;
         try {
           controller.enqueue(sse(event));
@@ -224,6 +265,12 @@ export async function POST(request: Request) {
             );
             for (const d of fresh) wantedDeps.add(d);
             if (fresh.length) send({ type: "deps", packages: fresh });
+            // Fire and forget mid-stream: a checkpoint that is one file behind
+            // is worth far more than a generation that waits on the database.
+            if (Date.now() - lastPark >= DRAFT_INTERVAL_MS) {
+              lastPark = Date.now();
+              void parkDraft();
+            }
           }
         } catch (streamError) {
           // Partial output is usable (files were already streamed/written live);
@@ -287,6 +334,13 @@ export async function POST(request: Request) {
           send({ type: "file", path: "vite.config.js", content: VITE_CONFIG });
           send({ type: "file", path: "tsconfig.json", content: TSCONFIG });
         }
+
+        // AWAITED, and before `done`: the browser clears the draft once it has
+        // saved the finished files, so this write has to land first or the two
+        // race and a completed turn leaves a stale draft behind (or worse, the
+        // complete set is written after the clear and offered back as if it
+        // were unfinished).
+        await parkDraft();
 
         send({
           type: "done",

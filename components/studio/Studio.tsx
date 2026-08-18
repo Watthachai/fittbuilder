@@ -56,7 +56,6 @@ import {
   setProjectRunner,
   clearDraft,
   loadDraft,
-  saveDraft,
   isDraftLive,
   DRAFT_STALE_MS,
   type GenerationDraft,
@@ -124,15 +123,6 @@ const MAX_TERMINAL_LINES = 400;
 // life of the project (long sessions were reaching multi-MB records).
 const THINKING_STORE_LIMIT = 20_000;
 
-/**
- * How often a running generation parks what it has produced so far.
- *
- * The stream is held by the tab, so a reload ends it. Five seconds bounds what a
- * reload can cost regardless of how many files a build writes or how big they
- * are — and it is long enough that a normal turn checkpoints a handful of times,
- * not once per file.
- */
-const DRAFT_INTERVAL_MS = 5_000;
 
 export interface SpecPayload {
   brd?: string;
@@ -780,16 +770,17 @@ export default function Studio({ projectId }: { projectId: string }) {
       // Did this turn stream any write/delete into the live container? Decides
       // whether a cancel must reboot the container back to the saved state.
       let wroteLive = false;
-      let lastDraftAt = 0;
       /**
-       * Draft writes are fired without awaiting so a checkpoint never slows the
-       * stream — which means one can still be in flight when the turn ends.
-       * Chaining them makes the clear the LAST write. Without this the delete
-       * lands before a checkpoint's upsert and a finished turn leaves a stale
-       * draft behind, which the next open offers back as unfinished work (seen
-       * on the first live run: 24-file draft surviving a 28-file build).
+       * The DRAFT is written by the SERVER now, not here (/api/generate parks
+       * what it produces as it goes). One writer, and the right one: the server
+       * keeps generating after this tab is gone, so it is the only party that
+       * still knows what the finished turn contains.
+       *
+       * What is left here is the clear — the browser is the only party that can
+       * say "I have saved the real files, the parked copy is no longer needed".
+       * The server awaits its final park before sending `done`, so by the time
+       * this runs the complete set is already on disk and clearing is safe.
        */
-      let draftWrites: Promise<unknown> = Promise.resolve();
 
       try {
         let note = "";
@@ -827,20 +818,6 @@ export default function Studio({ projectId }: { projectId: string }) {
             pushTerminal(`… ${event.message}`);
           } else if (event.type === "file") {
             streamed[event.path] = event.content;
-            // Park what has arrived so far. This stream belongs to the tab —
-            // reloading the page ends it — and until this existed a reload at
-            // file 11 of 12 lost all twelve, because files reached the database
-            // only when a turn ENDED. Throttled by time rather than by file
-            // count so a build of large files costs the same as one of many
-            // small ones, and fire-and-forget: a failed checkpoint must not
-            // interrupt the generation it is protecting.
-            if (Date.now() - lastDraftAt >= DRAFT_INTERVAL_MS) {
-              lastDraftAt = Date.now();
-              const snapshot = { ...streamed };
-              draftWrites = draftWrites
-                .then(() => saveDraft(projectId, snapshot, prompt))
-                .catch(() => {});
-            }
             pushTerminal(`📝 ${event.path}`);
             appendLive((p) => ({ ...p, actions: [...p.actions, { icon: "file", label: event.path }] }));
             if (liveContainer && myEpoch === epochRef.current) {
@@ -912,7 +889,7 @@ export default function Studio({ projectId }: { projectId: string }) {
         working = appendMessage(working, assistantMsg);
         persist(working);
         // The complete set is saved — the partial has nothing left to protect.
-        void draftWrites.then(() => clearDraft(projectId)).catch(() => {});
+        void clearDraft(projectId).catch(() => {});
 
         // Detached (user navigated away): files are already persisted above —
         // skip all container work, it belongs to the foreground project now.
@@ -942,7 +919,7 @@ export default function Studio({ projectId }: { projectId: string }) {
           void saveProject({ ...working, updatedAt: new Date().toISOString() }).catch(() => {});
           // Cancelling is a decision, not a crash: the user does not want this
           // half-turn offered back to them next time they open the project.
-          void draftWrites.then(() => clearDraft(projectId)).catch(() => {});
+          void clearDraft(projectId).catch(() => {});
           pushTerminal("✋ ยกเลิกแล้ว");
           if (wroteLive && myEpoch === epochRef.current) {
             // Partial files were streamed into the live container — reboot it

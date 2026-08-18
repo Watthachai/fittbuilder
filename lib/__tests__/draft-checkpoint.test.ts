@@ -19,6 +19,7 @@ import { DRAFT_STALE_MS, isDraftLive, type GenerationDraft } from "@/lib/storage
  */
 const studio = readFileSync("components/studio/Studio.tsx", "utf8");
 const storage = readFileSync("lib/storage.ts", "utf8");
+const route = readFileSync("app/api/generate/route.ts", "utf8");
 
 /**
  * The generate() turn — where the stream is consumed. Bounded at the next
@@ -31,28 +32,51 @@ const turn = studio.slice(
 );
 
 describe("generation checkpoints", () => {
-  it("parks streamed files while the turn is still running", () => {
-    const fileEvent = turn.slice(turn.indexOf('event.type === "file"'));
-    expect(fileEvent.slice(0, 1200)).toContain("saveDraft");
+  it("parks streamed files server-side while the turn is still running", () => {
+    // The server is the writer: it keeps generating after the tab is gone, so
+    // it is the only party that still knows what the finished turn contains.
+    expect(route).toContain("parkDraft");
+    expect(route).toContain("fittbuilder_project_drafts");
+  });
+
+  it("records produced files before the disconnect guard, not after", () => {
+    // Recording behind `if (closed) return` would park nothing in exactly the
+    // case the parking exists for — a client that has already gone away.
+    const send = route.slice(route.indexOf("const send = (event: GenerateEvent)"));
+    const guard = send.indexOf("if (closed) return");
+    const record = send.indexOf("produced[event.path] = event.content");
+    expect(record).toBeGreaterThanOrEqual(0);
+    expect(record).toBeLessThan(guard);
   });
 
   it("throttles by time, so one build does not write a draft per file", () => {
-    expect(studio).toMatch(/DRAFT_INTERVAL_MS/);
-    expect(turn).toMatch(/Date\.now\(\) - lastDraftAt >= DRAFT_INTERVAL_MS/);
+    expect(route).toMatch(/DRAFT_INTERVAL_MS/);
+    expect(route).toMatch(/Date\.now\(\) - lastPark >= DRAFT_INTERVAL_MS/);
+  });
+
+  it("lands the final park BEFORE telling the client the turn is done", () => {
+    // The browser clears the draft once it has saved the real files. If the
+    // server's last write landed after that clear, a finished turn would be
+    // offered back as unfinished work.
+    const tail = route.slice(route.lastIndexOf("await parkDraft()"));
+    expect(tail.slice(0, 400)).toContain('type: "done"');
+  });
+
+  it("has only one writer during a turn — the client no longer checkpoints", () => {
+    expect(turn).not.toContain("saveDraft");
   });
 
   /**
    * Found on the first live run: a 28-file build finished but left its 24-file
    * draft behind, so the next open would have offered stale work back as if it
-   * were unfinished. The checkpoint is fired without awaiting (so it never slows
-   * the stream), which means one can still be in flight when the turn ends — the
-   * delete has to queue behind them, not race them.
+   * were unfinished. Two writers racing over one row is what caused it, which is
+   * why the server now owns every write during a turn and the browser only
+   * clears — after the server has awaited its last one.
    */
-  it("clears only after every checkpoint has landed", () => {
-    expect(turn).toContain("draftWrites");
-    expect(turn).toMatch(/draftWrites\s*\.then\(\(\) => clearDraft/);
-    // A bare clearDraft call is the race coming back.
-    expect(turn).not.toMatch(/void clearDraft\(projectId\)/);
+  it("clears only what the server has finished writing", () => {
+    // Ordering is held by the server awaiting its final park before `done`,
+    // which is what makes a plain clear here safe again.
+    expect(turn).toMatch(/void clearDraft\(projectId\)/);
   });
 
   it("drops the draft once the turn resolves, either way", () => {

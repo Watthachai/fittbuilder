@@ -1375,10 +1375,17 @@ export default function Studio({ projectId }: { projectId: string }) {
     void generate(buildMissingFilesPrompt(missing));
   }, [generate]);
 
-  const handleUndo = useCallback(() => {
+  const handleUndo = useCallback(async () => {
     const current = projectRef.current;
     if (!current || busy || readOnly) return;
-    const reverted = undoProject(current);
+    // The stack lives in the database (migration 0032), so stepping back is a
+    // round trip now — one that carries the single version being restored
+    // instead of the ten the project row used to hand over on every open.
+    const reverted = await undoProject(current).catch((e) => {
+      console.error("[studio] undo failed:", e);
+      toast.error("ย้อนกลับไม่สำเร็จ", { description: "ลองใหม่อีกครั้ง" });
+      return null;
+    });
     if (!reverted) return;
     const saved = persist(reverted);
     setErrorMessage(null);
@@ -1925,7 +1932,7 @@ export default function Studio({ projectId }: { projectId: string }) {
         target.closest(".monaco-editor");
       if ((event.metaKey || event.ctrlKey) && event.key === "z" && !inEditor) {
         event.preventDefault();
-        handleUndo();
+        void handleUndo();
       }
     };
     window.addEventListener("keydown", onKeyDown);
@@ -2155,7 +2162,7 @@ export default function Studio({ projectId }: { projectId: string }) {
         busy={busy}
         readOnly={readOnly}
         saveState={saveState}
-        canUndo={!readOnly && project.history.length > 0}
+        canUndo={!readOnly && project.historyCount > 0}
         shippable={hasApp}
         onRename={(name) => { if (!readOnly) persist({ ...project, name: name.trim() || "Untitled" }); }}
         onViewChange={(next) => {

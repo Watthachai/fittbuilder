@@ -15,7 +15,7 @@ const rec = (messages: ChatMessage[]): ProjectRecord => ({
   name: "p",
   files: {},
   phase: "build",
-  history: [],
+  historyCount: 0,
   messages,
   createdAt: "2026-08-06T00:00:00Z",
   updatedAt: "2026-08-06T00:00:00Z",

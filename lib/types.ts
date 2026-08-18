@@ -228,8 +228,11 @@ export interface ProjectRecord {
   phase: PhaseId;
   /** Phases the user has approved (the advance gate). */
   approvedPhases?: PhaseId[];
-  /** Snapshots of `files` before each change — capped at 10 (US-004). */
-  history: ProjectFiles[];
+  /** How deep the undo stack is (capped at 10, US-004). The snapshots themselves
+   *  live in the database and are reached through pushHistory/popHistory — ten
+   *  copies of the source tree is not something to carry in a React state
+   *  object, let alone down the wire on every open (migration 0032). */
+  historyCount: number;
   messages: ChatMessage[];
   /** Selected domain skill template id (e.g. "erp") — powers domain-expert questioning + build. */
   skillId?: string;

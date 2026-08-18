@@ -241,6 +241,9 @@ export interface Database {
           phase: string;
           approved_phases: Json;
           history: Json;
+          /** Maintained by a trigger (migration 0032); the stack itself never
+           *  leaves the database — see fittbuilder_history_push/pop. */
+          history_count: number;
           messages: Json;
           share_token: string | null;
           share_role: string | null;
@@ -261,6 +264,7 @@ export interface Database {
           phase?: string;
           approved_phases?: Json;
           history?: Json;
+          history_count?: number;
           messages?: Json;
           share_token?: string | null;
           share_role?: string | null;
@@ -281,6 +285,7 @@ export interface Database {
           phase?: string;
           approved_phases?: Json;
           history?: Json;
+          history_count?: number;
           messages?: Json;
           share_token?: string | null;
           share_role?: string | null;
@@ -599,6 +604,10 @@ export interface Database {
       fittbuilder_accept_invites: { Args: { uid: string; mail: string }; Returns: undefined };
       fittbuilder_accept_org_invites: { Args: { uid: string; mail: string }; Returns: undefined };
       fittbuilder_join_by_token: { Args: { tok: string; uid: string }; Returns: string | null };
+      /** Push a snapshot onto the undo stack; returns the new depth. */
+      fittbuilder_history_push: { Args: { pid: string; snapshot: Json }; Returns: number };
+      /** Pop the newest snapshot into `files` and return it (null when empty). */
+      fittbuilder_history_pop: { Args: { pid: string }; Returns: Json | null };
       fittbuilder_ai_usage_report: { Args: Record<string, never>; Returns: Json };
       fittbuilder_shared_project_owners: {
         Args: Record<string, never>;

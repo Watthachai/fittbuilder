@@ -8,7 +8,7 @@ export interface ProjectRow {
   files: ProjectFiles | null;
   phase: string;
   approved_phases: PhaseId[];
-  history: ProjectFiles[];
+  history_count: number;
   messages: ChatMessage[];
   share_token: string | null;
   share_role: "viewer" | "editor" | null;
@@ -33,7 +33,6 @@ export interface ProjectInsertRow {
   files: ProjectFiles | null;
   phase: string;
   approved_phases: PhaseId[];
-  history: ProjectFiles[];
   messages: ChatMessage[];
   skill_id: string | null;
 }
@@ -45,7 +44,7 @@ export function rowToProject(row: ProjectRow): ProjectRecord {
     files: row.files,
     phase: row.phase as PhaseId,
     approvedPhases: row.approved_phases ?? [],
-    history: row.history ?? [],
+    historyCount: row.history_count ?? 0,
     messages: row.messages ?? [],
     skillId: row.skill_id ?? undefined,
     orgId: row.org_id ?? null,
@@ -94,9 +93,14 @@ export function projectToRow(rec: ProjectRecord): ProjectInsertRow {
     files: rec.files,
     phase: rec.phase,
     approved_phases: rec.approvedPhases ?? [],
-    history: rec.history,
     messages: trimOldDiffs(rec.messages),
     skill_id: rec.skillId ?? null,
+    // `history` is not written here either, and for a sharper reason: the record
+    // this row is built from no longer carries the stack at all. It is pushed and
+    // popped in the database (fittbuilder_history_push/pop) so an ordinary save
+    // stops shipping ten copies of the source tree — 3 MB on the heaviest
+    // project, on every keystroke-triggered save.
+    //
     // active_version is DELIBERATELY not written here. Ordinary saves are built
     // from whatever record the caller holds, and a caller holding one captured
     // before a version switch would write the OLD version back — pointing the

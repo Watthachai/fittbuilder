@@ -9,15 +9,21 @@ import type { Database, Json } from "@/lib/db/types";
 
 type ProjInsert = Database["public"]["Tables"]["fittbuilder_projects"]["Insert"];
 
-const HISTORY_LIMIT = 10; // US-004
 
 /**
- * The whole project. Genuinely expensive: `files` is the source tree, `history`
- * is ten more copies of it, and `messages` carries every turn's before/after
- * file bodies — 5 MB on a real project. Read it only when the studio actually
- * needs the project, never to answer a question a column could answer.
+ * The whole project. Still expensive: `files` is the source tree and `messages`
+ * carries every turn's before/after file bodies. Read it only when the studio
+ * actually needs the project, never to answer a question a column could answer.
+ *
+ * `history` is deliberately absent — it was ten more copies of the source tree
+ * (3 MB on the heaviest project, 89% of the row) and nothing here ever needed to
+ * READ it: the button only asks whether the stack is empty, which history_count
+ * answers in 4 bytes, and Undo wants exactly one entry, which popHistory returns.
  */
-const SELECT = "id, owner_id, name, files, phase, approved_phases, history, messages, share_token, share_role, skill_id, org_id, runner_last, created_at, updated_at";
+/** Mirrors the cap in fittbuilder_history_push (migration 0032). */
+const HISTORY_LIMIT = 10; // US-004
+
+const SELECT = "id, owner_id, name, files, phase, approved_phases, history_count, messages, share_token, share_role, skill_id, org_id, runner_last, created_at, updated_at";
 
 
 // Reads the session this browser already holds instead of asking the auth
@@ -272,20 +278,57 @@ export async function approvePhase(projectId: string, phase: string): Promise<vo
   if (error) throw new Error(error.message);
 }
 
-/* ---------- pure helpers (unchanged behaviour) ---------- */
+/* ---------- undo stack (lives in the database, migration 0032) ---------- */
 
+/**
+ * Snapshot `files` so Undo can come back to it, and return the record pointed at
+ * `nextFiles`.
+ *
+ * The snapshot is SENT rather than copied from the row inside the function
+ * because saves here are debounced: the row can still hold the previous step
+ * when this is called, and snapshotting that would silently skip a step.
+ *
+ * The write is fired, not awaited, so the four call sites stay synchronous and
+ * the studio never waits on it to show the result of an edit. `historyCount` is
+ * advanced optimistically — it decides whether the Undo button is enabled, and
+ * a push that fails leaves a button that finds nothing to pop (undo() asks the
+ * database, which is authoritative) until the next read corrects the count.
+ */
 export function withHistory(project: ProjectRecord, nextFiles: ProjectFiles): ProjectRecord {
-  const history = project.files
-    ? [...project.history, project.files].slice(-HISTORY_LIMIT)
-    : project.history;
-  return { ...project, history, files: nextFiles };
+  if (!project.files) return { ...project, files: nextFiles };
+  const supabase = createClient();
+  void supabase
+    .rpc("fittbuilder_history_push", {
+      pid: project.id,
+      snapshot: project.files as unknown as Json,
+    })
+    .then(({ error }) => {
+      if (error) console.error("[storage] history push failed:", error);
+    });
+  return {
+    ...project,
+    files: nextFiles,
+    historyCount: Math.min(HISTORY_LIMIT, project.historyCount + 1),
+  };
 }
 
-export function undo(project: ProjectRecord): ProjectRecord | null {
-  if (project.history.length === 0) return null;
-  const history = [...project.history];
-  const files = history.pop()!;
-  return { ...project, files, history };
+/**
+ * Step back one snapshot. Returns null when the stack is empty.
+ *
+ * The pop and the write of the restored files happen in one statement inside the
+ * database, so an Undo cannot half-apply: either the entry leaves the stack and
+ * becomes the project's files, or neither happens.
+ */
+export async function undo(project: ProjectRecord): Promise<ProjectRecord | null> {
+  const supabase = createClient();
+  const { data, error } = await supabase.rpc("fittbuilder_history_pop", { pid: project.id });
+  if (error) throw new Error(error.message);
+  if (!data) return null;
+  return {
+    ...project,
+    files: data as unknown as ProjectFiles,
+    historyCount: Math.max(0, project.historyCount - 1),
+  };
 }
 
 export function appendMessage(project: ProjectRecord, message: ChatMessage): ProjectRecord {

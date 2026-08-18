@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   Camera,
   Code2,
@@ -10,6 +11,8 @@ import {
   FileText,
   FileUp,
   History,
+  Layers,
+  Loader2,
   MoreHorizontal,
   Package,
   Rocket,
@@ -18,6 +21,7 @@ import {
   Undo2,
   Users,
 } from "lucide-react";
+import { duplicateProjectAs } from "@/lib/storage";
 import { encodeShareUrl } from "@/lib/share";
 import { toast } from "@/lib/toast";
 import DnaMark from "@/components/ui/DnaMark";
@@ -77,7 +81,40 @@ export default function TopBar({
   onTeamShare,
   onRunnerSent,
 }: TopBarProps) {
+  const router = useRouter();
   const [actionsOpen, setActionsOpen] = useState(false);
+  const [forking, setForking] = useState(false);
+
+  /**
+   * Fork this demo into a second project for the paid tier. Lands the user in
+   * the new project so the very next chat turn adds the premium features there
+   * — and only there.
+   */
+  const forkTier = async () => {
+    setForking(true);
+    try {
+      const copy = await duplicateProjectAs(project.id, (name) => {
+        // Names often already trail off with a dash the model left behind
+        // ("บ้านโซฟา —"); appending blindly gives "— — Premium".
+        const base = name.replace(/[\s\u2014\u2013-]+$/, "").trim() || name;
+        return /premium/i.test(base) ? `${base} (copy)` : `${base} — Premium`;
+      });
+      if (!copy) {
+        toast.error("แยกเวอร์ชันไม่สำเร็จ");
+        return;
+      }
+      toast.success(`สร้าง “${copy.name}” แล้ว`, {
+        description: "สั่ง AI เพิ่มฟีเจอร์พรีเมียมในโปรเจกต์นี้ได้เลย — export จะเป็นคนละ zip กับตัวเดิม",
+      });
+      router.push(`/project/${copy.id}`);
+    } catch (e) {
+      toast.error("แยกเวอร์ชันไม่สำเร็จ", {
+        description: e instanceof Error ? e.message : undefined,
+      });
+    } finally {
+      setForking(false);
+    }
+  };
   const [moreOpen, setMoreOpen] = useState(false);
   const [runnerOpen, setRunnerOpen] = useState(false);
   const specialist = useOrgSkillName(project.orgId);
@@ -242,6 +279,24 @@ export default function TopBar({
                 className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-xs text-chalk/80 transition hover:bg-chalk/5 hover:text-chalk disabled:opacity-40"
               >
                 <Camera size={14} /> คลังหน้าจอ (ใบเสนอราคา)
+              </button>
+              {/*
+                Tiers are separate PROJECTS, never a switch inside one app: the
+                zip a Standard customer receives must not contain the Premium
+                code. Forking here is what keeps the two exports genuinely
+                different builds.
+              */}
+              <button
+                onClick={() => {
+                  setActionsOpen(false);
+                  void forkTier();
+                }}
+                disabled={!shippable || busy || forking}
+                title="คัดลอกเดโมนี้เป็นอีกโปรเจกต์ เพื่อทำเวอร์ชันที่ขายแพงกว่า — export แยกเป็นคนละ zip"
+                className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-xs text-chalk/80 transition hover:bg-chalk/5 hover:text-chalk disabled:opacity-40"
+              >
+                {forking ? <Loader2 size={14} className="animate-spin" /> : <Layers size={14} />}
+                แยกเป็นเวอร์ชัน Premium
               </button>
               <button
                 onClick={() => {

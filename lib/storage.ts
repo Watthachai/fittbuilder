@@ -124,9 +124,24 @@ export async function setProjectRunner(projectId: string, runner: RunnerSend): P
 }
 
 export async function duplicateProject(id: string): Promise<ProjectRecord | null> {
+  return duplicateProjectAs(id, (name) => `${name} (copy)`);
+}
+
+/**
+ * Fork a project under a name the caller chooses.
+ *
+ * This is how a tiered offer is built: Standard and Premium are two PROJECTS,
+ * not two modes of one. A tier switch inside a single codebase would ship the
+ * Premium code inside the Standard customer's zip — one DevTools toggle and the
+ * upsell is gone. Separate projects mean separate exports and separate builds.
+ */
+export async function duplicateProjectAs(
+  id: string,
+  rename: (name: string) => string
+): Promise<ProjectRecord | null> {
   const source = await getProject(id);
   if (!source) return null;
-  return saveProjectAsNew({ ...source, name: `${source.name} (copy)` });
+  return saveProjectAsNew({ ...source, name: rename(source.name) });
 }
 
 async function saveProjectAsNew(rec: ProjectRecord): Promise<ProjectRecord> {

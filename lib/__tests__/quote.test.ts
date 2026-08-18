@@ -13,6 +13,8 @@ import {
   maintenanceTotals,
   marketComparison,
   missingRows,
+  lumpSumScope,
+  lumpSumSystemCount,
   newDoc,
   parseDoc,
   paymentSchedule,
@@ -519,5 +521,66 @@ describe("printed scope", () => {
     expect(block).toContain("white-space: pre-wrap");
   // `pre` would stop wrapping and run long pasted lines off the page.
     expect(block).not.toMatch(/white-space:\s*pre;/);
+  });
+});
+
+/**
+ * Some customers do not want the scope priced screen by screen — the figure was
+ * agreed as a round number long before anyone counted man-days, and 27 lines
+ * adding to 312,400 shows exactly that. Reference document (Digital Value,
+ * SQP12605-0002): one line, 520,000.00, VAT 36,400.00, net 556,400.00.
+ */
+describe("lump sum", () => {
+  const doc = (): QuoteDoc => ({
+    ...newDoc([], "ทดสอบ", "2026-08-18"),
+    rows: [
+      { id: "a", name: "ระบบเข้าใช้งาน", size: "M", days: 5, note: "Login / Logout", sub: false, parent: "" },
+      { id: "b", name: "ยืนยันตัวตน", size: "S", days: 1, note: "OTP", sub: true, parent: "ระบบเข้าใช้งาน" },
+      { id: "c", name: "Dashboard", size: "L", days: 8, note: "สรุปยอดขาย", sub: false, parent: "" },
+    ],
+    vatPercent: 7,
+  });
+
+  it("replaces the arithmetic with the agreed figure, and VAT follows from it", () => {
+    const d = { ...doc(), lumpSum: { enabled: true, amount: 520_000, title: "PHITHANLIFE" } };
+    const t = quoteTotals(d);
+    expect(t.subtotal).toBe(520_000);
+    expect(t.vat).toBe(36_400);
+    expect(t.grand).toBe(556_400);
+  });
+
+  it("leaves the priced breakdown alone when it is off", () => {
+    const d = doc();
+    expect(quoteTotals(d).subtotal).toBe(
+      quoteTotals({ ...d, lumpSum: { enabled: false, amount: 999_999, title: "" } }).subtotal
+    );
+  });
+
+  it("still counts man-days, so the market comparison and MA keep working", () => {
+    const d = { ...doc(), lumpSum: { enabled: true, amount: 300_000, title: "" } };
+    expect(quoteTotals(d).days).toBe(14);
+  });
+
+  it("numbers only the systems — a modal belongs to the screen above it", () => {
+    const scope = lumpSumScope(doc());
+    expect(scope).toContain("1. ระบบเข้าใช้งาน");
+    expect(scope).toContain("2. Dashboard");
+    expect(scope).not.toContain("2. ยืนยันตัวตน");
+    expect(lumpSumSystemCount(doc())).toBe(2);
+  });
+
+  it("keeps each row's own description under its heading", () => {
+    const scope = lumpSumScope(doc());
+    expect(scope).toContain("Login / Logout");
+    expect(scope).toContain("สรุปยอดขาย");
+    // A blank line between entries — the shape the printed document expects.
+    expect(scope).toContain("\n\n2. Dashboard");
+  });
+
+  it("is off for documents written before it existed", () => {
+    const before = JSON.parse(JSON.stringify(newDoc([], "เก่า", "2026-01-01")));
+    delete before.lumpSum;
+    const reopened = parseDoc(before, "2026-08-18");
+    expect(reopened?.lumpSum.enabled).toBe(false);
   });
 });

@@ -21,6 +21,7 @@ import {
   missingRows,
   newDoc,
   marketComparison,
+  lumpSumSystemCount,
   quoteTotals,
   rowCounts,
   SIZE_DAYS,
@@ -551,6 +552,75 @@ export default function Quotation({
           )}
         </div>
       )}
+
+      {/* One agreed figure instead of a priced breakdown. The rows above stay —
+          they are what the scope paragraph is built from — only the arithmetic
+          is replaced. */}
+      <div className="mt-5 rounded-xl border border-night-edge p-3">
+        <label className="flex items-start gap-2.5">
+          <input
+            type="checkbox"
+            checked={doc.lumpSum.enabled}
+            onChange={(e) =>
+              edit((d) => ({
+                ...d,
+                lumpSum: {
+                  ...d.lumpSum,
+                  enabled: e.target.checked,
+                  // Seed from what the breakdown already says, rounded to the
+                  // nearest ten thousand — the figure people actually quote.
+                  amount:
+                    d.lumpSum.amount ||
+                    Math.round(quoteTotals(d).subtotal / 10_000) * 10_000,
+                  title: d.lumpSum.title || d.subject,
+                },
+              }))
+            }
+            disabled={readOnly}
+            className="mt-0.5 h-4 w-4 accent-shine"
+          />
+          <span>
+            <span className="block font-display text-[14px] text-chalk">
+              เสนอเป็นราคาเดียว ไม่แจกแจงราคาต่อรายการ
+            </span>
+            <span className="mt-0.5 block text-[12.5px] leading-relaxed text-chalk-dim">
+              กระดาษจะพิมพ์บรรทัดเดียว ชื่องานหนึ่งบรรทัดแล้วขอบเขตทั้งหมดอยู่ใต้มัน
+              พร้อมราคาเดียวด้านขวา · VAT คิดต่อจากตัวเลขนี้ตามปกติ
+            </span>
+          </span>
+        </label>
+        {doc.lumpSum.enabled && (
+          <div className="mt-3 grid gap-3 sm:grid-cols-[1fr_200px]">
+            <Field label="ชื่องานที่จะขึ้นบรรทัดเดียว">
+              <input
+                value={doc.lumpSum.title}
+                onChange={(e) =>
+                  edit((d) => ({ ...d, lumpSum: { ...d.lumpSum, title: e.target.value } }))
+                }
+                placeholder={doc.subject}
+                className={inputCls}
+                disabled={readOnly}
+              />
+            </Field>
+            <Field label={`ราคา (บาท, ก่อน VAT) · ${lumpSumSystemCount(doc)} ระบบ`}>
+              <input
+                type="number"
+                min={0}
+                step={10_000}
+                value={doc.lumpSum.amount}
+                onChange={(e) =>
+                  edit((d) => ({
+                    ...d,
+                    lumpSum: { ...d.lumpSum, amount: Number(e.target.value) },
+                  }))
+                }
+                className={inputCls}
+                disabled={readOnly}
+              />
+            </Field>
+          </div>
+        )}
+      </div>
 
       {/* Pricing + totals */}
       <div className="mt-5 grid gap-4 lg:grid-cols-[1fr_320px]">

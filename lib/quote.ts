@@ -149,6 +149,57 @@ export const DEFAULT_ACCENT = "#f59e0b";
 const HEX = /^#[0-9a-fA-F]{6}$/;
 export const safeAccent = (v: string): string => (HEX.test(v) ? v : DEFAULT_ACCENT);
 
+/**
+ * Quote the whole job as one line at one agreed figure.
+ *
+ * Some customers do not want to see the scope priced screen by screen. Not
+ * because the breakdown is wrong, but because a per-item price invites a
+ * per-item negotiation — and because the number was usually agreed as a round
+ * one ("สามแสน") long before anyone counted man-days. Printing 27 lines that add
+ * up to 312,400 makes the sender look like they reverse-engineered the figure,
+ * which is exactly what happened, and exactly what should not show.
+ *
+ * The rows are still there and still edited — they are what the scope text is
+ * built from. Only the arithmetic is replaced.
+ */
+export interface LumpSum {
+  enabled: boolean;
+  /** The agreed figure, BEFORE VAT — VAT is computed from it as usual. */
+  amount: number;
+  /** The single line's heading, e.g. "PHITHANLIFE VENDOR CENTER". */
+  title: string;
+}
+
+export const emptyLumpSum = (): LumpSum => ({ enabled: false, amount: 0, title: "" });
+
+/**
+ * The scope, as the one paragraph that sits under the single line.
+ *
+ * Numbered in the order the rows are in, one blank line between entries, each
+ * row's own description kept verbatim underneath its heading — the shape of the
+ * document this replaces. Modals are indented under the screen they belong to
+ * rather than getting a number of their own, because they are not systems.
+ */
+export function lumpSumScope(doc: QuoteDoc): string {
+  const out: string[] = [];
+  let n = 0;
+  for (const r of doc.rows) {
+    const name = r.name.trim() || "—";
+    if (r.sub) {
+      out.push(`    · ${name}${r.note.trim() ? `\n      ${r.note.trim()}` : ""}`);
+      continue;
+    }
+    n += 1;
+    out.push(`${n}. ${name}${r.note.trim() ? `\n${r.note.trim()}` : ""}`);
+  }
+  return out.join("\n\n");
+}
+
+/** How many top-level systems the scope lists — the "11 ระบบ" on the paper. */
+export function lumpSumSystemCount(doc: QuoteDoc): number {
+  return doc.rows.filter((r) => !r.sub).length;
+}
+
 export interface QuoteDoc {
   /** What the job is, on the paper's subject line. */
   subject: string;
@@ -192,6 +243,8 @@ export interface QuoteDoc {
   acceptance: Acceptance;
   ma: Maintenance;
   brand: QuoteBrand;
+  /** Print one line at one agreed figure instead of pricing row by row. */
+  lumpSum: LumpSum;
   terms: string;
 }
 
@@ -372,6 +425,7 @@ export function newDoc(shots: Shot[], projectName: string, today: string): Quote
     acceptance: defaultAcceptance(),
     ma: defaultMaintenance(),
     brand: emptyBrand(),
+    lumpSum: emptyLumpSum(),
     terms: DEFAULT_TERMS,
   };
 }
@@ -414,6 +468,7 @@ export function parseDoc(payload: unknown, fallbackDate: string): QuoteDoc | nul
   const acc = obj(o.acceptance);
   const ma = obj(o.ma);
   const brand = obj(o.brand);
+  const lump = obj(o.lumpSum);
   const fallbackMa = defaultMaintenance();
   // Documents written before the letterhead existed kept both parties as one
   // free-text blob each. Neither is dropped: the vendor blob's first line is a
@@ -479,6 +534,13 @@ export function parseDoc(payload: unknown, fallbackDate: string): QuoteDoc | nul
       // must not silently print as white-label.
       poweredBy: bool(brand.poweredBy, true),
     },
+    // Off for every document written before this existed — a quotation that was
+    // priced row by row must keep printing that way when it is reopened.
+    lumpSum: {
+      enabled: bool(lump.enabled, false),
+      amount: n(lump.amount, 0),
+      title: str(lump.title),
+    },
     terms: str(o.terms, DEFAULT_TERMS),
   };
 }
@@ -521,9 +583,13 @@ export interface QuoteTotals {
  */
 export function quoteTotals(doc: QuoteDoc): QuoteTotals {
   const days = round2(doc.rows.reduce((sum, r) => sum + num(r.days), 0));
-  const subtotal = round2(
-    doc.rows.reduce((sum, r) => sum + round2(lineTotal(r, doc.ratePerDay)), 0)
-  );
+  // A lump sum REPLACES the arithmetic, it does not adjust it: the agreed figure
+  // is the subtotal, and discount and VAT run from there exactly as they would
+  // otherwise. Man-days stay counted because the market comparison and the MA
+  // sizing still read them.
+  const subtotal = doc.lumpSum.enabled
+    ? round2(num(doc.lumpSum.amount))
+    : round2(doc.rows.reduce((sum, r) => sum + round2(lineTotal(r, doc.ratePerDay)), 0));
   const discount = round2((subtotal * clampPercent(doc.discountPercent)) / 100);
   const net = round2(subtotal - discount);
   const vat = round2((net * clampPercent(doc.vatPercent)) / 100);

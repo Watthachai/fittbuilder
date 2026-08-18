@@ -152,7 +152,7 @@ export default function QuotationPrint({ doc, shots }: { doc: QuoteDoc; shots: S
                       the description of a single line rather than as prices to
                       be argued with one by one. */}
                   {doc.lumpSum.enabled && (
-                    <tr>
+                    <tr className="q-lump">
                       <td className="q-n">1</td>
                       <td>
                         <div>

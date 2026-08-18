@@ -18,6 +18,11 @@ import {
 import { DOC_PATHS, docOnlyFiles, docsFromFiles, hasRunnableApp } from "@/lib/define";
 import { REORGANIZE_PROMPT } from "@/lib/code-health";
 import { commitRevision, revisionFiles } from "@/lib/revisions";
+import { buildPremiumContext, premiumOptionsFor } from "@/lib/skills/premium";
+import { getSkill } from "@/lib/skills/registry";
+import { screenIndexEntries } from "@/lib/screen-index";
+import PremiumPicker from "@/components/studio/PremiumPicker";
+import type { PremiumOption } from "@/lib/skills/types";
 import { buildMissingFilesPrompt, missingImports } from "@/lib/import-check";
 import { buildScreenIndexPrompt } from "@/lib/screen-index";
 import { listShots, uploadShot } from "@/lib/shots";
@@ -287,6 +292,8 @@ export default function Studio({ projectId }: { projectId: string }) {
 
   const [readOnly, setReadOnly] = useState(false);
   const [switchingVersion, setSwitchingVersion] = useState(false);
+  /** Offered right after a Premium version is seeded — see PremiumPicker. */
+  const [premiumOffer, setPremiumOffer] = useState<PremiumOption[]>([]);
   /**
    * Which tier version is being edited.
    *
@@ -2061,9 +2068,20 @@ export default function Studio({ projectId }: { projectId: string }) {
       setActiveVersion(next);
       toast.success(`สลับไปเวอร์ชัน${VERSION_LABEL[next]}แล้ว`, {
         description: seeded
-          ? "เริ่มจากไฟล์ชุดเดิม — สั่ง AI เพิ่มฟีเจอร์ได้เลย งานจะไม่ไปกระทบอีกเวอร์ชัน"
+          ? "เริ่มจากไฟล์ชุดเดิม — งานที่ทำต่อจากนี้จะไม่ไปกระทบอีกเวอร์ชัน"
           : "Export ตอนนี้จะได้ zip ของเวอร์ชันนี้",
       });
+      // A version that was just seeded is a copy of the one it came from — it is
+      // not worth more money until something is built into it. Offer what this
+      // domain actually sells instead of leaving an empty chat box to guess at.
+      if (next === "premium" && seeded) {
+        setPremiumOffer(
+          premiumOptionsFor(getSkill(project.skillId), [
+            ...screenIndexEntries(files).map((e) => e.name),
+            ...Object.keys(files),
+          ])
+        );
+      }
       await boot(files);
     } catch (e) {
       toast.error("สลับเวอร์ชันไม่สำเร็จ", {
@@ -2370,6 +2388,19 @@ export default function Studio({ projectId }: { projectId: string }) {
       {specOpen && (
         <SpecFlow onClose={() => setSpecOpen(false)} onComplete={handleSpecComplete} />
       )}
+
+      <PremiumPicker
+        // Remounted per offer so a previous selection never carries over into
+        // the next project's picker.
+        key={premiumOffer.length ? "premium-open" : "premium-closed"}
+        open={premiumOffer.length > 0}
+        options={premiumOffer}
+        onClose={() => setPremiumOffer([])}
+        onBuild={(chosen) => {
+          setPremiumOffer([]);
+          void generate(buildPremiumContext(chosen));
+        }}
+      />
 
       <ApprovalModal
         key={approveOpen ? `approve-${project.phase}` : "approve-closed"}

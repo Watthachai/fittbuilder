@@ -20,6 +20,40 @@ export interface SkillQuestion {
   why?: string;
 }
 
+/**
+ * Something this domain can sell on top of the standard build.
+ *
+ * Premium is not "more technology" — it is the part of the job the standard
+ * demo can only SHOW, done FOR the user. Standard records what happened;
+ * Premium says what to do next. A 3D product viewer is one instance of that
+ * (furniture buyers are blocked by not being able to picture it), not the
+ * definition of it — for a warehouse the block is "when do I reorder", and 3D
+ * answers nothing.
+ *
+ * These are a fixed, named catalogue rather than something the model invents per
+ * project, for a commercial reason: quotations price work per module, and MA is
+ * charged per module per month. You cannot put a price on an upgrade that comes
+ * out different every time you ask for it, and a partner reselling this needs a
+ * list to show a customer, not a surprise.
+ */
+export interface PremiumOption {
+  id: string;
+  /** Shown in the picker AND on the quotation — must read as a thing a buyer wants. */
+  name: string;
+  /** Why they pay more, said from what they cannot do today. Never from the technology. */
+  pitch: string;
+  /**
+   * What the demo must already contain for this to be offerable — matched
+   * against its screen names and file paths. An option that needs stock levels
+   * is not worth showing for a demo that has no stock. Empty = always offerable.
+   */
+  requires: string[];
+  /** Rough build effort in days — feeds the quotation's line items directly. */
+  effortDays: number;
+  /** What the generator must actually produce when this is chosen. */
+  build: string;
+}
+
 export interface SkillTemplate {
   id: string;
   /** Thai display name. */
@@ -44,4 +78,6 @@ export interface SkillTemplate {
   seedData: string;
   /** Optional domain visual direction. */
   designHints?: string;
+  /** What this domain sells on top of the standard build. */
+  premiumOptions: PremiumOption[];
 }

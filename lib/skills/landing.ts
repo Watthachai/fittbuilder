@@ -20,4 +20,9 @@ export const LANDING: SkillTemplate = {
     "## Build\nหน้าเดียว scroll: Hero เด่น (gradient/รูป), grid features มีไอคอน (lucide), pricing cards (เน้น tier กลาง), testimonials, FAQ accordion, CTA band, footer. responsive, smooth scroll.",
   seedData:
     "## Seed\nHeadline + subhead. 3-6 features (ไอคอน+ข้อความ). 3 pricing tiers (ราคา+feature list). 2-3 testimonials (ชื่อ+บริษัท+คำพูด). 4-5 FAQ.",
+  premiumOptions: [
+    { id: "abtest", name: "ทำสองเวอร์ชันแล้ววัดว่าอันไหนดีกว่า", pitch: "พาดหัวที่ทีมชอบที่สุด กับพาดหัวที่คนกดมากที่สุด มักไม่ใช่อันเดียวกัน", requires: [], effortDays: 3, build: "สลับเวอร์ชันให้ผู้เข้าชมแบบสุ่ม + หน้าสรุปผลที่บอกว่าอันไหนชนะและมั่นใจแค่ไหน" },
+    { id: "leadrouting", name: "ฟอร์มส่งเข้า CRM/LINE ทันที", pitch: "คนกรอกฟอร์มตอนสนใจที่สุด แต่กว่าจะมีคนติดต่อกลับคือวันรุ่งขึ้น", requires: ["form"], effortDays: 2, build: "ส่งต่อทันทีที่กรอก + หน้าจอรวม lead พร้อมสถานะติดตาม และแจ้งเตือนคนที่รับผิดชอบ" },
+    { id: "personalize", name: "เปลี่ยนพาดหัวตามที่มาของผู้เข้าชม", pitch: "คนที่มาจากโฆษณาเรื่องราคา กับคนที่มาจากรีวิว ไม่ได้อยากอ่านประโยคเดียวกัน", requires: [], effortDays: 3, build: "จับ query/ที่มา แล้วสลับพาดหัวและภาพหลักตามกลุ่ม พร้อมหน้าตั้งค่าว่ากลุ่มไหนเห็นอะไร" },
+  ],
 };

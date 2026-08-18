@@ -42,6 +42,12 @@ export function rowToSkillTemplate(row: SkillTemplateRow): SkillTemplate {
     buildGuidance: row.build_guidance,
     seedData: row.seed_data,
     designHints: row.design_hints ?? undefined,
+    // Workspace- and admin-authored skills carry no catalogue of their own yet —
+    // there is no column for one and no field in the admin form. They are not
+    // left with nothing to sell: premiumOptionsFor() always adds the
+    // cross-domain options, which is what a brand new domain would start from
+    // anyway.
+    premiumOptions: [],
   };
 }
 

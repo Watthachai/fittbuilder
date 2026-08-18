@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { currentUser } from "@/lib/current-user";
 
 interface Peer {
   id: string;
@@ -23,16 +24,13 @@ export default function ProjectPresence({ projectId }: { projectId: string }) {
     let channel: ReturnType<typeof supabase.channel> | null = null;
 
     (async () => {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
+      const user = await currentUser();
       if (!user || cancelled) return;
 
-      const meta = user.user_metadata ?? {};
       const me: Peer = {
         id: user.id,
-        name: (meta.full_name ?? meta.name ?? user.email ?? "ผู้ใช้") as string,
-        avatar: (meta.avatar_url ?? meta.picture ?? null) as string | null,
+        name: user.name ?? user.email ?? "ผู้ใช้",
+        avatar: user.avatar,
       };
 
       channel = supabase.channel(`presence:project:${projectId}`, {

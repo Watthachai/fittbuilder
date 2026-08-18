@@ -1,6 +1,7 @@
 "use client";
 
 import { createClient } from "@/lib/supabase/client";
+import { currentUser } from "@/lib/current-user";
 import type { Json } from "@/lib/db/types";
 import { parseDoc, type QuoteDoc } from "./quote";
 
@@ -29,11 +30,11 @@ export async function loadQuote(projectId: string, today: string): Promise<Quote
 
 export async function saveQuote(projectId: string, doc: QuoteDoc): Promise<void> {
   const supabase = createClient();
-  const { data: auth } = await supabase.auth.getUser();
+  const user = await currentUser();
   const { error } = await supabase
     .from(TABLE)
     .upsert(
-      { project_id: projectId, payload: doc as unknown as Json, updated_by: auth.user?.id ?? null },
+      { project_id: projectId, payload: doc as unknown as Json, updated_by: user?.id ?? null },
       { onConflict: "project_id" }
     );
   if (error) throw error;

@@ -84,6 +84,7 @@ import {
   subscribeGenerations,
 } from "@/lib/generation/registry";
 import { createClient } from "@/lib/supabase/client";
+import { currentUser } from "@/lib/current-user";
 import { emitSystemLog } from "@/lib/team-chat-bus";
 import { toast } from "@/lib/toast";
 import { confirm } from "@/lib/confirm";
@@ -1108,9 +1109,8 @@ export default function Studio({ projectId }: { projectId: string }) {
     const state = approval ?? (await getApprovalState(projectId, current.phase));
     // Announce the approval in the team chat — parity for solo + shared, so the
     // activity ("who approved") is visible to everyone in the room.
-    const { data: { user } } = await createClient().auth.getUser();
-    const meta = user?.user_metadata ?? {};
-    const who = (meta.full_name ?? meta.name ?? user?.email ?? "สมาชิก") as string;
+    const user = await currentUser();
+    const who = user?.name ?? user?.email ?? "สมาชิก";
     emitSystemLog(projectId, `✅ ${who} อนุมัติขั้น “${phaseDef(current.phase).user}” แล้ว`);
     // Solo (only the owner approves) → no multi-party gate; just advance.
     if (state.approvers.length <= 1) {
@@ -1794,14 +1794,13 @@ export default function Studio({ projectId }: { projectId: string }) {
           : `c-${Math.random().toString(36).slice(2)}`;
     }
     const supabase = createClient();
-    void supabase.auth.getUser().then(({ data: { user } }) => {
-      const meta = user?.user_metadata ?? {};
-      nameRef.current = (meta.full_name ?? meta.name ?? user?.email ?? "เพื่อนร่วมทีม") as string;
+    void currentUser().then((user) => {
+      nameRef.current = user?.name ?? user?.email ?? "เพื่อนร่วมทีม";
       // Same source the account chip and presence dots use, so it's the face
       // teammates already recognise.
-      setMyAvatar((meta.avatar_url ?? meta.picture ?? null) as string | null);
+      setMyAvatar(user?.avatar ?? null);
       setMyName(nameRef.current);
-      avatarRef.current = (meta.avatar_url ?? meta.picture ?? null) as string | null;
+      avatarRef.current = user?.avatar ?? null;
     });
 
     const timers = aiPeerTimers.current;

@@ -4,7 +4,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { ArrowLeft, BarChart3, Handshake, Loader2, Plus, ShieldCheck } from "lucide-react";
-import { createClient } from "@/lib/supabase/client";
+import { currentUser } from "@/lib/current-user";
 import { listOrgs } from "@/lib/orgs";
 import { openCreateWorkspace } from "@/lib/workspace-modal";
 import { WorkspaceIcon } from "@/lib/workspace-style";
@@ -27,15 +27,13 @@ export default function SettingsShell({ children }: { children: ReactNode }) {
   const [orgs, setOrgs] = useState<OrgRecord[] | null>(null);
 
   useEffect(() => {
-    const supabase = createClient();
     let cancelled = false;
-    void supabase.auth.getUser().then(({ data: { user } }) => {
+    void currentUser().then((user) => {
       if (cancelled || !user) return;
-      const meta = user.user_metadata ?? {};
       setAccount({
-        name: (meta.full_name ?? meta.name ?? null) as string | null,
+        name: user.name,
         email: user.email ?? "",
-        avatar: (meta.avatar_url ?? meta.picture ?? null) as string | null,
+        avatar: user.avatar,
       });
     });
     void listOrgs()

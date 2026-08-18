@@ -14,7 +14,7 @@ import {
   FITTCORE_TAG,
   type GatewayIngestResult,
 } from "@/lib/fittcore";
-import { createClient } from "@/lib/supabase/client";
+import { currentUser } from "@/lib/current-user";
 import { emitSystemLog } from "@/lib/team-chat-bus";
 import { toast } from "@/lib/toast";
 
@@ -88,9 +88,8 @@ export default function FittcoreExportModal({
       );
       // Post the hand-off to the team chat so everyone sees it was sent (who +
       // job) — this persisted message is the shared "sent to Code Runner" record.
-      const { data: { user } } = await createClient().auth.getUser();
-      const meta = user?.user_metadata ?? {};
-      const who = (meta.full_name ?? meta.name ?? user?.email ?? "สมาชิก") as string;
+      const user = await currentUser();
+      const who = user?.name ?? user?.email ?? "สมาชิก";
       emitSystemLog(
         project.id,
         `🚀 ${who} ส่ง build ไป Code Runner แล้ว (${FITTCORE_TAG}) — job ${ok.jobId} · ${ok.state}${ok.duplicate ? " · (ซ้ำ)" : ""}`

@@ -2,13 +2,14 @@
 
 import { useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { currentUser } from "@/lib/current-user";
 import { CHANGE_BADGE, CHANGELOG, latestVersion } from "@/lib/changelog";
 
 export default function ChangelogPage() {
   useEffect(() => {
     (async () => {
       const supabase = createClient();
-      const { data: { user } } = await supabase.auth.getUser();
+      const user = await currentUser();
       if (user) {
         await supabase
           .from("fittbuilder_profiles")

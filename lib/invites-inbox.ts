@@ -1,6 +1,7 @@
 "use client";
 
 import { createClient } from "@/lib/supabase/client";
+import { currentUser } from "@/lib/current-user";
 
 /** A pending invite addressed to the signed-in user (project or workspace). */
 export interface MyInvite {
@@ -36,7 +37,7 @@ export async function listMyInvites(): Promise<MyInvite[]> {
  */
 export async function acceptMyInvite(invite: MyInvite): Promise<void> {
   const supabase = createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await currentUser();
   if (!user?.email) throw new Error("ไม่พบผู้ใช้");
   const rpc = invite.kind === "org" ? "fittbuilder_accept_org_invites" : "fittbuilder_accept_invites";
   const { error } = await supabase.rpc(rpc, { uid: user.id, mail: user.email });

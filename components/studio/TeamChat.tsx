@@ -12,6 +12,7 @@ import {
   X,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { currentUser } from "@/lib/current-user";
 import { listOrgMembers } from "@/lib/org-members";
 import { listMembers } from "@/lib/sharing";
 import {
@@ -125,14 +126,11 @@ export default function TeamChat({ projectId }: { projectId: string }) {
     };
 
     (async () => {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
+      const user = await currentUser();
       if (user) {
-        const meta = user.user_metadata ?? {};
         meRef.current = {
           id: user.id,
-          name: (meta.full_name ?? meta.name ?? user.email ?? "ผู้ใช้") as string,
+          name: user.name ?? user.email ?? "ผู้ใช้",
         };
         if (!cancelled) {
           setMyId(user.id);

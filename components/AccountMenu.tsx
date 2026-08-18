@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "motion/react";
 import { BarChart3, Check, Dna, FileCode, Loader2, LogOut, ShieldCheck, Stethoscope, Users, X } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { currentUser, type CurrentUser } from "@/lib/current-user";
 import { firstOrg } from "@/lib/orgs";
 import { acceptMyInvite, listMyInvites, type MyInvite } from "@/lib/invites-inbox";
 import { openCreateWorkspace } from "@/lib/workspace-modal";
@@ -83,29 +84,38 @@ export default function AccountMenu() {
     const supabase = createClient();
     let cancelled = false;
 
-    function apply(user: { email?: string; user_metadata?: Record<string, unknown> } | null) {
+    function apply(user: CurrentUser | null) {
       if (cancelled) return;
       if (!user) {
         setAccount(null);
         return;
       }
-      const meta = user.user_metadata ?? {};
       setAccount({
         email: user.email ?? "",
-        name: (meta.full_name ?? meta.name ?? null) as string | null,
-        avatarUrl: (meta.avatar_url ?? meta.picture ?? null) as string | null,
+        name: user.name,
+        avatarUrl: user.avatar,
       });
     }
 
     // Initial read, then react to login/logout/token-refresh so the chip
     // appears or clears without a manual page refresh (e.g. signing in on
     // another tab while this page is already open).
-    void supabase.auth.getUser().then(({ data: { user } }) => apply(user));
+    void currentUser().then(apply);
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       // Only clear on a real sign-out; transient null sessions from other
       // events must not wipe a chip that getUser() already validated.
       if (event === "SIGNED_OUT") apply(null);
-      else if (session?.user) apply(session.user);
+      else if (session?.user) {
+        // onAuthStateChange hands back the raw Supabase user; reshape it the
+        // same way currentUser() does so the chip renders identically.
+        const meta = session.user.user_metadata ?? {};
+        apply({
+          id: session.user.id,
+          email: session.user.email ?? null,
+          name: ((meta.full_name ?? meta.name) as string | undefined) ?? null,
+          avatar: ((meta.avatar_url ?? meta.picture) as string | undefined) ?? null,
+        });
+      }
     });
 
     return () => {

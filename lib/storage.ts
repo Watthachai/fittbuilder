@@ -1,6 +1,7 @@
 "use client";
 
 import { createClient } from "@/lib/supabase/client";
+import { currentUserId } from "@/lib/current-user";
 import { projectToRow, rowToProject, type ProjectRow } from "@/lib/db/project-mapper";
 import type { PhaseId } from "./phases";
 import type { ChatMessage, ProjectFiles, ProjectRecord, ProjectSummary, RunnerSend, ShareRole } from "./types";
@@ -19,12 +20,11 @@ const HISTORY_LIMIT = 10; // US-004
 const SELECT = "id, owner_id, name, files, phase, approved_phases, history, messages, share_token, share_role, skill_id, org_id, runner_last, created_at, updated_at";
 
 
-async function uid(): Promise<string> {
-  const supabase = createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error("not authenticated");
-  return user.id;
-}
+// Reads the session this browser already holds instead of asking the auth
+// server. uid() runs before seven different database calls, so the old
+// getUser() here alone put an auth round-trip in front of most queries the app
+// makes — see lib/current-user.ts.
+const uid = currentUserId;
 
 export async function getProject(id: string): Promise<ProjectRecord | null> {
   const supabase = createClient();

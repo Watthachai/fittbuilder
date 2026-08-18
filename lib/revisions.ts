@@ -1,6 +1,7 @@
 "use client";
 
 import { createClient } from "@/lib/supabase/client";
+import { currentUser } from "@/lib/current-user";
 import { computeChanges } from "./files";
 import type { FileChange, ProjectFiles } from "./types";
 
@@ -97,7 +98,7 @@ export async function commitRevision({
       return sha;
     }
 
-    const { data: me } = await supabase.auth.getUser();
+    const me = await currentUser();
     await supabase.from("fittbuilder_project_revisions").insert({
       project_id: projectId,
       sha,
@@ -106,7 +107,7 @@ export async function commitRevision({
       kind,
       target_loc: targetLoc,
       files,
-      author_id: me.user?.id ?? null,
+      author_id: me?.id ?? null,
     });
     return sha;
   } catch (error) {

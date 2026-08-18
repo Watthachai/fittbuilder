@@ -1,6 +1,7 @@
 "use client";
 
 import { createClient } from "@/lib/supabase/client";
+import { currentUser } from "@/lib/current-user";
 import { rowToSkillTemplate, skillTemplateToInsertRow, type SkillTemplateRow } from "@/lib/skills/db-mapper";
 import type { SkillTemplate } from "@/lib/skills/types";
 import type { GeneratedSkill } from "@/lib/types";
@@ -28,7 +29,7 @@ export async function getOrgSkill(orgId: string): Promise<SkillTemplate | null> 
 /** Upsert the workspace's specialist (one per org in v1) from an AI result. */
 export async function saveOrgSkill(orgId: string, generated: GeneratedSkill): Promise<SkillTemplate> {
   const supabase = createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await currentUser();
   if (!user) throw new Error("ไม่พบผู้ใช้");
   // Preserve the original author on update — a regenerate/edit by another
   // member shouldn't overwrite who first created this org's specialist.

@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Crown, LogOut, Mail, Shield, Trash2, User, Users } from "lucide-react";
-import { createClient } from "@/lib/supabase/client";
+import { currentUser } from "@/lib/current-user";
 import {
   createOrgInvite,
   listOrgInvites,
@@ -43,8 +43,8 @@ export default function WorkspaceMembers({ orgId }: { orgId: string }) {
     let cancelled = false;
     (async () => {
       try {
-        const [{ data: { user } }, memberList, inviteList] = await Promise.all([
-          createClient().auth.getUser(),
+        const [user, memberList, inviteList] = await Promise.all([
+          currentUser(),
           listOrgMembers(orgId),
           listOrgInvites(orgId).catch(() => [] as OrgInvite[]), // admin-only → empty for members
         ]);

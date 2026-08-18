@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { motion, useMotionValue, useSpring } from "motion/react";
 import { createClient } from "@/lib/supabase/client";
+import { currentUser } from "@/lib/current-user";
 
 const TTL = 5000; // drop a cursor this long after its last move
 const THROTTLE = 40; // ms between broadcasts (~25/s)
@@ -52,9 +53,8 @@ export default function LiveCursors({ projectId }: { projectId: string }) {
     let lastSent = 0;
     let joined = false;
 
-    void supabase.auth.getUser().then(({ data: { user } }) => {
-      const meta = user?.user_metadata ?? {};
-      name = (meta.full_name ?? meta.name ?? user?.email ?? "ผู้ใช้") as string;
+    void currentUser().then((user) => {
+      name = user?.name ?? user?.email ?? "ผู้ใช้";
     });
 
     const channel = supabase.channel(`cursor:project:${projectId}`, {

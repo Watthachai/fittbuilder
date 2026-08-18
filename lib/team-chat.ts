@@ -1,6 +1,7 @@
 "use client";
 
 import { createClient } from "@/lib/supabase/client";
+import { currentUser } from "@/lib/current-user";
 import type {
   TeamChatAttachment,
   TeamChatMessage,
@@ -204,13 +205,10 @@ export async function sendMessage(
   replyTo?: TeamChatReplyRef | null
 ): Promise<TeamChatMessage> {
   const supabase = createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await currentUser();
   if (!user) throw new Error("not authenticated");
-  const meta = user.user_metadata ?? {};
-  const authorName = (meta.full_name ?? meta.name ?? user.email ?? "ผู้ใช้") as string;
-  const authorAvatar = (meta.avatar_url ?? meta.picture ?? null) as string | null;
+  const authorName = user.name ?? user.email ?? "ผู้ใช้";
+  const authorAvatar = user.avatar;
 
   // Strip the transient signed `url` before persisting — only the path is stored.
   const stored = attachments.map(({ path, name, type, size }) => ({ path, name, type, size }));
@@ -260,9 +258,7 @@ export async function toggleReaction(
   emoji: string
 ): Promise<{ op: "add" | "remove"; userId: string }> {
   const supabase = createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await currentUser();
   if (!user) throw new Error("not authenticated");
 
   const { data: existing } = await supabase

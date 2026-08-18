@@ -1,6 +1,7 @@
 "use client";
 
 import { createClient } from "@/lib/supabase/client";
+import { currentUser } from "@/lib/current-user";
 import type { ProjectInvite, ProjectMember, ShareRole } from "@/lib/types";
 
 function token(): string {
@@ -14,7 +15,7 @@ const SHARE_TTL_DAYS = 30;
  *  Returns an ISO timestamp for free (and unknown) plans, null for paid. */
 async function shareExpiryForCaller(): Promise<string | null> {
   const supabase = createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await currentUser();
   if (!user) return new Date(Date.now() + SHARE_TTL_DAYS * 86_400_000).toISOString();
   const { data: profile } = await supabase
     .from("fittbuilder_profiles")

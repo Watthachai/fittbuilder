@@ -57,8 +57,8 @@ export default function QuoteTerms({
       <section className="rounded-xl border border-night-edge p-3.5">
         <div className="flex flex-wrap items-center gap-2">
           <CalendarClock size={13} className="text-shine" />
-          <h3 className="font-display text-[12px] text-chalk">งวดชำระ</h3>
-          <span className="rounded-full bg-night px-2 py-0.5 font-mono text-[11px] text-chalk-dim">
+          <h3 className="font-display text-[14px] text-chalk">งวดชำระ</h3>
+          <span className="rounded-full bg-night px-2 py-0.5 font-mono text-[12.5px] text-chalk-dim">
             {plan.rows.length} งวด · รวม {plan.percentSum}%
           </span>
           {!readOnly && (
@@ -72,11 +72,11 @@ export default function QuoteTerms({
                   max={60}
                   value={splitCount}
                   onChange={(e) => setSplitCount(Number(e.target.value))}
-                  className="w-9 bg-transparent text-right font-mono text-[11px] text-chalk outline-none"
+                  className="w-9 bg-transparent text-right font-mono text-[12.5px] text-chalk outline-none"
                 />
                 <button
                   onClick={() => setPayment(presetEqual(splitCount))}
-                  className="font-display text-[11px] text-chalk-dim transition hover:text-shine"
+                  className="font-display text-[12.5px] text-chalk-dim transition hover:text-shine"
                 >
                   งวดเท่ากัน
                 </button>
@@ -86,7 +86,7 @@ export default function QuoteTerms({
         </div>
 
         <div className="mt-2 overflow-hidden rounded-lg border border-night-edge">
-          <table className="w-full text-[12px]">
+          <table className="w-full text-[14px]">
             <thead>
               <tr className="border-b border-night-edge bg-night/60 text-left text-chalk-dim">
                 <th className="w-8 px-2 py-1.5 text-right font-display font-medium">งวด</th>
@@ -100,7 +100,7 @@ export default function QuoteTerms({
             <tbody>
               {plan.rows.map((line, i) => (
                 <tr key={line.term.id} className="group border-b border-night-edge/60 last:border-0">
-                  <td className="px-2 py-1 text-right font-mono text-[11px] text-chalk-dim">
+                  <td className="px-2 py-1 text-right font-mono text-[12.5px] text-chalk-dim">
                     {i + 1}
                   </td>
                   <td className="px-2 py-1">
@@ -169,7 +169,7 @@ export default function QuoteTerms({
           number from the total agreed above it — and nobody would ever see it.
         */}
         {!plan.balanced && plan.rows.length > 0 && (
-          <p className="mt-2 flex items-start gap-1.5 rounded-lg border border-halt/40 bg-halt/10 px-2.5 py-1.5 text-[11px] leading-relaxed text-halt">
+          <p className="mt-2 flex items-start gap-1.5 rounded-lg border border-halt/40 bg-halt/10 px-2.5 py-1.5 text-[12.5px] leading-relaxed text-halt">
             <AlertTriangle size={12} className="mt-0.5 shrink-0" />
             <span>
               งวดชำระรวมได้ {plan.percentSum}% — ต้องเป็น 100% ตอนนี้ตารางงวดเก็บเงินรวม{" "}
@@ -181,7 +181,7 @@ export default function QuoteTerms({
         {!readOnly && (
           <button
             onClick={() => setPayment([...doc.payment, emptyTerm(doc.payment.length)])}
-            className="mt-2 inline-flex items-center gap-1.5 rounded-lg border border-night-edge px-2.5 py-1.5 font-display text-[12px] text-chalk-dim transition hover:border-shine/60 hover:text-chalk"
+            className="mt-2 inline-flex items-center gap-1.5 rounded-lg border border-night-edge px-2.5 py-1.5 font-display text-[14px] text-chalk-dim transition hover:border-shine/60 hover:text-chalk"
           >
             <Plus size={12} /> เพิ่มงวด
           </button>
@@ -233,7 +233,7 @@ export default function QuoteTerms({
               </Field>
             </div>
 
-            <label className="mt-2.5 flex cursor-pointer items-start gap-2 text-[11px] leading-relaxed text-chalk-dim">
+            <label className="mt-2.5 flex cursor-pointer items-start gap-2 text-[12.5px] leading-relaxed text-chalk-dim">
               <input
                 type="checkbox"
                 checked={doc.acceptance.deemedAccepted}
@@ -257,10 +257,10 @@ export default function QuoteTerms({
             {/* What will actually be printed — read-only on purpose. */}
             {clauses.length > 0 && (
               <div className="mt-3 rounded-lg border border-night-edge bg-night p-3">
-                <p className="font-display text-[10px] uppercase tracking-widest text-chalk-dim">
+                <p className="font-display text-[11.5px] uppercase tracking-widest text-chalk-dim">
                   ข้อความที่จะพิมพ์ในใบเสนอราคา
                 </p>
-                <ol className="mt-1.5 list-decimal space-y-1.5 pl-4 text-[11px] leading-relaxed text-chalk">
+                <ol className="mt-1.5 list-decimal space-y-1.5 pl-4 text-[12.5px] leading-relaxed text-chalk">
                   {clauses.map((c, i) => (
                     <li key={i}>{c}</li>
                   ))}
@@ -346,7 +346,7 @@ export default function QuoteTerms({
             </div>
 
             {ma.clamped && (
-              <p className="mt-2 flex items-start gap-1.5 rounded-lg border border-shine/40 bg-shine/[0.08] px-2.5 py-1.5 text-[11px] leading-relaxed text-chalk">
+              <p className="mt-2 flex items-start gap-1.5 rounded-lg border border-shine/40 bg-shine/[0.08] px-2.5 py-1.5 text-[12.5px] leading-relaxed text-chalk">
                 <Wrench size={12} className="mt-0.5 shrink-0 text-shine" />
                 ต่ำกว่าขั้นต่ำ — ใบเสนอราคาจะพิมพ์ที่ {baht(MA_MIN_MONTHLY)}/module/เดือน
               </p>
@@ -388,7 +388,7 @@ function Preset({ label, onClick }: { label: string; onClick: () => void }) {
   return (
     <button
       onClick={onClick}
-      className="rounded-lg border border-night-edge px-2 py-1 font-display text-[11px] text-chalk-dim transition hover:border-shine/60 hover:text-chalk"
+      className="rounded-lg border border-night-edge px-2 py-1 font-display text-[12.5px] text-chalk-dim transition hover:border-shine/60 hover:text-chalk"
     >
       {label}
     </button>
@@ -412,11 +412,11 @@ function MaStat({
         accent ? "border-shine/50 bg-shine/10" : "border-night-edge bg-night"
       }`}
     >
-      <p className="font-display text-[10px] uppercase tracking-widest text-chalk-dim">{label}</p>
+      <p className="font-display text-[11.5px] uppercase tracking-widest text-chalk-dim">{label}</p>
       <p className={`font-display text-[15px] font-semibold ${accent ? "text-shine" : "text-chalk"}`}>
         {value}
       </p>
-      <p className="font-mono text-[10px] text-chalk-dim">{sub}</p>
+      <p className="font-mono text-[11.5px] text-chalk-dim">{sub}</p>
     </div>
   );
 }

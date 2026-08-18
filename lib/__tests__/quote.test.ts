@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { readFileSync } from "node:fs";
 import {
   DEFAULT_ACCENT,
   DEFAULT_RATE,
@@ -501,5 +502,22 @@ describe("marketComparison", () => {
     const c = marketComparison(one)!;
     expect(c.market).toBe(2.5 * 12_000);
     expect(c.quoted).toBe(2.5 * 8_000);
+  });
+});
+
+/**
+ * Scope is typed as a numbered outline with blank lines between sections — that
+ * shape carries the meaning. HTML collapses every newline in it by default, so
+ * what was typed and what printed did not match (reported 18 Aug 2026 with a
+ * screenshot of an 11-system scope printing as one wall of text).
+ */
+describe("printed scope", () => {
+  it("preserves the line breaks that were typed", () => {
+    const css = readFileSync("app/globals.css", "utf8");
+    const note = css.slice(css.indexOf(".fitt-paper .q-note {"));
+    const block = note.slice(0, note.indexOf("}"));
+    expect(block).toContain("white-space: pre-wrap");
+  // `pre` would stop wrapping and run long pasted lines off the page.
+    expect(block).not.toMatch(/white-space:\s*pre;/);
   });
 });

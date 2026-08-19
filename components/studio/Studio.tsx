@@ -21,6 +21,7 @@ import { commitRevision, revisionFiles } from "@/lib/revisions";
 import { buildPremiumContext, premiumOptionsFor } from "@/lib/skills/premium";
 import { getSkill } from "@/lib/skills/registry";
 import { screenIndexEntries } from "@/lib/screen-index";
+import { undocumentedScreens } from "@/lib/doc-drift";
 import PremiumPicker from "@/components/studio/PremiumPicker";
 import DraftRecovery from "@/components/studio/DraftRecovery";
 import type { PremiumOption } from "@/lib/skills/types";
@@ -2507,6 +2508,7 @@ export default function Studio({ projectId }: { projectId: string }) {
         onGenerateDoc={generatePhaseDoc}
         onRework={rebuildFromDocs}
         onSyncDocs={syncDocsFromProject}
+        undocumented={undocumentedScreens(project.files)}
       />
 
       <div className="flex min-h-0 flex-1">

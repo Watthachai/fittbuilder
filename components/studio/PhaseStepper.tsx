@@ -42,6 +42,8 @@ interface PhaseStepperProps {
   onRework: () => void;
   /** Rewrite BRD/PRD to describe what the demo actually contains now. */
   onSyncDocs: () => void;
+  /** Screens the brief has never heard of — the reason to press that button. */
+  undocumented: string[];
   /** Which sellable version is being edited (omit to hide the switch). */
   version?: VersionKey;
   /** Switch the studio to the other version. */
@@ -60,6 +62,7 @@ export default function PhaseStepper({
   onGenerateDoc,
   onRework,
   onSyncDocs,
+  undocumented,
   version,
   onVersionChange,
   switching = false,
@@ -162,10 +165,25 @@ export default function PhaseStepper({
         <button
           onClick={onSyncDocs}
           disabled={busy}
-          title="ให้ AI อ่านเว็บที่สร้างไว้จริง แล้วเขียน BRD/PRD ให้ตรงกับของที่มีอยู่ (เอกสารเท่านั้น ไม่แตะโค้ด)"
-          className="inline-flex shrink-0 items-center gap-1.5 rounded-sm border border-night-edge px-2.5 py-1.5 font-display text-xs font-medium text-chalk-dim transition hover:border-shine/60 hover:text-chalk disabled:cursor-not-allowed disabled:opacity-40"
+          title={
+            undocumented.length
+              ? `เอกสารยังไม่พูดถึง ${undocumented.length} หน้าจอที่สร้างไปแล้ว: ${undocumented.join(", ")}`
+              : "ให้ AI อ่านเว็บที่สร้างไว้จริง แล้วเขียน BRD/PRD ให้ตรงกับของที่มีอยู่ (เอกสารเท่านั้น ไม่แตะโค้ด)"
+          }
+          className={`inline-flex shrink-0 items-center gap-1.5 rounded-sm border px-2.5 py-1.5 font-display text-xs font-medium transition disabled:cursor-not-allowed disabled:opacity-40 ${
+            undocumented.length
+              ? "border-go/60 text-go hover:bg-go/10"
+              : "border-night-edge text-chalk-dim hover:border-shine/60 hover:text-chalk"
+          }`}
         >
           <FileText size={12} /> อัปเดตเอกสารจากของจริง
+          {/* The count IS the reason to press it — a bare "update?" tag makes
+              the user go and look for what changed. */}
+          {undocumented.length > 0 && (
+            <span className="rounded-full bg-go/20 px-1.5 font-mono text-[10px] tabular-nums">
+              {undocumented.length}
+            </span>
+          )}
         </button>
       )}
 

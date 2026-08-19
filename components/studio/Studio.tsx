@@ -1282,6 +1282,44 @@ export default function Studio({ projectId }: { projectId: string }) {
     [busy, readOnly, persist, runAgent]
   );
 
+  /**
+   * Rewrite BRD/PRD to describe the demo that actually exists.
+   *
+   * The docs are written at Define/Plan time and then the build moves on —
+   * pages get added, a tier gets built, menus grow — while the brief keeps
+   * describing the thing that was originally asked for. Everything downstream
+   * reads those docs (the Code Runner hand-off, the quotation's scope, the
+   * premium analysis), so a stale brief quietly becomes a wrong deliverable.
+   *
+   * Goes through reviseDoc, which is the path that already exists for changing a
+   * doc: the phase agent writes docs/ only and chains BRD → PRD. Nothing here
+   * can touch application code, which is the whole point — this is the direction
+   * OPPOSITE to "สร้างใหม่จากเอกสาร".
+   */
+  const syncDocsFromProject = useCallback(() => {
+    const current = projectRef.current;
+    if (!current || busy || readOnly) return;
+    const files = current.files ?? {};
+    const screens = screenIndexEntries(files);
+    const pages = Object.keys(files).filter((p) => /^src\/pages\//.test(p));
+    const deps = Object.keys(extraDepsOf(files["package.json"]));
+    void reviseDoc(
+      "define",
+      [
+        "อ่านเว็บที่สร้างไว้จริงตอนนี้ แล้วปรับ BRD/PRD ให้ตรงกับของที่มีอยู่ —",
+        "เพิ่มสิ่งที่ทำไปแล้วแต่เอกสารยังไม่มี และตัดสิ่งที่เอกสารพูดถึงแต่ไม่ได้ทำ",
+        "",
+        screens.length ? `หน้าจอในระบบ: ${screens.map((e) => e.name).join(", ")}` : "",
+        pages.length ? `ไฟล์หน้า: ${pages.join(", ")}` : "",
+        deps.length ? `ไลบรารีที่ติดตั้งเพิ่ม: ${deps.join(", ")}` : "",
+        "",
+        "คงโครงและหัวข้อเดิมของเอกสารไว้ แก้เฉพาะเนื้อหาที่ไม่ตรงกับความจริง",
+      ]
+        .filter(Boolean)
+        .join("\n")
+    );
+  }, [busy, readOnly, reviseDoc]);
+
   const cancel = useCallback(() => {
     abortRef.current?.abort();
   }, []);
@@ -2468,6 +2506,7 @@ export default function Studio({ projectId }: { projectId: string }) {
         onStep={handleStepClick}
         onGenerateDoc={generatePhaseDoc}
         onRework={rebuildFromDocs}
+        onSyncDocs={syncDocsFromProject}
       />
 
       <div className="flex min-h-0 flex-1">

@@ -40,6 +40,8 @@ interface PhaseStepperProps {
   /** Force the current review phase's agent to emit its report doc. */
   onGenerateDoc: () => void;
   onRework: () => void;
+  /** Rewrite BRD/PRD to describe what the demo actually contains now. */
+  onSyncDocs: () => void;
   /** Which sellable version is being edited (omit to hide the switch). */
   version?: VersionKey;
   /** Switch the studio to the other version. */
@@ -57,6 +59,7 @@ export default function PhaseStepper({
   onStep,
   onGenerateDoc,
   onRework,
+  onSyncDocs,
   version,
   onVersionChange,
   switching = false,
@@ -154,6 +157,17 @@ export default function PhaseStepper({
         </div>
       )}
       <div className="hidden flex-1 sm:block" />
+
+      {canRework && (
+        <button
+          onClick={onSyncDocs}
+          disabled={busy}
+          title="ให้ AI อ่านเว็บที่สร้างไว้จริง แล้วเขียน BRD/PRD ให้ตรงกับของที่มีอยู่ (เอกสารเท่านั้น ไม่แตะโค้ด)"
+          className="inline-flex shrink-0 items-center gap-1.5 rounded-sm border border-night-edge px-2.5 py-1.5 font-display text-xs font-medium text-chalk-dim transition hover:border-shine/60 hover:text-chalk disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          <FileText size={12} /> อัปเดตเอกสารจากของจริง
+        </button>
+      )}
 
       {canRework && (
         <button

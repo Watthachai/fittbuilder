@@ -2218,6 +2218,17 @@ export default function Studio({ projectId }: { projectId: string }) {
    */
   const changeVersion = async (next: VersionKey) => {
     if (!project || readOnly || switchingVersion || next === activeVersion) return;
+    // A turn in flight holds its files in a closure and persists them when it
+    // ends — it has no idea `projects.files` changed meaning underneath. Switch
+    // mid-turn and the result lands on the WRONG version: a Premium build wrote
+    // its 3D straight into the base this way. The turn cannot be made aware of
+    // the switch, so the switch waits for the turn.
+    if (busy || chatStreaming) {
+      toast.info("รอรอบนี้เสร็จก่อนนะครับ", {
+        description: "สลับเวอร์ชันระหว่างที่ AI กำลังเขียนอยู่ จะทำให้ผลลัพธ์ไปลงผิดเวอร์ชัน",
+      });
+      return;
+    }
     setSwitchingVersion(true);
     try {
       // Seeded = the version being LEFT had nothing parked before this switch,
@@ -2233,7 +2244,12 @@ export default function Studio({ projectId }: { projectId: string }) {
         next,
         project.files ?? {}
       );
-      setProject({ ...project, files, updatedAt: new Date().toISOString() });
+      // projectRef too, not just state: generate() reads the ref for its starting
+      // files, and the merge below runs immediately after this. Leaving the ref
+      // stale made that turn start from the version we just left.
+      const switched = { ...project, files, updatedAt: new Date().toISOString() };
+      projectRef.current = switched;
+      setProject(switched);
       setActiveVersion(next);
 
       // Premium replaces these files, and the base versions of them have changed

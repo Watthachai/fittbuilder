@@ -77,3 +77,31 @@ describe("premium as an overlay", () => {
     expect(versions).toContain("shadowed");
   });
 });
+
+describe("a switch must not move files onto the wrong version", () => {
+  /**
+   * Two ways the switch could put files on the wrong version, both found by a
+   * user watching 3D appear on the base:
+   *
+   * 1. generate() reads projectRef for its starting files. Updating only React
+   *    state left the ref pointing at the version just left, so the merge turn
+   *    fired right after a switch started from the wrong files.
+   * 2. A turn in flight holds its files in a closure and persists them at the
+   *    end, with no idea `projects.files` changed meaning underneath. The turn
+   *    cannot be told, so the switch has to wait.
+   */
+  it("updates the ref generate() reads, not only React state", () => {
+    const studioSrc = readFileSync("components/studio/Studio.tsx", "utf8");
+    const fn = studioSrc.slice(
+      studioSrc.indexOf("const changeVersion = async"),
+      studioSrc.indexOf("const changeVersion = async") + 3000
+    );
+    expect(fn).toContain("projectRef.current = switched");
+  });
+
+  it("refuses to switch while a turn is still writing", () => {
+    const studioSrc = readFileSync("components/studio/Studio.tsx", "utf8");
+    const fn = studioSrc.slice(studioSrc.indexOf("const changeVersion = async"));
+    expect(fn.slice(0, 800)).toMatch(/if \(busy \|\| chatStreaming\)/);
+  });
+});

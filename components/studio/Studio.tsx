@@ -1459,7 +1459,18 @@ export default function Studio({ projectId }: { projectId: string }) {
       // version history. Without them a build that landed in the background was
       // invisible — no bubble saying it happened, and nothing to roll back to.
       const reply = newMessage("assistant", note, current.phase);
-      if (changes.length) reply.changes = changes;
+      if (changes.length) {
+        reply.changes = changes;
+        // Rebuild the action history from what actually changed. This page never
+        // saw the stream — the turn ran on the server — so the live chips do not
+        // exist here, and a bubble with no record of what the AI touched is a
+        // turn the user cannot audit after a refresh. Derived from the diff, so
+        // it states what happened rather than guessing at it.
+        reply.actions = [
+          { icon: "thought", label: "ทำต่อจนจบบนเซิร์ฟเวอร์ ระหว่างที่ปิดหน้าจอ" },
+          ...changes.map((c) => ({ icon: "file", label: c.path })),
+        ];
+      }
       // withHistory so Undo covers this — work arriving on its own must not be
       // a one-way door.
       const saved = persist(appendMessage(withHistory(current, files), reply));

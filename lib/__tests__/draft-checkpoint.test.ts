@@ -179,6 +179,10 @@ describe("generation checkpoints", () => {
       expect(body).toContain("commitRevision");
       expect(body).toContain("appendMessage");
       expect(body).toContain("computeChanges");
+      // Including the action chips. This page never saw the stream, so they are
+      // rebuilt from the diff — a bubble with no record of what the AI touched
+      // is a turn nobody can audit after a refresh.
+      expect(body).toContain("reply.actions");
     });
 
     it("shows progress for a turn running somewhere else", () => {

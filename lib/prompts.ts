@@ -38,7 +38,17 @@ ${skill.domainKnowledge}
 ${skill.buildGuidance}
 
 ข้อมูลตัวอย่างที่ต้องฝังลงใน demo (ใช้ค่าพวกนี้จริง อย่าใส่ข้อมูลว่างเปล่า/Lorem ipsum):
-${skill.seedData}`;
+${skill.seedData}${
+    // Authored on every template, editable in the admin form, stored in the
+    // database — and until now never sent anywhere. ERP and Executive Copilot
+    // both carry a visual direction that the model has never once seen.
+    skill.designHints
+      ? `
+
+แนวทางดีไซน์ของโดเมนนี้ (เป็นทิศทาง ไม่ใช่ข้อบังคับ — กฎ DESIGN QUALITY ข้างบนยังใช้เต็มที่ รวมถึงจังหวะการปรากฏและระยะห่างที่ต้องตัดสินใจ):
+${skill.designHints}`
+      : ""
+  }`;
 }
 
 /**

@@ -1,4 +1,5 @@
-import { expect, test } from "vitest";
+import { describe, expect, it, test } from "vitest";
+import { readFileSync } from "node:fs";
 import { SKILLS, SKILL_IDS, getSkill, detectSkillByKeywords } from "@/lib/skills/registry";
 
 test("registry lists the flagship first, then the v1 domains", () => {
@@ -52,4 +53,24 @@ test("detectSkillByKeywords picks the right domain", () => {
   expect(detectSkillByKeywords("ร้านค้าออนไลน์ ตะกร้า checkout").skillId).toBe("ecommerce");
   // no keyword → score 0 (caller treats as "no clear match")
   expect(detectSkillByKeywords("xyz").score).toBe(0);
+});
+
+/**
+ * designHints was authored on templates, editable in the admin form and stored
+ * in the database — and never sent anywhere. ERP and Executive Copilot both
+ * carried a visual direction the model had never seen.
+ */
+describe("design hints reach the build", () => {
+  it("are included when a template has them", () => {
+    const prompts = readFileSync("lib/prompts.ts", "utf8");
+    const build = prompts.slice(prompts.indexOf("function renderSkillForBuild"));
+    expect(build.slice(0, 1200)).toContain("skill.designHints");
+  });
+
+  it("are a direction, not an override of the craft rules", () => {
+    // A domain's palette must not be read as permission to skip the entrance
+    // timeline or the spacing discipline.
+    const prompts = readFileSync("lib/prompts.ts", "utf8");
+    expect(prompts).toContain("เป็นทิศทาง ไม่ใช่ข้อบังคับ");
+  });
 });

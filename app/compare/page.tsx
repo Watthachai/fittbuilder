@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import CompareShell from "@/components/compare/CompareShell";
 
-export const metadata = { title: "เทียบเดโม" };
+export const metadata = { title: "เทียบโปรเจกต์" };
 
 /**
  * Side-by-side demo comparison, one tab per project.

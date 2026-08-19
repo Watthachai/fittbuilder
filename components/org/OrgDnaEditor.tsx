@@ -323,7 +323,7 @@ export default function OrgDnaEditor({ orgId }: { orgId: string }) {
         <DomainSkillStudio orgId={orgId} />
 
         <p className="mt-5 text-sm leading-relaxed text-chalk-dim">
-          ใส่ DNA ขององค์กรเพื่อให้ AI ออกแบบ spec/demo ให้เข้ากับวิธีทำงานจริงของคุณ —
+          ใส่ DNA ขององค์กรเพื่อให้ AI ออกแบบ spec และระบบ ให้เข้ากับวิธีทำงานจริงของคุณ —
           ทุกช่องไม่บังคับ ใส่เท่าที่มี
         </p>
 

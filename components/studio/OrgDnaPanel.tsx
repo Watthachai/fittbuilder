@@ -14,7 +14,7 @@ import type { OrgRecord } from "@/lib/types";
 
 /**
  * In-studio view of the project's workspace Org DNA — what the AI references when
- * it designs the spec/demo, plus where each piece came from (NotebookLM-style
+ * it designs the spec และระบบ, plus where each piece came from (NotebookLM-style
  * citations into the raw source). Owners can attach/switch the workspace right
  * here, so a "ส่วนตัว" demo can start using Org DNA without leaving the studio.
  */
@@ -101,8 +101,8 @@ export default function OrgDnaPanel({
             <div className="flex flex-col gap-3">
               <p className="text-[13px] leading-relaxed text-chalk-dim">
                 {org
-                  ? "เลือก workspace อื่นให้เดโมนี้ — AI จะอ้างอิง Org DNA ของ workspace ที่เลือก"
-                  : "เดโมนี้ยังไม่ได้ผูกกับ workspace ไหน — ผูกเพื่อให้ AI ออกแบบ spec/demo ตาม Org DNA ขององค์กรคุณ"}
+                  ? "เลือก workspace อื่นให้โปรเจกต์นี้ — AI จะอ้างอิง Org DNA ของ workspace ที่เลือก"
+                  : "โปรเจกต์นี้ยังไม่ได้ผูกกับ workspace ไหน — ผูกเพื่อให้ AI ออกแบบ spec และระบบ ตาม Org DNA ขององค์กรคุณ"}
               </p>
               {!canAttach ? (
                 <p className="rounded-lg border border-night-edge bg-night px-3 py-2.5 text-[13px] text-chalk-dim">
@@ -206,7 +206,7 @@ export default function OrgDnaPanel({
 
               <p className="flex items-start gap-1.5 rounded-lg border border-night-edge bg-shine/[0.05] px-3 py-2 text-[12px] leading-relaxed text-chalk-dim">
                 <Sparkles size={13} className="mt-0.5 shrink-0 text-shine" />
-                AI ใช้ข้อมูลนี้เป็นบริบทตอนสัมภาษณ์และสร้าง spec/demo — เมื่อใช้ฐานรากไหน จะมีชิป “อ้างอิง Org DNA” ใต้คำตอบในแชท คลิกดูข้อความต้นฉบับได้
+                AI ใช้ข้อมูลนี้เป็นบริบทตอนสัมภาษณ์และสร้าง spec และระบบ — เมื่อใช้ฐานรากไหน จะมีชิป “อ้างอิง Org DNA” ใต้คำตอบในแชท คลิกดูข้อความต้นฉบับได้
               </p>
 
               {!hasAny ? (

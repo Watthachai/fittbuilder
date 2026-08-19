@@ -636,7 +636,7 @@ const SHOT_SCRIPT = `(function () {
     if (screens.length === 0) {
       send({
         __fittWalkStep: true, step: 0, total: 0, ok: false, name: "ดัชนีหน้าจอ",
-        error: "เดโมนี้ยังไม่มีดัชนีหน้าจอ — กด “เพิ่มดัชนีหน้าจอ” ให้ AI ใส่ให้ก่อน"
+        error: "ระบบนี้ยังไม่มีดัชนีหน้าจอ — กด “เพิ่มดัชนีหน้าจอ” ให้ AI ใส่ให้ก่อน"
       });
       send({ __fittWalkDone: true });
       return;
@@ -820,7 +820,7 @@ const SHOT_SCRIPT = `(function () {
       send({
         __fittWalkStep: true, step: 0, total: total, ok: false,
         name: "เข้าหน้าจอหลักไม่ได้",
-        error: "เดโมยังติดหน้ากั้นอยู่ — เข้าไปเองในพรีวิวแล้วใช้ปุ่ม “แคปหน้านี้” ทีละหน้าได้ครับ"
+        error: "ระบบยังติดหน้ากั้นอยู่ — เข้าไปเองในพรีวิวแล้วใช้ปุ่ม “แคปหน้านี้” ทีละหน้าได้ครับ"
       });
       send({ __fittWalkDone: true });
       return;

@@ -138,7 +138,7 @@ export default function DomainSkillStudio({ orgId }: { orgId: string }) {
   async function remove() {
     const ok = await confirm({
       title: "ลบผู้เชี่ยวชาญนี้?",
-      message: "เดโมใน workspace จะกลับไปใช้การเดาโดเมนอัตโนมัติ",
+      message: "โปรเจกต์ใน workspace จะกลับไปใช้การเดาโดเมนอัตโนมัติ",
       confirmLabel: "ลบ",
       danger: true,
     });
@@ -165,7 +165,7 @@ export default function DomainSkillStudio({ orgId }: { orgId: string }) {
       </div>
       <p className="mt-1 text-[13px] text-chalk-dim">
         ให้ AI สร้าง “ผู้เชี่ยวชาญ” ประจำ workspace จาก Org DNA ที่กรอกไว้ —
-        เพื่อให้การถาม-ตอบและการสร้างเดโมเข้าใจโดเมนของคุณโดยเฉพาะ (ใส่บรีฟด้านล่างเพื่อเจาะจงเพิ่มได้)
+        เพื่อให้การถาม-ตอบและการสร้างระบบเข้าใจโดเมนของคุณโดยเฉพาะ (ใส่บรีฟด้านล่างเพื่อเจาะจงเพิ่มได้)
       </p>
 
       {/* Active specialist */}

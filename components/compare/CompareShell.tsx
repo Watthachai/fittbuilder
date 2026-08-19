@@ -122,7 +122,7 @@ export default function CompareShell() {
     } catch (e) {
       if (mine !== switchRef.current) return;
       setStatus("error");
-      setError(e instanceof Error ? e.message : "เปิดเดโมไม่สำเร็จ");
+      setError(e instanceof Error ? e.message : "เปิดโปรเจกต์ไม่สำเร็จ");
     }
   }, []);
 
@@ -218,7 +218,7 @@ export default function CompareShell() {
             onClick={() => setPicking((v) => !v)}
             className="inline-flex items-center gap-1.5 rounded-xl border border-dashed border-night-edge px-3 py-1.5 font-display text-[13px] text-chalk-dim transition hover:border-shine/60 hover:text-chalk"
           >
-            <Plus size={13} /> เพิ่มเดโม
+            <Plus size={13} /> เพิ่มระบบ
           </button>
         )}
 
@@ -232,7 +232,7 @@ export default function CompareShell() {
             <>
               <button
                 onClick={() => void show(activeId)}
-                title="โหลดเดโมนี้ใหม่"
+                title="โหลดโปรเจกต์นี้ใหม่"
                 className="rounded-lg border border-night-edge p-1.5 text-chalk-dim transition hover:border-shine/60 hover:text-chalk"
               >
                 <RefreshCw size={13} />
@@ -291,16 +291,16 @@ export default function CompareShell() {
           <iframe
             key={loadNonce}
             src={url}
-            title="เดโม"
+            title="ระบบ"
             className="h-full w-full border-0 bg-white"
             allow="cross-origin-isolated; clipboard-write"
           />
         ) : (
           <div className="flex h-full flex-col items-center justify-center gap-3 text-chalk-dim">
             <Loader2 size={22} className="animate-spin text-shine" />
-            <p className="text-sm">กำลังเปิดเดโม…</p>
+            <p className="text-sm">กำลังเปิดโปรเจกต์…</p>
             <p className="max-w-md text-center text-[12px] leading-relaxed text-chalk-dim/70">
-              เดโมที่ใช้ไลบรารีชุดเดียวกันจะข้ามการติดตั้งใหม่ — สลับครั้งต่อไปจะเร็วกว่านี้มาก
+              ระบบที่ใช้ไลบรารีชุดเดียวกันจะข้ามการติดตั้งใหม่ — สลับครั้งต่อไปจะเร็วกว่านี้มาก
             </p>
           </div>
         )}
@@ -319,7 +319,7 @@ function Frame({ children }: { children: React.ReactNode }) {
         >
           <ArrowLeft size={13} /> หน้าแรก
         </Link>
-        <h1 className="font-display text-[15px] font-semibold">เทียบเดโม</h1>
+        <h1 className="font-display text-[15px] font-semibold">เทียบโปรเจกต์</h1>
         <span className="hidden font-mono text-[11px] text-chalk-dim sm:inline">
           เปิดทีละตัวในเครื่องเดียวกัน — สลับแท็บเพื่อให้ลูกค้าเห็นความต่าง
         </span>
@@ -333,9 +333,9 @@ function Empty() {
   return (
     <div className="flex h-full flex-col items-center justify-center gap-3 px-8 text-center">
       <MonitorSmartphone size={30} className="text-chalk-dim/50" />
-      <p className="font-display text-[15px] text-chalk">เลือกเดโมมาเทียบกัน</p>
+      <p className="font-display text-[15px] text-chalk">เลือกโปรเจกต์มาเทียบกัน</p>
       <p className="max-w-md text-[13px] leading-relaxed text-chalk-dim">
-        กด “เพิ่มเดโม” แล้วเลือกได้สูงสุด {MAX_TABS} โปรเจกต์ · เหมาะกับการโชว์ลูกค้าว่าแบบธรรมดากับ
+        กด “เพิ่มระบบ” แล้วเลือกได้สูงสุด {MAX_TABS} โปรเจกต์ · เหมาะกับการโชว์ลูกค้าว่าแบบธรรมดากับ
         Premium ต่างกันตรงไหน
       </p>
     </div>

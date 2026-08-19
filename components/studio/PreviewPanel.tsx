@@ -266,7 +266,7 @@ export default function PreviewPanel({
           <button
             onClick={onToggleWand}
             disabled={!url || phase !== "ready"}
-            title="Wand — ชี้ element ในเดโมแล้วแก้ตรงจุด"
+            title="Wand — ชี้ element ในระบบแล้วแก้ตรงจุด"
             className={`wand-btn flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 font-display text-[11px] font-semibold transition disabled:opacity-40 ${
               wandOn ? "wand-btn-on" : ""
             }`}
@@ -309,7 +309,7 @@ export default function PreviewPanel({
         <div className="flex shrink-0 items-center gap-2.5 border-b border-shine/30 bg-shine/10 px-3 py-2">
           <Wand2 size={13} className="shrink-0 text-shine" />
           <span className="min-w-0 flex-1 text-[11px] leading-relaxed text-chalk">
-            โหมด Wand — เลื่อนเมาส์บนเดโมแล้ว<b className="text-shine">คลิก element</b>ที่อยากแก้
+            โหมด Wand — เลื่อนเมาส์บนระบบแล้ว<b className="text-shine">คลิก element</b>ที่อยากแก้
           </span>
           <button
             onClick={onWandExit}

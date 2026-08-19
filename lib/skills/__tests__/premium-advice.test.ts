@@ -18,7 +18,7 @@ describe("premium advice", () => {
     const raw = JSON.stringify({
       summary: "s",
       picks: [
-        { id: offered[0].id, recommend: true, reason: "เหมาะกับเดโมนี้" },
+        { id: offered[0].id, recommend: true, reason: "เหมาะกับระบบนี้" },
         { id: "ฟีเจอร์ที่โมเดลคิดขึ้นเอง", recommend: true, reason: "..." },
       ],
     });
@@ -31,7 +31,7 @@ describe("premium advice", () => {
     // you, and the half that stops someone selling a promise the demo cannot keep.
     const raw = JSON.stringify({
       summary: "s",
-      picks: [{ id: offered[1].id, recommend: false, reason: "เดโมนี้ยังไม่มีข้อมูลนั้น" }],
+      picks: [{ id: offered[1].id, recommend: false, reason: "ระบบนี้ยังไม่มีข้อมูลนั้น" }],
     });
     const advice = parsePremiumAdvice(raw, offered);
     expect(advice?.picks[0]).toMatchObject({ recommend: false });

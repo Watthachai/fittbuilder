@@ -28,7 +28,6 @@ import { useOrgSkillName } from "@/lib/skills/use-org-skill";
 import FittcoreExportModal from "./FittcoreExportModal";
 import type { VersionKey } from "@/lib/versions";
 import ProjectPresence from "./ProjectPresence";
-import QuotaChip from "./QuotaChip";
 import TeamChat from "./TeamChat";
 
 interface TopBarProps {
@@ -177,7 +176,6 @@ export default function TopBar({
       </button>
       <ProjectPresence projectId={project.id} />
       <TeamChat projectId={project.id} />
-      <QuotaChip refreshKey={project.messages.length} />
       {project.runnerLast && (
         <span
           title={`ส่งไป Code Runner แล้ว${project.runnerLast.buildNo != null ? ` · build #${project.runnerLast.buildNo}` : ""}${project.runnerLast.jobId ? ` · job ${project.runnerLast.jobId}` : ""}${project.runnerLast.state ? ` · ${project.runnerLast.state}` : ""} · ${project.runnerLast.tag} · ${new Date(project.runnerLast.sentAt).toLocaleString("th-TH")}`}
@@ -190,7 +188,7 @@ export default function TopBar({
       )}
       {specialist && (
         <span
-          title={`เดโมใน workspace นี้ขับเคลื่อนโดยผู้เชี่ยวชาญ "${specialist}"`}
+          title={`โปรเจกต์ใน workspace นี้ขับเคลื่อนโดยผู้เชี่ยวชาญ "${specialist}"`}
           className="grid size-[26px] shrink-0 place-items-center rounded-full border border-shine/40 bg-shine/10 text-shine"
           aria-label={`ขับเคลื่อนโดยผู้เชี่ยวชาญ ${specialist}`}
         >

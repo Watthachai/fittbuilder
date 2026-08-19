@@ -106,7 +106,7 @@ export default function PremiumPicker({
             ) : (
               <Wand2 className="h-3.5 w-3.5" />
             )}
-            {asking ? "กำลังอ่านเอกสารของเดโมนี้…" : "ให้ AI ดูเดโมนี้แล้วแนะนำ"}
+            {asking ? "กำลังอ่านเอกสารของโปรเจกต์นี้…" : "ให้ AI ดูโปรเจกต์นี้แล้วแนะนำ"}
           </button>
           {advice?.summary && (
             <p className="mt-3 rounded-lg border border-shine/25 bg-shine/5 px-3 py-2 text-sm leading-relaxed text-chalk">

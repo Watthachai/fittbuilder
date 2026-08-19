@@ -105,64 +105,15 @@ export async function recordUsage(params: {
   }
 }
 
-/** Free-plan allowance: generations (kind='generate') per calendar month. */
-export const FREE_MONTHLY_GENERATIONS = 5;
-
 /**
- * Master switch for the free-plan generation cap. OFF while the app is internal-
- * only (not open to external users) — everyone is unlimited (gate open) and the
- * quota chip auto-hides (limit=null). Flip to true to re-enable metering.
+ * There is no generation cap.
+ *
+ * There was one — five per month on the free plan, behind a master switch that
+ * was already off — and the cost of keeping the machinery around was a chip in
+ * the toolbar counting to a limit nobody was enforcing, plus a route and a
+ * check on the hot path that always answered yes. Metering an allowance nobody
+ * is charged for teaches users to ration something that is not scarce.
+ *
+ * recordUsage still writes every call to the ledger: what it costs is worth
+ * knowing (the admin report reads it). What is gone is the gate.
  */
-const QUOTA_ENABLED = false;
-
-export interface GenerationQuota {
-  plan: string;
-  used: number;
-  /** null = unlimited (paid plans / unauthenticated). */
-  limit: number | null;
-  remaining: number | null;
-  allowed: boolean;
-}
-
-/** ISO timestamp for 00:00 UTC on the 1st of the current month. */
-function startOfMonthIso(): string {
-  const now = new Date();
-  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)).toISOString();
-}
-
-/**
- * The caller's generation allowance for THIS month. Free plan is capped at
- * {@link FREE_MONTHLY_GENERATIONS} kind='generate' calls; any other plan (or an
- * unauthenticated caller, which the per-IP rate limit already covers) is
- * unlimited. Counts the ledger via the service role (ai_usage is RLS deny-all).
- * Never throws — on any read failure it fails OPEN (allowed) so metering can't
- * take generation down.
- */
-export async function checkGenerationQuota(userId: string | null): Promise<GenerationQuota> {
-  if (!userId) return { plan: "anon", used: 0, limit: null, remaining: null, allowed: true };
-  try {
-    const admin = createAdminClient();
-    const { data: profile } = await admin
-      .from("fittbuilder_profiles")
-      .select("plan")
-      .eq("id", userId)
-      .maybeSingle();
-    const plan = profile?.plan ?? "free";
-    // Cap disabled (or a paid plan) → unlimited: gate open + chip hidden.
-    if (!QUOTA_ENABLED || plan !== "free")
-      return { plan, used: 0, limit: null, remaining: null, allowed: true };
-
-    const { count } = await admin
-      .from("fittbuilder_ai_usage")
-      .select("id", { count: "exact", head: true })
-      .eq("user_id", userId)
-      .eq("kind", "generate")
-      .gte("created_at", startOfMonthIso());
-    const used = count ?? 0;
-    const limit = FREE_MONTHLY_GENERATIONS;
-    return { plan, used, limit, remaining: Math.max(0, limit - used), allowed: used < limit };
-  } catch (e) {
-    console.error("[ai-usage] quota check failed (failing open):", e);
-    return { plan: "unknown", used: 0, limit: null, remaining: null, allowed: true };
-  }
-}

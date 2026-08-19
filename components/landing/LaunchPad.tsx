@@ -260,7 +260,7 @@ export default function LaunchPad({
                   <MenuItem
                     icon={<FileText size={16} className="text-shine" />}
                     title="มีเอกสารแล้ว"
-                    desc="วาง BRD/PRD → ตอบคำถามสั้นๆ → demo"
+                    desc="วาง BRD/PRD → ตอบคำถามสั้นๆ → ระบบที่รันได้"
                     onClick={() => {
                       setPlusOpen(false);
                       void launchSpec();

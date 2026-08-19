@@ -1019,7 +1019,7 @@ export default function Studio({ projectId }: { projectId: string }) {
       // turn itself, so the demo uses the REAL columns/sample rows — not just
       // whatever the BRD summarized.
       const dataHint = attachments?.length
-        ? " ผู้ใช้แนบไฟล์ข้อมูลจริงมาด้วย — ใช้โครงสร้างคอลัมน์จริงทั้งหมดและข้อมูลตัวอย่างจริงจากไฟล์ในตาราง/กราฟของ demo"
+        ? " ผู้ใช้แนบไฟล์ข้อมูลจริงมาด้วย — ใช้โครงสร้างคอลัมน์จริงทั้งหมดและข้อมูลตัวอย่างจริงจากไฟล์ในตาราง/กราฟของระบบ"
         : "";
       void generate(
         `สร้าง web demo ตามเอกสาร BRD/PRD ที่แนบมา ให้ครบทุกหน้าจอและตรง design direction ที่ระบุ${dataHint}`,

@@ -24,7 +24,7 @@ export default function ShareViewer() {
     void (async () => {
       const fragment = window.location.hash.slice(1);
       if (!fragment) {
-        setError("ลิงก์นี้ไม่มีข้อมูล demo");
+        setError("ลิงก์นี้ไม่มีข้อมูลโปรเจกต์");
         return;
       }
       let decoded: SharePayload;
@@ -86,7 +86,7 @@ export default function ShareViewer() {
           <Center>
             <p className="animate-pulse font-display text-lg">
               {phase === "loading"
-                ? "กำลังเปิด demo…"
+                ? "กำลังเปิดระบบ…"
                 : phase === "installing"
                   ? "กำลังติดตั้ง dependencies…"
                   : "กำลังเปิดเซิร์ฟเวอร์…"}

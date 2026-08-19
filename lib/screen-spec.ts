@@ -10,7 +10,7 @@ import type { ProjectFiles } from "./types";
  * source, so this reads the source rather than the screenshot.
  */
 
-export const SCREEN_SPEC_SYSTEM = `คุณกำลังอ่านซอร์สโค้ดของเว็บเดโม (Vite + React) แล้วเขียน "คำอธิบายการทำงานของแต่ละหน้าจอ" เพื่อนำไปใส่ใบเสนอราคาให้ลูกค้าอ่าน
+export const SCREEN_SPEC_SYSTEM = `คุณกำลังอ่านซอร์สโค้ดของเว็บระบบ (Vite + React) แล้วเขียน "คำอธิบายการทำงานของแต่ละหน้าจอ" เพื่อนำไปใส่ใบเสนอราคาให้ลูกค้าอ่าน
 
 ตอบเป็น JSON อย่างเดียว: {"<ชื่อหน้าจอที่ให้มา>":"<คำอธิบาย>", ...}
 
@@ -48,7 +48,7 @@ export function buildScreenSpecUser(files: ProjectFiles, names: string[]): strin
   return `รายชื่อหน้าจอที่ต้องเขียนคำอธิบาย (ใช้เป็น key เป๊ะๆ ทุกตัว):
 ${names.map((n) => `- ${n}`).join("\n")}
 
-โค้ดของเดโม:
+โค้ดของระบบ:
 
 ${chunks.join("\n\n")}`;
 }

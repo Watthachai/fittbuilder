@@ -221,7 +221,7 @@ export default function ScreenInventory({
       title: fromHere ? "สแกนต่อจากหน้านี้?" : "สแกนหน้าจอทั้งหมด?",
       message: fromHere
         ? "ระบบจะเริ่มเดินจากหน้าที่เปิดอยู่ตอนนี้ โดยข้ามขั้นตอนเข้าสู่ระบบ/เลือกบริษัท — ใช้เมื่อคุณล็อกอินเองแล้ว · ภาพชุดเดิมจะถูกล้างก่อนเริ่ม"
-        : "ระบบจะไล่เปิดทีละหน้าในเดโมแล้วเก็บภาพให้เอง (รวม modal ที่เปิดจากปุ่มในหน้านั้น) — ภาพชุดเดิมจะถูกล้างก่อนเริ่ม",
+        : "ระบบจะไล่เปิดทีละหน้าในเว็บแล้วเก็บภาพให้เอง (รวม modal ที่เปิดจากปุ่มในหน้านั้น) — ภาพชุดเดิมจะถูกล้างก่อนเริ่ม",
       confirmLabel: "เริ่มสแกน",
     });
     if (!ok) return;
@@ -364,7 +364,7 @@ export default function ScreenInventory({
                 <button
                   onClick={onAddScreenIndex}
                   disabled={!files || busy !== null || recording}
-                  title="ให้ AI ใส่ปุ่มซ่อนหนึ่งปุ่มต่อหนึ่งหน้าจอ/modal โดยเช็คกับรายชื่อไฟล์จริงในโปรเจกต์ — ไม่กระทบหน้าตาเดโม"
+                  title="ให้ AI ใส่ปุ่มซ่อนหนึ่งปุ่มต่อหนึ่งหน้าจอ/modal โดยเช็คกับรายชื่อไฟล์จริงในโปรเจกต์ — ไม่กระทบหน้าตาเว็บ"
                   className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 font-display text-[12px] font-semibold transition hover:brightness-110 disabled:opacity-40 ${
                     doors.present
                       ? "border border-shine/50 text-shine hover:bg-shine/10"
@@ -382,7 +382,7 @@ export default function ScreenInventory({
                   onStartRecording();
                 }}
                 disabled={!ready || busy !== null || recording}
-                title="กดแล้วใช้เดโมตามปกติ — ระบบเก็บทุกหน้าที่เปลี่ยนพร้อมจำว่ามาจากปุ่มไหน"
+                title="กดแล้วใช้งานเว็บตามปกติ — ระบบเก็บทุกหน้าที่เปลี่ยนพร้อมจำว่ามาจากปุ่มไหน"
                 className="inline-flex items-center gap-1.5 rounded-lg bg-halt px-3 py-1.5 font-display text-[12px] font-semibold text-white transition hover:brightness-110 disabled:opacity-40"
               >
                 <Radio size={13} /> อัดการใช้งาน
@@ -398,7 +398,7 @@ export default function ScreenInventory({
               <button
                 onClick={() => void scan()}
                 disabled={!ready || !files || busy !== null}
-                title="ให้ระบบเดินเอง — ใช้ได้กับเดโมที่ไม่มีหน้าเข้าสู่ระบบหรือเมนูซ่อน"
+                title="ให้ระบบเดินเอง — ใช้ได้กับเว็บที่ไม่มีหน้าเข้าสู่ระบบหรือเมนูซ่อน"
                 className="inline-flex items-center gap-1.5 rounded-lg border border-night-edge px-3 py-1.5 font-display text-[12px] text-chalk-dim transition hover:border-shine/60 hover:text-chalk disabled:opacity-40"
               >
                 <ScanLine size={13} /> สแกนอัตโนมัติ
@@ -408,7 +408,7 @@ export default function ScreenInventory({
           <button
             onClick={captureOne}
             disabled={!ready || busy !== null}
-            title="เดินไปหน้าที่ต้องการในเดโมเอง แล้วกดปุ่มนี้"
+            title="เดินไปหน้าที่ต้องการในเว็บเอง แล้วกดปุ่มนี้"
             className="inline-flex items-center gap-1.5 rounded-lg border border-night-edge px-3 py-1.5 font-display text-[12px] text-chalk-dim transition hover:border-shine/60 hover:text-chalk disabled:opacity-40"
           >
             <Camera size={13} /> แคปหน้านี้
@@ -473,7 +473,7 @@ export default function ScreenInventory({
                 </>
               ) : (
                 <>
-                  เดโมนี้ยังไม่มี <b className="text-chalk">ดัชนีหน้าจอ</b> — ปุ่มซ่อน 1 ปุ่มต่อ 1
+                  ระบบนี้ยังไม่มี <b className="text-chalk">ดัชนีหน้าจอ</b> — ปุ่มซ่อน 1 ปุ่มต่อ 1
                   หน้าจอ/modal ที่ AI ประกาศไว้ในโค้ดเอง ทำให้ระบบเข้าถึงได้ครบทุกหน้าโดยไม่ต้องเดาเมนู ·
                   โปรเจกต์นี้มี <b className="text-chalk">{doors.expectedScreens}</b> หน้าจอ และ{" "}
                   <b className="text-chalk">{doors.expectedModals}</b> ไฟล์ modal ที่ต้องมีประตู
@@ -550,13 +550,13 @@ export default function ScreenInventory({
                     กด <b className="text-shine">“แคปทุกหน้า”</b> — ระบบจะเปิดทีละหน้าตามดัชนีที่ AI
                     ประกาศไว้ในโค้ด ({doors.screens} หน้า · {doors.modals} modal) แล้วเก็บภาพให้ครบเอง
                     · ถ้าอยากได้ <b className="text-halt">ผัง Flow</b> ว่าปุ่มไหนพาไปหน้าไหน ให้ใช้ “อัดการใช้งาน”
-                    แล้วกดใช้เดโมตามปกติ
+                    แล้วกดใช้ระบบตามปกติ
                   </>
                 ) : (
                   <>
                     กด <b className="text-shine">“เพิ่มดัชนีหน้าจอ”</b> ให้ AI ฝากปุ่มซ่อนไว้หนึ่งปุ่มต่อหนึ่งหน้าจอ
                     แล้วค่อยกด “แคปทุกหน้า” จะได้ครบทั้งโปรเจกต์ในคลิกเดียว ·
-                    หรือใช้ <b className="text-halt">“อัดการใช้งาน”</b> เดินเดโมเองแล้วให้ระบบเก็บภาพตาม
+                    หรือใช้ <b className="text-halt">“อัดการใช้งาน”</b> เดินดูเว็บเองแล้วให้ระบบเก็บภาพตาม
                   </>
                 )}
               </p>

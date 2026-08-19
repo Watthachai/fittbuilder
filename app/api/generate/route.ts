@@ -2,7 +2,7 @@ import { after } from "next/server";
 import { z } from "zod";
 import { getAgent } from "@/lib/agents/registry";
 import { buildSpecContext } from "@/lib/context-builder";
-import { checkGenerationQuota, currentUserId, recordUsage } from "@/lib/ai-usage";
+import { currentUserId, recordUsage } from "@/lib/ai-usage";
 import { isSafePath, normalizePath, sanitizeCss } from "@/lib/files";
 import {
   extraDepsOf,
@@ -92,20 +92,8 @@ export async function POST(request: Request) {
     return Response.json({ error: "คำขอไม่ถูกต้อง" }, { status: 400 });
   }
 
-  // Free-plan monthly generation quota. Checked BEFORE any model work so an
-  // out-of-quota caller is turned away cheaply; the message propagates to the UI
-  // via streamSse (which throws `error` on a non-OK response).
+
   const userId = await currentUserId();
-  const quota = await checkGenerationQuota(userId);
-  if (!quota.allowed) {
-    return Response.json(
-      {
-        error: `ใช้ครบโควตาสร้างเดโมของแพลนฟรีแล้ว (${quota.used}/${quota.limit} ครั้งเดือนนี้) — โควตาจะรีเซ็ตต้นเดือนหน้า`,
-        quota,
-      },
-      { status: 429 }
-    );
-  }
 
   // Authorize projectId against the caller BEFORE using it for context lookups
   // that read with the RLS-bypassing admin client (specialist + Org DNA). Without
@@ -370,7 +358,7 @@ export async function POST(request: Request) {
           type: "done",
           note:
             (fromJson ? salvagedNote : parser.getReply()) ||
-            (iteration ? "แก้ไขเรียบร้อยแล้ว" : "สร้าง demo เรียบร้อยแล้ว"),
+            (iteration ? "แก้ไขเรียบร้อยแล้ว" : "สร้างระบบเรียบร้อยแล้ว"),
           deleted,
         });
         close();

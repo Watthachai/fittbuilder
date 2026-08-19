@@ -2,9 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { GitCommitVertical, History, Loader2, RotateCcw, Sparkles, Undo2, Zap } from "lucide-react";
-import { listRevisions, revisionChanges, type Revision, type RevisionKind } from "@/lib/revisions";
+import { listRevisions, revisionChanges, shaOf, type Revision, type RevisionKind } from "@/lib/revisions";
 import { toast } from "@/lib/toast";
-import type { FileChange } from "@/lib/types";
+import type { FileChange, ProjectFiles } from "@/lib/types";
 import DiffViewer from "./DiffViewer";
 
 /**
@@ -38,10 +38,29 @@ interface HistoryPanelProps {
   refreshKey: number;
   /** Restore this checkpoint's files (absent for read-only viewers). */
   onRollback?: (sha: string) => void | Promise<void>;
+  /**
+   * The project's files right now — used to find which checkpoint it is
+   * actually sitting on.
+   *
+   * Position in the list does not answer that. Files can move without a
+   * checkpoint being written (work that landed in the background used to do
+   * exactly that), and then the newest row is not where the project is: a real
+   * session showed "ล่าสุด" on a 32-file snapshot of a 41-file project. A label
+   * that names the wrong state is worse than no label, because rolling "back"
+   * to it silently discards everything since.
+   */
+  currentFiles: ProjectFiles | null;
 }
 
-export default function HistoryPanel({ projectId, refreshKey, onRollback }: HistoryPanelProps) {
+export default function HistoryPanel({
+  projectId,
+  refreshKey,
+  onRollback,
+  currentFiles,
+}: HistoryPanelProps) {
   const [rows, setRows] = useState<Revision[] | null>(null);
+  /** sha of what is on screen — matched against the list, never assumed. */
+  const [currentSha, setCurrentSha] = useState<string | null>(null);
   const [diff, setDiff] = useState<{ sha: string; changes: FileChange[] } | null>(null);
   const [loadingSha, setLoadingSha] = useState<string | null>(null);
 
@@ -58,6 +77,17 @@ export default function HistoryPanel({ projectId, refreshKey, onRollback }: Hist
       cancelled = true;
     };
   }, [projectId, refreshKey]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      const sha = currentFiles ? await shaOf(currentFiles) : null;
+      if (!cancelled) setCurrentSha(sha);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [currentFiles]);
 
   const openDiff = async (rev: Revision) => {
     setLoadingSha(rev.sha);
@@ -103,12 +133,22 @@ export default function HistoryPanel({ projectId, refreshKey, onRollback }: Hist
         </span>
         <span className="ml-auto text-[10px] text-chalk-dim/70">เก็บ 30 จุดล่าสุด</span>
       </div>
+      {/* No row matches what is on screen: the project has moved past every
+          checkpoint. Say so — otherwise the newest row looks like where you are,
+          and rolling "back" to it quietly throws away everything since. */}
+      {rows && rows.length > 0 && currentSha !== null && !rows.some((r) => r.sha === currentSha) && (
+        <div className="border-b border-night-edge bg-night-panel/60 px-4 py-2 text-[11px] leading-relaxed text-chalk-dim">
+          ไฟล์ตอนนี้ยังไม่ตรงกับจุดใดในประวัติ — มีการแก้ไขหลังจุดล่าสุด
+          กดย้อนกลับจะทิ้งส่วนนั้นไป
+        </div>
+      )}
 
       <ol className="px-4 py-3">
         {rows.map((rev, i) => {
           const meta = KIND_META[rev.kind] ?? KIND_META.ai;
           const Icon = meta.icon;
-          const latest = i === 0;
+          // Content, not position: this is the checkpoint the project is on.
+          const latest = currentSha !== null && rev.sha === currentSha;
           return (
             <li key={rev.id} className="relative flex gap-3 pb-4 last:pb-0">
               {/* Timeline rail */}

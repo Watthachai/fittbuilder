@@ -2515,6 +2515,7 @@ export default function Studio({ projectId }: { projectId: string }) {
                 projectId={projectId}
                 refreshKey={revisionTick}
                 onRollback={readOnly ? undefined : rollbackTo}
+                currentFiles={project.files}
               />
             ) : (
               <CodePanel

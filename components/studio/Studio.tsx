@@ -2694,6 +2694,7 @@ export default function Studio({ projectId }: { projectId: string }) {
         key={premiumOffer.length ? "premium-open" : "premium-closed"}
         open={premiumOffer.length > 0}
         options={premiumOffer}
+        projectId={projectId}
         onClose={() => setPremiumOffer([])}
         onBuild={(chosen) => void buildPremium(chosen)}
       />

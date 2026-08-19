@@ -1,7 +1,9 @@
 "use client";
 
-import { Check, Sparkles } from "lucide-react";
+import { Check, Loader2, Sparkles, Wand2 } from "lucide-react";
 import { useState } from "react";
+import { toast } from "@/lib/toast";
+import type { PremiumAdvice } from "@/lib/skills/premium-advice";
 import Overlay from "@/components/ui/Overlay";
 import GlassSurface from "@/components/ui/GlassSurface";
 import type { PremiumOption } from "@/lib/skills/types";
@@ -21,15 +23,60 @@ import type { PremiumOption } from "@/lib/skills/types";
 export default function PremiumPicker({
   open,
   options,
+  projectId,
   onClose,
   onBuild,
 }: {
   open: boolean;
   options: PremiumOption[];
+  /** Needed to read this demo's brief for the advice below. */
+  projectId: string;
   onClose: () => void;
   onBuild: (chosen: PremiumOption[]) => void;
 }) {
   const [picked, setPicked] = useState<string[]>([]);
+  const [advice, setAdvice] = useState<PremiumAdvice | null>(null);
+  const [asking, setAsking] = useState(false);
+
+  /**
+   * Rank the list against this demo's own brief.
+   *
+   * The catalogue knows what the domain can sell; only the BRD/PRD know what
+   * this business is trying to do. The model picks FROM the list — never adds
+   * to it — so every recommendation still carries its own price and build brief.
+   */
+  const askAdvice = async () => {
+    setAsking(true);
+    try {
+      const res = await fetch("/api/premium-advice", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          projectId,
+          options: options.map((o) => ({
+            id: o.id,
+            name: o.name,
+            pitch: o.pitch,
+            effortDays: o.effortDays,
+          })),
+        }),
+      });
+      const json = (await res.json()) as { advice?: PremiumAdvice; error?: string };
+      if (!res.ok || !json.advice) throw new Error(json.error ?? "วิเคราะห์ไม่สำเร็จ");
+      setAdvice(json.advice);
+      // Pre-tick what it recommends — a starting point to argue with, not a
+      // decision. Everything stays editable.
+      setPicked(json.advice.picks.filter((p) => p.recommend).map((p) => p.id));
+    } catch (e) {
+      toast.error("วิเคราะห์ไม่สำเร็จ", {
+        description: e instanceof Error ? e.message : undefined,
+      });
+    } finally {
+      setAsking(false);
+    }
+  };
+
+  const reasonFor = (id: string) => advice?.picks.find((p) => p.id === id);
   const chosen = options.filter((o) => picked.includes(o.id));
   const days = chosen.reduce((sum, o) => sum + o.effortDays, 0);
 
@@ -48,6 +95,24 @@ export default function PremiumPicker({
             เวอร์ชันปกติยังอยู่ครบไม่ถูกแตะ — ที่เลือกตรงนี้จะถูกสร้างเพิ่มลงในเวอร์ชัน Premium
             เท่านั้น และตอน Export จะได้คนละไฟล์กัน
           </p>
+          <button
+            type="button"
+            onClick={() => void askAdvice()}
+            disabled={asking}
+            className="mt-3 inline-flex items-center gap-1.5 rounded-lg border border-shine/50 px-3 py-1.5 text-sm text-shine transition hover:bg-shine/10 disabled:opacity-50"
+          >
+            {asking ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <Wand2 className="h-3.5 w-3.5" />
+            )}
+            {asking ? "กำลังอ่านเอกสารของเดโมนี้…" : "ให้ AI ดูเดโมนี้แล้วแนะนำ"}
+          </button>
+          {advice?.summary && (
+            <p className="mt-3 rounded-lg border border-shine/25 bg-shine/5 px-3 py-2 text-sm leading-relaxed text-chalk">
+              {advice.summary}
+            </p>
+          )}
         </div>
 
         <div className="max-h-[52vh] overflow-y-auto px-6 py-4">
@@ -78,6 +143,19 @@ export default function PremiumPicker({
                       <span className="mt-0.5 block text-xs leading-relaxed text-chalk-dim">
                         {o.pitch}
                       </span>
+                      {/* Said about THIS demo — including why an option was
+                          passed over, which is the half a catalogue can never
+                          tell you. */}
+                      {reasonFor(o.id) && (
+                        <span
+                          className={`mt-1.5 block text-xs leading-relaxed ${
+                            reasonFor(o.id)!.recommend ? "text-shine" : "text-chalk-dim/70"
+                          }`}
+                        >
+                          {reasonFor(o.id)!.recommend ? "แนะนำ — " : "ยังไม่แนะนำ — "}
+                          {reasonFor(o.id)!.reason}
+                        </span>
+                      )}
                     </span>
                     <span className="shrink-0 rounded-md bg-chalk/10 px-2 py-1 text-xs tabular-nums text-chalk-dim">
                       ~{o.effortDays} วัน

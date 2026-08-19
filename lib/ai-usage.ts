@@ -17,7 +17,8 @@ export type UsageKind =
   | "advisor"
   | "screen_map"
   | "screen_spec"
-  | "quote_advice";
+  | "quote_advice"
+  | "premium_advice";
 
 /**
  * Estimated Gemini pricing, USD per 1,000,000 tokens. These are ESTIMATES — update

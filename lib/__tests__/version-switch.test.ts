@@ -20,6 +20,7 @@ const migration = readFileSync(
   "supabase/migrations/0033_atomic_version_switch.sql",
   "utf8"
 );
+const overlay = readFileSync("supabase/migrations/0038_premium_as_overlay.sql", "utf8");
 
 describe("version switch", () => {
   it("switches through the one function that owns the whole move", () => {
@@ -44,5 +45,35 @@ describe("version switch", () => {
   it("enforces the 0031 invariant in the database, not in a comment", () => {
     expect(migration).toContain("fittbuilder_versions_not_active");
     expect(migration).toMatch(/before insert or update on fittbuilder_project_versions/);
+  });
+});
+
+describe("premium as an overlay", () => {
+  /**
+   * Premium is the base plus what is sold, not a second copy of everything.
+   *
+   * Two full copies drifted: a real project reached 41 files on Premium against
+   * 28 on Standard, with seven ordinary pages — FAQ, About, Contact, Blog,
+   * Reviews, ArticleDetail, Privacy — existing only on the paid side. Exporting
+   * Standard for that customer would have shipped a demo missing all of them.
+   */
+  it("keeps only what Premium adds, so base work reaches it by itself", () => {
+    // Entering Premium: lay the overlay over whatever the base is NOW.
+    expect(overlay).toMatch(/incoming := base \|\| coalesce\(overlay/);
+    // Leaving Premium: keep only the files that actually differ from the base.
+    expect(overlay).toMatch(/where base -> k is distinct from outgoing -> k/);
+  });
+
+  it("remembers which base an overlay was captured against", () => {
+    // Without it there is no way to tell a deliberate override from one that is
+    // now hiding a newer base file.
+    expect(overlay).toContain("base_sha");
+    expect(overlay).toMatch(/captured <> md5\(base::text\)/);
+  });
+
+  it("reports shadowed files instead of resolving them silently", () => {
+    expect(overlay).toContain("jsonb_build_object('files', incoming, 'shadowed', shadowed)");
+    const versions = readFileSync("lib/versions.ts", "utf8");
+    expect(versions).toContain("shadowed");
   });
 });

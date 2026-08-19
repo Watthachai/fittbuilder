@@ -2227,9 +2227,39 @@ export default function Studio({ projectId }: { projectId: string }) {
       // One transaction: files, pointer and both version rows move together, or
       // none of them do. It also writes `files`, so no save follows it — a save
       // here would only send the same megabytes back a second time.
-      const files = await switchVersion(project.id, activeVersion, next, project.files ?? {});
+      const { files, shadowed } = await switchVersion(
+        project.id,
+        activeVersion,
+        next,
+        project.files ?? {}
+      );
       setProject({ ...project, files, updatedAt: new Date().toISOString() });
       setActiveVersion(next);
+
+      // Premium replaces these files, and the base versions of them have changed
+      // since it did — so the newer base edits are not in what is now on screen.
+      // Keeping the overlay is right; not saying so is not. A dialog rather than
+      // a toast because it is a decision with consequences either way, and the
+      // AI wrote both sides so it is also the thing that can reconcile them.
+      if (shadowed.length) {
+        const merge = await confirm({
+          title: `${shadowed.length} ไฟล์ของ Premium ทับเวอร์ชันที่ฐานแก้ใหม่ไว้`,
+          message: `${shadowed.join(" · ")}\n\nไฟล์เหล่านี้ Premium เขียนทับไว้เอง การแก้ไขล่าสุดที่ทำในเวอร์ชันปกติจึงยังไม่อยู่ในนี้ — ให้ AI นำมารวมให้ไหม (ฟีเจอร์ Premium ยังอยู่ครบ)`,
+          confirmLabel: "ให้ AI รวมให้",
+        });
+        if (merge) {
+          void generate(
+            [
+              "ไฟล์เหล่านี้ในเวอร์ชัน Premium ถูกเขียนทับไว้ ทำให้การแก้ไขล่าสุดที่ทำในเวอร์ชันปกติหายไป:",
+              ...shadowed.map((f) => `- ${f}`),
+              "",
+              "ช่วยนำการแก้ไขจากเวอร์ชันปกติกลับมาใส่ โดยยังคงฟีเจอร์ของ Premium ไว้ครบ",
+            ].join("\n")
+          );
+          return;
+        }
+      }
+
       toast.success(`สลับไปเวอร์ชัน${VERSION_LABEL[next]}แล้ว`, {
         description: seeded
           ? "เริ่มจากไฟล์ชุดเดิม — งานที่ทำต่อจากนี้จะไม่ไปกระทบอีกเวอร์ชัน"

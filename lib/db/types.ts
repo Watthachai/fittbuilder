@@ -639,6 +639,7 @@ export interface Database {
        *  files that are now active. */
       fittbuilder_switch_version: {
         Args: { pid: string; from_key: string; to_key: string; outgoing: Json };
+        /** { files, shadowed } — see lib/versions.ts VersionSwitch. */
         Returns: Json;
       };
       /** Pop the newest snapshot into `files` and return it (null when empty). */

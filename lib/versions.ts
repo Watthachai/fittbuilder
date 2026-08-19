@@ -11,6 +11,13 @@ import type { ProjectFiles } from "@/lib/types";
  * not two projects. The studio switches between them and each exports its own
  * zip, so Code Runner builds two genuinely different products.
  *
+ * Premium is an OVERLAY on Standard, not a second copy (migration 0038):
+ * Standard is the base, and the parked Premium row holds only the files that
+ * differ from it. Work done on the base therefore reaches Premium by itself,
+ * and Premium's own work never leaks down — which is the relationship the
+ * product actually has. Storing two full copies let them drift until one real
+ * project had seven ordinary pages existing only on the paid side.
+ *
  * INVARIANT: `fittbuilder_projects.files` is always the ACTIVE version, and this
  * table holds only the inactive ones. Each version therefore exists exactly once,
  * every other feature keeps reading `files` unaware that versions exist, and a
@@ -80,13 +87,26 @@ export async function parkedVersions(projectId: string): Promise<VersionKey[]> {
  * A version that has never existed is SEEDED from the current files — the first
  * switch to Premium starts from whatever Standard is now.
  */
+export interface VersionSwitch {
+  files: ProjectFiles;
+  /**
+   * Files Premium replaces whose base has changed since the overlay was taken.
+   *
+   * The only real conflict this model has: someone edited a file on the base
+   * that Premium deliberately overrides, so the edit does nothing on the paid
+   * side. Reporting it is the whole point — silently keeping the overlay is
+   * right, silently NOT SAYING SO is how a customer finds it months later.
+   */
+  shadowed: string[];
+}
+
 export async function switchVersion(
   projectId: string,
   from: VersionKey,
   to: VersionKey,
   currentFiles: ProjectFiles
-): Promise<ProjectFiles> {
-  if (from === to) return currentFiles;
+): Promise<VersionSwitch> {
+  if (from === to) return { files: currentFiles, shadowed: [] };
   const supabase = createClient();
   const { data, error } = await supabase.rpc("fittbuilder_switch_version", {
     pid: projectId,
@@ -95,5 +115,6 @@ export async function switchVersion(
     outgoing: currentFiles as unknown as Json,
   });
   if (error) throw new Error(error.message);
-  return data as unknown as ProjectFiles;
+  const out = data as unknown as { files: ProjectFiles; shadowed: string[] };
+  return { files: out.files, shadowed: out.shadowed ?? [] };
 }

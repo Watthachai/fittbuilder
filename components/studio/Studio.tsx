@@ -2223,7 +2223,11 @@ export default function Studio({ projectId }: { projectId: string }) {
     // mid-turn and the result lands on the WRONG version: a Premium build wrote
     // its 3D straight into the base this way. The turn cannot be made aware of
     // the switch, so the switch waits for the turn.
-    if (busy || chatStreaming) {
+    // chatStreaming only, NOT `busy`: that also covers the container booting or
+    // installing, which writes nothing to project.files and has no bearing on
+    // which version the result lands in. Blocking on it made the switch silently
+    // refuse for the first half-minute after a build.
+    if (chatStreaming) {
       toast.info("รอรอบนี้เสร็จก่อนนะครับ", {
         description: "สลับเวอร์ชันระหว่างที่ AI กำลังเขียนอยู่ จะทำให้ผลลัพธ์ไปลงผิดเวอร์ชัน",
       });

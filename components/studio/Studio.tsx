@@ -1426,6 +1426,51 @@ export default function Studio({ projectId }: { projectId: string }) {
   }, [boot, busy, persist, pushTerminal, readOnly]);
 
   /**
+   * Take an interrupted turn's output into the project.
+   *
+   * MERGED over the current files, not swapped in for them: the draft holds what
+   * that TURN wrote, and on an iteration the model re-sends only what it
+   * changed. Replacing would delete every file the turn happened not to touch.
+   * Applying it on top is exactly what the turn would have done.
+   */
+  const applyDraft = useCallback(
+    (d: GenerationDraft, note: string) => {
+      const current = projectRef.current;
+      if (!current) return;
+      // Through the scaffold guard: a set cut mid-stream can be missing
+      // index.html, which every consumer of project.files assumes.
+      const files = withRequiredScaffold({ ...(current.files ?? {}), ...d.files });
+      setDraft(null);
+      void clearDraft(projectId).catch(() => {});
+      // withHistory so Undo covers this — work arriving on its own must not be
+      // a one-way door.
+      const saved = persist(withHistory(current, files));
+      pushTerminal(note);
+      if (hasRunnableApp(saved.files)) void boot(saved.files!);
+    },
+    [boot, persist, projectId, pushTerminal]
+  );
+
+  /**
+   * A turn that finished on the server while nobody was watching is not a
+   * recovery — it is the answer to something the user asked for. Someone who
+   * sent a prompt and closed the tab should come back to the result, the way any
+   * background job works, not to a dialog asking whether they would like it.
+   *
+   * Only the genuinely interrupted case (server stopped mid-turn, `complete`
+   * false) still asks — see DraftRecovery.
+   */
+  useEffect(() => {
+    if (!draft?.complete || busy || readOnly) return;
+    void (async () => {
+      applyDraft(draft, `✓ งานที่สั่งไว้ทำเสร็จแล้ว (${Object.keys(draft.files).length} ไฟล์)`);
+      toast.success("งานที่สั่งไว้ทำเสร็จแล้ว", {
+        description: "ทำต่อจนจบให้ตอนที่ปิดหน้าจอไป — กด Undo ย้อนได้ถ้าไม่เอา",
+      });
+    })();
+  }, [draft, busy, readOnly, applyDraft]);
+
+  /**
    * Restore the files at `sha`. Appends a NEW checkpoint rather than deleting
    * history (a revert, not a reset) — so you can always come back forward.
    */
@@ -2438,31 +2483,13 @@ export default function Studio({ projectId }: { projectId: string }) {
       )}
 
       <DraftRecovery
-        draft={draft}
+        draft={draft?.complete ? null : draft}
         onDiscard={() => {
           setDraft(null);
           void clearDraft(projectId).catch(() => {});
         }}
         onRecover={() => {
-          const current = projectRef.current;
-          if (!current || !draft) return;
-          // MERGED over the current files, not swapped in for them. The draft
-          // holds what the interrupted TURN wrote — on an iteration the model
-          // only re-sends what it changed, so the parked set is a delta, not a
-          // project. Replacing would delete every file that turn happened not to
-          // touch. Applying it on top is exactly what the turn would have done.
-          //
-          // Through the scaffold guard too: the set was cut mid-stream and may be
-          // missing index.html, which every consumer of project.files assumes.
-          const files = withRequiredScaffold({ ...(current.files ?? {}), ...draft.files });
-          const recovered = Object.keys(draft.files).length;
-          setDraft(null);
-          void clearDraft(projectId).catch(() => {});
-          // withHistory so Undo covers the recovery itself — taking the draft
-          // back must not be a one-way door.
-          const saved = persist(withHistory(current, files));
-          pushTerminal(`↺ กู้คืนไฟล์จากรอบที่ค้างไว้ (${recovered} ไฟล์)`);
-          if (hasRunnableApp(saved.files)) void boot(saved.files!);
+          if (draft) applyDraft(draft, `↺ กู้คืนไฟล์จากรอบที่ค้างไว้ (${Object.keys(draft.files).length} ไฟล์)`);
         }}
       />
 

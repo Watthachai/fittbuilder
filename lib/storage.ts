@@ -185,7 +185,7 @@ export async function listProjects(): Promise<ProjectSummary[]> {
     // the list can say how much is parked without reading any of it.
     supabase
       .from("fittbuilder_project_drafts")
-      .select("project_id, updated_at, updated_by, file_count"),
+      .select("project_id, updated_at, updated_by, file_count, complete"),
   ]);
   const roleByProject = new Map<string, ShareRole>((memberships ?? []).map((m) => [m.project_id, m.role as ShareRole]));
   const ownerByProject = new Map<string, string>(
@@ -195,10 +195,17 @@ export async function listProjects(): Promise<ProjectSummary[]> {
     (drafts ?? []).map((d) => [
       d.project_id,
       {
-        live: isDraftLive({ files: {}, prompt: "", updatedAt: d.updated_at, updatedBy: d.updated_by }),
+        live: isDraftLive({
+          files: {},
+          prompt: "",
+          updatedAt: d.updated_at,
+          updatedBy: d.updated_by,
+          complete: false,
+        }),
         fileCount: d.file_count ?? 0,
         updatedAt: d.updated_at,
         updatedBy: d.updated_by,
+        complete: d.complete ?? false,
       },
     ])
   );
@@ -324,6 +331,8 @@ export interface GenerationDraft {
   updatedAt: string;
   /** Who was generating. Null for drafts written before 0035. */
   updatedBy: string | null;
+  /** The turn finished on the server — this is the answer, not the wreckage. */
+  complete: boolean;
 }
 
 /**
@@ -345,7 +354,7 @@ export async function loadDraft(projectId: string): Promise<GenerationDraft | nu
   const supabase = createClient();
   const { data, error } = await supabase
     .from("fittbuilder_project_drafts")
-    .select("files, prompt, updated_at, updated_by")
+    .select("files, prompt, updated_at, updated_by, complete")
     .eq("project_id", projectId)
     .maybeSingle();
   if (error || !data) return null;
@@ -354,6 +363,7 @@ export async function loadDraft(projectId: string): Promise<GenerationDraft | nu
     prompt: data.prompt,
     updatedAt: data.updated_at,
     updatedBy: data.updated_by,
+    complete: data.complete ?? false,
   };
 }
 

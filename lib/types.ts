@@ -323,6 +323,11 @@ export interface ProjectGeneration {
   updatedAt: string;
   /** Who is (or was) generating. Null for drafts written before 0035. */
   updatedBy: string | null;
+  /**
+   * The turn ran to completion and this is its finished output — waiting to be
+   * picked up, not recovered. False means the server itself stopped mid-turn.
+   */
+  complete: boolean;
 }
 
 

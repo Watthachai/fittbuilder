@@ -72,7 +72,7 @@ describe("generation checkpoints", () => {
     // The browser clears the draft once it has saved the real files. If the
     // server's last write landed after that clear, a finished turn would be
     // offered back as unfinished work.
-    const tail = route.slice(route.lastIndexOf("await parkDraft()"));
+    const tail = route.slice(route.lastIndexOf("await parkDraft(true)"));
     expect(tail.slice(0, 400)).toContain('type: "done"');
   });
 
@@ -120,6 +120,7 @@ describe("generation checkpoints", () => {
       prompt: "",
       updatedAt: new Date(ms).toISOString(),
       updatedBy: null,
+      complete: false,
     });
 
     it("counts a beating heartbeat as a turn still running", () => {
@@ -147,10 +148,42 @@ describe("generation checkpoints", () => {
    * real recovery dialog — the parked set had 12 files for a 32-file project, so
    * replacing would have deleted the 20 the turn never touched.
    */
+  /**
+   * The server finishes the turn on its own now, so most parked drafts are
+   * completed work, not wreckage. Asking "do you want to recover these files?"
+   * is the wrong question for a background job that succeeded — someone who sent
+   * a prompt and closed the tab should come back to the answer.
+   *
+   * The two cases are distinguishable at exactly one point: the final park,
+   * which is the only call that sets `complete`.
+   */
+  describe("finished work vs wreckage", () => {
+    it("marks completeness only on the final park", () => {
+      const parks = route.match(/parkDraft\((true)?\)/g) ?? [];
+      expect(parks.length).toBeGreaterThanOrEqual(2);
+      expect(parks.filter((p) => p === "parkDraft(true)")).toHaveLength(1);
+      // …and that one is the awaited call that runs just before `done`.
+      const tail = route.slice(route.lastIndexOf("await parkDraft(true)"));
+      expect(tail.slice(0, 400)).toContain('type: "done"');
+    });
+
+    it("takes a completed turn without asking", () => {
+      const effect = studio.slice(studio.indexOf("if (!draft?.complete"));
+      expect(effect.slice(0, 500)).toContain("applyDraft");
+    });
+
+    it("still asks about a turn the server never finished", () => {
+      // DraftRecovery must never see a completed draft — that dialog exists for
+      // the half-streamed case only.
+      expect(studio).toContain("draft={draft?.complete ? null : draft}");
+    });
+  });
+
   it("merges a recovered draft over the current files, never replaces them", () => {
-    const recover = studio.slice(studio.indexOf("onRecover={"));
-    const body = recover.slice(0, 1200);
-    expect(body).toMatch(/\.\.\.\(current\.files \?\? \{\}\),\s*\.\.\.draft\.files/);
+    // One place does the merge now, used by both the automatic path and the
+    // dialog — two copies of this rule is two answers to it.
+    const apply = studio.slice(studio.indexOf("const applyDraft = useCallback"));
+    expect(apply.slice(0, 900)).toMatch(/\.\.\.\(current\.files \?\? \{\}\),\s*\.\.\.d\.files/);
   });
 
   it("offers a recovered draft rather than applying it on load", () => {

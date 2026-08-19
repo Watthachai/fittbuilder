@@ -15,11 +15,14 @@ const when = (iso: string) =>
 /**
  * A turn that never got to finish, offered back.
  *
- * The model stream is held by the tab, so closing or reloading the page ends it
- * mid-build. What arrived before that is parked (migration 0034) and shown here
- * rather than applied on its own: a half-streamed file set is not a runnable
- * project, and silently making it the project's files is how you get a demo
- * that opens to a white screen.
+ * Only for turns the SERVER did not complete (a deploy, a timeout) — those leave
+ * a half-streamed file set, which is not a runnable project, and silently making
+ * it the project's files is how you get a demo that opens to a white screen.
+ *
+ * Closing the tab is no longer one of those cases: the server finishes the turn
+ * on its own and the studio applies the result when you come back, the way any
+ * background job works. Asking about that one would be asking whether you want
+ * the answer to something you already asked for.
  */
 export default function DraftRecovery({
   draft,
@@ -42,7 +45,7 @@ export default function DraftRecovery({
             มีรอบที่สร้างค้างไว้
           </h2>
           <p className="mt-2 text-sm leading-relaxed text-chalk-dim">
-            รอบก่อนหน้าถูกตัดกลางคัน (ปิดหรือรีเฟรชหน้าจอ) แต่ไฟล์ที่ได้มาแล้ว{" "}
+            รอบก่อนหน้าหยุดกลางทางก่อนจะทำเสร็จ แต่ไฟล์ที่ได้มาแล้ว{" "}
             <span className="text-chalk">{count} ไฟล์</span> ถูกเก็บไว้ให้ — เมื่อ{" "}
             {when(draft.updatedAt)}
           </p>

@@ -197,8 +197,14 @@ export async function POST(request: Request) {
        */
       const produced: Record<string, string> = {};
       let lastPark = 0;
-      /** Park the turn's output where a returning browser will be offered it. */
-      const parkDraft = async () => {
+      /**
+       * Park the turn's output where a returning browser will pick it up.
+       *
+       * `complete` is what separates "this finished while you were away" from
+       * "the server died mid-turn" — set only by the final call, after the
+       * canonical build files are in and before `done` goes out.
+       */
+      const parkDraft = async (complete = false) => {
         if (!ctxProjectId || !db) return;
         try {
           await db.from("fittbuilder_project_drafts").upsert(
@@ -208,6 +214,7 @@ export async function POST(request: Request) {
               prompt: body.prompt,
               updated_at: new Date().toISOString(),
               updated_by: userId,
+              complete,
             },
             { onConflict: "project_id" }
           );
@@ -357,7 +364,7 @@ export async function POST(request: Request) {
         // race and a completed turn leaves a stale draft behind (or worse, the
         // complete set is written after the clear and offered back as if it
         // were unfinished).
-        await parkDraft();
+        await parkDraft(true);
 
         send({
           type: "done",

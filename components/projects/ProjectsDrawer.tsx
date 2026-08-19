@@ -309,10 +309,13 @@ export default function ProjectsDrawer({
           <span className="block truncate font-mono text-[10px] text-chalk-dim">
             {p.generation?.live ? (
               <span className="text-shine">กำลังสร้าง…</span>
+            ) : p.generation?.complete ? (
+              // The server finished it while nobody was watching. Not wreckage —
+              // a result waiting to be seen; opening the project applies it.
+              <span className="text-go">งานเสร็จแล้ว · เปิดดูได้เลย</span>
             ) : p.generation ? (
-              // Quiet heartbeat: the turn died with its tab. Say so here rather
-              // than letting the user find out by opening it — the work is
-              // recoverable, but only if they know it is there.
+              // Quiet heartbeat and never finished: the server stopped mid-turn.
+              // Say so here rather than letting the user find out by opening it.
               <span className="text-go">ค้างไว้ {p.generation.fileCount} ไฟล์</span>
             ) : (
               formatDate(p.updatedAt)

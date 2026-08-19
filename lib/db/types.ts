@@ -307,6 +307,8 @@ export interface Database {
           updated_by: string | null;
           /** Maintained by a trigger (0036) so a list never reads `files`. */
           file_count: number;
+          /** The turn ran to completion — this is finished work, not wreckage. */
+          complete: boolean;
         };
         Insert: {
           project_id: string;
@@ -315,6 +317,7 @@ export interface Database {
           updated_at?: string;
           updated_by?: string | null;
           file_count?: number;
+          complete?: boolean;
         };
         Update: {
           project_id?: string;

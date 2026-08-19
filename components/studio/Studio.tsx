@@ -674,7 +674,10 @@ export default function Studio({ projectId }: { projectId: string }) {
             files[DOC_PATHS[kind]] = contents;
           }
           working = { ...working, files };
-          setView("code");
+          // A brief is a document, not source. Dropping the user into the Code
+          // panel to read raw Markdown showed them the file instead of the
+          // thing the file says — the preview modal is the reader for this.
+          setPreviewPhase(working.phase);
           pushTerminal(`📄 อัปเดต ${docEntries.map(([kind]) => DOC_PATHS[kind]).join(", ")}`);
         }
         const assistantMsg = newMessage("assistant", turn.reply, working.phase);
@@ -1304,6 +1307,12 @@ export default function Studio({ projectId }: { projectId: string }) {
     const screens = screenIndexEntries(files);
     const pages = Object.keys(files).filter((p) => /^src\/pages\//.test(p));
     const deps = Object.keys(extraDepsOf(files["package.json"]));
+    // reviseDoc walks the project back to the phase that owns the doc, which is
+    // right when you are going back to rework that phase — and wrong here. This
+    // updates prose about work that is already done; it is not a decision to
+    // redo the plan. Put the phase back where it was once the docs have landed.
+    const wasPhase = current.phase;
+    const wasApproved = current.approvedPhases;
     void reviseDoc(
       "define",
       [
@@ -1318,8 +1327,12 @@ export default function Studio({ projectId }: { projectId: string }) {
       ]
         .filter(Boolean)
         .join("\n")
-    );
-  }, [busy, readOnly, reviseDoc]);
+    ).then(() => {
+      const after = projectRef.current;
+      if (!after) return;
+      persist({ ...after, phase: wasPhase, approvedPhases: wasApproved });
+    });
+  }, [busy, readOnly, persist, reviseDoc]);
 
   const cancel = useCallback(() => {
     abortRef.current?.abort();

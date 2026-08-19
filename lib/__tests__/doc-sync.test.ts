@@ -17,7 +17,7 @@ describe("updating the docs from the built project", () => {
   // Bounded at its own closing deps array — a longer window runs into the next
   // callback, which legitimately calls generate() and made this pass vacuously.
   const start = studio.indexOf("const syncDocsFromProject");
-  const sync = studio.slice(start, studio.indexOf("}, [busy, readOnly, reviseDoc]);", start));
+  const sync = studio.slice(start, studio.indexOf("}, [busy, readOnly, persist, reviseDoc]);", start));
 
   it("describes what the demo actually contains", () => {
     const body = sync;
@@ -39,5 +39,29 @@ describe("updating the docs from the built project", () => {
     // relationship read the other way, so it belongs beside it.
     expect(stepper).toContain("onSyncDocs");
     expect(stepper).toContain("อัปเดตเอกสารจากของจริง");
+  });
+
+  /**
+   * Updating prose about finished work is not a decision to redo the plan.
+   *
+   * reviseDoc walks the project back to the phase that owns the doc — correct
+   * when you are reworking that phase, wrong here: pressing "อัปเดตเอกสาร" sent a
+   * project sitting in Build back to Plan, which reads as "everything has to be
+   * built again".
+   */
+  it("puts the phase back where it was", () => {
+    expect(sync).toContain("const wasPhase = current.phase");
+    expect(sync).toContain("phase: wasPhase");
+    expect(sync).toContain("approvedPhases: wasApproved");
+  });
+});
+
+describe("where a written doc opens", () => {
+  it("opens the reader, not the code panel", () => {
+    // A brief is a document. Dropping the user into raw Markdown in the Code
+    // panel shows them the file instead of what the file says.
+    const write = studio.slice(studio.indexOf("files[DOC_PATHS[kind]] = contents"));
+    expect(write.slice(0, 700)).toContain("setPreviewPhase(");
+    expect(write.slice(0, 700)).not.toContain('setView("code")');
   });
 });

@@ -167,6 +167,28 @@ describe("generation checkpoints", () => {
       expect(tail.slice(0, 400)).toContain('type: "done"');
     });
 
+    /**
+     * A turn that lands this way skipped everything the client normally does at
+     * the end of one. Reported from a real session: the build arrived, but the
+     * chat had no reply under the prompt and the version history never gained a
+     * checkpoint — so there was nothing to roll back to and no sign it happened.
+     */
+    it("leaves behind what any other turn leaves behind", () => {
+      const apply = studio.slice(studio.indexOf("const applyDraft = useCallback"));
+      const body = apply.slice(0, 2000);
+      expect(body).toContain("commitRevision");
+      expect(body).toContain("appendMessage");
+      expect(body).toContain("computeChanges");
+    });
+
+    it("shows progress for a turn running somewhere else", () => {
+      // The registry lives on globalThis and cannot see another tab's turn; the
+      // heartbeat can. Without this the studio said "busy" and showed nothing.
+      expect(studio).toContain("remoteProgress");
+      const poll = studio.slice(studio.indexOf("const tick = async ()"));
+      expect(poll.slice(0, 600)).toContain("isDraftLive");
+    });
+
     it("takes a completed turn without asking", () => {
       const effect = studio.slice(studio.indexOf("if (!draft?.complete"));
       expect(effect.slice(0, 500)).toContain("applyDraft");

@@ -304,6 +304,16 @@ export default function Studio({ projectId }: { projectId: string }) {
   /** An interrupted generation's output, waiting to be taken or thrown away. */
   const [draft, setDraft] = useState<GenerationDraft | null>(null);
   /**
+   * A turn running somewhere else — another tab, another machine, or this same
+   * project reopened while the server is still working.
+   *
+   * The in-memory registry cannot see those (it lives on globalThis, so it knows
+   * only about turns THIS page started), which left a studio that said "busy"
+   * and then showed nothing at all happening. The draft's heartbeat can see
+   * them, so this polls it while one is alive and reports how far it has got.
+   */
+  const [remoteProgress, setRemoteProgress] = useState<number | null>(null);
+  /**
    * Which tier version is being edited.
    *
    * Its own state, NOT derived from `project` — the record travels through
@@ -1440,16 +1450,67 @@ export default function Studio({ projectId }: { projectId: string }) {
       // Through the scaffold guard: a set cut mid-stream can be missing
       // index.html, which every consumer of project.files assumes.
       const files = withRequiredScaffold({ ...(current.files ?? {}), ...d.files });
+      const changes = computeChanges(current.files, files);
       setDraft(null);
       void clearDraft(projectId).catch(() => {});
+
+      // Everything a turn normally leaves behind, which work arriving this way
+      // used to skip entirely: the reply in the chat, and a checkpoint in the
+      // version history. Without them a build that landed in the background was
+      // invisible — no bubble saying it happened, and nothing to roll back to.
+      const reply = newMessage("assistant", note, current.phase);
+      if (changes.length) reply.changes = changes;
       // withHistory so Undo covers this — work arriving on its own must not be
       // a one-way door.
-      const saved = persist(withHistory(current, files));
+      const saved = persist(appendMessage(withHistory(current, files), reply));
       pushTerminal(note);
+
+      if (changes.length) {
+        const label = d.prompt.trim().slice(0, 80) || note;
+        void commitRevision({ projectId, files, label, kind: "ai" }).then((sha) => {
+          setRevisionTick((t) => t + 1);
+          if (!sha) return;
+          const withSha = projectRef.current;
+          if (!withSha) return;
+          persist({
+            ...withSha,
+            messages: withSha.messages.map((m) =>
+              m.id === reply.id ? { ...m, revision: { sha, label } } : m
+            ),
+          });
+        });
+      }
       if (hasRunnableApp(saved.files)) void boot(saved.files!);
     },
     [boot, persist, projectId, pushTerminal]
   );
+
+  // Poll only while something is actually running, and stop the moment it is
+  // not: a studio sitting idle must not talk to the database on a timer.
+  useEffect(() => {
+    if (chatStreaming || readOnly) return;
+    let stop = false;
+    let timer: ReturnType<typeof setTimeout>;
+    const tick = async () => {
+      const d = await loadDraft(projectId).catch(() => null);
+      if (stop) return;
+      if (d && isDraftLive(d) && !d.complete) {
+        setRemoteProgress(Object.keys(d.files).length);
+        timer = setTimeout(() => void tick(), 4_000);
+        return;
+      }
+      setRemoteProgress(null);
+      // A turn that just finished elsewhere leaves a complete draft — hand it to
+      // the same path that takes background work, so it lands here too.
+      if (d && !isDraftLive(d)) setDraft(d);
+      else timer = setTimeout(() => void tick(), 15_000);
+    };
+    void tick();
+    return () => {
+      stop = true;
+      clearTimeout(timer);
+    };
+  }, [projectId, chatStreaming, readOnly]);
 
   /**
    * A turn that finished on the server while nobody was watching is not a
@@ -2259,11 +2320,13 @@ export default function Studio({ projectId }: { projectId: string }) {
           onClose={closeWandTarget}
         />
       )}
-      {bgActive && (
+      {(bgActive || remoteProgress !== null) && (
         <div className="pointer-events-none fixed left-1/2 top-3 z-[60] -translate-x-1/2">
           <span className="glass inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs text-chalk shadow-lg">
             <span className="loader-dot h-1.5 w-1.5 rounded-full bg-shine" />
-            กำลังสร้างเบื้องหลัง… จะอัปเดตให้เมื่อเสร็จ
+            {remoteProgress !== null
+              ? `กำลังสร้างอยู่… เขียนไปแล้ว ${remoteProgress} ไฟล์ · จะลงให้เมื่อเสร็จ`
+              : "กำลังสร้างเบื้องหลัง… จะอัปเดตให้เมื่อเสร็จ"}
           </span>
         </div>
       )}

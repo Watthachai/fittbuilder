@@ -2216,6 +2216,34 @@ export default function Studio({ projectId }: { projectId: string }) {
    * preview is rebooted afterwards because the file set under it has entirely
    * changed.
    */
+  /**
+   * Create the Premium version, now that there is something to put in it.
+   *
+   * The switch happens HERE and not when the button was pressed: a tier the user
+   * backed out of should not exist, and an empty Premium is both pointless and
+   * the reason the picker would never appear again.
+   */
+  const buildPremium = async (chosen: PremiumOption[]) => {
+    const current = projectRef.current;
+    if (!current) return;
+    setPremiumOffer([]);
+    setSwitchingVersion(true);
+    try {
+      const { files } = await switchVersion(current.id, "standard", "premium", current.files ?? {});
+      const switched = { ...current, files, updatedAt: new Date().toISOString() };
+      projectRef.current = switched;
+      setProject(switched);
+      setActiveVersion("premium");
+      void generate(buildPremiumContext(chosen));
+    } catch (e) {
+      toast.error("สร้างเวอร์ชัน Premium ไม่สำเร็จ", {
+        description: e instanceof Error ? e.message : undefined,
+      });
+    } finally {
+      setSwitchingVersion(false);
+    }
+  };
+
   const changeVersion = async (next: VersionKey) => {
     if (!project || readOnly || switchingVersion || next === activeVersion) return;
     // A turn in flight holds its files in a closure and persists them when it
@@ -2235,10 +2263,24 @@ export default function Studio({ projectId }: { projectId: string }) {
     }
     setSwitchingVersion(true);
     try {
-      // Seeded = the version being LEFT had nothing parked before this switch,
-      // so the one being entered is starting from a copy of it. Asked before the
-      // switch, because after it the outgoing version is always parked.
+      // Nothing parked under the incoming key = this version does not exist yet,
+      // so entering it would create a copy of the one being left.
       const seeded = !(await parkedVersions(project.id)).includes(next);
+
+      // Ask BEFORE switching, not after. Switching first and asking second meant
+      // "ไว้ทีหลัง" left behind a Premium version identical to Standard — and
+      // because the picker only appears when nothing is parked yet, that one
+      // dismissal hid it forever. Choosing is what creates the version.
+      if (next === "premium" && seeded) {
+        const options = premiumOptionsFor(getSkill(project.skillId), [
+          ...screenIndexEntries(project.files).map((e) => e.name),
+          ...Object.keys(project.files ?? {}),
+        ]);
+        if (options.length) {
+          setPremiumOffer(options);
+          return;
+        }
+      }
       // One transaction: files, pointer and both version rows move together, or
       // none of them do. It also writes `files`, so no save follows it — a save
       // here would only send the same megabytes back a second time.
@@ -2285,17 +2327,6 @@ export default function Studio({ projectId }: { projectId: string }) {
           ? "เริ่มจากไฟล์ชุดเดิม — งานที่ทำต่อจากนี้จะไม่ไปกระทบอีกเวอร์ชัน"
           : "Export ตอนนี้จะได้ zip ของเวอร์ชันนี้",
       });
-      // A version that was just seeded is a copy of the one it came from — it is
-      // not worth more money until something is built into it. Offer what this
-      // domain actually sells instead of leaving an empty chat box to guess at.
-      if (next === "premium" && seeded) {
-        setPremiumOffer(
-          premiumOptionsFor(getSkill(project.skillId), [
-            ...screenIndexEntries(files).map((e) => e.name),
-            ...Object.keys(files),
-          ])
-        );
-      }
       await boot(files);
     } catch (e) {
       toast.error("สลับเวอร์ชันไม่สำเร็จ", {
@@ -2625,10 +2656,7 @@ export default function Studio({ projectId }: { projectId: string }) {
         open={premiumOffer.length > 0}
         options={premiumOffer}
         onClose={() => setPremiumOffer([])}
-        onBuild={(chosen) => {
-          setPremiumOffer([]);
-          void generate(buildPremiumContext(chosen));
-        }}
+        onBuild={(chosen) => void buildPremium(chosen)}
       />
 
       <ApprovalModal

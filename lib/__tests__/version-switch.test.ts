@@ -109,3 +109,33 @@ describe("a switch must not move files onto the wrong version", () => {
     expect(fn.slice(0, 1000)).not.toMatch(/if \(busy \|\| chatStreaming\)/);
   });
 });
+
+describe("choosing is what creates the Premium version", () => {
+  /**
+   * Choosing is what creates the version.
+   *
+   * Switching first and asking second left a Premium identical to Standard
+   * behind whenever someone backed out — and since the picker only appears while
+   * nothing is parked yet, that single dismissal hid it for good.
+   */
+  it("opens the picker before switching, and returns without switching", () => {
+    const studioSrc = readFileSync("components/studio/Studio.tsx", "utf8");
+    // Bounded by length, not by a marker: `await boot(files)` also appears
+    // earlier in the file, which sliced this to nothing and passed vacuously.
+    const start = studioSrc.indexOf("const changeVersion = async");
+    const fn = studioSrc.slice(start, start + 4000);
+    const picker = fn.indexOf("setPremiumOffer(options)");
+    const swap = fn.indexOf("await switchVersion(");
+    expect(picker).toBeGreaterThanOrEqual(0);
+    expect(picker).toBeLessThan(swap);
+    // …and it must stop there, or the switch happens anyway.
+    expect(fn.slice(picker, picker + 120)).toContain("return");
+  });
+
+  it("switches only once something has been chosen", () => {
+    const studioSrc = readFileSync("components/studio/Studio.tsx", "utf8");
+    const build = studioSrc.slice(studioSrc.indexOf("const buildPremium = async"));
+    expect(build.slice(0, 900)).toContain('switchVersion(current.id, "standard", "premium"');
+    expect(build.slice(0, 900)).toContain("buildPremiumContext(chosen)");
+  });
+});

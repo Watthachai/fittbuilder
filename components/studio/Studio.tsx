@@ -2446,9 +2446,15 @@ export default function Studio({ projectId }: { projectId: string }) {
         onRecover={() => {
           const current = projectRef.current;
           if (!current || !draft) return;
-          // Through the scaffold guard: the set was cut mid-stream and may be
+          // MERGED over the current files, not swapped in for them. The draft
+          // holds what the interrupted TURN wrote — on an iteration the model
+          // only re-sends what it changed, so the parked set is a delta, not a
+          // project. Replacing would delete every file that turn happened not to
+          // touch. Applying it on top is exactly what the turn would have done.
+          //
+          // Through the scaffold guard too: the set was cut mid-stream and may be
           // missing index.html, which every consumer of project.files assumes.
-          const files = withRequiredScaffold(draft.files);
+          const files = withRequiredScaffold({ ...(current.files ?? {}), ...draft.files });
           const recovered = Object.keys(draft.files).length;
           setDraft(null);
           void clearDraft(projectId).catch(() => {});

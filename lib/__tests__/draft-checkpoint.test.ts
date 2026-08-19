@@ -141,6 +141,18 @@ describe("generation checkpoints", () => {
     });
   });
 
+  /**
+   * The draft is what the interrupted TURN wrote, not a copy of the project: on
+   * an iteration the model re-sends only what it changed. Caught by opening a
+   * real recovery dialog — the parked set had 12 files for a 32-file project, so
+   * replacing would have deleted the 20 the turn never touched.
+   */
+  it("merges a recovered draft over the current files, never replaces them", () => {
+    const recover = studio.slice(studio.indexOf("onRecover={"));
+    const body = recover.slice(0, 1200);
+    expect(body).toMatch(/\.\.\.\(current\.files \?\? \{\}\),\s*\.\.\.draft\.files/);
+  });
+
   it("offers a recovered draft rather than applying it on load", () => {
     // loadDraft must feed a decision, not a write.
     const mount = studio.slice(studio.indexOf("void loadDraft(projectId)"));

@@ -188,6 +188,12 @@ export async function POST(request: Request) {
        *
        * Recorded BEFORE the `closed` guard on purpose. Once the client is gone
        * there is nothing to enqueue, and that is exactly when this matters.
+       *
+       * This is a DELTA, not a project: on an iteration the model re-sends only
+       * what it changed. Recovery merges it over the current files rather than
+       * replacing them (see DraftRecovery in Studio) — seeding it with the whole
+       * project instead would put the entire file map on the wire at every
+       * checkpoint, for nothing.
        */
       const produced: Record<string, string> = {};
       let lastPark = 0;

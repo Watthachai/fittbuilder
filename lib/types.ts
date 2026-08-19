@@ -303,6 +303,26 @@ export interface ProjectSummary {
   role?: ShareRole;
   /** Display name of the project's creator — set only for shared (member) rows. */
   ownerName?: string;
+  /**
+   * An unfinished turn, if this project has one.
+   *
+   * Read from the drafts table rather than the in-memory generation registry,
+   * because the registry lives on globalThis and therefore knows only about
+   * turns THIS page started — a reload, a second tab or a teammate all see
+   * nothing. The database is the only place where "someone is working on this"
+   * survives all three.
+   */
+  generation?: ProjectGeneration;
+}
+
+export interface ProjectGeneration {
+  /** Heartbeat still moving — a turn is running somewhere right now. */
+  live: boolean;
+  /** How much is parked, without having read any of it. */
+  fileCount: number;
+  updatedAt: string;
+  /** Who is (or was) generating. Null for drafts written before 0035. */
+  updatedBy: string | null;
 }
 
 

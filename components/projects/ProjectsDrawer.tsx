@@ -295,12 +295,28 @@ export default function ProjectsDrawer({
         className="flex min-w-0 flex-1 items-center gap-2.5 text-left"
       >
         <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg border border-night-edge bg-night/40">
-          <FileCode size={15} className="text-shine/70" />
+          {/* A beating heartbeat means a turn is running — in another tab, or a
+              teammate's browser. The registry cannot know either; the draft row
+              can (see ProjectSummary.generation). */}
+          {p.generation?.live ? (
+            <Loader2 size={15} className="animate-spin text-shine" />
+          ) : (
+            <FileCode size={15} className="text-shine/70" />
+          )}
         </span>
         <span className="min-w-0 flex-1">
           <span className="block truncate text-sm text-chalk">{p.name}</span>
           <span className="block truncate font-mono text-[10px] text-chalk-dim">
-            {formatDate(p.updatedAt)}
+            {p.generation?.live ? (
+              <span className="text-shine">กำลังสร้าง…</span>
+            ) : p.generation ? (
+              // Quiet heartbeat: the turn died with its tab. Say so here rather
+              // than letting the user find out by opening it — the work is
+              // recoverable, but only if they know it is there.
+              <span className="text-go">ค้างไว้ {p.generation.fileCount} ไฟล์</span>
+            ) : (
+              formatDate(p.updatedAt)
+            )}
             {p.access === "member" && p.ownerName
               ? ` · โดย ${p.ownerName}`
               : ""}

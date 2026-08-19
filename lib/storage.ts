@@ -4,7 +4,7 @@ import { createClient } from "@/lib/supabase/client";
 import { currentUserId } from "@/lib/current-user";
 import { projectToRow, rowToProject, type ProjectRow } from "@/lib/db/project-mapper";
 import type { PhaseId } from "./phases";
-import type { ChatMessage, ProjectFiles, ProjectRecord, ProjectSummary, RunnerSend, ShareRole } from "./types";
+import type { ChatMessage, ProjectFiles, ProjectGeneration, ProjectRecord, ProjectSummary, RunnerSend, ShareRole } from "./types";
 import type { Database, Json } from "@/lib/db/types";
 
 type ProjInsert = Database["public"]["Tables"]["fittbuilder_projects"]["Insert"];
@@ -174,15 +174,33 @@ export async function listProjects(): Promise<ProjectSummary[]> {
     .select("id, owner_id, name, file_count, org_id, created_at, updated_at")
     .order("updated_at", { ascending: false });
   if (error) throw error;
-  const [{ data: memberships }, { data: owners }] = await Promise.all([
+  const [{ data: memberships }, { data: owners }, { data: drafts }] = await Promise.all([
     supabase.from("fittbuilder_project_members").select("project_id, role").eq("user_id", me),
     // Creator names for shared rows — profiles_select_own hides other users'
     // profiles, so this rides a gated security-definer RPC (migration 0022).
     supabase.rpc("fittbuilder_shared_project_owners"),
+    // Which projects have an unfinished turn. Note the columns: NOT `files`.
+    // This table holds whole file maps, and pulling one into a list render is
+    // the exact shape of the 2026-08-06 outage — file_count exists (0036) so
+    // the list can say how much is parked without reading any of it.
+    supabase
+      .from("fittbuilder_project_drafts")
+      .select("project_id, updated_at, updated_by, file_count"),
   ]);
   const roleByProject = new Map<string, ShareRole>((memberships ?? []).map((m) => [m.project_id, m.role as ShareRole]));
   const ownerByProject = new Map<string, string>(
     (owners ?? []).map((o) => [o.project_id, o.name?.trim() || o.email || ""])
+  );
+  const draftByProject = new Map<string, ProjectGeneration>(
+    (drafts ?? []).map((d) => [
+      d.project_id,
+      {
+        live: isDraftLive({ files: {}, prompt: "", updatedAt: d.updated_at, updatedBy: d.updated_by }),
+        fileCount: d.file_count ?? 0,
+        updatedAt: d.updated_at,
+        updatedBy: d.updated_by,
+      },
+    ])
   );
   return (rows ?? []).map((r) => {
     const owner = r.owner_id === me;
@@ -196,6 +214,7 @@ export async function listProjects(): Promise<ProjectSummary[]> {
       access: owner ? "owner" : "member",
       role: owner ? undefined : roleByProject.get(r.id),
       ownerName: owner ? undefined : ownerByProject.get(r.id) || undefined,
+      generation: draftByProject.get(r.id),
     } satisfies ProjectSummary;
   });
 }

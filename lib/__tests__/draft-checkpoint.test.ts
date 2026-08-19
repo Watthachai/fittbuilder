@@ -148,3 +148,36 @@ describe("generation checkpoints", () => {
     expect(mount.slice(0, 700)).not.toContain("persist");
   });
 });
+
+/**
+ * The projects list answers "is anyone working on this?" from the database, not
+ * from the in-memory registry — which lives on globalThis and therefore knows
+ * only about turns the current page started. A reload, a second tab and a
+ * teammate all see nothing there.
+ */
+describe("projects list shows unfinished turns", () => {
+  const storageSrc = readFileSync("lib/storage.ts", "utf8");
+  const list = storageSrc.slice(
+    storageSrc.indexOf("export async function listProjects"),
+    storageSrc.indexOf("export async function getAccess")
+  );
+
+  it("reads the drafts table alongside the list", () => {
+    expect(list).toContain("fittbuilder_project_drafts");
+    expect(list).toContain("isDraftLive");
+  });
+
+  it("never pulls `files` into a list render", () => {
+    // The drafts table holds whole file maps. Selecting one per row here is the
+    // shape of the 2026-08-06 outage; file_count (0036) exists to avoid it.
+    const select = list.slice(list.indexOf("fittbuilder_project_drafts"));
+    const columns = select.slice(select.indexOf(".select("), select.indexOf(")", select.indexOf(".select(")));
+    expect(columns).toContain("file_count");
+    expect(columns).not.toMatch(/\bfiles\b/);
+  });
+
+  it("keeps the project list itself off `files` too", () => {
+    const projectSelect = list.slice(list.indexOf(".select("), list.indexOf("\n", list.indexOf(".select(")));
+    expect(projectSelect).not.toMatch(/\bfiles\b/);
+  });
+});

@@ -305,6 +305,8 @@ export interface Database {
           prompt: string;
           updated_at: string;
           updated_by: string | null;
+          /** Maintained by a trigger (0036) so a list never reads `files`. */
+          file_count: number;
         };
         Insert: {
           project_id: string;
@@ -312,6 +314,7 @@ export interface Database {
           prompt?: string;
           updated_at?: string;
           updated_by?: string | null;
+          file_count?: number;
         };
         Update: {
           project_id?: string;

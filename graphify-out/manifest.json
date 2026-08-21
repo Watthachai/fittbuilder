@@ -32,8 +32,8 @@
     "hash": "36f9d12326fbecb1460a47bd5fb6bb64"
   },
   "/Users/itswatthachai/fitt-builder-v2/app/page.tsx": {
-    "mtime": 1786936078.3097398,
-    "hash": "4311f5a5d11a344c29ee3793bedbbc5c"
+    "mtime": 1787291263.5449278,
+    "hash": "630a80557f32066192dcb62ec0668402"
   },
   "/Users/itswatthachai/fitt-builder-v2/app/global-error.tsx": {
     "mtime": 1784542079.3852894,
@@ -579,6 +579,10 @@
     "mtime": 1787046943.2049809,
     "hash": "aab585badc7157bc8f551b0df573a733"
   },
+  "/Users/itswatthachai/fitt-builder-v2/components/landing/PartnerStack.tsx": {
+    "mtime": 1787291774.8750381,
+    "hash": "a017175ba5ff89ddbd5225b91738a922"
+  },
   "/Users/itswatthachai/fitt-builder-v2/components/landing/LoginShowcase.tsx": {
     "mtime": 1782373375.5166097,
     "hash": "40fd84a989623ac446b398a154e23bf6"
@@ -594,6 +598,10 @@
   "/Users/itswatthachai/fitt-builder-v2/components/landing/LaunchPad.tsx": {
     "mtime": 1787288907.9663978,
     "hash": "c96f3558813578a7ef4efc71a2760845"
+  },
+  "/Users/itswatthachai/fitt-builder-v2/components/landing/ShowcaseMarquee.tsx": {
+    "mtime": 1787291096.9848218,
+    "hash": "77d04d837590fd6b52a3589f73940db9"
   },
   "/Users/itswatthachai/fitt-builder-v2/components/landing/PartnerForm.tsx": {
     "mtime": 1786936078.3150306,
@@ -914,6 +922,10 @@
   "/Users/itswatthachai/fitt-builder-v2/lib/admin.ts": {
     "mtime": 1782190157.1184435,
     "hash": "81619812419b75ff564ecfc3eea7c1c8"
+  },
+  "/Users/itswatthachai/fitt-builder-v2/lib/showcase.ts": {
+    "mtime": 1787291238.1690946,
+    "hash": "d32b9691aa0c753fb258388da9a0275a"
   },
   "/Users/itswatthachai/fitt-builder-v2/lib/changelog.ts": {
     "mtime": 1787120433.6526196,
@@ -1451,6 +1463,10 @@
     "mtime": 1786936078.3279047,
     "hash": "5f5b78fa8d6f17d9f967d11a7b36213c"
   },
+  "/Users/itswatthachai/fitt-builder-v2/docs/jira/2026-08-21-brief-passthrough.md": {
+    "mtime": 1787289685.8425493,
+    "hash": "963d2a4d42f395b658db2ef466ce1eaf"
+  },
   "/Users/itswatthachai/fitt-builder-v2/docs/jira/2026-08-13-quote-v2-partner.md": {
     "mtime": 1786936078.3291802,
     "hash": "d6394ffc6496b3542c73b640abc490f8"
@@ -1498,6 +1514,10 @@
   "/Users/itswatthachai/fitt-builder-v2/docs/superpowers/specs/2026-07-14-domain-skill-studio-design.md": {
     "mtime": 1784006473.2532854,
     "hash": "26777e2930dbfb23f0008bb57d7cefa5"
+  },
+  "/Users/itswatthachai/fitt-builder-v2/docs/test-scripts/brief-passthrough.md": {
+    "mtime": 1787289747.3639302,
+    "hash": "a04a42d49157aa55897fe7d4ebd65870"
   },
   "/Users/itswatthachai/fitt-builder-v2/docs/test-scripts/perf-security-hardening.md": {
     "mtime": 1787046469.0882616,
@@ -1754,5 +1774,61 @@
   "/Users/itswatthachai/fitt-builder-v2/public/Claude-Code-CyberSecurity-Skill-main/assets/banner.png": {
     "mtime": 1782454427.0,
     "hash": "5c0c8cf2e6844ff3846171c6c884562d"
+  },
+  "/Users/itswatthachai/fitt-builder-v2/public/showcase/pace-05.webp": {
+    "mtime": 1787291018.160933,
+    "hash": "6dee899244fd8526faf4ccb7dce47bea"
+  },
+  "/Users/itswatthachai/fitt-builder-v2/public/showcase/kroma-00.webp": {
+    "mtime": 1787291017.1734378,
+    "hash": "16eaf66ab2d588a97597717b0770ee25"
+  },
+  "/Users/itswatthachai/fitt-builder-v2/public/showcase/kroma-01.webp": {
+    "mtime": 1787291017.2580247,
+    "hash": "7a2e76c53d532ffe92846431cb37c57e"
+  },
+  "/Users/itswatthachai/fitt-builder-v2/public/showcase/pace-04.webp": {
+    "mtime": 1787291018.0805714,
+    "hash": "0c8bc6b504685afa1152999b78316c51"
+  },
+  "/Users/itswatthachai/fitt-builder-v2/public/showcase/kroma-06.webp": {
+    "mtime": 1787291017.6698673,
+    "hash": "958b6358195c9427db2037bcfcb23c4b"
+  },
+  "/Users/itswatthachai/fitt-builder-v2/public/showcase/pace-03.webp": {
+    "mtime": 1787291017.9959314,
+    "hash": "516b22fb6b07147ade51d5305fc5bf45"
+  },
+  "/Users/itswatthachai/fitt-builder-v2/public/showcase/pace-02.webp": {
+    "mtime": 1787291017.9153361,
+    "hash": "a8bd4cd26a6773e2b14a8ed082e785a6"
+  },
+  "/Users/itswatthachai/fitt-builder-v2/public/showcase/kroma-04.webp": {
+    "mtime": 1787291017.5042038,
+    "hash": "745ce7c44ac75c1ec8d05ba205de43ac"
+  },
+  "/Users/itswatthachai/fitt-builder-v2/public/showcase/pace-01.webp": {
+    "mtime": 1787291017.8293064,
+    "hash": "ab0025fb01830067730f6f160143ebef"
+  },
+  "/Users/itswatthachai/fitt-builder-v2/public/showcase/pace-00.webp": {
+    "mtime": 1787291017.757188,
+    "hash": "0c7cfc48d2580a6312464db3c7079e66"
+  },
+  "/Users/itswatthachai/fitt-builder-v2/public/showcase/kroma-05.webp": {
+    "mtime": 1787291017.5874937,
+    "hash": "fe3e769e5511f09029c93b529b774f08"
+  },
+  "/Users/itswatthachai/fitt-builder-v2/public/showcase/kroma-02.webp": {
+    "mtime": 1787291017.3377807,
+    "hash": "69f2285d8248f8faceab61518ec74a1d"
+  },
+  "/Users/itswatthachai/fitt-builder-v2/public/showcase/kroma-03.webp": {
+    "mtime": 1787291017.423326,
+    "hash": "df34dc3837aa7fec856f382e3d40ef4f"
+  },
+  "/Users/itswatthachai/fitt-builder-v2/public/showcase/pace-06.webp": {
+    "mtime": 1787291018.2395203,
+    "hash": "5b08f2a268fc93903d689318f2919bee"
   }
 }

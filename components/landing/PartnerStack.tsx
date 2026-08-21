@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRef, useState } from "react";
 import { useMotionValueEvent, useScroll } from "motion/react";
 import { ArrowRight, FileText, Palette, Timer } from "lucide-react";
+import PartnerLetterhead from "./PartnerLetterhead";
 
 const CARDS = [
   {
@@ -117,7 +118,10 @@ export default function PartnerStack() {
         })}
       </div>
 
-      <div className="mt-16 flex justify-center">
+      {/* The deck ends on the artifact, not on another sentence. */}
+      <PartnerLetterhead />
+
+      <div className="mt-14 flex justify-center">
         <Link
           href="/partner"
           className="inline-flex items-center gap-2.5 rounded-full bg-shine px-8 py-3.5 font-display text-[15px] font-semibold text-night transition hover:-translate-y-0.5 hover:brightness-110"

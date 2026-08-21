@@ -22,11 +22,12 @@ export interface ShowcaseTile {
  * rows only travel while the reader is travelling. A looping marquee reads as
  * decoration; one that answers the scroll reads as a response.
  *
- * The list is TRIPLED and parked on the middle copy: the rows drift in opposite
- * directions and a single copy would run out of tiles at one edge. Travel over
- * the section's scroll span is roughly (viewport + section) × 0.3 ≈ 500px,
- * against a copy about six times that wide — so the seam is never reached and
- * no modulo bookkeeping is needed.
+ * The list is DOUBLED and parked a third of the way in: the rows drift in
+ * opposite directions and a single copy would run out of tiles at one edge.
+ * Travel over the section's scroll span is roughly (viewport + section) × 0.3
+ * ≈ 500px, against a copy several times wider than any viewport — so the seam
+ * is never reached and no modulo bookkeeping is needed. This assumes a list
+ * long enough to overfill a screen; a handful of tiles would want more copies.
  */
 export default function ShowcaseMarquee({ tiles }: { tiles: ShowcaseTile[] }) {
   const ref = useRef<HTMLElement>(null);
@@ -84,7 +85,7 @@ export default function ShowcaseMarquee({ tiles }: { tiles: ShowcaseTile[] }) {
                 willChange: "transform",
               }}
             >
-              {[0, 1, 2].map((copy) =>
+              {[0, 1].map((copy) =>
                 row.map((tile) => (
                   <figure
                     key={`${copy}-${tile.src}`}

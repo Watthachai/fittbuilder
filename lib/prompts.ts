@@ -77,6 +77,31 @@ const OUTPUT_CONTRACT = `OUTPUT FORMAT — STRICT (stream files one at a time):
    - Then bullet points grouped by area, each starting with a **bold label**, e.g. **ดีไซน์ (Theme):** …, **ฟังก์ชัน:** …, **โครงสร้างโค้ด:** …, **ส่วนที่แก้ (iteration):** …
    - Be concrete (mention the actual components, colors, libraries, interactions). Use real Markdown (bold, bullet lists). Do NOT restate the file list (the UI already shows it) and do NOT include code fences here.`;
 
+/**
+ * The rules that hold on EVERY turn — writing the project from scratch or
+ * editing one line of it.
+ *
+ * They used to live only in PROJECT_RULES, which the iteration prompt does not
+ * include, so an edit turn worked with no knowledge of them at all. A user
+ * reported broken images; the "fix" turn had quietly stripped crossOrigin from
+ * every <img> in the project and added referrerPolicy instead, because nothing
+ * in its prompt said the preview is cross-origin isolated. The same blind spot
+ * covered the output language and the no-paid-tier rule.
+ *
+ * PROJECT_RULES cannot simply be handed to an edit turn wholesale: it opens with
+ * "always produce a Vite project" and "always include these files", which
+ * contradicts "emit only the files that changed" and would have every small edit
+ * rewrite the whole tree. Only what is unconditional belongs here.
+ */
+const RUNTIME_RULES = `RULES THAT HOLD ON EVERY TURN — creating the project or editing it:
+- Tailwind is loaded ONLY by the CDN <script> in index.html; it is NOT an installed package. NEVER write \`@import "tailwindcss"\`, \`@tailwind ...\`, \`@theme {}\` or \`@apply ...\` in any .css file — they are build-time directives and WILL CRASH the dev server. Custom colours and fonts go in the JSX as utility classes with arbitrary values (bg-[#0b0b0f], text-[#f5f5f7]).
+- 13. Imagery: by DEFAULT use inline SVG or CSS gradients/shapes — never invent or hotlink random external image URLs (they break or are hotlink-protected). EXCEPTION: when the brief gives a SPECIFIC media URL (an image or a video), USE THAT EXACT URL as provided. The preview runs cross-origin isolated, so EVERY external <img>/<video>/<source> MUST carry crossOrigin="anonymous" — otherwise the browser blocks it and nothing shows. Example fullscreen background video:
+   <video src="...the given url..." crossOrigin="anonymous" autoPlay loop muted playsInline className="absolute inset-0 h-full w-full object-cover" />
+   (If you split into <source>, put crossOrigin on the <video> element.)
+- 10. LANGUAGE follows the ORIGINAL BRIEF, not the spec documents — those get written up in Thai whatever the brief said, so taking the cue from them silently turns an English brief into a Thai app. Thai brief → every visible string in Thai (the Anuphan font is already loaded). English brief → every visible string in English. Where the brief spells out the exact wording of a string, reproduce it letter for letter; never translate copy that was given to you.
+- 11. Never call external APIs or backends. All data is local mock data in the React code.
+- 8. NEVER build a paid-tier switch into the app (a "Free/Pro", "Standard/Premium" or "ปลดล็อก" toggle that reveals features already present in the code). Every demo here can be exported as a zip and built for a real customer, so a tier toggle ships the paid code inside the free customer's bundle — one DevTools click and it is unlocked. Build ONE tier: whatever the user asked for. A separate tier is a separate project (the studio forks one on request). A toggle that only changes data or appearance — theme, language, currency, a plan-comparison PRICING TABLE — is fine and not what this rule is about.`;
+
 const PROJECT_RULES = `PROJECT RULES (Vite + React 18 + TypeScript):
 1. Always produce a Vite + React 18 + TypeScript project. Base package.json (do NOT add/remove/change dependencies yourself — the user installs npm packages separately; if the current files already list extra dependencies, keep them):
 ${DEMO_PACKAGE_JSON}
@@ -86,7 +111,6 @@ ${DEMO_PACKAGE_JSON}
    - <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Anuphan:wght@400;500;600;700&display=swap" rel="stylesheet" />
    - <style>body{font-family:'Anuphan','Inter',system-ui,sans-serif}</style>
    and in <body>: <div id="root"></div> then <script type="module" src="/src/main.tsx"></script>.
-   CRITICAL — Tailwind is loaded ONLY via that CDN <script>. It is NOT an installed package. In src/index.css (or any .css) you MUST NOT write \`@import "tailwindcss"\`, \`@tailwind ...\`, \`@theme {}\`, or \`@apply ...\` — those are Tailwind v4 build-time directives and WILL CRASH the dev server ("Unable to resolve @import tailwindcss"). For custom colors/fonts use Tailwind utility classes and arbitrary values (e.g. bg-[#0b0b0f], text-[#f5f5f7], font-[Inter]) directly in the JSX.
 4. src/main.tsx mounts <App /> into #root via react-dom/client createRoot and imports "./index.css". src/index.css must be PLAIN CSS only (e.g. base resets, body margin, scrollbar styles) — never any Tailwind directive (see rule 3).
 5. TypeScript + JSX (.tsx) ONLY. The project uses @vitejs/plugin-react with a vite.config.js + tsconfig.json that are PROVIDED automatically — do NOT create or modify them. With the automatic JSX runtime you do NOT need to "import React"; just import the hooks you use (e.g. import { useState } from "react"). Write idiomatic TypeScript: type component props with interfaces/types and type your state and mock-data shapes, but the build does NOT typecheck — prefer a running app over exhaustive typing, and never let types block functionality. You may import react, react-dom, and any npm package ALREADY in package.json "dependencies". To use an EXTRA npm package, declare it with a <deps>package-name</deps> directive (see output format) and it is installed automatically — never hand-write "npm install". Import local files with RELATIVE paths WITHOUT extension (e.g. "./components/Header").
 6. DESIGN QUALITY — how to make it look like a real, shipped product rather than a tutorial demo. Everything in this rule is the DEFAULT for what the brief leaves open; where the brief states a layout, a measurement, a palette or a motion behaviour, that wins and this rule yields to it — a 640px email column asked for by name does not get a SaaS navbar bolted on. Absent such direction, aim here (think Linear / Vercel / Stripe dashboards):
@@ -109,14 +133,8 @@ ${DEMO_PACKAGE_JSON}
    - "three" — 3D/WebGL, verified at 60fps in this runtime (import * as THREE from "three"; also declare "@types/three"). USE ONLY when the user explicitly asks for 3D, WebGL, a product turntable, a floor plan in 3D, or similar. Do NOT reach for it on ordinary business screens (dashboards, CRM, forms, e-commerce lists) — it is a heavy install and a slow first paint, and a flat screen that loads instantly beats a 3D one that does not. Mount the renderer in a useEffect on a <div> ref and ALWAYS dispose it in the cleanup (renderer.dispose(), cancelAnimationFrame, remove the resize listener) or a re-render leaks a GL context.
    Example directive: <deps>recharts lucide-react framer-motion</deps>
    Other packages are allowed too — but only browser-safe pure-JS libraries that support React 18. Declare EVERY package you import in the SAME turn you import it (an undeclared import = a white screen), and declare only what you actually use.
-8. NEVER build a paid-tier switch into the app (a "Free/Pro", "Standard/Premium" or "ปลดล็อก" toggle that reveals features already present in the code). Every demo here can be exported as a zip and built for a real customer, so a tier toggle ships the paid code inside the free customer's bundle — one DevTools click and it is unlocked. Build ONE tier: whatever the user asked for. A separate tier is a separate project (the studio forks one on request). A toggle that only changes data or appearance — theme, language, currency, a plan-comparison PRICING TABLE — is fine and not what this rule is about.
-9. State must work: clickable tabs, working forms, add-to-cart counters, filters — buttons must DO something. Use React hooks.
-10. LANGUAGE follows the ORIGINAL BRIEF, not the spec documents — those get written up in Thai whatever the brief said, so taking the cue from them silently turns an English brief into a Thai app. Thai brief → every visible string in Thai (the Anuphan font is already loaded). English brief → every visible string in English. Where the brief spells out the exact wording of a string, reproduce it letter for letter; never translate copy that was given to you.
-11. Never call external APIs or backends. All data is local mock data in the React code.
-12. PROJECT STRUCTURE — follow the PROJECT STRUCTURE contract below to the letter; it is not a style preference. Total output under ~140KB.
-13. Imagery: by DEFAULT use inline SVG or CSS gradients/shapes — never invent or hotlink random external image URLs (they break or are hotlink-protected). EXCEPTION: when the brief gives a SPECIFIC media URL (an image or a video), USE THAT EXACT URL as provided. The preview runs cross-origin isolated, so EVERY external <img>/<video>/<source> MUST carry crossOrigin="anonymous" — otherwise the browser blocks it and nothing shows. Example fullscreen background video:
-   <video src="...the given url..." crossOrigin="anonymous" autoPlay loop muted playsInline className="absolute inset-0 h-full w-full object-cover" />
-   (If you split into <source>, put crossOrigin on the <video> element.)`;
+8. State must work: clickable tabs, working forms, add-to-cart counters, filters — buttons must DO something. Use React hooks.
+9. PROJECT STRUCTURE — follow the PROJECT STRUCTURE contract below to the letter; it is not a style preference. Total output under ~140KB.`;
 
 /**
  * The file-layout contract, shared by Build and every iteration. Iteration used
@@ -176,6 +194,8 @@ export function buildGenerationSystemPrompt(
 
 ${PROJECT_RULES}
 
+${RUNTIME_RULES}
+
 ${ARCHITECTURE}
 
 ${skillBlock}${specContext ? `${specContext}\n\n` : ""}${OUTPUT_CONTRACT}`;
@@ -198,6 +218,8 @@ ITERATION RULES:
 4. Keep the existing stack: TypeScript (.tsx) only; NEVER change package.json/vite.config.js/tsconfig.json or add dependencies via files. A new npm package installs ITSELF: declare <deps>package-name</deps> in the same turn you import it and it is installed automatically before the app runs (safe, verified picks: lucide-react · recharts · framer-motion · date-fns · clsx · sonner — plus "three" + "@types/three" ONLY when the user explicitly asks for 3D/WebGL, never on ordinary business screens). Never tell the user to run a command, and never work around a missing library by hand. Packages already in package.json need no directive. Use relative imports without file extensions.
 5. Preserve the existing design language and data unless the request says otherwise — including its motion: if the project has an entrance timeline (opacity-0 markup + CSS keyframes + staggered animationDelay), a new element joins that ladder at the right place instead of appearing instantly beside it, and an edited one keeps its delay.
 6. STRUCTURE IS PART OF THE DELIVERABLE. Never grow a file past ~200 lines to fit the change, and never move page/feature code up into App.tsx. If the code you must touch sits inside an already-oversized file, extract exactly that region into a properly-named new file (pages/, components/, hooks/, data/, lib/), import it back, and make your change there — leave the rest of that file untouched. Split as you go; do not rewrite the whole project unless the user asked for it.
+
+${RUNTIME_RULES}
 
 ${ARCHITECTURE}
 

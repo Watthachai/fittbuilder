@@ -1,6 +1,7 @@
 import { after } from "next/server";
 import { z } from "zod";
 import { MESSAGE_MAX_CHARS } from "@/lib/limits";
+import { blockedAssets, blockedAssetsNote, externalAssetUrls } from "@/lib/asset-check";
 import { getAgent } from "@/lib/agents/registry";
 import { buildSpecContext } from "@/lib/context-builder";
 import { currentUserId, recordUsage } from "@/lib/ai-usage";
@@ -358,11 +359,18 @@ export async function POST(request: Request) {
         // were unfinished).
         await parkDraft(true);
 
+        // Remote assets the preview will drop, named before the user starts
+        // guessing at markup. Best-effort: a check that fails must not cost the
+        // turn its reply.
+        const assetNote = await blockedAssets(externalAssetUrls(produced))
+          .then(blockedAssetsNote)
+          .catch(() => "");
+
         send({
           type: "done",
           note:
-            (fromJson ? salvagedNote : parser.getReply()) ||
-            (iteration ? "แก้ไขเรียบร้อยแล้ว" : "สร้างระบบเรียบร้อยแล้ว"),
+            ((fromJson ? salvagedNote : parser.getReply()) ||
+              (iteration ? "แก้ไขเรียบร้อยแล้ว" : "สร้างระบบเรียบร้อยแล้ว")) + assetNote,
           deleted,
         });
         close();

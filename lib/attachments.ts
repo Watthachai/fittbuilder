@@ -1,4 +1,5 @@
 import type { ChatAttachmentInput } from "@/lib/types";
+import { ATTACHMENT_TEXT_MAX_CHARS } from "@/lib/limits";
 
 /** Max size for a single uploaded attachment (routes cap the base64 payload separately). */
 export const MAX_ATTACHMENT_BYTES = 4 * 1024 * 1024;
@@ -87,15 +88,62 @@ async function xlsxToCsvAttachment(file: File): Promise<ChatAttachmentInput> {
   return { name: `${file.name}.csv`, mimeType: "text/csv", data: textToBase64(out) };
 }
 
+/** base64 → UTF-8 text (the inverse of textToBase64; atob alone mangles Thai). */
+export function base64ToText(data: string): string {
+  const bin = atob(data);
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i += 1) bytes[i] = bin.charCodeAt(i);
+  return new TextDecoder().decode(bytes);
+}
+
+/** Appended where a long text file was cut, so the model knows it has part of one. */
+export const TEXT_TRUNCATED_NOTE = "\n\n…(ไฟล์ยาวเกินที่อ่านได้ ส่วนที่เหลือถูกตัดออก)";
+
+const isTextLike = (mimeType: string) =>
+  !mimeType.startsWith("image/") && mimeType !== "application/pdf";
+
+/**
+ * Trim a text attachment to what the model is actually given, and SAY SO.
+ *
+ * The server used to slice the decoded text silently, so a spec that ran past
+ * the budget arrived as a document with no ending and nothing — not the model,
+ * not the person who attached it — knew a piece was missing. Cutting here
+ * instead leaves a marker in the text the model reads and lets the picker tell
+ * the user before they spend a turn on it.
+ */
+function capText(att: ChatAttachmentInput): ChatAttachmentInput {
+  if (!isTextLike(att.mimeType)) return att;
+  const text = base64ToText(att.data);
+  if (text.length <= ATTACHMENT_TEXT_MAX_CHARS) return att;
+  const kept = text.slice(0, ATTACHMENT_TEXT_MAX_CHARS - TEXT_TRUNCATED_NOTE.length);
+  return { ...att, data: textToBase64(kept + TEXT_TRUNCATED_NOTE) };
+}
+
+/**
+ * Whether this attachment reaches the model with an ending.
+ *
+ * Deliberately a yes/no and not "how much was lost". The obvious version
+ * subtracted the kept character count from the source File's byte size, and
+ * those are not the same unit: a .xlsx is compressed binary an order of
+ * magnitude smaller than the CSV it becomes, and Thai UTF-8 runs three bytes to
+ * the character. It reported nothing dropped from a workbook that had plainly
+ * been cut. The marker is exact; a number here would only be a guess.
+ */
+export function wasTruncated(att: ChatAttachmentInput): boolean {
+  return isTextLike(att.mimeType) && base64ToText(att.data).endsWith(TEXT_TRUNCATED_NOTE);
+}
+
 /**
  * Read a browser File into the base64 ChatAttachmentInput the AI routes accept.
  * Excel files are transparently converted to CSV text (see xlsxToCsvAttachment);
- * legacy .xls is rejected with a fix-it message. May throw a user-facing (Thai)
- * Error — pickers surface it as a toast/inline error.
+ * legacy .xls is rejected with a fix-it message. Text of any kind is capped at
+ * what the model is given, with a marker where it was cut. May throw a
+ * user-facing (Thai) Error — pickers surface it as a toast/inline error.
  */
 export async function fileToAttachment(file: File): Promise<ChatAttachmentInput> {
   const lower = file.name.toLowerCase();
-  if (lower.endsWith(".xlsx") || file.type === XLSX_MIME) return xlsxToCsvAttachment(file);
+  if (lower.endsWith(".xlsx") || file.type === XLSX_MIME)
+    return capText(await xlsxToCsvAttachment(file));
   if (lower.endsWith(".xls"))
     throw new Error(
       `"${file.name}" เป็น Excel รุ่นเก่า (.xls) — เปิดใน Excel แล้ว Save As เป็น .xlsx หรือ .csv ก่อนแนบ`
@@ -106,9 +154,9 @@ export async function fileToAttachment(file: File): Promise<ChatAttachmentInput>
     r.onerror = () => reject(r.error);
     r.readAsDataURL(file);
   });
-  return {
+  return capText({
     name: file.name,
     mimeType: file.type || "application/octet-stream",
     data: dataUrl.split(",")[1] ?? "",
-  };
+  });
 }

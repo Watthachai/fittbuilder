@@ -1,5 +1,6 @@
 import { GoogleGenAI, ThinkingLevel, type Part } from "@google/genai";
 import type { ChatAttachmentInput } from "@/lib/types";
+import { ATTACHMENT_TEXT_MAX_CHARS } from "@/lib/limits";
 
 /** Server-only Gemini client. Never import from client components. */
 
@@ -64,7 +65,10 @@ export interface StreamTextOptions {
   onUsage?: (usage: TokenUsage) => void;
 }
 
-const TEXT_PART_LIMIT = 100_000; // cap decoded text files so one attachment can't blow the context
+// Backstop only. The browser already trims a long text file and marks where it
+// cut (lib/attachments.ts), so this should never fire — it is here so a caller
+// that builds an attachment some other way still cannot blow the context.
+const TEXT_PART_LIMIT = ATTACHMENT_TEXT_MAX_CHARS;
 
 /** Our lowercase level → the SDK's enum values. */
 const THINK_LEVEL: Record<ThinkLevel, ThinkingLevel> = {

@@ -580,12 +580,16 @@
     "hash": "aab585badc7157bc8f551b0df573a733"
   },
   "/Users/itswatthachai/fitt-builder-v2/components/landing/PartnerStack.tsx": {
-    "mtime": 1787291774.8750381,
-    "hash": "a017175ba5ff89ddbd5225b91738a922"
+    "mtime": 1787295532.1075754,
+    "hash": "321d191005ce884dc0b1fcb4df2be97d"
   },
   "/Users/itswatthachai/fitt-builder-v2/components/landing/LoginShowcase.tsx": {
     "mtime": 1782373375.5166097,
     "hash": "40fd84a989623ac446b398a154e23bf6"
+  },
+  "/Users/itswatthachai/fitt-builder-v2/components/landing/PartnerLetterhead.tsx": {
+    "mtime": 1787295520.045941,
+    "hash": "fe44d820a0357eb6a37f7e9feff191e8"
   },
   "/Users/itswatthachai/fitt-builder-v2/components/landing/ScrollStory.tsx": {
     "mtime": 1782295614.054157,
@@ -600,8 +604,8 @@
     "hash": "c96f3558813578a7ef4efc71a2760845"
   },
   "/Users/itswatthachai/fitt-builder-v2/components/landing/ShowcaseMarquee.tsx": {
-    "mtime": 1787291096.9848218,
-    "hash": "77d04d837590fd6b52a3589f73940db9"
+    "mtime": 1787295385.7796998,
+    "hash": "023150267076f7792ff7d6c5e711f409"
   },
   "/Users/itswatthachai/fitt-builder-v2/components/landing/PartnerForm.tsx": {
     "mtime": 1786936078.3150306,
@@ -924,8 +928,8 @@
     "hash": "81619812419b75ff564ecfc3eea7c1c8"
   },
   "/Users/itswatthachai/fitt-builder-v2/lib/showcase.ts": {
-    "mtime": 1787291238.1690946,
-    "hash": "d32b9691aa0c753fb258388da9a0275a"
+    "mtime": 1787295373.9232652,
+    "hash": "b6578f5447f5b63c20019635319dabda"
   },
   "/Users/itswatthachai/fitt-builder-v2/lib/changelog.ts": {
     "mtime": 1787120433.6526196,
@@ -1775,60 +1779,160 @@
     "mtime": 1782454427.0,
     "hash": "5c0c8cf2e6844ff3846171c6c884562d"
   },
-  "/Users/itswatthachai/fitt-builder-v2/public/showcase/pace-05.webp": {
-    "mtime": 1787291018.160933,
-    "hash": "6dee899244fd8526faf4ccb7dce47bea"
+  "/Users/itswatthachai/fitt-builder-v2/public/showcase/chokpranee-1.webp": {
+    "mtime": 1787295253.3015692,
+    "hash": "6e89d97759603db1563f1452f5aa9514"
   },
-  "/Users/itswatthachai/fitt-builder-v2/public/showcase/kroma-00.webp": {
-    "mtime": 1787291017.1734378,
-    "hash": "16eaf66ab2d588a97597717b0770ee25"
+  "/Users/itswatthachai/fitt-builder-v2/public/showcase/ar-1.webp": {
+    "mtime": 1787295252.372961,
+    "hash": "ed24aa90efda820e7bd173e72c602da1"
   },
-  "/Users/itswatthachai/fitt-builder-v2/public/showcase/kroma-01.webp": {
-    "mtime": 1787291017.2580247,
-    "hash": "7a2e76c53d532ffe92846431cb37c57e"
+  "/Users/itswatthachai/fitt-builder-v2/public/showcase/dreamplus-1.webp": {
+    "mtime": 1787295253.6355634,
+    "hash": "6480890bd5cb87dfe51b55cc9de32c7b"
   },
-  "/Users/itswatthachai/fitt-builder-v2/public/showcase/pace-04.webp": {
-    "mtime": 1787291018.0805714,
-    "hash": "0c8bc6b504685afa1152999b78316c51"
+  "/Users/itswatthachai/fitt-builder-v2/public/showcase/jaspos-1.webp": {
+    "mtime": 1787295254.3412995,
+    "hash": "9460d5632c50d7f3fdc9bf40cf7b225d"
   },
-  "/Users/itswatthachai/fitt-builder-v2/public/showcase/kroma-06.webp": {
-    "mtime": 1787291017.6698673,
-    "hash": "958b6358195c9427db2037bcfcb23c4b"
-  },
-  "/Users/itswatthachai/fitt-builder-v2/public/showcase/pace-03.webp": {
-    "mtime": 1787291017.9959314,
-    "hash": "516b22fb6b07147ade51d5305fc5bf45"
-  },
-  "/Users/itswatthachai/fitt-builder-v2/public/showcase/pace-02.webp": {
-    "mtime": 1787291017.9153361,
+  "/Users/itswatthachai/fitt-builder-v2/public/showcase/pace-1.webp": {
+    "mtime": 1787295255.013439,
     "hash": "a8bd4cd26a6773e2b14a8ed082e785a6"
   },
-  "/Users/itswatthachai/fitt-builder-v2/public/showcase/kroma-04.webp": {
-    "mtime": 1787291017.5042038,
-    "hash": "745ce7c44ac75c1ec8d05ba205de43ac"
-  },
-  "/Users/itswatthachai/fitt-builder-v2/public/showcase/pace-01.webp": {
-    "mtime": 1787291017.8293064,
-    "hash": "ab0025fb01830067730f6f160143ebef"
-  },
-  "/Users/itswatthachai/fitt-builder-v2/public/showcase/pace-00.webp": {
-    "mtime": 1787291017.757188,
+  "/Users/itswatthachai/fitt-builder-v2/public/showcase/pace-0.webp": {
+    "mtime": 1787295254.9281402,
     "hash": "0c7cfc48d2580a6312464db3c7079e66"
   },
-  "/Users/itswatthachai/fitt-builder-v2/public/showcase/kroma-05.webp": {
-    "mtime": 1787291017.5874937,
+  "/Users/itswatthachai/fitt-builder-v2/public/showcase/jaspos-0.webp": {
+    "mtime": 1787295254.240697,
+    "hash": "de1078582613effb6968eebdd91fabba"
+  },
+  "/Users/itswatthachai/fitt-builder-v2/public/showcase/ar-0.webp": {
+    "mtime": 1787295252.2820535,
+    "hash": "bbee7d1b955ad39bdd45b229f5a0d5b8"
+  },
+  "/Users/itswatthachai/fitt-builder-v2/public/showcase/dreamplus-0.webp": {
+    "mtime": 1787295253.543673,
+    "hash": "024975d3463d88686af27764e77680be"
+  },
+  "/Users/itswatthachai/fitt-builder-v2/public/showcase/chokpranee-0.webp": {
+    "mtime": 1787295253.2117095,
+    "hash": "cc02a5bbacae6e23f4fa101acc5ca5f3"
+  },
+  "/Users/itswatthachai/fitt-builder-v2/public/showcase/auditflow-2.webp": {
+    "mtime": 1787295252.786645,
+    "hash": "2a7f3282728d7d1225a90ee51719d661"
+  },
+  "/Users/itswatthachai/fitt-builder-v2/public/showcase/kroma-2.webp": {
+    "mtime": 1787295254.7582054,
+    "hash": "745ce7c44ac75c1ec8d05ba205de43ac"
+  },
+  "/Users/itswatthachai/fitt-builder-v2/public/showcase/stock-3.webp": {
+    "mtime": 1787295255.514136,
+    "hash": "d2ed2e43d70e1daa0e2436c23a8b1472"
+  },
+  "/Users/itswatthachai/fitt-builder-v2/public/showcase/jaserp-2.webp": {
+    "mtime": 1787295254.0657752,
+    "hash": "94656f07e74c2e040f16ead734ea278f"
+  },
+  "/Users/itswatthachai/fitt-builder-v2/public/showcase/jaserp-3.webp": {
+    "mtime": 1787295254.1529217,
+    "hash": "8f7f8fba1176d1d97d5a7f563ddaa7bd"
+  },
+  "/Users/itswatthachai/fitt-builder-v2/public/showcase/stock-2.webp": {
+    "mtime": 1787295255.4302237,
+    "hash": "e8110c011141a91935c136ca2eab03ff"
+  },
+  "/Users/itswatthachai/fitt-builder-v2/public/showcase/kroma-3.webp": {
+    "mtime": 1787295254.842393,
     "hash": "fe3e769e5511f09029c93b529b774f08"
   },
-  "/Users/itswatthachai/fitt-builder-v2/public/showcase/kroma-02.webp": {
-    "mtime": 1787291017.3377807,
-    "hash": "69f2285d8248f8faceab61518ec74a1d"
+  "/Users/itswatthachai/fitt-builder-v2/public/showcase/auditflow-3.webp": {
+    "mtime": 1787295252.8617308,
+    "hash": "6a4588ced6dca357304537a771560f11"
   },
-  "/Users/itswatthachai/fitt-builder-v2/public/showcase/kroma-03.webp": {
-    "mtime": 1787291017.423326,
+  "/Users/itswatthachai/fitt-builder-v2/public/showcase/booking-2.webp": {
+    "mtime": 1787295253.1205225,
+    "hash": "e1e6f60ff02e903f0912df9d58c6e793"
+  },
+  "/Users/itswatthachai/fitt-builder-v2/public/showcase/kroma-0.webp": {
+    "mtime": 1787295254.594417,
+    "hash": "16eaf66ab2d588a97597717b0770ee25"
+  },
+  "/Users/itswatthachai/fitt-builder-v2/public/showcase/auditflow-0.webp": {
+    "mtime": 1787295252.632981,
+    "hash": "afda5d4299309aa7d1ed63dca4139df1"
+  },
+  "/Users/itswatthachai/fitt-builder-v2/public/showcase/booking-1.webp": {
+    "mtime": 1787295253.0399218,
+    "hash": "45b3175a8d432b149ac70cceabc51a63"
+  },
+  "/Users/itswatthachai/fitt-builder-v2/public/showcase/jaserp-0.webp": {
+    "mtime": 1787295253.8985474,
+    "hash": "1052a79b356becfefdda887e34d955d4"
+  },
+  "/Users/itswatthachai/fitt-builder-v2/public/showcase/stock-1.webp": {
+    "mtime": 1787295255.3491194,
+    "hash": "106d7648c63490ba0bc8f59b79420c1a"
+  },
+  "/Users/itswatthachai/fitt-builder-v2/public/showcase/stock-0.webp": {
+    "mtime": 1787295255.2584932,
+    "hash": "f30992cb75ddaae07b0a461bce5eeb35"
+  },
+  "/Users/itswatthachai/fitt-builder-v2/public/showcase/jaserp-1.webp": {
+    "mtime": 1787295253.9799075,
+    "hash": "12e68f4321d8842ee56ac04f13b20273"
+  },
+  "/Users/itswatthachai/fitt-builder-v2/public/showcase/booking-0.webp": {
+    "mtime": 1787295252.9498935,
+    "hash": "6cec323365bd7a364a7521c1396a5a7e"
+  },
+  "/Users/itswatthachai/fitt-builder-v2/public/showcase/auditflow-1.webp": {
+    "mtime": 1787295252.7086349,
+    "hash": "7063acd1d7a1defedf1f4fbc665c55f5"
+  },
+  "/Users/itswatthachai/fitt-builder-v2/public/showcase/kroma-1.webp": {
+    "mtime": 1787295254.6796613,
     "hash": "df34dc3837aa7fec856f382e3d40ef4f"
   },
-  "/Users/itswatthachai/fitt-builder-v2/public/showcase/pace-06.webp": {
-    "mtime": 1787291018.2395203,
-    "hash": "5b08f2a268fc93903d689318f2919bee"
+  "/Users/itswatthachai/fitt-builder-v2/public/showcase/jaspos-3.webp": {
+    "mtime": 1787295254.5078402,
+    "hash": "79bca28bd668e3e9db7d88eea6b5204d"
+  },
+  "/Users/itswatthachai/fitt-builder-v2/public/showcase/dreamplus-3.webp": {
+    "mtime": 1787295253.8099926,
+    "hash": "078ff4398f5a07501191ed1dba5a26c7"
+  },
+  "/Users/itswatthachai/fitt-builder-v2/public/showcase/ar-3.webp": {
+    "mtime": 1787295252.5514889,
+    "hash": "1c5c3f1d7d033b4e193e342366d7ac1b"
+  },
+  "/Users/itswatthachai/fitt-builder-v2/public/showcase/chokpranee-3.webp": {
+    "mtime": 1787295253.4785976,
+    "hash": "7b751b789f784d934254844c2ca11d55"
+  },
+  "/Users/itswatthachai/fitt-builder-v2/public/showcase/pace-3.webp": {
+    "mtime": 1787295255.173332,
+    "hash": "0c8bc6b504685afa1152999b78316c51"
+  },
+  "/Users/itswatthachai/fitt-builder-v2/public/showcase/pace-2.webp": {
+    "mtime": 1787295255.0922184,
+    "hash": "516b22fb6b07147ade51d5305fc5bf45"
+  },
+  "/Users/itswatthachai/fitt-builder-v2/public/showcase/chokpranee-2.webp": {
+    "mtime": 1787295253.392519,
+    "hash": "ed73a2f2c871ca05603753933a97b1fa"
+  },
+  "/Users/itswatthachai/fitt-builder-v2/public/showcase/dreamplus-2.webp": {
+    "mtime": 1787295253.721687,
+    "hash": "c28e9ee3b882c8a0285471f470e922b0"
+  },
+  "/Users/itswatthachai/fitt-builder-v2/public/showcase/ar-2.webp": {
+    "mtime": 1787295252.466131,
+    "hash": "886524ac745c0afa99a514f4773da1c0"
+  },
+  "/Users/itswatthachai/fitt-builder-v2/public/showcase/jaspos-2.webp": {
+    "mtime": 1787295254.4265883,
+    "hash": "aee679ab0952d68991ef031db35410aa"
   }
 }

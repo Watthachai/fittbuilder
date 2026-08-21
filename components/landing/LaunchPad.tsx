@@ -5,9 +5,14 @@ import { useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { ArrowRight, FileText, MessagesSquare, Paperclip, Plus, X } from "lucide-react";
 import { createProject } from "@/lib/storage";
-import { MESSAGE_MAX_CHARS, MESSAGE_WARN_CHARS } from "@/lib/limits";
+import { ATTACHMENT_TEXT_MAX_CHARS, MESSAGE_MAX_CHARS, MESSAGE_WARN_CHARS } from "@/lib/limits";
 import { setPendingAction, setPendingAttachments } from "@/lib/pending-action";
-import { ATTACHMENT_ACCEPT, fileToAttachment, MAX_ATTACHMENT_BYTES } from "@/lib/attachments";
+import {
+  ATTACHMENT_ACCEPT,
+  wasTruncated,
+  fileToAttachment,
+  MAX_ATTACHMENT_BYTES,
+} from "@/lib/attachments";
 import SkillPicker from "@/components/studio/SkillPicker";
 import SkillDropdown from "@/components/studio/SkillDropdown";
 import OrgSelect from "@/components/org/OrgSelect";
@@ -59,6 +64,11 @@ export default function LaunchPad({
       }
       try {
         const att = await fileToAttachment(file);
+        if (wasTruncated(att)) {
+          setError(
+            `"${file.name}" ยาวเกินที่ AI อ่านได้ — ใช้ ${ATTACHMENT_TEXT_MAX_CHARS.toLocaleString()} ตัวอักษรแรก ส่วนที่เหลือถูกตัดออก`
+          );
+        }
         count++;
         setAttachments((prev) => [...prev, att]);
       } catch (e) {

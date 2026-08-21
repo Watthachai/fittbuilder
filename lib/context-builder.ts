@@ -92,6 +92,11 @@ written in. Reproduce them as written; do not translate the copy, do not substit
 gradient for a video, do not round a measurement, and do not invent extra content the
 brief does not ask for. The documents below SUMMARISE this brief — where they are
 vaguer than it, the brief governs.
+Any FILE ATTACHED to this turn is part of this brief and carries the same weight,
+whatever its length: a spec too long for the message box arrives as a document, not
+as a hint. Read it in full and follow it exactly as you would the text below. If it
+ends with a note that it was cut short, say so in your reply rather than inventing
+the missing part.
 
 ${truncateBrief(brief)}`
     );

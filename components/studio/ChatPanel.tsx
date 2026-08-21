@@ -29,7 +29,12 @@ import {
 import { toast } from "@/lib/toast";
 import { isBuildPhase, type PhaseId } from "@/lib/phases";
 import { useFileDrop } from "@/lib/useFileDrop";
-import { ATTACHMENT_ACCEPT, fileToAttachment, MAX_ATTACHMENT_BYTES } from "@/lib/attachments";
+import {
+  ATTACHMENT_ACCEPT,
+  wasTruncated,
+  fileToAttachment,
+  MAX_ATTACHMENT_BYTES,
+} from "@/lib/attachments";
 import {
   downloadProjectFile,
   fileUrls,
@@ -38,7 +43,7 @@ import {
   type ProjectChatFile,
 } from "@/lib/team-chat";
 import { DNA_BLOCKS } from "@/lib/org-dna";
-import { MESSAGE_MAX_CHARS, MESSAGE_WARN_CHARS } from "@/lib/limits";
+import { ATTACHMENT_TEXT_MAX_CHARS, MESSAGE_MAX_CHARS, MESSAGE_WARN_CHARS } from "@/lib/limits";
 import DropOverlay from "@/components/ui/DropOverlay";
 import ImageLightbox from "@/components/ui/ImageLightbox";
 import SourceViewer from "@/components/org/SourceViewer";
@@ -267,6 +272,11 @@ export default function ChatPanel({
         }
         try {
           const att = await fileToAttachment(file);
+          if (wasTruncated(att)) {
+            toast.warning(`"${file.name}" ยาวเกินที่ AI อ่านได้`, {
+              description: `ใช้ ${ATTACHMENT_TEXT_MAX_CHARS.toLocaleString()} ตัวอักษรแรก ส่วนที่เหลือถูกตัดออก`,
+            });
+          }
           // Mirror the ORIGINAL file into the project's chat bucket: it feeds the
           // "ใช้ไฟล์เดิม" library AND gives the transcript something to render,
           // so an attached picture shows up as a picture. Best-effort — a failed

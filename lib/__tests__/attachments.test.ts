@@ -1,5 +1,15 @@
 import { describe, expect, it } from "vitest";
-import { cellText, csvEscape, fileToAttachment, textToBase64 } from "@/lib/attachments";
+import {
+  base64ToText,
+  cellText,
+  csvEscape,
+  wasTruncated,
+  fileToAttachment,
+  TEXT_TRUNCATED_NOTE,
+  textToBase64,
+} from "@/lib/attachments";
+import { ATTACHMENT_TEXT_MAX_CHARS } from "@/lib/limits";
+import { buildSpecContext } from "@/lib/context-builder";
 
 describe("csvEscape", () => {
   it("passes plain fields through", () => {
@@ -62,5 +72,62 @@ describe("fileToAttachment (Excel)", () => {
   it("rejects legacy .xls with a fix-it message", async () => {
     const file = new File([new Uint8Array([1, 2, 3])], "old.xls");
     await expect(fileToAttachment(file)).rejects.toThrow(/\.xlsx หรือ \.csv/);
+  });
+});
+
+describe("text attachments · cut with a marker, never silently", () => {
+  it("base64ToText is the inverse of textToBase64, Thai included", () => {
+    const s = 'สเปคหน้าเว็บ — สี #DCFF00, ขนาด 640px\n"บรรทัดใหม่"';
+    expect(base64ToText(textToBase64(s))).toBe(s);
+  });
+
+  it("says nothing was cut when the whole file fits", () => {
+    const text = "a".repeat(500);
+    expect(wasTruncated({ name: "spec.md", mimeType: "text/markdown", data: textToBase64(text) })).toBe(
+      false
+    );
+  });
+
+  it("says it was cut when the marker is there", () => {
+    const kept = "a".repeat(200) + TEXT_TRUNCATED_NOTE;
+    expect(wasTruncated({ name: "spec.md", mimeType: "text/markdown", data: textToBase64(kept) })).toBe(
+      true
+    );
+  });
+
+  it("never claims an image or PDF was cut", () => {
+    for (const mimeType of ["image/png", "application/pdf"]) {
+      expect(wasTruncated({ name: "x", mimeType, data: "" })).toBe(false);
+    }
+  });
+
+  it("caps a real oversized workbook and leaves the marker in the text", async () => {
+    const mod = await import("exceljs");
+    const ExcelJS = (mod as unknown as { default?: typeof mod }).default ?? mod;
+    const wb = new ExcelJS.Workbook();
+    const ws = wb.addWorksheet("ยาว");
+    // 1000 rows is the sheet cap, so the cells carry the length.
+    for (let i = 0; i < 1000; i += 1) ws.addRow([`แถวที่ ${i}`, "x".repeat(200)]);
+    const file = new File([(await wb.xlsx.writeBuffer()) as ArrayBuffer], "big.xlsx");
+
+    const att = await fileToAttachment(file);
+    const text = base64ToText(att.data);
+    expect(text.length).toBeLessThanOrEqual(ATTACHMENT_TEXT_MAX_CHARS);
+    expect(text.endsWith(TEXT_TRUNCATED_NOTE)).toBe(true);
+    expect(wasTruncated(att)).toBe(true);
+  });
+});
+
+describe("the brief covers what was attached to it", () => {
+  const ctx = buildSpecContext({ brief: "สร้างตามไฟล์ที่แนบ" })!;
+
+  it("tells the builder an attached file is part of the brief", () => {
+    expect(ctx).toMatch(/Any FILE ATTACHED to this turn is part of this brief/);
+    // The whole reason to attach rather than type: length is not a downgrade.
+    expect(ctx).toMatch(/whatever its length/);
+  });
+
+  it("tells it to admit a cut file rather than fill in the gap", () => {
+    expect(ctx).toMatch(/say so in your reply rather than inventing/);
   });
 });

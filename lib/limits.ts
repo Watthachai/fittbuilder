@@ -15,3 +15,16 @@ export const MESSAGE_MAX_CHARS = 20_000;
 
 /** Below this the counter is quiet; above it, it warns. */
 export const MESSAGE_WARN_CHARS = Math.floor(MESSAGE_MAX_CHARS * 0.9);
+
+/**
+ * How much of one attached TEXT file the model is given.
+ *
+ * Five times the typed limit, because attaching a document is the answer to
+ * "my spec is longer than the box" — but still a cap, so one pasted log cannot
+ * crowd out the brief and the project files it has to sit beside. Images and
+ * PDFs are not counted in characters and go whole.
+ *
+ * Enforced where the file is READ, not where it is sent, so the cut carries a
+ * visible marker instead of the model silently receiving half a document.
+ */
+export const ATTACHMENT_TEXT_MAX_CHARS = 100_000;

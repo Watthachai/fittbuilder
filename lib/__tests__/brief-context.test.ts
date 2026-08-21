@@ -127,9 +127,14 @@ describe("build prompt · the brief outranks our defaults", () => {
     expect(prompts).toMatch(/never that a missing export exists/);
   });
 
-  it("still uses a given media URL exactly, with the header the preview needs", () => {
+  it("uses a given media URL exactly, and does not decorate it", () => {
     expect(prompts).toContain("USE THAT EXACT URL as provided");
-    expect(prompts).toContain('crossOrigin="anonymous"');
+    // This assertion used to demand the opposite. The rule it guarded was
+    // wrong: the preview runs COEP credentialless, where a plain <img> loads
+    // cross-origin without any opt-in, and crossOrigin turns that into a CORS
+    // request the host refuses. Measured on the real page — the same PNG loads
+    // at 3840x2160 without the attribute and fails with it.
+    expect(prompts).toContain("DO NOT put crossOrigin");
   });
 });
 

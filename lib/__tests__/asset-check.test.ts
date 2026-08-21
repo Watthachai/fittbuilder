@@ -5,6 +5,7 @@ import {
   externalAssetUrls,
   isAssetContentType,
   isPublicUrl,
+  needsCorsToLoad,
   respondsToIsolation,
   routeBlockedThroughProxy,
 } from "@/lib/asset-check";
@@ -50,19 +51,30 @@ describe("externalAssetUrls", () => {
 });
 
 describe("respondsToIsolation", () => {
-  it("accepts either opt-in header", () => {
+  it("asks for the CORS header, and only that", () => {
     expect(respondsToIsolation(new Headers({ "access-control-allow-origin": "*" }))).toBe(true);
+    expect(respondsToIsolation(new Headers({ "content-type": "font/woff2" }))).toBe(false);
+    // CORP is irrelevant here: it governs no-cors reads, and under COEP
+    // credentialless those already succeed without it.
     expect(respondsToIsolation(new Headers({ "cross-origin-resource-policy": "cross-origin" }))).toBe(
-      true
-    );
-  });
-
-  it("rejects a response that opts into neither", () => {
-    expect(respondsToIsolation(new Headers({ "content-type": "image/png" }))).toBe(false);
-    // same-origin CORP is an opt-OUT for a page on another origin.
-    expect(respondsToIsolation(new Headers({ "cross-origin-resource-policy": "same-origin" }))).toBe(
       false
     );
+  });
+});
+
+describe("needsCorsToLoad · what the browser insists on", () => {
+  it("says fonts, because @font-face is CORS by specification", () => {
+    for (const t of ["font/woff2", "font/ttf", "application/font-woff2", "application/vnd.ms-fontobject"]) {
+      expect(needsCorsToLoad(t), t).toBe(true);
+    }
+  });
+
+  it("says not images — measured, not assumed", () => {
+    // On the real preview (COEP credentialless) the same Figma PNG loads at
+    // 3840x2160 with a plain <img src>, and fails only when crossOrigin is added.
+    for (const t of ["image/png", "image/svg+xml", "video/mp4", "audio/mpeg"]) {
+      expect(needsCorsToLoad(t), t).toBe(false);
+    }
   });
 });
 
@@ -148,7 +160,7 @@ describe("iteration turns know the runtime rules", () => {
       prompts.indexOf("const RUNTIME_RULES"),
       prompts.indexOf("const PROJECT_RULES")
     );
-    expect(shared).toContain('crossOrigin="anonymous"');
+    expect(shared).toContain("DO NOT put crossOrigin");
     expect(shared).toContain("LANGUAGE follows the ORIGINAL BRIEF");
     expect(shared).toContain("WILL CRASH the dev server");
     expect(shared).toContain("NEVER build a paid-tier switch");

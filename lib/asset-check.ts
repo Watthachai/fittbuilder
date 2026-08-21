@@ -5,18 +5,19 @@ import type { ProjectFiles } from "./types";
 /**
  * Which remote assets in a generated demo the preview will refuse to show.
  *
- * The preview runs cross-origin isolated — WebContainer needs SharedArrayBuffer,
- * which needs COOP/COEP — and under `require-corp` a cross-origin response is
- * dropped unless it opts in, either with `Cross-Origin-Resource-Policy` or by
- * answering a CORS request with `Access-Control-Allow-Origin`. A host that sends
- * neither cannot be displayed, whatever the markup says.
+ * Narrower than it first looks, and the narrowing was expensive to learn.
  *
- * This exists because that failure is invisible from inside the demo: the image
- * is simply absent, and both the model and the person looking at it reach for
- * markup fixes. One real session burned a turn adding `referrerPolicy`,
- * `loading` and `decoding` to every layer — and stripped the one attribute that
- * mattered — for assets whose host was never going to serve them here. Naming
- * the host and the missing header ends that guessing in one line.
+ * The preview is cross-origin isolated — WebContainer needs SharedArrayBuffer —
+ * but with COEP set to `credentialless`, not `require-corp` (next.config.ts).
+ * Under credentialless a cross-origin PICTURE loads with no opt-in from the host
+ * at all, so a missing CORP or CORS header costs an <img> nothing. Measured on
+ * the real page: the same Figma-hosted PNG loads at 3840x2160 with a plain
+ * <img src>, and FAILS the moment crossOrigin="anonymous" is added, because that
+ * turns it into a CORS request the host will not answer.
+ *
+ * FONTS are the genuine case. @font-face is fetched in CORS mode by
+ * specification, whatever the markup says, so a font whose host sends no
+ * Access-Control-Allow-Origin cannot load — and that is what this reports.
  */
 
 /** Hosts the scaffold itself loads; checking them would only ever say "fine". */
@@ -191,10 +192,33 @@ export function isAssetContentType(raw: string): boolean {
   return ASSET_TYPE.test(type) || ASSET_TYPE_EXTRA.has(type);
 }
 
-/** Does this response opt in to being read from a cross-origin-isolated page? */
+/** Fonts, which the browser always fetches in CORS mode. */
+const FONT_TYPE = /^font\//i;
+const FONT_TYPE_EXTRA = new Set([
+  "application/font-woff",
+  "application/font-woff2",
+  "application/x-font-ttf",
+  "application/x-font-otf",
+  "application/vnd.ms-fontobject",
+]);
+
+/**
+ * Will the browser demand CORS for this, regardless of how it is written?
+ *
+ * Only fonts. An image is fetched no-cors unless the markup asks otherwise, and
+ * under COEP credentialless that is enough. Reporting anything else as blocked
+ * produced false alarms — and, worse, rewrote working URLs through a relay that
+ * nothing needed.
+ */
+export function needsCorsToLoad(contentType: string): boolean {
+  const type = contentType.split(";")[0].trim().toLowerCase();
+  // application/octet-stream is what several font CDNs label .woff2; treat it as
+  // a font only when the path says so, which the caller checks.
+  return FONT_TYPE.test(type) || FONT_TYPE_EXTRA.has(type);
+}
+
+/** Does this response satisfy a CORS request? */
 export function respondsToIsolation(headers: Headers): boolean {
-  const corp = headers.get("cross-origin-resource-policy");
-  if (corp === "cross-origin") return true;
   return Boolean(headers.get("access-control-allow-origin"));
 }
 
@@ -218,8 +242,13 @@ export async function blockedAssets(urls: string[], limit = 12): Promise<Blocked
           signal: AbortSignal.timeout(5_000),
         });
         if (!res.ok) return null;
+        const contentType = res.headers.get("content-type") ?? "";
         // Not an asset → not our business, whatever its headers say.
-        if (!isAssetContentType(res.headers.get("content-type") ?? "")) return null;
+        if (!isAssetContentType(contentType)) return null;
+        // Only what the browser will insist on fetching with CORS can actually
+        // be blocked here; everything else loads on the credentialless path.
+        const fontByPath = /\.(woff2?|ttf|otf|eot)(\?|$)/i.test(url);
+        if (!needsCorsToLoad(contentType) && !fontByPath) return null;
         return respondsToIsolation(res.headers) ? null : url;
       } catch {
         return null;
@@ -288,8 +317,8 @@ export function proxiedAssetsNote(blocked: BlockedAsset[]): string {
   return [
     "",
     "",
-    `📡 **ส่ง ${blocked.length} ไฟล์ผ่านตัวกลางให้แล้ว** — จาก ${hosts.join(", ")}`,
+    `📡 **ส่ง ${blocked.length} ฟอนต์ผ่านตัวกลางให้แล้ว** — จาก ${hosts.join(", ")}`,
     "",
-    "ต้นทางพวกนี้ไม่ส่ง CORS/CORP header มาให้ พรีวิวที่รันแบบ cross-origin isolated จึงเปิดไม่ได้เอง ระบบเลยดึงผ่านเซิร์ฟเวอร์เราแล้วส่งต่อพร้อม header ที่ขาด — รูปจะขึ้นตามปกติ ถ้าย้ายไฟล์ไปโฮสต์ที่ตั้ง CORS ไว้เองจะเร็วกว่าและไม่ต้องพึ่งตัวกลาง",
+    "เบราว์เซอร์โหลดฟอนต์แบบ CORS เสมอตามสเปก ต้นทางที่ไม่ส่ง Access-Control-Allow-Origin จึงใช้ไม่ได้ไม่ว่าจะเขียนยังไง ระบบเลยดึงผ่านเซิร์ฟเวอร์เราแล้วส่งต่อพร้อม header ที่ขาด — ถ้าย้ายฟอนต์ไปโฮสต์ที่ตั้ง CORS ไว้เองจะเร็วกว่าและไม่ต้องพึ่งตัวกลาง (รูปภาพไม่ต้องใช้ตัวกลาง โหลดตรงได้อยู่แล้ว)",
   ].join("\n");
 }

@@ -37,6 +37,8 @@ export async function GET(request: Request) {
     return new Response(result.error, { status: FAILURE_STATUS[result.error] ?? 502 });
   }
 
+  const isSvg = result.contentType.split(";")[0].trim().toLowerCase() === "image/svg+xml";
+
   return new Response(new Uint8Array(result.body), {
     headers: {
       "Content-Type": result.contentType,
@@ -44,10 +46,15 @@ export async function GET(request: Request) {
       // What the upstream host failed to say, and the whole point of the relay.
       "Cross-Origin-Resource-Policy": "cross-origin",
       "Access-Control-Allow-Origin": "*",
-      // An SVG is a document that can carry script. It is a legitimate asset, so
-      // it is relayed — but under a policy that lets it load nothing and run
-      // nothing if anyone opens this URL directly instead of through an <img>.
-      "Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline'; sandbox",
+      // Sandbox ONLY the one type that can execute. An SVG is a document that
+      // may carry script, so opening its URL directly must run nothing. A PNG
+      // cannot execute anything, and sandboxing it is not free: the directive
+      // puts the response in an opaque origin, which defeats the CORS grant that
+      // an <img crossOrigin="anonymous"> — the form our own build rules ask for —
+      // depends on. The picture arrived and then could not be drawn.
+      ...(isSvg
+        ? { "Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline'; sandbox" }
+        : {}),
       "X-Content-Type-Options": "nosniff",
       // Assets are immutable in practice; caching keeps a scrolling page from
       // asking us for the same picture on every frame.

@@ -1,10 +1,11 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { readFileSync } from "node:fs";
 import {
   blockedAssetsNote,
   externalAssetUrls,
   isPublicUrl,
   respondsToIsolation,
+  routeBlockedThroughProxy,
 } from "@/lib/asset-check";
 
 /**
@@ -136,5 +137,75 @@ describe("iteration turns know the runtime rules", () => {
   it("does not hand an edit turn the rules that would make it rewrite everything", () => {
     // "always include these files" against "emit only what changed".
     expect(iteration).not.toContain("${PROJECT_RULES}");
+  });
+});
+
+describe("routeBlockedThroughProxy", () => {
+  const SITE = "https://fitt.example";
+  const blocked = [{ url: FIGMA, reason: "x" }];
+
+  it("rewrites only the files that mention a blocked asset", () => {
+    const { files, changed } = routeBlockedThroughProxy(
+      { "a.tsx": `<img src="${FIGMA}" />`, "b.tsx": `<img src="${CF}" />` },
+      blocked,
+      SITE
+    );
+    expect(changed).toEqual(["a.tsx"]);
+    expect(files["a.tsx"]).toContain(`${SITE}/api/asset?url=${encodeURIComponent(FIGMA)}`);
+    // A host that already serves us keeps its direct URL — no relay in the path.
+    expect(files["b.tsx"]).toBe(`<img src="${CF}" />`);
+  });
+
+  it("rewrites every occurrence, not just the first", () => {
+    const { files } = routeBlockedThroughProxy(
+      { "a.tsx": `${FIGMA} and again ${FIGMA}` },
+      blocked,
+      SITE
+    );
+    expect(files["a.tsx"].split("/api/asset?url=")).toHaveLength(3);
+    // Relayed, so the original no longer appears as a bare URL anywhere.
+    expect(files["a.tsx"]).not.toContain(`"${FIGMA}"`);
+  });
+
+  it("does not strand the tail of a URL that starts with another one", () => {
+    const short = FIGMA;
+    const long = `${FIGMA}?v=2`;
+    const { files } = routeBlockedThroughProxy(
+      { "a.tsx": `<img src="${long}" />` },
+      [{ url: short, reason: "x" }, { url: long, reason: "x" }],
+      SITE
+    );
+    expect(files["a.tsx"]).toBe(
+      `<img src="${SITE}/api/asset?url=${encodeURIComponent(long)}" />`
+    );
+  });
+
+  it("changes nothing when nothing is blocked", () => {
+    const files = { "a.tsx": `<img src="${FIGMA}" />` };
+    const result = routeBlockedThroughProxy(files, [], SITE);
+    expect(result.changed).toEqual([]);
+    expect(result.files).toBe(files);
+  });
+});
+
+describe("publicSiteUrl · what gets written into a customer's code", () => {
+  const forged = new Request("http://0.0.0.0:3000/api/generate", {
+    headers: { "x-forwarded-host": "evil.example" },
+  });
+
+  it("prefers the configured origin over anything a header claims", async () => {
+    const { publicSiteUrl } = await import("@/lib/origin");
+    const prev = process.env.PUBLIC_SITE_URL;
+    process.env.PUBLIC_SITE_URL = "https://fitt.example/";
+    expect(publicSiteUrl(forged)).toBe("https://fitt.example");
+    process.env.PUBLIC_SITE_URL = prev;
+  });
+
+  it("in production, returns null rather than trusting the header", async () => {
+    const { publicSiteUrl } = await import("@/lib/origin");
+    vi.stubEnv("PUBLIC_SITE_URL", "");
+    vi.stubEnv("NODE_ENV", "production");
+    expect(publicSiteUrl(forged)).toBeNull();
+    vi.unstubAllEnvs();
   });
 });

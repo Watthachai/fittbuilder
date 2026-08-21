@@ -19,6 +19,9 @@ const PUBLIC_PREFIXES = [
   "/api/version",
   "/api/health",
   "/api/partner-lead",
+  // The relay is reached from inside the preview, which runs on
+  // *.webcontainer-api.io and carries none of our cookies.
+  "/api/asset",
 ];
 
 export async function updateSession(request: NextRequest) {

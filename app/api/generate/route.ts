@@ -1,7 +1,14 @@
 import { after } from "next/server";
 import { z } from "zod";
 import { MESSAGE_MAX_CHARS } from "@/lib/limits";
-import { blockedAssets, blockedAssetsNote, externalAssetUrls } from "@/lib/asset-check";
+import {
+  blockedAssets,
+  blockedAssetsNote,
+  externalAssetUrls,
+  proxiedAssetsNote,
+  routeBlockedThroughProxy,
+} from "@/lib/asset-check";
+import { publicSiteUrl } from "@/lib/origin";
 import { getAgent } from "@/lib/agents/registry";
 import { buildSpecContext } from "@/lib/context-builder";
 import { currentUserId, recordUsage } from "@/lib/ai-usage";
@@ -352,6 +359,31 @@ export async function POST(request: Request) {
           send({ type: "file", path: "tsconfig.json", content: TSCONFIG });
         }
 
+        // Remote assets the preview would drop: routed through our relay where we
+        // can, named where we cannot. Runs BEFORE the final park so the parked
+        // copy holds the same URLs the browser was just sent — parking first
+        // would file the pre-rewrite text as the turn's result. Best-effort: a
+        // check that fails must not cost the turn its reply.
+        let assetNote = "";
+        try {
+          const blocked = await blockedAssets(externalAssetUrls(produced));
+          const siteUrl = publicSiteUrl(request);
+          if (blocked.length > 0 && siteUrl) {
+            const { files: rewritten, changed } = routeBlockedThroughProxy(produced, blocked, siteUrl);
+            for (const path of changed) {
+              // The client keys by path, so this replaces what it already
+              // applied rather than adding to it.
+              produced[path] = rewritten[path];
+              send({ type: "file", path, content: rewritten[path] });
+            }
+            assetNote = proxiedAssetsNote(blocked);
+          } else {
+            assetNote = blockedAssetsNote(blocked);
+          }
+        } catch {
+          assetNote = "";
+        }
+
         // AWAITED, and before `done`: the browser clears the draft once it has
         // saved the finished files, so this write has to land first or the two
         // race and a completed turn leaves a stale draft behind (or worse, the
@@ -359,12 +391,6 @@ export async function POST(request: Request) {
         // were unfinished).
         await parkDraft(true);
 
-        // Remote assets the preview will drop, named before the user starts
-        // guessing at markup. Best-effort: a check that fails must not cost the
-        // turn its reply.
-        const assetNote = await blockedAssets(externalAssetUrls(produced))
-          .then(blockedAssetsNote)
-          .catch(() => "");
 
         send({
           type: "done",

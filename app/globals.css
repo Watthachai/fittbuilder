@@ -666,6 +666,24 @@ body {
   }
 }
 
+/* ——— Landing section headings ———
+   One oversized weight-700 line per section, filled with a chalk→shine gradient
+   rather than a flat colour. Both stops are TOKENS, so the heading follows the
+   visitor's theme like everything else — a hard-coded gradient would leave the
+   marketing page in one theme while the studio it links to sits in the other. */
+.landing-display {
+  font-weight: 700;
+  font-size: clamp(3rem, 11vw, 7.5rem);
+  line-height: 0.92;
+  letter-spacing: -0.045em;
+  text-wrap: balance;
+  background: linear-gradient(170deg, var(--chalk) 0%, var(--shine) 118%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+}
+
 /* ——— The quotation, as paper ———
    Rendered into a portal on <body> so print can hide every sibling and leave
    exactly this on the page. Always light: a midnight-black A4 is unreadable

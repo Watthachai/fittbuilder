@@ -47,6 +47,8 @@ function isValidPackageName(name: string): boolean {
 
 const bodySchema = z.object({
   prompt: z.string().trim().min(1).max(10_000),
+  /** The user's own words that started the project, carried through verbatim. */
+  brief: z.string().max(20_000).optional(),
   previousFiles: z.record(z.string().max(200), z.string().max(200_000)).optional(),
   iterationMode: z.boolean().optional(),
   brd: z.string().max(50_000).optional(),
@@ -132,6 +134,7 @@ export async function POST(request: Request) {
     ? buildIterationSystemPrompt(persona)
     : buildGenerationSystemPrompt(
         buildSpecContext({
+          brief: body.brief,
           brd: body.brd,
           prd: body.prd,
           presetId: body.presetId,

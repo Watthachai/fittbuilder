@@ -347,6 +347,8 @@ export interface SpecAnswers {
 
 export interface GenerateRequestBody {
   prompt: string;
+  /** The user's own words that started the project, carried through verbatim. */
+  brief?: string;
   previousFiles?: ProjectFiles;
   iterationMode?: boolean;
   brd?: string;

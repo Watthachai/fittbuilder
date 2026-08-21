@@ -126,10 +126,33 @@ const THINKING_STORE_LIMIT = 20_000;
 
 
 export interface SpecPayload {
+  /**
+   * What the user actually typed to start this project.
+   *
+   * The BRD and PRD are an agent's summary of it, and a summary is where a hex
+   * value, a pixel measurement and an asset URL go to die — so the build turn
+   * gets the original words too, not just what survived being written up.
+   */
+  brief?: string;
   brd?: string;
   prd?: string;
   presetId?: string;
   presetAnswers?: SpecAnswers;
+}
+
+/**
+ * The words this project started from.
+ *
+ * The first thing the user says IS the brief — every entry point (LaunchPad,
+ * Express, a bare new project) opens by posting it as the first chat message,
+ * and it is the only copy kept verbatim: from there the Define agent rewrites it
+ * into a BRD and the Plan agent into a PRD, both in Thai, both prose. Exact
+ * colours, measurements, asset URLs and the customer's own wording exist here
+ * and nowhere else downstream.
+ */
+function originalBrief(project: ProjectRecord | null | undefined): string | undefined {
+  const text = project?.messages.find((m) => m.role === "user")?.content.trim();
+  return text ? text : undefined;
 }
 
 type LastAction =
@@ -387,7 +410,7 @@ export default function Studio({ projectId }: { projectId: string }) {
     if (project.skillId || project.phase !== "define") return;
     if (skillCheckedRef.current === project.id) return;
     skillCheckedRef.current = project.id;
-    const text = (project.messages.find((m) => m.role === "user")?.content ?? "").trim();
+    const text = originalBrief(project) ?? "";
     let cancelled = false;
     (async () => {
       if (!cancelled) setSkillPickerOpen(true);
@@ -1023,7 +1046,14 @@ export default function Studio({ projectId }: { projectId: string }) {
         : "";
       void generate(
         `สร้าง web demo ตามเอกสาร BRD/PRD ที่แนบมา ให้ครบทุกหน้าจอและตรง design direction ที่ระบุ${dataHint}`,
-        { brd: docs.brd?.slice(0, 50_000), prd: docs.prd?.slice(0, 50_000) },
+        {
+          // The brief rides along with the documents, never instead of them: the
+          // BRD/PRD carry the scope, the brief carries the specifics they had no
+          // reason to record.
+          brief: originalBrief(proj),
+          brd: docs.brd?.slice(0, 50_000),
+          prd: docs.prd?.slice(0, 50_000),
+        },
         proj ?? undefined,
         attachments
       );
@@ -1730,6 +1760,7 @@ export default function Studio({ projectId }: { projectId: string }) {
       void generate(
         spec.prompt,
         {
+          brief: spec.prompt,
           brd: spec.brd,
           prd: spec.prd,
           presetId: spec.presetId,

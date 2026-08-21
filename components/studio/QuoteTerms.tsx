@@ -315,7 +315,7 @@ export default function QuoteTerms({
                     const edited = overridden.includes(i);
                     return (
                       <li key={i} className="flex gap-2">
-                        <span className="mt-1.5 shrink-0 font-mono text-[11px] text-chalk-dim">
+                        <span className="mt-1.5 shrink-0 font-mono text-[11.5px] text-chalk-dim">
                           {i + 1}.
                         </span>
                         <div className="flex-1">
@@ -330,14 +330,14 @@ export default function QuoteTerms({
                           />
                           {edited && (
                             <div className="mt-1 flex items-center gap-2">
-                              <span className="font-mono text-[11px] text-shine">
+                              <span className="font-mono text-[11.5px] text-shine">
                                 แก้เอง — ตัวเลขในข้อนี้จะไม่ตามตารางแล้ว
                               </span>
                               {!readOnly && (
                                 <button
                                   type="button"
                                   onClick={() => setClause(i, auto, auto)}
-                                  className="font-mono text-[11px] text-chalk-dim underline transition hover:text-chalk"
+                                  className="font-mono text-[11.5px] text-chalk-dim underline transition hover:text-chalk"
                                 >
                                   คืนค่าอัตโนมัติ
                                 </button>
@@ -350,7 +350,7 @@ export default function QuoteTerms({
                   })}
                   {(doc.acceptance.extra ?? []).map((text, i) => (
                     <li key={`extra-${i}`} className="flex gap-2">
-                      <span className="mt-1.5 shrink-0 font-mono text-[11px] text-chalk-dim">
+                      <span className="mt-1.5 shrink-0 font-mono text-[11.5px] text-chalk-dim">
                         {generated.length + i + 1}.
                       </span>
                       <div className="flex-1">
@@ -366,7 +366,7 @@ export default function QuoteTerms({
                           <button
                             type="button"
                             onClick={() => removeExtra(i)}
-                            className="mt-1 font-mono text-[11px] text-chalk-dim underline transition hover:text-halt"
+                            className="mt-1 font-mono text-[11.5px] text-chalk-dim underline transition hover:text-halt"
                           >
                             ลบข้อนี้
                           </button>

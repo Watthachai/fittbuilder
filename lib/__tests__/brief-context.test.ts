@@ -118,6 +118,15 @@ describe("build prompt · the brief outranks our defaults", () => {
     expect(prompts).toMatch(/where the brief states a layout, a measurement, a palette or a motion behaviour, that wins/);
   });
 
+  it("does not let a brief conjure an icon the library dropped", () => {
+    // lucide-react 1.33.0 ships zero brand marks; the import throws rather than
+    // falling back, so one social row takes the whole app down.
+    expect(prompts).toContain("NO COMPANY LOGOS");
+    expect(prompts).toMatch(/Draw social marks as inline <svg> paths instead/);
+    // The brief governs the look, not the existence of an export.
+    expect(prompts).toMatch(/never that a missing export exists/);
+  });
+
   it("still uses a given media URL exactly, with the header the preview needs", () => {
     expect(prompts).toContain("USE THAT EXACT URL as provided");
     expect(prompts).toContain('crossOrigin="anonymous"');

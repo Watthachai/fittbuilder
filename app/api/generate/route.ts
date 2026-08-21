@@ -1,5 +1,6 @@
 import { after } from "next/server";
 import { z } from "zod";
+import { MESSAGE_MAX_CHARS } from "@/lib/limits";
 import { getAgent } from "@/lib/agents/registry";
 import { buildSpecContext } from "@/lib/context-builder";
 import { currentUserId, recordUsage } from "@/lib/ai-usage";
@@ -46,9 +47,9 @@ function isValidPackageName(name: string): boolean {
 }
 
 const bodySchema = z.object({
-  prompt: z.string().trim().min(1).max(10_000),
+  prompt: z.string().trim().min(1).max(MESSAGE_MAX_CHARS),
   /** The user's own words that started the project, carried through verbatim. */
-  brief: z.string().max(20_000).optional(),
+  brief: z.string().max(MESSAGE_MAX_CHARS).optional(),
   previousFiles: z.record(z.string().max(200), z.string().max(200_000)).optional(),
   iterationMode: z.boolean().optional(),
   brd: z.string().max(50_000).optional(),

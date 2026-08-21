@@ -1,5 +1,6 @@
 import { after } from "next/server";
 import { z } from "zod";
+import { MESSAGE_MAX_CHARS } from "@/lib/limits";
 import { getAgentForPhase } from "@/lib/agents/registry";
 import { AgentStreamFilter } from "@/lib/agent-stream";
 import { currentUserId, recordUsage } from "@/lib/ai-usage";
@@ -24,7 +25,7 @@ const bodySchema = z.object({
     .array(
       z.object({
         role: z.enum(["user", "assistant"]),
-        content: z.string().max(10_000),
+        content: z.string().max(MESSAGE_MAX_CHARS),
       })
     )
     .max(80),

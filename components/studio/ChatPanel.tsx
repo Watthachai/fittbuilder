@@ -38,6 +38,7 @@ import {
   type ProjectChatFile,
 } from "@/lib/team-chat";
 import { DNA_BLOCKS } from "@/lib/org-dna";
+import { MESSAGE_MAX_CHARS, MESSAGE_WARN_CHARS } from "@/lib/limits";
 import DropOverlay from "@/components/ui/DropOverlay";
 import ImageLightbox from "@/components/ui/ImageLightbox";
 import SourceViewer from "@/components/org/SourceViewer";
@@ -60,7 +61,6 @@ const GROUP_META: Record<string, { icon: LucideIcon; header: (n: number) => stri
   doc: { icon: FileText, header: (n) => `อัปเดตเอกสาร ${n} รายการ` },
 };
 
-const MAX_CHARS = 10_000;
 
 interface ChatPanelProps {
   /** Backs the file library (list/reuse past uploads in this project's bucket). */
@@ -750,7 +750,7 @@ export default function ChatPanel({
           )}
           <textarea
             value={draft}
-            maxLength={MAX_CHARS}
+            maxLength={MESSAGE_MAX_CHARS}
             rows={2}
             disabled={busy}
             onChange={(event) => {
@@ -875,8 +875,12 @@ export default function ChatPanel({
                   </>
                 )}
               </div>
-              <span className="font-mono text-[10px] text-chalk-dim">
-                {draft.length}/{MAX_CHARS}
+              <span
+                className={`font-mono text-[10px] ${
+                  draft.length >= MESSAGE_WARN_CHARS ? "text-halt" : "text-chalk-dim"
+                }`}
+              >
+                {draft.length}/{MESSAGE_MAX_CHARS}
               </span>
             </div>
             {busy ? (

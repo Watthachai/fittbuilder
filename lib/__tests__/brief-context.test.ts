@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import { buildSpecContext, truncateBrief } from "../context-builder";
+import { MESSAGE_MAX_CHARS, MESSAGE_WARN_CHARS } from "../limits";
 
 /**
  * The brief has to survive the trip to the build turn.
@@ -100,7 +101,7 @@ describe("wiring", () => {
 
   it("the API accepts it", () => {
     const route = readFileSync("app/api/generate/route.ts", "utf8");
-    expect(route).toMatch(/brief: z\.string\(\)\.max\(20_000\)\.optional\(\)/);
+    expect(route).toMatch(/brief: z\.string\(\)\.max\(MESSAGE_MAX_CHARS\)\.optional\(\)/);
     expect(route).toContain("brief: body.brief");
   });
 });
@@ -120,5 +121,42 @@ describe("build prompt · the brief outranks our defaults", () => {
   it("still uses a given media URL exactly, with the header the preview needs", () => {
     expect(prompts).toContain("USE THAT EXACT URL as provided");
     expect(prompts).toContain('crossOrigin="anonymous"');
+  });
+});
+
+/**
+ * The four places a long paste passes through have to agree.
+ *
+ * They were four separately-written 10_000s, so the tightest one silently set
+ * the real limit: the textarea stopped accepting input mid-paste and took the
+ * END of the document with it — the half where a spec keeps its palette and its
+ * font stack. One constant, asserted here, is what stops them drifting again.
+ */
+describe("message limit · one number in every gate", () => {
+  const files = {
+    "components/landing/LaunchPad.tsx": readFileSync("components/landing/LaunchPad.tsx", "utf8"),
+    "components/studio/ChatPanel.tsx": readFileSync("components/studio/ChatPanel.tsx", "utf8"),
+    "app/api/generate/route.ts": readFileSync("app/api/generate/route.ts", "utf8"),
+    "app/api/agent/route.ts": readFileSync("app/api/agent/route.ts", "utf8"),
+  };
+
+  it.each(Object.keys(files))("%s takes the cap from lib/limits", (name) => {
+    expect(files[name as keyof typeof files]).toContain("MESSAGE_MAX_CHARS");
+    // A local cap is the drift this test exists to catch: none of these four
+    // files has any other use for the old number.
+    expect(files[name as keyof typeof files]).not.toMatch(/10_?000/);
+  });
+
+  it("is big enough for a real design spec", () => {
+    // The brief that started this: 7.9k characters, and specs run longer.
+    expect(MESSAGE_MAX_CHARS).toBeGreaterThanOrEqual(20_000);
+  });
+
+  it("warns before it truncates, not after", () => {
+    expect(MESSAGE_WARN_CHARS).toBeLessThan(MESSAGE_MAX_CHARS);
+    for (const name of ["components/landing/LaunchPad.tsx", "components/studio/ChatPanel.tsx"]) {
+      // The counter changes colour on the way to the cap.
+      expect(files[name as keyof typeof files]).toMatch(/>= MESSAGE_WARN_CHARS \? "text-halt"/);
+    }
   });
 });

@@ -5,6 +5,7 @@ import { useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { ArrowRight, FileText, MessagesSquare, Paperclip, Plus, X } from "lucide-react";
 import { createProject } from "@/lib/storage";
+import { MESSAGE_MAX_CHARS, MESSAGE_WARN_CHARS } from "@/lib/limits";
 import { setPendingAction, setPendingAttachments } from "@/lib/pending-action";
 import { ATTACHMENT_ACCEPT, fileToAttachment, MAX_ATTACHMENT_BYTES } from "@/lib/attachments";
 import SkillPicker from "@/components/studio/SkillPicker";
@@ -12,7 +13,7 @@ import SkillDropdown from "@/components/studio/SkillDropdown";
 import OrgSelect from "@/components/org/OrgSelect";
 import type { ChatAttachmentInput } from "@/lib/types";
 
-const MAX_CHARS = 10_000;
+
 // Mirrors /api/agent's attachment schema: max 5 files, ≤4MB each.
 const MAX_FILES = 5;
 
@@ -165,8 +166,12 @@ export default function LaunchPad({
     <div className="glass w-full max-w-2xl rounded-2xl">
       <div className="flex items-center justify-between gap-2 border-b border-chalk/10 px-3 py-2">
         <OrgSelect value={selectedOrgId} onChange={setSelectedOrgId} />
-        <span className="shrink-0 font-mono text-[11px] text-chalk/60">
-          {prompt.length}/{MAX_CHARS}
+        <span
+          className={`shrink-0 font-mono text-[11px] ${
+            prompt.length >= MESSAGE_WARN_CHARS ? "text-halt" : "text-chalk/60"
+          }`}
+        >
+          {prompt.length}/{MESSAGE_MAX_CHARS}
         </span>
       </div>
 
@@ -191,7 +196,7 @@ export default function LaunchPad({
       <textarea
         ref={textareaRef}
         value={prompt}
-        maxLength={MAX_CHARS}
+        maxLength={MESSAGE_MAX_CHARS}
         rows={4}
         onChange={(event) => setPrompt(event.target.value)}
         onKeyDown={(event) => {

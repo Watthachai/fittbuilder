@@ -100,6 +100,23 @@ export interface Acceptance {
   deemedAccepted: boolean;
   /** Where the work is handed over — named in the clause. */
   channel: string;
+  /**
+   * Clauses the sender rewrote by hand, keyed by their position in the
+   * generated list.
+   *
+   * An override is a deliberate break from the rule that every number on the
+   * paper is computed: the generated sentence recalculates when the payment
+   * table changes, an overridden one does not. It exists because real deals
+   * carry conditions no formula knows — a named acceptor, a site visit, a
+   * customer's own wording — and the alternative was people retyping the whole
+   * block into the free-text terms, where it agreed with nothing.
+   *
+   * Keyed by index so an untouched clause keeps following the numbers, and so
+   * "reset this one" stays possible.
+   */
+  overrides?: Record<string, string>;
+  /** Extra clauses appended after the generated ones, in order. */
+  extra?: string[];
 }
 
 /** Maintenance: quoted with the build, billed separately, never inside `grand`. */
@@ -300,6 +317,16 @@ export function presetEqual(count: number): PaymentTerm[] {
 
 export function emptyTerm(index: number): PaymentTerm {
   return { id: `pay-${index + 1}-${index}`, when: "", percent: 0, netDays: PAY_NET_DAYS };
+}
+
+/** Keep only string→string pairs; anything else in the jsonb is not an override. */
+function parseOverrides(raw: unknown): Record<string, string> | undefined {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return undefined;
+  const out: Record<string, string> = {};
+  for (const [k, v] of Object.entries(raw as Record<string, unknown>)) {
+    if (typeof v === "string" && v.trim()) out[k] = v;
+  }
+  return Object.keys(out).length ? out : undefined;
 }
 
 export function defaultAcceptance(): Acceptance {
@@ -513,6 +540,12 @@ export function parseDoc(payload: unknown, fallbackDate: string): QuoteDoc | nul
       reviewDays: n(acc.reviewDays, REVIEW_DAYS),
       deemedAccepted: bool(acc.deemedAccepted, true),
       channel: str(acc.channel) || defaultAcceptance().channel,
+      // Older documents predate both fields; absent is the same as "none
+      // overridden", never a reason to reject the document.
+      overrides: parseOverrides(acc.overrides),
+      extra: Array.isArray(acc.extra)
+        ? acc.extra.map((x) => str(x)).filter(Boolean)
+        : undefined,
     },
     ma: {
       enabled: bool(ma.enabled, false),

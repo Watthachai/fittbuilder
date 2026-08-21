@@ -1,12 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { acceptanceClauses } from "../quote-clauses";
+import { acceptanceClauses, generatedClauses, overriddenIndexes } from "../quote-clauses";
 import {
   defaultMaintenance,
   emptyRow,
   formatTHB,
   newDoc,
+  parseDoc,
   paymentSchedule,
   presetEqual,
+  presetUat,
   quoteTotals,
   type QuoteDoc,
 } from "../quote";
@@ -130,5 +132,63 @@ describe("acceptanceClauses", () => {
     const d = doc({ rows: [{ ...emptyRow(0), name: "x", days: NaN }] });
     expect(quoteTotals(d).grand).toBe(0);
     expect(acceptanceClauses(d).join("\n")).not.toContain("NaN");
+  });
+});
+
+describe("hand-edited clauses", () => {
+  const base = (): QuoteDoc => doc({ payment: presetUat() });
+
+  it("prints the sender's wording in place of the generated one", () => {
+    const doc = base();
+    doc.acceptance.overrides = { "0": "ส่งมอบที่หน้างานลูกค้า และให้คุณสมชายเป็นผู้ตรวจรับ" };
+    const out = acceptanceClauses(doc);
+    expect(out[0]).toBe("ส่งมอบที่หน้างานลูกค้า และให้คุณสมชายเป็นผู้ตรวจรับ");
+    // The clause that was NOT touched still carries the computed figure.
+    expect(out[1]).toContain("60%");
+  });
+
+  it("keeps untouched clauses tracking the numbers after an edit", () => {
+    const doc = base();
+    doc.acceptance.overrides = { "0": "แก้ข้อแรก" };
+    doc.payment = [
+      { id: "a", when: "ลงนาม", percent: 30, netDays: 15 },
+      { id: "b", when: "ส่งมอบ", percent: 70, netDays: 15 },
+    ];
+    // Editing clause 0 must not freeze clause 1 at the old split.
+    expect(acceptanceClauses(doc)[1]).toContain("30%");
+  });
+
+  it("appends extra clauses after the generated ones", () => {
+    const doc = base();
+    doc.acceptance.extra = ["ราคานี้ไม่รวมค่าเดินทางต่างจังหวัด", "  "];
+    const out = acceptanceClauses(doc);
+    expect(out[out.length - 1]).toBe("ราคานี้ไม่รวมค่าเดินทางต่างจังหวัด");
+    // A blank one the user has not filled in yet never reaches the paper.
+    expect(out.filter((c) => !c.trim())).toHaveLength(0);
+  });
+
+  it("reports which clauses stopped following the numbers", () => {
+    const doc = base();
+    doc.acceptance.overrides = { "2": "ตรวจรับภายใน 7 วัน" };
+    expect(overriddenIndexes(doc)).toEqual([2]);
+  });
+
+  it("treats an override equal to the generated text as no override", () => {
+    const doc = base();
+    const auto = generatedClauses(doc);
+    doc.acceptance.overrides = { "0": auto[0] };
+    expect(overriddenIndexes(doc)).toEqual([]);
+  });
+
+  it("opens a document written before overrides existed", () => {
+    // Round-trip a real document with the two new fields removed — exactly the
+    // shape every quotation already stored in jsonb has.
+    const stored = JSON.parse(JSON.stringify(base()));
+    delete stored.acceptance.overrides;
+    delete stored.acceptance.extra;
+    const reopened = parseDoc(JSON.parse(JSON.stringify(stored)), "2026-08-21");
+    expect(reopened).not.toBeNull();
+    expect(reopened!.acceptance.overrides).toBeUndefined();
+    expect(acceptanceClauses(reopened!).length).toBeGreaterThan(0);
   });
 });

@@ -30,7 +30,14 @@ function money(index: number, line: PaymentLine): string {
   return `งวดที่ ${index + 1} จำนวน ${line.term.percent}% เป็นเงิน ${baht(line.amount)}`;
 }
 
-export function acceptanceClauses(doc: QuoteDoc): string[] {
+/**
+ * The clauses as generated — before any hand edit.
+ *
+ * Kept separate from what prints so the panel can show, per clause, what the
+ * numbers say versus what the sender wrote instead. Overwriting in place would
+ * make "reset this one" impossible.
+ */
+export function generatedClauses(doc: QuoteDoc): string[] {
   if (!doc.acceptance.enabled) return [];
 
   const { reviewDays, deemedAccepted, channel } = doc.acceptance;
@@ -95,4 +102,34 @@ export function acceptanceClauses(doc: QuoteDoc): string[] {
   }
 
   return out;
+}
+
+/**
+ * What actually prints: generated clauses with the sender's edits applied, then
+ * any clauses they added.
+ *
+ * An override replaces one sentence and nothing else — the rest keep tracking
+ * `doc.payment` and `doc.acceptance`, so editing "the acceptor is คุณสมชาย" does
+ * not freeze the 60/40 split in the sentence below it. That is the whole point
+ * of keying by index rather than storing the block as one blob of text, which
+ * is what the free-text terms field already was and why nobody could trust it.
+ */
+export function acceptanceClauses(doc: QuoteDoc): string[] {
+  const base = generatedClauses(doc);
+  if (base.length === 0 && !doc.acceptance.enabled) return [];
+  const overrides = doc.acceptance.overrides ?? {};
+  const out = base.map((text, i) => overrides[String(i)]?.trim() || text);
+  for (const extra of doc.acceptance.extra ?? []) {
+    if (extra.trim()) out.push(extra.trim());
+  }
+  return out;
+}
+
+/** Which clauses no longer follow the numbers — the panel flags these. */
+export function overriddenIndexes(doc: QuoteDoc): number[] {
+  const base = generatedClauses(doc);
+  const overrides = doc.acceptance.overrides ?? {};
+  return base
+    .map((text, i) => (overrides[String(i)]?.trim() && overrides[String(i)] !== text ? i : -1))
+    .filter((i) => i >= 0);
 }

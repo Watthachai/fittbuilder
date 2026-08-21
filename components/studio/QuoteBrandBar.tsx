@@ -52,8 +52,17 @@ export default function QuoteBrandBar({
         description: "กด “บันทึกเป็นค่าเริ่มต้น” ถ้าอยากให้ใบเสนอราคาใบถัดไปใช้โลโก้นี้ด้วย",
       });
     } catch (e) {
-      toast.error("อัปโหลดโลโก้ไม่สำเร็จ", {
-        description: e instanceof Error ? e.message : undefined,
+      // The storage policy gates the letterhead on being an ADMIN of the
+      // workspace, not merely a member (migration 0029) — a company's identity
+      // on a document a customer signs is not something any member may change.
+      // That is the right rule, but it surfaces as "new row violates row-level
+      // security policy", which tells the person nothing about what to do.
+      const raw = e instanceof Error ? e.message : "";
+      const denied = /row-level security|violates|not authorized|403/i.test(raw);
+      toast.error(denied ? "คุณไม่มีสิทธิ์เปลี่ยนโลโก้ของ workspace นี้" : "อัปโหลดโลโก้ไม่สำเร็จ", {
+        description: denied
+          ? "โลโก้บนหัวกระดาษแก้ได้เฉพาะเจ้าของ workspace หรือสมาชิกระดับแอดมิน — ขอสิทธิ์แอดมิน หรือให้เจ้าของอัปโหลดให้ครั้งเดียว แล้วทุกใบจะใช้ร่วมกัน"
+          : raw || undefined,
       });
     } finally {
       setBusy(null);

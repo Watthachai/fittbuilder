@@ -15,7 +15,7 @@ import {
   type PaymentTerm,
   type QuoteDoc,
 } from "@/lib/quote";
-import { acceptanceClauses } from "@/lib/quote-clauses";
+import { acceptanceClauses, generatedClauses, overriddenIndexes } from "@/lib/quote-clauses";
 import { Field, inputCls, SectionToggle } from "./QuoteFields";
 
 /**
@@ -39,7 +39,52 @@ export default function QuoteTerms({
   const [splitCount, setSplitCount] = useState(12);
   const plan = paymentSchedule(doc);
   const ma = maintenanceTotals(doc.ma);
+  const generated = generatedClauses(doc);
   const clauses = acceptanceClauses(doc);
+  const overridden = overriddenIndexes(doc);
+
+  /**
+   * Store an edit only when it differs from what the numbers produce.
+   *
+   * Typing a sentence back to its generated wording drops the override, so the
+   * clause resumes tracking the payment table instead of freezing at a value
+   * that merely looks the same today.
+   */
+  const setClause = (i: number, text: string, auto: string) =>
+    onEdit((d) => {
+      const next = { ...(d.acceptance.overrides ?? {}) };
+      if (text.trim() === auto.trim() || !text.trim()) delete next[String(i)];
+      else next[String(i)] = text;
+      return {
+        ...d,
+        acceptance: {
+          ...d.acceptance,
+          overrides: Object.keys(next).length ? next : undefined,
+        },
+      };
+    });
+
+  const setExtra = (i: number, text: string) =>
+    onEdit((d) => ({
+      ...d,
+      acceptance: {
+        ...d.acceptance,
+        extra: (d.acceptance.extra ?? []).map((x, j) => (j === i ? text : x)),
+      },
+    }));
+  const addExtra = () =>
+    onEdit((d) => ({
+      ...d,
+      acceptance: { ...d.acceptance, extra: [...(d.acceptance.extra ?? []), ""] },
+    }));
+  const removeExtra = (i: number) =>
+    onEdit((d) => ({
+      ...d,
+      acceptance: {
+        ...d.acceptance,
+        extra: (d.acceptance.extra ?? []).filter((_, j) => j !== i),
+      },
+    }));
   const { grand } = quoteTotals(doc);
   const scheduled = Math.round(plan.rows.reduce((s, r) => s + r.amount, 0) * 100) / 100;
   const baht = (n: number) => `฿${formatTHB(n)}`;
@@ -254,17 +299,91 @@ export default function QuoteTerms({
               </span>
             </label>
 
-            {/* What will actually be printed — read-only on purpose. */}
+            {/* Editable, but each line still says whether it follows the numbers. */}
             {clauses.length > 0 && (
               <div className="mt-3 rounded-lg border border-night-edge bg-night p-3">
-                <p className="font-display text-[11.5px] uppercase tracking-widest text-chalk-dim">
-                  ข้อความที่จะพิมพ์ในใบเสนอราคา
-                </p>
-                <ol className="mt-1.5 list-decimal space-y-1.5 pl-4 text-[12.5px] leading-relaxed text-chalk">
-                  {clauses.map((c, i) => (
-                    <li key={i}>{c}</li>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <p className="font-display text-[11.5px] uppercase tracking-widest text-chalk-dim">
+                    ข้อความที่จะพิมพ์ในใบเสนอราคา
+                  </p>
+                  <span className="font-mono text-[11px] text-chalk-dim">
+                    แก้ข้อไหนก็ได้ · ข้อที่ไม่แก้จะอัปเดตตามตารางเอง
+                  </span>
+                </div>
+                <ol className="mt-2 space-y-2 text-[12.5px] leading-relaxed">
+                  {generated.map((auto, i) => {
+                    const edited = overridden.includes(i);
+                    return (
+                      <li key={i} className="flex gap-2">
+                        <span className="mt-1.5 shrink-0 font-mono text-[11px] text-chalk-dim">
+                          {i + 1}.
+                        </span>
+                        <div className="flex-1">
+                          <textarea
+                            value={clauses[i]}
+                            readOnly={readOnly}
+                            rows={2}
+                            onChange={(e) => setClause(i, e.target.value, auto)}
+                            className={`${inputCls} min-h-[46px] resize-y leading-relaxed ${
+                              edited ? "border-shine/40" : ""
+                            }`}
+                          />
+                          {edited && (
+                            <div className="mt-1 flex items-center gap-2">
+                              <span className="font-mono text-[11px] text-shine">
+                                แก้เอง — ตัวเลขในข้อนี้จะไม่ตามตารางแล้ว
+                              </span>
+                              {!readOnly && (
+                                <button
+                                  type="button"
+                                  onClick={() => setClause(i, auto, auto)}
+                                  className="font-mono text-[11px] text-chalk-dim underline transition hover:text-chalk"
+                                >
+                                  คืนค่าอัตโนมัติ
+                                </button>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      </li>
+                    );
+                  })}
+                  {(doc.acceptance.extra ?? []).map((text, i) => (
+                    <li key={`extra-${i}`} className="flex gap-2">
+                      <span className="mt-1.5 shrink-0 font-mono text-[11px] text-chalk-dim">
+                        {generated.length + i + 1}.
+                      </span>
+                      <div className="flex-1">
+                        <textarea
+                          value={text}
+                          readOnly={readOnly}
+                          rows={2}
+                          onChange={(e) => setExtra(i, e.target.value)}
+                          placeholder="เงื่อนไขเพิ่มเติม เช่น ราคานี้ไม่รวมค่าเดินทางต่างจังหวัด"
+                          className={`${inputCls} min-h-[46px] resize-y leading-relaxed`}
+                        />
+                        {!readOnly && (
+                          <button
+                            type="button"
+                            onClick={() => removeExtra(i)}
+                            className="mt-1 font-mono text-[11px] text-chalk-dim underline transition hover:text-halt"
+                          >
+                            ลบข้อนี้
+                          </button>
+                        )}
+                      </div>
+                    </li>
                   ))}
                 </ol>
+                {!readOnly && (
+                  <button
+                    type="button"
+                    onClick={addExtra}
+                    className="mt-2 font-mono text-[11.5px] text-shine transition hover:brightness-110"
+                  >
+                    + เพิ่มข้อสัญญา
+                  </button>
+                )}
               </div>
             )}
           </>

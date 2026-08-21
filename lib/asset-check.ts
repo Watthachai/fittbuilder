@@ -164,6 +164,33 @@ export interface BlockedAsset {
   reason: string;
 }
 
+/** The media the relay is willing to carry — and, therefore, what counts as an asset. */
+const ASSET_TYPE = /^(image|font|audio|video)\//i;
+const ASSET_TYPE_EXTRA = new Set([
+  "application/font-woff",
+  "application/font-woff2",
+  "application/x-font-ttf",
+  "application/x-font-otf",
+  "application/vnd.ms-fontobject",
+  "application/octet-stream", // what several font CDNs still label .woff2 as
+]);
+
+/**
+ * Is what came back actually an asset?
+ *
+ * The scan finds URLs; it cannot tell an image from a hyperlink or from an XML
+ * namespace, and both of those appear in ordinary generated code. Asking the
+ * response settles it: a footer link to a site answers with text/html, and
+ * `xmlns="http://www.w3.org/2000/svg"` — a NAME that is never fetched — answers
+ * with a web page. Without this, both were reported blocked and rewritten, which
+ * turned a working link into a 415 and corrupted an SVG by replacing the
+ * namespace that makes it an SVG.
+ */
+export function isAssetContentType(raw: string): boolean {
+  const type = raw.split(";")[0].trim().toLowerCase();
+  return ASSET_TYPE.test(type) || ASSET_TYPE_EXTRA.has(type);
+}
+
 /** Does this response opt in to being read from a cross-origin-isolated page? */
 export function respondsToIsolation(headers: Headers): boolean {
   const corp = headers.get("cross-origin-resource-policy");
@@ -191,6 +218,8 @@ export async function blockedAssets(urls: string[], limit = 12): Promise<Blocked
           signal: AbortSignal.timeout(5_000),
         });
         if (!res.ok) return null;
+        // Not an asset → not our business, whatever its headers say.
+        if (!isAssetContentType(res.headers.get("content-type") ?? "")) return null;
         return respondsToIsolation(res.headers) ? null : url;
       } catch {
         return null;

@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import {
   blockedAssetsNote,
   externalAssetUrls,
+  isAssetContentType,
   isPublicUrl,
   respondsToIsolation,
   routeBlockedThroughProxy,
@@ -62,6 +63,25 @@ describe("respondsToIsolation", () => {
     expect(respondsToIsolation(new Headers({ "cross-origin-resource-policy": "same-origin" }))).toBe(
       false
     );
+  });
+});
+
+describe("isAssetContentType · what counts as an asset at all", () => {
+  it("accepts the media a preview actually loads", () => {
+    for (const t of ["image/png", "image/svg+xml", "font/woff2", "video/mp4", "audio/mpeg",
+                     "application/font-woff2", "application/octet-stream", "IMAGE/PNG; charset=x"]) {
+      expect(isAssetContentType(t), t).toBe(true);
+    }
+  });
+
+  it("rejects what a link or a namespace answers with", () => {
+    // Found in real output: xmlns="http://www.w3.org/2000/svg" is a NAME that is
+    // never fetched, and w3.org answers it with a web page. Treating it as a
+    // blocked asset rewrote it through the relay and stopped the SVG being an
+    // SVG. A footer <a href> to any site fails the same way.
+    for (const t of ["text/html", "text/html; charset=utf-8", "application/json", "text/plain", ""]) {
+      expect(isAssetContentType(t), t).toBe(false);
+    }
   });
 });
 

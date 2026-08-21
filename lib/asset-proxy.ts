@@ -1,6 +1,6 @@
 import { request as httpRequest } from "node:http";
 import { request as httpsRequest } from "node:https";
-import { resolvePublicTarget } from "./asset-check";
+import { isAssetContentType, resolvePublicTarget } from "./asset-check";
 
 /**
  * Fetch a remote asset on the preview's behalf, safely.
@@ -34,17 +34,6 @@ const MAX_BYTES = 8 * 1024 * 1024;
 const MAX_REDIRECTS = 3;
 const TIMEOUT_MS = 10_000;
 
-/** What we are willing to put our origin's name on. */
-const ALLOWED_TYPE = /^(image|font|audio|video)\//i;
-const ALLOWED_EXTRA = new Set([
-  "application/font-woff",
-  "application/font-woff2",
-  "application/x-font-ttf",
-  "application/x-font-otf",
-  "application/vnd.ms-fontobject",
-  "application/octet-stream", // what several font CDNs still label .woff2 as
-]);
-
 export type ProxyFailure =
   | "blocked" // not a public http(s) target
   | "unreachable"
@@ -56,11 +45,6 @@ export type ProxyFailure =
 export interface ProxyResult {
   body: Buffer;
   contentType: string;
-}
-
-function isAllowedType(raw: string): boolean {
-  const type = raw.split(";")[0].trim().toLowerCase();
-  return ALLOWED_TYPE.test(type) || ALLOWED_EXTRA.has(type);
 }
 
 /** One hop. Returns either the bytes, a redirect location, or a failure. */
@@ -99,7 +83,7 @@ function hop(
           return;
         }
         const contentType = String(res.headers["content-type"] ?? "");
-        if (!isAllowedType(contentType)) {
+        if (!isAssetContentType(contentType)) {
           res.destroy();
           resolve({ kind: "fail", reason: "type-not-allowed" });
           return;

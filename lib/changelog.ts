@@ -23,6 +23,17 @@ export const CHANGE_BADGE: Record<ChangeType, { label: string; className: string
 // Newest first. SemVer: fix → PATCH, feature → MINOR, breaking → MAJOR.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.53.2",
+    date: "2026-08-24",
+    title: "📦 ไฟล์ที่ export ชี้ตัวกลางไปที่โดเมนจริงเสมอ",
+    items: [
+      {
+        type: "fix",
+        text: "zip ที่ดาวน์โหลดและงานที่ส่งให้ Code Runner เคยพกลิงก์ตัวกลางของเครื่องที่กด export (สร้างบน dev ก็ได้ localhost ติดไป) — ตอนนี้ทุก export เขียนลิงก์เป็นโดเมน production ที่ตั้งไว้ใน PUBLIC_SITE_URL เสมอ เพราะไฟล์ที่ออกจากระบบไปรันที่อื่น ต้องชี้กลับมาที่ที่ตอบตลอดเวลา",
+      },
+    ],
+  },
+  {
     version: "0.53.1",
     date: "2026-08-24",
     title: "🖼️ รูปในเดโมเก่าหายบน production — เพราะลิงก์ฝัง localhost ไว้",

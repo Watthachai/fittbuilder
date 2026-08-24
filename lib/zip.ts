@@ -2,6 +2,8 @@
 
 import type { ProjectFiles } from "./types";
 import { versionTag, type VersionKey } from "./versions";
+import { retargetAssetProxy } from "./asset-retarget";
+import { exportSiteUrl } from "./export-origin";
 
 /**
  * Export the generated project as a downloadable .zip (US-012).
@@ -17,7 +19,10 @@ export async function downloadZip(
 ): Promise<void> {
   const { default: JSZip } = await import("jszip");
   const zip = new JSZip();
-  for (const [path, contents] of Object.entries(files)) {
+  // The zip runs far from this machine — its relay URLs must point at the
+  // public site, not at whatever origin happened to generate the files.
+  const shipped = retargetAssetProxy(files, await exportSiteUrl());
+  for (const [path, contents] of Object.entries(shipped)) {
     zip.file(path, contents);
   }
   zip.file(

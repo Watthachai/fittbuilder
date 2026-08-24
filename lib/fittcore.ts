@@ -3,6 +3,8 @@
 import type { ProjectFiles, ProjectRecord } from "./types";
 import { docsFromFiles } from "./define";
 import { versionTag, type VersionKey } from "./versions";
+import { retargetAssetProxy } from "./asset-retarget";
+import { exportSiteUrl } from "./export-origin";
 
 /** Build channel tag stamped on every hand-off while the integration is in alpha. */
 export const FITTCORE_TAG = "alpha-test";
@@ -87,7 +89,9 @@ export async function buildFittcorePayload(
   orgName?: string,
   version: VersionKey = "standard"
 ): Promise<FittcorePayload> {
-  const files = project.files ?? {};
+  // Code Runner builds and deploys this far from here — bake the public
+  // site's relay origin, never the exporting machine's.
+  const files = retargetAssetProxy(project.files ?? {}, await exportSiteUrl());
   const docs = docsFromFiles(project.files);
   const zip = await zipFiles(files);
 

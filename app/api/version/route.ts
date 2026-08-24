@@ -1,4 +1,5 @@
 import { latestVersion } from "@/lib/changelog";
+import { publicSiteUrl } from "@/lib/origin";
 
 /**
  * The version this server is running.
@@ -11,9 +12,12 @@ import { latestVersion } from "@/lib/changelog";
  */
 export const dynamic = "force-dynamic";
 
-export function GET() {
+export function GET(request: Request) {
   return Response.json(
-    { version: latestVersion() },
+    // siteUrl: the origin exports must bake into shipped code — the client
+    // cannot read PUBLIC_SITE_URL itself, and its own location.origin is
+    // whatever machine it happens to be on (see lib/asset-retarget.ts).
+    { version: latestVersion(), siteUrl: publicSiteUrl(request) },
     { headers: { "Cache-Control": "no-store, max-age=0" } }
   );
 }

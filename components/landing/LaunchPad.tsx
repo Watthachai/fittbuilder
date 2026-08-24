@@ -16,6 +16,7 @@ import {
 import SkillPicker from "@/components/studio/SkillPicker";
 import SkillDropdown from "@/components/studio/SkillDropdown";
 import OrgSelect from "@/components/org/OrgSelect";
+import TemplateGallery from "@/components/landing/TemplateGallery";
 import type { ChatAttachmentInput } from "@/lib/types";
 
 
@@ -105,8 +106,12 @@ export default function LaunchPad({
     }
   };
 
-  // Create the express-build project with the chosen domain skill (or none).
-  const createWithSkill = async (skillId: string | null) => {
+  /**
+   * The one express-build path: create the project, park the brief, dive in.
+   * The main box and the template gallery both end here — a template is just
+   * a brief somebody filled in instead of wrote.
+   */
+  const createExpress = async (fullPrompt: string, skillId: string | null) => {
     if (launching) return;
     setLaunching(true);
     try {
@@ -119,12 +124,6 @@ export default function LaunchPad({
         skillId: skillId ?? undefined,
         orgId: selectedOrgId ?? undefined,
       });
-      // Note the attached files in the prompt (same convention as ChatPanel) so
-      // they're visible in the transcript; the payloads themselves are too big
-      // for sessionStorage and ride IndexedDB to the studio.
-      const fullPrompt = attachments.length
-        ? `${prompt.trim()}\n\n🖼️ แนบ: ${attachments.map((a) => a.name).join(", ")}`
-        : prompt.trim();
       setPendingAction(project.id, { kind: "express", prompt: fullPrompt });
       if (attachments.length) await setPendingAttachments(project.id, attachments);
       await onLaunch?.();
@@ -136,6 +135,17 @@ export default function LaunchPad({
       setLaunching(false);
       setPicking(false);
     }
+  };
+
+  // Create the express-build project with the chosen domain skill (or none).
+  const createWithSkill = async (skillId: string | null) => {
+    // Note the attached files in the prompt (same convention as ChatPanel) so
+    // they're visible in the transcript; the payloads themselves are too big
+    // for sessionStorage and ride IndexedDB to the studio.
+    const fullPrompt = attachments.length
+      ? `${prompt.trim()}\n\n🖼️ แนบ: ${attachments.map((a) => a.name).join(", ")}`
+      : prompt.trim();
+    await createExpress(fullPrompt, skillId);
   };
 
   const launchSpec = async () => {
@@ -340,6 +350,13 @@ export default function LaunchPad({
           </button>
         ))}
       </div>
+
+      {/* Curated looks: pick one, the form tells you exactly which images to
+          go find. Ends in the same express path as the box above. */}
+      <TemplateGallery
+        disabled={launching}
+        onCreate={(brief) => void createExpress(brief, null)}
+      />
         </>
       )}
     </div>

@@ -23,6 +23,17 @@ export const CHANGE_BADGE: Record<ChangeType, { label: string; className: string
 // Newest first. SemVer: fix → PATCH, feature → MINOR, breaking → MAJOR.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.54.0",
+    date: "2026-08-24",
+    title: "🎬 เทมเพลตดีไซน์ — เลือกลุคแล้วแค่หารูปมาวางตามโครง",
+    items: [
+      {
+        type: "feature",
+        text: "หน้าแรกมีแกลเลอรี \"เทมเพลตดีไซน์\" — เลือกแล้วขึ้นฟอร์มบอกชัดว่าต้องหารูปแบบไหนมาใส่ช่องไหน (\"ท้องฟ้าเต็มเฟรม ไม่มีวัตถุเด่น\") กรอกเสร็จระบบประกอบ brief ให้เองแล้วสร้างผ่านเส้นทางปกติ · เริ่มด้วยสองลุค: Cinematic Scroll (ฉากแยกชั้น การ์ดไหลเข้า ม่านเปิด — สกัดจากหน้า Mostar) และ Spotlight Reveal (วงไฟตามเมาส์เผยภาพที่สอง) · ช่องรูปที่เว้นไว้เทมเพลตมีทางลงของมันเอง ไม่แต่ง URL ปลอม",
+      },
+    ],
+  },
+  {
     version: "0.53.2",
     date: "2026-08-24",
     title: "📦 ไฟล์ที่ export ชี้ตัวกลางไปที่โดเมนจริงเสมอ",

@@ -149,7 +149,7 @@ const ERROR_SCRIPT = `(function () {
  * tab running against an older container can tell, instead of silently
  * reproducing the bug that was just fixed.
  */
-export const SHOT_BRIDGE_VERSION = 20;
+export const SHOT_BRIDGE_VERSION = 21;
 
 /**
  * Screen capture + auto-walk, for building the screen inventory a quotation is
@@ -454,6 +454,16 @@ const SHOT_SCRIPT = `(function () {
    * near the dialog's top edge — the × that carries no text at all, which is
    * how most generated modals write it.
    */
+  /**
+   * A way out that spells itself out: "ยกเลิกรายการ", "ปิดหน้าต่าง". CLOSE_LABEL
+   * matches the whole label, which is right for ranking but left every form
+   * modal with a wordier cancel button unclosable — and one modal that will not
+   * close costs the rest of that screen's modals, by design.
+   */
+  var CLOSE_PREFIX = /^(ปิด|ยกเลิก|ย้อนกลับ|กลับ|close|cancel|dismiss|back)/;
+  /** …unless it also promises to change something. "ยกเลิกและลบ" is not an exit. */
+  var DESTRUCTIVE = /(ลบ|delete|remove|ล้าง|clear|บันทึก|save|submit|ส่ง|ยืนยัน|confirm)/i;
+
   function closers(d) {
     var out = [], btns = d.querySelectorAll("button,[role=button],a");
     var dr = d.getBoundingClientRect();
@@ -461,13 +471,32 @@ const SHOT_SCRIPT = `(function () {
       var b = btns[i];
       if (b.disabled || !visible(b)) continue;
       var label = norm(b.getAttribute("aria-label") || b.getAttribute("title") || b.textContent);
-      if (CLOSE_LABEL.test(label)) { out.push({ el: b, score: 2 }); continue; }
+      if (CLOSE_LABEL.test(label)) { out.push({ el: b, score: 3 }); continue; }
       if (!label && b.querySelector("svg")) {
         var r = b.getBoundingClientRect();
-        if (r.width <= 56 && r.height <= 56 && r.top - dr.top < 90) out.push({ el: b, score: 1 });
+        if (r.width <= 56 && r.height <= 56 && r.top - dr.top < 90) out.push({ el: b, score: 2 });
+        continue;
       }
+      if (CLOSE_PREFIX.test(label) && !DESTRUCTIVE.test(label)) out.push({ el: b, score: 1 });
     }
     out.sort(function (a, c) { return c.score - a.score; });
+    return out;
+  }
+
+  /**
+   * A hand-rolled modal can render its close control outside the panel we
+   * detected — a header × that is a sibling of the overlay, not a child. Only
+   * unambiguous labels here: this searches the whole page, so a loose match
+   * could press something belonging to the screen behind the dialog.
+   */
+  function pageClosers() {
+    var out = [], btns = document.querySelectorAll("button,[role=button]");
+    for (var i = 0; i < btns.length; i++) {
+      var b = btns[i];
+      if (b.disabled || !visible(b)) continue;
+      var label = norm(b.getAttribute("aria-label") || b.getAttribute("title") || b.textContent);
+      if (CLOSE_LABEL.test(label)) out.push({ el: b, score: 1 });
+    }
     return out;
   }
 
@@ -527,13 +556,15 @@ const SHOT_SCRIPT = `(function () {
     for (var round = 0; round < 3; round++) {
       if (done()) return true;
       var d = blockingLayer() || openDialog(null);
-      if (d) {
-        var cs = closers(d);
-        for (var i = 0; i < cs.length; i++) {
-          cs[i].el.click();
-          await sleep(380);
-          if (done()) return true;
-        }
+      // No detected panel, or a panel with no exit inside it, still leaves the
+      // page itself worth searching — that is where a hand-rolled modal keeps
+      // its close button.
+      var cs = d ? closers(d) : [];
+      if (!cs.length) cs = pageClosers();
+      for (var i = 0; i < cs.length; i++) {
+        cs[i].el.click();
+        await sleep(380);
+        if (done()) return true;
       }
       pressEscape();
       await sleep(380);

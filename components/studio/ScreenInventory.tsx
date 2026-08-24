@@ -358,20 +358,33 @@ export default function ScreenInventory({
                   <ListChecks size={13} /> แคปทุกหน้า ({doors.screens + doors.modals})
                 </button>
               )}
-              {/* Same action, two jobs: create the index, or close the gap the
-                  file tree says is still there. */}
-              {onAddScreenIndex && (!doors.present || doors.short) && (
+              {/*
+                One action, three states. It used to be hidden once the door
+                count matched the file count, which read as "the button vanished
+                after I pressed it" and left no way to run it again — and the
+                count is only a count: an index can be complete and still point
+                at the wrong things, which is exactly when someone wants to
+                re-run it. So it always stays; only its urgency changes.
+              */}
+              {onAddScreenIndex && (
                 <button
                   onClick={onAddScreenIndex}
                   disabled={!files || busy !== null || recording}
                   title="ให้ AI ใส่ปุ่มซ่อนหนึ่งปุ่มต่อหนึ่งหน้าจอ/modal โดยเช็คกับรายชื่อไฟล์จริงในโปรเจกต์ — ไม่กระทบหน้าตาเว็บ"
                   className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 font-display text-[12px] font-semibold transition hover:brightness-110 disabled:opacity-40 ${
-                    doors.present
-                      ? "border border-shine/50 text-shine hover:bg-shine/10"
-                      : "bg-shine text-night"
+                    !doors.present
+                      ? "bg-shine text-night"
+                      : doors.short
+                        ? "border border-shine/50 text-shine hover:bg-shine/10"
+                        : "border border-night-edge text-chalk-dim hover:text-chalk"
                   }`}
                 >
-                  <Sparkles size={13} /> {doors.present ? "เติมดัชนีให้ครบ" : "เพิ่มดัชนีหน้าจอ"}
+                  <Sparkles size={13} />{" "}
+                  {!doors.present
+                    ? "เพิ่มดัชนีหน้าจอ"
+                    : doors.short
+                      ? "เติมดัชนีให้ครบ"
+                      : "ตรวจดัชนีอีกครั้ง"}
                 </button>
               )}
               {/* Recording stays: it is the only path that records real flow

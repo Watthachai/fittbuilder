@@ -3,6 +3,7 @@
 import { safeAccent, thaiDate, thaiDateShort, type QuoteDoc } from "@/lib/quote";
 import {
   proposalSteps,
+  screenDocFor,
   proposalTimeline,
   stepJourney,
   type ProposalDoc,
@@ -107,11 +108,10 @@ export default function ProposalPrint({
         <tfoot>
           <tr>
             <td>
-              {/* No letterhead strip down here — the company already signs the top
-                  of every page, and the bottom repeating it read as clutter. The one
-                  thing that still prints is the mark a non-partner workspace carries;
-                  removing it is exactly what the partner programme sells. */}
-              {brand.poweredBy && <p className="q-powered">Powered by FITT Builder</p>}
+              {/* Nothing prints down here — the sender signs the top of every
+                  page, and the owner decided the paper carries no product mark.
+                  The empty tfoot stays: table-footer-group is what makes multi-
+                  page printing paginate correctly. */}
             </td>
           </tr>
         </tfoot>
@@ -155,30 +155,62 @@ export default function ProposalPrint({
               {doc.showSteps && steps.length > 0 && (
                 <section className="q-block">
                   <h2>การใช้งานจริง — เดินให้ดูทีละหน้า ({steps.length})</h2>
-                  <div className="p-grid">
-                    {steps.map((s, i) => {
-                      const route = stepJourney(s);
-                      return (
-                        <figure key={s.id} className="p-step">
-                          {/* One origin line, not two: "เปิดจากหน้า X" already says
-                              whose window this is, so the parent line only prints
-                              when there is no journey to say it better. */}
-                          <figcaption>
-                            <span className="p-n">{String(i + 1).padStart(2, "0")}</span>{" "}
-                            <strong>{s.name}</strong>
-                            {route ? (
-                              <span className="p-route"> — {route}</span>
-                            ) : s.parent ? (
-                              <span className="p-route"> · หน้าต่างย่อยของ {s.parent}</span>
-                            ) : null}
-                            {s.note && <span className="p-note">{s.note}</span>}
-                          </figcaption>
+                  {/* One screen per row, manual-style: picture on the left,
+                      what/how/result on the right. The three labelled lines
+                      come from doc.screenDocs — written by the AI pass or by
+                      hand — and the quotation's one-liner is the fallback so
+                      an undocumented screen still says something true. */}
+                  {steps.map((s, i) => {
+                    const route = stepJourney(s);
+                    const manual = screenDocFor(doc, s.name);
+                    return (
+                      <div key={s.id} className="p-step">
+                        <div className="p-shot">
                           {/* eslint-disable-next-line @next/next/no-img-element */}
                           <img src={s.url} alt={s.name} />
-                        </figure>
-                      );
-                    })}
-                  </div>
+                        </div>
+                        <div className="p-doc">
+                          <p className="p-doc-head">
+                            <span className="p-n">{String(i + 1).padStart(2, "0")}</span>{" "}
+                            <strong>{s.name}</strong>
+                          </p>
+                          {/* One origin line, not two: "เปิดจากหน้า X" already
+                              says whose window this is. */}
+                          {route ? (
+                            <p className="p-route">{route}</p>
+                          ) : s.parent ? (
+                            <p className="p-route">หน้าต่างย่อยของ {s.parent}</p>
+                          ) : null}
+                          {manual ? (
+                            <table className="p-manual">
+                              <tbody>
+                                {manual.does && (
+                                  <tr>
+                                    <th>ทำอะไร</th>
+                                    <td>{manual.does}</td>
+                                  </tr>
+                                )}
+                                {manual.how && (
+                                  <tr>
+                                    <th>วิธีใช้งาน</th>
+                                    <td>{manual.how}</td>
+                                  </tr>
+                                )}
+                                {manual.result && (
+                                  <tr>
+                                    <th>ผลลัพธ์</th>
+                                    <td>{manual.result}</td>
+                                  </tr>
+                                )}
+                              </tbody>
+                            </table>
+                          ) : s.note ? (
+                            <p className="p-note">{s.note}</p>
+                          ) : null}
+                        </div>
+                      </div>
+                    );
+                  })}
                 </section>
               )}
 

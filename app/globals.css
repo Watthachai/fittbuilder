@@ -1040,19 +1040,6 @@ body {
   margin-top: 2px;
 }
 
-/* ---- page foot ----
-   The letterhead strip that used to repeat down here is gone — the sender
-   already signs the top of every page. All that prints now is the mark, and
-   only when it is ours: a partner's paper carries no mark of the tool, so a
-   partner's pages end with nothing at all. */
-.fitt-paper .q-powered {
-  color: var(--ink-dim);
-  font-size: 9.5px;
-  letter-spacing: 0.06em;
-  text-align: right;
-  margin-top: 10px;
-}
-
 .fitt-paper .q-shots {
   margin-top: 22px;
 }
@@ -1115,46 +1102,73 @@ body {
   line-height: 1.5;
   width: 33.3%;
 }
-/* Two steps to a row: full-width screenshots would spend a page per screen. */
-.fitt-paper .p-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 12px;
-  margin-top: 8px;
-}
+/* One screen per row, manual-style: the picture anchors the left, the
+   documentation reads on the right. Picture width is fixed so twenty rows
+   line up as a register, not a scrapbook. */
 .fitt-paper .p-step {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
   break-inside: avoid;
-  margin: 0;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--rule);
+}
+.fitt-paper .p-shot {
+  flex: 0 0 62mm;
 }
 /* Cropped to a frame, never printed at natural height: a screen capture is the
    WHOLE page, and a six-viewport landing printed uncropped is taller than the
    paper — break-inside cannot hold it, so its caption strands on one page and
    the picture takes the next one alone. The appendix grid (.q-grid) made the
    same call for the same reason; the demo is where the full page lives. */
-.fitt-paper .p-step img {
+.fitt-paper .p-shot img {
   width: 100%;
   aspect-ratio: 4 / 3;
   object-fit: cover;
   object-position: top;
   border: 1px solid var(--rule);
   border-radius: 3px;
-  margin-top: 4px;
 }
-.fitt-paper .p-step figcaption {
+.fitt-paper .p-doc {
+  min-width: 0;
+  flex: 1;
   font-size: 10.5px;
-  line-height: 1.45;
+  line-height: 1.5;
 }
-.fitt-paper .p-step .p-n {
+.fitt-paper .p-doc-head {
+  font-size: 11.5px;
+}
+.fitt-paper .p-n {
   font-weight: 700;
   color: var(--accent);
 }
 .fitt-paper .p-route {
   color: var(--ink-dim);
+  margin-top: 1px;
 }
-/* The screen's description sits under its route, as its own line. */
 .fitt-paper .p-note {
-  display: block;
   color: var(--ink-dim);
+  margin-top: 3px;
+}
+/* The what/how/result register. Labels form a quiet column of their own. */
+.fitt-paper .p-manual {
+  border-collapse: collapse;
+  margin-top: 4px;
+  width: 100%;
+}
+.fitt-paper .p-manual th {
+  text-align: left;
+  vertical-align: top;
+  white-space: nowrap;
+  color: var(--ink-dim);
+  font-weight: 600;
+  padding: 2px 10px 2px 0;
+  width: 1%;
+}
+.fitt-paper .p-manual td {
+  vertical-align: top;
+  padding: 2px 0;
 }
 .fitt-paper .p-time {
   display: flex;

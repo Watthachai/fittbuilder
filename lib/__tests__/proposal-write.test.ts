@@ -52,6 +52,28 @@ describe("parseProposalDraft", () => {
     expect(draft.excluded).toEqual(["จริง"]);
   });
 
+  it("clamps screen documentation to the names that were asked about", () => {
+    const draft = parseProposalDraft(
+      JSON.stringify({
+        ...ok,
+        screens: {
+          "รายการสินค้า": { does: "ดูสต๊อก", how: "เลือกสาขา", result: "เห็นคงเหลือ" },
+          "หน้าที่โมเดลแต่งเอง": { does: "ไม่มีจริง", how: "", result: "" },
+        },
+      }),
+      ["รายการสินค้า"]
+    )!;
+    expect(Object.keys(draft.screens)).toEqual(["รายการสินค้า"]);
+  });
+
+  it("a draft of nothing but screen docs still counts as an answer", () => {
+    const draft = parseProposalDraft(
+      JSON.stringify({ points: [], screens: { "ก": { does: "ทำงาน" } } }),
+      ["ก"]
+    )!;
+    expect(draft.screens["ก"].does).toBe("ทำงาน");
+  });
+
   it("gives each point a distinct id so the editor's keys are stable", () => {
     const draft = parseProposalDraft(
       JSON.stringify({ points: [{ problem: "ก", feature: "ก" }, { problem: "ข", feature: "ข" }] })

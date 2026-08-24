@@ -1,4 +1,4 @@
-import type { ProposalPoint } from "@/lib/proposal";
+import type { ProposalPoint, ScreenDoc } from "@/lib/proposal";
 
 /**
  * Writing the argument of a proposal from what was actually built.
@@ -29,8 +29,17 @@ export const PROPOSAL_SYSTEM = `คุณคือที่ปรึกษาท
   "points": [
     { "problem": "...", "feature": "...", "outcome": "..." }
   ],
-  "excluded": ["สิ่งที่ไม่รวมในเฟสนี้ ..."]
-}`;
+  "excluded": ["สิ่งที่ไม่รวมในเฟสนี้ ..."],
+  "screens": {
+    "<ชื่อหน้าตามรายการ ตรงตัวอักษร>": {
+      "does": "หน้านี้มีไว้ทำอะไร 1-2 ประโยค",
+      "how": "ผู้ใช้ทำงานบนหน้านี้ยังไง เรียงตามขั้นตอนจริง 1-3 ประโยค",
+      "result": "จบหน้านี้แล้วได้อะไร 1-2 ประโยค"
+    }
+  }
+}
+
+เขียน "screens" ให้ครบทุกหน้าที่อยู่ในรายการ ใช้ชื่อหน้าเป็น key ตรงตัวอักษร ห้ามตั้งชื่อใหม่`;
 
 const CHAR_BUDGET = 6_000;
 
@@ -71,6 +80,8 @@ export interface ProposalDraft {
   context: string;
   points: ProposalPoint[];
   excluded: string[];
+  /** Per-screen manual entries — keys clamped to the names that were asked for. */
+  screens: Record<string, ScreenDoc>;
 }
 
 /**
@@ -81,7 +92,7 @@ export interface ProposalDraft {
  * worse than a shorter proposal. Returns null when nothing survives, so the
  * caller can say so instead of silently replacing the document with emptiness.
  */
-export function parseProposalDraft(raw: string): ProposalDraft | null {
+export function parseProposalDraft(raw: string, screenNames: string[] = []): ProposalDraft | null {
   let data: unknown;
   try {
     data = JSON.parse(raw);
@@ -109,7 +120,25 @@ export function parseProposalDraft(raw: string): ProposalDraft | null {
     .filter(Boolean)
     .slice(0, 12);
 
+  // Keys are clamped to the names that were asked about — same rule as
+  // parseScreenSpecs, because a name the model invented would print as a page
+  // the system does not have.
+  const asked = new Set(screenNames.map((n) => n.trim()).filter(Boolean));
+  const field = (v: unknown) => str(v).slice(0, 600);
+  const screens: Record<string, ScreenDoc> = {};
+  for (const [name, raw2] of Object.entries(
+    o.screens && typeof o.screens === "object" && !Array.isArray(o.screens)
+      ? (o.screens as Record<string, unknown>)
+      : {}
+  )) {
+    const key = name.trim();
+    if (!asked.has(key)) continue;
+    const d = (raw2 ?? {}) as Record<string, unknown>;
+    const entry: ScreenDoc = { does: field(d.does), how: field(d.how), result: field(d.result) };
+    if (entry.does || entry.how || entry.result) screens[key] = entry;
+  }
+
   const context = str(o.context);
-  if (!context && points.length === 0) return null;
-  return { context, points, excluded };
+  if (!context && points.length === 0 && Object.keys(screens).length === 0) return null;
+  return { context, points, excluded, screens };
 }

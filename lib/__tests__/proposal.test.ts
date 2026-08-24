@@ -7,6 +7,7 @@ import {
   parseProposal,
   proposalSteps,
   proposalTimeline,
+  screenDocFor,
   stepJourney,
 } from "@/lib/proposal";
 import type { Shot } from "@/lib/shots";
@@ -191,5 +192,34 @@ describe("parseProposal", () => {
   it("round-trips a document written by newProposal", () => {
     const doc = newProposal("Pace", "2026-08-24");
     expect(parseProposal(JSON.parse(JSON.stringify(doc)), "2026-01-01")).toEqual(doc);
+  });
+
+  it("keeps per-screen documentation and trims its keys", () => {
+    const doc = round({
+      screenDocs: {
+        " รายการสินค้า ": { does: "ดูสต๊อก", how: "เลือกสาขา", result: "เห็นคงเหลือ" },
+      },
+    })!;
+    expect(screenDocFor(doc, "รายการสินค้า")).toEqual({
+      does: "ดูสต๊อก",
+      how: "เลือกสาขา",
+      result: "เห็นคงเหลือ",
+    });
+  });
+
+  it("drops screen entries that are empty or junk instead of storing noise", () => {
+    const doc = round({
+      screenDocs: {
+        "ว่าง": { does: "", how: "", result: "" },
+        "พัง": 7,
+        "ดี": { does: "ทำงานได้" },
+      },
+    })!;
+    expect(Object.keys(doc.screenDocs)).toEqual(["ดี"]);
+    expect(doc.screenDocs["ดี"]).toEqual({ does: "ทำงานได้", how: "", result: "" });
+  });
+
+  it("backfills screenDocs for documents stored before the field existed", () => {
+    expect(round({})!.screenDocs).toEqual({});
   });
 });

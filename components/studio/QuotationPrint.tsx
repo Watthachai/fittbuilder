@@ -124,11 +124,10 @@ export default function QuotationPrint({ doc, shots }: { doc: QuoteDoc; shots: S
         <tfoot>
           <tr>
             <td>
-              {/* No letterhead strip down here — the company already signs the top
-                  of every page, and the bottom repeating it read as clutter. The one
-                  thing that still prints is the mark a non-partner workspace carries;
-                  removing it is exactly what the partner programme sells. */}
-              {brand.poweredBy && <p className="q-powered">Powered by FITT Builder</p>}
+              {/* Nothing prints down here — the sender signs the top of every
+                  page, and the owner decided the paper carries no product mark.
+                  The empty tfoot stays: table-footer-group is what makes multi-
+                  page printing paginate correctly. */}
             </td>
           </tr>
         </tfoot>

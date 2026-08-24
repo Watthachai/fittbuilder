@@ -276,12 +276,6 @@ export default function QuoteBrandBar({
         </div>
       </div>
 
-      {brand.poweredBy && (
-        <p className="mt-2.5 text-[11.5px] leading-relaxed text-chalk-dim">
-          ใบเสนอราคาจะมีข้อความ “Powered by FITT Builder” ท้ายกระดาษ — เปิดเป็น Partner แล้วจะเอาออกให้
-          {orgId ? " (กด “ดึงจาก workspace” หลังได้สิทธิ์ Partner)" : ""}
-        </p>
-      )}
       {!orgId && (
         <p className="mt-2.5 text-[11.5px] leading-relaxed text-chalk-dim">
           โปรเจกต์นี้ยังไม่ได้ผูกกับ workspace — กรอกหัวกระดาษที่นี่ได้ แต่อัปโหลดโลโก้และบันทึกเป็น

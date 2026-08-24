@@ -6,13 +6,16 @@ import { FileText, Loader2, Plus, Printer, Sparkles, Trash2 } from "lucide-react
 import {
   DEFAULT_CLOSING,
   emptyPoint,
+  emptyScreenDoc,
   hasJourney,
   newProposal,
   proposalSteps,
   proposalTimeline,
+  screenDocFor,
   stepJourney,
   type ProposalDoc,
   type ProposalPoint,
+  type ScreenDoc,
 } from "@/lib/proposal";
 import { loadProposal, saveProposal } from "@/lib/proposal-store";
 import { loadQuote } from "@/lib/quote-store";
@@ -148,7 +151,10 @@ export default function Proposal({
     const wantContext = !doc.context.trim();
     const wantPoints = doc.points.every((p) => !p.problem.trim() && !p.feature.trim());
     const wantExcluded = doc.excluded.every((x) => !x.trim());
-    if (!wantContext && !wantPoints && !wantExcluded) {
+    // Screens are wanted individually: documenting the two new screens must
+    // not depend on the other twenty being empty.
+    const wantScreens = steps.filter((st) => !screenDocFor(doc, st.name)).map((st) => st.name);
+    if (!wantContext && !wantPoints && !wantExcluded && wantScreens.length === 0) {
       toast.info("ทุกส่วนมีข้อความอยู่แล้ว", {
         description: "ลบข้อความในส่วนที่อยากให้เขียนใหม่ก่อน แล้วกดอีกครั้ง",
       });
@@ -167,7 +173,12 @@ export default function Proposal({
         }),
       });
       const data = (await res.json()) as {
-        draft?: { context: string; points: ProposalPoint[]; excluded: string[] };
+        draft?: {
+          context: string;
+          points: ProposalPoint[];
+          excluded: string[];
+          screens: Record<string, ScreenDoc>;
+        };
         error?: string;
       };
       if (!res.ok || !data.draft) {
@@ -175,11 +186,21 @@ export default function Proposal({
         return;
       }
       const d = data.draft;
+      // Per-screen merge: only screens that had no documentation take the
+      // generated one — a sentence someone wrote outranks a generated one,
+      // per screen, not per document.
+      const wanted = new Set(wantScreens.map((n) => n.trim()));
       edit((prev) => ({
         ...prev,
         context: wantContext && d.context ? d.context : prev.context,
         points: wantPoints && d.points.length ? d.points : prev.points,
         excluded: wantExcluded && d.excluded.length ? d.excluded : prev.excluded,
+        screenDocs: {
+          ...prev.screenDocs,
+          ...Object.fromEntries(
+            Object.entries(d.screens ?? {}).filter(([name]) => wanted.has(name.trim()))
+          ),
+        },
       }));
       toast.success("ร่างข้อเสนอให้แล้ว", {
         description: "อ่านทวนทุกข้อก่อนส่ง — ลบหรือแก้ได้ทั้งหมด นี่คือเอกสารของคุณ ไม่ใช่ของ AI",
@@ -473,6 +494,64 @@ export default function Proposal({
             onChange={(on) => edit((d) => ({ ...d, showSteps: on }))}
             disabled={readOnly}
           />
+
+          {/* The manual: what each captured screen does, how it is used, what
+              comes out. One entry per unique screen name — a screen recaptured
+              five times is still one screen. Filled by the AI pass, owned by
+              whoever edits it. */}
+          {doc.showSteps && steps.length > 0 && (
+            <div className="mt-3 flex flex-col gap-2.5">
+              {[...new Map(steps.map((st) => [st.name.trim(), st])).values()].map((st) => {
+                const manual = doc.screenDocs[st.name.trim()] ?? emptyScreenDoc();
+                const setField = (field: keyof ScreenDoc, value: string) =>
+                  edit((d) => ({
+                    ...d,
+                    screenDocs: {
+                      ...d.screenDocs,
+                      [st.name.trim()]: {
+                        ...(d.screenDocs[st.name.trim()] ?? emptyScreenDoc()),
+                        [field]: value,
+                      },
+                    },
+                  }));
+                return (
+                  <div key={st.name} className="rounded-lg border border-night-edge p-2.5">
+                    <p className="font-display text-[12.5px] text-chalk">{st.name}</p>
+                    <div className="mt-1.5 grid gap-2 sm:grid-cols-3">
+                      <textarea
+                        value={manual.does}
+                        readOnly={readOnly}
+                        rows={2}
+                        onChange={(e) => setField("does", e.target.value)}
+                        placeholder="ทำอะไร — หน้านี้มีไว้เพื่ออะไร"
+                        className={`${inputCls} min-h-[54px] resize-y text-[12.5px] leading-relaxed`}
+                      />
+                      <textarea
+                        value={manual.how}
+                        readOnly={readOnly}
+                        rows={2}
+                        onChange={(e) => setField("how", e.target.value)}
+                        placeholder="วิธีใช้งาน — ทำงานบนหน้านี้ยังไง ทีละขั้น"
+                        className={`${inputCls} min-h-[54px] resize-y text-[12.5px] leading-relaxed`}
+                      />
+                      <textarea
+                        value={manual.result}
+                        readOnly={readOnly}
+                        rows={2}
+                        onChange={(e) => setField("result", e.target.value)}
+                        placeholder="ผลลัพธ์ — จบหน้านี้แล้วได้อะไร"
+                        className={`${inputCls} min-h-[54px] resize-y text-[12.5px] leading-relaxed`}
+                      />
+                    </div>
+                  </div>
+                );
+              })}
+              <p className="font-mono text-[11px] text-chalk-dim">
+                ช่องที่เว้นว่าง ปุ่ม “ร่างด้วย AI จากระบบจริง” จะเขียนให้ — ช่องที่พิมพ์เองแล้ว AI
+                จะไม่แตะ
+              </p>
+            </div>
+          )}
         </div>
 
         {/* Schedule and price both point at the quotation. */}

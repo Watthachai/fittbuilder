@@ -33,6 +33,32 @@ export interface ProposalPoint {
 }
 
 /**
+ * What one screen is FOR, in the three sentences a reader actually asks:
+ * what it does, how the work moves through it, and what comes out the end.
+ *
+ * Keyed by screen name in the document (`screenDocs`), not stored on the
+ * shot: screenshots are retaken freely, and re-scanning must never delete
+ * documentation someone wrote or approved.
+ */
+export interface ScreenDoc {
+  /** หน้าที่ของหน้านี้ — what this screen is for. */
+  does: string;
+  /** วิธีใช้งาน / กระบวนการ — how the work flows through it. */
+  how: string;
+  /** ผลลัพธ์ — what exists after this screen has done its job. */
+  result: string;
+}
+
+export const emptyScreenDoc = (): ScreenDoc => ({ does: "", how: "", result: "" });
+
+/** The stored doc for a screen name, or null — names join after trimming. */
+export function screenDocFor(doc: ProposalDoc, name: string): ScreenDoc | null {
+  const d = doc.screenDocs[name.trim()];
+  if (!d) return null;
+  return d.does || d.how || d.result ? d : null;
+}
+
+/**
  * One step of the demonstrated walk: arrived at `name`, from `from`, by
  * pressing `via`.
  *
@@ -90,6 +116,12 @@ export interface ProposalDoc {
   excluded: string[];
   /** Print the demonstrated walk with its screenshots. */
   showSteps: boolean;
+  /**
+   * Per-screen documentation, keyed by screen name. What each captured page
+   * does, how it is used, and what it produces — the part of the proposal
+   * that reads like the system's manual.
+   */
+  screenDocs: Record<string, ScreenDoc>;
   closing: string;
   /** The quotation this proposal accompanies — the only place a price is named. */
   quoteNo: string;
@@ -142,6 +174,7 @@ export function newProposal(projectName: string, today: string): ProposalDoc {
     points: [],
     excluded: [],
     showSteps: true,
+    screenDocs: {},
     closing: DEFAULT_CLOSING,
     quoteNo: "",
   };
@@ -276,6 +309,14 @@ export function parseProposal(payload: unknown, fallbackDate: string): ProposalD
     }),
     excluded: strs(o.excluded),
     showSteps: bool(o.showSteps, true),
+    screenDocs: Object.fromEntries(
+      Object.entries(obj(o.screenDocs)).flatMap(([name, raw]) => {
+        const d = obj(raw);
+        const doc: ScreenDoc = { does: str(d.does), how: str(d.how), result: str(d.result) };
+        // A key with three empty fields is storage noise, not documentation.
+        return name.trim() && (doc.does || doc.how || doc.result) ? [[name.trim(), doc]] : [];
+      })
+    ),
     closing: str(o.closing, DEFAULT_CLOSING),
     quoteNo: str(o.quoteNo),
   };

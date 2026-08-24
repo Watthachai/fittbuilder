@@ -76,12 +76,12 @@ export async function POST(request: Request) {
       }),
       json: true,
       level: "medium",
-      maxOutputTokens: 6144,
+      maxOutputTokens: 12288,
       onUsage: (u) => {
         usage = u;
       },
     });
-    const draft = parseProposalDraft(raw);
+    const draft = parseProposalDraft(raw, screens.map((s) => s.name));
     if (!draft) {
       return Response.json({ error: "เขียนข้อเสนอไม่สำเร็จ ลองอีกครั้งได้ครับ" }, { status: 422 });
     }

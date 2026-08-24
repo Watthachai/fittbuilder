@@ -3,6 +3,7 @@ import { newDoc, quoteTotals, type QuoteDoc } from "@/lib/quote";
 import {
   DEFAULT_CLOSING,
   hasJourney,
+  howLines,
   newProposal,
   parseProposal,
   proposalSteps,
@@ -149,6 +150,30 @@ describe("proposalTimeline", () => {
   it("claims no included maintenance when maintenance is not being offered", () => {
     const q = quote({ ma: { ...quote().ma, enabled: false, includedMonths: 12 } });
     expect(proposalTimeline(q).includedMonths).toBe(0);
+  });
+});
+
+describe("howLines", () => {
+  it("one line is one step, blanks dropped", () => {
+    expect(howLines("เลือกสีผ้า\n\nกดหยิบใส่ตะกร้า\n")).toEqual([
+      "เลือกสีผ้า",
+      "กดหยิบใส่ตะกร้า",
+    ]);
+  });
+
+  /** The paper assigns the numbers — hand-typed ones would print "2.1 1. กด…". */
+  it("strips bullets and hand-typed numbering so numbers never double up", () => {
+    expect(howLines("1. เลือกสี\n2) กดปุ่ม\n- ตรวจยอด\n• ยืนยัน\n1.1 จ่ายเงิน")).toEqual([
+      "เลือกสี",
+      "กดปุ่ม",
+      "ตรวจยอด",
+      "ยืนยัน",
+      "จ่ายเงิน",
+    ]);
+  });
+
+  it("an empty field has no steps", () => {
+    expect(howLines("")).toEqual([]);
   });
 });
 

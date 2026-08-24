@@ -51,6 +51,23 @@ export interface ScreenDoc {
 
 export const emptyScreenDoc = (): ScreenDoc => ({ does: "", how: "", result: "" });
 
+/**
+ * The "how" field as numbered steps: one line = one step.
+ *
+ * Stored as plain text with newlines rather than an array, so the panel can
+ * edit it in an ordinary textarea and documents saved before this existed
+ * parse unchanged. The NUMBERS are never stored — the paper assigns them
+ * (ขั้นตอนที่ 2 → 2.1, 2.2…), so steps renumber themselves when one is added
+ * in the middle. Leading bullets or hand-typed numbers are stripped for the
+ * same reason: "2.1 1. กดปุ่ม" is what happens when both sides count.
+ */
+export function howLines(how: string): string[] {
+  return how
+    .split("\n")
+    .map((line) => line.replace(/^\s*(?:[-•*]|\d+(?:\.\d+)*[.)]?)\s*/, "").trim())
+    .filter(Boolean);
+}
+
 /** The stored doc for a screen name, or null — names join after trimming. */
 export function screenDocFor(doc: ProposalDoc, name: string): ScreenDoc | null {
   const d = doc.screenDocs[name.trim()];

@@ -1170,6 +1170,16 @@ body {
   vertical-align: top;
   padding: 2px 0;
 }
+.fitt-paper .p-how-line {
+  margin-top: 1px;
+}
+.fitt-paper .p-how-n {
+  display: inline-block;
+  min-width: 26px;
+  font-weight: 600;
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+}
 .fitt-paper .p-time {
   display: flex;
   gap: 26px;

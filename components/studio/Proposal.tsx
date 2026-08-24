@@ -531,7 +531,7 @@ export default function Proposal({
                         readOnly={readOnly}
                         rows={2}
                         onChange={(e) => setField("how", e.target.value)}
-                        placeholder="วิธีใช้งาน — ทำงานบนหน้านี้ยังไง ทีละขั้น"
+                        placeholder={"ขั้นตอน — หนึ่งขั้นต่อบรรทัด เลข 1.1 1.2 ระบบใส่ให้เอง\nเช่น เลือกสีผ้าและขาโซฟา\nกดปุ่มหยิบใส่ตะกร้า"}
                         className={`${inputCls} min-h-[54px] resize-y text-[12.5px] leading-relaxed`}
                       />
                       <textarea

@@ -2,6 +2,7 @@
 
 import { safeAccent, thaiDate, thaiDateShort, type QuoteDoc } from "@/lib/quote";
 import {
+  howLines,
   proposalSteps,
   screenDocFor,
   proposalTimeline,
@@ -171,7 +172,7 @@ export default function ProposalPrint({
                         </div>
                         <div className="p-doc">
                           <p className="p-doc-head">
-                            <span className="p-n">{String(i + 1).padStart(2, "0")}</span>{" "}
+                            <span className="p-n">ขั้นตอนที่ {i + 1}</span> ·{" "}
                             <strong>{s.name}</strong>
                           </p>
                           {/* One origin line, not two: "เปิดจากหน้า X" already
@@ -190,10 +191,22 @@ export default function ProposalPrint({
                                     <td>{manual.does}</td>
                                   </tr>
                                 )}
-                                {manual.how && (
+                                {howLines(manual.how).length > 0 && (
                                   <tr>
-                                    <th>วิธีใช้งาน</th>
-                                    <td>{manual.how}</td>
+                                    <th>ขั้นตอน</th>
+                                    <td>
+                                      {/* Numbered under the row's own number —
+                                          ขั้นตอนที่ 2 walks as 2.1, 2.2 — so the
+                                          paper reads as one continuous procedure. */}
+                                      {howLines(manual.how).map((line, j) => (
+                                        <p key={j} className="p-how-line">
+                                          <span className="p-how-n">
+                                            {i + 1}.{j + 1}
+                                          </span>
+                                          {line}
+                                        </p>
+                                      ))}
+                                    </td>
                                   </tr>
                                 )}
                                 {manual.result && (

@@ -23,6 +23,17 @@ export const CHANGE_BADGE: Record<ChangeType, { label: string; className: string
 // Newest first. SemVer: fix → PATCH, feature → MINOR, breaking → MAJOR.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.52.1",
+    date: "2026-08-24",
+    title: "🔢 วิธีใช้งานเป็นขั้นตอนมีเลขกำกับ",
+    items: [
+      {
+        type: "improvement",
+        text: "ช่อง \"วิธีใช้งาน\" ของแต่ละหน้าจอเปลี่ยนจากย่อหน้าเป็นขั้นตอนทีละขั้น — พิมพ์หนึ่งขั้นต่อบรรทัด กระดาษใส่เลขให้เอง: ขั้นตอนที่ 2 เดินเป็น 2.1, 2.2, 2.3 ต่อเนื่องกันทั้งเล่ม · เลขไม่ถูกเก็บในเอกสาร แทรกขั้นกลางแล้วเลขไล่ใหม่เองทั้งแถว และเลขที่พิมพ์มาเองถูกลอกออกกันเลขซ้อน",
+      },
+    ],
+  },
+  {
     version: "0.52.0",
     date: "2026-08-24",
     title: "📖 ข้อเสนอโครงการที่อ่านเป็นคู่มือระบบได้",

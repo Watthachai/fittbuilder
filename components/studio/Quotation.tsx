@@ -34,9 +34,10 @@ import {
 import { loadQuote, saveQuote } from "@/lib/quote-store";
 import { marketMidpoint, type QuoteAdvice } from "@/lib/quote-advice";
 import { getOrg } from "@/lib/orgs";
-import type { Shot } from "@/lib/shots";
+import { listShots, type Shot } from "@/lib/shots";
 import type { ProjectFiles } from "@/lib/types";
 import { toast } from "@/lib/toast";
+import { printSheet } from "@/lib/print-sheet";
 import QuotationPrint from "./QuotationPrint";
 import QuoteBrandBar from "./QuoteBrandBar";
 import QuoteTerms from "./QuoteTerms";
@@ -74,6 +75,17 @@ export default function Quotation({
 }) {
   const [doc, setDoc] = useState<QuoteDoc | null>(null);
   const [loading, setLoading] = useState(true);
+  /**
+   * The shots the printed sheet is currently rendering — null when not
+   * printing. One piece of state rather than a `printing` flag beside a shot
+   * array, so the two cannot disagree about what is on the paper.
+   */
+  const [sheet, setSheet] = useState<Shot[] | null>(null);
+  /**
+   * The print ACTION is running — which starts before the paper exists, because
+   * the URLs are re-signed first. Separate from `sheet` on purpose: one answers
+   * "what is on the paper", this one answers "is the button working".
+   */
   const [printing, setPrinting] = useState(false);
   const [writing, setWriting] = useState(false);
   const [pricing, setPricing] = useState(false);
@@ -262,16 +274,24 @@ export default function Quotation({
    * ⌘P → "Save as PDF" is a route every OS already has, and it prints exactly
    * what the preview shows.
    */
-  const print = () => {
+  const print = async () => {
+    if (printing) return;
     setPrinting(true);
-    // Two frames: one for the portal to mount, one for images and layout to
-    // settle before the print dialog freezes the page.
-    requestAnimationFrame(() =>
-      requestAnimationFrame(() => {
-        window.print();
-        setPrinting(false);
-      })
-    );
+    try {
+      // Shot URLs are signed for 8 hours (lib/shots.ts). A studio tab left open
+      // overnight holds a doc full of expired links, and the appendix prints as
+      // a grid of broken boxes — so re-sign right before mounting the sheet.
+      // Falling back to the props on failure keeps a network blip from turning
+      // "picture might be stale" into "cannot print at all".
+      const fresh = await listShots(projectId).catch(() => [] as Shot[]);
+      const printable = fresh.length > 0 ? fresh : shots;
+      await printSheet(
+        () => setSheet(printable),
+        () => setSheet(null)
+      );
+    } finally {
+      setPrinting(false);
+    }
   };
 
   if (loading || !doc) {
@@ -729,10 +749,19 @@ export default function Quotation({
             </div>
           )}
           <button
-            onClick={print}
-            className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-lg bg-shine px-3 py-2 font-display text-[14px] font-semibold text-night transition hover:brightness-110"
+            onClick={() => void print()}
+            disabled={printing}
+            className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-lg bg-shine px-3 py-2 font-display text-[14px] font-semibold text-night transition hover:brightness-110 disabled:opacity-60"
           >
-            <Printer size={13} /> พิมพ์ / บันทึกเป็น PDF
+            {printing ? (
+              <>
+                <Loader2 size={13} className="animate-spin" /> กำลังเตรียมภาพ…
+              </>
+            ) : (
+              <>
+                <Printer size={13} /> พิมพ์ / บันทึกเป็น PDF
+              </>
+            )}
           </button>
           <p className="mt-1.5 text-center text-[11.5px] leading-relaxed text-chalk-dim">
             ในหน้าต่างพิมพ์ เลือกปลายทางเป็น “Save as PDF” · ภาพหน้าจอทั้งหมดจะไปเป็นภาคผนวกท้ายเอกสาร
@@ -743,9 +772,9 @@ export default function Quotation({
       {/* The promises: when the money arrives, what counts as acceptance, MA. */}
       <QuoteTerms doc={doc} readOnly={readOnly} onEdit={edit} />
 
-      {printing &&
+      {sheet &&
         typeof document !== "undefined" &&
-        createPortal(<QuotationPrint doc={doc} shots={shots} />, document.body)}
+        createPortal(<QuotationPrint doc={doc} shots={sheet} />, document.body)}
     </div>
   );
 }

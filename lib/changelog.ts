@@ -23,6 +23,21 @@ export const CHANGE_BADGE: Record<ChangeType, { label: string; className: string
 // Newest first. SemVer: fix → PATCH, feature → MINOR, breaking → MAJOR.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.53.0",
+    date: "2026-08-24",
+    title: "🪪 หัวกระดาษตั้งครั้งเดียว ใช้ได้ทุกโปรเจกต์",
+    items: [
+      {
+        type: "feature",
+        text: "โปรเจกต์ส่วนตัว (ไม่ผูก workspace) มีค่าเริ่มต้นหัวกระดาษของตัวเองแล้ว — กรอกชื่อบริษัท ที่อยู่ เลขผู้เสียภาษี โลโก้ ครั้งเดียวแล้วกด \"บันทึกเป็นค่าเริ่มต้น\" ใบเสนอราคาและข้อเสนอโครงการของโปรเจกต์ใหม่ทุกโปรเจกต์จะขึ้นหัวกระดาษนี้ให้เอง · อัปโหลดโลโก้ได้โดยไม่ต้องมี workspace แล้ว · โปรเจกต์ที่ผูก workspace ยังใช้ข้อมูลบริษัทของ workspace เหมือนเดิม",
+      },
+      {
+        type: "improvement",
+        text: "แผงข้อเสนอโครงการขยายเต็มความกว้างเท่าใบเสนอราคา — เลิกเป็นคอลัมน์แคบลอยกลางจอ",
+      },
+    ],
+  },
+  {
     version: "0.52.1",
     date: "2026-08-24",
     title: "🔢 วิธีใช้งานเป็นขั้นตอนมีเลขกำกับ",

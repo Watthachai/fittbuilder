@@ -34,6 +34,7 @@ import {
 import { loadQuote, saveQuote } from "@/lib/quote-store";
 import { marketMidpoint, type QuoteAdvice } from "@/lib/quote-advice";
 import { getOrg } from "@/lib/orgs";
+import { loadUserBrand } from "@/lib/user-brand";
 import { listShots, type Shot } from "@/lib/shots";
 import type { ProjectFiles } from "@/lib/types";
 import { toast } from "@/lib/toast";
@@ -109,8 +110,13 @@ export default function Quotation({
       const saved = await loadQuote(projectId, today).catch(() => null);
       if (saved) return saved;
       const fresh = newDoc(shots, projectName, today);
-      const org = orgId ? await getOrg(orgId).catch(() => null) : null;
-      return org ? { ...fresh, brand: brandFromOrg(org.brand, org.isPartner) } : fresh;
+      if (orgId) {
+        const org = await getOrg(orgId).catch(() => null);
+        return org ? { ...fresh, brand: brandFromOrg(org.brand, org.isPartner) } : fresh;
+      }
+      // No workspace → the personal default letterhead, if one was ever saved.
+      const mine = await loadUserBrand().catch(() => null);
+      return mine ? { ...fresh, brand: { ...fresh.brand, ...mine } } : fresh;
     };
     void seed().then((d) => {
       if (!alive) return;

@@ -126,6 +126,24 @@ export interface Database {
         };
         Relationships: [];
       };
+      fittbuilder_user_brand: {
+        Row: {
+          user_id: string;
+          brand: Json;
+          updated_at: string;
+        };
+        Insert: {
+          user_id: string;
+          brand: Json;
+          updated_at?: string;
+        };
+        Update: {
+          user_id?: string;
+          brand?: Json;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
       fittbuilder_project_proposals: {
         Row: {
           project_id: string;

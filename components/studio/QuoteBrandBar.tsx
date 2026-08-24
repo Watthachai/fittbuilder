@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 import { BadgeCheck, Building2, Download, Loader2, Save, Trash2, Upload } from "lucide-react";
 import { getOrg, updateOrgBrand, uploadOrgLogo } from "@/lib/orgs";
+import { loadUserBrand, saveUserBrand, uploadUserLogo } from "@/lib/user-brand";
 import { useFileDrop } from "@/lib/useFileDrop";
 import DropOverlay from "@/components/ui/DropOverlay";
 import { toast } from "@/lib/toast";
@@ -35,19 +36,15 @@ export default function QuoteBrandBar({
 
   const upload = async (file: File | undefined) => {
     if (!file || readOnly) return;
-    if (!orgId) {
-      toast.info("ผูกโปรเจกต์กับ workspace ก่อน", {
-        description: "โลโก้เก็บไว้ที่ workspace เพื่อให้ใบเสนอราคาทุกใบใช้ร่วมกันได้",
-      });
-      return;
-    }
     if (!file.type.startsWith("image/")) {
       toast.error("ต้องเป็นไฟล์รูปภาพ", { description: "รองรับ PNG · JPG · WebP" });
       return;
     }
     setBusy("upload");
     try {
-      onChange({ logoUrl: await uploadOrgLogo(orgId, file) });
+      // A workspace project stores its logo under the workspace; a personal
+      // project under the person. Same bucket, different owner.
+      onChange({ logoUrl: orgId ? await uploadOrgLogo(orgId, file) : await uploadUserLogo(file) });
       toast.success("อัปโหลดโลโก้แล้ว", {
         description: "กด “บันทึกเป็นค่าเริ่มต้น” ถ้าอยากให้ใบเสนอราคาใบถัดไปใช้โลโก้นี้ด้วย",
       });
@@ -71,22 +68,36 @@ export default function QuoteBrandBar({
 
   const { dragging, dropHandlers } = useFileDrop((files) => void upload(files[0]));
 
-  /** Copy the workspace's current company identity into this document. */
+  /** Copy the workspace's — or, without one, the person's — identity into this document. */
   const pull = async () => {
-    if (!orgId || readOnly) return;
+    if (readOnly) return;
     setBusy("pull");
     try {
-      const org = await getOrg(orgId);
-      if (!org) {
-        toast.error("อ่านข้อมูล workspace ไม่ได้");
+      if (orgId) {
+        const org = await getOrg(orgId);
+        if (!org) {
+          toast.error("อ่านข้อมูล workspace ไม่ได้");
+          return;
+        }
+        // White-label is granted to the workspace, so `poweredBy` is derived
+        // there — never typed into a document by whoever is editing it.
+        onChange(brandFromOrg(org.brand, org.isPartner));
+        toast.success(
+          org.isPartner ? "ดึงข้อมูลบริษัทแล้ว — พิมพ์ในนามบริษัทคุณ" : "ดึงข้อมูลบริษัทแล้ว"
+        );
         return;
       }
-      // White-label is granted to the workspace, so `poweredBy` is derived
-      // there — never typed into a document by whoever is editing it.
-      onChange(brandFromOrg(org.brand, org.isPartner));
-      toast.success(
-        org.isPartner ? "ดึงข้อมูลบริษัทแล้ว — พิมพ์ในนามบริษัทคุณ" : "ดึงข้อมูลบริษัทแล้ว"
-      );
+      const mine = await loadUserBrand();
+      if (!mine) {
+        toast.info("ยังไม่มีค่าเริ่มต้นของคุณ", {
+          description: "กรอกหัวกระดาษแล้วกด “บันทึกเป็นค่าเริ่มต้น” หนึ่งครั้ง โปรเจกต์ถัดไปจะขึ้นให้เอง",
+        });
+        return;
+      }
+      // poweredBy is not stored in a personal default (it is workspace-derived)
+      // — the document keeps whatever it already carries.
+      onChange(mine);
+      toast.success("ดึงค่าเริ่มต้นของคุณแล้ว");
     } catch (e) {
       toast.error("ดึงข้อมูลไม่สำเร็จ", { description: e instanceof Error ? e.message : undefined });
     } finally {
@@ -94,12 +105,12 @@ export default function QuoteBrandBar({
     }
   };
 
-  /** Make this document's letterhead the workspace's default. */
+  /** Make this document's letterhead the workspace's — or the person's — default. */
   const push = async () => {
-    if (!orgId || readOnly) return;
+    if (readOnly) return;
     setBusy("push");
     try {
-      await updateOrgBrand(orgId, {
+      const fields = {
         logoUrl: brand.logoUrl,
         name: brand.name,
         taxId: brand.taxId,
@@ -107,10 +118,13 @@ export default function QuoteBrandBar({
         contact: brand.contact,
         tagline: brand.tagline,
         accent: brand.accent,
-      });
-      toast.success("บันทึกเป็นข้อมูลบริษัทของ workspace แล้ว", {
-        description: "ใบเสนอราคาที่สร้างใหม่จะขึ้นหัวกระดาษนี้ให้เอง",
-      });
+      };
+      if (orgId) await updateOrgBrand(orgId, fields);
+      else await saveUserBrand(fields);
+      toast.success(
+        orgId ? "บันทึกเป็นข้อมูลบริษัทของ workspace แล้ว" : "บันทึกเป็นค่าเริ่มต้นของคุณแล้ว",
+        { description: "ใบเสนอราคาและข้อเสนอที่สร้างใหม่จะขึ้นหัวกระดาษนี้ให้เอง ทุกโปรเจกต์" }
+      );
     } catch (e) {
       toast.error("บันทึกไม่สำเร็จ", { description: e instanceof Error ? e.message : undefined });
     } finally {
@@ -130,7 +144,7 @@ export default function QuoteBrandBar({
             <BadgeCheck size={10} /> Partner
           </span>
         )}
-        {!readOnly && orgId && (
+        {!readOnly && (
           <div className="ml-auto flex gap-1.5">
             <button
               onClick={() => void pull()}
@@ -139,7 +153,7 @@ export default function QuoteBrandBar({
               className="inline-flex items-center gap-1.5 rounded-lg border border-night-edge px-2.5 py-1 font-display text-[12.5px] text-chalk-dim transition hover:border-shine/60 hover:text-chalk disabled:opacity-40"
             >
               {busy === "pull" ? <Loader2 size={11} className="animate-spin" /> : <Download size={11} />}
-              ดึงจาก workspace
+              {orgId ? "ดึงจาก workspace" : "ดึงค่าเริ่มต้นของฉัน"}
             </button>
             <button
               onClick={() => void push()}
@@ -278,8 +292,8 @@ export default function QuoteBrandBar({
 
       {!orgId && (
         <p className="mt-2.5 text-[11.5px] leading-relaxed text-chalk-dim">
-          โปรเจกต์นี้ยังไม่ได้ผูกกับ workspace — กรอกหัวกระดาษที่นี่ได้ แต่อัปโหลดโลโก้และบันทึกเป็น
-          ค่าเริ่มต้นยังทำไม่ได้
+          กรอกครั้งเดียวแล้วกด “บันทึกเป็นค่าเริ่มต้น” — โปรเจกต์ใหม่ทุกโปรเจกต์จะขึ้นหัวกระดาษนี้ให้เอง
+          (โปรเจกต์ที่ผูก workspace ใช้ข้อมูลบริษัทของ workspace แทน)
         </p>
       )}
     </div>

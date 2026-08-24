@@ -21,6 +21,7 @@ import { loadProposal, saveProposal } from "@/lib/proposal-store";
 import { loadQuote } from "@/lib/quote-store";
 import { brandFromOrg, type QuoteDoc } from "@/lib/quote";
 import { getOrg } from "@/lib/orgs";
+import { loadUserBrand } from "@/lib/user-brand";
 import { listShots, type Shot } from "@/lib/shots";
 import type { ProjectFiles } from "@/lib/types";
 import { toast } from "@/lib/toast";
@@ -91,6 +92,10 @@ export default function Proposal({
       } else if (orgId) {
         const org = await getOrg(orgId).catch(() => null);
         if (org) fresh.brand = brandFromOrg(org.brand, org.isPartner);
+      } else {
+        // No quotation to inherit from and no workspace → the personal default.
+        const mine = await loadUserBrand().catch(() => null);
+        if (mine) fresh.brand = { ...fresh.brand, ...mine };
       }
       return { doc: fresh, quote: savedQuote };
     };
@@ -247,7 +252,9 @@ export default function Proposal({
 
   return (
     <div className="scroll-thin min-h-0 flex-1 overflow-y-auto px-5 py-4">
-      <div className="mx-auto flex max-w-3xl flex-col gap-4">
+      {/* Full width, same as the quotation panel — the narrow centered column
+          read as a form floating in a void once the modal grew this wide. */}
+      <div className="flex flex-col gap-3">
         {/* What this sheet is, and what it deliberately is not. */}
         <div className="flex items-start gap-2.5 rounded-xl border border-night-edge p-3.5">
           <FileText size={14} className="mt-0.5 shrink-0 text-shine" />

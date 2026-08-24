@@ -149,7 +149,7 @@ const ERROR_SCRIPT = `(function () {
  * tab running against an older container can tell, instead of silently
  * reproducing the bug that was just fixed.
  */
-export const SHOT_BRIDGE_VERSION = 19;
+export const SHOT_BRIDGE_VERSION = 20;
 
 /**
  * Screen capture + auto-walk, for building the screen inventory a quotation is
@@ -207,6 +207,48 @@ const SHOT_SCRIPT = `(function () {
       if (clip) { opts.width = innerWidth; opts.height = innerHeight; }
       return h.toPng(document.body, opts);
     });
+  }
+
+  /**
+   * Why a capture failed, in words someone can act on.
+   *
+   * html-to-image rejects with the img error EVENT rather than an Error when a
+   * picture in the page cannot be turned into a data URL, and String(event) is
+   * "[object Event]" — which named no cause, no screen and no fix, so every
+   * report of it had to be investigated from scratch. Two things make a picture
+   * unusable to it: the page never loaded it, or the page loaded it from a host
+   * that will not allow it to be read back. Both are checkable here.
+   */
+  function brokenImages() {
+    var out = [], imgs = document.images;
+    for (var i = 0; i < imgs.length; i++) {
+      var im = imgs[i];
+      if (im.currentSrc && im.complete && im.naturalWidth === 0) out.push(im.currentSrc);
+    }
+    return out;
+  }
+
+  function foreignImages() {
+    var out = [], imgs = document.images;
+    for (var i = 0; i < imgs.length; i++) {
+      var s = imgs[i].currentSrc || "";
+      if (/^https?:/.test(s) && s.indexOf(location.origin) !== 0) out.push(s);
+    }
+    return out;
+  }
+
+  function why(e) {
+    if (e && e.message) return String(e.message);
+    var bad = brokenImages();
+    if (bad.length) {
+      return "รูปในหน้านี้โหลดไม่ขึ้น " + bad.length + " ใบ ทำให้แคปทั้งหน้าไม่ได้ — " + bad[0];
+    }
+    var far = foreignImages();
+    if (far.length) {
+      return "แคปไม่ได้เพราะอ่านรูปจากโดเมนนอกไม่ได้ (" + far.length + " ใบ) — " + far[0];
+    }
+    if (e && e.type) return "แคปหน้านี้ไม่สำเร็จ (" + e.type + ")";
+    return String(e);
   }
 
   var norm = function (s) { return String(s || "").replace(/\\s+/g, " ").trim().toLowerCase(); };
@@ -680,7 +722,7 @@ const SHOT_SCRIPT = `(function () {
         send({ __fittShot: true, name: name, parent: null, dataUrl: await shoot() });
         send({ __fittWalkStep: true, step: step, total: total, name: name, ok: true });
       } catch (e) {
-        send({ __fittWalkStep: true, step: step, total: total, name: name, ok: false, error: String(e && e.message || e) });
+        send({ __fittWalkStep: true, step: step, total: total, name: name, ok: false, error: why(e) });
         continue;
       }
 
@@ -716,7 +758,7 @@ const SHOT_SCRIPT = `(function () {
             send({ __fittShot: true, name: mname, parent: name, from: name, via: mname, dataUrl: await shoot(true) });
             send({ __fittWalkStep: true, step: step, total: total, name: mname, ok: true });
           } catch (e2) {
-            send({ __fittWalkStep: true, step: step, total: total, name: mname, ok: false, error: String(e2 && e2.message || e2) });
+            send({ __fittWalkStep: true, step: step, total: total, name: mname, ok: false, error: why(e2) });
           }
         }
 
@@ -886,7 +928,7 @@ const SHOT_SCRIPT = `(function () {
         send({ __fittWalkStep: true, step: step, total: total, name: screen.name, ok: true });
         prevScreen = screen.name;
       } catch (e) {
-        send({ __fittWalkStep: true, step: step, total: total, name: screen.name, ok: false, error: String(e && e.message || e) });
+        send({ __fittWalkStep: true, step: step, total: total, name: screen.name, ok: false, error: why(e) });
       }
       // Modals the map named. A miss here is not the end — the probe below
       // finds them without needing the label to be right.
@@ -916,7 +958,7 @@ const SHOT_SCRIPT = `(function () {
           send({ __fittWalkStep: true, step: step, total: total, name: nm, ok: true });
           seen.push(norm(nm));
         } catch (e2) {
-          send({ __fittWalkStep: true, step: step, total: total, name: sub.name, ok: false, error: String(e2 && e2.message || e2) });
+          send({ __fittWalkStep: true, step: step, total: total, name: sub.name, ok: false, error: why(e2) });
         }
         if (d0) closeDialog(d0); else if (!clickText(sub.closeBy)) {
           document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
@@ -969,7 +1011,7 @@ const SHOT_SCRIPT = `(function () {
             send({ __fittShot: true, name: name, parent: screen.name, from: screen.name, via: probe.t, dataUrl: await shoot(true) });
             send({ __fittWalkStep: true, step: step, total: total, name: name, ok: true });
           } catch (e3) {
-            send({ __fittWalkStep: true, step: step, total: total, name: name, ok: false, error: String(e3 && e3.message || e3) });
+            send({ __fittWalkStep: true, step: step, total: total, name: name, ok: false, error: why(e3) });
           }
         }
         closeDialog(dlg);

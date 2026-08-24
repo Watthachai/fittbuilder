@@ -1040,32 +1040,17 @@ body {
   margin-top: 2px;
 }
 
-/* ---- the mark, repeated at the foot of every page ---- */
-.fitt-paper .q-foot {
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 20px;
-  margin-top: 16px;
-  padding-top: 6px;
-  border-top: 2px dashed var(--accent);
-}
-.fitt-paper .q-foot-name {
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--ink-dim);
-  letter-spacing: 0.06em;
-}
-.fitt-paper .q-foot-tag {
-  font-size: 11px;
-  color: var(--accent);
-  font-weight: 600;
-}
-/* Ours only when it is ours: a partner's paper carries no mark of the tool. */
+/* ---- page foot ----
+   The letterhead strip that used to repeat down here is gone — the sender
+   already signs the top of every page. All that prints now is the mark, and
+   only when it is ours: a partner's paper carries no mark of the tool, so a
+   partner's pages end with nothing at all. */
 .fitt-paper .q-powered {
   color: var(--ink-dim);
   font-size: 9.5px;
   letter-spacing: 0.06em;
+  text-align: right;
+  margin-top: 10px;
 }
 
 .fitt-paper .q-shots {

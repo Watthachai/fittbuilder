@@ -124,13 +124,11 @@ export default function QuotationPrint({ doc, shots }: { doc: QuoteDoc; shots: S
         <tfoot>
           <tr>
             <td>
-              <div className="q-foot">
-                <div>
-                  {brand.name && <p className="q-foot-name">{brand.name}</p>}
-                  {brand.tagline && <p className="q-foot-tag">{brand.tagline}</p>}
-                </div>
-                {brand.poweredBy && <p className="q-powered">Powered by FITT Builder</p>}
-              </div>
+              {/* No letterhead strip down here — the company already signs the top
+                  of every page, and the bottom repeating it read as clutter. The one
+                  thing that still prints is the mark a non-partner workspace carries;
+                  removing it is exactly what the partner programme sells. */}
+              {brand.poweredBy && <p className="q-powered">Powered by FITT Builder</p>}
             </td>
           </tr>
         </tfoot>

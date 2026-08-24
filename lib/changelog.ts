@@ -23,6 +23,17 @@ export const CHANGE_BADGE: Record<ChangeType, { label: string; className: string
 // Newest first. SemVer: fix → PATCH, feature → MINOR, breaking → MAJOR.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.51.1",
+    date: "2026-08-24",
+    title: "🧾 ท้ายกระดาษที่เงียบลง",
+    items: [
+      {
+        type: "fix",
+        text: "เอาแถบชื่อบริษัท + สโลแกนที่ท้ายทุกหน้าของใบเสนอราคาและข้อเสนอโครงการออก — หัวกระดาษบอกอยู่แล้วว่าใครส่ง ไม่ต้องย้ำท้ายหน้าอีกรอบ · ที่ยังพิมพ์คือ \"Powered by FITT Builder\" เฉพาะ workspace ที่ไม่ใช่ Partner ซึ่งการเอาออกคือสิ่งที่ Partner Program ขาย — กระดาษของ Partner จึงจบแบบไม่มีอะไรเลย",
+      },
+    ],
+  },
+  {
     version: "0.51.0",
     date: "2026-08-24",
     title: "📄 ข้อเสนอโครงการ — เอกสารที่เล่าว่าระบบแก้ปัญหาอะไร พร้อมภาพเดินระบบจริง",

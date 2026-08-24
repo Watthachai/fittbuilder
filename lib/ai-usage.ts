@@ -18,6 +18,7 @@ export type UsageKind =
   | "screen_map"
   | "screen_spec"
   | "quote_advice"
+  | "proposal"
   | "premium_advice";
 
 /**

@@ -50,4 +50,18 @@ describe("injected preview scripts", () => {
     const bridge = injectedScripts().find((s) => s.includes("__fittShotPong"));
     expect(bridge).toContain(`var VERSION = ${SHOT_BRIDGE_VERSION};`);
   });
+
+  /**
+   * The automatic walk presses real controls — a menu item, a modal's opener, a
+   * probed button — and it is the only thing that knows which. It used to throw
+   * that away and report just {name, parent}, so only manual recording produced
+   * flow edges: "สแกนอัตโนมัติ" filled the gallery and left the flow map with no
+   * arrows, and no document could say what clicking a button does.
+   */
+  it("records which control it clicked at every automatic capture point", () => {
+    const bridge = injectedScripts().find((s) => s.includes("__fittWalkDone")) ?? "";
+    expect(bridge).toContain("via: screen.navText");
+    expect(bridge).toContain("via: sub.openBy");
+    expect(bridge).toContain("via: probe.t");
+  });
 });

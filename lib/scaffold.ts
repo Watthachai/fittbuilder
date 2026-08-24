@@ -149,7 +149,7 @@ const ERROR_SCRIPT = `(function () {
  * tab running against an older container can tell, instead of silently
  * reproducing the bug that was just fixed.
  */
-export const SHOT_BRIDGE_VERSION = 18;
+export const SHOT_BRIDGE_VERSION = 19;
 
 /**
  * Screen capture + auto-walk, for building the screen inventory a quotation is
@@ -826,7 +826,9 @@ const SHOT_SCRIPT = `(function () {
       return;
     }
 
-    var last = "";
+    // prevScreen is the last screen we actually photographed — the tail of every
+    // flow edge this pass records. Distinct from last, which is a fingerprint.
+    var last = "", prevScreen = "";
     for (var s = 0; s < plan.length; s++) {
       if (stop) break;
       var screen = plan[s];
@@ -870,8 +872,19 @@ const SHOT_SCRIPT = `(function () {
       }
       try {
         captured[sig()] = screen.name;
-        send({ __fittShot: true, name: screen.name, parent: null, dataUrl: await shoot() });
+        // Record the flow edge, because WE are the one who clicked: we arrived
+        // here FROM the screen photographed before this one, VIA this menu
+        // label. Only when a real control was pressed — the first screen is
+        // wherever the app happens to open, and inventing an edge for it would
+        // put a navigation step in front of a customer that nobody performed.
+        send({
+          __fittShot: true, name: screen.name, parent: null,
+          from: screen.navText ? (prevScreen || null) : null,
+          via: screen.navText || null,
+          dataUrl: await shoot()
+        });
         send({ __fittWalkStep: true, step: step, total: total, name: screen.name, ok: true });
+        prevScreen = screen.name;
       } catch (e) {
         send({ __fittWalkStep: true, step: step, total: total, name: screen.name, ok: false, error: String(e && e.message || e) });
       }
@@ -899,7 +912,7 @@ const SHOT_SCRIPT = `(function () {
         try {
           var nm = d0 ? dialogName(d0, sub.name) : sub.name;
           captured[st0] = nm;
-          send({ __fittShot: true, name: nm, parent: screen.name, dataUrl: await shoot(true) });
+          send({ __fittShot: true, name: nm, parent: screen.name, from: screen.name, via: sub.openBy, dataUrl: await shoot(true) });
           send({ __fittWalkStep: true, step: step, total: total, name: nm, ok: true });
           seen.push(norm(nm));
         } catch (e2) {
@@ -953,7 +966,7 @@ const SHOT_SCRIPT = `(function () {
           captured[state] = name;
           step++;
           try {
-            send({ __fittShot: true, name: name, parent: screen.name, dataUrl: await shoot(true) });
+            send({ __fittShot: true, name: name, parent: screen.name, from: screen.name, via: probe.t, dataUrl: await shoot(true) });
             send({ __fittWalkStep: true, step: step, total: total, name: name, ok: true });
           } catch (e3) {
             send({ __fittWalkStep: true, step: step, total: total, name: name, ok: false, error: String(e3 && e3.message || e3) });

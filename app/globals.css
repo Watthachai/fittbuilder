@@ -733,11 +733,6 @@ body {
   object-fit: contain;
   object-position: left top;
 }
-.fitt-paper .q-mark-name {
-  font-size: 17px;
-  font-weight: 700;
-  color: var(--accent);
-}
 .fitt-paper .q-title {
   text-align: right;
 }
@@ -1004,7 +999,11 @@ body {
   font-weight: 700;
   padding-top: 5px;
 }
+/* Tailwind's preflight strips list markers from every ol/ul. Everywhere else
+   that is what we want; here the numbers ARE the document — a contract clause
+   is referred to by its number, so it has to carry one on the paper. */
 .fitt-paper .q-clauses ol {
+  list-style: decimal outside;
   margin: 0;
   padding-left: 20px;
   max-width: 82ch;

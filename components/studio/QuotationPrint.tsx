@@ -61,12 +61,13 @@ export default function QuotationPrint({ doc, shots }: { doc: QuoteDoc; shots: S
           <tr>
             <td>
               <div className="q-top">
+                {/* Logo only. The company name already prints below in the
+                    "นำเสนอโดย" block and again in the footer — a third copy up
+                    here read as a duplicate, not as a letterhead. */}
                 <div className="q-mark">
-                  {brand.logoUrl ? (
+                  {brand.logoUrl && (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img src={brand.logoUrl} alt="" className="q-logo" />
-                  ) : (
-                    brand.name && <p className="q-mark-name">{brand.name}</p>
                   )}
                 </div>
                 <div className="q-title">

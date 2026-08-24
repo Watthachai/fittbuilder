@@ -2,6 +2,7 @@
 
 import type { WebContainer, WebContainerProcess } from "@webcontainer/api";
 import { toFileSystemTree } from "./files";
+import { retargetAssetProxy, retargetAssetProxyText } from "@/lib/asset-retarget";
 import { idbGet, idbSet } from "./idb";
 import { TSCONFIG, VITE_CONFIG } from "./scaffold";
 import type { GenerationPhase, ProjectFiles } from "./types";
@@ -343,7 +344,14 @@ async function execRun(runId: number, files: ProjectFiles, cb: RunCallbacks): Pr
     // on every mount so projects built before a bridge change (error reporter,
     // wand, live cursors) pick it up on their next boot, with no rebuild and
     // without touching the saved project.files.
-    const mounted: ProjectFiles = { ...files, "vite.config.js": VITE_CONFIG, "tsconfig.json": TSCONFIG };
+    // The relay origin is the environment's, never the file's — a project
+    // generated on localhost bakes localhost into its saved code, and only
+    // this rewrite makes it render anywhere else (see lib/asset-retarget.ts).
+    const mounted: ProjectFiles = {
+      ...retargetAssetProxy(files, location.origin),
+      "vite.config.js": VITE_CONFIG,
+      "tsconfig.json": TSCONFIG,
+    };
     await wc.mount(toFileSystemTree(mounted) as Parameters<typeof wc.mount>[0]);
     if (runId !== currentRunId) return;
 
@@ -432,7 +440,7 @@ export async function applyChanges(
     for (const [path, contents] of Object.entries(changed)) {
       const dir = path.split("/").slice(0, -1).join("/");
       if (dir) await wc.fs.mkdir(dir, { recursive: true });
-      await wc.fs.writeFile(path, contents);
+      await wc.fs.writeFile(path, retargetAssetProxyText(contents, location.origin));
       cb.onTerminal(`อัปเดต ${path}`);
     }
     cb.onPhase("ready");
@@ -446,7 +454,7 @@ export async function writeFile(path: string, contents: string): Promise<void> {
   const wc = await getContainer();
   const dir = path.split("/").slice(0, -1).join("/");
   if (dir) await wc.fs.mkdir(dir, { recursive: true });
-  await wc.fs.writeFile(path, contents);
+  await wc.fs.writeFile(path, retargetAssetProxyText(contents, location.origin));
 }
 
 /** Remove a single file (incremental generation deletes). */

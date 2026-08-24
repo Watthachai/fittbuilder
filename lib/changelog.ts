@@ -23,6 +23,17 @@ export const CHANGE_BADGE: Record<ChangeType, { label: string; className: string
 // Newest first. SemVer: fix → PATCH, feature → MINOR, breaking → MAJOR.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.53.1",
+    date: "2026-08-24",
+    title: "🖼️ รูปในเดโมเก่าหายบน production — เพราะลิงก์ฝัง localhost ไว้",
+    items: [
+      {
+        type: "fix",
+        text: "โปรเจกต์ที่สร้างบนเครื่อง dev ฝังลิงก์ตัวกลางดึงรูปเป็น localhost ถาวรในโค้ด เปิดบน production หรือเครื่องเพื่อนแล้วรูปแดงทั้งหน้า — ตอนนี้ทุกครั้งที่ mount เข้าพรีวิว ลิงก์ตัวกลางถูกเขียนทับเป็นโดเมนที่กำลังเปิดอยู่จริงเสมอ โปรเจกต์เก่าหายเองทุกใบโดยไม่ต้องแก้ไฟล์ · หลักเดียวกับ vite.config ที่เป็นของระบบ ไม่ใช่ของโปรเจกต์",
+      },
+    ],
+  },
+  {
     version: "0.53.0",
     date: "2026-08-24",
     title: "🪪 หัวกระดาษตั้งครั้งเดียว ใช้ได้ทุกโปรเจกต์",

@@ -25,7 +25,14 @@ export function requestOrigin(request: Request): string {
  */
 export function publicSiteUrl(request: Request): string | null {
   const configured = process.env.PUBLIC_SITE_URL?.trim().replace(/\/+$/, "");
-  if (configured) return configured;
+  if (configured) {
+    // The value is typed by hand into a Cloud Build trigger, and a bare host
+    // ("fitt-builder.fittbsa.com") is the natural way to type it. Without a
+    // scheme it would be baked into <img src> as a RELATIVE url — resolving
+    // against the preview container's origin and breaking silently — so
+    // normalize here rather than demand ceremony in a settings field.
+    return /^https?:\/\//i.test(configured) ? configured : `https://${configured}`;
+  }
   if (process.env.NODE_ENV !== "production") return new URL(request.url).origin;
   return null;
 }

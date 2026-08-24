@@ -160,11 +160,17 @@ export default function ProposalPrint({
                       const route = stepJourney(s);
                       return (
                         <figure key={s.id} className="p-step">
+                          {/* One origin line, not two: "เปิดจากหน้า X" already says
+                              whose window this is, so the parent line only prints
+                              when there is no journey to say it better. */}
                           <figcaption>
                             <span className="p-n">{String(i + 1).padStart(2, "0")}</span>{" "}
                             <strong>{s.name}</strong>
-                            {s.parent && <span className="p-route"> · หน้าต่างย่อยของ {s.parent}</span>}
-                            {route && <span className="p-route"> — {route}</span>}
+                            {route ? (
+                              <span className="p-route"> — {route}</span>
+                            ) : s.parent ? (
+                              <span className="p-route"> · หน้าต่างย่อยของ {s.parent}</span>
+                            ) : null}
                             {s.note && <span className="p-note">{s.note}</span>}
                           </figcaption>
                           {/* eslint-disable-next-line @next/next/no-img-element */}

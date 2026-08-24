@@ -1126,8 +1126,16 @@ body {
   break-inside: avoid;
   margin: 0;
 }
+/* Cropped to a frame, never printed at natural height: a screen capture is the
+   WHOLE page, and a six-viewport landing printed uncropped is taller than the
+   paper — break-inside cannot hold it, so its caption strands on one page and
+   the picture takes the next one alone. The appendix grid (.q-grid) made the
+   same call for the same reason; the demo is where the full page lives. */
 .fitt-paper .p-step img {
   width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+  object-position: top;
   border: 1px solid var(--rule);
   border-radius: 3px;
   margin-top: 4px;

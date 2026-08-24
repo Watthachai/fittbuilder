@@ -93,6 +93,16 @@ describe("stepJourney", () => {
   it("returns nothing when no control was pressed", () => {
     expect(stepJourney(step("หน้าแรก", null))).toBeNull();
   });
+
+  /**
+   * The index walk labels a modal's edge with the modal's own name — the full
+   * sentence would say that name three times in one caption. All it really
+   * knows is the origin, so that is all it may say.
+   */
+  it("says only the origin when the control label is the destination's own name", () => {
+    expect(stepJourney(step("หน้ารายการ", "ปลายทาง"))).toBe("เปิดจากหน้า “หน้ารายการ”");
+    expect(stepJourney(step(null, "ปลายทาง"))).toBeNull();
+  });
 });
 
 describe("hasJourney", () => {

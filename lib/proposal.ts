@@ -189,6 +189,12 @@ export function proposalSteps(shots: Shot[], quote: QuoteDoc | null): ProposalSt
  */
 export function stepJourney(step: ProposalStep): string | null {
   if (!step.via) return null;
+  // The index walk labels a modal's edge with the modal's own name — printing
+  // "กด X → X" says the name three times in one caption. All that sentence
+  // actually knows is where the modal was opened from, so say only that.
+  if (step.via === step.name) {
+    return step.from ? `เปิดจากหน้า “${step.from}”` : null;
+  }
   return step.from
     ? `จากหน้า “${step.from}” กด “${step.via}” → ${step.name}`
     : `กด “${step.via}” → ${step.name}`;

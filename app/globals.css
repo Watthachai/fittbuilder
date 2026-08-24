@@ -1100,6 +1100,98 @@ body {
   margin-top: 3px;
 }
 
+/* ---- proposal sheet ----
+   Shares the quotation's page furniture (.q-top/.q-from/.q-sign…); everything
+   here is only what the proposal says that the quotation does not. Same
+   hard-coded light palette, same reason: a sent document must not re-theme. */
+.fitt-paper .p-context p {
+  max-width: 82ch;
+  line-height: 1.55;
+}
+.fitt-paper .p-points {
+  width: 100%;
+  border-collapse: collapse;
+}
+.fitt-paper .p-points th {
+  text-align: left;
+  font-size: 11px;
+  color: var(--ink-dim);
+  padding: 4px 8px;
+  border-bottom: 1.5px solid var(--accent);
+}
+.fitt-paper .p-points th:first-child,
+.fitt-paper .p-points td:first-child {
+  padding-left: 0;
+}
+.fitt-paper .p-points td {
+  vertical-align: top;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--rule);
+  line-height: 1.5;
+  width: 33.3%;
+}
+/* Two steps to a row: full-width screenshots would spend a page per screen. */
+.fitt-paper .p-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+  margin-top: 8px;
+}
+.fitt-paper .p-step {
+  break-inside: avoid;
+  margin: 0;
+}
+.fitt-paper .p-step img {
+  width: 100%;
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+  margin-top: 4px;
+}
+.fitt-paper .p-step figcaption {
+  font-size: 10.5px;
+  line-height: 1.45;
+}
+.fitt-paper .p-step .p-n {
+  font-weight: 700;
+  color: var(--accent);
+}
+.fitt-paper .p-route {
+  color: var(--ink-dim);
+}
+/* The screen's description sits under its route, as its own line. */
+.fitt-paper .p-note {
+  display: block;
+  color: var(--ink-dim);
+}
+.fitt-paper .p-time {
+  display: flex;
+  gap: 26px;
+}
+.fitt-paper .p-time strong {
+  font-size: 17px;
+}
+.fitt-paper .p-time p {
+  font-size: 10.5px;
+  color: var(--ink-dim);
+}
+.fitt-paper .p-excl ul {
+  margin: 0;
+  padding-left: 20px;
+  list-style: disc outside;
+}
+.fitt-paper .p-excl li {
+  margin-top: 3px;
+  line-height: 1.5;
+}
+.fitt-paper .p-price p {
+  line-height: 1.5;
+}
+.fitt-paper .p-close {
+  margin-top: 14px;
+  max-width: 82ch;
+  line-height: 1.55;
+}
+
 @page {
   size: A4;
   margin: 0;
@@ -1139,7 +1231,10 @@ body {
   .fitt-paper .q-sign,
   .fitt-paper .q-ma,
   .fitt-paper .q-clauses li,
-  .fitt-paper .q-terms {
+  .fitt-paper .q-terms,
+  .fitt-paper .p-points tbody tr,
+  .fitt-paper .p-time,
+  .fitt-paper .p-excl li {
     break-inside: avoid;
   }
   /* …except the one row that IS the whole scope. Keeping a row whole is right

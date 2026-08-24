@@ -24,6 +24,7 @@ import { SHOT_BRIDGE_VERSION } from "@/lib/scaffold";
 import { toast } from "@/lib/toast";
 import FlowMap from "./FlowMap";
 import Quotation from "./Quotation";
+import Proposal from "./Proposal";
 import { confirm } from "@/lib/confirm";
 import type { ProjectFiles } from "@/lib/types";
 
@@ -82,7 +83,7 @@ export default function ScreenInventory({
   const [steps, setSteps] = useState<Step[]>([]);
   const [zoom, setZoom] = useState<string | null>(null);
   const [stepsOpen, setStepsOpen] = useState(false);
-  const [tab, setTab] = useState<"grid" | "flow" | "quote">("grid");
+  const [tab, setTab] = useState<"grid" | "flow" | "quote" | "proposal">("grid");
   // The capture script lives in the container's vite.config, which is only
   // rewritten on mount — a studio tab left open keeps running an old copy, and
   // a fix then looks like it changed nothing. Ask the preview which build it is.
@@ -314,6 +315,7 @@ export default function ScreenInventory({
                 { id: "grid", label: "แกลเลอรี" },
                 { id: "flow", label: "ผัง Flow" },
                 { id: "quote", label: "ใบเสนอราคา" },
+                { id: "proposal", label: "ข้อเสนอโครงการ" },
               ] as const
             ).map((t) => (
               <button
@@ -534,16 +536,27 @@ export default function ScreenInventory({
           </div>
         )}
 
-        {tab === "quote" ? (
+        {tab === "quote" || tab === "proposal" ? (
           shotsLoaded ? (
-            <Quotation
-              projectId={projectId}
-              projectName={projectName}
-              orgId={orgId}
-              shots={shots}
-              files={files}
-              readOnly={readOnly}
-            />
+            tab === "quote" ? (
+              <Quotation
+                projectId={projectId}
+                projectName={projectName}
+                orgId={orgId}
+                shots={shots}
+                files={files}
+                readOnly={readOnly}
+              />
+            ) : (
+              <Proposal
+                projectId={projectId}
+                projectName={projectName}
+                orgId={orgId}
+                shots={shots}
+                files={files}
+                readOnly={readOnly}
+              />
+            )
           ) : (
             <div className="flex flex-1 items-center justify-center gap-2 text-sm text-chalk-dim">
               <Loader2 size={14} className="animate-spin text-shine" /> กำลังอ่านคลังหน้าจอ…

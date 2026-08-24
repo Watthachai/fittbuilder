@@ -385,8 +385,9 @@ export default function QuotationPrint({ doc, shots }: { doc: QuoteDoc; shots: S
 }
 
 /** One labelled line of the recipient block. Blank fields print as a rule, not
- *  as nothing — a missing address should look unfilled, not unasked. */
-function Row({ label, value, strong }: { label: string; value: string; strong?: boolean }) {
+ *  as nothing — a missing address should look unfilled, not unasked.
+ *  Exported because the proposal sheet addresses the same recipient the same way. */
+export function Row({ label, value, strong }: { label: string; value: string; strong?: boolean }) {
   return (
     <tr>
       <th>{label}</th>

@@ -196,6 +196,20 @@ export default function TopBar({
         </span>
       )}
 
+      {/* Screen inventory earns its own button, not a line in the ⋯ menu: it
+          holds the gallery, the flow map, the quotation and the proposal —
+          the whole customer-facing half of the tool — and was too easy to miss
+          buried in a dropdown. Filled accent so it reads as a primary action. */}
+      <button
+        onClick={onOpenScreens}
+        disabled={!shippable || busy}
+        title="เก็บภาพทุกหน้าจอและ modal เพื่อทำใบเสนอราคาและข้อเสนอโครงการ"
+        className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-shine px-3 py-1.5 font-display text-xs font-semibold text-night transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
+      >
+        <Camera size={14} />
+        <span className="hidden md:inline">คลังหน้าจอ</span>
+      </button>
+
       {/* ⋯ More — secondary actions, kept out of the crowded bar */}
       <div className="relative shrink-0">
         <button
@@ -233,17 +247,6 @@ export default function TopBar({
                 className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-xs text-chalk/80 transition hover:bg-chalk/5 hover:text-chalk disabled:opacity-40"
               >
                 <Package size={14} /> ค้นหา/ติดตั้ง npm package
-              </button>
-              <button
-                onClick={() => {
-                  setActionsOpen(false);
-                  onOpenScreens();
-                }}
-                disabled={!shippable || busy}
-                title="เก็บภาพทุกหน้าจอและ modal เพื่อทำใบเสนอราคา"
-                className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-xs text-chalk/80 transition hover:bg-chalk/5 hover:text-chalk disabled:opacity-40"
-              >
-                <Camera size={14} /> คลังหน้าจอ (ใบเสนอราคา)
               </button>
               <button
                 onClick={() => {

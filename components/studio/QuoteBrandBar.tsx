@@ -146,20 +146,33 @@ export default function QuoteBrandBar({
         )}
         {!readOnly && (
           <div className="ml-auto flex gap-1.5">
+            {/* "ดึง" is the secondary action — outlined accent so it reads as a
+                button but yields to Save. */}
             <button
               onClick={() => void pull()}
               disabled={busy !== null}
-              title="ดึงชื่อบริษัท ที่อยู่ เลขผู้เสียภาษี และโลโก้ที่บันทึกไว้ที่ workspace มาใส่ใบนี้"
-              className="inline-flex items-center gap-1.5 rounded-lg border border-night-edge px-2.5 py-1 font-display text-[12.5px] text-chalk-dim transition hover:border-shine/60 hover:text-chalk disabled:opacity-40"
+              title={
+                orgId
+                  ? "ดึงชื่อบริษัท ที่อยู่ เลขผู้เสียภาษี และโลโก้ที่บันทึกไว้ที่ workspace มาใส่ใบนี้"
+                  : "ดึงหัวกระดาษที่คุณเคยบันทึกเป็นค่าเริ่มต้นมาใส่ใบนี้"
+              }
+              className="inline-flex items-center gap-1.5 rounded-lg border border-shine/50 bg-shine/[0.06] px-2.5 py-1.5 font-display text-[12.5px] font-medium text-shine transition hover:bg-shine/15 disabled:opacity-40"
             >
               {busy === "pull" ? <Loader2 size={11} className="animate-spin" /> : <Download size={11} />}
               {orgId ? "ดึงจาก workspace" : "ดึงค่าเริ่มต้นของฉัน"}
             </button>
+            {/* "บันทึกเป็นค่าเริ่มต้น" is the one someone sets up once and every
+                new project reuses — the primary action, so it gets the filled
+                accent that says "press me". */}
             <button
               onClick={() => void push()}
               disabled={busy !== null}
-              title="ทำให้หัวกระดาษนี้เป็นค่าเริ่มต้นของ workspace — ใบเสนอราคาใบถัดไปจะขึ้นให้เอง"
-              className="inline-flex items-center gap-1.5 rounded-lg border border-night-edge px-2.5 py-1 font-display text-[12.5px] text-chalk-dim transition hover:border-shine/60 hover:text-chalk disabled:opacity-40"
+              title={
+                orgId
+                  ? "ทำให้หัวกระดาษนี้เป็นค่าเริ่มต้นของ workspace — ใบเสนอราคาใบถัดไปจะขึ้นให้เอง"
+                  : "ทำให้หัวกระดาษนี้เป็นค่าเริ่มต้นของคุณ — โปรเจกต์ใหม่ทุกโปรเจกต์จะขึ้นให้เอง"
+              }
+              className="inline-flex items-center gap-1.5 rounded-lg bg-shine px-3 py-1.5 font-display text-[12.5px] font-semibold text-night transition hover:brightness-110 disabled:opacity-40"
             >
               {busy === "push" ? <Loader2 size={11} className="animate-spin" /> : <Save size={11} />}
               บันทึกเป็นค่าเริ่มต้น

@@ -23,6 +23,17 @@ export const CHANGE_BADGE: Record<ChangeType, { label: string; className: string
 // Newest first. SemVer: fix → PATCH, feature → MINOR, breaking → MAJOR.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.54.1",
+    date: "2026-08-25",
+    title: "🖼️ เทมเพลตอัปโหลดรูปจากเครื่องได้ และเห็นก่อนว่าลุคจะออกมาประมาณไหน",
+    items: [
+      {
+        type: "improvement",
+        text: "การ์ดเทมเพลตมีภาพเคลื่อนไหวจำลองอารมณ์ของลุค — เห็นก่อนเลือกว่าหน้าเว็บจะออกมาประมาณไหน · ช่องรูปอัปโหลดไฟล์จากเครื่องได้แล้ว (PNG/JPG/WebP ≤2MB ขึ้นที่เก็บสาธารณะ โค้ดที่สร้างอ้างถึงได้ถาวร) หรือวางลิงก์เหมือนเดิม · ทุกช่องมี thumbnail สดของรูปที่ใส่ ลิงก์เสียฟ้องตรงนั้นเลย ไม่ไปพังบนหน้าที่สร้าง",
+      },
+    ],
+  },
+  {
     version: "0.54.0",
     date: "2026-08-24",
     title: "🎬 เทมเพลตดีไซน์ — เลือกลุคแล้วแค่หารูปมาวางตามโครง",

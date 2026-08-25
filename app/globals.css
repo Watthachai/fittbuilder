@@ -1072,6 +1072,36 @@ body {
   margin-top: 3px;
 }
 
+/* ---- template gallery mini-previews ----
+   Motion is the message: each look is defined by how it moves, so the
+   miniature moves a little too. Killed entirely under reduced-motion. */
+@keyframes tpl-cards-glide {
+  0% { transform: translate3d(110%, 0, 0); }
+  45%, 100% { transform: translate3d(6%, 0, 0); }
+}
+.tpl-cards-glide { animation: tpl-cards-glide 7s cubic-bezier(0.22, 1, 0.36, 1) infinite; }
+@keyframes tpl-title-drift {
+  0%, 100% { transform: translateY(0) scale(1); opacity: 1; }
+  50% { transform: translateY(-6%) scale(0.96); opacity: 0.85; }
+}
+.tpl-title-drift { animation: tpl-title-drift 7s ease-in-out infinite; }
+@keyframes tpl-spot-drift {
+  0%, 100% { --tpl-x: 28%; }
+  50% { --tpl-x: 72%; }
+}
+.tpl-spot-drift {
+  animation: tpl-spot-drift 6s ease-in-out infinite;
+  transition: background-position 0.2s;
+}
+@media (prefers-reduced-motion: reduce) {
+  .tpl-cards-glide, .tpl-title-drift, .tpl-spot-drift { animation: none; }
+}
+@property --tpl-x {
+  syntax: "<percentage>";
+  inherits: false;
+  initial-value: 30%;
+}
+
 /* ---- proposal sheet ----
    Shares the quotation's page furniture (.q-top/.q-from/.q-sign…); everything
    here is only what the proposal says that the quotation does not. Same

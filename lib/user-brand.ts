@@ -62,11 +62,27 @@ export async function saveUserBrand(brand: UserBrand): Promise<void> {
  * checks (0040 explains why it must be a bare uuid).
  */
 export async function uploadUserLogo(file: File): Promise<string> {
+  return uploadUserImage(file, "logo");
+}
+
+/**
+ * Any personal image that needs a public, permanent URL — template slots use
+ * this to turn a file on disk into something generated code can reference.
+ * Bucket rules (0029): png/jpeg/webp only, 2MB cap — surfaced here as a clear
+ * message instead of a storage error code.
+ */
+export async function uploadUserImage(file: File, prefix = "img"): Promise<string> {
+  if (!/^image\/(png|jpe?g|webp)$/.test(file.type)) {
+    throw new Error("รองรับเฉพาะ PNG · JPG · WebP");
+  }
+  if (file.size > 2 * 1024 * 1024) {
+    throw new Error("ไฟล์ใหญ่เกิน 2MB — ย่อรูปก่อนอัปโหลด");
+  }
   const supabase = createClient();
   const user = await currentUser();
   if (!user) throw new Error("ยังไม่ได้เข้าสู่ระบบ");
   const ext = file.name.split(".").pop()?.toLowerCase() || "png";
-  const path = `${user.id}/logo-${Date.now()}.${ext}`;
+  const path = `${user.id}/${prefix}-${Date.now()}.${ext}`;
   const { error } = await supabase.storage
     .from(LOGO_BUCKET)
     .upload(path, file, { contentType: file.type, upsert: false });

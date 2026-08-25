@@ -23,6 +23,17 @@ export const CHANGE_BADGE: Record<ChangeType, { label: string; className: string
 // Newest first. SemVer: fix → PATCH, feature → MINOR, breaking → MAJOR.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.56.1",
+    date: "2026-08-25",
+    title: "🩹 ร่างข้อเสนอด้วย AI ไม่พังเพราะคำอธิบายยาว",
+    items: [
+      {
+        type: "fix",
+        text: "ปุ่ม \"ร่างด้วย AI\" ในข้อเสนอโครงการเคยขึ้น error เมื่อใบเสนอราคามีคำอธิบายหน้าจอยาวมาก (เกิน 600 ตัวอักษร) — ตอนนี้ระบบตัดคำอธิบายให้พอดีสำหรับส่งให้ AI แทนที่จะปฏิเสธทั้งคำขอ ข้อความในใบเสนอราคาไม่ถูกแตะ",
+      },
+    ],
+  },
+  {
     version: "0.56.0",
     date: "2026-08-25",
     title: "🔢 เลขที่เอกสารแบบรันนิ่ง ออกครั้งเดียว ปริ้นซ้ำได้เลขเดิม",

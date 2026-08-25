@@ -20,14 +20,24 @@ import type { ProjectFiles } from "@/lib/types";
  * workspace Org DNA, read only after RLS has confirmed the caller may read the
  * project at all.
  */
+// Clamp rather than reject: this is context for a draft, not a form a user
+// filled in. A quotation note can run long (one was 1525 chars), and a draft
+// request that 400s because a description is verbose is a worse outcome than a
+// description trimmed for the prompt. preprocess slices before .max can throw.
+const clamped = (n: number) =>
+  z.preprocess((v) => (typeof v === "string" ? v.slice(0, n) : ""), z.string());
+
 const bodySchema = z.object({
   projectId: z.string().uuid(),
-  projectName: z.string().max(200).default(""),
+  projectName: clamped(200).default(""),
   screens: z
-    .array(z.object({ name: z.string().max(200), note: z.string().max(600).default("") }))
-    .max(200)
-    .default([]),
-  journey: z.array(z.string().max(300)).max(200).default([]),
+    .array(z.object({ name: clamped(200), note: clamped(600).default("") }))
+    .transform((a) => a.slice(0, 400))
+    .catch([]),
+  journey: z
+    .array(clamped(300))
+    .transform((a) => a.slice(0, 400))
+    .catch([]),
 });
 
 export async function POST(request: Request) {

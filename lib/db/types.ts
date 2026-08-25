@@ -236,6 +236,10 @@ export interface Database {
           /** White-label. Pinned against anon/authenticated by a trigger — an
            *  Update that sets it through the Data API is silently ignored. */
           is_partner: boolean;
+          /** Document-number prefix (the "12605" in SQP12605-0002). */
+          doc_code: string;
+          /** Per-workspace running counter, bumped by fittbuilder_next_doc_number. */
+          doc_seq: number;
           created_at: string;
           updated_at: string;
         };
@@ -249,6 +253,8 @@ export interface Database {
           pain_radar?: Json | null;
           brand?: Json;
           is_partner?: boolean;
+          doc_code?: string;
+          doc_seq?: number;
           created_at?: string;
           updated_at?: string;
         };
@@ -262,6 +268,8 @@ export interface Database {
           pain_radar?: Json | null;
           brand?: Json;
           is_partner?: boolean;
+          doc_code?: string;
+          doc_seq?: number;
           created_at?: string;
           updated_at?: string;
         };
@@ -669,6 +677,8 @@ export interface Database {
     };
     Views: Record<string, never>;
     Functions: {
+      /** Claim the next running document number for a workspace (migration 0041). */
+      fittbuilder_next_doc_number: { Args: { oid: string }; Returns: number };
       fittbuilder_accept_invites: { Args: { uid: string; mail: string }; Returns: undefined };
       fittbuilder_accept_org_invites: { Args: { uid: string; mail: string }; Returns: undefined };
       fittbuilder_join_by_token: { Args: { tok: string; uid: string }; Returns: string | null };

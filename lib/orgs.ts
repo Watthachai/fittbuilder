@@ -8,7 +8,7 @@ import type { OrgBrand, OrgDna, OrgRecord } from "@/lib/types";
 // own history table (fittbuilder_advisor_reports, migration 0023). The old
 // orgs.pain_radar column is dead data, backfilled into that table.
 const SELECT =
-  "id, owner_id, name, color, icon, org_dna, brand, is_partner, created_at, updated_at";
+  "id, owner_id, name, color, icon, org_dna, brand, is_partner, doc_code, created_at, updated_at";
 
 const LOGO_BUCKET = "org-brand";
 
@@ -21,6 +21,7 @@ interface OrgRow {
   org_dna: unknown;
   brand: unknown;
   is_partner: boolean;
+  doc_code: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -35,6 +36,7 @@ function rowToOrg(r: OrgRow): OrgRecord {
     dna: (r.org_dna && typeof r.org_dna === "object" ? r.org_dna : {}) as OrgDna,
     brand: (r.brand && typeof r.brand === "object" ? r.brand : {}) as OrgBrand,
     isPartner: r.is_partner === true,
+    docCode: r.doc_code ?? "",
     createdAt: r.created_at,
     updatedAt: r.updated_at,
   };
@@ -104,6 +106,30 @@ export async function updateOrgBrand(id: string, brand: OrgBrand): Promise<void>
     .update({ brand: brand as unknown as Json, updated_at: new Date().toISOString() })
     .eq("id", id);
   if (error) throw error;
+}
+
+/** Set the workspace's document-number prefix (the "12605" in SQP12605-0002). */
+export async function updateOrgDocCode(id: string, docCode: string): Promise<void> {
+  const supabase = createClient();
+  const { error } = await supabase
+    .from("fittbuilder_orgs")
+    .update({ doc_code: docCode.trim(), updated_at: new Date().toISOString() })
+    .eq("id", id);
+  if (error) throw error;
+}
+
+/**
+ * Claim the next running number for this workspace — atomic, one per call.
+ *
+ * Assigned on a document's first export and then frozen into the document, so
+ * a reprint keeps the same number. The DB function bumps a per-workspace
+ * counter under a membership check (migration 0041).
+ */
+export async function nextDocNumber(orgId: string): Promise<number> {
+  const supabase = createClient();
+  const { data, error } = await supabase.rpc("fittbuilder_next_doc_number", { oid: orgId });
+  if (error) throw error;
+  return data as number;
 }
 
 /**

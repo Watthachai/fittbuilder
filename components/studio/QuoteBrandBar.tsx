@@ -1,8 +1,8 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { BadgeCheck, Building2, Download, Loader2, Save, Trash2, Upload } from "lucide-react";
-import { getOrg, updateOrgBrand, uploadOrgLogo } from "@/lib/orgs";
+import { getOrg, updateOrgBrand, updateOrgDocCode, uploadOrgLogo } from "@/lib/orgs";
 import { loadUserBrand, saveUserBrand, uploadUserLogo } from "@/lib/user-brand";
 import { useFileDrop } from "@/lib/useFileDrop";
 import DropOverlay from "@/components/ui/DropOverlay";
@@ -33,6 +33,37 @@ export default function QuoteBrandBar({
 }) {
   const [busy, setBusy] = useState<"pull" | "push" | "upload" | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
+  // The workspace's document-number prefix (the "12605" in SQP12605-0002).
+  // Loaded and saved here rather than passed as a prop — it is a workspace
+  // setting, and this is the one place the letterhead is edited.
+  const [docCode, setDocCode] = useState("");
+  const [docCodeLoaded, setDocCodeLoaded] = useState(false);
+  useEffect(() => {
+    if (!orgId) return;
+    let alive = true;
+    void getOrg(orgId)
+      .then((org) => {
+        if (alive && org) {
+          setDocCode(org.docCode);
+          setDocCodeLoaded(true);
+        }
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, [orgId]);
+
+  const saveDocCode = async () => {
+    if (!orgId || readOnly || !docCodeLoaded) return;
+    try {
+      await updateOrgDocCode(orgId, docCode);
+    } catch (e) {
+      toast.error("บันทึกรหัสเอกสารไม่สำเร็จ", {
+        description: e instanceof Error ? e.message : undefined,
+      });
+    }
+  };
 
   const upload = async (file: File | undefined) => {
     if (!file || readOnly) return;
@@ -302,6 +333,24 @@ export default function QuoteBrandBar({
           </Field>
         </div>
       </div>
+
+      {orgId && (
+        <div className="mt-3 flex flex-wrap items-center gap-2 rounded-lg border border-night-edge bg-night/40 px-3 py-2">
+          <span className="font-display text-[12px] text-chalk-dim">รหัสเลขที่เอกสาร</span>
+          <input
+            value={docCode}
+            onChange={(e) => setDocCode(e.target.value)}
+            onBlur={() => void saveDocCode()}
+            placeholder="เช่น 12605"
+            disabled={readOnly || !docCodeLoaded}
+            className="w-28 rounded-md border border-night-edge bg-night px-2 py-1 font-mono text-[13px] text-chalk outline-none focus:border-shine/60 disabled:opacity-50"
+          />
+          <span className="font-mono text-[11.5px] text-chalk-dim">
+            เลขที่จะออกเป็น <span className="text-shine">SQP{docCode.trim() || "…"}-0001</span> ·
+            ข้อเสนอเป็น <span className="text-shine">PRP{docCode.trim() || "…"}-…</span> — ออกเลขอัตโนมัติตอนพิมพ์ครั้งแรก นับต่อกันทั้ง workspace
+          </span>
+        </div>
+      )}
 
       {!orgId && (
         <p className="mt-2.5 text-[11.5px] leading-relaxed text-chalk-dim">

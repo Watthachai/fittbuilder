@@ -149,7 +149,9 @@ export interface OrgRecord {
    * the column is pinned against the Data API by a trigger (migration 0029).
    */
   isPartner: boolean;
-  /** Latest shared Pain Point Radar analysis (null = none yet). */
+  /** The prefix a workspace's document numbers carry (the "12605" in
+   *  SQP12605-0002) — typed once, reused on every quotation and proposal. */
+  docCode: string;
   createdAt: string;
   updatedAt: string;
 }

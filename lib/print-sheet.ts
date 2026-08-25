@@ -73,12 +73,18 @@ export const imagesReady = (root: HTMLElement): Promise<void> =>
  * not the markup. `rootId` is the element the print stylesheet keeps visible;
  * if it is missing we still print, because a sheet with no pictures is a real
  * case and refusing to print would be worse than printing early.
+ *
+ * `fileName` names the saved PDF: the browser's "Save as PDF" takes its
+ * default from document.title, so it is swapped in for the duration of the
+ * dialog and restored after — the only lever a web page has over that name.
  */
 export async function printSheet(
   mount: () => void,
   unmount: () => void,
-  rootId = "fitt-print-root"
+  opts: { rootId?: string; fileName?: string } = {}
 ): Promise<void> {
+  const { rootId = "fitt-print-root", fileName } = opts;
+  const restoreTitle = document.title;
   mount();
   try {
     await nextPaint();
@@ -87,8 +93,10 @@ export async function printSheet(
     // One more paint: decoded images change their box, and the print dialog
     // should see the settled layout rather than one mid-reflow.
     await nextPaint();
+    if (fileName) document.title = fileName;
     window.print();
   } finally {
+    document.title = restoreTitle;
     unmount();
   }
 }

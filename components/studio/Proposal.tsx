@@ -20,9 +20,10 @@ import {
 import { loadProposal, saveProposal } from "@/lib/proposal-store";
 import { loadQuote } from "@/lib/quote-store";
 import { brandFromOrg, type QuoteDoc } from "@/lib/quote";
-import { getOrg } from "@/lib/orgs";
+import { getOrg, nextDocNumber } from "@/lib/orgs";
 import { loadUserBrand } from "@/lib/user-brand";
 import { listShots, type Shot } from "@/lib/shots";
+import { docFileName, formatDocNo } from "@/lib/doc-number";
 import type { VersionKey } from "@/lib/versions";
 import type { ProjectFiles } from "@/lib/types";
 import { toast } from "@/lib/toast";
@@ -227,13 +228,29 @@ export default function Proposal({
     if (printing || !doc) return;
     setPrinting(true);
     try {
+      // Issue the running number on first export and freeze it in (PRP12605-…);
+      // a reprint reuses it. Workspace projects only — see Quotation.print.
+      let docNo = doc.proposalNo;
+      if (orgId && !docNo.startsWith("PRP")) {
+        try {
+          const org = await getOrg(orgId);
+          const seq = await nextDocNumber(orgId);
+          docNo = formatDocNo("proposal", org?.docCode ?? "", seq);
+          edit((d) => ({ ...d, proposalNo: docNo }));
+        } catch (e) {
+          toast.error("ออกเลขที่เอกสารไม่สำเร็จ", {
+            description: e instanceof Error ? e.message : undefined,
+          });
+        }
+      }
       // Re-sign the shot URLs first — same 8-hour-expiry problem the quotation
       // prints around, same fix (lib/print-sheet.ts).
       const fresh = await listShots(projectId, version).catch(() => [] as Shot[]);
       const printable = fresh.length > 0 ? fresh : shots;
       await printSheet(
         () => setSheet(printable),
-        () => setSheet(null)
+        () => setSheet(null),
+        { fileName: docFileName(docNo, doc.customerName) }
       );
     } finally {
       setPrinting(false);

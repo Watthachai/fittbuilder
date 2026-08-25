@@ -33,9 +33,10 @@ import {
 } from "@/lib/quote";
 import { loadQuote, saveQuote } from "@/lib/quote-store";
 import { marketMidpoint, type QuoteAdvice } from "@/lib/quote-advice";
-import { getOrg } from "@/lib/orgs";
+import { getOrg, nextDocNumber } from "@/lib/orgs";
 import { loadUserBrand } from "@/lib/user-brand";
 import { listShots, type Shot } from "@/lib/shots";
+import { docFileName, formatDocNo } from "@/lib/doc-number";
 import type { VersionKey } from "@/lib/versions";
 import type { ProjectFiles } from "@/lib/types";
 import { toast } from "@/lib/toast";
@@ -285,9 +286,25 @@ export default function Quotation({
    * what the preview shows.
    */
   const print = async () => {
-    if (printing) return;
+    if (printing || !doc) return;
     setPrinting(true);
     try {
+      // Issue the running document number on first export, then freeze it into
+      // the doc so a reprint keeps the same one (SQP12605-0002). Only for a
+      // workspace project — a personal one keeps whatever is in the field.
+      let docNo = doc.quoteNo;
+      if (orgId && !docNo.startsWith("SQP")) {
+        try {
+          const org = await getOrg(orgId);
+          const seq = await nextDocNumber(orgId);
+          docNo = formatDocNo("quotation", org?.docCode ?? "", seq);
+          edit((d) => ({ ...d, quoteNo: docNo }));
+        } catch (e) {
+          toast.error("ออกเลขที่เอกสารไม่สำเร็จ", {
+            description: e instanceof Error ? e.message : undefined,
+          });
+        }
+      }
       // Shot URLs are signed for 8 hours (lib/shots.ts). A studio tab left open
       // overnight holds a doc full of expired links, and the appendix prints as
       // a grid of broken boxes — so re-sign right before mounting the sheet.
@@ -297,7 +314,8 @@ export default function Quotation({
       const printable = fresh.length > 0 ? fresh : shots;
       await printSheet(
         () => setSheet(printable),
-        () => setSheet(null)
+        () => setSheet(null),
+        { fileName: docFileName(docNo, doc.customerName) }
       );
     } finally {
       setPrinting(false);

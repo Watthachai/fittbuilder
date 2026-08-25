@@ -230,6 +230,10 @@ export default function Studio({ projectId }: { projectId: string }) {
   const [recCount, setRecCount] = useState(0);
   const [recLast, setRecLast] = useState<string | null>(null);
   const recIndex = useRef(0);
+  // Which version a captured shot belongs to. A ref (kept in sync below) so the
+  // recording listener stamps the CURRENT version without re-subscribing, and
+  // without reaching a state const declared further down.
+  const activeVersionRef = useRef<VersionKey>("standard");
 
   /**
    * Receive captures WHILE RECORDING.
@@ -241,7 +245,7 @@ export default function Studio({ projectId }: { projectId: string }) {
   useEffect(() => {
     if (!recording) return;
     let alive = true;
-    void listShots(projectId).then((existing) => {
+    void listShots(projectId, activeVersionRef.current).then((existing) => {
       if (alive) recIndex.current = existing.length ? Math.max(...existing.map((s2) => s2.index)) + 1 : 0;
     });
     const onMessage = (e: MessageEvent) => {
@@ -250,7 +254,7 @@ export default function Studio({ projectId }: { projectId: string }) {
         | null;
       if (!d?.__fittShot || !d.dataUrl) return;
       const name = d.name ?? "หน้าจอ";
-      void uploadShot(projectId, {
+      void uploadShot(projectId, activeVersionRef.current, {
         name,
         parent: d.parent ?? null,
         from: d.from ?? null,
@@ -346,6 +350,9 @@ export default function Studio({ projectId }: { projectId: string }) {
    * only by changeVersion.
    */
   const [activeVersion, setActiveVersion] = useState<VersionKey>("standard");
+  useEffect(() => {
+    activeVersionRef.current = activeVersion;
+  }, [activeVersion]);
   const [isOwner, setIsOwner] = useState(false);
   const [org, setOrg] = useState<OrgRecord | null>(null);
   // Living Org DNA: a pending capture the AI noticed in the last message (one at a
@@ -2428,6 +2435,7 @@ export default function Studio({ projectId }: { projectId: string }) {
           projectId={projectId}
           projectName={project.name}
           orgId={project.orgId ?? null}
+          version={activeVersion}
           files={project.files}
           toPreview={toPreview}
           onAddScreenIndex={readOnly || busy ? undefined : addScreenIndex}

@@ -18,6 +18,7 @@ import Overlay from "@/components/ui/Overlay";
 import GlassSurface from "@/components/ui/GlassSurface";
 import ImageLightbox from "@/components/ui/ImageLightbox";
 import { clearShots, deleteShot, listShots, uploadShot, type Shot } from "@/lib/shots";
+import type { VersionKey } from "@/lib/versions";
 import { pageFiles, type ScreenMap } from "@/lib/screen-map";
 import { screenIndexCoverage } from "@/lib/screen-index";
 import { SHOT_BRIDGE_VERSION } from "@/lib/scaffold";
@@ -50,6 +51,9 @@ interface ScreenInventoryProps {
   projectName: string;
   /** Workspace the project belongs to — its company identity heads the quotation. */
   orgId: string | null;
+  /** The version on screen now — shots are captured into and read from its own
+   *  folder, so a Standard walk and a Premium walk never share one gallery. */
+  version: VersionKey;
   /** Recording runs with this panel closed, so the studio owns the state. */
   recording: boolean;
   onStartRecording: () => void;
@@ -69,6 +73,7 @@ export default function ScreenInventory({
   projectId,
   projectName,
   orgId,
+  version,
   recording,
   onStartRecording,
   files,
@@ -126,11 +131,15 @@ export default function ScreenInventory({
   // would seed an empty document — and then "it did not take the modals".
   const [shotsLoaded, setShotsLoaded] = useState(false);
   const refresh = useCallback(() => {
-    void listShots(projectId).then((list) => {
+    // Not resetting shotsLoaded here on purpose: it drives the "seed the quote
+    // once storage answers" gate, and flipping it false inside an effect
+    // triggers a cascading render. Switching versions simply swaps the list in
+    // when the new folder resolves; the gallery blinks the old set for a frame.
+    void listShots(projectId, version).then((list) => {
       setShots(list);
       setShotsLoaded(true);
     });
-  }, [projectId]);
+  }, [projectId, version]);
 
   useEffect(refresh, [refresh]);
 
@@ -155,7 +164,7 @@ export default function ScreenInventory({
       if (!d) return;
       if (d.__fittShot && d.dataUrl) {
         const index = indexRef.current++;
-        void uploadShot(projectId, {
+        void uploadShot(projectId, version, {
           name: d.name ?? "หน้าจอ",
           parent: d.parent ?? null,
           from: d.from ?? null,
@@ -183,7 +192,7 @@ export default function ScreenInventory({
     };
     window.addEventListener("message", onMessage);
     return () => window.removeEventListener("message", onMessage);
-  }, [projectId, refresh]);
+  }, [projectId, version, refresh]);
 
   /**
    * The doors the app declares for itself. When they exist, walking them is the
@@ -203,7 +212,7 @@ export default function ScreenInventory({
     });
     if (!ok) return;
     setSteps([]);
-    await clearShots(projectId);
+    await clearShots(projectId, version);
     setShots([]);
     indexRef.current = 0;
     setBusy("walk");
@@ -249,7 +258,7 @@ export default function ScreenInventory({
           description: "หน้าที่ขาดไปแคปเองได้ด้วยปุ่ม “แคปหน้านี้”",
         });
       }
-      await clearShots(projectId);
+      await clearShots(projectId, version);
       setShots([]);
       indexRef.current = 0;
       setBusy("walk");
@@ -543,6 +552,7 @@ export default function ScreenInventory({
                 projectId={projectId}
                 projectName={projectName}
                 orgId={orgId}
+                version={version}
                 shots={shots}
                 files={files}
                 readOnly={readOnly}
@@ -552,6 +562,7 @@ export default function ScreenInventory({
                 projectId={projectId}
                 projectName={projectName}
                 orgId={orgId}
+                version={version}
                 shots={shots}
                 files={files}
                 readOnly={readOnly}

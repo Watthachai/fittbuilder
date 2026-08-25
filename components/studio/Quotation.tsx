@@ -36,6 +36,7 @@ import { marketMidpoint, type QuoteAdvice } from "@/lib/quote-advice";
 import { getOrg } from "@/lib/orgs";
 import { loadUserBrand } from "@/lib/user-brand";
 import { listShots, type Shot } from "@/lib/shots";
+import type { VersionKey } from "@/lib/versions";
 import type { ProjectFiles } from "@/lib/types";
 import { toast } from "@/lib/toast";
 import { printSheet } from "@/lib/print-sheet";
@@ -61,6 +62,7 @@ export default function Quotation({
   projectId,
   projectName,
   orgId,
+  version,
   shots,
   files,
   readOnly,
@@ -69,6 +71,8 @@ export default function Quotation({
   projectName: string;
   /** The workspace whose company identity heads the paper — null if unbound. */
   orgId: string | null;
+  /** Which version's inventory to price — its shots, re-read scoped on print. */
+  version: VersionKey;
   shots: Shot[];
   /** Source of truth for what each screen does — read by the AI pass. */
   files: ProjectFiles | null;
@@ -289,7 +293,7 @@ export default function Quotation({
       // a grid of broken boxes — so re-sign right before mounting the sheet.
       // Falling back to the props on failure keeps a network blip from turning
       // "picture might be stale" into "cannot print at all".
-      const fresh = await listShots(projectId).catch(() => [] as Shot[]);
+      const fresh = await listShots(projectId, version).catch(() => [] as Shot[]);
       const printable = fresh.length > 0 ? fresh : shots;
       await printSheet(
         () => setSheet(printable),

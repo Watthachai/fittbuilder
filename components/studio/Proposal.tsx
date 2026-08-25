@@ -23,6 +23,7 @@ import { brandFromOrg, type QuoteDoc } from "@/lib/quote";
 import { getOrg } from "@/lib/orgs";
 import { loadUserBrand } from "@/lib/user-brand";
 import { listShots, type Shot } from "@/lib/shots";
+import type { VersionKey } from "@/lib/versions";
 import type { ProjectFiles } from "@/lib/types";
 import { toast } from "@/lib/toast";
 import { printSheet } from "@/lib/print-sheet";
@@ -46,6 +47,7 @@ export default function Proposal({
   projectId,
   projectName,
   orgId,
+  version,
   shots,
   files,
   readOnly,
@@ -53,6 +55,8 @@ export default function Proposal({
   projectId: string;
   projectName: string;
   orgId: string | null;
+  /** Which version's inventory this proposal draws on — re-read scoped on print. */
+  version: VersionKey;
   shots: Shot[];
   /** Present for parity with Quotation; the AI pass reads docs server-side. */
   files: ProjectFiles | null;
@@ -225,7 +229,7 @@ export default function Proposal({
     try {
       // Re-sign the shot URLs first — same 8-hour-expiry problem the quotation
       // prints around, same fix (lib/print-sheet.ts).
-      const fresh = await listShots(projectId).catch(() => [] as Shot[]);
+      const fresh = await listShots(projectId, version).catch(() => [] as Shot[]);
       const printable = fresh.length > 0 ? fresh : shots;
       await printSheet(
         () => setSheet(printable),

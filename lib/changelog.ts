@@ -23,6 +23,17 @@ export const CHANGE_BADGE: Record<ChangeType, { label: string; className: string
 // Newest first. SemVer: fix → PATCH, feature → MINOR, breaking → MAJOR.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.55.0",
+    date: "2026-08-25",
+    title: "🗂️ คลังหน้าจอแยกภาพปกติ/Premium ตามเวอร์ชันที่เปิดอยู่",
+    items: [
+      {
+        type: "improvement",
+        text: "คลังหน้าจอ ผัง Flow และภาพที่ไปขึ้นใบเสนอราคา/ข้อเสนอ แสดงเฉพาะภาพของเวอร์ชันที่กำลังเปิดอยู่ (ปกติ/Premium) — เดิมภาพจากทั้งสองเวอร์ชันกองรวมกันในคลังเดียว · แคปเวอร์ชันไหนก็เก็บลงโฟลเดอร์ของเวอร์ชันนั้น สลับ toggle ด้านบนแล้วคลังเปลี่ยนตาม · ภาพเก่าที่แคปไว้ก่อนมีระบบเวอร์ชันนับเป็นของเวอร์ชันปกติ",
+      },
+    ],
+  },
+  {
     version: "0.54.2",
     date: "2026-08-25",
     title: "🪟 modal ที่ AI สร้าง ต้องปิดได้ทุกทาง",

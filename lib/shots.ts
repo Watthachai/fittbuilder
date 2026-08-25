@@ -1,6 +1,7 @@
 "use client";
 
 import { createClient } from "@/lib/supabase/client";
+import type { VersionKey } from "@/lib/versions";
 
 /**
  * The screen inventory: one PNG per screen (and per modal hanging off it),
@@ -12,7 +13,13 @@ import { createClient } from "@/lib/supabase/client";
  * needed. Ordering and the screen/modal hierarchy live in the file name, which
  * keeps the whole feature free of new tables:
  *
- *   <projectId>/shots/<index>.<parent-b64>.<name-b64>.<via-b64>.<from-b64>.png
+ *   <projectId>/shots/<version>/<index>.<parent-b64>.<name-b64>.<via-b64>.<from-b64>.png
+ *
+ * The <version> folder keeps a Standard walk and a Premium walk from mixing in
+ * one gallery — the demo has two versions and a screenshot belongs to the one
+ * that was on screen when it was taken. Shots captured before this folder
+ * existed live one level up (<projectId>/shots/<index>…png); they count as
+ * Standard, so listing/clearing Standard folds those legacy files in.
  *
  * `parent` and `from` are different questions and were once the same field:
  * parent means "a modal OF this screen" (the gallery nests it), from means
@@ -25,6 +32,16 @@ import { createClient } from "@/lib/supabase/client";
  */
 
 const BUCKET = "project-chat";
+
+/** The folder a version's shots live under. */
+const versionDir = (projectId: string, version: VersionKey): string =>
+  `${projectId}/shots/${version}`;
+
+/**
+ * Legacy shots — written before versions existed — sit directly in
+ * `<projectId>/shots/` and are read as Standard. Premium never inherits them.
+ */
+const legacyDir = (projectId: string): string => `${projectId}/shots`;
 
 export interface Shot {
   path: string;
@@ -68,6 +85,7 @@ const decode = (s: string): string => {
 /** The object key for a capture — pure ASCII, sortable by walk order. */
 export function shotKeyFor(
   projectId: string,
+  version: VersionKey,
   shot: { index: number; parent: string | null; name: string; via?: string | null; from?: string | null }
 ): string {
   const index = String(shot.index).padStart(3, "0");
@@ -79,7 +97,7 @@ export function shotKeyFor(
     : shot.via
       ? `.${encode(shot.via)}`
       : "";
-  return `${projectId}/shots/${index}.${parent}.${encode(shot.name)}${tail}.png`;
+  return `${versionDir(projectId, version)}/${index}.${parent}.${encode(shot.name)}${tail}.png`;
 }
 
 /** Read back what the key encodes: walk order, parent screen, display name. */
@@ -113,6 +131,7 @@ function dataUrlToBlob(dataUrl: string): Blob {
 
 export async function uploadShot(
   projectId: string,
+  version: VersionKey,
   shot: {
     name: string;
     parent: string | null;
@@ -124,7 +143,7 @@ export async function uploadShot(
   }
 ): Promise<Shot> {
   const supabase = createClient();
-  const path = shotKeyFor(projectId, shot);
+  const path = shotKeyFor(projectId, version, shot);
   const { error } = await supabase.storage
     .from(BUCKET)
     .upload(path, dataUrlToBlob(shot.dataUrl), { contentType: "image/png", upsert: true });
@@ -146,16 +165,35 @@ async function signedUrl(path: string): Promise<string> {
   return data?.signedUrl ?? "";
 }
 
-/** Every capture for the project, in walk order. */
-export async function listShots(projectId: string): Promise<Shot[]> {
+/** The .png keys directly under one folder (non-recursive). */
+async function pngPathsIn(dir: string): Promise<string[]> {
   const supabase = createClient();
-  const { data, error } = await supabase.storage.from(BUCKET).list(`${projectId}/shots`, {
+  const { data, error } = await supabase.storage.from(BUCKET).list(dir, {
     limit: 200,
     sortBy: { column: "name", order: "asc" },
   });
   if (error || !data) return [];
-  const files = data.filter((f) => f.name.endsWith(".png"));
-  const paths = files.map((f) => `${projectId}/shots/${f.name}`);
+  // Sub-folders (the version dirs) come back as entries with no ".png" and are
+  // filtered out here, so listing the legacy dir never pulls in versioned shots.
+  return data.filter((f) => f.name.endsWith(".png")).map((f) => `${dir}/${f.name}`);
+}
+
+/**
+ * One version's inventory, in walk order.
+ *
+ * Standard folds in the legacy shots that predate the version folder; Premium
+ * sees only its own. A key can repeat an index across the two Standard sources
+ * after a partial re-capture, but every fresh walk clears first (clearShots),
+ * so in practice one source is empty when the other is written.
+ */
+export async function listShots(projectId: string, version: VersionKey): Promise<Shot[]> {
+  const dirs =
+    version === "standard"
+      ? [versionDir(projectId, version), legacyDir(projectId)]
+      : [versionDir(projectId, version)];
+  const paths = (await Promise.all(dirs.map(pngPathsIn))).flat();
+  if (paths.length === 0) return [];
+  const supabase = createClient();
   const { data: signed } = await supabase.storage.from(BUCKET).createSignedUrls(paths, 60 * 60 * 8);
   return paths
     .map((path, i) => ({ path, ...shotMetaFromPath(path), url: signed?.[i]?.signedUrl ?? "" }))
@@ -168,9 +206,9 @@ export async function deleteShot(path: string): Promise<void> {
   if (error) throw error;
 }
 
-/** Wipe the inventory before a fresh walk, so runs never interleave. */
-export async function clearShots(projectId: string): Promise<void> {
-  const shots = await listShots(projectId);
+/** Wipe one version's inventory before a fresh walk, so runs never interleave. */
+export async function clearShots(projectId: string, version: VersionKey): Promise<void> {
+  const shots = await listShots(projectId, version);
   if (shots.length === 0) return;
   const supabase = createClient();
   await supabase.storage.from(BUCKET).remove(shots.map((s) => s.path));

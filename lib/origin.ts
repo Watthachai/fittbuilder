@@ -24,15 +24,30 @@ export function requestOrigin(request: Request): string {
  * guess — a proxy URL pointing at the wrong origin is worse than no proxy URL.
  */
 export function publicSiteUrl(request: Request): string | null {
-  const configured = process.env.PUBLIC_SITE_URL?.trim().replace(/\/+$/, "");
-  if (configured) {
-    // The value is typed by hand into a Cloud Build trigger, and a bare host
-    // ("fitt-builder.fittbsa.com") is the natural way to type it. Without a
-    // scheme it would be baked into <img src> as a RELATIVE url — resolving
-    // against the preview container's origin and breaking silently — so
-    // normalize here rather than demand ceremony in a settings field.
-    return /^https?:\/\//i.test(configured) ? configured : `https://${configured}`;
-  }
+  const configured = canonicalSiteUrl();
+  if (configured) return configured;
   if (process.env.NODE_ENV !== "production") return new URL(request.url).origin;
   return null;
+}
+
+/**
+ * The canonical public URL, or null — for telling the browser where EXPORTED
+ * code should point (see /api/version, lib/export-origin).
+ *
+ * Unlike publicSiteUrl this never falls back to the request origin: on Cloud
+ * Run the request host is the internal run.app address, so a request-origin
+ * fallback would hand exports a run.app URL even when the user is on the custom
+ * domain — and worse, do it silently whether or not NODE_ENV reads as
+ * production. Returning null instead lets the client fall back to its OWN
+ * location.origin, which on the custom domain is exactly the domain wanted.
+ * PUBLIC_SITE_URL still wins when set, so a headless export gets the canonical
+ * host too.
+ */
+export function canonicalSiteUrl(): string | null {
+  const configured = process.env.PUBLIC_SITE_URL?.trim().replace(/\/+$/, "");
+  if (!configured) return null;
+  // Typed by hand into a Cloud Build trigger; a bare host is the natural way to
+  // type it, but without a scheme it bakes into <img src> as a RELATIVE url and
+  // breaks silently — normalize rather than demand ceremony in a settings field.
+  return /^https?:\/\//i.test(configured) ? configured : `https://${configured}`;
 }

@@ -1,5 +1,5 @@
 import { latestVersion } from "@/lib/changelog";
-import { publicSiteUrl } from "@/lib/origin";
+import { canonicalSiteUrl } from "@/lib/origin";
 
 /**
  * The version this server is running.
@@ -12,12 +12,12 @@ import { publicSiteUrl } from "@/lib/origin";
  */
 export const dynamic = "force-dynamic";
 
-export function GET(request: Request) {
+export function GET() {
   return Response.json(
-    // siteUrl: the origin exports must bake into shipped code — the client
-    // cannot read PUBLIC_SITE_URL itself, and its own location.origin is
-    // whatever machine it happens to be on (see lib/asset-retarget.ts).
-    { version: latestVersion(), siteUrl: publicSiteUrl(request) },
+    // siteUrl: the canonical origin exports should bake into shipped code, or
+    // null when unconfigured — the client then uses its own location.origin,
+    // which on the custom domain is the right one (see lib/export-origin).
+    { version: latestVersion(), siteUrl: canonicalSiteUrl() },
     { headers: { "Cache-Control": "no-store, max-age=0" } }
   );
 }

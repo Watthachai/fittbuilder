@@ -23,6 +23,17 @@ export const CHANGE_BADGE: Record<ChangeType, { label: string; className: string
 // Newest first. SemVer: fix → PATCH, feature → MINOR, breaking → MAJOR.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.55.2",
+    date: "2026-08-25",
+    title: "🔗 ไฟล์ที่ export ชี้โดเมนที่เปิดอยู่ ไม่หลุดเป็น run.app",
+    items: [
+      {
+        type: "fix",
+        text: "แยกที่มาของโดเมนสำหรับไฟล์ที่ export ออกจากตรรกะ NODE_ENV — เดิมถ้าเซิร์ฟเวอร์ตกไป fallback จะแอบใช้ที่อยู่ภายใน (run.app) ทำให้ zip/PDF ชี้ผิดโดเมน ตอนนี้ถ้าไม่ได้ตั้ง PUBLIC_SITE_URL ระบบใช้โดเมนที่ผู้ใช้เปิดอยู่จริงแทน (เปิดจาก fitt-builder.fittbsa.com ก็ได้ fittbsa) และถ้าตั้ง PUBLIC_SITE_URL ไว้ก็ใช้ค่านั้นเป็นหลักเสมอ",
+      },
+    ],
+  },
+  {
     version: "0.55.1",
     date: "2026-08-25",
     title: "🎯 ปุ่มคลังหน้าจอและปุ่มค่าเริ่มต้น เห็นง่ายขึ้น",

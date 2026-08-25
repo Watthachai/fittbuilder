@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { publicSiteUrl } from "@/lib/origin";
+import { canonicalSiteUrl, publicSiteUrl } from "@/lib/origin";
 
 /**
  * PUBLIC_SITE_URL is typed by hand into a Cloud Build trigger. Whatever gets
@@ -36,5 +36,25 @@ describe("publicSiteUrl", () => {
   it("falls back to the request origin outside production", () => {
     process.env.PUBLIC_SITE_URL = "";
     expect(publicSiteUrl(req)).toBe("http://localhost:3000");
+  });
+});
+
+describe("canonicalSiteUrl", () => {
+  const original = process.env.PUBLIC_SITE_URL;
+  afterEach(() => {
+    if (original === undefined) delete process.env.PUBLIC_SITE_URL;
+    else process.env.PUBLIC_SITE_URL = original;
+  });
+
+  it("returns the configured host, normalized", () => {
+    process.env.PUBLIC_SITE_URL = "fitt-builder.fittbsa.com";
+    expect(canonicalSiteUrl()).toBe("https://fitt-builder.fittbsa.com");
+  });
+
+  // The whole point: no request-origin fallback, so an unset value never
+  // masquerades as a run.app URL — the client uses its own origin instead.
+  it("returns null when unset, never a guessed origin", () => {
+    process.env.PUBLIC_SITE_URL = "";
+    expect(canonicalSiteUrl()).toBeNull();
   });
 });

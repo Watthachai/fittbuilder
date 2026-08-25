@@ -23,6 +23,17 @@ export const CHANGE_BADGE: Record<ChangeType, { label: string; className: string
 // Newest first. SemVer: fix → PATCH, feature → MINOR, breaking → MAJOR.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.54.2",
+    date: "2026-08-25",
+    title: "🪟 modal ที่ AI สร้าง ต้องปิดได้ทุกทาง",
+    items: [
+      {
+        type: "fix",
+        text: "เพิ่มกฎให้ทุก modal/dialog/drawer ที่ AI สร้าง ปิดได้สี่ทาง: ปุ่ม × หรือ ยกเลิก · ปุ่ม Escape · คลิกพื้นหลัง · และต้องมี role=\"dialog\" aria-modal — เดิมบางเว็บสร้าง modal ที่ปิดได้แค่ปุ่มเดียวและไม่ประกาศตัว ทำให้ตอนแคปหน้าจอขึ้น \"ปิด modal นี้ไม่ได้\" · มีผลกับเว็บที่สร้างหรือแก้ต่อจากนี้ เว็บเดิมพิมพ์สั่งให้แก้หรือกดสร้างใหม่ได้",
+      },
+    ],
+  },
+  {
     version: "0.54.1",
     date: "2026-08-25",
     title: "🖼️ เทมเพลตอัปโหลดรูปจากเครื่องได้ และเห็นก่อนว่าลุคจะออกมาประมาณไหน",

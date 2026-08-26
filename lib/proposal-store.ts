@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/client";
 import { currentUser } from "@/lib/current-user";
 import type { Json } from "@/lib/db/types";
 import { parseProposal, type ProposalDoc } from "./proposal";
+import type { VersionKey } from "./versions";
 
 /**
  * Load/save the project's one proposal.
@@ -20,6 +21,7 @@ const TABLE = "fittbuilder_project_proposals";
 /** @param today Seeds the issue date when a stored document has none. */
 export async function loadProposal(
   projectId: string,
+  version: VersionKey,
   today: string
 ): Promise<ProposalDoc | null> {
   const supabase = createClient();
@@ -27,19 +29,22 @@ export async function loadProposal(
     .from(TABLE)
     .select("payload")
     .eq("project_id", projectId)
+    .eq("version", version)
     .maybeSingle();
   if (error || !data) return null;
   return parseProposal(data.payload, today);
 }
 
-export async function saveProposal(projectId: string, doc: ProposalDoc): Promise<void> {
+export async function saveProposal(
+  projectId: string,
+  version: VersionKey,
+  doc: ProposalDoc
+): Promise<void> {
   const supabase = createClient();
   const user = await currentUser();
-  const { error } = await supabase
-    .from(TABLE)
-    .upsert(
-      { project_id: projectId, payload: doc as unknown as Json, updated_by: user?.id ?? null },
-      { onConflict: "project_id" }
-    );
+  const { error } = await supabase.from(TABLE).upsert(
+    { project_id: projectId, version, payload: doc as unknown as Json, updated_by: user?.id ?? null },
+    { onConflict: "project_id,version" }
+  );
   if (error) throw error;
 }

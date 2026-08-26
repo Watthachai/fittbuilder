@@ -108,18 +108,21 @@ export interface Database {
       fittbuilder_project_quotes: {
         Row: {
           project_id: string;
+          version: string;
           payload: Json;
           updated_by: string | null;
           updated_at: string;
         };
         Insert: {
           project_id: string;
+          version?: string;
           payload: Json;
           updated_by?: string | null;
           updated_at?: string;
         };
         Update: {
           project_id?: string;
+          version?: string;
           payload?: Json;
           updated_by?: string | null;
           updated_at?: string;
@@ -147,18 +150,21 @@ export interface Database {
       fittbuilder_project_proposals: {
         Row: {
           project_id: string;
+          version: string;
           payload: Json;
           updated_by: string | null;
           updated_at: string;
         };
         Insert: {
           project_id: string;
+          version?: string;
           payload: Json;
           updated_by?: string | null;
           updated_at?: string;
         };
         Update: {
           project_id?: string;
+          version?: string;
           payload?: Json;
           updated_by?: string | null;
           updated_at?: string;

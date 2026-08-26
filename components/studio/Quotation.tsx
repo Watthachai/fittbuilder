@@ -112,7 +112,7 @@ export default function Quotation({
      * sent with, not whatever the company logo is today.
      */
     const seed = async () => {
-      const saved = await loadQuote(projectId, today).catch(() => null);
+      const saved = await loadQuote(projectId, version, today).catch(() => null);
       if (saved) return saved;
       const fresh = newDoc(shots, projectName, today);
       if (orgId) {
@@ -131,10 +131,12 @@ export default function Quotation({
     return () => {
       alive = false;
     };
-    // Seeded once per project — later shots arrive through "ซิงค์จากคลังหน้าจอ",
-    // which is additive; re-seeding here would throw away edited prices.
+    // Re-load when the version changes too: Standard and Premium are separate
+    // quotes (migration 0042), so switching the tier swaps the priced document.
+    // Later shots arrive through "ซิงค์จากคลังหน้าจอ" (additive), so this does
+    // not clobber edited prices within a version.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [projectId]);
+  }, [projectId, version]);
 
   /** Debounced autosave — the panel is a form, not a document with a Save button. */
   const edit = useCallback(
@@ -145,7 +147,7 @@ export default function Quotation({
         const next = patch(prev);
         if (saveTimer.current) clearTimeout(saveTimer.current);
         saveTimer.current = setTimeout(() => {
-          void saveQuote(projectId, next).catch((e) =>
+          void saveQuote(projectId, version, next).catch((e) =>
             toast.error("บันทึกใบเสนอราคาไม่สำเร็จ", {
               description: e instanceof Error ? e.message : undefined,
             })
@@ -154,7 +156,7 @@ export default function Quotation({
         return next;
       });
     },
-    [projectId, readOnly]
+    [projectId, version, readOnly]
   );
 
   useEffect(

@@ -79,8 +79,8 @@ export default function Proposal({
       // The quotation is context either way; the proposal only needs seeding
       // when none is stored yet.
       const [savedQuote, savedDoc] = await Promise.all([
-        loadQuote(projectId, today).catch(() => null),
-        loadProposal(projectId, today).catch(() => null),
+        loadQuote(projectId, version, today).catch(() => null),
+        loadProposal(projectId, version, today).catch(() => null),
       ]);
       if (savedDoc) return { doc: savedDoc, quote: savedQuote };
       const fresh = newProposal(projectName, today);
@@ -113,9 +113,10 @@ export default function Proposal({
     return () => {
       alive = false;
     };
-    // Seeded once per project, matching Quotation — re-seeding would discard edits.
+    // Re-load on version change: each tier has its own proposal and quote
+    // (migration 0042), so switching swaps both.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [projectId]);
+  }, [projectId, version]);
 
   /** Debounced autosave — a form, not a document with a Save button. */
   const edit = useCallback(
@@ -126,7 +127,7 @@ export default function Proposal({
         const next = patch(prev);
         if (saveTimer.current) clearTimeout(saveTimer.current);
         saveTimer.current = setTimeout(() => {
-          void saveProposal(projectId, next).catch((e) =>
+          void saveProposal(projectId, version, next).catch((e) =>
             toast.error("บันทึกข้อเสนอไม่สำเร็จ", {
               description: e instanceof Error ? e.message : undefined,
             })
@@ -135,7 +136,7 @@ export default function Proposal({
         return next;
       });
     },
-    [projectId, readOnly]
+    [projectId, version, readOnly]
   );
 
   useEffect(

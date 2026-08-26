@@ -1,7 +1,8 @@
 "use client";
 
 import { useMemo, useRef, useState } from "react";
-import { ArrowRight, ImageOff, Loader2, Upload, X } from "lucide-react";
+import { createPortal } from "react-dom";
+import { ArrowLeft, ArrowRight, ImageOff, LayoutTemplate, Loader2, Upload, X } from "lucide-react";
 import {
   composeTemplateBrief,
   DESIGN_TEMPLATES,
@@ -29,43 +30,49 @@ export default function TemplateGallery({
   disabled: boolean;
   onCreate: (brief: string) => void;
 }) {
+  const [galleryOpen, setGalleryOpen] = useState(false);
   const [openId, setOpenId] = useState<string | null>(null);
   const [values, setValues] = useState<Record<string, string>>({});
   const open = DESIGN_TEMPLATES.find((t) => t.id === openId) ?? null;
 
   return (
     <>
+      {/* One entry point, not a wall of cards on the launchpad: a button that
+          opens the gallery. The cards live inside that modal. */}
       <div className="border-t border-dashed border-chalk/10 px-4 py-3">
-        <p className="mb-2 font-display text-[11.5px] uppercase tracking-widest text-chalk/50">
-          หรือเริ่มจากเทมเพลตดีไซน์ — เลือกลุค แล้วแค่หารูปมาวางตามโครง
-        </p>
-        <div className="grid gap-3 sm:grid-cols-2">
-          {DESIGN_TEMPLATES.map((t) => (
-            <button
-              key={t.id}
-              onClick={() => {
-                setValues({});
-                setOpenId(t.id);
-              }}
-              disabled={disabled}
-              className="group overflow-hidden rounded-xl border border-chalk/15 text-left transition hover:border-shine/60 disabled:opacity-40"
-            >
-              <CoverArt id={t.id} />
-              <div className="flex items-start gap-2 px-3 py-2.5">
-                <span className="text-base leading-none">{t.emoji}</span>
-                <span className="min-w-0 flex-1">
-                  <span className="block font-display text-[13.5px] font-semibold text-chalk group-hover:text-shine">
-                    {t.name}
-                  </span>
-                  <span className="mt-0.5 block text-[12px] leading-snug text-chalk/55">
-                    {t.tagline}
-                  </span>
-                </span>
-              </div>
-            </button>
-          ))}
-        </div>
+        <button
+          onClick={() => setGalleryOpen(true)}
+          disabled={disabled}
+          className="group flex w-full items-center gap-2.5 rounded-xl border border-chalk/15 px-3.5 py-2.5 text-left transition hover:border-shine/60 hover:bg-chalk/[0.03] disabled:opacity-40"
+        >
+          <LayoutTemplate size={17} className="shrink-0 text-shine" />
+          <span className="min-w-0 flex-1">
+            <span className="block font-display text-[13px] font-semibold text-chalk group-hover:text-shine">
+              เริ่มจากเทมเพลตดีไซน์
+            </span>
+            <span className="block text-[12px] leading-snug text-chalk/55">
+              เลือกลุคสำเร็จรูป แล้วแค่หารูปมาวางตามโครง
+            </span>
+          </span>
+          <ArrowRight
+            size={15}
+            className="shrink-0 text-chalk/30 transition group-hover:translate-x-0.5 group-hover:text-shine"
+          />
+        </button>
       </div>
+
+      {/* The gallery hides while a template's form is open, so it is the layer
+          behind — pick a card → form; close the form → back to the cards. */}
+      {galleryOpen && !open && (
+        <GalleryModal
+          disabled={disabled}
+          onClose={() => setGalleryOpen(false)}
+          onPick={(id) => {
+            setValues({});
+            setOpenId(id);
+          }}
+        />
+      )}
 
       {open && (
         <TemplateForm
@@ -73,11 +80,85 @@ export default function TemplateGallery({
           values={values}
           setValues={setValues}
           disabled={disabled}
-          onClose={() => setOpenId(null)}
+          onBack={() => setOpenId(null)}
+          onClose={() => {
+            setOpenId(null);
+            setGalleryOpen(false);
+          }}
           onCreate={onCreate}
         />
       )}
     </>
+  );
+}
+
+/** The big modal: choose a look. Cards open each template's form. */
+function GalleryModal({
+  disabled,
+  onClose,
+  onPick,
+}: {
+  disabled: boolean;
+  onClose: () => void;
+  onPick: (id: string) => void;
+}) {
+  if (typeof document === "undefined") return null;
+  return createPortal(
+    <div
+      className="fixed inset-0 z-[120] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm"
+      onClick={onClose}
+    >
+      <div
+        role="dialog"
+        aria-label="เทมเพลตดีไซน์"
+        onClick={(e) => e.stopPropagation()}
+        className="flex max-h-[88vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl border border-chalk/15 bg-night"
+      >
+        <div className="flex items-start gap-2.5 border-b border-chalk/10 px-5 py-4">
+          <LayoutTemplate size={20} className="mt-0.5 shrink-0 text-shine" />
+          <div className="min-w-0 flex-1">
+            <h2 className="font-display text-[16px] font-semibold text-chalk">เทมเพลตดีไซน์</h2>
+            <p className="text-[12.5px] leading-snug text-chalk/55">
+              เลือกลุค แล้วแค่หารูปมาวางตามโครง — ที่เหลือระบบสร้างให้
+            </p>
+          </div>
+          <button
+            onClick={onClose}
+            aria-label="ปิด"
+            className="rounded-md p-1 text-chalk/50 transition hover:text-chalk"
+          >
+            <X size={18} />
+          </button>
+        </div>
+
+        <div className="scroll-thin min-h-0 flex-1 overflow-y-auto p-5">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {DESIGN_TEMPLATES.map((t) => (
+              <button
+                key={t.id}
+                onClick={() => onPick(t.id)}
+                disabled={disabled}
+                className="group overflow-hidden rounded-xl border border-chalk/15 text-left transition hover:border-shine/60 disabled:opacity-40"
+              >
+                <CoverArt id={t.id} />
+                <div className="flex items-start gap-2 px-3 py-2.5">
+                  <span className="text-base leading-none">{t.emoji}</span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block font-display text-[13.5px] font-semibold text-chalk group-hover:text-shine">
+                      {t.name}
+                    </span>
+                    <span className="mt-0.5 block text-[12px] leading-snug text-chalk/55">
+                      {t.tagline}
+                    </span>
+                  </span>
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>,
+    document.body
   );
 }
 
@@ -123,6 +204,7 @@ function TemplateForm({
   values,
   setValues,
   disabled,
+  onBack,
   onClose,
   onCreate,
 }: {
@@ -130,6 +212,8 @@ function TemplateForm({
   values: Record<string, string>;
   setValues: (v: Record<string, string>) => void;
   disabled: boolean;
+  /** Return to the gallery grid (the modal behind). */
+  onBack: () => void;
   onClose: () => void;
   onCreate: (brief: string) => void;
 }) {
@@ -139,9 +223,10 @@ function TemplateForm({
   const images = template.slots.filter((s) => s.kind === "image");
   const texts = template.slots.filter((s) => s.kind !== "image");
 
-  return (
+  if (typeof document === "undefined") return null;
+  return createPortal(
     <div
-      className="fixed inset-0 z-[120] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm"
+      className="fixed inset-0 z-[130] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm"
       onClick={onClose}
     >
       <div
@@ -151,6 +236,14 @@ function TemplateForm({
         className="flex max-h-[90vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl border border-chalk/15 bg-night"
       >
         <div className="flex items-start gap-2.5 border-b border-chalk/10 px-4 py-3">
+          <button
+            onClick={onBack}
+            aria-label="เลือกลุคอื่น"
+            title="เลือกลุคอื่น"
+            className="mt-0.5 rounded-md p-1 text-chalk/50 transition hover:text-chalk"
+          >
+            <ArrowLeft size={18} />
+          </button>
           <span className="text-2xl leading-none">{template.emoji}</span>
           <div className="min-w-0 flex-1">
             <h2 className="font-display text-[15px] font-semibold text-chalk">{template.name}</h2>
@@ -232,7 +325,8 @@ function TemplateForm({
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 

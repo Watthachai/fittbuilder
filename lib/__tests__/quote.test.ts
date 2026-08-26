@@ -593,6 +593,30 @@ describe("lump sum", () => {
     expect(scope).toContain("\n\n2. Dashboard");
   });
 
+  // A single system is the description itself, not "item 1 of a list" — the
+  // stray "1." on a one-system scope was a real report from the field.
+  it("does not number a scope of one system", () => {
+    const one: QuoteDoc = {
+      ...newDoc([], "ทดสอบ", "2026-08-18"),
+      rows: [
+        {
+          id: "a",
+          name: "ระบบบริหารจัดการร้านโซฟา",
+          size: "L",
+          days: 20,
+          note: "ประกอบด้วย\n1. Dashboard\n2. POS",
+          sub: false,
+          parent: "",
+        },
+      ],
+    };
+    const scope = lumpSumScope(one);
+    expect(scope.startsWith("ระบบบริหารจัดการร้านโซฟา")).toBe(true);
+    expect(scope).not.toMatch(/^1\.\s/);
+    // The row's OWN internal list is left exactly as written.
+    expect(scope).toContain("1. Dashboard");
+  });
+
   it("is off for documents written before it existed", () => {
     const before = JSON.parse(JSON.stringify(newDoc([], "เก่า", "2026-01-01")));
     delete before.lumpSum;

@@ -198,6 +198,10 @@ export const emptyLumpSum = (): LumpSum => ({ enabled: false, amount: 0, title: 
  * rather than getting a number of their own, because they are not systems.
  */
 export function lumpSumScope(doc: QuoteDoc): string {
+  // A single top-level system IS the description, not "item 1 of a list". The
+  // leading "1." then reads as noise — and collides with the table's own row
+  // number "1" — so number only when there are several systems to tell apart.
+  const topCount = doc.rows.filter((r) => !r.sub).length;
   const out: string[] = [];
   let n = 0;
   for (const r of doc.rows) {
@@ -207,7 +211,8 @@ export function lumpSumScope(doc: QuoteDoc): string {
       continue;
     }
     n += 1;
-    out.push(`${n}. ${name}${r.note.trim() ? `\n${r.note.trim()}` : ""}`);
+    const prefix = topCount > 1 ? `${n}. ` : "";
+    out.push(`${prefix}${name}${r.note.trim() ? `\n${r.note.trim()}` : ""}`);
   }
   return out.join("\n\n");
 }

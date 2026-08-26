@@ -781,12 +781,14 @@ body {
 }
 .fitt-paper .q-to td {
   padding: 1px 0;
-  white-space: pre-line;
-  /* Chrome's Thai dictionary line-breaking splits a word mid-way — orphaning a
-     fragment (แขวง / หัวหมาก) on its own line, which reads as broken. keep-all
-     does nothing here (it only governs CJK); text-wrap: pretty makes the wrapper
-     break at word boundaries and avoid orphans. Unsupported browsers fall back
-     to today's wrapping, so it degrades safely. */
+  /* Let the address flow and wrap to the column, ignoring the hard newlines a
+     user happened to type — a break kept in the wrong place (…แขวงหัวหมาก\n…)
+     strands a fragment on its own line, which reads as broken. `normal`
+     collapses those newlines; text-wrap: pretty then wraps at Thai word
+     boundaries and avoids orphans (keep-all does nothing here — it only governs
+     CJK). Unsupported browsers fall back to plain wrapping, so it degrades
+     safely. */
+  white-space: normal;
   text-wrap: pretty;
 }
 .fitt-paper .q-strong {
@@ -814,7 +816,9 @@ body {
   font-size: 11px;
   line-height: 1.4;
   color: var(--ink-dim);
-  white-space: pre-line;
+  /* Flow the address; ignore hard newlines — see .q-to td. The block inherits
+     text-wrap: pretty from .q-from, so wrapping stays on Thai word boundaries. */
+  white-space: normal;
 }
 /* The sales-contact group sits below the company identity, set apart so the
    two blocks don't read as one run of lines. */

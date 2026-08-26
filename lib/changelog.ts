@@ -23,6 +23,17 @@ export const CHANGE_BADGE: Record<ChangeType, { label: string; className: string
 // Newest first. SemVer: fix → PATCH, feature → MINOR, breaking → MAJOR.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.58.2",
+    date: "2026-08-26",
+    title: "🪪 หัวกระดาษ: ชื่อบริษัทขึ้นบน · นำเสนอโดย+เบอร์โทรลงล่าง",
+    items: [
+      {
+        type: "improvement",
+        text: "จัดบล็อกผู้เสนอราคาบนใบเสนอราคา/ข้อเสนอใหม่ — ชื่อบริษัท ที่อยู่ และเลขผู้เสียภาษี (นิติบุคคลที่ทำสัญญา) ขึ้นบนสุดเสมอ ส่วน \"นำเสนอโดย\" ชื่อผู้ติดต่อ และเบอร์โทร ย้ายลงไปอยู่ด้วยกันด้านล่าง",
+      },
+    ],
+  },
+  {
     version: "0.58.1",
     date: "2026-08-26",
     title: "🪪 ค่าเริ่มต้นหัวกระดาษเด้งขึ้นเองเมื่อสลับเวอร์ชัน",

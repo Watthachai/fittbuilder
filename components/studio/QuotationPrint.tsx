@@ -46,9 +46,6 @@ export default function QuotationPrint({ doc, shots }: { doc: QuoteDoc; shots: S
   const clauses = acceptanceClauses(doc);
   const brand = doc.brand;
   const accent = safeAccent(brand.accent);
-  const hasSender = Boolean(
-    doc.presentedBy || brand.name || brand.address || brand.contact || brand.taxId
-  );
   // Thumbnails are the point of the inventory: the customer sees what they are
   // buying, not just a list of names.
   const gallery = shots.filter((s) => s.url);
@@ -103,17 +100,23 @@ export default function QuotationPrint({ doc, shots }: { doc: QuoteDoc; shots: S
                   </tbody>
                 </table>
 
-                {/* The label is only worth printing when something follows it —
-                    a lone "นำเสนอโดย" over white space reads as a broken
-                    template, not as a field someone forgot. */}
+                {/* The quoting party's identity sits on top — company name,
+                    address, tax id — because that is the legal entity the
+                    customer is contracting with. The sales contact ("นำเสนอโดย"
+                    + person + phone) travels together at the bottom: who to
+                    call, kept apart from who is billing. */}
                 <div className="q-from">
-                  {hasSender && <p className="q-from-label">นำเสนอโดย</p>}
-                  {doc.presentedBy && <p className="q-from-person">{doc.presentedBy}</p>}
                   {brand.name && <p className="q-from-name">{brand.name}</p>}
                   {brand.address && <p className="q-from-line">{brand.address}</p>}
-                  {brand.contact && <p className="q-from-line">{brand.contact}</p>}
                   {brand.taxId && (
                     <p className="q-from-line">เลขประจำตัวผู้เสียภาษี : {brand.taxId}</p>
+                  )}
+                  {(doc.presentedBy || brand.contact) && (
+                    <div className="q-from-by">
+                      <p className="q-from-label">นำเสนอโดย</p>
+                      {doc.presentedBy && <p className="q-from-person">{doc.presentedBy}</p>}
+                      {brand.contact && <p className="q-from-line">{brand.contact}</p>}
+                    </div>
                   )}
                 </div>
               </div>

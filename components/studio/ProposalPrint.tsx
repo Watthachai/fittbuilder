@@ -42,9 +42,6 @@ export default function ProposalPrint({
   const points = doc.points.filter((p) => p.problem.trim() || p.feature.trim());
   const excluded = doc.excluded.filter((x) => x.trim());
   const quoteNo = doc.quoteNo.trim() || quote?.quoteNo?.trim() || "";
-  const hasSender = Boolean(
-    doc.presentedBy || brand.name || brand.address || brand.contact || brand.taxId
-  );
 
   return (
     <div id="fitt-print-root" className="fitt-paper" style={{ ["--accent" as string]: accent }}>
@@ -91,14 +88,21 @@ export default function ProposalPrint({
                     <Row label="โทร. :" value={doc.customerPhone} />
                   </tbody>
                 </table>
+                {/* Same order as the quotation: company identity on top,
+                    the sales contact ("นำเสนอโดย" + person + phone) together
+                    at the bottom. */}
                 <div className="q-from">
-                  {hasSender && <p className="q-from-label">นำเสนอโดย</p>}
-                  {doc.presentedBy && <p className="q-from-person">{doc.presentedBy}</p>}
                   {brand.name && <p className="q-from-name">{brand.name}</p>}
                   {brand.address && <p className="q-from-line">{brand.address}</p>}
-                  {brand.contact && <p className="q-from-line">{brand.contact}</p>}
                   {brand.taxId && (
                     <p className="q-from-line">เลขประจำตัวผู้เสียภาษี : {brand.taxId}</p>
+                  )}
+                  {(doc.presentedBy || brand.contact) && (
+                    <div className="q-from-by">
+                      <p className="q-from-label">นำเสนอโดย</p>
+                      {doc.presentedBy && <p className="q-from-person">{doc.presentedBy}</p>}
+                      {brand.contact && <p className="q-from-line">{brand.contact}</p>}
+                    </div>
                   )}
                 </div>
               </div>

@@ -800,13 +800,17 @@ body {
 .fitt-paper .q-from-name {
   font-size: 15px;
   font-weight: 700;
-  margin-top: 3px;
 }
 .fitt-paper .q-from-line {
   font-size: 11px;
   line-height: 1.4;
   color: var(--ink-dim);
   white-space: pre-line;
+}
+/* The sales-contact group sits below the company identity, set apart so the
+   two blocks don't read as one run of lines. */
+.fitt-paper .q-from-by {
+  margin-top: 8px;
 }
 
 .fitt-paper .q-subject {

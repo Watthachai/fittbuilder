@@ -23,6 +23,21 @@ export const CHANGE_BADGE: Record<ChangeType, { label: string; className: string
 // Newest first. SemVer: fix → PATCH, feature → MINOR, breaking → MAJOR.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.57.0",
+    date: "2026-08-26",
+    title: "🖼️ การ์ดเทมเพลตเป็นคัฟเวอร์ + หน้า \"มีอะไรใหม่\" มีปุ่มย้อนกลับและ timeline",
+    items: [
+      {
+        type: "improvement",
+        text: "การ์ดเทมเพลตดีไซน์เปลี่ยนเป็นคัฟเวอร์ภาพ 16:9 พร้อมชื่อด้านล่าง (สไตล์แกลเลอรี) — เอาพรีวิว mockup ที่ขยับๆ และกล่องพรีวิวใหญ่ในฟอร์มที่ดูโล่งออก ฟอร์มเลือกเทมเพลตสะอาดขึ้น ไม่อึดอัด",
+      },
+      {
+        type: "improvement",
+        text: "หน้า \"มีอะไรใหม่\" (changelog) มีปุ่มย้อนกลับแล้ว และเรียงเป็นเส้น timeline มีจุดหมายแต่ละเวอร์ชัน เวอร์ชันล่าสุดจุดเด่นพร้อมป้าย",
+      },
+    ],
+  },
+  {
     version: "0.56.2",
     date: "2026-08-26",
     title: "🔢 เลข \"1.\" ที่โผล่หน้ารายละเอียดใบเสนอราคาแบบราคาเดียว หายแล้ว",

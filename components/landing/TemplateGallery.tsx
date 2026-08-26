@@ -11,7 +11,6 @@ import {
 } from "@/lib/design-templates";
 import { MESSAGE_MAX_CHARS } from "@/lib/limits";
 import { uploadUserImage } from "@/lib/user-brand";
-import TemplatePreview from "./TemplatePreview";
 
 /**
  * Pick a curated look, and the form tells you exactly what to go find —
@@ -40,7 +39,7 @@ export default function TemplateGallery({
         <p className="mb-2 font-display text-[11.5px] uppercase tracking-widest text-chalk/50">
           หรือเริ่มจากเทมเพลตดีไซน์ — เลือกลุค แล้วแค่หารูปมาวางตามโครง
         </p>
-        <div className="grid gap-2.5 sm:grid-cols-2">
+        <div className="grid gap-3 sm:grid-cols-2">
           {DESIGN_TEMPLATES.map((t) => (
             <button
               key={t.id}
@@ -49,12 +48,12 @@ export default function TemplateGallery({
                 setOpenId(t.id);
               }}
               disabled={disabled}
-              className="group rounded-xl border border-chalk/15 p-2 text-left transition hover:border-shine/60 disabled:opacity-40"
+              className="group overflow-hidden rounded-xl border border-chalk/15 text-left transition hover:border-shine/60 disabled:opacity-40"
             >
-              <TemplatePreview id={t.id} />
-              <div className="flex items-start gap-2 px-1 pb-1 pt-2">
-                <span className="text-lg leading-none">{t.emoji}</span>
-                <span className="min-w-0">
+              <CoverArt id={t.id} />
+              <div className="flex items-start gap-2 px-3 py-2.5">
+                <span className="text-base leading-none">{t.emoji}</span>
+                <span className="min-w-0 flex-1">
                   <span className="block font-display text-[13.5px] font-semibold text-chalk group-hover:text-shine">
                     {t.name}
                   </span>
@@ -66,9 +65,6 @@ export default function TemplateGallery({
             </button>
           ))}
         </div>
-        <p className="mt-1.5 text-[11px] text-chalk/35">
-          ภาพบนการ์ดคืออารมณ์ของลุคโดยประมาณ — หน้าจริงสร้างจากรูปและเนื้อหาของคุณ
-        </p>
       </div>
 
       {open && (
@@ -83,6 +79,43 @@ export default function TemplateGallery({
       )}
     </>
   );
+}
+
+/**
+ * A still cover for each template card — a poster, not a screenshot and not the
+ * animated mockup that read as broken. Just a gradient in the look's palette
+ * with its display word centred, so the card carries a visual without claiming
+ * to be a live preview.
+ */
+function CoverArt({ id }: { id: string }) {
+  if (id === "cinematic-scroll") {
+    return (
+      <div className="relative aspect-video overflow-hidden bg-[#0d1615]" aria-hidden="true">
+        <div className="absolute inset-0 bg-gradient-to-b from-[#7fb4d4] via-[#436d7c] to-[#0d1615]" />
+        <div className="absolute inset-x-0 bottom-0 h-1/4 bg-[#0d1615]" />
+        <span className="absolute inset-0 grid place-items-center font-serif text-2xl tracking-[0.22em] text-[#fdf1e1]">
+          CINEMATIC
+        </span>
+      </div>
+    );
+  }
+  if (id === "spotlight-hero") {
+    return (
+      <div className="relative aspect-video overflow-hidden bg-[#08090b]" aria-hidden="true">
+        <div
+          className="absolute inset-0"
+          style={{
+            background:
+              "radial-gradient(circle at 42% 52%, rgba(232,170,110,0.55) 0, rgba(150,90,55,0.28) 26%, transparent 52%)",
+          }}
+        />
+        <span className="absolute inset-0 grid place-items-center font-serif text-2xl italic text-[#f4ede2]">
+          Spotlight
+        </span>
+      </div>
+    );
+  }
+  return <div className="aspect-video bg-night" aria-hidden="true" />;
 }
 
 function TemplateForm({
@@ -133,13 +166,8 @@ function TemplateForm({
         </div>
 
         <div className="scroll-thin min-h-0 flex-1 overflow-y-auto px-4 py-3">
-          <TemplatePreview id={template.id} large />
-          <p className="mt-1 text-[11px] text-chalk/35">
-            ภาพจำลองอารมณ์ของลุค — หน้าจริงใช้รูปที่คุณใส่ด้านล่างนี้
-          </p>
-
           {/* Images first: they are the part the person has to go hunting for. */}
-          <p className="mb-2 mt-4 font-display text-[11.5px] uppercase tracking-widest text-chalk/50">
+          <p className="mb-2 font-display text-[11.5px] uppercase tracking-widest text-chalk/50">
             รูปที่ต้องหามาวาง
           </p>
           <div className="grid gap-3 sm:grid-cols-2">

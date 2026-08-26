@@ -23,6 +23,17 @@ export const CHANGE_BADGE: Record<ChangeType, { label: string; className: string
 // Newest first. SemVer: fix → PATCH, feature → MINOR, breaking → MAJOR.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.58.3",
+    date: "2026-08-26",
+    title: "🪪 ที่อยู่บนหัวกระดาษไม่ตัดคำกลางคัน",
+    items: [
+      {
+        type: "fix",
+        text: "ที่อยู่ในบล็อกผู้เสนอราคา/ผู้รับ เคยถูกเบราว์เซอร์ตัดคำไทยกลางคำจนคำหลุดไปค้างบรรทัดถัดไปเดี่ยวๆ (เช่น \"แขวง\" / \"หัวหมาก\") — ตอนนี้ตัดที่ขอบคำและเลี่ยงคำโดดเดี่ยวแล้ว (ยืนยันด้วยการทดสอบจริงในเบราว์เซอร์ ทั้งที่อยู่ปกติและที่อยู่ยาวพิเศษ)",
+      },
+    ],
+  },
+  {
     version: "0.58.2",
     date: "2026-08-26",
     title: "🪪 หัวกระดาษ: ชื่อบริษัทขึ้นบน · นำเสนอโดย+เบอร์โทรลงล่าง",

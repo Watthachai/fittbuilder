@@ -782,6 +782,12 @@ body {
 .fitt-paper .q-to td {
   padding: 1px 0;
   white-space: pre-line;
+  /* Chrome's Thai dictionary line-breaking splits a word mid-way — orphaning a
+     fragment (แขวง / หัวหมาก) on its own line, which reads as broken. keep-all
+     does nothing here (it only governs CJK); text-wrap: pretty makes the wrapper
+     break at word boundaries and avoid orphans. Unsupported browsers fall back
+     to today's wrapping, so it degrades safely. */
+  text-wrap: pretty;
 }
 .fitt-paper .q-strong {
   font-weight: 600;
@@ -789,6 +795,9 @@ body {
 .fitt-paper .q-from {
   text-align: right;
   min-width: 34%;
+  /* Same reason as .q-to td: break the address at word boundaries, not inside a
+     Thai word. text-wrap-style inherits, so every line in the block picks it up. */
+  text-wrap: pretty;
 }
 .fitt-paper .q-from-label {
   font-weight: 600;

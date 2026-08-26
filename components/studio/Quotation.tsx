@@ -111,17 +111,34 @@ export default function Quotation({
      * birth, so reopening a quotation sent months ago shows the header it was
      * sent with, not whatever the company logo is today.
      */
-    const seed = async () => {
-      const saved = await loadQuote(projectId, version, today).catch(() => null);
-      if (saved) return saved;
-      const fresh = newDoc(shots, projectName, today);
+    // The default letterhead for this project — workspace brand if it belongs
+    // to one, else the personal default (migration 0040). Null when neither.
+    const defaultBrand = async () => {
       if (orgId) {
         const org = await getOrg(orgId).catch(() => null);
-        return org ? { ...fresh, brand: brandFromOrg(org.brand, org.isPartner) } : fresh;
+        return org ? brandFromOrg(org.brand, org.isPartner) : null;
       }
-      // No workspace → the personal default letterhead, if one was ever saved.
-      const mine = await loadUserBrand().catch(() => null);
-      return mine ? { ...fresh, brand: { ...fresh.brand, ...mine } } : fresh;
+      return (await loadUserBrand().catch(() => null)) ?? null;
+    };
+    const seed = async () => {
+      const saved = await loadQuote(projectId, version, today).catch(() => null);
+      if (saved) {
+        // Backfill the letterhead when this version's quote has none yet — so a
+        // default saved AFTER this document was created still appears when the
+        // user switches to it, matching the expectation that a saved default
+        // shows everywhere. A brand with any field filled is left untouched.
+        const b = saved.brand;
+        const blank =
+          !b.name && !b.logoUrl && !b.taxId && !b.address && !b.contact && !b.tagline;
+        if (blank) {
+          const d = await defaultBrand();
+          if (d) return { ...saved, brand: { ...b, ...d } };
+        }
+        return saved;
+      }
+      const fresh = newDoc(shots, projectName, today);
+      const d = await defaultBrand();
+      return d ? { ...fresh, brand: { ...fresh.brand, ...d } } : fresh;
     };
     void seed().then((d) => {
       if (!alive) return;

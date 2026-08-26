@@ -23,6 +23,17 @@ export const CHANGE_BADGE: Record<ChangeType, { label: string; className: string
 // Newest first. SemVer: fix → PATCH, feature → MINOR, breaking → MAJOR.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.58.1",
+    date: "2026-08-26",
+    title: "🪪 ค่าเริ่มต้นหัวกระดาษเด้งขึ้นเองเมื่อสลับเวอร์ชัน",
+    items: [
+      {
+        type: "improvement",
+        text: "บันทึกค่าเริ่มต้นหัวกระดาษไว้แล้ว พอเปิดใบเสนอราคา/ข้อเสนอของเวอร์ชันที่ยังไม่มีหัวกระดาษ (เช่นสลับไป Premium) ระบบเติมให้อัตโนมัติ — เดิมต้องกด \"ดึงค่าเริ่มต้นของฉัน\" เอง · ช่องที่กรอกไว้แล้วไม่ถูกแตะ (ยืนยันด้วยการทดสอบจริง save→pull ทั้งปกติและ Premium)",
+      },
+    ],
+  },
+  {
     version: "0.58.0",
     date: "2026-08-26",
     title: "💰 ใบเสนอราคาแยกตามเวอร์ชัน + เทมเพลตเป็นปุ่มเปิด modal เต็มจอ",

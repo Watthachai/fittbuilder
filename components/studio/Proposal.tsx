@@ -75,6 +75,15 @@ export default function Proposal({
 
   useEffect(() => {
     let alive = true;
+    // The default letterhead for this project — workspace brand, or the
+    // personal default (migration 0040). Null when neither is set.
+    const defaultBrand = async () => {
+      if (orgId) {
+        const org = await getOrg(orgId).catch(() => null);
+        return org ? brandFromOrg(org.brand, org.isPartner) : null;
+      }
+      return (await loadUserBrand().catch(() => null)) ?? null;
+    };
     const seed = async () => {
       // The quotation is context either way; the proposal only needs seeding
       // when none is stored yet.
@@ -82,7 +91,19 @@ export default function Proposal({
         loadQuote(projectId, version, today).catch(() => null),
         loadProposal(projectId, version, today).catch(() => null),
       ]);
-      if (savedDoc) return { doc: savedDoc, quote: savedQuote };
+      if (savedDoc) {
+        // Backfill a blank letterhead so a default saved after this document
+        // was created still shows when the user switches to it (same rule as
+        // the quotation). Any filled field means it is left alone.
+        const b = savedDoc.brand;
+        const blank =
+          !b.name && !b.logoUrl && !b.taxId && !b.address && !b.contact && !b.tagline;
+        if (blank) {
+          const d = await defaultBrand();
+          if (d) return { doc: { ...savedDoc, brand: { ...b, ...d } }, quote: savedQuote };
+        }
+        return { doc: savedDoc, quote: savedQuote };
+      }
       const fresh = newProposal(projectName, today);
       // Same customer, same sender, same letterhead as the quotation — typed
       // once there, carried here. The org brand fills whatever the quote lacks.

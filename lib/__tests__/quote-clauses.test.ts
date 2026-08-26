@@ -167,6 +167,36 @@ describe("hand-edited clauses", () => {
     expect(out.filter((c) => !c.trim())).toHaveLength(0);
   });
 
+  it("drops a removed clause from the printed set", () => {
+    const doc = base();
+    const auto = generatedClauses(doc);
+    const before = acceptanceClauses(doc).length;
+    doc.acceptance.excluded = [2];
+    const out = acceptanceClauses(doc);
+    // One fewer clause, and the removed sentence is gone.
+    expect(out).toHaveLength(before - 1);
+    expect(out).not.toContain(auto[2]);
+    // Its neighbours still print, and still track the numbers.
+    expect(out).toContain(auto[1]);
+    expect(out).toContain(auto[3]);
+  });
+
+  it("keeps extra clauses after removing a generated one", () => {
+    const doc = base();
+    doc.acceptance.excluded = [0];
+    doc.acceptance.extra = ["ราคานี้ไม่รวมค่าเดินทางต่างจังหวัด"];
+    const out = acceptanceClauses(doc);
+    expect(out[out.length - 1]).toBe("ราคานี้ไม่รวมค่าเดินทางต่างจังหวัด");
+  });
+
+  it("round-trips the excluded set and drops garbage indexes", () => {
+    const doc = base();
+    const stored = JSON.parse(JSON.stringify(doc));
+    stored.acceptance.excluded = [1, "x", -3, 2];
+    const reopened = parseDoc(JSON.parse(JSON.stringify(stored)), "2026-08-26");
+    expect(reopened!.acceptance.excluded).toEqual([1, 2]);
+  });
+
   it("reports which clauses stopped following the numbers", () => {
     const doc = base();
     doc.acceptance.overrides = { "2": "ตรวจรับภายใน 7 วัน" };

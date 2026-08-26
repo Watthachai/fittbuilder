@@ -15,7 +15,7 @@ import {
   type PaymentTerm,
   type QuoteDoc,
 } from "@/lib/quote";
-import { acceptanceClauses, generatedClauses, overriddenIndexes } from "@/lib/quote-clauses";
+import { generatedClauses, overriddenIndexes } from "@/lib/quote-clauses";
 import { Field, inputCls, SectionToggle } from "./QuoteFields";
 
 /**
@@ -40,8 +40,12 @@ export default function QuoteTerms({
   const plan = paymentSchedule(doc);
   const ma = maintenanceTotals(doc.ma);
   const generated = generatedClauses(doc);
-  const clauses = acceptanceClauses(doc);
   const overridden = overriddenIndexes(doc);
+  const excludedClauses = new Set(doc.acceptance.excluded ?? []);
+  // Removed clauses keep their slot but lose their number; the print's <ol>
+  // renumbers the survivors, so the panel must count the same way.
+  let visibleClauseCount = 0;
+  const clauseNo = generated.map((_, i) => (excludedClauses.has(i) ? null : ++visibleClauseCount));
 
   /**
    * Store an edit only when it differs from what the numbers produce.
@@ -52,15 +56,55 @@ export default function QuoteTerms({
    */
   const setClause = (i: number, text: string, auto: string) =>
     onEdit((d) => {
-      const next = { ...(d.acceptance.overrides ?? {}) };
-      if (text.trim() === auto.trim() || !text.trim()) delete next[String(i)];
-      else next[String(i)] = text;
+      const overrides = { ...(d.acceptance.overrides ?? {}) };
+      const excluded = new Set(d.acceptance.excluded ?? []);
+      if (!text.trim()) {
+        // Cleared → remove the clause, don't snap it back to the generated
+        // wording. Reset-to-auto has its own button; emptying used to fight the
+        // person trying to delete a clause they didn't want.
+        delete overrides[String(i)];
+        excluded.add(i);
+      } else {
+        // Any real text un-removes the clause. Only an EXACT match to the
+        // generated sentence drops the override — comparing trimmed strings ate
+        // the space a user was typing at the end.
+        excluded.delete(i);
+        if (text === auto) delete overrides[String(i)];
+        else overrides[String(i)] = text;
+      }
       return {
         ...d,
         acceptance: {
           ...d.acceptance,
-          overrides: Object.keys(next).length ? next : undefined,
+          overrides: Object.keys(overrides).length ? overrides : undefined,
+          excluded: excluded.size ? [...excluded] : undefined,
         },
+      };
+    });
+
+  /** Remove a generated clause from the printed set; restore brings it back. */
+  const removeClause = (i: number) =>
+    onEdit((d) => {
+      const excluded = new Set(d.acceptance.excluded ?? []);
+      excluded.add(i);
+      const overrides = { ...(d.acceptance.overrides ?? {}) };
+      delete overrides[String(i)];
+      return {
+        ...d,
+        acceptance: {
+          ...d.acceptance,
+          excluded: [...excluded],
+          overrides: Object.keys(overrides).length ? overrides : undefined,
+        },
+      };
+    });
+  const restoreClause = (i: number) =>
+    onEdit((d) => {
+      const excluded = new Set(d.acceptance.excluded ?? []);
+      excluded.delete(i);
+      return {
+        ...d,
+        acceptance: { ...d.acceptance, excluded: excluded.size ? [...excluded] : undefined },
       };
     });
 
@@ -300,7 +344,7 @@ export default function QuoteTerms({
             </label>
 
             {/* Editable, but each line still says whether it follows the numbers. */}
-            {clauses.length > 0 && (
+            {generated.length > 0 && (
               <div className="mt-3 rounded-lg border border-night-edge bg-night p-3">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <p className="font-display text-[11.5px] uppercase tracking-widest text-chalk-dim">
@@ -313,14 +357,43 @@ export default function QuoteTerms({
                 <ol className="mt-2 space-y-2 text-[12.5px] leading-relaxed">
                   {generated.map((auto, i) => {
                     const edited = overridden.includes(i);
+                    // A removed clause collapses to a one-line restore affordance.
+                    // It keeps its slot (so index i stays stable) but shows no
+                    // number — the survivors renumber, matching the printed <ol>.
+                    if (excludedClauses.has(i)) {
+                      return (
+                        <li key={i} className="flex items-start gap-2">
+                          <span className="mt-1.5 shrink-0 font-mono text-[11.5px] text-chalk-dim">
+                            —
+                          </span>
+                          <div className="flex-1">
+                            <p className="line-clamp-1 text-[11.5px] italic text-chalk-dim/60">
+                              (ลบแล้ว) {auto}
+                            </p>
+                            {!readOnly && (
+                              <button
+                                type="button"
+                                onClick={() => restoreClause(i)}
+                                className="mt-0.5 font-mono text-[11.5px] text-chalk-dim underline transition hover:text-chalk"
+                              >
+                                คืนข้อนี้
+                              </button>
+                            )}
+                          </div>
+                        </li>
+                      );
+                    }
+                    // Show the raw override, not the print version — trimming the
+                    // value here is what ate the trailing space a user was typing.
+                    const value = doc.acceptance.overrides?.[String(i)] ?? auto;
                     return (
                       <li key={i} className="flex gap-2">
                         <span className="mt-1.5 shrink-0 font-mono text-[11.5px] text-chalk-dim">
-                          {i + 1}.
+                          {clauseNo[i]}.
                         </span>
                         <div className="flex-1">
                           <textarea
-                            value={clauses[i]}
+                            value={value}
                             readOnly={readOnly}
                             rows={2}
                             onChange={(e) => setClause(i, e.target.value, auto)}
@@ -328,20 +401,29 @@ export default function QuoteTerms({
                               edited ? "border-shine/40" : ""
                             }`}
                           />
-                          {edited && (
-                            <div className="mt-1 flex items-center gap-2">
-                              <span className="font-mono text-[11.5px] text-shine">
-                                แก้เอง — ตัวเลขในข้อนี้จะไม่ตามตารางแล้ว
-                              </span>
-                              {!readOnly && (
-                                <button
-                                  type="button"
-                                  onClick={() => setClause(i, auto, auto)}
-                                  className="font-mono text-[11.5px] text-chalk-dim underline transition hover:text-chalk"
-                                >
-                                  คืนค่าอัตโนมัติ
-                                </button>
+                          {!readOnly && (
+                            <div className="mt-1 flex flex-wrap items-center gap-2">
+                              {edited && (
+                                <>
+                                  <span className="font-mono text-[11.5px] text-shine">
+                                    แก้เอง — ตัวเลขในข้อนี้จะไม่ตามตารางแล้ว
+                                  </span>
+                                  <button
+                                    type="button"
+                                    onClick={() => setClause(i, auto, auto)}
+                                    className="font-mono text-[11.5px] text-chalk-dim underline transition hover:text-chalk"
+                                  >
+                                    คืนค่าอัตโนมัติ
+                                  </button>
+                                </>
                               )}
+                              <button
+                                type="button"
+                                onClick={() => removeClause(i)}
+                                className="font-mono text-[11.5px] text-chalk-dim underline transition hover:text-halt"
+                              >
+                                ลบข้อนี้
+                              </button>
                             </div>
                           )}
                         </div>
@@ -351,7 +433,7 @@ export default function QuoteTerms({
                   {(doc.acceptance.extra ?? []).map((text, i) => (
                     <li key={`extra-${i}`} className="flex gap-2">
                       <span className="mt-1.5 shrink-0 font-mono text-[11.5px] text-chalk-dim">
-                        {generated.length + i + 1}.
+                        {visibleClauseCount + i + 1}.
                       </span>
                       <div className="flex-1">
                         <textarea

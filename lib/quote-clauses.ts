@@ -118,7 +118,15 @@ export function acceptanceClauses(doc: QuoteDoc): string[] {
   const base = generatedClauses(doc);
   if (base.length === 0 && !doc.acceptance.enabled) return [];
   const overrides = doc.acceptance.overrides ?? {};
-  const out = base.map((text, i) => overrides[String(i)]?.trim() || text);
+  const excluded = new Set(doc.acceptance.excluded ?? []);
+  const out: string[] = [];
+  base.forEach((text, i) => {
+    // A removed clause is neither printed nor renumbered — the <ol> below closes
+    // the gap on its own. An override still trims for print (a stray trailing
+    // space the editor preserved must not print as one).
+    if (excluded.has(i)) return;
+    out.push(overrides[String(i)]?.trim() || text);
+  });
   for (const extra of doc.acceptance.extra ?? []) {
     if (extra.trim()) out.push(extra.trim());
   }

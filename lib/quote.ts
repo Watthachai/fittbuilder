@@ -117,6 +117,14 @@ export interface Acceptance {
   overrides?: Record<string, string>;
   /** Extra clauses appended after the generated ones, in order. */
   extra?: string[];
+  /**
+   * Generated clauses the sender removed entirely, by their index in the
+   * generated list. A removed clause is neither printed nor edited — distinct
+   * from an override (which replaces the wording) and from a reset (which
+   * resumes tracking the numbers). Kept by index so it survives the payment
+   * table changing, and so "restore this one" stays possible.
+   */
+  excluded?: number[];
 }
 
 /** Maintenance: quoted with the build, billed separately, never inside `grand`. */
@@ -550,6 +558,9 @@ export function parseDoc(payload: unknown, fallbackDate: string): QuoteDoc | nul
       overrides: parseOverrides(acc.overrides),
       extra: Array.isArray(acc.extra)
         ? acc.extra.map((x) => str(x)).filter(Boolean)
+        : undefined,
+      excluded: Array.isArray(acc.excluded)
+        ? acc.excluded.map((x) => Number(x)).filter((x) => Number.isInteger(x) && x >= 0)
         : undefined,
     },
     ma: {

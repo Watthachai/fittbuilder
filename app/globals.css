@@ -781,14 +781,14 @@ body {
 }
 .fitt-paper .q-to td {
   padding: 1px 0;
-  /* Let the address flow and wrap to the column, ignoring the hard newlines a
-     user happened to type — a break kept in the wrong place (…แขวงหัวหมาก\n…)
-     strands a fragment on its own line, which reads as broken. `normal`
-     collapses those newlines; text-wrap: pretty then wraps at Thai word
+  /* Honour the line breaks the user typed — an address is grouped by intent
+     (street on one line, district/province/postal on the next), and only a
+     manual break can express that; auto-flow just packs the first line greedily.
+     text-wrap: pretty then wraps any line that is still too long at Thai word
      boundaries and avoids orphans (keep-all does nothing here — it only governs
      CJK). Unsupported browsers fall back to plain wrapping, so it degrades
      safely. */
-  white-space: normal;
+  white-space: pre-line;
   text-wrap: pretty;
 }
 .fitt-paper .q-strong {
@@ -816,9 +816,10 @@ body {
   font-size: 11px;
   line-height: 1.4;
   color: var(--ink-dim);
-  /* Flow the address; ignore hard newlines — see .q-to td. The block inherits
-     text-wrap: pretty from .q-from, so wrapping stays on Thai word boundaries. */
-  white-space: normal;
+  /* Honour the user's line breaks — see .q-to td. The block inherits
+     text-wrap: pretty from .q-from, so any over-long line still wraps on Thai
+     word boundaries. */
+  white-space: pre-line;
 }
 /* The sales-contact group sits below the company identity, set apart so the
    two blocks don't read as one run of lines. */

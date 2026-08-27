@@ -149,7 +149,7 @@ const ERROR_SCRIPT = `(function () {
  * tab running against an older container can tell, instead of silently
  * reproducing the bug that was just fixed.
  */
-export const SHOT_BRIDGE_VERSION = 21;
+export const SHOT_BRIDGE_VERSION = 22;
 
 /**
  * Screen capture + auto-walk, for building the screen inventory a quotation is
@@ -169,6 +169,25 @@ const SHOT_SCRIPT = `(function () {
   // open keeps running an old copy, and a fix looks like it did nothing. The
   // studio compares this against its own constant and says so.
   var VERSION = ${SHOT_BRIDGE_VERSION};
+
+  // A WebGL canvas (Three.js, react-three-fiber, a 3D configurator, a map) reads
+  // back BLANK in a screenshot: the default context discards its drawing buffer
+  // the moment the frame is composited, so canvas.toDataURL — which is how
+  // html-to-image snapshots a canvas — gets an empty picture. The one place to
+  // fix it is BEFORE the app builds its renderer, and this script runs in <head>
+  // ahead of the app module. Force preserveDrawingBuffer on every WebGL context
+  // so the last rendered frame is still there when we photograph it.
+  try {
+    var _getContext = HTMLCanvasElement.prototype.getContext;
+    HTMLCanvasElement.prototype.getContext = function (type, attrs) {
+      if (/webgl/i.test(String(type))) {
+        attrs = attrs || {};
+        if (attrs.preserveDrawingBuffer !== true) attrs.preserveDrawingBuffer = true;
+      }
+      return _getContext.call(this, type, attrs);
+    };
+  } catch (e) {}
+
   var LIB = "https://cdn.jsdelivr.net/npm/html-to-image@1.11.13/dist/html-to-image.js";
   var libP = null, stop = false;
 

@@ -106,7 +106,7 @@ export default function QuotationPrint({ doc, shots }: { doc: QuoteDoc; shots: S
                     + person + phone) travels together at the bottom: who to
                     call, kept apart from who is billing. */}
                 <div className="q-from">
-                  {brand.name && <p className="q-from-name">{brand.name}</p>}
+                  {brand.name && <p className="q-from-name">{wordSafe(brand.name)}</p>}
                   {brand.address && <p className="q-from-line">{brand.address}</p>}
                   {brand.taxId && (
                     <p className="q-from-line">เลขประจำตัวผู้เสียภาษี : {brand.taxId}</p>
@@ -381,6 +381,29 @@ export default function QuotationPrint({ doc, shots }: { doc: QuoteDoc; shots: S
         </tbody>
       </table>
     </div>
+  );
+}
+
+/**
+ * Break Thai text only at the spaces the writer put there, never inside a word.
+ *
+ * Chrome's dictionary line-breaking splits a Thai word mid-character when a line
+ * is tight — "จำกัด(สำ / นักงานใหญ่)" — which for a company name reads as broken.
+ * `word-break: keep-all` does nothing here (it only governs CJK). Wrapping each
+ * space-delimited token in its own nowrap span makes each token unbreakable, so
+ * the only wrap opportunities left are the spaces between them. A token wider
+ * than the column overflows rather than splitting — rare, and the lesser evil.
+ * Exported so the proposal sheet's letterhead reads the same way.
+ */
+export function wordSafe(text: string) {
+  return text.split(/(\s+)/).map((part, i) =>
+    part.trim() === "" ? (
+      part
+    ) : (
+      <span key={i} style={{ whiteSpace: "nowrap" }}>
+        {part}
+      </span>
+    )
   );
 }
 

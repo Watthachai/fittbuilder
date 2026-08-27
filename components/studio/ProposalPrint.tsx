@@ -10,7 +10,7 @@ import {
   type ProposalDoc,
 } from "@/lib/proposal";
 import type { Shot } from "@/lib/shots";
-import { Row } from "./QuotationPrint";
+import { Row, wordSafe } from "./QuotationPrint";
 
 /**
  * The proposal on paper. Same construction as QuotationPrint and for the same
@@ -92,7 +92,7 @@ export default function ProposalPrint({
                     the sales contact ("นำเสนอโดย" + person + phone) together
                     at the bottom. */}
                 <div className="q-from">
-                  {brand.name && <p className="q-from-name">{brand.name}</p>}
+                  {brand.name && <p className="q-from-name">{wordSafe(brand.name)}</p>}
                   {brand.address && <p className="q-from-line">{brand.address}</p>}
                   {brand.taxId && (
                     <p className="q-from-line">เลขประจำตัวผู้เสียภาษี : {brand.taxId}</p>

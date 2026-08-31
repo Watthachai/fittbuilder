@@ -171,6 +171,35 @@ export interface Database {
         };
         Relationships: [];
       };
+      /** Snapshot behind a short share link (migration 0043). Read only via the
+       *  fittbuilder_shared_demo(token) function; no select policy on the table. */
+      fittbuilder_shared_demos: {
+        Row: {
+          token: string;
+          project_id: string;
+          name: string;
+          files: Json;
+          created_by: string;
+          created_at: string;
+        };
+        Insert: {
+          token: string;
+          project_id: string;
+          name: string;
+          files: Json;
+          created_by?: string;
+          created_at?: string;
+        };
+        Update: {
+          token?: string;
+          project_id?: string;
+          name?: string;
+          files?: Json;
+          created_by?: string;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
       fittbuilder_advisor_reports: {
         Row: {
           id: string;
@@ -685,6 +714,8 @@ export interface Database {
     Functions: {
       /** Claim the next running document number for a workspace (migration 0041). */
       fittbuilder_next_doc_number: { Args: { oid: string }; Returns: number };
+      /** Read a shared demo snapshot by token — public, {name, files} or null (migration 0043). */
+      fittbuilder_shared_demo: { Args: { share_token: string }; Returns: Json };
       fittbuilder_accept_invites: { Args: { uid: string; mail: string }; Returns: undefined };
       fittbuilder_accept_org_invites: { Args: { uid: string; mail: string }; Returns: undefined };
       fittbuilder_join_by_token: { Args: { tok: string; uid: string }; Returns: string | null };

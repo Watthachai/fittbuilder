@@ -2,15 +2,19 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { decodeShareFragment, type SharePayload } from "@/lib/share";
+import { decodeShareFragment, getSharedDemo, type SharePayload } from "@/lib/share";
 import type { GenerationPhase } from "@/lib/types";
 import { isPreviewSupported, runProject } from "@/lib/webcontainer";
 
 /**
- * Public demo viewer (BR-003) — the entire project travels in the URL
- * fragment, so no account or server storage is needed to view a share.
+ * Public demo viewer — rebuilds a shared demo in a WebContainer, no account
+ * needed. The payload arrives one of two ways:
+ *
+ * - `token` (short link `/share/<token>`): fetched from the database.
+ * - URL fragment (`/share#…`): the whole project rides in the fragment
+ *   (BR-003) — still produced by pop-out-in-a-new-tab and older links.
  */
-export default function ShareViewer() {
+export default function ShareViewer({ token }: { token?: string }) {
   const [payload, setPayload] = useState<SharePayload | null>(null);
   const [phase, setPhase] = useState<GenerationPhase | "loading">("loading");
   const [url, setUrl] = useState<string | null>(null);
@@ -22,17 +26,26 @@ export default function ShareViewer() {
     bootedRef.current = true;
 
     void (async () => {
-      const fragment = window.location.hash.slice(1);
-      if (!fragment) {
-        setError("ลิงก์นี้ไม่มีข้อมูลโปรเจกต์");
-        return;
-      }
       let decoded: SharePayload;
-      try {
-        decoded = await decodeShareFragment(fragment);
-      } catch {
-        setError("ลิงก์แชร์เสียหายหรือไม่สมบูรณ์ — ขอลิงก์ใหม่จากผู้ส่ง");
-        return;
+      if (token) {
+        try {
+          decoded = await getSharedDemo(token);
+        } catch {
+          setError("ลิงก์แชร์ไม่ถูกต้องหรือหมดอายุ — ขอลิงก์ใหม่จากผู้ส่ง");
+          return;
+        }
+      } else {
+        const fragment = window.location.hash.slice(1);
+        if (!fragment) {
+          setError("ลิงก์นี้ไม่มีข้อมูลโปรเจกต์");
+          return;
+        }
+        try {
+          decoded = await decodeShareFragment(fragment);
+        } catch {
+          setError("ลิงก์แชร์เสียหายหรือไม่สมบูรณ์ — ขอลิงก์ใหม่จากผู้ส่ง");
+          return;
+        }
       }
       setPayload(decoded);
       if (!isPreviewSupported()) {
@@ -49,7 +62,7 @@ export default function ShareViewer() {
         onError: (message) => setError(message),
       });
     })();
-  }, []);
+  }, [token]);
 
   return (
     <div className="flex h-dvh flex-col bg-night text-chalk">

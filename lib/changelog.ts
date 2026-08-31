@@ -23,6 +23,17 @@ export const CHANGE_BADGE: Record<ChangeType, { label: string; className: string
 // Newest first. SemVer: fix → PATCH, feature → MINOR, breaking → MAJOR.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.59.0",
+    date: "2026-08-31",
+    title: "🔗 ลิงก์แชร์เดโมสั้นลง",
+    items: [
+      {
+        type: "improvement",
+        text: "ปุ่ม \"คัดลอกลิงก์แชร์\" เดิมยัดทั้งโปรเจกต์ลงใน URL ทำให้ลิงก์ยาวเป็นพัน–หมื่นตัวอักษร (บางทียาวจนเปิด/พาสต์ไม่ได้) — ตอนนี้เก็บสแนปช็อตไว้ฝั่งเซิร์ฟเวอร์ ลิงก์เหลือสั้นๆ เช่น /share/aB3xK9 · ยังเปิดดูได้โดยไม่ต้อง login เหมือนเดิม และเป็นสแนปช็อต (ส่งลูกค้าแล้วไม่เปลี่ยนตามที่แก้ต่อ) · ลิงก์เก่าแบบยาวยังเปิดได้อยู่",
+      },
+    ],
+  },
+  {
     version: "0.58.7",
     date: "2026-08-27",
     title: "🪪 ชื่อบริษัทไม่ตกบรรทัด/ตัดคำ + แคปหน้าจอ 3D ติดแล้ว",

@@ -18,7 +18,7 @@ import {
   Undo2,
   Users,
 } from "lucide-react";
-import { encodeShareUrl } from "@/lib/share";
+import { createSharedDemo } from "@/lib/share";
 import { toast } from "@/lib/toast";
 import DnaMark from "@/components/ui/DnaMark";
 import type { OrgRecord, ProjectRecord } from "@/lib/types";
@@ -87,9 +87,15 @@ export default function TopBar({
 
   const share = async () => {
     if (!project.files) return;
-    const url = await encodeShareUrl({ name: project.name, files: project.files });
-    await navigator.clipboard.writeText(url);
-    toast.success("คัดลอกลิงก์แชร์แล้ว — เปิดดูได้โดยไม่ต้อง login");
+    try {
+      const url = await createSharedDemo(project.id, { name: project.name, files: project.files });
+      await navigator.clipboard.writeText(url);
+      toast.success("คัดลอกลิงก์แชร์แล้ว — เปิดดูได้โดยไม่ต้อง login");
+    } catch (e) {
+      toast.error("สร้างลิงก์แชร์ไม่สำเร็จ", {
+        description: e instanceof Error ? e.message : undefined,
+      });
+    }
   };
 
   return (

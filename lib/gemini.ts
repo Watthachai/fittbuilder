@@ -22,7 +22,7 @@ export function getGeminiClient(): GoogleGenAI {
   return client;
 }
 
-export const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-3.7-flash";
+export const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-3.8-flash";
 
 /**
  * How hard the model thinks before answering — the only quality/cost lever

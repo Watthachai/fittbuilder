@@ -32,8 +32,8 @@ interface Price {
 }
 
 /**
- * Google's introductory rate for the 3.7/3.6 Flash pair. It ENDS on this date
- * and doubles.
+ * Google's introductory rate for the 3.8/3.7/3.6 Flash line. It ENDS on this
+ * date and doubles.
  *
  * The date is encoded rather than the number pasted in, because the failure mode
  * of pasting is silent: the admin report would keep showing half the real cost
@@ -45,6 +45,7 @@ const FLASH_STANDARD: Price = { input: 1.5, output: 7.5 };
 
 const PRICING: Record<string, Price | (() => Price)> = {
   // Paid tier, USD per 1M tokens (output includes thinking tokens).
+  "gemini-3.8-flash": () => (Date.now() < INTRO_UNTIL ? FLASH_INTRO : FLASH_STANDARD),
   "gemini-3.7-flash": () => (Date.now() < INTRO_UNTIL ? FLASH_INTRO : FLASH_STANDARD),
   "gemini-3.6-flash": () => (Date.now() < INTRO_UNTIL ? FLASH_INTRO : FLASH_STANDARD),
   "gemini-3.5-flash": { input: 1.5, output: 9.0 },

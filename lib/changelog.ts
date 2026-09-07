@@ -23,6 +23,17 @@ export const CHANGE_BADGE: Record<ChangeType, { label: string; className: string
 // Newest first. SemVer: fix → PATCH, feature → MINOR, breaking → MAJOR.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.60.0",
+    date: "2026-09-07",
+    title: "🧠 อัปเกรดโมเดลเป็น gemini-3.8-flash",
+    items: [
+      {
+        type: "improvement",
+        text: "เปลี่ยนโมเดลทั้งระบบเป็น gemini-3.8-flash — รุ่น Flash ที่ Google ทำมาสำหรับงานเขียนโค้ดหลายไฟล์/หลายขั้นตอนต่อเนื่องโดยเฉพาะ อ่านดีไซน์แล้วสร้างหน้าเว็บได้แม่นขึ้นและวนแก้จนพังน้อยลง · ราคาเท่ารุ่นเดิม (โปรโมชัน $0.75/$3.75 ต่อ 1M tokens ถึงสิ้นปี 2026) · ตั้ง GEMINI_MODEL=gemini-3.7-flash เพื่อ rollback ได้ทันที",
+      },
+    ],
+  },
+  {
     version: "0.59.0",
     date: "2026-08-31",
     title: "🔗 ลิงก์แชร์เดโมสั้นลง",

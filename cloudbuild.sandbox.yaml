@@ -27,7 +27,7 @@ substitutions:
   # Pinning the model here OVERRIDES the default in lib/gemini.ts — this value
   # always wins, whether or not the trigger sets it. Keep it in step with the
   # code default, or an upgrade lands in the repo and never reaches production.
-  _GEMINI_MODEL: "gemini-3.7-flash"
+  _GEMINI_MODEL: "gemini-3.8-flash"
   _ADMIN_EMAILS: "YOUR_ADMIN_EMAILS"
   # Sensitive — SET THESE IN THE TRIGGER UI.
   _GEMINI_API_KEY: "SET_IN_TRIGGER"

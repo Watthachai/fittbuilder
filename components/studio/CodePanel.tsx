@@ -264,7 +264,7 @@ export default function CodePanel({
         <div
           key={`f:${node.path}`}
           className={`group flex items-center gap-1.5 py-1 pr-1.5 font-mono text-[12px] transition ${
-            isActive ? "border-r-2 border-shine bg-shine/10 text-chalk" : "text-chalk-dim hover:text-chalk"
+            isActive ? "border-r-2 border-shine bg-shine/10 text-chalk light:border-selected-edge light:bg-selected light:text-selected-ink" : "text-chalk-dim hover:text-chalk"
           }`}
           style={pad}
         >

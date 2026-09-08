@@ -519,7 +519,7 @@ export default function OrgDnaEditor({ orgId }: { orgId: string }) {
                   onClick={() => setDna((prev) => ({ ...prev, archetype: active ? null : a.key }))}
                   className={`rounded-lg border px-3 py-2 text-left transition ${
                     active
-                      ? "border-shine bg-shine/10"
+                      ? "border-shine bg-shine/10 light:border-selected-edge light:bg-selected"
                       : "border-night-edge bg-night-panel hover:border-shine/50"
                   }`}
                 >

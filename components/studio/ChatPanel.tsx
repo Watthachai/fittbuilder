@@ -621,7 +621,7 @@ export default function ChatPanel({
                   onClick={() => onOption(option)}
                   className={`flex w-full items-center gap-2.5 rounded-md border px-3 py-2 text-left text-[13px] transition ${
                     selected
-                      ? "border-shine bg-shine/10 text-chalk"
+                      ? "border-shine bg-shine/10 text-chalk light:border-selected-edge light:bg-selected light:text-selected-ink"
                       : "border-night-edge bg-night-panel text-chalk hover:border-shine/60"
                   }`}
                 >

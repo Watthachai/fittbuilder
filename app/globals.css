@@ -14,11 +14,22 @@
   }
 }
 
+/* Match the same saved-theme / system-theme rules for light-only refinements. */
+@custom-variant light {
+  &:where(.light, .light *) {
+    @slot;
+  }
+  @media (prefers-color-scheme: light) {
+    &:where(:root:not(.light):not(.dark), :root:not(.light):not(.dark) *) {
+      @slot;
+    }
+  }
+}
+
 /* ————————————————————————————————————————————————
-   FITT Builder design system — "midnight studio"
-   Pure-black canvas, white typography, a single
-   sky-blue accent (#64cefb) with an animated white
-   shine. Spec: docs/brief-plans/design.md
+   FITT Builder design system — white workspace / midnight studio.
+   White surfaces, slate structure and a legible blue accent in light mode;
+   the midnight palette remains available through the existing theme switch.
    ———————————————————————————————————————————————— */
 
 /* ── Theme tokens ──────────────────────────────────────────────
@@ -30,22 +41,28 @@
   color-scheme: light;
   /* surfaces */
   --night: #ffffff;
-  --night-panel: #f4f4f5;
-  --night-edge: #e4e4e7;
+  --night-panel: #f1f5f9;
+  --night-edge: #cbd5e1;
   /* typography */
-  --chalk: #18181b;
-  --chalk-dim: #6b7280;
+  --chalk: #0f172a;
+  --chalk-dim: #526176;
   /* the one accent */
-  --shine: #0284c7;
-  --shine-soft: #0ea5e9;
+  --shine: #0369a1;
+  --shine-soft: #075985;
+  /* Selected rows/cards need a visible fill as well as an accent border. */
+  --selected: #dceeff;
+  --selected-edge: #4a89bf;
+  --selected-ink: #075985;
   /* status */
   --go: #059669;
   --halt: #dc2626;
   /* faint grid line for empty states */
   --grid-line: rgba(0, 0, 0, 0.06);
   /* Frosted glass: edge + soft drop shadow (theme-aware). */
-  --glass-border: rgba(0, 0, 0, 0.08);
-  --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.14);
+  --glass-surface: rgba(255, 255, 255, 0.9);
+  --glass-surface-strong: rgba(255, 255, 255, 0.97);
+  --glass-border: rgba(100, 116, 139, 0.3);
+  --glass-shadow: 0 2px 6px rgba(15, 23, 42, 0.04), 0 16px 40px -12px rgba(15, 23, 42, 0.2);
   /* Blur recipe sourced as a var so Lightning CSS keeps BOTH the prefixed and
      unprefixed `backdrop-filter` (a literal pair gets deduped → unprefixed
      stripped → no blur in Firefox). Theme-independent → declared once here. */
@@ -72,6 +89,8 @@
   --go: #34d399;
   --halt: #f87171;
   --grid-line: rgba(255, 255, 255, 0.04);
+  --glass-surface: color-mix(in srgb, var(--night-panel) 55%, transparent);
+  --glass-surface-strong: color-mix(in srgb, var(--night-panel) 42%, transparent);
   --glass-border: rgba(255, 255, 255, 0.12);
   --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
   --overlay-dim: rgba(0, 0, 0, 0.7);
@@ -90,6 +109,8 @@
     --go: #34d399;
     --halt: #f87171;
     --grid-line: rgba(255, 255, 255, 0.04);
+    --glass-surface: color-mix(in srgb, var(--night-panel) 55%, transparent);
+    --glass-surface-strong: color-mix(in srgb, var(--night-panel) 42%, transparent);
     --glass-border: rgba(255, 255, 255, 0.12);
     --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
     --overlay-dim: rgba(0, 0, 0, 0.7);
@@ -104,6 +125,9 @@
   --color-chalk-dim: var(--chalk-dim);
   --color-shine: var(--shine);
   --color-shine-soft: var(--shine-soft);
+  --color-selected: var(--selected);
+  --color-selected-edge: var(--selected-edge);
+  --color-selected-ink: var(--selected-ink);
   --color-go: var(--go);
   --color-halt: var(--halt);
 
@@ -126,7 +150,7 @@ body {
 
 ::selection {
   background: var(--shine);
-  color: #000;
+  color: var(--night);
 }
 
 /* Animated shiny gradient text (hero line 2) —
@@ -163,7 +187,7 @@ body {
    The inset highlight mimics light hitting the front edge of thick glass; the
    drop shadow gives depth. Used system-wide via `.glass` / `.glass-strong`. */
 .glass {
-  background: color-mix(in srgb, var(--night-panel) 55%, transparent);
+  background: var(--glass-surface);
   -webkit-backdrop-filter: var(--glass-blur);
   backdrop-filter: var(--glass-blur);
   border: 1px solid var(--glass-border);
@@ -173,7 +197,7 @@ body {
    behind into a soft frost (so it can't clash with the panel's own content),
    while staying clearly glassy. */
 .glass-strong {
-  background: color-mix(in srgb, var(--night-panel) 42%, transparent);
+  background: var(--glass-surface-strong);
   -webkit-backdrop-filter: var(--glass-blur-strong);
   backdrop-filter: var(--glass-blur-strong);
   border: 1px solid var(--glass-border);

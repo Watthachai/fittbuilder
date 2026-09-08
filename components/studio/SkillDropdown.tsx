@@ -97,15 +97,15 @@ function Row({
       type="button"
       onClick={onClick}
       className={`flex w-full items-start gap-3 rounded-xl px-3 py-2.5 text-left transition ${
-        selected ? "bg-chalk/10" : "hover:bg-chalk/5"
+        selected ? "bg-chalk/10 light:bg-selected light:text-selected-ink" : "hover:bg-chalk/5"
       }`}
     >
       <span className="mt-0.5 shrink-0">{icon}</span>
       <span className="min-w-0 flex-1">
         <span className="block font-display text-sm font-medium text-chalk">{title}</span>
-        <span className="mt-0.5 block text-xs leading-snug text-chalk/55">{desc}</span>
+        <span className="mt-0.5 block text-xs leading-snug text-chalk/55 light:text-chalk-dim">{desc}</span>
       </span>
-      {selected && <Check size={16} className="mt-0.5 shrink-0 text-chalk/80" />}
+      {selected && <Check size={16} className="mt-0.5 shrink-0 text-chalk/80 light:text-selected-ink" />}
     </button>
   );
 }

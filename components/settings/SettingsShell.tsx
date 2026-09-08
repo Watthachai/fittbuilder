@@ -177,7 +177,9 @@ export default function SettingsShell({ children }: { children: ReactNode }) {
 
 function navClass(active: boolean): string {
   return `flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm transition ${
-    active ? "bg-chalk/10 font-medium text-chalk" : "text-chalk-dim hover:bg-chalk/5 hover:text-chalk"
+    active
+      ? "bg-chalk/10 font-medium text-chalk light:bg-selected light:text-selected-ink"
+      : "text-chalk-dim hover:bg-chalk/5 hover:text-chalk"
   }`;
 }
 

@@ -92,7 +92,7 @@ export default function SkillPicker({ detectedId, busy, onSelect, onSkip }: Skil
                 key={s.id}
                 onClick={() => onSelect(s.id)}
                 className={`flex flex-col gap-1.5 rounded-lg border p-3 text-left transition hover:-translate-y-0.5 hover:border-shine/50 ${
-                  s.id === detectedId ? "border-shine/60 bg-shine/5" : "border-night-edge bg-night/20"
+                  s.id === detectedId ? "border-shine/60 bg-shine/5 light:border-selected-edge light:bg-selected" : "border-night-edge bg-night/20"
                 }`}
               >
                 <SkillIcon name={s.icon} />

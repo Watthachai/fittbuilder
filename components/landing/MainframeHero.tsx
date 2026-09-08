@@ -202,7 +202,7 @@ export default function MainframeHero() {
         className="fixed inset-0 z-0 h-full w-full object-cover"
         style={{ objectPosition: "70% center" }}
       />
-      <div className="fixed inset-0 z-0 bg-night/55" aria-hidden />
+      <div className="fixed inset-0 z-0 bg-night/55 light:bg-night/80" aria-hidden />
 
       {/* Navbar — floating glass pill */}
       <header className="fixed inset-x-0 top-0 z-50 flex items-center justify-between px-5 py-4 sm:px-8 sm:py-5">
@@ -210,7 +210,7 @@ export default function MainframeHero() {
           <button
             onClick={() => setProjectsOpen(true)}
             aria-label="ผลงานของฉัน"
-            className="grid h-9 w-9 place-items-center rounded-full border border-chalk/12 bg-night/40 text-chalk/85 backdrop-blur-xl transition hover:text-chalk"
+            className="grid h-9 w-9 place-items-center rounded-full border border-chalk/12 bg-night/40 light:border-night-edge light:bg-night/90 light:shadow-sm text-chalk/85 backdrop-blur-xl transition hover:text-chalk"
           >
             <PanelLeft size={17} />
           </button>
@@ -241,7 +241,7 @@ export default function MainframeHero() {
           </a>
         </div>
 
-        <nav className="absolute left-1/2 hidden -translate-x-1/2 items-center gap-1 rounded-full border border-chalk/12 bg-night/40 px-2 py-1.5 text-[15px] text-chalk/85 backdrop-blur-xl md:flex">
+        <nav className="absolute left-1/2 hidden -translate-x-1/2 items-center gap-1 rounded-full border border-chalk/12 bg-night/40 light:border-night-edge light:bg-night/90 light:shadow-sm px-2 py-1.5 text-[15px] text-chalk/85 backdrop-blur-xl md:flex">
           {NAV_LINKS.map((link) => (
             <a
               key={link.href}
@@ -264,7 +264,7 @@ export default function MainframeHero() {
           )}
         </nav>
 
-        <div className="hidden items-center gap-2 rounded-full border border-chalk/12 bg-night/40 py-1 pl-3 pr-1 backdrop-blur-xl md:flex">
+        <div className="hidden items-center gap-2 rounded-full border border-chalk/12 bg-night/40 light:border-night-edge light:bg-night/90 light:shadow-sm py-1 pl-3 pr-1 backdrop-blur-xl md:flex">
           <button
             onClick={() => setProjectsOpen(true)}
             className="text-[15px] text-chalk/85 transition hover:text-chalk"

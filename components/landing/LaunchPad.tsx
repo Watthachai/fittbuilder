@@ -226,7 +226,7 @@ export default function LaunchPad({
           }
         }}
         placeholder={'อยากได้เว็บแบบไหน? เช่น "landing page สำหรับ coffee shop สไตล์ minimal"'}
-        className="block w-full resize-none bg-transparent px-4 py-4 text-lg leading-relaxed text-chalk outline-none placeholder:text-chalk/35"
+        className="block w-full resize-none bg-transparent px-4 py-4 text-lg leading-relaxed text-chalk outline-none placeholder:text-chalk/35 light:placeholder:text-chalk-dim"
       />
 
       {attachments.length > 0 && (
@@ -323,7 +323,7 @@ export default function LaunchPad({
           whileTap={{ scale: 0.97 }}
           onClick={launch}
           disabled={!prompt.trim() || launching}
-          className="group ml-auto inline-flex items-center gap-2 rounded-full bg-chalk px-6 py-2.5 font-display font-semibold text-night transition hover:bg-gray-200 disabled:cursor-not-allowed disabled:opacity-40"
+          className="group ml-auto inline-flex items-center gap-2 rounded-full bg-chalk px-6 py-2.5 font-display font-semibold text-night transition hover:bg-gray-200 light:bg-shine light:hover:bg-shine-soft disabled:cursor-not-allowed disabled:opacity-40"
         >
           {launching ? "กำลังเปิดสตูดิโอ…" : "สร้างเลย"}
           <ArrowRight size={17} className="transition-transform group-hover:translate-x-0.5" />

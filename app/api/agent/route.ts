@@ -1,11 +1,11 @@
 import { after } from "next/server";
 import { z } from "zod";
-import { MESSAGE_MAX_CHARS } from "@/lib/limits";
+import { DOC_MAX_CHARS, MESSAGE_MAX_CHARS, REPLY_MAX_CHARS } from "@/lib/limits";
 import { getAgentForPhase } from "@/lib/agents/registry";
 import { AgentStreamFilter } from "@/lib/agent-stream";
 import { currentUserId, recordUsage } from "@/lib/ai-usage";
 import { MissingApiKeyError, streamParts, type TokenUsage } from "@/lib/gemini";
-import { isBuildPhase, isPhaseId } from "@/lib/phases";
+import { isBuildPhase, isPhaseId, type PhaseId } from "@/lib/phases";
 import { buildAgentSystemPrompt } from "@/lib/prompts";
 import { getProjectOrgDnaContext } from "@/lib/org-context";
 import { resolveSkill } from "@/lib/skills/db";
@@ -13,26 +13,52 @@ import { createClient } from "@/lib/supabase/server";
 import { clientIp, rateLimit } from "@/lib/rate-limit";
 import type { AgentEvent } from "@/lib/types";
 
-export const maxDuration = 60;
+export const maxDuration = 300;
 
-const ATTEMPT_TIMEOUT_MS = 55_000;
+/**
+ * gemini-3.8-flash caps output at 65,536 tokens and streams at roughly 290 of
+ * them per second, so a 55-second budget could only ever reach about a quarter
+ * of what the model can write — a long PRD died as "AI ใช้เวลานานเกินไป" with the
+ * half-written document thrown away. 240s covers the full ceiling with room to
+ * spare, and matches what /api/generate already runs at.
+ */
+const ATTEMPT_TIMEOUT_MS = 240_000;
+
+/**
+ * Phases that rewrite a whole specification get the model's top reasoning tier.
+ * The interview phases stay on the default so a question still comes back fast.
+ */
+const DEEP_PHASES = new Set<PhaseId>(["plan", "review"]);
 
 const DOC_KINDS = ["idea", "brd", "prd", "verify", "review", "ship"] as const;
 
 const bodySchema = z.object({
   phase: z.string().refine(isPhaseId, "unknown phase"),
+  // Split by role on purpose: MESSAGE_MAX_CHARS bounds what a PERSON typed,
+  // REPLY_MAX_CHARS bounds what we generated. One 22,777-character reply under a
+  // shared 20k cap 400'd every following turn of that phase, permanently.
+  // `phase` is optional so a client still running the previous bundle — which
+  // pre-filtered to one phase and sent no phase field — keeps working unchanged.
   messages: z
     .array(
-      z.object({
-        role: z.enum(["user", "assistant"]),
-        content: z.string().max(MESSAGE_MAX_CHARS),
-      })
+      z.discriminatedUnion("role", [
+        z.object({
+          role: z.literal("user"),
+          content: z.string().max(MESSAGE_MAX_CHARS),
+          phase: z.string().optional(),
+        }),
+        z.object({
+          role: z.literal("assistant"),
+          content: z.string().max(REPLY_MAX_CHARS),
+          phase: z.string().optional(),
+        }),
+      ])
     )
-    .max(80),
+    .max(400),
   // partialRecord: the client sends only the docs that exist so far (often none
   // on the first turn). z.record with an enum key is exhaustive in Zod v4 and
   // would reject any partial set — including {} — which 400s every agent call.
-  docs: z.partialRecord(z.enum(DOC_KINDS), z.string().max(50_000)).optional(),
+  docs: z.partialRecord(z.enum(DOC_KINDS), z.string().max(DOC_MAX_CHARS)).optional(),
   skillId: z.string().max(40).optional(),
   express: z.boolean().optional(),
   projectId: z.string().uuid().optional(),
@@ -109,14 +135,26 @@ export async function POST(request: Request) {
     ? '\n\nเมื่อคุณใช้ข้อมูลจาก ORG DNA ข้างต้นในการตอบ/สร้างเอกสาร ให้ปิดท้ายข้อความด้วยบล็อกอ้างอิงหนึ่งบรรทัด:\n```cite\n{"aspects":["structure","decisionRights"]}\n```\nโดย aspects เลือกจาก [decisionRights, information, motivators, structure, archetype] เฉพาะด้านที่ใช้จริง (ถ้าไม่ได้ใช้ Org DNA เลย ไม่ต้องใส่บล็อกนี้)'
     : "";
   const system = orgCtx ? `${baseSystem}\n\n${orgCtx}${useDnaRule}${citeRule}` : baseSystem;
-  const transcript = body.messages
-    .map((m) => `${m.role === "user" ? "ผู้ใช้" : "FITT"}: ${m.content}`)
-    .join("\n\n");
+  // Each agent used to see only its own phase's turns — a sensible economy when
+  // the context window was small. At 1,048,576 input tokens it is just blindness:
+  // the spec-writer wrote a PRD without ever reading the interview its BRD was
+  // distilled from. Earlier phases now ride along as reference, while the current
+  // phase stays the live conversation.
+  const speak = (m: { role: string; content: string }) =>
+    `${m.role === "user" ? "ผู้ใช้" : "FITT"}: ${m.content}`;
+  const prior = body.messages.filter((m) => m.phase && m.phase !== body.phase);
+  const current = body.messages.filter((m) => !m.phase || m.phase === body.phase);
+  const priorBlock = prior.length
+    ? `บทสนทนาจากเฟสก่อนหน้า (บริบทอ้างอิงเท่านั้น — ห้ามตอบซ้ำ ใช้เพื่อเข้าใจที่มาและรายละเอียดที่เอกสารสรุปอาจตกหล่น):\n\n${prior
+        .map(speak)
+        .join("\n\n")}\n\n---\n\nบทสนทนาของเฟสปัจจุบัน:\n\n`
+    : "";
   let user =
-    transcript ||
-    (body.express
-      ? "(สร้างเอกสารของเฟสนี้จาก brief และเอกสารก่อนหน้าให้สมบูรณ์ในครั้งเดียว)"
-      : "(เริ่มบทสนทนา — ทักทายสั้นๆ แล้วเริ่มงานของเฟสนี้)");
+    priorBlock +
+    (current.map(speak).join("\n\n") ||
+      (body.express
+        ? "(สร้างเอกสารของเฟสนี้จาก brief และเอกสารก่อนหน้าให้สมบูรณ์ในครั้งเดียว)"
+        : "(เริ่มบทสนทนา — ทักทายสั้นๆ แล้วเริ่มงานของเฟสนี้)"));
   if (body.attachments?.length) {
     // Express is one-shot (no back-and-forth), so "ask before adding" would
     // stall the pipeline — pull the attachment content into the doc directly.
@@ -141,7 +179,7 @@ export async function POST(request: Request) {
           system,
           user,
           attachments: body.attachments,
-          level: "medium",
+          level: body.express || DEEP_PHASES.has(body.phase) ? "high" : "medium",
           thinking: true,
           abortSignal: AbortSignal.any([request.signal, AbortSignal.timeout(ATTEMPT_TIMEOUT_MS)]),
           onUsage: (u) => {

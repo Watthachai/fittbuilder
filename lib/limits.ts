@@ -28,3 +28,29 @@ export const MESSAGE_WARN_CHARS = Math.floor(MESSAGE_MAX_CHARS * 0.9);
  * visible marker instead of the model silently receiving half a document.
  */
 export const ATTACHMENT_TEXT_MAX_CHARS = 100_000;
+
+/**
+ * How long ONE MODEL TURN's chat reply may be.
+ *
+ * Separate from MESSAGE_MAX_CHARS because they bound different things: that one
+ * is what a person may type, this one is what we ourselves generated. Sharing
+ * the 20k figure across both is what deadlocked a project — a 22,777-character
+ * reply was written, stored, and then rejected by our own request schema on
+ * every following turn, so the phase could never advance again.
+ *
+ * The rule that keeps it from recurring is not the size but the pairing: this
+ * is clamped where the reply is STORED and bounded by the same constant where
+ * it is READ BACK, so a stored transcript is valid by construction.
+ */
+export const REPLY_MAX_CHARS = 60_000;
+
+/**
+ * How long one phase document (BRD/PRD/…) may be, in transit and at rest.
+ *
+ * gemini-3.8-flash caps output at 65,536 tokens and Thai runs ~4 characters per
+ * token, so a single turn cannot physically write past roughly 260k characters —
+ * this sits below that and above any real document. Same pairing as the reply
+ * cap: clamped where a document is written, bounded identically where it is sent.
+ */
+export const DOC_MAX_CHARS = 150_000;
+

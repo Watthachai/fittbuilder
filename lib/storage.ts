@@ -3,6 +3,7 @@
 import { createClient } from "@/lib/supabase/client";
 import { currentUserId } from "@/lib/current-user";
 import { projectToRow, rowToProject, type ProjectRow } from "@/lib/db/project-mapper";
+import { MESSAGE_MAX_CHARS, REPLY_MAX_CHARS } from "./limits";
 import type { PhaseId } from "./phases";
 import type { ChatMessage, ProjectFiles, ProjectGeneration, ProjectRecord, ProjectSummary, RunnerSend, ShareRole } from "./types";
 import type { Database, Json } from "@/lib/db/types";
@@ -434,7 +435,13 @@ export function newMessage(role: ChatMessage["role"], content: string, phase?: P
   return {
     id: crypto.randomUUID(),
     role,
-    content,
+    // Bounded HERE, by the same constants /api/agent bounds the transcript with
+    // on the way back in. A reply longer than the cap used to be stored happily
+    // and then rejected on every following turn, which stalls the phase for good
+    // — there is no user action that recovers from it. Clamping at the one place
+    // a message is created is what makes a stored transcript valid by
+    // construction rather than by luck.
+    content: content.slice(0, role === "assistant" ? REPLY_MAX_CHARS : MESSAGE_MAX_CHARS),
     createdAt: new Date().toISOString(),
     ...(phase ? { phase } : {}),
   };

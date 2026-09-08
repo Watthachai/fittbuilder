@@ -55,6 +55,8 @@ function parseAsk(json: string): AgentAsk | undefined {
 export class AgentStreamFilter {
   private buffer = "";
   private block: DocKind | "ask" | "cite" | null = null;
+  /** Nested fence depth inside the open block — see the close logic in push(). */
+  private depth = 0;
   private body = "";
   private reply = "";
   private docs: Partial<Record<DocKind, string>> = {};
@@ -112,10 +114,30 @@ export class AgentStreamFilter {
           this.buffer = keep;
           break;
         }
+        // A document legitimately contains fences of its OWN — a state diagram,
+        // a schema sketch. Closing at the first one truncated a PRD at its state
+        // machine and spilled the remaining sections into the chat reply, so tell
+        // an opening nested fence (```text) from the bare one that ends the
+        // document. That needs the info string, which means waiting for the whole
+        // fence line.
+        const lineEnd = this.buffer.indexOf("\n", close + 1);
+        if (lineEnd === -1) {
+          this.body += this.buffer.slice(0, close);
+          this.buffer = this.buffer.slice(close);
+          break;
+        }
+        const info = this.buffer.slice(close + 4, lineEnd).trim();
+        if (info || this.depth > 0) {
+          // Opens a nested block, or closes one — either way it is the
+          // document's own content, not the end of the document.
+          this.depth += info ? 1 : -1;
+          this.body += this.buffer.slice(0, lineEnd + 1);
+          this.buffer = this.buffer.slice(lineEnd + 1);
+          continue;
+        }
         this.body += this.buffer.slice(0, close);
         // Drop "\n```" plus the rest of that line (and one trailing newline).
-        const afterClose = this.buffer.slice(close + 4);
-        this.buffer = afterClose.replace(/^[^\n]*\n?/, "");
+        this.buffer = this.buffer.slice(lineEnd + 1);
         if (this.block === "ask") {
           this.ask = this.ask ?? parseAsk(this.body);
         } else if (this.block === "cite") {
@@ -126,6 +148,7 @@ export class AgentStreamFilter {
         }
         this.block = null;
         this.body = "";
+        this.depth = 0;
       }
     }
 
@@ -137,8 +160,10 @@ export class AgentStreamFilter {
     if (this.block !== null) {
       // Stream ended INSIDE a block (e.g. the model hit maxOutputTokens before
       // closing the fence). Salvage the partial so a half-written doc/ask isn't
-      // silently lost.
-      const body = (this.body + this.buffer).trim();
+      // silently lost. A fence still held for its newline is the block's
+      // terminator, not content.
+      const pendingClose = this.depth === 0 && /^\n```[^\n]*$/.test(this.buffer);
+      const body = (this.body + (pendingClose ? "" : this.buffer)).trim();
       if (this.block === "ask") {
         this.ask = this.ask ?? parseAsk(body);
       } else if (this.block === "cite") {
@@ -149,6 +174,7 @@ export class AgentStreamFilter {
       this.block = null;
       this.body = "";
       this.buffer = "";
+      this.depth = 0;
     } else if (this.buffer) {
       this.reply += this.buffer;
       this.buffer = "";

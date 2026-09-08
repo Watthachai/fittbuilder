@@ -2,7 +2,7 @@
 
 import { oversizedFiles } from "./code-health";
 import { truncateDoc } from "./context-builder";
-import { DEMO_PACKAGE_JSON } from "./scaffold";
+import { DEMO_PACKAGE_JSON, TAILWIND_BROWSER_CDN } from "./scaffold";
 import type { DocKind } from "./types";
 import type { SkillTemplate } from "./skills/types";
 
@@ -112,7 +112,8 @@ const PROJECT_RULES = `PROJECT RULES (Vite + React 18 + TypeScript):
 ${DEMO_PACKAGE_JSON}
 2. Required files (always include all of them): "index.html", "src/main.tsx", "src/App.tsx", "src/index.css". (package.json, vite.config.js, and tsconfig.json are provided automatically — do NOT output them.)
 3. index.html must include, inside <head>, EXACTLY:
-   - <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>  (Tailwind — style ONLY with Tailwind utility classes)
+   - <script src="${TAILWIND_BROWSER_CDN}"></script>  (Tailwind — style ONLY with Tailwind utility classes)
+   NEVER use https://cdn.tailwindcss.com. It sends no Cross-Origin-Resource-Policy and no CORS, so under the preview's COEP require-corp the browser DROPS it (net::ERR_FAILED) and NOT ONE utility class resolves — the demo renders as unstyled HTML. It is also Tailwind v3, whose \`tailwind.config = {}\` object does not exist in v4: never emit that script either, put custom colours and fonts in the JSX as arbitrary values (bg-[#0b0b0f]).
    - <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Anuphan:wght@400;500;600;700&display=swap" rel="stylesheet" />
    - <style>body{font-family:'Anuphan','Inter',system-ui,sans-serif}</style>
    and in <body>: <div id="root"></div> then <script type="module" src="/src/main.tsx"></script>.
@@ -285,7 +286,7 @@ export function buildAgentSystemPrompt(
 
   const contract = `DOC OUTPUT CONTRACT — สำคัญ:
 - เมื่อจะออก/แก้เอกสาร ให้ครอบเนื้อหา Markdown ฉบับเต็มด้วย fenced block ที่ขึ้นต้น \`\`\`<kind> โดย <kind> เป็นหนึ่งใน: ${(Object.keys(DOC_LABELS) as DocKind[]).join(" | ")}
-- ส่งเอกสารทั้งฉบับเสมอ (ไม่ใช่เฉพาะส่วนที่แก้) และห้ามมี \`\`\` ซ้อนอยู่ภายในเอกสาร
+- ส่งเอกสารทั้งฉบับเสมอ (ไม่ใช่เฉพาะส่วนที่แก้) — ใส่บล็อกซ้อนภายในเอกสารได้ เช่น ผังสถานะหรือโครงสร้างข้อมูล แต่บล็อกซ้อนต้องระบุภาษาบนบรรทัดเปิดเสมอ (\`\`\`text, \`\`\`json, \`\`\`mermaid) และต้องปิดให้ครบทุกบล็อก ส่วนบรรทัด \`\`\` เปล่าๆ สงวนไว้ปิดตัวเอกสารเท่านั้น
 - ข้อความนอกบล็อกคือบทสนทนาปกติที่ผู้ใช้จะเห็นในแชท
 
 INTERACTIVE ASK CONTRACT — สำคัญมาก:

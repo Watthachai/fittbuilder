@@ -1,6 +1,6 @@
 import { after } from "next/server";
 import { z } from "zod";
-import { MESSAGE_MAX_CHARS } from "@/lib/limits";
+import { DOC_MAX_CHARS, MESSAGE_MAX_CHARS } from "@/lib/limits";
 import {
   blockedAssets,
   blockedAssetsNote,
@@ -60,8 +60,8 @@ const bodySchema = z.object({
   brief: z.string().max(MESSAGE_MAX_CHARS).optional(),
   previousFiles: z.record(z.string().max(200), z.string().max(200_000)).optional(),
   iterationMode: z.boolean().optional(),
-  brd: z.string().max(50_000).optional(),
-  prd: z.string().max(50_000).optional(),
+  brd: z.string().max(DOC_MAX_CHARS).optional(),
+  prd: z.string().max(DOC_MAX_CHARS).optional(),
   presetId: z
     .string()
     .refine((id) => PRESET_IDS.includes(id) || id === "other")

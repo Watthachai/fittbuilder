@@ -16,6 +16,7 @@ import {
   useSyncExternalStore,
 } from "react";
 import { DOC_PATHS, docOnlyFiles, docsFromFiles, hasRunnableApp } from "@/lib/define";
+import { DOC_MAX_CHARS } from "@/lib/limits";
 import { REORGANIZE_PROMPT } from "@/lib/code-health";
 import { commitRevision, revisionFiles } from "@/lib/revisions";
 import { buildPremiumContext, premiumOptionsFor } from "@/lib/skills/premium";
@@ -660,10 +661,16 @@ export default function Studio({ projectId }: { projectId: string }) {
         for await (const event of streamAgent(
           {
             phase: working.phase,
-            // Each agent only sees its own phase's turns, not the whole journey.
-            messages: working.messages
-              .filter((m) => m.phase === working.phase)
-              .map(({ role, content }) => ({ role, content })),
+            // The whole journey, not just this phase. Filtering here was an
+            // economy for a small context window; at 1,048,576 input tokens it
+            // only made the spec-writer blind to the interview its BRD was
+            // distilled from. The server keeps the current phase as the live
+            // conversation and hands the rest over as reference.
+            messages: working.messages.map(({ role, content, phase }) => ({
+              role,
+              content,
+              phase,
+            })),
             docs: docsFromFiles(working.files),
             skillId: working.skillId,
             express,
@@ -697,7 +704,12 @@ export default function Studio({ projectId }: { projectId: string }) {
         }
         if (!turn) throw new Error("ไม่ได้รับคำตอบจาก AI");
 
-        const docEntries = Object.entries(turn.docs) as [DocKind, string][];
+        // Bounded on write, like the reply, with the constant the request
+        // schema uses on read — a document too big to send back is a phase that
+        // can never continue.
+        const docEntries = (Object.entries(turn.docs) as [DocKind, string][]).map(
+          ([kind, text]) => [kind, text.slice(0, DOC_MAX_CHARS)] as [DocKind, string]
+        );
         if (docEntries.length > 0) {
           const files = { ...(working.files ?? {}) };
           for (const [kind, contents] of docEntries) {

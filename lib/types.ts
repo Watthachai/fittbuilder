@@ -412,7 +412,7 @@ export type GenerateSkillEvent =
 
 export interface AgentRequestBody {
   phase: PhaseId;
-  messages: Pick<ChatMessage, "role" | "content">[];
+  messages: Pick<ChatMessage, "role" | "content" | "phase">[];
   /** Current documents (user may have edited them in the code editor). */
   docs?: Partial<Record<DocKind, string>>;
   /** Selected domain skill template id, for domain-expert questioning. */

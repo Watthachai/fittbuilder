@@ -1444,6 +1444,18 @@ fund=false
 `;
 
 /**
+ * The Tailwind build the demo loads, named once for everyone who needs it: this
+ * file's <head>, the generator's rules, and the mount-time repair in lib/files.
+ *
+ * It is jsdelivr and not cdn.tailwindcss.com for one reason. The preview runs
+ * under COEP require-corp, where the browser DROPS a cross-origin file that
+ * sends neither Cross-Origin-Resource-Policy nor CORS. This one sends both;
+ * cdn.tailwindcss.com sends neither, so it fails as net::ERR_FAILED and not a
+ * single utility class resolves.
+ */
+export const TAILWIND_BROWSER_CDN = "https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4";
+
+/**
  * index.html shared in spirit by the scaffold and every generated demo: loads
  * Tailwind (CDN) + the FITT fonts and mounts the React root. The generator is
  * told to reproduce this <head> so the look stays consistent after Build.
@@ -1454,7 +1466,7 @@ const SCAFFOLD_INDEX_HTML = `<!doctype html>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>FITT Demo</title>
-    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <script src="${TAILWIND_BROWSER_CDN}"></script>
     <link
       href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Anuphan:wght@400;500;600;700&display=swap"
       rel="stylesheet"

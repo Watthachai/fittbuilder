@@ -1,18 +1,30 @@
+import { MESSAGE_MAX_CHARS } from "./limits";
 import { getPreset } from "./presets";
 import type { SpecAnswers } from "./types";
 
-/** Per-document character budget (PRD §9.6 caps the whole context ≤ ~8k tokens). */
-const DOC_CHAR_BUDGET = 6000;
+/**
+ * Per-document character budget.
+ *
+ * PRD §9.6 sized this at 6,000 characters to keep the whole context under ~8k
+ * tokens — correct for the model of the day, and quietly wrong now. An 11k BRD
+ * reached the spec-writer as a heading-only skeleton with every requirement's
+ * prose dropped, while the same prompt told it to "ส่งเอกสารทั้งฉบับเสมอ": it was
+ * asked to reissue a document it had never been shown. gemini-3.8-flash takes
+ * 1,048,576 input tokens, so at ~4 characters per token even six documents at
+ * this budget use well under a quarter of the window. The skeleton path stays as
+ * a backstop; it should now never fire for a real document.
+ */
+const DOC_CHAR_BUDGET = 120_000;
 
 /**
  * The brief gets a budget of its own, and a bigger one.
  *
- * The Define phase caps a prompt at 10k characters, so in practice a brief is
- * never cut here at all — which is the point. The BRD/PRD are a summary written
+ * Tied to the typed cap rather than guessed: any brief the textarea accepted
+ * reaches the model whole, which is the point. The BRD/PRD are a summary written
  * by an agent; the brief is what the customer actually said, and it is the only
  * place a hex value, a pixel measurement or an asset URL survives.
  */
-const BRIEF_CHAR_BUDGET = 12_000;
+const BRIEF_CHAR_BUDGET = MESSAGE_MAX_CHARS;
 
 /**
  * Truncate a long document while keeping its skeleton: headings, table rows

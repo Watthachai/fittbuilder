@@ -1,3 +1,4 @@
+import { TAILWIND_BROWSER_CDN } from "./scaffold";
 import type { FileChange, ProjectFiles } from "./types";
 
 /**
@@ -12,11 +13,32 @@ export function sanitizeCss(content: string): string {
     .replace(/^[ \t]*@tailwind\s+[^;]+;[ \t]*\r?\n?/gim, "");
 }
 
-/** Apply sanitizeCss to every .css entry in a file map (returns a new map). */
+/**
+ * Point Tailwind at the CDN that survives the preview's headers.
+ *
+ * The preview iframe runs COEP require-corp, under which the browser drops a
+ * cross-origin file carrying neither CORP nor CORS. cdn.tailwindcss.com carries
+ * neither — so the script 404s as net::ERR_FAILED, the `tailwind.config = {…}`
+ * line after it throws "tailwind is not defined", and because Tailwind never
+ * loaded, NOT ONE utility class resolves: the whole demo renders as unstyled
+ * HTML. Nothing about that failure points at a CDN URL, which is what made it
+ * cost an afternoon.
+ *
+ * The generator is told which URL to use and still reaches for the famous one,
+ * so telling it harder is not the fix. Which CDN can load is a property of where
+ * the demo RUNS, not a choice the demo gets to make — the same rule that keeps
+ * vite.config.js ours on every mount. Rewriting it here means projects already
+ * saved with the broken URL heal on their next boot.
+ */
+export function normalizeTailwindCdn(content: string): string {
+  return content.replace(/https?:\/\/cdn\.tailwindcss\.com[^"'\s>]*/g, TAILWIND_BROWSER_CDN);
+}
+
+/** Mount-time repairs over a whole file map (returns a new map). */
 export function sanitizeFiles(files: ProjectFiles): ProjectFiles {
   const out: ProjectFiles = {};
   for (const [path, content] of Object.entries(files)) {
-    out[path] = path.endsWith(".css") ? sanitizeCss(content) : content;
+    out[path] = normalizeTailwindCdn(path.endsWith(".css") ? sanitizeCss(content) : content);
   }
   return out;
 }

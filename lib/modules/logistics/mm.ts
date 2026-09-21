@@ -1,0 +1,37 @@
+import type { Module } from "../types";
+import { MM_SCREEN, MM_DATA } from "./mm-src";
+
+/**
+ * Materials management — the module every other logistics module reads from.
+ *
+ * It owns `material` and `vendor`. Production reads materials to explode a BOM,
+ * sales reads them to price an order line, the warehouse reads them to fill a bin.
+ * None of them may keep a copy, for the same reason payroll may not keep a second
+ * staff list: two material masters is not a bug anyone reports.
+ */
+export const MM: Module = {
+  id: "mm",
+  name: "จัดซื้อและคลังวัสดุ",
+  sapCode: "MM",
+  family: "logistics",
+  tier: "base",
+  pitch:
+    "ขอซื้อ สั่งซื้อ รับของ วางบิล อยู่ในเส้นเดียวกัน ระบบเทียบให้เองว่าสั่งเท่าไร รับจริงเท่าไร ผู้ขายวางบิลเท่าไร — ไม่ตรงกันมันบอกก่อนที่เงินจะออกจากบริษัท",
+  keyFeatures: [
+    "ข้อมูลหลักวัสดุและผู้ขาย",
+    "ใบขอซื้อและใบสั่งซื้อ",
+    "รับของและตรวจสอบใบแจ้งหนี้",
+    "บริหารสต็อกวัสดุ",
+    "ประเมินผู้ขาย",
+  ],
+  provides: ["material", "vendor", "purchaseOrder"],
+  needs: [],
+  effortDays: 12,
+  maPerMonth: 5000,
+  build:
+    "หน้าจัดซื้อและคลังวัสดุ ห้าแท็บ — ข้อมูลหลักวัสดุและผู้ขาย (แฟ้มวัสดุค้นหาและกรองตามกลุ่ม แฟ้มผู้ขายพร้อมเงื่อนไขชำระและเลขผู้เสียภาษี และตารางราคาที่ผู้ขายแต่ละรายเคยเสนอโดยไฮไลต์รายที่ถูกที่สุด) · ใบขอซื้อและใบสั่งซื้อ (ใบขอซื้อกดอนุมัติได้จริง ใบสั่งซื้อพร้อมมูลค่าและสถานะรับของ เปิดดูรายบรรทัดได้) · รับของและตรวจสอบใบแจ้งหนี้ (ใบรับของ และการตรวจสามทางที่เทียบยอดสั่ง–รับจริง–วางบิล แล้วบอกว่าใบไหนจ่ายได้ ใบไหนห้ามจ่ายเพราะของขาด) · บริหารสต็อกวัสดุ (มูลค่าสต็อกรวม ระดับคงเหลือเทียบจุดสั่งซื้อพร้อมแถบเตือน และรายการเคลื่อนไหวรับเข้า–จ่ายออก) · ประเมินผู้ขาย (จำนวนใบสั่งซื้อ มูลค่ารวม และอัตราส่งของครบคำนวณจากใบที่ปิดแล้ว)",
+  files: {
+    "src/modules/mm/screen.tsx": MM_SCREEN,
+    "src/modules/mm/data.ts": MM_DATA,
+  },
+};

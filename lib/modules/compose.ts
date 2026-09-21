@@ -1,5 +1,6 @@
 import type { ProjectFiles } from "@/lib/types";
 import type { Composition, MissingEntity, Module, QuoteLine } from "./types";
+import { FAMILY_ORDER } from "./types";
 
 /**
  * The app shell: navigation plus one route per selected module.
@@ -68,7 +69,14 @@ function screenName(m: Module): string {
  * broken by id, which is arbitrary but stable.
  */
 function inDataFlowOrder(selected: Module[]): Module[] {
-  const remaining = [...selected].sort((a, b) => a.id.localeCompare(b.id));
+  // Family first so the nav reads as whole businesses, id second so the order is
+  // stable. Data flow still wins: the readiness check below can only pick a module
+  // whose needs are already met.
+  const remaining = [...selected].sort(
+    (a, b) =>
+      FAMILY_ORDER.indexOf(a.family) - FAMILY_ORDER.indexOf(b.family) ||
+      a.id.localeCompare(b.id)
+  );
   const placed: Module[] = [];
   const satisfied = new Set<string>();
   while (remaining.length > 0) {

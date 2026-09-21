@@ -17,6 +17,14 @@ import type { ProjectFiles } from "@/lib/types";
  */
 export type ModuleFamily = "hr" | "logistics" | "finance";
 
+/**
+ * Catalogue order of the families, and the order their tabs appear in.
+ *
+ * It must stay dependency-safe: no family may need an entity a later family owns,
+ * because the composer uses this ahead of data flow when breaking ties.
+ */
+export const FAMILY_ORDER: ModuleFamily[] = ["hr", "logistics", "finance"];
+
 export interface Module {
   id: string;
   /** Thai display name — what the buyer reads on the quotation. */

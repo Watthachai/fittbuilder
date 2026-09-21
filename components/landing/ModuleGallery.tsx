@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { ArrowRight, Blocks, Check, TriangleAlert, X } from "lucide-react";
 import { composeModules } from "@/lib/modules/compose";
-import { MODULES } from "@/lib/modules/registry";
+import { FAMILIES, MODULES, modulesOf } from "@/lib/modules/registry";
 import type { Module } from "@/lib/modules/types";
 
 /**
@@ -15,10 +15,12 @@ import type { Module } from "@/lib/modules/types";
  * that personnel records owns, and a buyer who does not see that will select
  * payroll alone and get a screen with nothing behind it.
  *
- * So the layout is the dependency, not a grid of equal cards — the owner sits at
- * the top and everything that reads from it hangs off a rail. The rail is the
- * only loud element on the page and it carries state: lit while the data has an
- * owner, amber the moment something is reading from nobody.
+ * With one family that fitted a rail: an owner at the top, its readers hanging
+ * off it. Three families do not — accounting reads purchasing, and the chain is
+ * longer than one hop, so a rail would either lie about the depth or draw the
+ * same module twice. What a buyer actually scans for is the business area, so
+ * families lead, and each card carries its own dependency line: what it reads
+ * and from whom, amber the moment it is selected and that provider is not.
  */
 export default function ModuleGallery({
   disabled,
@@ -74,9 +76,10 @@ function ModuleModal({
   onClose: () => void;
   onCreate: (selected: Module[]) => void;
 }) {
-  const owners = MODULES.filter((m) => m.needs.length === 0);
-  const readers = MODULES.filter((m) => m.needs.length > 0);
-  const [chosen, setChosen] = useState<string[]>(MODULES.map((m) => m.id));
+  // Opening on everything would quote ten modules across three businesses to a
+  // buyer who came for one. The first family is the starting scope; the rest are
+  // one tap away.
+  const [chosen, setChosen] = useState<string[]>(modulesOf(FAMILIES[0].id).map((m) => m.id));
 
   const selected = useMemo(() => MODULES.filter((m) => chosen.includes(m.id)), [chosen]);
   const composed = useMemo(
@@ -88,8 +91,6 @@ function ModuleModal({
   const toggle = (id: string) =>
     setChosen((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
 
-  /** The module that owns an entity nobody selected — offered as a one-tap fix. */
-  const providerOf = (entity: string) => MODULES.find((m) => m.provides.includes(entity));
 
   if (typeof document === "undefined") return null;
 
@@ -122,49 +123,46 @@ function ModuleModal({
         </header>
 
         <div className="scroll-thin grid min-h-0 flex-1 gap-5 overflow-y-auto p-5 lg:grid-cols-[1fr_300px]">
-          <div>
-            {owners.map((owner) => {
-              const ownerOn = chosen.includes(owner.id);
-              const kids = readers.filter((r) => r.needs.some((e) => owner.provides.includes(e)));
-              const anyKidOn = kids.some((k) => chosen.includes(k.id));
-              const broken = anyKidOn && !ownerOn;
+          <div className="space-y-6">
+            {FAMILIES.map((family) => {
+              const mine = modulesOf(family.id);
+              const allOn = mine.every((m) => chosen.includes(m.id));
 
               return (
-                <div key={owner.id}>
-                  <ModuleCard module={owner} on={ownerOn} onToggle={() => toggle(owner.id)} />
-
-                  {/* The rail IS the dependency. Lit while the data has an owner;
-                      amber the moment something reads from nobody. */}
-                  <div
-                    className={
-                      "ml-6 border-l-2 pl-5 transition-colors " +
-                      (broken ? "border-halt/70" : ownerOn ? "border-shine/50" : "border-chalk/12")
-                    }
-                  >
-                    <p
-                      className={
-                        "py-2 text-[11.5px] transition-colors " +
-                        (broken ? "text-halt" : "text-chalk/45")
-                      }
-                    >
-                      {broken
-                        ? `ยังไม่ได้เลือก${owner.name} — โมดูลด้านล่างจึงไม่มีข้อมูลให้อ่าน`
-                        : `อ่าน ${owner.provides.join(" · ")} จาก${owner.name}`}
-                    </p>
-
-                    <div className="space-y-2">
-                      {kids.map((m) => (
-                        <ModuleCard
-                          key={m.id}
-                          module={m}
-                          on={chosen.includes(m.id)}
-                          warn={broken && chosen.includes(m.id)}
-                          onToggle={() => toggle(m.id)}
-                        />
-                      ))}
+                <section key={family.id}>
+                  <div className="mb-2.5 flex items-end justify-between gap-3">
+                    <div className="min-w-0">
+                      <h3 className="font-display text-[13.5px] font-semibold text-chalk">
+                        {family.name}
+                      </h3>
+                      <p className="text-[12px] leading-snug text-chalk/50">{family.blurb}</p>
                     </div>
+                    <button
+                      onClick={() =>
+                        setChosen((prev) =>
+                          allOn
+                            ? prev.filter((id) => !mine.some((m) => m.id === id))
+                            : [...new Set([...prev, ...mine.map((m) => m.id)])]
+                        )
+                      }
+                      className="shrink-0 rounded-md px-2 py-1 text-[11.5px] text-chalk/50 transition hover:bg-chalk/[0.06] hover:text-shine"
+                    >
+                      {allOn ? "เอาออกทั้งหมด" : "เลือกทั้งหมด"}
+                    </button>
                   </div>
-                </div>
+
+                  <div className="space-y-2">
+                    {mine.map((m) => (
+                      <ModuleCard
+                        key={m.id}
+                        module={m}
+                        on={chosen.includes(m.id)}
+                        note={noteFor(m, chosen)}
+                        onToggle={() => toggle(m.id)}
+                      />
+                    ))}
+                  </div>
+                </section>
               );
             })}
           </div>
@@ -210,23 +208,31 @@ function ModuleModal({
                   <p className="flex items-start gap-1.5 text-[12px] leading-snug text-halt">
                     <TriangleAlert size={14} className="mt-0.5 shrink-0" />
                     <span>
-                      {missing
-                        .map((x) => MODULES.find((m) => m.id === x.moduleId)?.name)
+                      {/* One entry per unmet entity, so a module short of three
+                          of them would otherwise be named three times. */}
+                      {[...new Set(missing.map((x) => x.moduleId))]
+                        .map((id) => MODULES.find((m) => m.id === id)?.name)
                         .filter(Boolean)
                         .join(" และ ")}{" "}
                       ต้องอ่านข้อมูลจากโมดูลที่ยังไม่ได้เลือก
                     </span>
                   </p>
                   {(() => {
-                    const fix = providerOf(missing[0].entity);
-                    return fix ? (
+                    // Adding one provider can uncover the next — accounting needs
+                    // sales, which needs the material master. One tap resolves the
+                    // whole chain rather than making the buyer find it hop by hop.
+                    const fixes = closureOf(selected).filter((m) => !chosen.includes(m.id));
+                    if (fixes.length === 0) return null;
+                    return (
                       <button
-                        onClick={() => toggle(fix.id)}
+                        onClick={() => setChosen((prev) => [...prev, ...fixes.map((m) => m.id)])}
                         className="mt-2 w-full rounded-lg border border-halt/50 py-1.5 text-[12px] text-halt transition hover:bg-halt/15"
                       >
-                        เพิ่ม{fix.name}
+                        {fixes.length === 1
+                          ? `เพิ่ม${fixes[0].name}`
+                          : `เพิ่มอีก ${fixes.length} โมดูลที่ต้องใช้`}
                       </button>
-                    ) : null;
+                    );
                   })()}
                 </div>
               )}
@@ -250,17 +256,47 @@ function ModuleModal({
   );
 }
 
+const providerOf = (entity: string) => MODULES.find((m) => m.provides.includes(entity));
+
+/** Every module the selection transitively depends on, the selection included. */
+function closureOf(selected: Module[]): Module[] {
+  const seen = new Map<string, Module>();
+  const walk = (m: Module) => {
+    for (const entity of m.needs) {
+      const owner = providerOf(entity);
+      if (!owner || seen.has(owner.id)) continue;
+      seen.set(owner.id, owner);
+      walk(owner);
+    }
+  };
+  for (const m of selected) walk(m);
+  return [...seen.values()];
+}
+
+/** What a module reads and from whom — amber once it is selected and they are not. */
+function noteFor(m: Module, chosen: string[]) {
+  if (m.needs.length === 0) return null;
+  const owners = m.needs.map(providerOf).filter(Boolean) as Module[];
+  const names = (xs: Module[]) => [...new Set(xs.map((x) => x.name))].join(" · ");
+  const unmet = owners.filter((o) => !chosen.includes(o.id));
+  if (unmet.length > 0 && chosen.includes(m.id)) {
+    return { warn: true, text: `ต้องเลือก${names(unmet)}ด้วย จึงจะมีข้อมูลให้อ่าน` };
+  }
+  return { warn: false, text: `อ่าน ${m.needs.join(" · ")} จาก${names(owners)}` };
+}
+
 function ModuleCard({
   module: m,
   on,
-  warn,
+  note,
   onToggle,
 }: {
   module: Module;
   on: boolean;
-  warn?: boolean;
+  note: { warn: boolean; text: string } | null;
   onToggle: () => void;
 }) {
+  const warn = note?.warn ?? false;
   return (
     <button
       onClick={onToggle}
@@ -294,6 +330,16 @@ function ModuleCard({
           )}
         </span>
         <span className="mt-1 block text-[12.5px] leading-snug opacity-70">{m.pitch}</span>
+        {note && (
+          <span
+            className={
+              "mt-1.5 block text-[11.5px] leading-snug " +
+              (note.warn ? "text-halt" : "opacity-45")
+            }
+          >
+            {note.text}
+          </span>
+        )}
       </span>
 
       <span className="shrink-0 text-right">

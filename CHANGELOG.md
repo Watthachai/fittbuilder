@@ -17,9 +17,14 @@ and is kept in sync with the entries below.
 ### Added
 - **Module catalog** (`lib/modules/`): a "เลือกโมดูล" picker on the landing page beside the template picker. Ticking modules composes a runnable project — screens, a PRD section and a quotation (effort days + monthly MA) — with no AI call.
 - **HR family, four modules, full key-feature coverage** matching the SAP module each is named after: PA (personal / contract / administrative data, personnel events, compensation & benefits), OM (org structure, positions & jobs, assignments, headcount planning, qualifications, reporting), PT (work schedule planning, time recording, absence management, attendance tracking), PY (payroll calculation, benefits, absence & lateness, statutory deductions, payment management).
+- **Logistics family**: MM (material & vendor master, requisitions & purchase orders, goods receipt with three-way invoice match, stock, vendor rating), PP (production master data, MRP, capacity planning, production orders, output reporting), SD (customer master, pricing & discounts, sales orders, shipping, billing, credit limits), WM (bin structure, putaway, picking, internal transfers, physical inventory).
+- **Finance family**: FI (chart of accounts & journal, payables, receivables, fixed assets, financial statements), CO (cost centres, internal orders, product costing, gross-margin analysis, profit centres).
+- **Cross-family entity contract**: accounting reads `vendor` from purchasing and `customer` from sales, so the journal is generated from real sales orders and supplier invoices. `lib/__tests__/modules-families.test.ts` holds the chain: every declared need has a provider, no module both provides and needs the same entity, and every module becomes buyable by adding its transitive closure.
 - `Module.keyFeatures` — the capability list a module claims. `lib/__tests__/modules-coverage.test.ts` holds each module's own generated source and quotation copy against it, so a module cannot claim a feature it does not build.
 
 ### Changed
+- The composer orders tabs by family before data flow, so a ten-module demo reads as whole businesses rather than interleaving personnel and warehouse screens. `FAMILY_ORDER` must stay dependency-safe for this to remain correct.
+- The module picker groups by family and puts each module's dependency on its own card; one tap adds a selection's whole transitive closure rather than one provider at a time.
 - Every demo figure is computed, not hard-coded: withholding tax walks the real PIT bands, social security is 5% capped at ฿750, absence is priced off the daily rate, and lateness is judged against the roster shift.
 
 ## [0.8.0] - 2026-06-24

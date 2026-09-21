@@ -1,5 +1,7 @@
 import type { Module } from "./types";
 import { PA } from "./hr/pa";
+import { OM } from "./hr/om";
+import { TM } from "./hr/tm";
 import { PY } from "./hr/py";
 
 /**
@@ -11,7 +13,9 @@ import { PY } from "./hr/py";
  * `provides`/`needs` contract has a real dependency to prove itself against from
  * the first build rather than three families of unrelated screens.
  */
-export const MODULES: Module[] = [PA, PY];
+// Catalogue order follows how an HR team grows into the system: records first,
+// then the structure around them, then what people do with their time, then pay.
+export const MODULES: Module[] = [PA, OM, TM, PY];
 
 export function getModule(id: string | null | undefined): Module | undefined {
   if (!id) return undefined;

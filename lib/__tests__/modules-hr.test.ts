@@ -10,6 +10,8 @@ import { MODULES, getModule, modulesOf } from "../modules/registry";
  */
 const PA = getModule("pa")!;
 const PY = getModule("py")!;
+const OM = getModule("om")!;
+const TM = getModule("tm")!;
 
 describe("the HR family", () => {
   it("is selectable as a whole with nothing missing", () => {
@@ -59,5 +61,47 @@ describe("the HR family", () => {
     const prd = composeModules([PA, PY]).prdSection;
 
     expect(prd).toMatch(/เงินเดือน[\s\S]*employee[\s\S]*ทะเบียนพนักงาน/);
+  });
+});
+
+describe("the rest of the HR family", () => {
+  it("ships all four parts a buyer names when they say ระบบ HR", () => {
+    expect(modulesOf("hr").map((m) => m.id)).toEqual(["pa", "om", "tm", "py"]);
+  });
+
+  it("gives every one of them a SAP code to be found by", () => {
+    // A buyer arriving from SAP searches "PA" or "OM". A Thai SME reads the Thai
+    // name. Both have to work, and neither claims to be SAP.
+    for (const m of modulesOf("hr")) expect(m.sapCode).toMatch(/^[A-Z]{2}$/);
+  });
+
+  /**
+   * Same contract as payroll, checked the same way: the declaration and the code
+   * must agree. An org chart with its own copy of the staff list looks correct
+   * until somebody changes department.
+   */
+  it("makes the org chart read personnel records instead of its own", () => {
+    expect(OM.needs).toContain("employee");
+    expect(OM.files["src/modules/om/screen.tsx"]).toContain('from "../pa/data"');
+  });
+
+  it("makes time and leave read personnel records instead of its own", () => {
+    expect(TM.needs).toContain("employee");
+    expect(TM.files["src/modules/tm/screen.tsx"]).toContain('from "../pa/data"');
+  });
+
+  it("lets a buyer take time tracking without payroll", () => {
+    // These are sold separately; needing payroll to use leave would be an
+    // invented dependency, not a real one.
+    expect(composeModules([PA, TM]).missing).toEqual([]);
+  });
+
+  it("prices the whole family as the sum of its parts", () => {
+    const out = composeModules(modulesOf("hr"));
+
+    expect(out.quoteLines).toHaveLength(4);
+    expect(out.totalEffortDays).toBe(
+      modulesOf("hr").reduce((n, m) => n + m.effortDays, 0)
+    );
   });
 });

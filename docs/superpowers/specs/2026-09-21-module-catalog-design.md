@@ -1,7 +1,7 @@
 # Module Catalog — Design Spec
 
 **Date:** 2026-09-21
-**Status:** Draft — awaiting review
+**Status:** Approved (design) — HR family first, no shared-cost discount
 **Depends on:** `lib/skills/` (domain skill templates, 2026-06-22), `lib/design-templates.ts`
 
 ## Problem Statement
@@ -129,9 +129,12 @@ their change.
   already do.
 - The picker extends the existing `SkillPicker` moment rather than adding a new screen, and
   groups by `family` with a running total.
-- v1 ships one family end to end rather than all three shallowly, so the composition rules
-  are proven against a real dependency (payroll needing personnel records) before the
-  catalogue is widened.
+- **v1 ships the HR family end to end** rather than all three shallowly, so the composition
+  rules are proven against a real dependency before the catalogue is widened. HR was chosen
+  because payroll cannot exist without personnel records — the `provides`/`needs` contract
+  has something real to prove itself against on the first build.
+- **No shared-infrastructure discount.** The fifth module costs the same as the first. A
+  discount rule invented before anyone has asked for one would be priced from a guess.
 
 ## Testing Decisions
 
@@ -163,7 +166,7 @@ is the failure this design exists to prevent.
 - A discount for infrastructure shared between modules.
 - Sending anything new to CRN — no payload change, no screenshots, no INDEX file.
 - Changing the demo stack.
-- All three SAP families. One family ships first.
+- The Logistics and Finance families. **HR ships first**; the others wait until the composer has been proven by a real dependency.
 - Any claim of SAP compatibility. SAP codes are search aliases and nothing more.
 
 ## Further Notes

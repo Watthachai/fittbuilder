@@ -2,13 +2,13 @@
 
 **Date:** 2026-09-21
 **Status:** Approved (design) — HR family first, no shared-cost discount
-**Depends on:** `lib/skills/` (domain skill templates, 2026-06-22), `lib/design-templates.ts`
+**Depends on:** the domain templates (domain skill templates, 2026-06-22), the design templates
 
 ## Problem Statement
 
 A buyer arrives saying "ผมอยากได้ระบบ HR" and means something specific: personnel records,
 org chart, payroll, leave. Today that intent survives only as free text in one multi-select
-answer inside `lib/skills/erp.ts` — six option strings with no price, no build spec, and no
+answer inside the ERP domain template — six option strings with no price, no build spec, and no
 relationship to each other. Selecting "HR" and "Finance" tells the system nothing about the
 fact that both of them read the same employee table.
 
@@ -36,13 +36,13 @@ shared files — the composer does.
 | Decision | Choice | Why |
 |---|---|---|
 | What a module carries | **Spec + build recipe + real source** (three faces) | The interview needs a persona and questions; the build needs binding instructions; consistency needs actual code |
-| Relationship to existing types | **`Module` generalises `PremiumOption`**, gaining `tier: "base" \| "premium"` | `PremiumOption` already has `name`/`pitch`/`requires`/`effortDays`/`build`. A third overlapping concept would split pricing and MA logic across two places |
+| Relationship to existing types | **`Module` generalises `PremiumOption`**, gaining `tier: "base" \| "premium"` | A premium option already carries a buyer-facing name, a pitch, the effort that becomes a quotation line and a build spec. A third overlapping concept would split pricing and MA logic across two places. Migrating the premium catalogue onto it is deferred — see Out of Scope |
 | Domain layer | **`SkillTemplate` unchanged** — it stays the persona/domain layer; modules hang off it | Modules are scope; skills are expertise. Different questions |
 | Selection | **AI pre-selects, user adjusts** | Matches `SkillPicker`'s existing detect → confirm → gallery flow |
 | Naming | **Thai name primary, SAP code as a searchable alias** | A buyer from SAP searches "PA"; a Thai SME does not know what PA means. We also do not claim to be SAP |
-| Surviving the next Build | **Separate territory** — modules own `src/modules/<id>/`, the model owns everything else | Locking files would make "เปลี่ยนสีปุ่มหน้าทะเบียนพนักงาน" silently do nothing. Not locking means the second build destroys the module |
+| Surviving the next Build | **Separate territory** — modules own the module's own directory, the model owns everything else | Locking files would make "เปลี่ยนสีปุ่มหน้าทะเบียนพนักงาน" silently do nothing. Not locking means the second build destroys the module |
 | Collisions | **Modules never touch shared files.** The composer generates `App.tsx`, navigation and routing | The only merge that exists today is "later wins", which loses a module with no error |
-| Storage | **In-repo, real files**, like `lib/skills/` and `lib/scaffold.ts` | Code that must compile and be tested does not belong in a textarea. A DB-authored tier can come later |
+| Storage | **In-repo, real files**, like the domain templates and the demo scaffold | Code that must compile and be tested does not belong in a textarea. A DB-authored tier can come later |
 | Entity sharing | Each module declares **`provides`** (entities it owns) and **`needs`** (entities it reads) | PY reads the employee PA owns. This promotes `PremiumOption.requires` from feature strings to entity names |
 | Pricing | **Sum `effortDays`; sum MA per module per month.** No shared-infrastructure discount in v1 | The quotation already renders line items. A discount rule with no observed demand is speculation |
 
@@ -58,15 +58,18 @@ These were considered in design and are recorded so they are not re-proposed.
 
 ## Architecture
 
-### The module type — `lib/modules/types.ts`
+### The module type
 
-`Module` is `PremiumOption` widened. Every existing `PremiumOption` is a valid `Module` with
-`tier: "premium"`, so the current premium catalogue migrates by adding one field.
+`Module` is `PremiumOption` widened: same idea at a bigger grain, so pricing and monthly
+maintenance keep one home instead of two. It is NOT a drop-in supertype — a premium option
+carries no family, no entity contract and no source of its own, so migrating the existing
+catalogue means filling those in, not adding one field. v1 introduces `Module` alongside and
+leaves the premium catalogue where it is; unifying them is its own piece of work.
 
 The new parts are `provides`/`needs` (the entity contract), `family` (grouping), `sapCode`
 (alias only), and `files` — the module's own source, confined to its own directory.
 
-### The composer — `lib/modules/compose.ts`
+### The composer
 
 One pure function is the whole seam:
 
@@ -84,11 +87,11 @@ prevention, pricing and document text are all decided here and nowhere else.
 
 ### Territory
 
-- `src/modules/<id>/` — the module's own files. The generator is told this directory is
+- the module's own directory — the module's own files. The generator is told this directory is
   authored and must be edited in place, never regenerated wholesale.
-- `src/App.tsx`, navigation, routing — composer-generated, model-editable.
+- the app shell, navigation, routing — composer-generated, model-editable.
 
-The generator's `ARCHITECTURE` contract (`lib/prompts.ts`) gains one rule describing the
+The generator's `ARCHITECTURE` contract (the generator's rules) gains one rule describing the
 split. This is guidance, not a lock: a user asking to change a module's screen must get
 their change.
 
@@ -119,12 +122,12 @@ their change.
 
 - `PremiumOption` is renamed to `Module` and widened; `tier` defaults to `"premium"` so
   existing catalogue entries migrate untouched. The pricing and MA logic keeps one home.
-- Modules live one file per module under `lib/modules/`, aggregated by a registry, mirroring
-  `lib/skills/registry.ts`.
+- Modules live one file per module under the module catalogue, aggregated by a registry, mirroring
+  the domain templates' registry.
 - `provides`/`needs` are entity names, compared as strings. No schema language, no types
   describing types — the composer only needs to answer "is this satisfied".
 - The composer is pure and synchronous. Anything requiring IO stays in the caller.
-- The generator contract gains one rule about `src/modules/<id>/`. No new API parameter:
+- The generator contract gains one rule about the module's own directory. No new API parameter:
   module scope reaches the build through the brief and the PRD, exactly as design templates
   already do.
 - The picker extends the existing `SkillPicker` moment rather than adding a new screen, and
@@ -143,7 +146,7 @@ document text, what price, what missing dependencies. It must not reach into how
 composer decides.
 
 **One seam: `composeModules`.** Every rule is provable through it, with no mounting, no
-network and no React — matching the existing pure-function tests in `lib/__tests__/`.
+network and no React — matching the existing pure-function tests in the existing pure-function tests.
 
 Cases to cover:
 
@@ -155,7 +158,7 @@ Cases to cover:
 - `quoteLines` sum to the same total as the sum of `effortDays`.
 - An existing `PremiumOption` shaped object composes as `tier: "premium"` without change.
 
-Prior art: `lib/__tests__/doc-sync.test.ts` and `lib/__tests__/agent-stream.test.ts` both
+Prior art: the doc-sync tests and the agent-stream tests both
 assert behaviour through one function and read as explanations of a past failure. The
 collision case should be written the same way, because "later wins" losing a module silently
 is the failure this design exists to prevent.
@@ -163,6 +166,8 @@ is the failure this design exists to prevent.
 ## Out of Scope
 
 - Partner- or user-authored modules (DB-backed). In-repo only for v1.
+- Migrating the existing premium catalogue onto `Module`. The two coexist until a base
+  catalogue exists to migrate against.
 - A discount for infrastructure shared between modules.
 - Sending anything new to CRN — no payload change, no screenshots, no INDEX file.
 - Changing the demo stack.

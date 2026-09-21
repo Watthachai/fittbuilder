@@ -38,8 +38,11 @@ describe("the HR family", () => {
     const payrollScreen = PY.files["src/modules/py/screen.tsx"];
 
     expect(payrollScreen).toContain('from "../pa/data"');
-    // And it must not have shipped a staff list of its own alongside it.
-    expect(PY.files["src/modules/py/data.ts"]).not.toContain("EMPLOYEES");
+    // And it must not have declared a staff list of its own anywhere. Reading PA's
+    // list is the point; owning a second one is the regression.
+    for (const source of Object.values(PY.files)) {
+      expect(source).not.toMatch(/export const EMPLOYEES/);
+    }
   });
 
   it("keeps every module inside its own directory", () => {

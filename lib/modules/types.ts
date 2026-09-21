@@ -36,6 +36,16 @@ export interface Module {
   maPerMonth: number;
   /** What the generator must actually produce. */
   build: string;
+  /**
+   * The capabilities this module is expected to cover, taken from the SAP module
+   * it is named after rather than invented here.
+   *
+   * They are data instead of prose because a claim of completeness that nothing
+   * checks is worth nothing: the first pass at this catalogue shipped one screen
+   * per module and called it HR, and the gap only surfaced when somebody read the
+   * source document. The tests hold each module's own source against this list.
+   */
+  keyFeatures: string[];
   /** The module's own source, confined to `src/modules/<id>/`. */
   files: ProjectFiles;
   /** The SAP module this is comparable to — a search alias, never a claim. */

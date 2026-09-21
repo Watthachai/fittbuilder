@@ -14,6 +14,14 @@ and is kept in sync with the entries below.
 
 ## [Unreleased]
 
+### Added
+- **Module catalog** (`lib/modules/`): a "เลือกโมดูล" picker on the landing page beside the template picker. Ticking modules composes a runnable project — screens, a PRD section and a quotation (effort days + monthly MA) — with no AI call.
+- **HR family, four modules, full key-feature coverage** matching the SAP module each is named after: PA (personal / contract / administrative data, personnel events, compensation & benefits), OM (org structure, positions & jobs, assignments, headcount planning, qualifications, reporting), PT (work schedule planning, time recording, absence management, attendance tracking), PY (payroll calculation, benefits, absence & lateness, statutory deductions, payment management).
+- `Module.keyFeatures` — the capability list a module claims. `lib/__tests__/modules-coverage.test.ts` holds each module's own generated source and quotation copy against it, so a module cannot claim a feature it does not build.
+
+### Changed
+- Every demo figure is computed, not hard-coded: withholding tax walks the real PIT bands, social security is 5% capped at ฿750, absence is priced off the daily rate, and lateness is judged against the roster shift.
+
 ## [0.8.0] - 2026-06-24
 
 ### Added

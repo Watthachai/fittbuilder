@@ -38,12 +38,12 @@ export default function TemplateGallery({
   return (
     <>
       {/* One entry point, not a wall of cards on the launchpad: a button that
-          opens the gallery. The cards live inside that modal. */}
-      <div className="border-t border-dashed border-chalk/10 px-4 py-3">
+          opens the gallery. The cards live inside that modal. The row it sits in
+          belongs to the LaunchPad, which pairs it with the module entry. */}
         <button
           onClick={() => setGalleryOpen(true)}
           disabled={disabled}
-          className="group flex w-full items-center gap-2.5 rounded-xl border border-chalk/15 px-3.5 py-2.5 text-left transition hover:border-shine/60 hover:bg-chalk/[0.03] disabled:opacity-40"
+          className="group flex h-full w-full items-center gap-2.5 rounded-xl border border-chalk/15 px-3.5 py-2.5 text-left transition hover:border-shine/60 hover:bg-chalk/[0.03] disabled:opacity-40"
         >
           <LayoutTemplate size={17} className="shrink-0 text-shine" />
           <span className="min-w-0 flex-1">
@@ -59,7 +59,6 @@ export default function TemplateGallery({
             className="shrink-0 text-chalk/30 transition group-hover:translate-x-0.5 group-hover:text-shine"
           />
         </button>
-      </div>
 
       {/* The gallery hides while a template's form is open, so it is the layer
           behind — pick a card → form; close the form → back to the cards. */}

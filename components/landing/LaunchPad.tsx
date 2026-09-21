@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { ArrowRight, FileText, MessagesSquare, Paperclip, Plus, X } from "lucide-react";
-import { createProject } from "@/lib/storage";
+import { createProject, saveProject } from "@/lib/storage";
 import { ATTACHMENT_TEXT_MAX_CHARS, MESSAGE_MAX_CHARS, MESSAGE_WARN_CHARS } from "@/lib/limits";
 import { setPendingAction, setPendingAttachments } from "@/lib/pending-action";
 import {
@@ -17,6 +17,9 @@ import SkillPicker from "@/components/studio/SkillPicker";
 import SkillDropdown from "@/components/studio/SkillDropdown";
 import OrgSelect from "@/components/org/OrgSelect";
 import TemplateGallery from "@/components/landing/TemplateGallery";
+import ModuleGallery from "@/components/landing/ModuleGallery";
+import { projectFilesFor } from "@/lib/modules/project";
+import type { Module } from "@/lib/modules/types";
 import type { ChatAttachmentInput } from "@/lib/types";
 
 
@@ -134,6 +137,42 @@ export default function LaunchPad({
       setError(`สร้างโปรเจกต์ไม่สำเร็จ: ${msg}`);
       setLaunching(false);
       setPicking(false);
+    }
+  };
+
+  /**
+   * The module path: no brief, no interview, no generation.
+   *
+   * A module selection already contains the demo, so the project is created with
+   * its files in place and the studio boots straight into a running preview —
+   * the same route it takes when reopening an app that was built weeks ago. The
+   * express path above cannot be reused here because it exists to hand a brief to
+   * the model, and there is nothing here for the model to do.
+   */
+  const createFromModules = async (selected: Module[]) => {
+    if (launching || selected.length === 0) return;
+    setLaunching(true);
+    try {
+      const project = await createProject({
+        name: selected.map((m) => m.name).join(" · "),
+        phase: "build",
+        orgId: selectedOrgId ?? undefined,
+      });
+      await saveProject({
+        ...project,
+        files: projectFilesFor(selected),
+        phase: "build",
+        // Scope was chosen from the catalogue rather than interviewed, so the two
+        // phases that exist to establish it are already answered.
+        approvedPhases: ["define", "plan"],
+      });
+      await onLaunch?.();
+      router.push(`/project/${project.id}`);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      console.error("[launchpad] module create failed:", msg);
+      setError(`สร้างเดโมจากโมดูลไม่สำเร็จ: ${msg}`);
+      setLaunching(false);
     }
   };
 
@@ -353,10 +392,21 @@ export default function LaunchPad({
 
       {/* Curated looks: pick one, the form tells you exactly which images to
           go find. Ends in the same express path as the box above. */}
-      <TemplateGallery
-        disabled={launching}
-        onCreate={(brief) => void createExpress(brief, null)}
-      />
+      {/* Two ways in besides typing, side by side because they are peers: one
+          chooses how it LOOKS and hands a brief to the model, the other chooses
+          what it DOES and hands back a demo that is already written. */}
+      <div className="border-t border-dashed border-chalk/10 px-4 py-3">
+        <div className="grid gap-2 sm:grid-cols-2">
+          <TemplateGallery
+            disabled={launching}
+            onCreate={(brief) => void createExpress(brief, null)}
+          />
+          <ModuleGallery
+            disabled={launching}
+            onCreate={(selected) => void createFromModules(selected)}
+          />
+        </div>
+      </div>
         </>
       )}
     </div>

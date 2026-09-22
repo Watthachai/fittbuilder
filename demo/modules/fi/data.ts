@@ -106,6 +106,19 @@ export const JOURNAL: JournalEntry[] = [
       { account: "2010", amount: -(iv.amount + Math.round(iv.amount * VAT_RATE)) },
     ],
   })),
+  ...PURCHASE_INVOICES.filter((iv) => iv.paid).map((iv, i) => {
+    const gross = iv.amount + Math.round(iv.amount * VAT_RATE);
+    return {
+      no: "JV-6935" + i,
+      date: iv.date,
+      memo: "จ่ายชำระหนี้ " + iv.no + " — " + vendor(iv.vendor).name,
+      ref: iv.no,
+      lines: [
+        { account: "2010", amount: gross },
+        { account: "1010", amount: -gross },
+      ],
+    };
+  }),
   {
     no: "JV-6940", date: "2026-09-25", memo: "ตั้งค่าใช้จ่ายเงินเดือนประจำงวด",
     lines: [
@@ -189,7 +202,7 @@ const termDays = (terms: string) => Number(terms.match(/\d+/)?.[0] ?? 0);
 
 /** เจ้าหนี้ที่ยังไม่จ่าย — อ่านผู้ขายจากแฟ้มจัดซื้อ */
 export function payables() {
-  return PURCHASE_INVOICES.map((iv) => {
+  return PURCHASE_INVOICES.filter((iv) => !iv.paid).map((iv) => {
     const v = vendor(iv.vendor);
     const due = addDays(iv.date, termDays(v.terms));
     const amount = iv.amount + Math.round(iv.amount * VAT_RATE);

@@ -618,6 +618,19 @@ export const JOURNAL: JournalEntry[] = [
       { account: "2010", amount: -(iv.amount + Math.round(iv.amount * VAT_RATE)) },
     ],
   })),
+  ...PURCHASE_INVOICES.filter((iv) => iv.paid).map((iv, i) => {
+    const gross = iv.amount + Math.round(iv.amount * VAT_RATE);
+    return {
+      no: "JV-6935" + i,
+      date: iv.date,
+      memo: "จ่ายชำระหนี้ " + iv.no + " — " + vendor(iv.vendor).name,
+      ref: iv.no,
+      lines: [
+        { account: "2010", amount: gross },
+        { account: "1010", amount: -gross },
+      ],
+    };
+  }),
   {
     no: "JV-6940", date: "2026-09-25", memo: "ตั้งค่าใช้จ่ายเงินเดือนประจำงวด",
     lines: [
@@ -701,7 +714,7 @@ const termDays = (terms: string) => Number(terms.match(/\\d+/)?.[0] ?? 0);
 
 /** เจ้าหนี้ที่ยังไม่จ่าย — อ่านผู้ขายจากแฟ้มจัดซื้อ */
 export function payables() {
-  return PURCHASE_INVOICES.map((iv) => {
+  return PURCHASE_INVOICES.filter((iv) => !iv.paid).map((iv) => {
     const v = vendor(iv.vendor);
     const due = addDays(iv.date, termDays(v.terms));
     const amount = iv.amount + Math.round(iv.amount * VAT_RATE);
@@ -739,382 +752,1026 @@ export { VENDORS, CUSTOMERS };
 `,
 
   "fi/screen.tsx": `import { useState } from "react";
+import type { ReactNode } from "react";
 import {
-  PERIOD, ACCOUNTS, ASSETS, JOURNAL, VENDORS, CUSTOMERS, AGING_BUCKETS,
-  account, baht, entryTotal, isBalanced, trialBalance,
-  profitAndLoss, balanceSheet, payables, receivables, bucketOf,
-  monthlyDepreciation, accumulated, monthsHeld,
+  ArrowRight, Banknote, BookOpen, Building, CalendarClock, CircleCheck, CircleX, Coins,
+  FileText, Landmark, Layers, Receipt, Scale, Search as SearchIcon, Sigma, TrendingDown,
+  TrendingUp, TriangleAlert, Users, Wallet,
+} from "lucide-react";
+import {
+  ACCOUNTS, AGING_BUCKETS, ASSETS, JOURNAL, PERIOD, accumulated, account, baht, balanceSheet,
+  bucketOf, entryTotal, isBalanced, monthlyDepreciation, monthsHeld, payables, profitAndLoss,
+  receivables, trialBalance,
 } from "./data";
-import type { JournalEntry } from "./data";
+import type { Asset, JournalEntry } from "./data";
+import {
+  Avatar, Badge, Bar, Button, Card, Chip, ColumnChart, Donut, Dot, IconRow, Note, PageHead,
+  Progress, Reveal, Search, Segmented, Select, StatStrip, Tabs, Tag, TintCard, swatchFor,
+} from "../ui";
+import { DataTable, DetailModal, FormModal } from "../kit";
+import type { Column } from "../kit";
 
-type Aged = { amount: number; overdueDays: number };
-import { Card, Stat, Head, Row, TH } from "../ui";
+const TABS = ["ผังบัญชีและสมุดรายวัน", "เจ้าหนี้การค้า", "ลูกหนี้การค้า", "สินทรัพย์ถาวร", "งบการเงิน"];
 
-const TABS = [
-  "ผังบัญชีและสมุดรายวัน",
-  "เจ้าหนี้การค้า",
-  "ลูกหนี้การค้า",
-  "สินทรัพย์ถาวร",
-  "งบการเงิน",
-];
+const ACCOUNT_TYPES = ["สินทรัพย์", "หนี้สิน", "ส่วนของเจ้าของ", "รายได้", "ค่าใช้จ่าย"];
+const typeSwatch = (t: string) => swatchFor(t, ACCOUNT_TYPES);
 
-export default function FiScreen({ section }: { section?: string }) {
-  // Which capability to show is the navigation's decision, not this screen's.
-  const tab = section && TABS.includes(section) ? section : TABS[0];
+const LEDGER_TABS = ["ผังบัญชี", "สมุดรายวัน"];
+const LEDGER_ICONS: Record<string, ReactNode> = {
+  ผังบัญชี: <Layers size={13} />,
+  สมุดรายวัน: <BookOpen size={13} />,
+};
+
+const STATEMENT_TABS = ["งบกำไรขาดทุน", "งบแสดงฐานะการเงิน"];
+const STATEMENT_ICONS: Record<string, ReactNode> = {
+  งบกำไรขาดทุน: <TrendingUp size={13} />,
+  งบแสดงฐานะการเงิน: <Scale size={13} />,
+};
+
+type TrialRow = ReturnType<typeof trialBalance>[number];
+
+/* ----------------------------------------------------------------- screen */
+
+export default function FiScreen({
+  section,
+  onOpenSection,
+}: {
+  section?: string;
+  onOpenSection?: (index: number) => void;
+}) {
+  const tab = section && TABS.includes(section) ? section : undefined;
+
+  const [q, setQ] = useState("");
+  const [type, setType] = useState("ทุกประเภท");
   const [openEntry, setOpenEntry] = useState<JournalEntry | null>(null);
+  const [openAccount, setOpenAccount] = useState<TrialRow | null>(null);
+  const [openAsset, setOpenAsset] = useState<Asset | null>(null);
+
+  const tb = trialBalance();
   const bs = balanceSheet();
+  const pl = profitAndLoss();
+  const ap = payables();
+  const ar = receivables();
+  const unbalanced = JOURNAL.filter((e) => !isBalanced(e));
+
+  const panels = (
+    <>
+      <FormModal
+        open={openEntry !== null}
+        title="รายการในสมุดรายวัน"
+        subtitle={openEntry ? \`\${openEntry.no} · \${openEntry.date}\` : undefined}
+        onClose={() => setOpenEntry(null)}
+        size="lg"
+      >
+        {openEntry && <EntryRecord e={openEntry} />}
+      </FormModal>
+
+      <FormModal
+        open={openAccount !== null}
+        title="บัญชีแยกประเภท"
+        subtitle={openAccount ? \`\${openAccount.code} · \${openAccount.name}\` : undefined}
+        onClose={() => setOpenAccount(null)}
+        size="lg"
+      >
+        {openAccount && <AccountRecord a={openAccount} onOpenEntry={(e) => { setOpenAccount(null); setOpenEntry(e); }} />}
+      </FormModal>
+
+      <FormModal
+        open={openAsset !== null}
+        title="สินทรัพย์ถาวร"
+        subtitle={openAsset ? \`\${openAsset.code} · \${openAsset.name}\` : undefined}
+        onClose={() => setOpenAsset(null)}
+        size="sm"
+      >
+        {openAsset && <AssetRecord a={openAsset} />}
+      </FormModal>
+    </>
+  );
+
+  if (!tab) {
+    return (
+      <>
+        <Overview
+          pl={pl}
+          bs={bs}
+          ap={ap}
+          ar={ar}
+          unbalanced={unbalanced}
+          onOpenSection={onOpenSection}
+          onOpenEntry={setOpenEntry}
+          onOpenAccount={setOpenAccount}
+        />
+        {panels}
+      </>
+    );
+  }
 
   return (
     <div>
-      <div className="mb-4 flex items-start justify-between">
-        <div>
-          <h1 className="text-xl font-semibold text-slate-900">บัญชีการเงิน</h1>
-          <p className="text-sm text-slate-500">
-            {PERIOD.label} · {JOURNAL.length} รายการในสมุดรายวัน · {ACCOUNTS.length} บัญชี
-          </p>
-        </div>
-        <span className={"rounded-full px-3 py-1.5 text-xs " + (bs.balances ? "bg-emerald-50 text-emerald-700" : "bg-rose-50 text-rose-700")}>
-          {bs.balances ? "งบดุลลงตัว" : "งบดุลไม่ลงตัว"}
-        </span>
-      </div>
+      <PageHead
+        title="บัญชีการเงิน"
+        meta={\`\${tab} · \${PERIOD.label} · \${JOURNAL.length} รายการในสมุดรายวัน · \${ACCOUNTS.length} บัญชี\`}
+        right={<Badge tone={bs.balances ? "ok" : "bad"} dot>{bs.balances ? "งบดุลลงตัว" : "งบดุลไม่ลงตัว"}</Badge>}
+      />
 
-      {tab === "ผังบัญชีและสมุดรายวัน" && <Ledger onOpen={setOpenEntry} />}
-      {tab === "เจ้าหนี้การค้า" && <Payables />}
-      {tab === "ลูกหนี้การค้า" && <Receivables />}
-      {tab === "สินทรัพย์ถาวร" && <FixedAssets />}
-      {tab === "งบการเงิน" && <Statements />}
+      {tab === "ผังบัญชีและสมุดรายวัน" && (
+        <Ledger
+          tb={tb}
+          q={q}
+          setQ={setQ}
+          type={type}
+          setType={setType}
+          onOpenAccount={setOpenAccount}
+          onOpenEntry={setOpenEntry}
+        />
+      )}
+      {tab === "เจ้าหนี้การค้า" && <Payables rows={ap} />}
+      {tab === "ลูกหนี้การค้า" && <Receivables rows={ar} />}
+      {tab === "สินทรัพย์ถาวร" && <Assets onOpen={setOpenAsset} />}
+      {tab === "งบการเงิน" && <Statements pl={pl} bs={bs} />}
 
-      {openEntry && <EntryDialog entry={openEntry} onClose={() => setOpenEntry(null)} />}
+      {panels}
 
       <div hidden data-fitt-index>
         <button data-fitt-screen="บัญชีการเงิน" />
-        <button data-fitt-screen="รายการบัญชีในสมุดรายวัน" data-fitt-modal onClick={() => setOpenEntry(JOURNAL[0])} />
+        <button data-fitt-screen="รายการในสมุดรายวัน" data-fitt-modal onClick={() => setOpenEntry(JOURNAL[0])} />
+        <button data-fitt-screen="บัญชีแยกประเภท" data-fitt-modal onClick={() => setOpenAccount(tb[0])} />
+        <button data-fitt-screen="สินทรัพย์ถาวร" data-fitt-modal onClick={() => setOpenAsset(ASSETS[0])} />
       </div>
     </div>
   );
 }
 
-function Ledger({ onOpen }: { onOpen: (e: JournalEntry) => void }) {
-  const tb = trialBalance();
-  const unbalanced = JOURNAL.filter((e) => !isBalanced(e));
+/* ------------------------------------------------------------- overview */
+
+function Overview({
+  pl,
+  bs,
+  ap,
+  ar,
+  unbalanced,
+  onOpenSection,
+  onOpenEntry,
+  onOpenAccount,
+}: {
+  pl: ReturnType<typeof profitAndLoss>;
+  bs: ReturnType<typeof balanceSheet>;
+  ap: ReturnType<typeof payables>;
+  ar: ReturnType<typeof receivables>;
+  unbalanced: JournalEntry[];
+  onOpenSection?: (index: number) => void;
+  onOpenEntry: (e: JournalEntry) => void;
+  onOpenAccount: (a: TrialRow) => void;
+}) {
+  const overdueAp = ap.filter((x) => x.overdueDays > 0);
+  const overdueAr = ar.filter((x) => x.overdueDays > 0);
+  const unbilled = ar.filter((x) => !x.billed);
+
+  const expenseSegments = pl.expenses
+    .filter((a) => a.balance > 0)
+    .map((a) => ({ label: a.name, value: a.balance, swatch: swatchFor(a.code) }));
+
+  const recent = [...JOURNAL].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 6);
+
+  const seeAll = (index: number) =>
+    onOpenSection ? (
+      <button
+        onClick={() => onOpenSection(index)}
+        className="flex items-center gap-1 rounded-lg border border-slate-200 px-2.5 py-1 text-[12px] text-slate-600 transition hover:border-violet-300 hover:text-violet-700 dark:border-slate-700 dark:text-slate-300"
+      >
+        ดูทั้งหมด <ArrowRight size={12} />
+      </button>
+    ) : undefined;
+
   return (
-    <div className="space-y-4">
-      <Card title="ผังบัญชีและยอดคงเหลือ" subtitle="ยอดเดบิตรวมต้องเท่ากับยอดเครดิตรวม">
-        <table className="w-full text-sm">
-          <Head cols={[{ k: "รหัสบัญชี" }, { k: "ชื่อบัญชี" }, { k: "ประเภท" }, { k: "เดบิต", right: true }, { k: "เครดิต", right: true }]} />
-          <tbody className="divide-y divide-slate-100">
-            {tb.map((a) => (
-              <tr key={a.code} className="hover:bg-sky-50">
-                <td className={TH + " font-mono text-xs text-slate-500"}>{a.code}</td>
-                <td className={TH + " font-medium text-slate-900"}>{a.name}</td>
-                <td className={TH + " text-slate-600"}>{a.type}</td>
-                <td className={TH + " text-right text-slate-700"}>{a.balance > 0 ? baht(a.balance) : "—"}</td>
-                <td className={TH + " text-right text-slate-700"}>{a.balance < 0 ? baht(-a.balance) : "—"}</td>
+    <div>
+      <PageHead
+        title="ภาพรวมบัญชีการเงิน"
+        meta={\`\${PERIOD.label} · \${PERIOD.from} ถึง \${PERIOD.to}\`}
+        right={
+          onOpenSection ? (
+            <Button variant="primary" icon={<Sigma size={15} />} onClick={() => onOpenSection(4)}>
+              เปิดงบการเงิน
+            </Button>
+          ) : undefined
+        }
+      />
+
+      <Reveal>
+        <div className="grid gap-3 xl:grid-cols-3">
+          <Card
+            className="xl:col-span-2"
+            title={<span className="flex items-center gap-2"><TrendingUp size={15} className="text-slate-400" />ผลประกอบการงวดนี้</span>}
+            action={seeAll(4)}
+          >
+            <div className="p-4">
+              <p className={"text-[32px] font-semibold leading-none tabular-nums " + (pl.profit >= 0 ? "text-slate-900 dark:text-slate-50" : "text-rose-600 dark:text-rose-400")}>
+                {baht(pl.profit)}
+              </p>
+              <p className="mt-1.5 text-[12.5px] text-slate-500 dark:text-slate-400">
+                {pl.profit >= 0 ? "กำไร" : "ขาดทุน"}สุทธิ · รายได้ {baht(pl.revenue)} ค่าใช้จ่าย {baht(pl.expenseTotal)}
+              </p>
+
+              <div className="mt-4 space-y-2.5">
+                <div className="flex items-center gap-3">
+                  <span className="w-28 shrink-0 text-[12.5px] text-slate-600 dark:text-slate-300">รายได้</span>
+                  <span className="min-w-0 flex-1">
+                    <Bar pct={100} tone="ok" width="w-full" />
+                  </span>
+                  <span className="w-32 shrink-0 text-right text-[12.5px] tabular-nums text-slate-700 dark:text-slate-200">{baht(pl.revenue)}</span>
+                </div>
+                {pl.expenses
+                  .filter((a) => a.balance > 0)
+                  .map((a) => (
+                    <div key={a.code} className="flex items-center gap-3">
+                      <span className="flex w-28 shrink-0 items-center gap-1.5 truncate text-[12.5px] text-slate-600 dark:text-slate-300">
+                        <Dot className={swatchFor(a.code).dot} />
+                        {a.name.length > 12 ? a.name.slice(0, 12) + "…" : a.name}
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <Bar pct={(a.balance / pl.revenue) * 100} tone="bad" width="w-full" />
+                      </span>
+                      <span className="w-32 shrink-0 text-right text-[12.5px] tabular-nums text-slate-700 dark:text-slate-200">
+                        {baht(a.balance)}
+                      </span>
+                    </div>
+                  ))}
+              </div>
+            </div>
+          </Card>
+
+          <Card
+            title={<span className="flex items-center gap-2"><TriangleAlert size={15} className="text-slate-400" />ต้องจัดการ</span>}
+            action={seeAll(1)}
+          >
+            <div className="space-y-2.5 p-4">
+              {[
+                { icon: <Receipt size={15} />, label: "เจ้าหนี้เลยกำหนดชำระ", value: overdueAp.length, unit: "ใบ", tone: "bad" as const, to: 1 },
+                { icon: <Users size={15} />, label: "ลูกหนี้เลยกำหนดชำระ", value: overdueAr.length, unit: "ใบ", tone: "bad" as const, to: 2 },
+                { icon: <FileText size={15} />, label: "ส่งของแล้วยังไม่วางบิล", value: unbilled.length, unit: "ใบ", tone: "warn" as const, to: 2 },
+                { icon: <Scale size={15} />, label: "สมุดรายวันที่ไม่ลงตัว", value: unbalanced.length, unit: "รายการ", tone: "bad" as const, to: 0 },
+              ].map((r) => (
+                <button
+                  key={r.label}
+                  onClick={() => onOpenSection?.(r.to)}
+                  className="flex w-full items-center gap-3 rounded-xl bg-slate-50 px-3.5 py-3 text-left transition hover:bg-slate-100 dark:bg-slate-800/50 dark:hover:bg-slate-800"
+                >
+                  <span className="text-slate-400">{r.icon}</span>
+                  <span className="min-w-0 flex-1 text-[12.5px] text-slate-700 dark:text-slate-200">{r.label}</span>
+                  <Badge tone={r.value > 0 ? r.tone : "ok"}>
+                    {r.value} {r.unit}
+                  </Badge>
+                </button>
+              ))}
+              <Note tone={bs.balances ? "ok" : "bad"}>
+                {bs.balances
+                  ? "งบดุลลงตัว สินทรัพย์เท่ากับหนี้สินบวกส่วนของเจ้าของบวกกำไรงวดนี้"
+                  : "งบดุลไม่ลงตัว ควรตรวจรายการในสมุดรายวันที่เดบิตไม่เท่าเครดิต"}
+              </Note>
+            </div>
+          </Card>
+        </div>
+      </Reveal>
+
+      <Reveal delay={0.08} className="mt-3">
+        <div className="grid gap-3 xl:grid-cols-3">
+          <Card title={<span className="flex items-center gap-2"><Coins size={15} className="text-slate-400" />โครงสร้างค่าใช้จ่าย</span>} action={seeAll(4)}>
+            <div className="p-4">
+              <Donut
+                segments={expenseSegments}
+                size={128}
+                format={(n) => baht(n)}
+                center={
+                  <span>
+                    <span className="block text-[18px] font-semibold leading-none tabular-nums text-slate-900 dark:text-slate-50">
+                      {Math.round((pl.expenseTotal / pl.revenue) * 100)}%
+                    </span>
+                    <span className="mt-1 block text-[10.5px] uppercase tracking-wide text-slate-400">ของรายได้</span>
+                  </span>
+                }
+              />
+            </div>
+          </Card>
+
+          <Card
+            title={<span className="flex items-center gap-2"><Receipt size={15} className="text-slate-400" />เจ้าหนี้แยกตามอายุหนี้</span>}
+            action={seeAll(1)}
+          >
+            <Aging rows={ap.map((x) => ({ amount: x.amount, overdueDays: x.overdueDays }))} tone="bad" />
+          </Card>
+
+          <Card
+            title={<span className="flex items-center gap-2"><Users size={15} className="text-slate-400" />ลูกหนี้แยกตามอายุหนี้</span>}
+            action={seeAll(2)}
+          >
+            <Aging rows={ar.map((x) => ({ amount: x.amount, overdueDays: x.overdueDays }))} tone="warn" />
+          </Card>
+        </div>
+      </Reveal>
+
+      <Reveal delay={0.16} className="mt-3">
+        <Card
+          title={<span className="flex items-center gap-2"><BookOpen size={15} className="text-slate-400" />รายการล่าสุดในสมุดรายวัน</span>}
+          subtitle="ทุกรายการสร้างจากเอกสารต้นทางจริง กดเพื่อดูรายบรรทัด"
+          action={seeAll(0)}
+        >
+          <ul className="divide-y divide-slate-100 dark:divide-slate-800">
+            {recent.map((e) => (
+              <li key={e.no} className="flex flex-wrap items-center gap-3 px-4 py-2.5">
+                <span className={"grid size-8 shrink-0 place-items-center rounded-full " + (isBalanced(e) ? "bg-emerald-50 text-emerald-600 dark:bg-emerald-500/15 dark:text-emerald-300" : "bg-rose-50 text-rose-600 dark:bg-rose-500/15 dark:text-rose-300")}>
+                  {isBalanced(e) ? <CircleCheck size={14} /> : <CircleX size={14} />}
+                </span>
+                <button onClick={() => onOpenEntry(e)} className="w-28 shrink-0 text-left font-mono text-[12px] text-slate-500 transition hover:text-violet-700 dark:text-slate-400">
+                  {e.no}
+                </button>
+                <span className="min-w-0 flex-1 truncate text-[13px] text-slate-900 dark:text-slate-50">{e.memo}</span>
+                <span className="flex shrink-0 flex-wrap gap-1">
+                  {e.lines.map((l) => (
+                    <button
+                      key={l.account}
+                      onClick={() => onOpenAccount(trialBalance().find((a) => a.code === l.account)!)}
+                      className={"rounded-md px-1.5 py-0.5 font-mono text-[10.5px] " + typeSwatch(account(l.account).type).tint}
+                    >
+                      {l.account}
+                    </button>
+                  ))}
+                </span>
+                <span className="w-24 shrink-0 text-right text-[11.5px] tabular-nums text-slate-400">{e.date}</span>
+                <span className="w-28 shrink-0 text-right text-[13px] tabular-nums text-slate-900 dark:text-slate-50">
+                  {baht(entryTotal(e))}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </Card>
+      </Reveal>
+    </div>
+  );
+}
+
+function Aging({ rows, tone }: { rows: { amount: number; overdueDays: number }[]; tone: "bad" | "warn" }) {
+  const total = rows.reduce((n, r) => n + r.amount, 0);
+  return (
+    <div className="space-y-3 p-4">
+      {AGING_BUCKETS.map((b) => {
+        const list = rows.filter((r) => bucketOf(r.overdueDays).label === b.label);
+        const sum = list.reduce((n, r) => n + r.amount, 0);
+        return (
+          <div key={b.label}>
+            <div className="mb-1 flex items-center gap-2 text-[12.5px]">
+              <span className="min-w-0 flex-1 truncate text-slate-700 dark:text-slate-200">{b.label}</span>
+              <span className="shrink-0 text-[11px] text-slate-400">{list.length} ใบ</span>
+              <span className="shrink-0 tabular-nums text-slate-900 dark:text-slate-50">{sum ? baht(sum) : "—"}</span>
+            </div>
+            <Bar pct={total ? (sum / total) * 100 : 0} tone={b.max === 0 ? "ok" : tone} width="w-full" />
+          </div>
+        );
+      })}
+      <p className="text-[11.5px] text-slate-400">รวมทั้งสิ้น {baht(total)}</p>
+    </div>
+  );
+}
+
+/* ---------------------------------------------------------------- ledger */
+
+function Ledger({
+  tb,
+  q,
+  setQ,
+  type,
+  setType,
+  onOpenAccount,
+  onOpenEntry,
+}: {
+  tb: TrialRow[];
+  q: string;
+  setQ: (v: string) => void;
+  type: string;
+  setType: (v: string) => void;
+  onOpenAccount: (a: TrialRow) => void;
+  onOpenEntry: (e: JournalEntry) => void;
+}) {
+  const [view, setView] = useState(LEDGER_TABS[0]);
+  const needle = q.trim().toLowerCase();
+  const rows = tb.filter(
+    (a) =>
+      (type === "ทุกประเภท" || a.type === type) &&
+      (needle === "" || [a.code, a.name].some((t) => t.toLowerCase().includes(needle)))
+  );
+
+  const debit = tb.filter((a) => a.balance > 0).reduce((n, a) => n + a.balance, 0);
+  const credit = -tb.filter((a) => a.balance < 0).reduce((n, a) => n + a.balance, 0);
+  const unbalanced = JOURNAL.filter((e) => !isBalanced(e));
+
+  const columns: Column<TrialRow>[] = [
+    {
+      key: "code",
+      header: "รหัสบัญชี",
+      width: "14%",
+      sort: (a, b) => a.code.localeCompare(b.code),
+      cell: (a) => (
+        <span className="flex items-center gap-2">
+          <Dot className={typeSwatch(a.type).dot} />
+          <span className="font-mono text-[12.5px] text-slate-900 dark:text-slate-50">{a.code}</span>
+        </span>
+      ),
+    },
+    { key: "name", header: "ชื่อบัญชี", width: "34%", sort: (a, b) => a.name.localeCompare(b.name, "th"), cell: (a) => <span className="text-slate-900 dark:text-slate-50">{a.name}</span> },
+    { key: "type", header: "ประเภท", width: "18%", cell: (a) => <Tag swatch={typeSwatch(a.type)}>{a.type}</Tag> },
+    {
+      key: "debit",
+      header: "เดบิต",
+      align: "right",
+      width: "17%",
+      sort: (a, b) => Math.max(0, a.balance) - Math.max(0, b.balance),
+      cell: (a) => <span className="tabular-nums text-slate-700 dark:text-slate-200">{a.balance > 0 ? baht(a.balance) : "—"}</span>,
+    },
+    {
+      key: "credit",
+      header: "เครดิต",
+      align: "right",
+      width: "17%",
+      sort: (a, b) => Math.max(0, -a.balance) - Math.max(0, -b.balance),
+      cell: (a) => <span className="tabular-nums text-slate-700 dark:text-slate-200">{a.balance < 0 ? baht(-a.balance) : "—"}</span>,
+    },
+  ];
+
+  return (
+    <div className="space-y-3">
+      <Tabs tabs={LEDGER_TABS} active={view} onPick={setView} icons={LEDGER_ICONS} id="ledger" />
+
+      {view === "ผังบัญชี" && (
+        <>
+          <StatStrip
+            title="งบทดลอง"
+            icon={<Scale size={15} />}
+            cells={[
+              { icon: <Layers size={13} />, label: "บัญชีในผัง", value: ACCOUNTS.length + " บัญชี", sub: "แบ่งเป็นห้าประเภทตามหมวด" },
+              { icon: <TrendingUp size={13} />, label: "ยอดเดบิตรวม", value: baht(debit), sub: "สินทรัพย์และค่าใช้จ่าย", tone: "info" },
+              { icon: <TrendingDown size={13} />, label: "ยอดเครดิตรวม", value: baht(credit), sub: "หนี้สิน ส่วนของเจ้าของ และรายได้", tone: "accent" },
+              { icon: debit === credit ? <CircleCheck size={13} /> : <CircleX size={13} />, label: "ผลการตรวจ", value: debit === credit ? "ลงตัว" : "ไม่ลงตัว", sub: debit === credit ? "เดบิตเท่ากับเครดิตพอดี" : \`ต่างกัน \${baht(Math.abs(debit - credit))}\`, tone: debit === credit ? "ok" : "bad" },
+            ]}
+          />
+          <DataTable
+            rows={rows}
+            columns={columns}
+            getId={(a) => a.code}
+            onOpen={onOpenAccount}
+            toolbar={
+              <div className="flex flex-wrap items-center gap-2">
+                <Search value={q} onChange={setQ} placeholder="ค้นหารหัสหรือชื่อบัญชี" icon={<SearchIcon size={14} />} />
+                <Select value={type} onChange={setType} options={["ทุกประเภท", ...ACCOUNT_TYPES]} />
+                <span className="ml-auto text-[12px] text-slate-400">กดที่แถวเพื่อเปิดบัญชีแยกประเภท</span>
+              </div>
+            }
+          />
+        </>
+      )}
+
+      {view === "สมุดรายวัน" && (
+        <Card
+          title={<span className="flex items-center gap-2"><BookOpen size={15} className="text-slate-400" />สมุดรายวัน</span>}
+          subtitle={unbalanced.length ? \`มี \${unbalanced.length} รายการที่เดบิตยังไม่เท่าเครดิต\` : "ทุกรายการเดบิตเท่ากับเครดิต"}
+          action={<Chip>{JOURNAL.length} รายการ</Chip>}
+        >
+          <table className="w-full text-[13px]">
+            <thead className="bg-slate-50/80 text-left text-[11px] uppercase tracking-wide text-slate-500 dark:bg-slate-800/60 dark:text-slate-400">
+              <tr>
+                <th className="px-4 py-3 font-medium">เลขที่</th>
+                <th className="px-4 py-3 font-medium">วันที่</th>
+                <th className="px-4 py-3 font-medium">คำอธิบาย</th>
+                <th className="px-4 py-3 font-medium">เอกสารต้นทาง</th>
+                <th className="px-4 py-3 text-right font-medium">จำนวนเงิน</th>
+                <th className="px-4 py-3 font-medium">ลงตัว</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+              {[...JOURNAL].reverse().map((e) => (
+                <tr
+                  key={e.no}
+                  onClick={() => onOpenEntry(e)}
+                  className="cursor-pointer transition hover:bg-slate-50 dark:hover:bg-slate-800/40"
+                >
+                  <td className="px-4 py-2.5 font-mono text-[12px] text-slate-500 dark:text-slate-400">{e.no}</td>
+                  <td className="px-4 py-2.5 tabular-nums text-slate-500 dark:text-slate-400">{e.date}</td>
+                  <td className="px-4 py-2.5 text-slate-900 dark:text-slate-50">{e.memo}</td>
+                  <td className="px-4 py-2.5 font-mono text-[11.5px] text-violet-700 dark:text-violet-300">{e.ref ?? "—"}</td>
+                  <td className="px-4 py-2.5 text-right tabular-nums text-slate-900 dark:text-slate-50">{baht(entryTotal(e))}</td>
+                  <td className="px-4 py-2.5">
+                    <Badge tone={isBalanced(e) ? "ok" : "bad"} dot>{isBalanced(e) ? "ลงตัว" : "ไม่ลงตัว"}</Badge>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </Card>
+      )}
+    </div>
+  );
+}
+
+/* -------------------------------------------------------------- payables */
+
+function Payables({ rows }: { rows: ReturnType<typeof payables> }) {
+  const total = rows.reduce((n, r) => n + r.amount, 0);
+  const overdue = rows.filter((r) => r.overdueDays > 0);
+
+  return (
+    <div className="space-y-3">
+      <StatStrip
+        title="เจ้าหนี้การค้า"
+        icon={<Receipt size={15} />}
+        cells={[
+          { icon: <Receipt size={13} />, label: "ใบแจ้งหนี้ค้างจ่าย", value: rows.length + " ใบ", sub: baht(total) },
+          { icon: <CalendarClock size={13} />, label: "เลยกำหนดชำระ", value: overdue.length + " ใบ", sub: baht(overdue.reduce((n, r) => n + r.amount, 0)), tone: overdue.length > 0 ? "bad" : "ok" },
+          { icon: <Building size={13} />, label: "ผู้ขายที่มียอดค้าง", value: new Set(rows.map((r) => r.vendorName)).size + " ราย", sub: "อ่านจากแฟ้มจัดซื้อ", tone: "info" },
+          { icon: <Banknote size={13} />, label: "รวมภาษีซื้อ", value: baht(rows.reduce((n, r) => n + Math.round(r.amount - r.amount / 1.07), 0)), sub: "ขอคืนได้ในแบบภาษีมูลค่าเพิ่ม", tone: "accent" },
+        ]}
+      />
+
+      <Card
+        title={<span className="flex items-center gap-2"><Receipt size={15} className="text-slate-400" />ใบแจ้งหนี้ที่ยังไม่ได้จ่าย</span>}
+        subtitle="รายชื่อผู้ขายอ่านจากแฟ้มจัดซื้อ วันครบกำหนดคำนวณจากเงื่อนไขชำระของผู้ขายรายนั้น"
+      >
+        <table className="w-full text-[13px]">
+          <thead className="bg-slate-50/80 text-left text-[11px] uppercase tracking-wide text-slate-500 dark:bg-slate-800/60 dark:text-slate-400">
+            <tr>
+              <th className="px-4 py-3 font-medium">เลขที่</th>
+              <th className="px-4 py-3 font-medium">ผู้ขาย</th>
+              <th className="px-4 py-3 font-medium">เงื่อนไข</th>
+              <th className="px-4 py-3 font-medium">วันที่</th>
+              <th className="px-4 py-3 font-medium">ครบกำหนด</th>
+              <th className="px-4 py-3 text-right font-medium">จำนวนเงิน</th>
+              <th className="px-4 py-3 font-medium">สถานะ</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+            {rows.map((r) => (
+              <tr key={r.no} className="transition hover:bg-slate-50 dark:hover:bg-slate-800/40">
+                <td className="px-4 py-2.5 font-mono text-[12px] text-slate-500 dark:text-slate-400">{r.no}</td>
+                <td className="px-4 py-2.5">
+                  <span className="flex items-center gap-2.5">
+                    <Avatar name={r.vendorName.replace(/^(บจก\\.|หจก\\.)\\s*/, "")} size="sm" />
+                    <span className="text-slate-900 dark:text-slate-50">{r.vendorName}</span>
+                  </span>
+                </td>
+                <td className="px-4 py-2.5 text-slate-600 dark:text-slate-300">{r.terms}</td>
+                <td className="px-4 py-2.5 tabular-nums text-slate-500 dark:text-slate-400">{r.date}</td>
+                <td className={"px-4 py-2.5 tabular-nums " + (r.overdueDays > 0 ? "font-semibold text-rose-600 dark:text-rose-400" : "text-slate-500 dark:text-slate-400")}>
+                  {r.due}
+                </td>
+                <td className="px-4 py-2.5 text-right font-semibold tabular-nums text-slate-900 dark:text-slate-50">{baht(r.amount)}</td>
+                <td className="px-4 py-2.5">
+                  <Badge tone={r.overdueDays > 0 ? "bad" : "ok"} dot>
+                    {r.overdueDays > 0 ? \`เลยกำหนด \${r.overdueDays} วัน\` : "ยังไม่ถึงกำหนด"}
+                  </Badge>
+                </td>
               </tr>
             ))}
           </tbody>
-          <tfoot className="bg-slate-50">
-            <tr>
-              <td colSpan={3} className={TH + " text-right text-slate-600"}>รวมทั้งสองด้าน</td>
-              <td className={TH + " text-right font-semibold text-slate-900"}>
-                {baht(tb.filter((a) => a.balance > 0).reduce((n, a) => n + a.balance, 0))}
-              </td>
-              <td className={TH + " text-right font-semibold text-slate-900"}>
-                {baht(-tb.filter((a) => a.balance < 0).reduce((n, a) => n + a.balance, 0))}
-              </td>
-            </tr>
-          </tfoot>
         </table>
       </Card>
 
-      <Card
-        title="สมุดรายวัน"
-        subtitle={unbalanced.length ? "มี " + unbalanced.length + " รายการที่เดบิตยังไม่เท่าเครดิต" : undefined}
-      >
-        <table className="w-full text-sm">
-          <Head cols={[{ k: "เลขที่" }, { k: "วันที่" }, { k: "คำอธิบาย" }, { k: "บรรทัด", right: true }, { k: "จำนวนเงิน", right: true }, { k: "ลงตัว" }, { k: "" }]} />
-          <tbody className="divide-y divide-slate-100">
-            {JOURNAL.map((e) => (
-              <tr key={e.no} className="hover:bg-sky-50">
-                <td className={TH + " font-mono text-xs text-slate-500"}>{e.no}</td>
-                <td className={TH + " text-slate-600"}>{e.date}</td>
-                <td className={TH + " font-medium text-slate-900"}>{e.memo}</td>
-                <td className={TH + " text-right text-slate-600"}>{e.lines.length}</td>
-                <td className={TH + " text-right font-semibold text-slate-900"}>{baht(entryTotal(e))}</td>
-                <td className={TH}>
-                  <span className={"rounded-full px-2 py-1 text-xs " + (isBalanced(e) ? "bg-emerald-50 text-emerald-700" : "bg-rose-50 text-rose-700")}>
-                    {isBalanced(e) ? "ลงตัว" : "ไม่ลงตัว"}
-                  </span>
-                </td>
-                <td className={TH + " text-right"}>
-                  <button onClick={() => onOpen(e)} className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs text-slate-700 hover:border-sky-500 hover:text-sky-700">
-                    เปิดดู
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+      <Card title={<span className="flex items-center gap-2"><Layers size={15} className="text-slate-400" />อายุหนี้เจ้าหนี้</span>}>
+        <Aging rows={rows.map((r) => ({ amount: r.amount, overdueDays: r.overdueDays }))} tone="bad" />
       </Card>
     </div>
   );
 }
 
-function Aging({ rows }: { rows: Aged[] }) {
+/* ----------------------------------------------------------- receivables */
+
+function Receivables({ rows }: { rows: ReturnType<typeof receivables> }) {
+  const total = rows.reduce((n, r) => n + r.amount, 0);
+  const overdue = rows.filter((r) => r.overdueDays > 0);
+  const unbilled = rows.filter((r) => !r.billed);
+
   return (
-    <Card title="อายุหนี้">
-      <table className="w-full text-sm">
-        <Head cols={[{ k: "ช่วงอายุ" }, { k: "จำนวนรายการ", right: true }, { k: "ยอดเงิน", right: true }]} />
-        <tbody className="divide-y divide-slate-100">
-          {AGING_BUCKETS.map((b) => {
-            const mine = rows.filter((r) => bucketOf(r.overdueDays).label === b.label);
+    <div className="space-y-3">
+      <StatStrip
+        title="ลูกหนี้การค้า"
+        icon={<Users size={15} />}
+        cells={[
+          { icon: <Users size={13} />, label: "ยอดที่ยังไม่ได้เก็บ", value: rows.length + " ใบ", sub: baht(total) },
+          { icon: <CalendarClock size={13} />, label: "เลยกำหนดชำระ", value: overdue.length + " ใบ", sub: baht(overdue.reduce((n, r) => n + r.amount, 0)), tone: overdue.length > 0 ? "bad" : "ok" },
+          { icon: <FileText size={13} />, label: "ยังไม่ได้วางบิล", value: unbilled.length + " ใบ", sub: "ส่งของแล้วแต่ยังไม่ออกใบแจ้งหนี้", tone: unbilled.length > 0 ? "warn" : "ok" },
+          { icon: <Wallet size={13} />, label: "ภาษีขายค้างนำส่ง", value: baht(Math.round(total - total / 1.07)), sub: "ต้องนำส่งในแบบภาษีมูลค่าเพิ่ม", tone: "accent" },
+        ]}
+      />
+
+      <Card
+        title={<span className="flex items-center gap-2"><Users size={15} className="text-slate-400" />ยอดที่ลูกค้ายังไม่ชำระ</span>}
+        subtitle="รายชื่อลูกค้าอ่านจากแฟ้มขาย วันครบกำหนดคำนวณจากเงื่อนไขชำระของลูกค้ารายนั้น"
+      >
+        <table className="w-full text-[13px]">
+          <thead className="bg-slate-50/80 text-left text-[11px] uppercase tracking-wide text-slate-500 dark:bg-slate-800/60 dark:text-slate-400">
+            <tr>
+              <th className="px-4 py-3 font-medium">ใบสั่งขาย</th>
+              <th className="px-4 py-3 font-medium">ลูกค้า</th>
+              <th className="px-4 py-3 font-medium">เงื่อนไข</th>
+              <th className="px-4 py-3 font-medium">ครบกำหนด</th>
+              <th className="px-4 py-3 text-right font-medium">จำนวนเงิน</th>
+              <th className="px-4 py-3 font-medium">การวางบิล</th>
+              <th className="px-4 py-3 font-medium">สถานะ</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+            {rows.map((r) => (
+              <tr key={r.so} className="transition hover:bg-slate-50 dark:hover:bg-slate-800/40">
+                <td className="px-4 py-2.5 font-mono text-[12px] text-slate-500 dark:text-slate-400">{r.so}</td>
+                <td className="px-4 py-2.5">
+                  <span className="flex items-center gap-2.5">
+                    <Avatar name={r.customerName.replace(/^(บจก\\.|หจก\\.|ร้าน)\\s*/, "")} size="sm" />
+                    <span className="text-slate-900 dark:text-slate-50">{r.customerName}</span>
+                  </span>
+                </td>
+                <td className="px-4 py-2.5 text-slate-600 dark:text-slate-300">{r.terms}</td>
+                <td className={"px-4 py-2.5 tabular-nums " + (r.overdueDays > 0 ? "font-semibold text-rose-600 dark:text-rose-400" : "text-slate-500 dark:text-slate-400")}>
+                  {r.due}
+                </td>
+                <td className="px-4 py-2.5 text-right font-semibold tabular-nums text-slate-900 dark:text-slate-50">{baht(r.amount)}</td>
+                <td className="px-4 py-2.5">
+                  <Badge tone={r.billed ? "ok" : "warn"}>{r.billed ? "วางบิลแล้ว" : "ยังไม่วางบิล"}</Badge>
+                </td>
+                <td className="px-4 py-2.5">
+                  <Badge tone={r.overdueDays > 0 ? "bad" : "ok"} dot>
+                    {r.overdueDays > 0 ? \`เลยกำหนด \${r.overdueDays} วัน\` : "ยังไม่ถึงกำหนด"}
+                  </Badge>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </Card>
+
+      <Card title={<span className="flex items-center gap-2"><Layers size={15} className="text-slate-400" />อายุหนี้ลูกหนี้</span>}>
+        <Aging rows={rows.map((r) => ({ amount: r.amount, overdueDays: r.overdueDays }))} tone="warn" />
+      </Card>
+    </div>
+  );
+}
+
+/* ---------------------------------------------------------------- assets */
+
+function Assets({ onOpen }: { onOpen: (a: Asset) => void }) {
+  const cost = ASSETS.reduce((n, a) => n + a.cost, 0);
+  const accum = ASSETS.reduce((n, a) => n + accumulated(a), 0);
+  const monthly = ASSETS.reduce((n, a) => n + monthlyDepreciation(a), 0);
+
+  return (
+    <div className="space-y-3">
+      <StatStrip
+        title="สินทรัพย์ถาวร"
+        icon={<Landmark size={15} />}
+        cells={[
+          { icon: <Landmark size={13} />, label: "ราคาทุนรวม", value: baht(cost), sub: \`\${ASSETS.length} รายการในทะเบียน\` },
+          { icon: <TrendingDown size={13} />, label: "ค่าเสื่อมราคาสะสม", value: baht(accum), sub: "คิดด้วยวิธีเส้นตรง", tone: "warn" },
+          { icon: <Scale size={13} />, label: "มูลค่าคงเหลือตามบัญชี", value: baht(cost - accum), sub: "ราคาทุนหักค่าเสื่อมสะสม", tone: "ok" },
+          { icon: <CalendarClock size={13} />, label: "ค่าเสื่อมต่อเดือน", value: baht(monthly), sub: "ลงบัญชีทุกสิ้นงวด", tone: "accent" },
+        ]}
+      />
+
+      <div className="grid gap-3 lg:grid-cols-2">
+        {ASSETS.map((a) => {
+          const acc = accumulated(a);
+          const held = monthsHeld(a);
+          const life = a.lifeYears * 12;
+          const sw = swatchFor(a.code);
+          return (
+            <Card
+              key={a.code}
+              title={
+                <button onClick={() => onOpen(a)} className="flex items-center gap-2.5 text-left transition hover:text-violet-700">
+                  <span className={"grid size-8 place-items-center rounded-lg " + sw.tint}>
+                    <Landmark size={15} />
+                  </span>
+                  {a.name}
+                </button>
+              }
+              subtitle={\`\${a.code} · ได้มาเมื่อ \${a.acquired} · อายุการใช้งาน \${a.lifeYears} ปี\`}
+              action={<Badge tone={held >= life ? "idle" : "ok"}>{held >= life ? "ตัดค่าเสื่อมครบแล้ว" : \`ใช้มา \${held} เดือน\`}</Badge>}
+            >
+              <div className="space-y-3 p-4">
+                <Progress done={Math.min(held, life)} total={life} label={\`อายุการใช้งานที่ผ่านไป \${Math.min(held, life)} จาก \${life} เดือน\`} />
+                <div className="grid grid-cols-3 gap-3">
+                  {[
+                    { label: "ราคาทุน", value: baht(a.cost) },
+                    { label: "ค่าเสื่อมสะสม", value: baht(acc) },
+                    { label: "มูลค่าคงเหลือ", value: baht(a.cost - acc) },
+                  ].map((c) => (
+                    <div key={c.label} className="rounded-xl bg-slate-50 p-3 dark:bg-slate-800/50">
+                      <div className="text-[11.5px] text-slate-500 dark:text-slate-400">{c.label}</div>
+                      <div className="mt-1 text-[14px] font-semibold tabular-nums text-slate-900 dark:text-slate-50">{c.value}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </Card>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------ statements */
+
+function Statements({
+  pl,
+  bs,
+}: {
+  pl: ReturnType<typeof profitAndLoss>;
+  bs: ReturnType<typeof balanceSheet>;
+}) {
+  const [view, setView] = useState(STATEMENT_TABS[0]);
+
+  return (
+    <div className="space-y-3">
+      <Tabs tabs={STATEMENT_TABS} active={view} onPick={setView} icons={STATEMENT_ICONS} id="statement" />
+
+      {view === "งบกำไรขาดทุน" && (
+        <div className="grid gap-3 xl:grid-cols-3">
+          <Card
+            className="xl:col-span-2"
+            title={<span className="flex items-center gap-2"><TrendingUp size={15} className="text-slate-400" />งบกำไรขาดทุน</span>}
+            subtitle={\`\${PERIOD.label} · คำนวณจากยอดคงเหลือในสมุดรายวันทั้งหมด\`}
+          >
+            <ul className="divide-y divide-slate-100 dark:divide-slate-800">
+              <li className="flex items-center justify-between px-4 py-3">
+                <span className="text-[13px] font-medium text-slate-900 dark:text-slate-50">รายได้จากการขาย</span>
+                <span className="text-[14px] font-semibold tabular-nums text-slate-900 dark:text-slate-50">{baht(pl.revenue)}</span>
+              </li>
+              {pl.expenses.map((a) => (
+                <li key={a.code} className="flex items-center gap-3 px-4 py-2.5">
+                  <Dot className={swatchFor(a.code).dot} />
+                  <span className="min-w-0 flex-1 text-[13px] text-slate-700 dark:text-slate-200">{a.name}</span>
+                  <span className="w-24 shrink-0">
+                    <Bar pct={pl.revenue ? (a.balance / pl.revenue) * 100 : 0} tone="bad" width="w-full" />
+                  </span>
+                  <span className="w-28 shrink-0 text-right text-[13px] tabular-nums text-rose-600 dark:text-rose-400">
+                    −{baht(a.balance)}
+                  </span>
+                </li>
+              ))}
+              <li className="flex items-center justify-between bg-slate-50 px-4 py-3 dark:bg-slate-800/50">
+                <span className="text-[13px] font-semibold text-slate-900 dark:text-slate-50">
+                  {pl.profit >= 0 ? "กำไรสุทธิ" : "ขาดทุนสุทธิ"}
+                </span>
+                <span className={"text-[16px] font-semibold tabular-nums " + (pl.profit >= 0 ? "text-emerald-700 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400")}>
+                  {baht(pl.profit)}
+                </span>
+              </li>
+            </ul>
+          </Card>
+
+          <Card title={<span className="flex items-center gap-2"><Coins size={15} className="text-slate-400" />สัดส่วนค่าใช้จ่าย</span>}>
+            <div className="p-4">
+              <Donut
+                segments={pl.expenses.filter((a) => a.balance > 0).map((a) => ({ label: a.name, value: a.balance, swatch: swatchFor(a.code) }))}
+                size={128}
+                format={(n) => baht(n)}
+                center={
+                  <span>
+                    <span className="block text-[18px] font-semibold leading-none tabular-nums text-slate-900 dark:text-slate-50">
+                      {Math.round((pl.expenseTotal / pl.revenue) * 100)}%
+                    </span>
+                    <span className="mt-1 block text-[10.5px] uppercase tracking-wide text-slate-400">ของรายได้</span>
+                  </span>
+                }
+              />
+            </div>
+          </Card>
+        </div>
+      )}
+
+      {view === "งบแสดงฐานะการเงิน" && (
+        <div className="space-y-3">
+          <div className="grid gap-3 lg:grid-cols-2">
+            <Card
+              title={<span className="flex items-center gap-2"><Wallet size={15} className="text-slate-400" />สินทรัพย์</span>}
+              action={<Chip>{baht(bs.assetTotal)}</Chip>}
+            >
+              <ul className="divide-y divide-slate-100 dark:divide-slate-800">
+                {bs.assets.map((a) => (
+                  <li key={a.code} className="flex items-center gap-3 px-4 py-2.5 text-[13px]">
+                    <span className="font-mono text-[11.5px] text-slate-400">{a.code}</span>
+                    <span className="min-w-0 flex-1 truncate text-slate-800 dark:text-slate-100">{a.name}</span>
+                    <span className="shrink-0 tabular-nums text-slate-900 dark:text-slate-50">{baht(a.balance)}</span>
+                  </li>
+                ))}
+                <li className="flex items-center justify-between bg-slate-50 px-4 py-3 dark:bg-slate-800/50">
+                  <span className="text-[13px] font-semibold text-slate-900 dark:text-slate-50">รวมสินทรัพย์</span>
+                  <span className="text-[14px] font-semibold tabular-nums text-slate-900 dark:text-slate-50">{baht(bs.assetTotal)}</span>
+                </li>
+              </ul>
+            </Card>
+
+            <Card
+              title={<span className="flex items-center gap-2"><Scale size={15} className="text-slate-400" />หนี้สินและส่วนของเจ้าของ</span>}
+              action={<Chip>{baht(bs.liabilityTotal + bs.equityTotal + bs.profit)}</Chip>}
+            >
+              <ul className="divide-y divide-slate-100 dark:divide-slate-800">
+                {[...bs.liabilities, ...bs.equity].map((a) => (
+                  <li key={a.code} className="flex items-center gap-3 px-4 py-2.5 text-[13px]">
+                    <span className="font-mono text-[11.5px] text-slate-400">{a.code}</span>
+                    <span className="min-w-0 flex-1 truncate text-slate-800 dark:text-slate-100">{a.name}</span>
+                    <span className="shrink-0 tabular-nums text-slate-900 dark:text-slate-50">{baht(-a.balance)}</span>
+                  </li>
+                ))}
+                <li className="flex items-center gap-3 px-4 py-2.5 text-[13px]">
+                  <span className="font-mono text-[11.5px] text-slate-400">—</span>
+                  <span className="min-w-0 flex-1 text-slate-800 dark:text-slate-100">
+                    {bs.profit >= 0 ? "กำไรงวดนี้" : "ขาดทุนงวดนี้"}
+                  </span>
+                  <span className={"shrink-0 tabular-nums " + (bs.profit >= 0 ? "text-slate-900 dark:text-slate-50" : "text-rose-600 dark:text-rose-400")}>
+                    {baht(bs.profit)}
+                  </span>
+                </li>
+                <li className="flex items-center justify-between bg-slate-50 px-4 py-3 dark:bg-slate-800/50">
+                  <span className="text-[13px] font-semibold text-slate-900 dark:text-slate-50">รวมหนี้สินและส่วนของเจ้าของ</span>
+                  <span className="text-[14px] font-semibold tabular-nums text-slate-900 dark:text-slate-50">
+                    {baht(bs.liabilityTotal + bs.equityTotal + bs.profit)}
+                  </span>
+                </li>
+              </ul>
+            </Card>
+          </div>
+
+          <Note tone={bs.balances ? "ok" : "bad"}>
+            {bs.balances
+              ? "งบดุลลงตัว สินทรัพย์เท่ากับหนี้สินบวกส่วนของเจ้าของบวกกำไรงวดนี้"
+              : \`สินทรัพย์ไม่เท่ากับหนี้สินบวกส่วนของเจ้าของ ต่างกัน \${baht(Math.abs(bs.assetTotal - (bs.liabilityTotal + bs.equityTotal + bs.profit)))}\`}
+          </Note>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* --------------------------------------------------------------- records */
+
+function EntryRecord({ e }: { e: JournalEntry }) {
+  const debit = e.lines.filter((l) => l.amount > 0);
+  const credit = e.lines.filter((l) => l.amount < 0);
+
+  return (
+    <div className="space-y-4">
+      <div className="space-y-1">
+        <IconRow icon={<FileText size={14} />} label="เลขที่">{e.no}</IconRow>
+        <IconRow icon={<CalendarClock size={14} />} label="วันที่">{e.date}</IconRow>
+        <IconRow icon={<BookOpen size={14} />} label="คำอธิบาย">{e.memo}</IconRow>
+        {e.ref && <IconRow icon={<Receipt size={14} />} label="เอกสารต้นทาง">{e.ref}</IconRow>}
+      </div>
+
+      <table className="w-full text-[13px]">
+        <thead className="bg-slate-50/80 text-left text-[11px] uppercase tracking-wide text-slate-500 dark:bg-slate-800/60 dark:text-slate-400">
+          <tr>
+            <th className="px-3 py-2.5 font-medium">บัญชี</th>
+            <th className="px-3 py-2.5 font-medium">ประเภท</th>
+            <th className="px-3 py-2.5 text-right font-medium">เดบิต</th>
+            <th className="px-3 py-2.5 text-right font-medium">เครดิต</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+          {e.lines.map((l) => {
+            const a = account(l.account);
             return (
-              <tr key={b.label} className="hover:bg-sky-50">
-                <td className={TH + " font-medium text-slate-900"}>{b.label}</td>
-                <td className={TH + " text-right text-slate-700"}>{mine.length}</td>
-                <td className={TH + " text-right " + (b.max > 0 && mine.length ? "font-semibold text-amber-700" : "text-slate-700")}>
-                  {mine.length ? baht(mine.reduce((n, r) => n + r.amount, 0)) : "—"}
+              <tr key={l.account}>
+                <td className="px-3 py-2">
+                  <span className="flex items-center gap-2">
+                    <Dot className={typeSwatch(a.type).dot} />
+                    <span className="font-mono text-[11.5px] text-slate-400">{l.account}</span>
+                    <span className="text-slate-900 dark:text-slate-50">{a.name}</span>
+                  </span>
+                </td>
+                <td className="px-3 py-2">
+                  <Tag swatch={typeSwatch(a.type)}>{a.type}</Tag>
+                </td>
+                <td className="px-3 py-2 text-right tabular-nums text-slate-700 dark:text-slate-200">
+                  {l.amount > 0 ? baht(l.amount) : "—"}
+                </td>
+                <td className="px-3 py-2 text-right tabular-nums text-slate-700 dark:text-slate-200">
+                  {l.amount < 0 ? baht(-l.amount) : "—"}
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+        <tfoot className="bg-slate-50/80 dark:bg-slate-800/60">
+          <tr>
+            <td colSpan={2} className="px-3 py-2.5 text-right font-medium text-slate-600 dark:text-slate-300">
+              รวมทั้งสองด้าน
+            </td>
+            <td className="px-3 py-2.5 text-right font-semibold tabular-nums text-slate-900 dark:text-slate-50">
+              {baht(debit.reduce((n, l) => n + l.amount, 0))}
+            </td>
+            <td className="px-3 py-2.5 text-right font-semibold tabular-nums text-slate-900 dark:text-slate-50">
+              {baht(-credit.reduce((n, l) => n + l.amount, 0))}
+            </td>
+          </tr>
+        </tfoot>
+      </table>
+
+      <Note tone={isBalanced(e) ? "ok" : "bad"}>
+        {isBalanced(e)
+          ? "รายการนี้เดบิตเท่ากับเครดิต ลงบัญชีได้"
+          : \`รายการนี้เดบิตไม่เท่าเครดิต ต่างกัน \${baht(Math.abs(e.lines.reduce((n, l) => n + l.amount, 0)))}\`}
+      </Note>
+    </div>
+  );
+}
+
+function AccountRecord({ a, onOpenEntry }: { a: TrialRow; onOpenEntry: (e: JournalEntry) => void }) {
+  const entries = JOURNAL.filter((e) => e.lines.some((l) => l.account === a.code));
+  let running = 0;
+
+  return (
+    <div className="space-y-4">
+      <div className="space-y-1">
+        <IconRow icon={<FileText size={14} />} label="รหัสบัญชี">{a.code}</IconRow>
+        <IconRow icon={<Layers size={14} />} label="ประเภท">{a.type}</IconRow>
+        <IconRow icon={<Sigma size={14} />} label="ยอดคงเหลือ">
+          {a.balance >= 0 ? \`\${baht(a.balance)} ทางเดบิต\` : \`\${baht(-a.balance)} ทางเครดิต\`}
+        </IconRow>
+        <IconRow icon={<BookOpen size={14} />} label="จำนวนรายการ">{entries.length} รายการ</IconRow>
+      </div>
+
+      <table className="w-full text-[13px]">
+        <thead className="bg-slate-50/80 text-left text-[11px] uppercase tracking-wide text-slate-500 dark:bg-slate-800/60 dark:text-slate-400">
+          <tr>
+            <th className="px-3 py-2.5 font-medium">เลขที่</th>
+            <th className="px-3 py-2.5 font-medium">วันที่</th>
+            <th className="px-3 py-2.5 font-medium">คำอธิบาย</th>
+            <th className="px-3 py-2.5 text-right font-medium">เดบิต</th>
+            <th className="px-3 py-2.5 text-right font-medium">เครดิต</th>
+            <th className="px-3 py-2.5 text-right font-medium">ยอดสะสม</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+          {entries.map((e) => {
+            const amount = e.lines.filter((l) => l.account === a.code).reduce((n, l) => n + l.amount, 0);
+            running += amount;
+            return (
+              <tr
+                key={e.no}
+                onClick={() => onOpenEntry(e)}
+                className="cursor-pointer transition hover:bg-slate-50 dark:hover:bg-slate-800/40"
+              >
+                <td className="px-3 py-2 font-mono text-[11.5px] text-slate-500 dark:text-slate-400">{e.no}</td>
+                <td className="px-3 py-2 tabular-nums text-slate-500 dark:text-slate-400">{e.date}</td>
+                <td className="px-3 py-2 text-slate-800 dark:text-slate-100">{e.memo}</td>
+                <td className="px-3 py-2 text-right tabular-nums text-slate-700 dark:text-slate-200">
+                  {amount > 0 ? baht(amount) : "—"}
+                </td>
+                <td className="px-3 py-2 text-right tabular-nums text-slate-700 dark:text-slate-200">
+                  {amount < 0 ? baht(-amount) : "—"}
+                </td>
+                <td className="px-3 py-2 text-right font-medium tabular-nums text-slate-900 dark:text-slate-50">
+                  {baht(running)}
                 </td>
               </tr>
             );
           })}
         </tbody>
       </table>
-    </Card>
-  );
-}
-
-function Payables() {
-  const rows = payables();
-  const total = rows.reduce((n, r) => n + r.amount, 0);
-  const late = rows.filter((r) => r.overdueDays > 0);
-  return (
-    <div className="space-y-4">
-      <div className="grid grid-cols-3 gap-3">
-        <Stat label="เจ้าหนี้คงค้าง" value={baht(total)} />
-        <Stat label="ผู้ขายที่มียอดค้าง" value={new Set(rows.map((r) => r.vendor)).size + " ราย"} />
-        <Stat label="เลยกำหนดชำระ" value={late.length + " ใบ"} tone={late.length ? "warn" : undefined} />
-      </div>
-
-      <Card title="ใบแจ้งหนี้ที่ยังไม่ได้จ่าย" subtitle="รายชื่อผู้ขายอ่านจากแฟ้มจัดซื้อ">
-        <table className="w-full text-sm">
-          <Head cols={[{ k: "ใบแจ้งหนี้" }, { k: "ผู้ขาย" }, { k: "อ้างใบสั่งซื้อ" }, { k: "วันที่" }, { k: "เงื่อนไข" }, { k: "ครบกำหนด" }, { k: "ยอดรวมภาษี", right: true }, { k: "สถานะ" }]} />
-          <tbody className="divide-y divide-slate-100">
-            {rows.map((r) => (
-              <tr key={r.no} className="hover:bg-sky-50">
-                <td className={TH + " font-mono text-xs text-slate-500"}>{r.no}</td>
-                <td className={TH + " font-medium text-slate-900"}>{r.vendorName}</td>
-                <td className={TH + " text-slate-600"}>{r.po}</td>
-                <td className={TH + " text-slate-600"}>{r.date}</td>
-                <td className={TH + " text-slate-600"}>{r.terms}</td>
-                <td className={TH + " text-slate-600"}>{r.due}</td>
-                <td className={TH + " text-right font-semibold text-slate-900"}>{baht(r.amount)}</td>
-                <td className={TH}>
-                  <span className={"rounded-full px-2 py-1 text-xs " + (r.overdueDays > 0 ? "bg-rose-50 text-rose-700" : "bg-emerald-50 text-emerald-700")}>
-                    {r.overdueDays > 0 ? "เลยกำหนด " + r.overdueDays + " วัน" : "ยังไม่ถึงกำหนด"}
-                  </span>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </Card>
-
-      <Aging rows={rows} />
     </div>
   );
 }
 
-function Receivables() {
-  const rows = receivables();
-  const total = rows.reduce((n, r) => n + r.amount, 0);
-  const late = rows.filter((r) => r.overdueDays > 0);
-  const unbilled = rows.filter((r) => !r.billed);
+function AssetRecord({ a }: { a: Asset }) {
+  const acc = accumulated(a);
+  const held = monthsHeld(a);
+  const life = a.lifeYears * 12;
+
   return (
-    <div className="space-y-4">
-      <div className="grid grid-cols-3 gap-3">
-        <Stat label="ลูกหนี้คงค้าง" value={baht(total)} />
-        <Stat label="เลยกำหนดรับชำระ" value={late.length + " ราย"} tone={late.length ? "warn" : undefined} />
-        <Stat label="ส่งของแล้วยังไม่ออกใบแจ้งหนี้" value={unbilled.length + " ใบ"} tone={unbilled.length ? "warn" : undefined} />
+    <div className="space-y-3">
+      <div className="space-y-1">
+        <IconRow icon={<FileText size={14} />} label="รหัสสินทรัพย์">{a.code}</IconRow>
+        <IconRow icon={<CalendarClock size={14} />} label="วันที่ได้มา">{a.acquired}</IconRow>
+        <IconRow icon={<Landmark size={14} />} label="ราคาทุน">{baht(a.cost)}</IconRow>
+        <IconRow icon={<Layers size={14} />} label="อายุการใช้งาน">{a.lifeYears} ปี ({life} เดือน)</IconRow>
+        <IconRow icon={<TrendingDown size={14} />} label="ค่าเสื่อมต่อเดือน">{baht(monthlyDepreciation(a))}</IconRow>
       </div>
 
-      <Card title="ยอดที่ลูกค้ายังไม่ชำระ" subtitle="รายชื่อลูกค้าอ่านจากแฟ้มขาย">
-        <table className="w-full text-sm">
-          <Head cols={[{ k: "ใบสั่งขาย" }, { k: "ลูกค้า" }, { k: "วันที่" }, { k: "เงื่อนไข" }, { k: "ครบกำหนด" }, { k: "ยอดรวมภาษี", right: true }, { k: "ออกใบแจ้งหนี้" }, { k: "สถานะ" }]} />
-          <tbody className="divide-y divide-slate-100">
-            {rows.map((r) => (
-              <tr key={r.so} className="hover:bg-sky-50">
-                <td className={TH + " font-mono text-xs text-slate-500"}>{r.so}</td>
-                <td className={TH + " font-medium text-slate-900"}>{r.customerName}</td>
-                <td className={TH + " text-slate-600"}>{r.date}</td>
-                <td className={TH + " text-slate-600"}>{r.terms}</td>
-                <td className={TH + " text-slate-600"}>{r.due}</td>
-                <td className={TH + " text-right font-semibold text-slate-900"}>{baht(r.amount)}</td>
-                <td className={TH}>
-                  {r.billed ? <span className="text-xs text-emerald-700">ออกแล้ว</span> : <span className="text-xs text-amber-700">ยังไม่ออก</span>}
-                </td>
-                <td className={TH}>
-                  <span className={"rounded-full px-2 py-1 text-xs " + (r.overdueDays > 0 ? "bg-rose-50 text-rose-700" : "bg-emerald-50 text-emerald-700")}>
-                    {r.overdueDays > 0 ? "เลยกำหนด " + r.overdueDays + " วัน" : "ยังไม่ถึงกำหนด"}
-                  </span>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </Card>
+      <Progress done={Math.min(held, life)} total={life} label={\`ตัดค่าเสื่อมไปแล้ว \${Math.min(held, life)} จาก \${life} เดือน\`} />
 
-      <Aging rows={rows} />
-    </div>
-  );
-}
-
-function FixedAssets() {
-  const cost = ASSETS.reduce((n, a) => n + a.cost, 0);
-  const accum = ASSETS.reduce((n, a) => n + accumulated(a), 0);
-  const month = ASSETS.reduce((n, a) => n + monthlyDepreciation(a), 0);
-  return (
-    <div className="space-y-4">
-      <div className="grid grid-cols-4 gap-3">
-        <Stat label="ราคาทุนรวม" value={baht(cost)} />
-        <Stat label="ค่าเสื่อมราคาสะสม" value={baht(accum)} />
-        <Stat label="มูลค่าตามบัญชี" value={baht(cost - accum)} />
-        <Stat label="ค่าเสื่อมราคางวดนี้" value={baht(month)} />
-      </div>
-
-      <Card title="ทะเบียนสินทรัพย์" subtitle="คิดค่าเสื่อมราคาด้วยวิธีเส้นตรง">
-        <table className="w-full text-sm">
-          <Head cols={[{ k: "รหัส" }, { k: "สินทรัพย์" }, { k: "วันที่ได้มา" }, { k: "อายุใช้งาน", right: true }, { k: "ราคาทุน", right: true }, { k: "ต่อเดือน", right: true }, { k: "สะสม", right: true }, { k: "คงเหลือตามบัญชี", right: true }]} />
-          <tbody className="divide-y divide-slate-100">
-            {ASSETS.map((a) => {
-              const acc = accumulated(a);
-              const nbv = a.cost - acc;
-              return (
-                <tr key={a.code} className="hover:bg-sky-50">
-                  <td className={TH + " font-mono text-xs text-slate-500"}>{a.code}</td>
-                  <td className={TH + " font-medium text-slate-900"}>{a.name}</td>
-                  <td className={TH + " text-slate-600"}>{a.acquired}</td>
-                  <td className={TH + " text-right text-slate-600"}>{a.lifeYears} ปี</td>
-                  <td className={TH + " text-right text-slate-700"}>{baht(a.cost)}</td>
-                  <td className={TH + " text-right text-slate-600"}>{baht(monthlyDepreciation(a))}</td>
-                  <td className={TH + " text-right text-slate-600"}>{baht(acc)}</td>
-                  <td className={TH + " text-right font-semibold " + (nbv === 0 ? "text-slate-400" : "text-slate-900")}>
-                    {nbv === 0 ? "ตัดค่าเสื่อมครบแล้ว" : baht(nbv)}
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </Card>
-
-      <Card title="อายุการใช้งานที่ผ่านไปแล้ว">
-        <ul className="divide-y divide-slate-100">
-          {ASSETS.map((a) => {
-            const pct = Math.min(100, Math.round((monthsHeld(a) / (a.lifeYears * 12)) * 100));
-            return (
-              <li key={a.code} className="flex items-center gap-3 px-4 py-2.5 text-sm">
-                <span className="w-48 shrink-0 text-slate-700">{a.name}</span>
-                <span className="h-2 flex-1 overflow-hidden rounded-full bg-slate-100">
-                  <span className={"block h-full rounded-full " + (pct >= 100 ? "bg-slate-400" : "bg-sky-500")} style={{ width: pct + "%" }} />
-                </span>
-                <span className="w-28 shrink-0 text-right text-xs text-slate-500">{monthsHeld(a)} เดือน · {pct}%</span>
-              </li>
-            );
-          })}
-        </ul>
-      </Card>
-    </div>
-  );
-}
-
-function Statements() {
-  const pl = profitAndLoss();
-  const bs = balanceSheet();
-  return (
-    <div className="space-y-4">
-      <div className="grid grid-cols-4 gap-3">
-        <Stat label="รายได้" value={baht(pl.revenue)} />
-        <Stat label="ค่าใช้จ่าย" value={baht(pl.expenseTotal)} />
-        <Stat label={pl.profit >= 0 ? "กำไรสุทธิ" : "ขาดทุนสุทธิ"} value={baht(Math.abs(pl.profit))} tone={pl.profit < 0 ? "bad" : undefined} />
-        <Stat label="อัตรากำไรสุทธิ" value={pl.revenue ? Math.round((pl.profit / pl.revenue) * 100) + "%" : "—"} />
-      </div>
-
-      <div className="grid grid-cols-2 gap-4">
-        <Card title="งบกำไรขาดทุน">
-          <dl className="px-4 py-2 text-sm">
-            <Row k="รายได้จากการขาย" v={baht(pl.revenue)} />
-            <div className="my-1.5 border-t border-slate-100" />
-            {pl.expenses.map((e) => <Row key={e.code} k={e.name} v={"(" + baht(e.balance) + ")"} muted />)}
-            <Row k="รวมค่าใช้จ่าย" v={"(" + baht(pl.expenseTotal) + ")"} bold />
-            <div className="my-1.5 border-t border-slate-100" />
-            <Row k={pl.profit >= 0 ? "กำไรสุทธิ" : "ขาดทุนสุทธิ"} v={baht(Math.abs(pl.profit))} bold />
-          </dl>
-        </Card>
-
-        <Card title="งบแสดงฐานะการเงิน">
-          <dl className="px-4 py-2 text-sm">
-            <div className="pt-1 text-xs font-medium uppercase tracking-wide text-slate-400">สินทรัพย์</div>
-            {bs.assets.map((a) => <Row key={a.code} k={a.name} v={baht(a.balance)} muted />)}
-            <Row k="รวมสินทรัพย์" v={baht(bs.assetTotal)} bold />
-            <div className="mt-3 pt-1 text-xs font-medium uppercase tracking-wide text-slate-400">หนี้สินและส่วนของเจ้าของ</div>
-            {bs.liabilities.map((a) => <Row key={a.code} k={a.name} v={baht(-a.balance)} muted />)}
-            {bs.equity.map((a) => <Row key={a.code} k={a.name} v={baht(-a.balance)} muted />)}
-            <Row k="กำไรสะสมงวดนี้" v={baht(bs.profit)} muted />
-            <Row k="รวมหนี้สินและส่วนของเจ้าของ" v={baht(bs.liabilityTotal + bs.equityTotal + bs.profit)} bold />
-          </dl>
-        </Card>
-      </div>
-
-      <div className={"rounded-xl px-4 py-3.5 text-sm " + (bs.balances ? "bg-emerald-50 text-emerald-800" : "bg-rose-50 text-rose-800")}>
-        {bs.balances
-          ? "งบดุลลงตัว สินทรัพย์เท่ากับหนี้สินบวกส่วนของเจ้าของบวกกำไรงวดนี้"
-          : "สินทรัพย์ไม่เท่ากับหนี้สินบวกส่วนของเจ้าของ ต่างกัน " + baht(Math.abs(bs.assetTotal - (bs.liabilityTotal + bs.equityTotal + bs.profit)))}
-      </div>
-    </div>
-  );
-}
-
-function EntryDialog({ entry, onClose }: { entry: JournalEntry; onClose: () => void }) {
-  return (
-    <div role="dialog" aria-modal="true" onClick={onClose} className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4">
-      <div onClick={(e) => e.stopPropagation()} className="max-h-[85vh] w-full max-w-lg overflow-y-auto rounded-2xl bg-white p-6 shadow-xl">
-        <div className="flex items-start justify-between">
-          <div>
-            <h2 className="text-lg font-semibold text-slate-900">{entry.no}</h2>
-            <p className="text-sm text-slate-500">{entry.memo} · {entry.date}</p>
+      <div className="grid grid-cols-2 gap-3">
+        {[
+          { label: "ค่าเสื่อมสะสม", value: baht(acc) },
+          { label: "มูลค่าคงเหลือตามบัญชี", value: baht(a.cost - acc) },
+        ].map((c) => (
+          <div key={c.label} className="rounded-xl bg-slate-50 p-3 dark:bg-slate-800/50">
+            <div className="text-[11.5px] text-slate-500 dark:text-slate-400">{c.label}</div>
+            <div className="mt-1 text-[15px] font-semibold tabular-nums text-slate-900 dark:text-slate-50">{c.value}</div>
           </div>
-          <button onClick={onClose} className="rounded-lg px-2 py-1 text-slate-400 hover:bg-slate-100">✕</button>
-        </div>
-
-        <table className="mt-4 w-full text-sm">
-          <Head cols={[{ k: "บัญชี" }, { k: "เดบิต", right: true }, { k: "เครดิต", right: true }]} />
-          <tbody className="divide-y divide-slate-100">
-            {entry.lines.map((l, i) => (
-              <tr key={i}>
-                <td className="py-2.5">
-                  <span className="font-mono text-xs text-slate-500">{l.account}</span>
-                  <span className="ml-2 text-slate-800">{account(l.account)?.name}</span>
-                </td>
-                <td className="py-2.5 text-right text-slate-800">{l.amount > 0 ? baht(l.amount) : "—"}</td>
-                <td className="py-2.5 text-right text-slate-800">{l.amount < 0 ? baht(-l.amount) : "—"}</td>
-              </tr>
-            ))}
-          </tbody>
-          <tfoot className="border-t-2 border-slate-200">
-            <tr>
-              <td className="py-2.5 font-medium text-slate-900">รวม</td>
-              <td className="py-2.5 text-right font-semibold text-slate-900">{baht(entryTotal(entry))}</td>
-              <td className="py-2.5 text-right font-semibold text-slate-900">{baht(entryTotal(entry))}</td>
-            </tr>
-          </tfoot>
-        </table>
-
-        <div className={"mt-5 rounded-xl px-4 py-3 text-sm " + (isBalanced(entry) ? "bg-emerald-50 text-emerald-800" : "bg-rose-50 text-rose-800")}>
-          {isBalanced(entry) ? "เดบิตเท่ากับเครดิต รายการนี้ลงตัว" : "เดบิตไม่เท่ากับเครดิต ลงบัญชีไม่ได้"}
-        </div>
-        {entry.ref && <p className="mt-2 text-xs text-slate-500">อ้างอิงเอกสารต้นทาง {entry.ref}</p>}
+        ))}
       </div>
+
+      <Note tone={held >= life ? "idle" : "ok"}>
+        {held >= life
+          ? "ตัดค่าเสื่อมราคาครบอายุการใช้งานแล้ว มูลค่าตามบัญชีเป็นศูนย์"
+          : \`เหลืออีก \${life - held} เดือนจึงจะตัดค่าเสื่อมครบ คิดด้วยวิธีเส้นตรงเดือนละ \${baht(monthlyDepreciation(a))}\`}
+      </Note>
     </div>
   );
 }
@@ -1935,14 +2592,15 @@ export const GOODS_RECEIPTS = [
   { no: "GR-2569-207", po: "PO-2569-119", date: "2026-09-20", lines: [{ material: "MAT-1003", qty: 14 }] },
 ];
 
+/** ใบแจ้งหนี้จากผู้ขาย — paid บอกว่าจ่ายไปแล้วหรือยังค้างอยู่ */
 export const INVOICES = [
-  { no: "INV-87102", po: "PO-2569-101", vendor: "V-001", date: "2026-07-16", amount: 222000 },
-  { no: "INV-87340", po: "PO-2569-104", vendor: "V-002", date: "2026-08-01", amount: 44400 },
-  { no: "INV-87588", po: "PO-2569-109", vendor: "V-003", date: "2026-08-09", amount: 72000 },
-  { no: "INV-87901", po: "PO-2569-112", vendor: "V-004", date: "2026-08-29", amount: 29000 },
-  { no: "INV-88060", po: "PO-2569-115", vendor: "V-001", date: "2026-09-04", amount: 229500 },
-  { no: "INV-88214", po: "PO-2569-118", vendor: "V-001", date: "2026-09-20", amount: 84000 },
-  { no: "INV-88301", po: "PO-2569-119", vendor: "V-003", date: "2026-09-21", amount: 48000 },
+  { no: "INV-87102", po: "PO-2569-101", vendor: "V-001", date: "2026-07-16", amount: 222000, paid: true },
+  { no: "INV-87340", po: "PO-2569-104", vendor: "V-002", date: "2026-08-01", amount: 44400, paid: true },
+  { no: "INV-87588", po: "PO-2569-109", vendor: "V-003", date: "2026-08-09", amount: 72000, paid: true },
+  { no: "INV-87901", po: "PO-2569-112", vendor: "V-004", date: "2026-08-29", amount: 29000, paid: true },
+  { no: "INV-88060", po: "PO-2569-115", vendor: "V-001", date: "2026-09-04", amount: 229500, paid: true },
+  { no: "INV-88214", po: "PO-2569-118", vendor: "V-001", date: "2026-09-20", amount: 84000, paid: false },
+  { no: "INV-88301", po: "PO-2569-119", vendor: "V-003", date: "2026-09-21", amount: 48000, paid: false },
 ];
 
 /** การเคลื่อนไหวสต็อก — รับเข้าเป็นบวก จ่ายออกเป็นลบ */

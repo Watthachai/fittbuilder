@@ -69,14 +69,15 @@ export const GOODS_RECEIPTS = [
   { no: "GR-2569-207", po: "PO-2569-119", date: "2026-09-20", lines: [{ material: "MAT-1003", qty: 14 }] },
 ];
 
+/** ใบแจ้งหนี้จากผู้ขาย — paid บอกว่าจ่ายไปแล้วหรือยังค้างอยู่ */
 export const INVOICES = [
-  { no: "INV-87102", po: "PO-2569-101", vendor: "V-001", date: "2026-07-16", amount: 222000 },
-  { no: "INV-87340", po: "PO-2569-104", vendor: "V-002", date: "2026-08-01", amount: 44400 },
-  { no: "INV-87588", po: "PO-2569-109", vendor: "V-003", date: "2026-08-09", amount: 72000 },
-  { no: "INV-87901", po: "PO-2569-112", vendor: "V-004", date: "2026-08-29", amount: 29000 },
-  { no: "INV-88060", po: "PO-2569-115", vendor: "V-001", date: "2026-09-04", amount: 229500 },
-  { no: "INV-88214", po: "PO-2569-118", vendor: "V-001", date: "2026-09-20", amount: 84000 },
-  { no: "INV-88301", po: "PO-2569-119", vendor: "V-003", date: "2026-09-21", amount: 48000 },
+  { no: "INV-87102", po: "PO-2569-101", vendor: "V-001", date: "2026-07-16", amount: 222000, paid: true },
+  { no: "INV-87340", po: "PO-2569-104", vendor: "V-002", date: "2026-08-01", amount: 44400, paid: true },
+  { no: "INV-87588", po: "PO-2569-109", vendor: "V-003", date: "2026-08-09", amount: 72000, paid: true },
+  { no: "INV-87901", po: "PO-2569-112", vendor: "V-004", date: "2026-08-29", amount: 29000, paid: true },
+  { no: "INV-88060", po: "PO-2569-115", vendor: "V-001", date: "2026-09-04", amount: 229500, paid: true },
+  { no: "INV-88214", po: "PO-2569-118", vendor: "V-001", date: "2026-09-20", amount: 84000, paid: false },
+  { no: "INV-88301", po: "PO-2569-119", vendor: "V-003", date: "2026-09-21", amount: 48000, paid: false },
 ];
 
 /** การเคลื่อนไหวสต็อก — รับเข้าเป็นบวก จ่ายออกเป็นลบ */

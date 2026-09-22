@@ -1111,11 +1111,14 @@ export function Donut({
   center,
   size = 150,
   thickness = 18,
+  format = (n) => n.toLocaleString("th-TH"),
 }: {
   segments: { label: string; value: number; swatch: Swatch }[];
   center?: ReactNode;
   size?: number;
   thickness?: number;
+  /** How the legend prints a value — money needs a different one from a headcount. */
+  format?: (n: number) => string;
 }) {
   const total = segments.reduce((n, s) => n + s.value, 0);
   const r = 50 - thickness / 2;
@@ -1155,7 +1158,7 @@ export function Donut({
           <li key={s.label} className="flex items-center gap-2 text-[12.5px]">
             <Dot className={s.swatch.dot} />
             <span className="min-w-0 flex-1 truncate text-slate-600 dark:text-slate-300">{s.label}</span>
-            <span className="tabular-nums text-slate-900 dark:text-slate-50">{s.value}</span>
+            <span className="tabular-nums text-slate-900 dark:text-slate-50">{format(s.value)}</span>
             <span className="w-9 text-right text-[11px] tabular-nums text-slate-400">
               {total ? Math.round((s.value / total) * 100) : 0}%
             </span>

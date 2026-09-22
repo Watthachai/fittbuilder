@@ -333,6 +333,7 @@ function Overview({
               <Donut
                 segments={composition}
                 size={128}
+                format={(n) => baht(n)}
                 center={
                   <span>
                     <span className="block text-[22px] font-semibold leading-none tabular-nums text-slate-900 dark:text-slate-50">

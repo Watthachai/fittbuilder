@@ -800,6 +800,7 @@ function Stock({ onOpenMaterial }: { onOpenMaterial: (m: Material) => void }) {
             <Donut
               segments={groups.map((g) => ({ label: g.group, value: g.value, swatch: groupSwatch(g.group) }))}
               size={128}
+              format={(n) => baht(n)}
               center={
                 <span>
                   <span className="block text-[18px] font-semibold leading-none tabular-nums text-slate-900 dark:text-slate-50">

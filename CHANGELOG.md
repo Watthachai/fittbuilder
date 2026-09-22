@@ -17,6 +17,7 @@ and is kept in sync with the entries below.
 ### Added
 - **The management-system kit** (`demo/modules/kit.tsx`, composer-owned like `ui.tsx`): a data table with a sticky header, per-column sorting, a density toggle, row selection with a contextual bulk bar and Enter-to-open; a slide-out `Drawer` for row detail; a `ConfirmDialog` that can require typing a word; and a `Wizard` that validates on leaving each step rather than at submit.
 - **A module overview page.** `/erp/[module]` now renders the module's own dashboard and `/erp/[module]/[n]` its capabilities. Personnel records ships the first one: headline figures with year-over-year movement, a twelve-month headcount column chart, what falls due inside 120 days, headcount by department and the latest personnel events — all derived, none stored.
+- **A trial switcher** in the top bar (`app/erp/TrialSwitcher.tsx`): while trialling one module, jump straight to trialling another, grouped by family with the current one ticked, plus a way out to the whole system and a shortcut to that module's marketplace listing.
 - **Shell chrome for people who live in it**: a sidebar that collapses to icons, breadcrumbs, a Cmd/Ctrl+K command palette over every module and capability, and a notification bell whose contents are derived from the same data the screens read (`app/erp/alerts.ts`).
 - **Dark mode** for the demo system, on the document root so it is a real theme. The generated project gets the class-based `dark:` variant through the scaffold's inline Tailwind config, so a taken project behaves the same.
 - Skeleton loading states, in the table and as `app/erp/[module]/loading.tsx`.
@@ -57,6 +58,7 @@ and is kept in sync with the entries below.
 - Frosted-glass surfaces + Google-Stitch-style entrance animations across pages (projects, login, changelog, admin).
 
 ### Fixed
+- The navigation offered "ภาพรวม" for every module although only personnel records has a dashboard, so the entry showed the first capability instead. `Module.hasOverview` now gates the entry in both shells and the command palette, and the first capability is highlighted where there is no dashboard.
 - "ลองใช้" from a marketplace listing opened the whole suite. `?only=<id>` now narrows the shell to that one module — sidebar, command palette, alerts and the take-as-project action — and every in-shell link carries it so a capability click does not silently widen the trial. "ดูทั้งระบบ" leaves it. It is a view scope, not a permission: the role still decides what may be opened at all.
 - The new-employee form let you type one character per field. `Text` was declared inside `NewEmployee`, so every keystroke produced a new component type and React remounted the input, taking the caret with it. Declared at module scope.
 - An expired contract counted down past zero ("เหลือ -5 วัน"). It now reads as expired.

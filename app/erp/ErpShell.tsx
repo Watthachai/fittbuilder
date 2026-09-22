@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
-  Banknote, Bell, Boxes, ChevronRight, ChevronsLeft, Clock, Factory, Grid3x3,
+  Banknote, Bell, Boxes, ChevronRight, ChevronsLeft, Clock, Factory,
   LayoutGrid, Moon, PanelsTopLeft, Search, Ship, Sun, Truck, Users, Warehouse,
 } from "lucide-react";
 import { FAMILIES, MODULES, modulesOf } from "@/lib/modules/registry";
@@ -15,6 +15,7 @@ import { applyTheme, captureRoot, readTheme } from "./theme";
 import type { Theme } from "./theme";
 import CommandPalette from "./CommandPalette";
 import TakeProject from "./TakeProject";
+import TrialSwitcher from "./TrialSwitcher";
 
 const ICONS: Record<string, typeof Users> = {
   pa: Users,
@@ -135,7 +136,13 @@ export default function ErpShell({ children }: { children: React.ReactNode }) {
     });
   };
 
-  const sectionName = current && sectionAt ? current.keyFeatures[sectionAt - 1] : undefined;
+  const sectionName = current
+    ? sectionAt
+      ? current.keyFeatures[sectionAt - 1]
+      : current.hasOverview
+        ? undefined
+        : current.keyFeatures[0]
+    : undefined;
 
   return (
     <div className="flex min-h-screen bg-slate-100 dark:bg-slate-950">
@@ -202,12 +209,16 @@ export default function ErpShell({ children }: { children: React.ReactNode }) {
                         expanded at once is a wall of fifty links nobody reads. */}
                     {on && !rail && (
                       <ul className="mb-1 ml-[18px] border-l border-slate-200 pl-2 dark:border-slate-800">
-                        <SubLink href={keep(`/erp/${m.id}`)} active={!sectionAt} label="ภาพรวม" />
+                        {m.hasOverview && (
+                          <SubLink href={keep(`/erp/${m.id}`)} active={!sectionAt} label="ภาพรวม" />
+                        )}
                         {m.keyFeatures.map((feature, i) => (
                           <SubLink
                             key={feature}
                             href={keep(`/erp/${m.id}/${i + 1}`)}
-                            active={sectionAt === i + 1}
+                            // Without a dashboard the index route renders the
+                            // first capability, so that is what is highlighted.
+                            active={sectionAt === i + 1 || (!sectionAt && !m.hasOverview && i === 0)}
                             label={feature}
                           />
                         ))}
@@ -371,16 +382,7 @@ export default function ErpShell({ children }: { children: React.ReactNode }) {
             {theme === "dark" ? <Sun size={14} /> : <Moon size={14} />}
           </button>
 
-          {trial && (
-            <Link
-              href="/erp"
-              className="hidden shrink-0 items-center gap-1.5 rounded-lg border border-sky-300 px-2.5 py-1.5 text-[12px] text-sky-700 transition hover:bg-sky-50 md:flex dark:border-sky-500/40 dark:text-sky-400 dark:hover:bg-sky-500/10"
-              title="ออกจากโหมดทดลองใช้แล้วดูทุกโมดูลที่สิทธิ์นี้เปิดได้"
-            >
-              <Grid3x3 size={13} />
-              ดูทั้งระบบ ({licensed.length})
-            </Link>
-          )}
+          {trial && <TrialSwitcher trial={trial} licensed={licensed} />}
           <TakeProject role={role} only={trial ?? undefined} />
           <Link
             href="/"

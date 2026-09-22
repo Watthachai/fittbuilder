@@ -19,7 +19,8 @@ function shellFor(selected: Module[]): string {
     .map(
       (m) =>
         `  { id: "${m.id}", label: ${JSON.stringify(m.name)}, code: ${JSON.stringify(m.sapCode ?? "")},` +
-        ` sections: ${JSON.stringify(m.keyFeatures)}, Screen: ${screenName(m)} },`
+        ` sections: ${JSON.stringify(m.keyFeatures)}, overview: ${m.hasOverview === true},` +
+        ` Screen: ${screenName(m)} },`
     )
     .join("\n");
   return `import { useEffect, useState } from "react";
@@ -37,7 +38,7 @@ ${entries}
  */
 export default function App() {
   const [moduleId, setModuleId] = useState(MODULES[0].id);
-  const [section, setSection] = useState(null);
+  const [section, setSection] = useState(MODULES[0].overview ? null : MODULES[0].sections[0]);
   const [dark, setDark] = useState(false);
   const current = MODULES.find((m) => m.id === moduleId);
   const Current = current.Screen;
@@ -50,7 +51,7 @@ export default function App() {
 
   const open = (m) => {
     setModuleId(m.id);
-    setSection(null);
+    setSection(m.overview ? null : m.sections[0]);
   };
 
   return (
@@ -86,19 +87,21 @@ export default function App() {
 
               {m.id === moduleId && (
                 <ul className="mb-1 ml-2.5 border-l border-slate-200 pl-2 dark:border-slate-800">
-                  <li>
-                    <button
-                      onClick={() => setSection(null)}
-                      className={
-                        "block w-full rounded-md px-2 py-1.5 text-left text-[12.5px] transition " +
-                        (section === null
-                          ? "bg-sky-50 font-medium text-sky-700 dark:bg-sky-500/10 dark:text-sky-400"
-                          : "text-slate-500 hover:bg-slate-50 hover:text-slate-800 dark:text-slate-400 dark:hover:bg-slate-800/60")
-                      }
-                    >
-                      ภาพรวม
-                    </button>
-                  </li>
+                  {m.overview && (
+                    <li>
+                      <button
+                        onClick={() => setSection(null)}
+                        className={
+                          "block w-full rounded-md px-2 py-1.5 text-left text-[12.5px] transition " +
+                          (section === null
+                            ? "bg-sky-50 font-medium text-sky-700 dark:bg-sky-500/10 dark:text-sky-400"
+                            : "text-slate-500 hover:bg-slate-50 hover:text-slate-800 dark:text-slate-400 dark:hover:bg-slate-800/60")
+                        }
+                      >
+                        ภาพรวม
+                      </button>
+                    </li>
+                  )}
                   {m.sections.map((s) => (
                     <li key={s}>
                       <button

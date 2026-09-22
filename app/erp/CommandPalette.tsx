@@ -31,7 +31,9 @@ export default function CommandPalette({
   const entries = useMemo<Entry[]>(
     () =>
       allowed.flatMap((m) => [
-        { id: m.id, label: `ภาพรวม${m.name}`, group: m.name, href: `/erp/${m.id}` },
+        ...(m.hasOverview
+          ? [{ id: m.id, label: `ภาพรวม${m.name}`, group: m.name, href: `/erp/${m.id}` }]
+          : []),
         ...m.keyFeatures.map((f, i) => ({
           id: `${m.id}-${i}`,
           label: f,

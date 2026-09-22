@@ -54,6 +54,14 @@ export interface Module {
    * source document. The tests hold each module's own source against this list.
    */
   keyFeatures: string[];
+  /**
+   * Whether the module ships a dashboard of its own at its index route.
+   *
+   * Without it the index renders the first capability, which is fine — but the
+   * navigation must not offer "ภาพรวม" and then show something else. The menu
+   * and the screen answer to the same flag.
+   */
+  hasOverview?: boolean;
   /** The module's own source, confined to `src/modules/<id>/`. */
   files: ProjectFiles;
   /** The SAP module this is comparable to — a search alias, never a claim. */

@@ -24,6 +24,7 @@ export const PA: Module = {
     "เหตุการณ์ทางบุคคล",
     "ค่าตอบแทนและสวัสดิการ",
   ],
+  hasOverview: true,
   provides: ["employee"],
   needs: [],
   effortDays: 9,

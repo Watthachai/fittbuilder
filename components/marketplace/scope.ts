@@ -33,6 +33,13 @@ export function closureOf(picked: Module[]): Module[] {
   return [...seen.values()];
 }
 
+/** The ids that belong to a system every part of which is present. */
+function wholeSystemsOnly(ids: string[]): string[] {
+  return FAMILIES.filter((f) => modulesOf(f.id).every((m) => ids.includes(m.id))).flatMap((f) =>
+    modulesOf(f.id).map((m) => m.id)
+  );
+}
+
 /** The other systems a system cannot run without. */
 export function systemsNeededBy(family: ModuleFamily): ModuleFamily[] {
   const parts = modulesOf(family);
@@ -62,7 +69,9 @@ export function useScope() {
   useEffect(() => {
     try {
       const raw = window.localStorage.getItem(KEY);
-      if (raw) setIds(JSON.parse(raw) as string[]);
+      // A basket saved when parts were sold singly may hold half a system.
+      // Half a system is not a product, so only whole ones are kept.
+      if (raw) setIds(wholeSystemsOnly(JSON.parse(raw) as string[]));
     } catch {
       // A blocked store just means the basket starts empty.
     }

@@ -8,12 +8,24 @@ import type { AgentAction, GenerationPhase } from "@/lib/types";
 /**
  * What the studio shows while a build is running.
  *
- * The wait used to be a cartoon and a carousel of tips, which said nothing about
- * the thing being waited for. Everything worth showing is already in hand: which
- * documents this build was written from, which of the four runtime steps it is
- * on, and the files and packages as they arrive. A person who can see that can
- * tell a slow build from a stuck one without opening the terminal.
+ * The cat and the tips were the whole screen, and they said nothing about the
+ * thing being waited for. They are still here — a minute of waiting is nicer
+ * with them and the cat is the product's face — but they no longer carry it
+ * alone. Everything worth showing was already in hand: which documents this
+ * build was written from, which of the four runtime steps it is on, and the
+ * files and packages as they arrive. A person who can see that can tell a slow
+ * build from a stuck one without opening the terminal.
  */
+
+/** The headline over the cat — the one-line answer to "what is it doing". */
+const HEADLINE: Record<GenerationPhase, string> = {
+  idle: "กำลังเตรียมเวที…",
+  generating: "AI กำลังเขียนโค้ด…",
+  installing: "กำลังติดตั้งแพ็กเกจ…",
+  starting: "กำลังเปิดเซิร์ฟเวอร์…",
+  ready: "พร้อมแล้ว",
+  error: "เกิดข้อผิดพลาด",
+};
 
 /** The four runtime steps, in the order the container goes through them. */
 const STEPS: { id: GenerationPhase; label: string; icon: typeof Terminal }[] = [
@@ -72,6 +84,24 @@ export default function BuildFlow({ phase, workflow, approved, has, actions }: B
 
   return (
     <div className="flex w-full max-w-lg flex-col gap-3 self-center px-6">
+      {/* The cat stays. A build takes a minute and the person is watching it —
+          the panels below say how it is going, and this says it is going. */}
+      <div className="flex flex-col items-center">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="/cat_playing_animation.svg"
+          alt=""
+          className="loader-float w-44 select-none opacity-90"
+          draggable={false}
+        />
+        <p className="-mt-1 font-display text-[14px] text-chalk">{HEADLINE[phase]}</p>
+        <span className="mt-1.5 flex items-center gap-1.5">
+          <span className="loader-dot size-1.5 rounded-full bg-shine" style={{ animationDelay: "0ms" }} />
+          <span className="loader-dot size-1.5 rounded-full bg-shine" style={{ animationDelay: "150ms" }} />
+          <span className="loader-dot size-1.5 rounded-full bg-shine" style={{ animationDelay: "300ms" }} />
+        </span>
+      </div>
+
       {/* Where this build came from. A build is not a thing that happens on its
           own — it is the third step of a chain, and the two documents above it
           are what it was written from. */}

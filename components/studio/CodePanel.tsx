@@ -308,7 +308,7 @@ export default function CodePanel({
   if (!files || paths.length === 0) {
     return (
       <div className="bg-grid flex flex-1 flex-col items-center justify-center gap-4 text-center">
-        {/* Same playful cat as BuildingLoader so the waiting states feel like one flow. */}
+        {/* Same playful cat as BuildFlow so the waiting states feel like one flow. */}
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src="/cat_playing_animation.svg"

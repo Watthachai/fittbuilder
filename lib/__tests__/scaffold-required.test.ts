@@ -86,9 +86,11 @@ describe("a build that wrote no shell", () => {
 
   it("is not reported to the user as a finished build", () => {
     expect(route).toContain("shellMissing");
-    // Screens without a shell is the exact condition — not "no files at all",
-    // which the route already handles separately.
-    expect(route).toContain('!produced["src/App.tsx"]');
+    // Screens without an ENTRY PAIR is the exact condition — not "no files at
+    // all", which the route already handles separately. Both files matter and
+    // they fail differently: a missing App.tsx leaves a stale page, a missing
+    // main.tsx 404s the script index.html asks for.
+    expect(route).toContain('["src/App.tsx", "src/main.tsx"]');
   });
 
   it("does not fire on an iteration, which may touch one page and nothing else", () => {
@@ -110,14 +112,16 @@ describe("the preview says so too", () => {
     // The sweep only runs DURING a build. When one ends without a shell there
     // was nothing left saying the preview is not what was just built.
     expect(preview).toContain("ยังไม่มีไฟล์หลักของแอป");
-    expect(preview).toContain("shellMissing");
+    expect(preview).toContain("missingShell");
+    // Named, because "โหลดสคริปต์ไม่สำเร็จ" is the symptom of exactly one of them.
+    expect(preview).toContain('missingShell.includes("src/main.tsx")');
   });
 
   it("outranks the compile error it causes", () => {
     // Same reason missing imports outrank theirs: the cause is what can be
     // acted on, and stacking bars pushes the demo off screen.
     const chain = preview.slice(preview.indexOf("} | null = "));
-    expect(chain.indexOf("shellMissing")).toBeLessThan(chain.indexOf("missingFiles.length"));
+    expect(chain.indexOf("missingShell.length")).toBeLessThan(chain.indexOf("missingFiles.length"));
   });
 
   it("asks only for the shell, not for another full pass", () => {

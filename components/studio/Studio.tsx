@@ -2306,11 +2306,22 @@ export default function Studio({ projectId }: { projectId: string }) {
   // Imports with no file behind them — the cause of the "จอขาว" the compile
   // error only hints at. Derived, never stored: it must follow project.files.
   const missingFiles = hasApp ? missingImports(project.files) : [];
-  // Screens with no shell to render them: the build stopped before src/App.tsx,
-  // so the container is still serving whatever App.tsx was already on disk.
-  const shellMissing =
-    Object.keys(project.files ?? {}).some((p) => p.startsWith("src/pages/")) &&
-    !project.files?.["src/App.tsx"];
+  /**
+   * The entry files a build stopped before writing.
+   *
+   * Both are asked for LAST (see the structure rule), so a turn that runs out of
+   * output budget drops exactly these — and they fail in two different ways that
+   * look unrelated. Missing App.tsx: the container keeps serving whatever App.tsx
+   * was already on disk, so the preview shows a stale page and says nothing.
+   * Missing main.tsx: index.html is always supplied and always points at
+   * /src/main.tsx, so Vite answers 404 and the bridge reports "โหลดสคริปต์ไม่สำเร็จ",
+   * which names the symptom and not one thing the user can do about it.
+   */
+  const missingShell = (
+    Object.keys(project.files ?? {}).some((p) => p.startsWith("src/pages/"))
+      ? (["src/App.tsx", "src/main.tsx"] as const).filter((p) => !project.files?.[p])
+      : []
+  ) as string[];
   // Rework is available once an app exists alongside its BRD/PRD: the user can go
   // back, edit the docs, then regenerate the app from them.
   const reworkDocs = docsFromFiles(project.files);
@@ -2766,7 +2777,7 @@ export default function Studio({ projectId }: { projectId: string }) {
                 wandNudge={wandNudge}
                 missingFiles={missingFiles}
                 onCreateMissingFiles={readOnly ? undefined : createMissingFiles}
-                shellMissing={shellMissing}
+                missingShell={missingShell}
                 onRebuildShell={readOnly ? undefined : rebuildShell}
                 onBridge={takeBridge}
               />

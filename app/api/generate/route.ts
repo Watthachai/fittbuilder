@@ -408,13 +408,15 @@ export async function POST(request: Request) {
         const wroteScreens = Object.keys(produced).some(
           (path) => path.startsWith("src/pages/") || path.startsWith("src/components/")
         );
-        const shellMissing = !iteration && wroteScreens && !produced["src/App.tsx"];
+        const shellGap = (["src/App.tsx", "src/main.tsx"] as const).filter((f) => !produced[f]);
+        const shellMissing = !iteration && wroteScreens && shellGap.length > 0;
 
         send({
           type: "done",
           note: shellMissing
-            ? "เขียนหน้าจอและคอมโพเนนต์ครบแล้ว แต่ยังไม่ได้เขียน src/App.tsx ซึ่งเป็นไฟล์ที่ประกอบทุกอย่างเข้าด้วยกัน " +
-              "หน้าตัวอย่างจึงยังเป็นหน้าเดิม กดสร้างใหม่อีกครั้งเพื่อให้เขียนให้ครบ" +
+            ? `เขียนหน้าจอและคอมโพเนนต์ครบแล้ว แต่ยังไม่ได้เขียน ${shellGap.join(" และ ")} ` +
+              "ซึ่งเป็นไฟล์ที่ประกอบทุกอย่างเข้าด้วยกันและเป็นจุดเริ่มของแอป " +
+              "หน้าตัวอย่างจึงยังไม่ใช่สิ่งที่เพิ่งสร้าง กดปุ่มในหน้าตัวอย่างเพื่อให้เขียนสองไฟล์นี้ให้ครบ" +
               assetNote
             : ((fromJson ? salvagedNote : parser.getReply()) ||
                 (iteration ? "แก้ไขเรียบร้อยแล้ว" : "สร้างระบบเรียบร้อยแล้ว")) + assetNote,

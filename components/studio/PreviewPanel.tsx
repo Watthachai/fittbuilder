@@ -52,8 +52,8 @@ interface PreviewPanelProps {
   /** Imports with no file behind them — a guaranteed white screen. */
   missingFiles?: MissingImport[];
   onCreateMissingFiles?: () => void;
-  /** Screens exist but src/App.tsx does not — nothing renders them. */
-  shellMissing?: boolean;
+  /** Entry files the build never wrote, though screens exist (see Studio). */
+  missingShell?: string[];
   /** Ask the AI for the shell (absent for read-only viewers). */
   onRebuildShell?: () => void;
   /** Hands the studio a channel into the preview (screen capture drives it). */
@@ -79,7 +79,7 @@ export default function PreviewPanel({
   wandNudge,
   missingFiles = [],
   onCreateMissingFiles,
-  shellMissing = false,
+  missingShell = [],
   onRebuildShell,
   onBridge,
 }: PreviewPanelProps) {
@@ -208,7 +208,7 @@ export default function PreviewPanel({
     also?: string;
     action?: { label: string; run: () => void };
     dismiss?: () => void;
-  } | null = shellMissing
+  } | null = missingShell.length
     ? {
         /**
          * Pages with no shell to render them.
@@ -221,9 +221,13 @@ export default function PreviewPanel({
          * build that simply has not started.
          */
         tone: "warn",
-        title: "ยังไม่มีไฟล์หลักของแอป",
-        body: "มีหน้าจอที่สร้างไว้แล้ว แต่ยังไม่มี src/App.tsx ที่ประกอบเข้าด้วยกัน หน้านี้จึงยังเป็นหน้าเดิม — สั่ง AI ให้เขียนไฟล์หลักให้ครบ",
-        detail: "src/App.tsx",
+        title: `ยังไม่มีไฟล์หลักของแอป ${missingShell.length} ไฟล์`,
+        body: `${missingShell.join(" · ")} — มีหน้าจอที่สร้างไว้แล้ว แต่ยังไม่มีไฟล์ที่ประกอบเข้าด้วยกันและเป็นจุดเริ่มของแอป ${
+          missingShell.includes("src/main.tsx")
+            ? "หน้านี้จึงโหลดสคริปต์ไม่ขึ้น"
+            : "หน้านี้จึงยังเป็นหน้าเดิม"
+        } — สั่ง AI ให้เขียนให้ครบ`,
+        detail: missingShell.join("\n"),
         action: onRebuildShell ? { label: "เขียนไฟล์หลักให้ครบ", run: onRebuildShell } : undefined,
       }
     : missingFiles.length

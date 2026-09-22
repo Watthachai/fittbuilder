@@ -42,7 +42,7 @@ export default function ModuleDetail({ id }: { id: string }) {
             มาร์เก็ตเพลส
           </Link>
           <Store size={15} className="text-chalk/20" />
-          <span className="truncate text-[12.5px] text-chalk/40">{family?.name}</span>
+          <span className="truncate text-[12.5px] text-chalk/40">ระบบ{family?.name}</span>
         </div>
       </header>
 
@@ -163,7 +163,7 @@ export default function ModuleDetail({ id }: { id: string }) {
 
             <section className="mt-6">
               <h2 className="font-display text-[14px] font-semibold text-chalk">
-                โมดูลอื่นใน{family?.name}
+                ส่วนอื่นของระบบ{family?.name}
               </h2>
               <ul className="mt-2.5 grid gap-2 sm:grid-cols-2">
                 {siblings.map((s) => (

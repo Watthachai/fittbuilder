@@ -5,10 +5,10 @@ import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
   ArrowRightToLine, Banknote, Bell, Boxes, ChevronRight, ChevronsLeft, Clock, Factory,
-  LayoutGrid, Moon, PanelsTopLeft, Search, Ship, Sun, Truck, Users, Warehouse,
+  LayoutGrid, Lock, Moon, PanelsTopLeft, Search, Ship, Sun, Truck, Users, Warehouse,
 } from "lucide-react";
 import { FAMILIES, MODULES, modulesOf } from "@/lib/modules/registry";
-import { ROLES, DEMO_PASSWORD_HINT, clearSession, readSession, writeSession } from "./session";
+import { ROLES, DEMO_PASSWORD_HINT, clearSession, mayOpen, readSession, writeSession } from "./session";
 import type { Role } from "./session";
 import { alertsFor, moduleName } from "./alerts";
 import { applyTheme, captureRoot, readTheme } from "./theme";
@@ -93,10 +93,7 @@ export default function ErpShell({ children }: { children: React.ReactNode }) {
   const current = MODULES.find((m) => m.id === segments[1]);
   const sectionAt = segments[2] ? Number(segments[2]) : undefined;
 
-  const licensed = useMemo(
-    () => (role ? MODULES.filter((m) => role.families.includes(m.family)) : []),
-    [role]
-  );
+  const licensed = useMemo(() => (role ? MODULES.filter((m) => mayOpen(role, m.id)) : []), [role]);
   const trial = only ? licensed.find((m) => m.id === only) : undefined;
   const open = trial ? [trial] : licensed;
   const alerts = useMemo(() => alertsFor(open), [open]);
@@ -176,57 +173,74 @@ export default function ErpShell({ children }: { children: React.ReactNode }) {
             <div key={family.id} className="mb-4">
               {!rail && (
                 <p className="px-2 pb-1.5 text-[11px] font-medium uppercase tracking-wide text-slate-400 dark:text-slate-500">
-                  {family.name}
+                  ระบบ{family.name}
                 </p>
               )}
-              {modulesOf(family.id).filter((m) => open.some((o) => o.id === m.id)).map((m) => {
-                const on = current?.id === m.id;
-                const Icon = ICONS[m.id] ?? LayoutGrid;
-                return (
-                  <div key={m.id}>
-                    <Link
-                      href={keep(`/erp/${m.id}`)}
-                      title={rail ? m.name : undefined}
-                      className={
-                        "flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] transition " +
-                        (on
-                          ? "bg-violet-600 font-medium text-white shadow-sm shadow-violet-600/25"
-                          : "text-slate-600 hover:bg-slate-50 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800/60 dark:hover:text-slate-100")
-                      }
-                    >
-                      <Icon size={16} className="shrink-0" />
-                      {!rail && (
-                        <>
-                          <span className="min-w-0 flex-1 truncate">{m.name}</span>
-                          <span className={"shrink-0 text-[10.5px] " + (on ? "text-white/60" : "text-slate-300 dark:text-slate-600")}>
-                            {m.sapCode}
-                          </span>
-                        </>
-                      )}
-                    </Link>
-
-                    {/* Only the open module lists its capabilities. Ten modules
-                        expanded at once is a wall of fifty links nobody reads. */}
-                    {on && !rail && (
-                      <ul className="mb-1 ml-[18px] border-l border-slate-200 pl-2 dark:border-slate-800">
-                        {m.hasOverview && (
-                          <SubLink href={keep(`/erp/${m.id}`)} active={!sectionAt} label="ภาพรวม" />
+              {modulesOf(family.id)
+                // In a trial only the module on trial is listed; otherwise the
+                // whole system is, so what is locked is visible as locked rather
+                // than missing — that is what "one system, separate permissions"
+                // looks like from a seat that has some of it.
+                .filter((m) => !trial || m.id === trial.id)
+                .map((m) => {
+                  const on = current?.id === m.id;
+                  const locked = !mayOpen(role, m.id);
+                  const Icon = ICONS[m.id] ?? LayoutGrid;
+                  if (locked) {
+                    return (
+                      <div
+                        key={m.id}
+                        title={`บัญชี${role.title}ไม่มีสิทธิ์เปิด${m.name}`}
+                        className="flex cursor-not-allowed items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] text-slate-300 dark:text-slate-600"
+                      >
+                        <Icon size={16} className="shrink-0" />
+                        {!rail && (
+                          <>
+                            <span className="min-w-0 flex-1 truncate">{m.name}</span>
+                            <Lock size={12} className="shrink-0" />
+                          </>
                         )}
-                        {m.keyFeatures.map((feature, i) => (
-                          <SubLink
-                            key={feature}
-                            href={keep(`/erp/${m.id}/${i + 1}`)}
-                            // Without a dashboard the index route renders the
-                            // first capability, so that is what is highlighted.
-                            active={sectionAt === i + 1 || (!sectionAt && !m.hasOverview && i === 0)}
-                            label={feature}
-                          />
-                        ))}
-                      </ul>
-                    )}
-                  </div>
-                );
-              })}
+                      </div>
+                    );
+                  }
+                  return (
+                    <div key={m.id}>
+                      <Link
+                        href={keep(`/erp/${m.id}`)}
+                        title={rail ? m.name : undefined}
+                        className={
+                          "flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] transition " +
+                          (on
+                            ? "bg-violet-600 font-medium text-white shadow-sm shadow-violet-600/25"
+                            : "text-slate-600 hover:bg-slate-50 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800/60 dark:hover:text-slate-100")
+                        }
+                      >
+                        <Icon size={16} className="shrink-0" />
+                        {!rail && <span className="min-w-0 flex-1 truncate">{m.name}</span>}
+                      </Link>
+
+                      {/* Only the open part lists its capabilities. Ten parts
+                          expanded at once is a wall of fifty links nobody reads. */}
+                      {on && !rail && (
+                        <ul className="mb-1 ml-[18px] border-l border-slate-200 pl-2 dark:border-slate-800">
+                          {m.hasOverview && (
+                            <SubLink href={keep(`/erp/${m.id}`)} active={!sectionAt} label="ภาพรวม" />
+                          )}
+                          {m.keyFeatures.map((feature, i) => (
+                            <SubLink
+                              key={feature}
+                              href={keep(`/erp/${m.id}/${i + 1}`)}
+                              // Without a dashboard the index route renders the
+                              // first capability, so that is what is highlighted.
+                              active={sectionAt === i + 1 || (!sectionAt && !m.hasOverview && i === 0)}
+                              label={feature}
+                            />
+                          ))}
+                        </ul>
+                      )}
+                    </div>
+                  );
+                })}
             </div>
           ))}
         </nav>
@@ -529,7 +543,7 @@ function SignIn({
 
           <div className="mt-3 flex items-center justify-between gap-2">
             <p className="text-[11.5px] leading-snug text-slate-500 dark:text-slate-400">
-              ระบบตัวอย่าง — เลือกฝ่ายเพื่อดูว่าสิทธิ์นั้นเปิดโมดูลอะไรได้บ้าง
+              ระบบตัวอย่าง — เลือกฝ่ายเพื่อดูว่าสิทธิ์นั้นเปิดส่วนไหนของระบบได้บ้าง
             </p>
             <button
               type="button"

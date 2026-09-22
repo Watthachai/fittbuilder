@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { MODULES } from "@/lib/modules/registry";
 import { projectFilesFor } from "@/lib/modules/project";
 import { createProject, saveProject } from "@/lib/storage";
+import { mayOpen } from "./session";
 import type { Role } from "./session";
 import type { Module } from "@/lib/modules/types";
 
@@ -20,7 +21,7 @@ export default function TakeProject({ role, only }: { role: Role; only?: Module 
   const [error, setError] = useState<string>();
   const router = useRouter();
 
-  const selected = only ? [only] : MODULES.filter((m) => role.families.includes(m.family));
+  const selected = only ? [only] : MODULES.filter((m) => mayOpen(role, m.id));
 
   const take = async () => {
     if (busy) return;

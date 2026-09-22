@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { Check, Plus, PlayCircle } from "lucide-react";
-import { MODULES } from "@/lib/modules/registry";
+import { FAMILIES, MODULES } from "@/lib/modules/registry";
 import type { Module } from "@/lib/modules/types";
 
 /**
@@ -42,7 +42,7 @@ export default function ModuleCard({
             {m.name}
           </Link>
           <p className="mt-0.5 text-[11.5px] text-chalk/40">
-            เทียบเท่า SAP {m.sapCode} · {m.keyFeatures.length} ความสามารถ
+            ส่วนหนึ่งของระบบ{FAMILIES.find((f) => f.id === m.family)?.name} · เทียบเท่า SAP {m.sapCode} · {m.keyFeatures.length} ความสามารถ
           </p>
         </div>
         <div className="shrink-0 text-right">

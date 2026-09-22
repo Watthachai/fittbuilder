@@ -1,6 +1,6 @@
 import type { ProjectFiles } from "@/lib/types";
 import type { Composition, MissingEntity, Module, QuoteLine } from "./types";
-import { FAMILY_ORDER } from "./types";
+import { FAMILY_ORDER, SYSTEM_NAMES } from "./types";
 import { SHARED_SOURCES } from "./sources";
 
 /**
@@ -11,6 +11,11 @@ import { SHARED_SOURCES } from "./sources";
  * both wrote `src/App.tsx` would have left exactly one of them in the project with
  * no error to notice. Generating it here means the collision cannot be expressed.
  */
+/** The buyer-facing name of the system a module is part of. */
+function systemName(m: Module): string {
+  return SYSTEM_NAMES[m.family];
+}
+
 function shellFor(selected: Module[]): string {
   const imports = selected
     .map((m) => `import ${screenName(m)} from "./modules/${m.id}/screen";`)
@@ -18,7 +23,7 @@ function shellFor(selected: Module[]): string {
   const entries = selected
     .map(
       (m) =>
-        `  { id: "${m.id}", label: ${JSON.stringify(m.name)}, code: ${JSON.stringify(m.sapCode ?? "")},` +
+        `  { id: "${m.id}", label: ${JSON.stringify(m.name)}, system: ${JSON.stringify(systemName(m))},` +
         ` sections: ${JSON.stringify(m.keyFeatures)}, overview: ${m.hasOverview === true},` +
         ` Screen: ${screenName(m)} },`
     )
@@ -74,8 +79,13 @@ export default function App() {
         </div>
 
         <nav className="min-h-0 flex-1 overflow-y-auto px-2 py-3">
-          {MODULES.map((m) => (
+          {MODULES.map((m, i) => (
             <div key={m.id}>
+              {!rail && (i === 0 || MODULES[i - 1].system !== m.system) && (
+                <p className={"px-2 pb-1.5 text-[11px] font-medium uppercase tracking-wide text-slate-400 dark:text-slate-500" + (i === 0 ? "" : " mt-4")}>
+                  ระบบ{m.system}
+                </p>
+              )}
               <button
                 onClick={() => open(m)}
                 title={rail ? m.label : undefined}
@@ -88,7 +98,6 @@ export default function App() {
               >
                 <LayoutGrid size={16} className="shrink-0" />
                 {!rail && <span className="min-w-0 flex-1 truncate">{m.label}</span>}
-                {!rail && <span className={"shrink-0 text-[10.5px] " + (m.id === moduleId ? "text-white/60" : "text-slate-300 dark:text-slate-600")}>{m.code}</span>}
               </button>
 
               {m.id === moduleId && !rail && (

@@ -1,4 +1,5 @@
 import type { Module } from "./types";
+import { SYSTEM_NAMES } from "./types";
 import { PA } from "./hr/pa";
 import { OM } from "./hr/om";
 import { TM } from "./hr/tm";
@@ -25,9 +26,9 @@ export const MODULES: Module[] = [PA, OM, TM, PY, MM, PP, SD, WM, FI, CO];
 
 /** Buyer-facing name for each family, in catalogue order. */
 export const FAMILIES: { id: Module["family"]; name: string; blurb: string }[] = [
-  { id: "hr", name: "บุคคลและเงินเดือน", blurb: "ทะเบียนพนักงานเป็นฐาน แล้วโครงสร้าง เวลา และเงินเดือนอ่านต่อจากที่เดียวกัน" },
-  { id: "logistics", name: "จัดซื้อ ผลิต ขาย คลัง", blurb: "แฟ้มวัสดุชุดเดียวเดินตั้งแต่ขอซื้อจนส่งของถึงลูกค้า" },
-  { id: "finance", name: "บัญชีและต้นทุน", blurb: "ลงบัญชีจากเอกสารที่ออกจริง จึงต้องมีฝั่งจัดซื้อและขายอยู่ด้วย" },
+  { id: "hr", name: SYSTEM_NAMES.hr, blurb: "ทะเบียนพนักงานเป็นฐาน แล้วโครงสร้าง เวลา และเงินเดือนอ่านต่อจากที่เดียวกัน" },
+  { id: "logistics", name: SYSTEM_NAMES.logistics, blurb: "แฟ้มวัสดุชุดเดียวเดินตั้งแต่ขอซื้อจนส่งของถึงลูกค้า" },
+  { id: "finance", name: SYSTEM_NAMES.finance, blurb: "ลงบัญชีจากเอกสารที่ออกจริง จึงต้องมีฝั่งจัดซื้อและขายอยู่ด้วย" },
 ];
 
 export function getModule(id: string | null | undefined): Module | undefined {

@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { getModule } from "@/lib/modules/registry";
 import { SCREENS } from "../screens";
-import { readSession } from "../session";
+import { mayOpen, readSession } from "../session";
 import type { Role } from "../session";
 
 /**
@@ -25,7 +25,7 @@ export default function ModuleView({ id, sectionIndex }: { id: string; sectionIn
   const Screen = SCREENS[id];
   if (!module || !Screen) return <NotFound id={id} />;
   if (!ready) return null;
-  if (!role?.families.includes(module.family)) return <NoAccess name={module.name} />;
+  if (!role || !mayOpen(role, module.id)) return <NoAccess name={module.name} />;
 
   return <Screen section={sectionIndex === undefined ? undefined : module.keyFeatures[sectionIndex]} />;
 }

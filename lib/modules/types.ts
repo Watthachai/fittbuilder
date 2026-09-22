@@ -25,6 +25,16 @@ export type ModuleFamily = "hr" | "logistics" | "finance";
  */
 export const FAMILY_ORDER: ModuleFamily[] = ["hr", "logistics", "finance"];
 
+/**
+ * What a family is called when it faces a buyer: a system, of which the modules
+ * are parts. The registry's FAMILIES reads from here so the two never disagree.
+ */
+export const SYSTEM_NAMES: Record<ModuleFamily, string> = {
+  hr: "บุคคลและเงินเดือน",
+  logistics: "จัดซื้อ ผลิต ขาย คลัง",
+  finance: "บัญชีและต้นทุน",
+};
+
 export interface Module {
   id: string;
   /** Thai display name — what the buyer reads on the quotation. */

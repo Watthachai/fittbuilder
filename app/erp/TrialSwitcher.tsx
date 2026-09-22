@@ -71,7 +71,7 @@ export default function TrialSwitcher({
                 ดูทั้งระบบ
               </span>
               <span className="block text-[11px] text-slate-500 dark:text-slate-400">
-                {licensed.length} โมดูลที่สิทธิ์นี้เปิดได้ ทำงานเชื่อมกัน
+                {licensed.length} ส่วนที่สิทธิ์นี้เปิดได้ ทำงานเชื่อมกัน
               </span>
             </span>
           </Link>
@@ -80,7 +80,7 @@ export default function TrialSwitcher({
             {families.map((family) => (
               <div key={family.id}>
                 <p className="px-3.5 pb-1 pt-2 text-[10.5px] font-medium uppercase tracking-wide text-slate-400 dark:text-slate-500">
-                  {family.name}
+                  ระบบ{family.name}
                 </p>
                 {modulesOf(family.id)
                   .filter((m) => licensed.some((l) => l.id === m.id))

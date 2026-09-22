@@ -1,13 +1,22 @@
 import { useMemo, useState } from "react";
 import type { ReactNode } from "react";
+import { AnimatePresence, motion } from "motion/react";
 import {
-  EMPLOYEES, EVENT_TYPES, TODAY, baht,
-  allEvents, byDepartment, daysBetween, headcountAt, headcountTrend,
-  hiredIn, leftIn, upcoming,
+  Banknote, Briefcase, Building, Cake, CalendarClock, CalendarDays, CircleCheck, CircleDashed, CircleX,
+  Clock3, Contact, CreditCard, Ellipsis, FileText, Gift, Heart, Hourglass, IdCard, Landmark, Mail, MapPin,
+  MessageSquare, Phone, PiggyBank, Plus, ScanFace, Search as SearchIcon, Send, ShieldCheck, Sparkles,
+  TrendingUp, UserMinus, UserPlus, UserRound, Users, Wallet,
+} from "lucide-react";
+import {
+  ACTIVITY, EMPLOYEES, EVENT_TYPES, GENDER, TODAY, ageOf, baht, daysBetween,
+  documentsOf, hiredIn, leftIn, tenureYears,
 } from "./data";
-import type { Employee, PersonnelEvent } from "./data";
-import { Badge, Bar, Card, ColumnChart, FIELD, Metric, Note, PageHead, Search, Select, SURFACE } from "../ui";
-import { ConfirmDialog, DataTable, Drawer, Field, Wizard } from "../kit";
+import type { ActivityEntry, Employee, PersonnelEvent } from "./data";
+import {
+  Avatar, Badge, Button, Card, Chip, FIELD, IconButton, IconRow, Note, PageHead, Progress, Reveal,
+  Search, SectionTitle, Segmented, Select, StatStrip, Stepper, SURFACE, Tabs, Timeline, ViewToggle, enter,
+} from "../ui";
+import { ConfirmDialog, DataTable, DetailModal, Drawer, Field, Wizard } from "../kit";
 import type { Column, Step } from "../kit";
 
 const TABS = [
@@ -18,7 +27,39 @@ const TABS = [
   "ค่าตอบแทนและสวัสดิการ",
 ];
 
-/** A draft employee: everything the wizard collects before the record exists. */
+/** The record's own tabs: the five capabilities plus the log of who did what to it. */
+const RECORD_TABS = [...TABS, "กิจกรรม"];
+
+const STATUSES = ["ทั้งหมด", "ทำงานอยู่", "ทดลองงาน", "ลาออก"] as const;
+
+const RESIGN_REASONS = [
+  "เลือกเหตุผล",
+  "ลาออกตามความสมัครใจ",
+  "ได้งานใหม่",
+  "ย้ายภูมิลำเนา",
+  "ปัญหาสุขภาพ",
+  "หมดสัญญาจ้าง",
+  "อื่น ๆ",
+];
+
+const STEP_ICONS = {
+  done: <CircleCheck size={15} />,
+  current: <CircleDashed size={15} className="animate-[spin_3s_linear_infinite]" />,
+  todo: <CircleDashed size={15} />,
+  failed: <CircleX size={15} />,
+};
+
+const TAB_ICONS: Record<string, ReactNode> = {
+  "ข้อมูลส่วนตัว": <UserRound size={14} />,
+  "ข้อมูลสัญญาจ้าง": <FileText size={14} />,
+  "ข้อมูลทางปกครอง": <ShieldCheck size={14} />,
+  "เหตุการณ์ทางบุคคล": <CalendarClock size={14} />,
+  "ค่าตอบแทนและสวัสดิการ": <Wallet size={14} />,
+  "กิจกรรม": <Clock3 size={14} />,
+};
+
+/* ------------------------------------------------------------------ draft */
+
 type Draft = {
   name: string; nickname: string; position: string; department: string;
   birthDate: string; nationalId: string; phone: string; email: string;
@@ -37,124 +78,224 @@ const DEPARTMENTS = [...new Set(EMPLOYEES.map((e) => e.department))];
 const CONTRACT_TYPES = ["พนักงานประจำ", "สัญญาจ้าง 1 ปี", "พนักงานรายวัน", "พนักงานชั่วคราว"];
 const BANKS = ["กสิกรไทย", "ไทยพาณิชย์", "กรุงไทย", "กรุงเทพ", "กรุงศรีอยุธยา"];
 
+/* ----------------------------------------------------------------- screen */
+
 export default function PaScreen({ section }: { section?: string }) {
-  // No section means the module's own overview; a section means one capability.
+  // The section chosen in the navigation decides which columns the register
+  // shows and which part of a record opens first. Without one, the default set.
   const tab = section && TABS.includes(section) ? section : undefined;
 
   const [q, setQ] = useState("");
+  const [status, setStatus] = useState<(typeof STATUSES)[number]>("ทั้งหมด");
   const [dept, setDept] = useState("ทุกแผนก");
-  const [picked, setPicked] = useState<Employee | null>(null);
+  const [view, setView] = useState<"list" | "grid">("list");
+  const [openAt, setOpenAt] = useState<number | null>(null);
   const [adding, setAdding] = useState(false);
   const [draft, setDraft] = useState<Draft>(EMPTY);
   const [added, setAdded] = useState<Employee[]>([]);
   const [events, setEvents] = useState<Record<number, PersonnelEvent[]>>({});
   const [resigned, setResigned] = useState<number[]>([]);
-  const [confirming, setConfirming] = useState<Employee[] | null>(null);
+  const [favourites, setFavourites] = useState<number[]>([1]);
+  const [notes, setNotes] = useState<Record<number, ActivityEntry[]>>({});
+  const [resigning, setResigning] = useState<Employee | null>(null);
 
   const people = useMemo(() => [...EMPLOYEES, ...added], [added]);
   const statusOf = (e: Employee) => (resigned.includes(e.id) ? "ลาออก" : e.status);
   const eventsOf = (e: Employee) => [...e.events, ...(events[e.id] ?? [])];
+  const activityOf = (e: Employee) => [...(ACTIVITY[e.id] ?? []), ...(notes[e.id] ?? [])];
 
   const rows = people.filter(
     (e) =>
+      (status === "ทั้งหมด" || statusOf(e) === status) &&
       (dept === "ทุกแผนก" || e.department === dept) &&
       (q.trim() === "" ||
-        [e.name, e.nickname, e.code, e.position].some((t) =>
-          t.toLowerCase().includes(q.trim().toLowerCase())
-        ))
+        [e.name, e.nickname, e.code, e.position].some((t) => t.toLowerCase().includes(q.trim().toLowerCase())))
+  );
+  const picked = openAt === null ? null : (rows[openAt] ?? null);
+
+  const counts = Object.fromEntries(
+    STATUSES.map((s) => [s, s === "ทั้งหมด" ? people.length : people.filter((e) => statusOf(e) === s).length])
   );
 
   const addEvent = (id: number, ev: PersonnelEvent) =>
     setEvents((m) => ({ ...m, [id]: [...(m[id] ?? []), ev] }));
+  const addNote = (id: number, entry: ActivityEntry) =>
+    setNotes((m) => ({ ...m, [id]: [...(m[id] ?? []), entry] }));
+  const toggleFavourite = (id: number) =>
+    setFavourites((f) => (f.includes(id) ? f.filter((x) => x !== id) : [...f, id]));
 
-  const commitResignation = (who: Employee[]) => {
-    setResigned((prev) => [...new Set([...prev, ...who.map((e) => e.id)])]);
-    for (const e of who) {
-      addEvent(e.id, { date: TODAY, type: "ลาออก", detail: "บันทึกจากหน้าทะเบียนพนักงาน" });
-    }
-    setConfirming(null);
-    setPicked(null);
+  const commitResignation = (e: Employee, reason: string, message: string) => {
+    setResigned((prev) => [...new Set([...prev, e.id])]);
+    addEvent(e.id, { date: TODAY, type: "ลาออก", detail: reason + (message ? " · แจ้งพนักงานแล้ว" : "") });
+    addNote(e.id, { date: TODAY, time: "ตอนนี้", actor: "คุณ", text: "บันทึกการลาออก", target: reason });
+    setResigning(null);
   };
 
-  if (!tab) return <Overview people={people} statusOf={statusOf} />;
+  /* ------------------------------------------------------------ figures */
+  const active = people.filter((e) => statusOf(e) !== "ลาออก");
+  const probation = active.filter((e) => statusOf(e) === "ทดลองงาน");
+  const expiring = active.filter(
+    (e) => e.contract.endsAt && daysBetween(TODAY, e.contract.endsAt) <= 90 && daysBetween(TODAY, e.contract.endsAt) >= 0
+  );
+  const left = people.filter((e) => statusOf(e) === "ลาออก");
+  const year = TODAY.slice(0, 4);
+  const hires = hiredIn(year);
+  const leavers = leftIn(year).length + resigned.length;
+  const avgTenure = active.length ? active.reduce((n, e) => n + tenureYears(e), 0) / active.length : 0;
+  const soonest = expiring.map((e) => daysBetween(TODAY, e.contract.endsAt!)).sort((a, b) => a - b)[0];
 
   return (
     <div>
       <PageHead
         title="ทะเบียนพนักงาน"
         meta={
-          <>
-            {tab} · {rows.length} คน จากทั้งหมด{" "}
-            {people.filter((e) => statusOf(e) !== "ลาออก").length} คนที่ยังทำงานอยู่
-          </>
+          tab
+            ? `${tab} · ${rows.length} คนที่แสดง จาก ${people.length} คนในทะเบียน`
+            : `${people.length} คนในทะเบียน · ข้อมูล ณ ${TODAY}`
         }
-        right={
-          <button
+      />
+
+      <Reveal>
+        <div className="grid gap-3 xl:grid-cols-[1.9fr_1fr]">
+          <StatStrip
+            title="สถานะกำลังคน"
+            icon={<Users size={16} />}
+            cells={[
+              {
+                icon: <UserRound size={14} />, label: "ทำงานอยู่", value: active.length,
+                sub: <>อายุงานเฉลี่ย <b className="text-slate-700 dark:text-slate-200">{avgTenure.toFixed(1)} ปี</b></>, tone: "accent",
+              },
+              {
+                icon: <Hourglass size={14} />, label: "ทดลองงาน", value: probation.length,
+                sub: probation.length ? <>{probation.map((e) => e.nickname).join(" · ")}</> : "ไม่มีในงวดนี้", tone: "warn",
+              },
+              {
+                icon: <CalendarClock size={14} />, label: "สัญญาใกล้หมด", value: expiring.length,
+                sub: soonest !== undefined ? <>ใกล้สุดใน <b className="text-slate-700 dark:text-slate-200">{soonest} วัน</b></> : "ไม่มีใน 90 วัน", tone: "bad",
+              },
+              {
+                icon: <UserMinus size={14} />, label: "ลาออกแล้ว", value: left.length,
+                sub: <>ยังอยู่ในทะเบียนเพื่ออ้างอิง</>, tone: "idle",
+              },
+            ]}
+          />
+          <StatStrip
+            title={`ปี ${year}`}
+            icon={<TrendingUp size={16} />}
+            cells={[
+              {
+                icon: <UserPlus size={14} />, label: "รับเข้า", value: hires.length,
+                sub: <>คิดเป็น <b className="text-slate-700 dark:text-slate-200">{active.length ? Math.round((hires.length / active.length) * 100) : 0}%</b> ของกำลังคน</>, tone: "ok",
+              },
+              {
+                icon: <UserMinus size={14} />, label: "ลาออก", value: leavers,
+                sub: <>อัตราลาออก <b className="text-slate-700 dark:text-slate-200">{people.length ? Math.round((leavers / people.length) * 100) : 0}%</b></>, tone: "bad",
+              },
+            ]}
+          />
+        </div>
+      </Reveal>
+
+      <Reveal delay={0.08} className="mt-4">
+        <div className="mb-3 flex flex-wrap items-center gap-2">
+          <Search value={q} onChange={setQ} placeholder="ค้นหาชื่อ ชื่อเล่น รหัส ตำแหน่ง" icon={<SearchIcon size={14} />} className="w-56" />
+          <span className="mx-1 hidden h-6 w-px bg-slate-200 sm:block dark:bg-slate-700" />
+          <ViewToggle value={view} onChange={setView} />
+          <Segmented options={STATUSES} value={status} onChange={(v) => setStatus(v as (typeof STATUSES)[number])} counts={counts} />
+          <Select value={dept} onChange={setDept} options={["ทุกแผนก", ...DEPARTMENTS]} className="w-40" />
+          <span className="ml-auto" />
+          <Button
+            variant="primary"
+            icon={<Plus size={15} />}
             onClick={() => {
               setDraft(EMPTY);
               setAdding(true);
             }}
-            className="rounded-lg bg-sky-600 px-3.5 py-2 text-[13px] font-medium text-white transition hover:bg-sky-700"
           >
-            + เพิ่มพนักงาน
-          </button>
-        }
-      />
+            เพิ่มพนักงาน
+          </Button>
+        </div>
 
-      <DataTable
-        rows={rows}
-        getId={(e) => e.id}
-        onOpen={setPicked}
-        selectable
-        columns={columnsFor(tab, statusOf, eventsOf)}
-        toolbar={
-          <>
-            <Select
-              value={dept}
-              onChange={setDept}
-              options={["ทุกแผนก", ...DEPARTMENTS]}
-            />
-            <Search value={q} onChange={setQ} placeholder="ค้นหาชื่อ ชื่อเล่น รหัส หรือตำแหน่ง" />
-          </>
-        }
-        bulkActions={(selected, clear) => (
-          <button
-            onClick={() => setConfirming(selected.filter((e) => statusOf(e) !== "ลาออก"))}
-            disabled={selected.every((e) => statusOf(e) === "ลาออก")}
-            className="rounded-md border border-rose-300 px-2.5 py-1 text-[12px] text-rose-700 transition hover:bg-rose-50 disabled:opacity-40 dark:border-rose-500/40 dark:text-rose-300 dark:hover:bg-rose-500/10"
-            title={`บันทึกการลาออกให้ ${selected.length} คนที่เลือกไว้`}
-          >
-            บันทึกการลาออก
-          </button>
-        )}
-      />
-
-      <Drawer
-        open={picked !== null}
-        title={picked?.name ?? ""}
-        subtitle={picked ? `${picked.code} · ${picked.position} · ${picked.department}` : undefined}
-        onClose={() => setPicked(null)}
-        footer={
-          picked && statusOf(picked) !== "ลาออก" ? (
-            <button
-              onClick={() => setConfirming([picked])}
-              className="w-full rounded-lg border border-rose-300 py-2 text-[13px] text-rose-700 transition hover:bg-rose-50 dark:border-rose-500/40 dark:text-rose-300 dark:hover:bg-rose-500/10"
+        {view === "list" ? (
+            <motion.div key="list" initial={enter({ opacity: 0 })} animate={{ opacity: 1 }} transition={{ duration: 0.15 }}>
+              <DataTable
+                rows={rows}
+                getId={(e) => e.id}
+                onOpen={(e) => setOpenAt(rows.indexOf(e))}
+                selectable
+                columns={columnsFor(tab, statusOf, eventsOf)}
+                trailing={(e) => (
+                  <span className="inline-flex items-center gap-1">
+                    <FavouriteButton on={favourites.includes(e.id)} onToggle={() => toggleFavourite(e.id)} />
+                    <IconButton label="เปิดแฟ้ม" onClick={() => setOpenAt(rows.indexOf(e))} className="border-transparent bg-transparent dark:bg-transparent">
+                      <Ellipsis size={15} />
+                    </IconButton>
+                  </span>
+                )}
+                bulkActions={(selected) => (
+                  <button
+                    onClick={() => {
+                      const first = selected.find((e) => statusOf(e) !== "ลาออก");
+                      if (first) setResigning(first);
+                    }}
+                    disabled={selected.every((e) => statusOf(e) === "ลาออก")}
+                    className="rounded-lg border border-rose-300 px-2.5 py-1 text-[12px] text-rose-700 transition hover:bg-rose-50 disabled:opacity-40 dark:border-rose-500/40 dark:text-rose-300 dark:hover:bg-rose-500/10"
+                  >
+                    บันทึกการลาออก
+                  </button>
+                )}
+              />
+            </motion.div>
+          ) : (
+            <motion.div
+              key="grid"
+              initial={enter({ opacity: 0 })}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.15 }}
+              className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4"
             >
-              บันทึกการลาออก
-            </button>
-          ) : undefined
-        }
+              {rows.map((e, i) => (
+                <PersonCard
+                  key={e.id}
+                  employee={e}
+                  status={statusOf(e)}
+                  index={i}
+                  favourite={favourites.includes(e.id)}
+                  onFavourite={() => toggleFavourite(e.id)}
+                  onOpen={() => setOpenAt(i)}
+                />
+              ))}
+              {rows.length === 0 && (
+                <p className="col-span-full py-14 text-center text-[13px] text-slate-400">ไม่มีข้อมูลที่ตรงกับเงื่อนไข</p>
+              )}
+            </motion.div>
+          )}
+      </Reveal>
+
+      <DetailModal
+        open={picked !== null}
+        title="แฟ้มพนักงาน"
+        onClose={() => setOpenAt(null)}
+        index={openAt ?? 0}
+        total={rows.length}
+        onStep={(d) => setOpenAt((i) => (i === null ? i : Math.max(0, Math.min(rows.length - 1, i + d))))}
       >
         {picked && (
           <Record
+            key={picked.id}
             employee={picked}
             status={statusOf(picked)}
             events={eventsOf(picked)}
-            openAt={tab}
+            activity={activityOf(picked)}
+            favourite={favourites.includes(picked.id)}
+            openAt={tab ?? TABS[0]}
+            onFavourite={() => toggleFavourite(picked.id)}
             onAddEvent={(ev) => addEvent(picked.id, ev)}
+            onAddNote={(entry) => addNote(picked.id, entry)}
+            onResign={() => setResigning(picked)}
           />
         )}
-      </Drawer>
+      </DetailModal>
 
       <Drawer
         open={adding}
@@ -173,78 +314,102 @@ export default function PaScreen({ section }: { section?: string }) {
         />
       </Drawer>
 
-      <ConfirmDialog
-        open={confirming !== null}
-        title="บันทึกการลาออก"
-        confirmWord="ลาออก"
-        confirmLabel="บันทึกการลาออก"
-        body={
-          <>
-            จะบันทึกการลาออกให้{" "}
-            <span className="font-medium text-slate-900 dark:text-slate-100">
-              {confirming?.map((e) => e.name).join(", ")}
-            </span>{" "}
-            มีผลวันที่ {TODAY} · สถานะจะเปลี่ยนเป็นลาออกและมีเหตุการณ์บันทึกในประวัติ
-            เงินเดือนงวดถัดไปจะไม่รวมคนเหล่านี้
-          </>
-        }
-        onCancel={() => setConfirming(null)}
-        onConfirm={() => confirming && commitResignation(confirming)}
-      />
+      <ResignDialog employee={resigning} onCancel={() => setResigning(null)} onConfirm={commitResignation} />
 
       <div hidden data-fitt-index>
         <button data-fitt-screen="ทะเบียนพนักงาน" />
-        <button data-fitt-screen="แฟ้มประวัติพนักงาน" data-fitt-modal onClick={() => setPicked(EMPLOYEES[0])} />
+        <button data-fitt-screen="แฟ้มประวัติพนักงาน" data-fitt-modal onClick={() => setOpenAt(0)} />
       </div>
     </div>
   );
 }
 
+/* ---------------------------------------------------------------- pieces */
+
+function GenderMark({ id }: { id: number }) {
+  const g = GENDER[id];
+  if (!g) return null;
+  return (
+    <span className={"text-[12px] " + (g === "ชาย" ? "text-sky-500" : "text-pink-500")} title={g}>
+      {g === "ชาย" ? "♂" : "♀"}
+    </span>
+  );
+}
+
+function FavouriteButton({ on, onToggle }: { on: boolean; onToggle: () => void }) {
+  return (
+    <motion.button
+      whileTap={{ scale: 0.8 }}
+      onClick={onToggle}
+      aria-label={on ? "เอาออกจากรายการโปรด" : "เพิ่มเป็นรายการโปรด"}
+      className={"grid size-8 place-items-center rounded-lg transition " + (on ? "text-rose-500" : "text-slate-300 hover:text-rose-400 dark:text-slate-600")}
+    >
+      <Heart size={16} fill={on ? "currentColor" : "none"} />
+    </motion.button>
+  );
+}
+
+function StatusBadge({ status }: { status: string }) {
+  return (
+    <Badge dot tone={status === "ทำงานอยู่" ? "ok" : status === "ทดลองงาน" ? "warn" : "idle"}>
+      {status}
+    </Badge>
+  );
+}
+
 /** Each capability is a different set of columns over the same register. */
 function columnsFor(
-  tab: string,
+  tab: string | undefined,
   statusOf: (e: Employee) => string,
   eventsOf: (e: Employee) => PersonnelEvent[]
 ): Column<Employee>[] {
+  const mono = (v: string) => <span className="font-mono text-[12px] text-slate-500 dark:text-slate-400">{v}</span>;
   const head: Column<Employee>[] = [
-    {
-      key: "code",
-      header: "รหัส",
-      sort: (a, b) => a.code.localeCompare(b.code),
-      cell: (e) => <span className="font-mono text-xs text-slate-500 dark:text-slate-400">{e.code}</span>,
-    },
+    { key: "code", header: "รหัส", width: "7.5rem", sort: (a, b) => a.code.localeCompare(b.code), cell: (e) => mono("#" + e.code.slice(4)) },
     {
       key: "name",
       header: "ชื่อ-นามสกุล",
       sort: (a, b) => a.name.localeCompare(b.name, "th"),
       cell: (e) => (
-        <span>
+        <span className="flex items-center gap-2.5">
+          <Avatar name={e.name} />
           <span className="font-medium text-slate-900 dark:text-slate-100">{e.name}</span>
-          <span className="ml-1.5 text-xs text-slate-400 dark:text-slate-500">({e.nickname})</span>
+          <GenderMark id={e.id} />
         </span>
       ),
     },
-    {
-      key: "department",
-      header: "แผนก",
-      sort: (a, b) => a.department.localeCompare(b.department, "th"),
-      cell: (e) => e.department,
-    },
   ];
 
-  const rest: Record<string, Column<Employee>[]> = {
+  const base: Column<Employee>[] = [
+    {
+      key: "position", header: "ตำแหน่ง", sort: (a, b) => a.position.localeCompare(b.position, "th"),
+      cell: (e) => <span className="flex items-center gap-1.5"><Briefcase size={13} className="text-slate-400" />{e.position}</span>,
+    },
+    {
+      key: "department", header: "แผนก", sort: (a, b) => a.department.localeCompare(b.department, "th"),
+      cell: (e) => <span className="flex items-center gap-1.5"><Building size={13} className="text-slate-400" />{e.department}</span>,
+    },
+    { key: "type", header: "ประเภทจ้าง", cell: (e) => e.contract.type },
+    {
+      key: "tenure", header: "อายุงาน", sort: (a, b) => tenureYears(a) - tenureYears(b),
+      cell: (e) => { const y = tenureYears(e); return y < 1 ? "ไม่ถึงปี" : y.toFixed(1) + " ปี"; },
+    },
+    { key: "status", header: "สถานะ", cell: (e) => <StatusBadge status={statusOf(e)} /> },
+  ];
+
+  const bySection: Record<string, Column<Employee>[]> = {
     "ข้อมูลส่วนตัว": [
-      { key: "birth", header: "วันเกิด", sort: (a, b) => a.personal.birthDate.localeCompare(b.personal.birthDate), cell: (e) => e.personal.birthDate },
-      { key: "nid", header: "เลขบัตรประชาชน", cell: (e) => <span className="font-mono text-xs">{e.personal.nationalId}</span> },
-      { key: "phone", header: "โทรศัพท์", cell: (e) => e.personal.phone },
-      { key: "email", header: "อีเมล", cell: (e) => e.personal.email },
+      { key: "birth", header: "วันเกิด", sort: (a, b) => a.personal.birthDate.localeCompare(b.personal.birthDate), cell: (e) => <>{e.personal.birthDate} <span className="text-slate-400">({ageOf(e)} ปี)</span></> },
+      { key: "nid", header: "เลขบัตรประชาชน", cell: (e) => mono(e.personal.nationalId) },
+      { key: "phone", header: "โทรศัพท์", cell: (e) => <span className="flex items-center gap-1.5"><Phone size={13} className="text-slate-400" />{e.personal.phone}</span> },
+      { key: "email", header: "อีเมล", cell: (e) => <span className="text-violet-600 dark:text-violet-300">{e.personal.email}</span> },
+      { key: "department", header: "แผนก", cell: (e) => e.department },
     ],
     "ข้อมูลสัญญาจ้าง": [
-      { key: "type", header: "ประเภทจ้าง", sort: (a, b) => a.contract.type.localeCompare(b.contract.type, "th"), cell: (e) => e.contract.type },
+      { key: "type", header: "ประเภทจ้าง", sort: (a, b) => a.contract.type.localeCompare(b.contract.type, "th"), cell: (e) => <span className="flex items-center gap-1.5"><Briefcase size={13} className="text-slate-400" />{e.contract.type}</span> },
       { key: "start", header: "วันเริ่มงาน", sort: (a, b) => a.contract.startedAt.localeCompare(b.contract.startedAt), cell: (e) => e.contract.startedAt },
       {
-        key: "end",
-        header: "สิ้นสุดสัญญา",
+        key: "end", header: "สิ้นสุดสัญญา",
         sort: (a, b) => (a.contract.endsAt ?? "9999").localeCompare(b.contract.endsAt ?? "9999"),
         cell: (e) => {
           if (!e.contract.endsAt) return <span className="text-slate-400 dark:text-slate-500">ไม่กำหนด</span>;
@@ -257,343 +422,491 @@ function columnsFor(
       { key: "status", header: "สถานะ", cell: (e) => <StatusBadge status={statusOf(e)} /> },
     ],
     "ข้อมูลทางปกครอง": [
-      { key: "sso", header: "เลขประกันสังคม", cell: (e) => <span className="font-mono text-xs">{e.admin.ssoNumber}</span> },
-      { key: "tax", header: "เลขผู้เสียภาษี", cell: (e) => <span className="font-mono text-xs">{e.admin.taxId}</span> },
-      { key: "bank", header: "ธนาคาร", sort: (a, b) => a.admin.bankName.localeCompare(b.admin.bankName, "th"), cell: (e) => e.admin.bankName },
-      { key: "acct", header: "เลขบัญชี", cell: (e) => <span className="font-mono text-xs">{e.admin.bankAccount}</span> },
+      { key: "sso", header: "เลขประกันสังคม", cell: (e) => mono(e.admin.ssoNumber) },
+      { key: "tax", header: "เลขผู้เสียภาษี", cell: (e) => mono(e.admin.taxId) },
+      { key: "bank", header: "ธนาคาร", sort: (a, b) => a.admin.bankName.localeCompare(b.admin.bankName, "th"), cell: (e) => <span className="flex items-center gap-1.5"><CreditCard size={13} className="text-slate-400" />{e.admin.bankName} {mono(e.admin.bankAccount)}</span> },
+      {
+        key: "docs", header: "เอกสาร",
+        sort: (a, b) => documentsOf(a).filter((d) => d.done).length - documentsOf(b).filter((d) => d.done).length,
+        cell: (e) => { const d = documentsOf(e); const n = d.filter((x) => x.done).length; return <Badge tone={n === d.length ? "ok" : "warn"}>{n}/{d.length}</Badge>; },
+      },
       { key: "pvd", header: "กองทุนสำรองฯ", align: "right", sort: (a, b) => a.admin.pvdRate - b.admin.pvdRate, cell: (e) => e.admin.pvdRate + "%" },
     ],
     "เหตุการณ์ทางบุคคล": [
-      { key: "last", header: "เหตุการณ์ล่าสุด", cell: (e) => eventsOf(e).at(-1)?.type ?? "—" },
+      { key: "last", header: "เหตุการณ์ล่าสุด", cell: (e) => <Badge tone="accent">{eventsOf(e).at(-1)?.type ?? "—"}</Badge> },
       { key: "when", header: "เมื่อ", sort: (a, b) => (eventsOf(a).at(-1)?.date ?? "").localeCompare(eventsOf(b).at(-1)?.date ?? ""), cell: (e) => eventsOf(e).at(-1)?.date ?? "—" },
-      { key: "count", header: "จำนวนเหตุการณ์", align: "right", sort: (a, b) => eventsOf(a).length - eventsOf(b).length, cell: (e) => eventsOf(e).length + " ครั้ง" },
+      { key: "detail", header: "รายละเอียด", cell: (e) => <span className="text-slate-500">{eventsOf(e).at(-1)?.detail ?? "—"}</span> },
+      { key: "count", header: "ทั้งหมด", align: "right", sort: (a, b) => eventsOf(a).length - eventsOf(b).length, cell: (e) => eventsOf(e).length + " ครั้ง" },
     ],
     "ค่าตอบแทนและสวัสดิการ": [
-      { key: "salary", header: "เงินเดือนฐาน", align: "right", sort: (a, b) => a.contract.baseSalary - b.contract.baseSalary, cell: (e) => baht(e.contract.baseSalary) + " ฿" },
-      { key: "ben", header: "สวัสดิการ", align: "right", sort: (a, b) => a.benefits.length - b.benefits.length, cell: (e) => e.benefits.length + " รายการ" },
-      { key: "first", header: "รายการแรก", cell: (e) => e.benefits[0] ?? "—" },
+      { key: "salary", header: "เงินเดือนฐาน", align: "right", sort: (a, b) => a.contract.baseSalary - b.contract.baseSalary, cell: (e) => <span className="font-medium text-slate-900 dark:text-slate-100">{baht(e.contract.baseSalary)} ฿</span> },
+      { key: "ben", header: "สวัสดิการ", align: "right", sort: (a, b) => a.benefits.length - b.benefits.length, cell: (e) => <Badge tone="accent" icon={<Gift size={11} />}>{e.benefits.length} รายการ</Badge> },
+      { key: "first", header: "รายการหลัก", cell: (e) => <span className="flex flex-wrap gap-1">{e.benefits.slice(0, 2).map((b) => <Chip key={b}>{b}</Chip>)}</span> },
+      { key: "pvd", header: "กองทุนสำรองฯ", align: "right", cell: (e) => e.admin.pvdRate + "%" },
     ],
   };
 
-  return [...head, ...(rest[tab] ?? [])];
+  return [...head, ...(tab ? bySection[tab] : base)];
 }
 
-function StatusBadge({ status }: { status: string }) {
+function PersonCard({
+  employee: e,
+  status,
+  index,
+  favourite,
+  onFavourite,
+  onOpen,
+}: {
+  employee: Employee;
+  status: string;
+  index: number;
+  favourite: boolean;
+  onFavourite: () => void;
+  onOpen: () => void;
+}) {
   return (
-    <Badge tone={status === "ทำงานอยู่" ? "ok" : status === "ทดลองงาน" ? "warn" : "idle"}>
-      {status}
-    </Badge>
+    <motion.article
+      initial={enter({ opacity: 0, y: 8 })}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3, delay: Math.min(index, 12) * 0.03 }}
+      whileHover={{ y: -2 }}
+      className={"p-4 transition hover:shadow-md hover:shadow-slate-900/5 " + SURFACE}
+    >
+      <div className="flex items-center gap-2.5">
+        <Avatar name={e.name} />
+        <button onClick={onOpen} className="min-w-0 flex-1 truncate text-left text-[14px] font-semibold text-slate-900 hover:text-violet-700 dark:text-slate-50">
+          {e.name} <GenderMark id={e.id} />
+        </button>
+        <FavouriteButton on={favourite} onToggle={onFavourite} />
+        <IconButton label="เปิดแฟ้ม" onClick={onOpen} className="border-transparent bg-transparent dark:bg-transparent">
+          <Ellipsis size={15} />
+        </IconButton>
+      </div>
+      <dl className="mt-3 space-y-1.5 text-[12.5px]">
+        <CardRow icon={<IdCard size={13} />} label="รหัส">#{e.code.slice(4)}</CardRow>
+        <CardRow icon={<Briefcase size={13} />} label="ตำแหน่ง">{e.position}</CardRow>
+        <CardRow icon={<Building size={13} />} label="แผนก">{e.department}</CardRow>
+        <CardRow icon={<CalendarDays size={13} />} label="เริ่มงาน">{e.contract.startedAt}</CardRow>
+        <CardRow icon={<Clock3 size={13} />} label="สถานะ"><StatusBadge status={status} /></CardRow>
+      </dl>
+    </motion.article>
   );
 }
 
-/* ---------------------------------------------------------------- overview */
-
-function Overview({
-  people,
-  statusOf,
-}: {
-  people: Employee[];
-  statusOf: (e: Employee) => string;
-}) {
-  const active = people.filter((e) => statusOf(e) !== "ลาออก");
-  const trend = headcountTrend();
-  const yearAgo = headcountAt(TODAY.slice(0, 7).replace(/^(\d{4})/, (y) => String(Number(y) - 1)));
-  const thisYear = TODAY.slice(0, 4);
-  const lastYear = String(Number(thisYear) - 1);
-  const hires = hiredIn(thisYear);
-  const lastYearHires = hiredIn(lastYear);
-  const leavers = leftIn(thisYear);
-  const probation = active.filter((e) => statusOf(e) === "ทดลองงาน");
-  const todo = upcoming();
-  const departments = byDepartment();
-  const recent = allEvents().slice(0, 7);
-
-  const pct = (now: number, then: number) =>
-    then === 0 ? 0 : Math.round(((now - then) / then) * 100);
-
+function CardRow({ icon, label, children }: { icon: ReactNode; label: string; children: ReactNode }) {
   return (
-    <div>
-      <PageHead
-        title="ภาพรวมทะเบียนพนักงาน"
-        meta={`ข้อมูล ณ ${TODAY} · อัปเดตอัตโนมัติจากเหตุการณ์ทางบุคคล`}
-      />
-
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <Metric
-          label="พนักงานทั้งหมด"
-          value={active.length + " คน"}
-          delta={pct(active.length, yearAgo)}
-          deltaLabel={`เทียบกับปีก่อน ${yearAgo} คน`}
-          icon={<GlyphPeople />}
-        />
-        <Metric
-          label={`รับเข้าปี ${thisYear}`}
-          value={hires.length + " คน"}
-          delta={lastYearHires.length === 0 ? undefined : pct(hires.length, lastYearHires.length)}
-          deltaLabel={`ปี ${lastYear} รับเข้า ${lastYearHires.length} คน`}
-          icon={<GlyphIn />}
-        />
-        <Metric
-          label={`ลาออกปี ${thisYear}`}
-          value={leavers.length + " คน"}
-          delta={leavers.length === 0 ? 0 : Math.round((leavers.length / Math.max(1, active.length)) * 100)}
-          goodWhen="down"
-          deltaLabel="คิดเป็นอัตราการลาออกต่อกำลังคน"
-          icon={<GlyphOut />}
-        />
-        <Metric
-          label="อยู่ระหว่างทดลองงาน"
-          value={probation.length + " คน"}
-          deltaLabel={probation.length > 0 ? probation.map((e) => e.nickname).join(" · ") : "ไม่มีในงวดนี้"}
-          icon={<GlyphClock />}
-        />
-      </div>
-
-      <div className="mt-3 grid gap-3 lg:grid-cols-[1.6fr_1fr]">
-        <Card
-          title="จำนวนพนักงานย้อนหลัง 12 เดือน"
-          action={
-            <span className="text-[11.5px] text-slate-400 dark:text-slate-500">
-              นับจากวันเริ่มงานหักคนที่ลาออกแล้ว
-            </span>
-          }
-        >
-          <ColumnChart data={trend.map((t) => ({ label: t.label, value: t.value }))} format={(n) => n + " คน"} />
-        </Card>
-
-        <Card title={`ต้องทำก่อนสาย (${todo.length})`}>
-          {todo.length === 0 ? (
-            <p className="px-4 py-8 text-center text-[13px] text-slate-400 dark:text-slate-500">
-              ไม่มีรายการที่ครบกำหนดใน 120 วันข้างหน้า
-            </p>
-          ) : (
-            <ul className="max-h-72 divide-y divide-slate-100 overflow-y-auto dark:divide-slate-800">
-              {todo.map((t, i) => (
-                <li key={i} className="flex items-center gap-3 px-4 py-2.5">
-                  <span
-                    className={
-                      "h-8 w-1 shrink-0 rounded-full " +
-                      (t.tone === "bad" ? "bg-rose-500" : t.tone === "warn" ? "bg-amber-400" : "bg-sky-400")
-                    }
-                  />
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate text-[13px] text-slate-800 dark:text-slate-100">{t.name}</span>
-                    <span className="block truncate text-[11.5px] text-slate-500 dark:text-slate-400">
-                      {t.kind} · {t.date}
-                    </span>
-                  </span>
-                  <span className="shrink-0 text-[11.5px] tabular-nums text-slate-400 dark:text-slate-500">
-                    อีก {t.inDays} วัน
-                  </span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </Card>
-      </div>
-
-      <div className="mt-3 grid gap-3 lg:grid-cols-2">
-        <Card title="กำลังคนตามแผนก">
-          <ul className="divide-y divide-slate-100 dark:divide-slate-800">
-            {departments.map((d) => (
-              <li key={d.department} className="flex items-center gap-3 px-4 py-2.5 text-sm">
-                <span className="w-28 shrink-0 truncate text-slate-700 dark:text-slate-200">{d.department}</span>
-                <span className="flex-1">
-                  <Bar pct={(d.count / active.length) * 100} tone="info" width="w-full" />
-                </span>
-                <span className="w-10 shrink-0 text-right tabular-nums text-slate-600 dark:text-slate-300">
-                  {d.count}
-                </span>
-              </li>
-            ))}
-          </ul>
-        </Card>
-
-        <Card title="เหตุการณ์ทางบุคคลล่าสุด">
-          <ul className="divide-y divide-slate-100 dark:divide-slate-800">
-            {recent.map((e, i) => (
-              <li key={i} className="flex items-start gap-3 px-4 py-2.5">
-                <span className="w-20 shrink-0 text-[11.5px] tabular-nums text-slate-400 dark:text-slate-500">
-                  {e.date}
-                </span>
-                <span className="min-w-0 flex-1">
-                  <span className="block text-[13px] text-slate-800 dark:text-slate-100">
-                    {e.name} — {e.type}
-                  </span>
-                  <span className="block truncate text-[11.5px] text-slate-500 dark:text-slate-400">{e.detail}</span>
-                </span>
-              </li>
-            ))}
-          </ul>
-        </Card>
-      </div>
+    <div className="flex items-center gap-2">
+      <span className="text-slate-400">{icon}</span>
+      <dt className="w-16 shrink-0 text-slate-500 dark:text-slate-400">{label}</dt>
+      <dd className="min-w-0 flex-1 truncate text-slate-800 dark:text-slate-100">{children}</dd>
     </div>
   );
 }
 
-const GlyphPeople = () => <span className="text-[15px]">👥</span>;
-const GlyphIn = () => <span className="text-[15px]">📥</span>;
-const GlyphOut = () => <span className="text-[15px]">📤</span>;
-const GlyphClock = () => <span className="text-[15px]">⏳</span>;
-
-/* ------------------------------------------------------------------ record */
+/* ---------------------------------------------------------------- record */
 
 function Record({
   employee: e,
   status,
   events,
+  activity,
+  favourite,
   openAt,
+  onFavourite,
   onAddEvent,
+  onAddNote,
+  onResign,
 }: {
   employee: Employee;
   status: string;
   events: PersonnelEvent[];
+  activity: ActivityEntry[];
+  favourite: boolean;
   openAt: string;
+  onFavourite: () => void;
   onAddEvent: (ev: PersonnelEvent) => void;
+  onAddNote: (entry: ActivityEntry) => void;
+  onResign: () => void;
 }) {
-  // Opens on the part of the record the list was showing, then moves freely.
   const [tab, setTab] = useState(openAt);
-  const [logging, setLogging] = useState(false);
+  const [note, setNote] = useState("");
+  const [noteType, setNoteType] = useState("บันทึก");
+  const docs = documentsOf(e);
+  const done = docs.filter((d) => d.done).length;
+
+  const sendNote = () => {
+    if (!note.trim()) return;
+    onAddNote({ date: TODAY, time: "ตอนนี้", actor: "คุณ", text: noteType, target: note.trim() });
+    setNote("");
+    setTab("กิจกรรม");
+  };
 
   return (
-    <div>
-      <div className="flex flex-wrap gap-1 rounded-lg bg-slate-100 p-1 dark:bg-slate-800">
-        {TABS.map((t) => (
-          <button
-            key={t}
-            onClick={() => setTab(t)}
-            className={
-              "rounded-md px-2.5 py-1.5 text-[12px] transition " +
-              (t === tab
-                ? "bg-white font-medium text-slate-900 shadow-sm dark:bg-slate-900 dark:text-slate-50"
-                : "text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-100")
-            }
-          >
-            {t}
-          </button>
-        ))}
-      </div>
-
-      <div className="mt-4">
-        {tab === "ข้อมูลส่วนตัว" && (
-          <Facts
-            items={[
-              ["วันเกิด", e.personal.birthDate],
-              ["เลขบัตรประชาชน", e.personal.nationalId],
-              ["โทรศัพท์", e.personal.phone],
-              ["อีเมล", e.personal.email],
-              ["ที่อยู่ตามทะเบียนบ้าน", e.personal.address, true],
-            ]}
-          />
-        )}
-
-        {tab === "ข้อมูลสัญญาจ้าง" && (
-          <>
-            <Facts
-              items={[
-                ["ประเภทการจ้าง", e.contract.type],
-                ["สถานะ", <StatusBadge key="s" status={status} />],
-                ["วันเริ่มงาน", e.contract.startedAt],
-                ["สิ้นสุดสัญญา", e.contract.endsAt ?? "ไม่กำหนด"],
-                ["ครบกำหนดทดลองงาน", e.contract.probationUntil],
-                ["วันทำงาน", e.contract.workDays],
-              ]}
-            />
-            {e.contract.endsAt && daysBetween(TODAY, e.contract.endsAt) <= 90 && (
-              <div className="mt-3">
-                <Note tone="warn">
-                  สัญญาหมดอายุ {e.contract.endsAt} — เหลืออีก {daysBetween(TODAY, e.contract.endsAt)} วัน
-                  ควรเริ่มกระบวนการต่อสัญญาหรือแจ้งล่วงหน้าตามกฎหมายแรงงาน
-                </Note>
-              </div>
-            )}
-          </>
-        )}
-
-        {tab === "ข้อมูลทางปกครอง" && (
-          <Facts
-            items={[
-              ["เลขประกันสังคม", e.admin.ssoNumber],
-              ["เลขผู้เสียภาษี", e.admin.taxId],
-              ["ธนาคาร", e.admin.bankName],
-              ["เลขบัญชี", e.admin.bankAccount],
-              ["กองทุนสำรองเลี้ยงชีพ", e.admin.pvdRate + "% ของเงินเดือน"],
-            ]}
-          />
-        )}
-
-        {tab === "เหตุการณ์ทางบุคคล" && (
-          <div>
-            <ol className="relative space-y-3 border-l border-slate-200 pl-4 dark:border-slate-800">
-              {[...events].reverse().map((ev, i) => (
-                <li key={i} className="relative">
-                  <span className="absolute -left-[21px] top-1.5 size-2 rounded-full bg-sky-500" />
-                  <p className="text-[12.5px] font-medium text-slate-900 dark:text-slate-100">{ev.type}</p>
-                  <p className="text-[11.5px] text-slate-400 dark:text-slate-500">{ev.date}</p>
-                  <p className="mt-0.5 text-[12.5px] text-slate-600 dark:text-slate-300">{ev.detail}</p>
-                </li>
-              ))}
-            </ol>
-
-            {logging ? (
-              <AddEvent
-                onCancel={() => setLogging(false)}
-                onSave={(ev) => {
-                  onAddEvent(ev);
-                  setLogging(false);
-                }}
-              />
-            ) : (
-              <button
-                onClick={() => setLogging(true)}
-                className="mt-4 w-full rounded-lg border border-dashed border-slate-300 py-2 text-[12.5px] text-slate-500 transition hover:border-sky-400 hover:text-sky-600 dark:border-slate-700 dark:text-slate-400"
-              >
-                + บันทึกเหตุการณ์ใหม่
-              </button>
-            )}
+    <div className="grid h-full grid-cols-1 lg:grid-cols-[320px_1fr]">
+      <aside className="min-h-0 overflow-y-auto border-r border-slate-100 dark:border-slate-800">
+        <div
+          className="px-5 pb-4 pt-5"
+          style={{
+            backgroundImage: "radial-gradient(circle, rgb(148 163 184 / 0.22) 1px, transparent 1px)",
+            backgroundSize: "10px 10px",
+          }}
+        >
+          <div className="flex items-center gap-3">
+            <Avatar name={e.name} size="lg" />
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-[15px] font-semibold text-slate-900 dark:text-slate-50">
+                {e.name} <GenderMark id={e.id} />
+              </p>
+              <p className="text-[12px] text-slate-500 dark:text-slate-400">
+                รหัสพนักงาน: <span className="font-semibold text-slate-800 dark:text-slate-100">#{e.code.slice(4)}</span>
+              </p>
+            </div>
+            <FavouriteButton on={favourite} onToggle={onFavourite} />
           </div>
-        )}
+          <div className="mt-4 flex gap-2">
+            <Button variant="primary" icon={<Mail size={14} />} href={`mailto:${e.personal.email}`} className="flex-1">
+              ส่งอีเมล
+            </Button>
+            <Button variant="secondary" icon={<MessageSquare size={14} />} onClick={() => setTab("กิจกรรม")} className="flex-1">
+              บันทึกข้อความ
+            </Button>
+          </div>
+        </div>
 
-        {tab === "ค่าตอบแทนและสวัสดิการ" && (
-          <>
-            <Facts items={[["เงินเดือนฐาน", baht(e.contract.baseSalary) + " บาท/เดือน"]]} />
-            <ul className="mt-3 space-y-1.5">
-              {e.benefits.map((b) => (
-                <li
-                  key={b}
-                  className="rounded-lg bg-slate-50 px-3 py-2 text-[12.5px] text-slate-700 dark:bg-slate-800/60 dark:text-slate-200"
+        <div className="space-y-5 px-5 pb-5">
+          <div>
+            <SectionTitle icon={<UserRound size={15} />}>ข้อมูลส่วนตัว</SectionTitle>
+            <div className="mt-1.5">
+              <IconRow icon={<Cake size={14} />} label="วันเกิด">{e.personal.birthDate} ({ageOf(e)} ปี)</IconRow>
+              <IconRow icon={<ScanFace size={14} />} label="บัตรประชาชน"><span className="font-mono text-[12px]">{e.personal.nationalId}</span></IconRow>
+              <IconRow icon={<Briefcase size={14} />} label="อายุงาน">{tenureYears(e) < 1 ? "ไม่ถึงปี" : tenureYears(e).toFixed(1) + " ปี"}</IconRow>
+            </div>
+          </div>
+
+          <div className="border-t border-slate-100 pt-4 dark:border-slate-800">
+            <SectionTitle icon={<Contact size={15} />}>ที่อยู่และการติดต่อ</SectionTitle>
+            <div className="mt-1.5">
+              <IconRow icon={<MapPin size={14} />} label="ที่อยู่"><span className="line-clamp-2">{e.personal.address}</span></IconRow>
+              <IconRow icon={<Mail size={14} />} label="อีเมล">
+                <a href={`mailto:${e.personal.email}`} className="rounded-md bg-violet-50 px-1.5 py-0.5 text-[12px] text-violet-700 dark:bg-violet-500/15 dark:text-violet-300">{e.personal.email}</a>
+              </IconRow>
+              <IconRow icon={<Phone size={14} />} label="โทรศัพท์">
+                <a href={`tel:${e.personal.phone}`} className="rounded-md bg-violet-50 px-1.5 py-0.5 text-[12px] text-violet-700 dark:bg-violet-500/15 dark:text-violet-300">{e.personal.phone}</a>
+              </IconRow>
+            </div>
+          </div>
+
+          <div className="border-t border-slate-100 pt-4 dark:border-slate-800">
+            <SectionTitle icon={<Building size={15} />}>การจ้างงาน</SectionTitle>
+            <div className="mt-1.5">
+              <IconRow icon={<Briefcase size={14} />} label="ตำแหน่ง"><Chip>{e.position}</Chip></IconRow>
+              <IconRow icon={<Building size={14} />} label="แผนก"><Chip>{e.department}</Chip></IconRow>
+              <IconRow icon={<FileText size={14} />} label="ประเภทจ้าง"><Chip>{e.contract.type}</Chip></IconRow>
+              <IconRow icon={<Clock3 size={14} />} label="สถานะ"><StatusBadge status={status} /></IconRow>
+            </div>
+          </div>
+
+          <div className="border-t border-slate-100 pt-4 dark:border-slate-800">
+            <p className="mb-2 text-[13px] font-semibold text-slate-900 dark:text-slate-50">บันทึกกิจกรรม</p>
+            <div className={"overflow-hidden " + SURFACE}>
+              <textarea
+                value={note}
+                onChange={(ev) => setNote(ev.target.value)}
+                placeholder="เขียนบันทึกถึงแฟ้มนี้…"
+                rows={3}
+                className="w-full resize-none bg-transparent px-3 py-2.5 text-[13px] text-slate-800 outline-none placeholder:text-slate-400 dark:text-slate-100"
+              />
+              <div className="flex items-center justify-between gap-2 border-t border-slate-100 px-2.5 py-2 dark:border-slate-800">
+                <span className="flex items-center gap-1.5 text-[12px] text-slate-500">
+                  ประเภท:
+                  <Select value={noteType} onChange={setNoteType} options={["บันทึก", "โทรคุย", "นัดหมาย"]} className="w-28 [&_select]:py-1.5 [&_select]:text-[12px]" />
+                </span>
+                <motion.button
+                  whileTap={{ scale: 0.9 }}
+                  onClick={sendNote}
+                  aria-label="บันทึก"
+                  className="grid size-8 place-items-center rounded-lg bg-violet-600 text-white shadow-sm shadow-violet-600/20 hover:bg-violet-700"
                 >
-                  {b}
-                </li>
-              ))}
-            </ul>
-          </>
-        )}
-      </div>
+                  <Send size={14} />
+                </motion.button>
+              </div>
+            </div>
+          </div>
+
+          {status !== "ลาออก" && (
+            <button
+              onClick={onResign}
+              className="w-full rounded-xl border border-rose-200 py-2 text-[12.5px] text-rose-700 transition hover:bg-rose-50 dark:border-rose-500/30 dark:text-rose-300 dark:hover:bg-rose-500/10"
+            >
+              บันทึกการลาออก
+            </button>
+          )}
+        </div>
+      </aside>
+
+      <section className="flex min-h-0 flex-col">
+        <div className="px-5 pt-2">
+          <Tabs id={"record-" + e.id} tabs={RECORD_TABS} active={tab} onPick={setTab} icons={TAB_ICONS} />
+        </div>
+        <div className="min-h-0 flex-1 overflow-y-auto p-5">
+          <AnimatePresence mode="wait" initial={false}>
+            <motion.div
+              key={tab}
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -4 }}
+              transition={{ duration: 0.18 }}
+            >
+              {tab === "ข้อมูลส่วนตัว" && <PersonalTab e={e} />}
+              {tab === "ข้อมูลสัญญาจ้าง" && <ContractTab e={e} status={status} events={events} />}
+              {tab === "ข้อมูลทางปกครอง" && <AdminTab e={e} docs={docs} done={done} />}
+              {tab === "เหตุการณ์ทางบุคคล" && <EventsTab events={events} onAdd={onAddEvent} />}
+              {tab === "ค่าตอบแทนและสวัสดิการ" && <PayTab e={e} />}
+              {tab === "กิจกรรม" && <ActivityTab activity={activity} />}
+            </motion.div>
+          </AnimatePresence>
+        </div>
+      </section>
     </div>
   );
 }
 
-function Facts({ items }: { items: [string, ReactNode, boolean?][] }) {
+function Fact({ icon, label, children, wide }: { icon: ReactNode; label: string; children: ReactNode; wide?: boolean }) {
   return (
-    <dl className="grid grid-cols-2 gap-x-4 gap-y-3">
-      {items.map(([k, v, wide], i) => (
-        <div key={i} className={wide ? "col-span-2" : ""}>
-          <dt className="text-[11.5px] text-slate-500 dark:text-slate-400">{k}</dt>
-          <dd className="mt-0.5 text-[13px] text-slate-900 dark:text-slate-100">{v}</dd>
-        </div>
-      ))}
-    </dl>
+    <div className={"rounded-xl bg-slate-50 px-3.5 py-3 dark:bg-slate-800/60 " + (wide ? "sm:col-span-2" : "")}>
+      <dt className="flex items-center gap-1.5 text-[11.5px] text-slate-500 dark:text-slate-400">
+        <span className="text-slate-400">{icon}</span>
+        {label}
+      </dt>
+      <dd className="mt-1 text-[13.5px] text-slate-900 dark:text-slate-50">{children}</dd>
+    </div>
   );
 }
 
-function AddEvent({
-  onSave,
-  onCancel,
-}: {
-  onSave: (ev: PersonnelEvent) => void;
-  onCancel: () => void;
-}) {
+function PersonalTab({ e }: { e: Employee }) {
+  return (
+    <div className="space-y-4">
+      <Card title="ข้อมูลส่วนตัว">
+        <dl className="grid gap-2.5 p-4 sm:grid-cols-2">
+          <Fact icon={<UserRound size={12} />} label="ชื่อ-นามสกุล">{e.name} ({e.nickname})</Fact>
+          <Fact icon={<Cake size={12} />} label="วันเกิด">{e.personal.birthDate} · อายุ {ageOf(e)} ปี</Fact>
+          <Fact icon={<ScanFace size={12} />} label="เลขบัตรประชาชน"><span className="font-mono">{e.personal.nationalId}</span></Fact>
+          <Fact icon={<Phone size={12} />} label="โทรศัพท์">{e.personal.phone}</Fact>
+          <Fact icon={<Mail size={12} />} label="อีเมล">{e.personal.email}</Fact>
+          <Fact icon={<UserRound size={12} />} label="เพศ">{GENDER[e.id] ?? "—"}</Fact>
+          <Fact icon={<MapPin size={12} />} label="ที่อยู่ตามทะเบียนบ้าน" wide>{e.personal.address}</Fact>
+        </dl>
+      </Card>
+    </div>
+  );
+}
+
+function ContractTab({ e, status, events }: { e: Employee; status: string; events: PersonnelEvent[] }) {
+  const probationOver = daysBetween(TODAY, e.contract.probationUntil) < 0;
+  const renewed = events.some((ev) => ev.type === "ต่อสัญญา");
+  const expiring = e.contract.endsAt ? daysBetween(TODAY, e.contract.endsAt) : null;
+  const leftCo = status === "ลาออก";
+
+  const steps = [
+    { label: "รับเข้าทำงาน", state: "done" as const },
+    { label: "ทดลองงาน", state: leftCo ? ("done" as const) : probationOver ? ("done" as const) : ("current" as const) },
+    { label: "บรรจุ", state: leftCo ? ("done" as const) : probationOver ? ("done" as const) : ("todo" as const) },
+    ...(e.contract.endsAt
+      ? [{ label: "ต่อสัญญา", state: leftCo ? ("failed" as const) : renewed ? ("done" as const) : expiring !== null && expiring <= 90 ? ("current" as const) : ("todo" as const) }]
+      : []),
+    ...(leftCo ? [{ label: "ลาออก", state: "failed" as const }] : []),
+  ];
+
+  return (
+    <div className="space-y-4">
+      <div className={"overflow-hidden border-l-4 " + (leftCo ? "border-l-slate-300" : expiring !== null && expiring <= 90 ? "border-l-amber-400" : "border-l-violet-500") + " " + SURFACE}>
+        <div className="p-4">
+          <div className="flex flex-wrap items-center gap-2">
+            <h3 className="text-[15px] font-semibold text-slate-900 dark:text-slate-50">{e.contract.type}</h3>
+            <StatusBadge status={status} />
+            <span className="ml-auto text-[12px] text-slate-500">เริ่มงาน <b className="text-slate-800 dark:text-slate-100">{e.contract.startedAt}</b></span>
+          </div>
+          <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[12.5px] text-slate-500 dark:text-slate-400">
+            <span className="flex items-center gap-1"><IdCard size={13} />#{e.code.slice(4)}</span>
+            <span className="flex items-center gap-1"><CalendarDays size={13} />{e.contract.workDays}</span>
+            <span className="flex items-center gap-1"><Hourglass size={13} />พ้นทดลองงาน {e.contract.probationUntil}</span>
+            <span className="flex items-center gap-1"><CalendarClock size={13} />สิ้นสุด {e.contract.endsAt ?? "ไม่กำหนด"}</span>
+          </p>
+          <div className="mt-4">
+            <Stepper steps={steps} icons={STEP_ICONS} />
+          </div>
+        </div>
+      </div>
+
+      {expiring !== null && expiring >= 0 && expiring <= 90 && !leftCo && (
+        <Note tone="warn">
+          สัญญาหมดอายุ {e.contract.endsAt} — เหลืออีก {expiring} วัน ควรเริ่มกระบวนการต่อสัญญาหรือแจ้งล่วงหน้าตามกฎหมายแรงงาน
+        </Note>
+      )}
+
+      <Card title="เงื่อนไขการจ้าง">
+        <dl className="grid gap-2.5 p-4 sm:grid-cols-2">
+          <Fact icon={<Banknote size={12} />} label="เงินเดือนฐาน">{baht(e.contract.baseSalary)} บาท/เดือน</Fact>
+          <Fact icon={<CalendarDays size={12} />} label="วันทำงาน">{e.contract.workDays}</Fact>
+          <Fact icon={<PiggyBank size={12} />} label="กองทุนสำรองเลี้ยงชีพ">{e.admin.pvdRate}% ของเงินเดือน</Fact>
+          <Fact icon={<Briefcase size={12} />} label="อายุงาน">{tenureYears(e) < 1 ? "ไม่ถึงปี" : tenureYears(e).toFixed(1) + " ปี"}</Fact>
+        </dl>
+      </Card>
+    </div>
+  );
+}
+
+function AdminTab({ e, docs, done }: { e: Employee; docs: { name: string; done: boolean }[]; done: number }) {
+  return (
+    <div className="space-y-4">
+      <Card title="เอกสารประกอบการจ้าง">
+        <div className="p-4">
+          <Progress done={done} total={docs.length} label={`ครบ ${done} จาก ${docs.length} รายการ`} />
+        </div>
+        <ul className="divide-y divide-slate-100 border-t border-slate-100 dark:divide-slate-800 dark:border-slate-800">
+          {docs.map((d) => (
+            <li key={d.name} className="flex items-center gap-3 px-4 py-3">
+              <span className="grid size-9 place-items-center rounded-lg bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400">
+                <FileText size={16} />
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block text-[13px] font-medium text-slate-800 dark:text-slate-100">{d.name}</span>
+                <span className="block text-[11.5px] text-slate-500">{d.done ? "ยื่นแล้ว · อยู่ในแฟ้ม" : "ยังไม่ได้รับ"}</span>
+              </span>
+              <Badge tone={d.done ? "ok" : "warn"} icon={d.done ? <CircleCheck size={11} /> : <Clock3 size={11} />}>
+                {d.done ? "ครบ" : "รอเอกสาร"}
+              </Badge>
+            </li>
+          ))}
+        </ul>
+      </Card>
+
+      <Card title="ภาษีและประกันสังคม">
+        <dl className="grid gap-2.5 p-4 sm:grid-cols-2">
+          <Fact icon={<Landmark size={12} />} label="เลขประกันสังคม"><span className="font-mono">{e.admin.ssoNumber}</span></Fact>
+          <Fact icon={<ShieldCheck size={12} />} label="เลขผู้เสียภาษี"><span className="font-mono">{e.admin.taxId}</span></Fact>
+          <Fact icon={<CreditCard size={12} />} label="บัญชีรับเงินเดือน">{e.admin.bankName} <span className="font-mono">{e.admin.bankAccount}</span></Fact>
+          <Fact icon={<PiggyBank size={12} />} label="กองทุนสำรองเลี้ยงชีพ">{e.admin.pvdRate}% ของเงินเดือน</Fact>
+        </dl>
+      </Card>
+    </div>
+  );
+}
+
+function EventsTab({ events, onAdd }: { events: PersonnelEvent[]; onAdd: (ev: PersonnelEvent) => void }) {
+  const [logging, setLogging] = useState(false);
+  const years = [...new Set(events.map((ev) => ev.date.slice(0, 4)))].sort().reverse();
+  const groups = years.map((y) => ({
+    heading: "ปี " + (Number(y) + 543),
+    items: [...events].filter((ev) => ev.date.startsWith(y)).reverse().map((ev) => ({
+      time: ev.date.slice(5),
+      body: (
+        <span className="flex flex-wrap items-center gap-1.5">
+          <Badge tone={ev.type === "ลาออก" ? "bad" : ev.type === "รับเข้าทำงาน" ? "ok" : "accent"}>{ev.type}</Badge>
+          <span className="text-slate-700 dark:text-slate-200">{ev.detail}</span>
+        </span>
+      ),
+    })),
+  }));
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <p className="text-[13px] text-slate-500">{events.length} เหตุการณ์ในประวัติ</p>
+        {!logging && (
+          <Button variant="secondary" icon={<Plus size={14} />} onClick={() => setLogging(true)}>
+            บันทึกเหตุการณ์
+          </Button>
+        )}
+      </div>
+      {logging && (
+        <AddEvent
+          onCancel={() => setLogging(false)}
+          onSave={(ev) => {
+            onAdd(ev);
+            setLogging(false);
+          }}
+        />
+      )}
+      <Card>
+        <div className="p-4">
+          <Timeline groups={groups} />
+        </div>
+      </Card>
+    </div>
+  );
+}
+
+function PayTab({ e }: { e: Employee }) {
+  return (
+    <div className="space-y-4">
+      <div className={"flex items-center gap-4 p-4 " + SURFACE}>
+        <span className="grid size-12 place-items-center rounded-xl bg-violet-50 text-violet-600 dark:bg-violet-500/15 dark:text-violet-300">
+          <Wallet size={22} />
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="text-[12px] text-slate-500 dark:text-slate-400">เงินเดือนฐาน</p>
+          <p className="text-[24px] font-semibold tabular-nums text-slate-900 dark:text-slate-50">{baht(e.contract.baseSalary)} ฿</p>
+        </div>
+        <div className="text-right text-[12px] text-slate-500">
+          <p>กองทุนสำรองฯ {e.admin.pvdRate}%</p>
+          <p>= {baht(Math.round((e.contract.baseSalary * e.admin.pvdRate) / 100))} ฿/เดือน</p>
+        </div>
+      </div>
+
+      <Card title={`สวัสดิการ ${e.benefits.length} รายการ`}>
+        <div className="grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-3">
+          {e.benefits.map((b, i) => (
+            <motion.div
+              key={b}
+              initial={enter({ opacity: 0, y: 6 })}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: i * 0.05 }}
+              className="flex items-start gap-3 rounded-xl border border-slate-100 p-3.5 dark:border-slate-800"
+            >
+              <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-emerald-50 text-emerald-600 dark:bg-emerald-500/15 dark:text-emerald-300">
+                <Gift size={16} />
+              </span>
+              <span className="text-[13px] text-slate-800 dark:text-slate-100">{b}</span>
+            </motion.div>
+          ))}
+        </div>
+      </Card>
+    </div>
+  );
+}
+
+function ActivityTab({ activity }: { activity: ActivityEntry[] }) {
+  const dates = [...new Set(activity.map((a) => a.date))].sort().reverse();
+  const groups = dates.map((d) => ({
+    heading: d === TODAY ? "วันนี้" : d,
+    items: activity.filter((a) => a.date === d).map((a) => ({
+      time: a.time,
+      avatar: <Avatar name={a.actor} size="sm" />,
+      body: (
+        <>
+          <span className="font-medium underline decoration-slate-300 underline-offset-2">{a.actor}</span>{" "}
+          <span className="text-slate-600 dark:text-slate-300">{a.text}</span>
+          {a.target && <span className="ml-1.5 font-medium text-slate-900 dark:text-slate-50">{a.target}</span>}
+        </>
+      ),
+    })),
+  }));
+
+  return (
+    <Card>
+      <div className="p-4">
+        {groups.length === 0 ? (
+          <p className="py-8 text-center text-[13px] text-slate-400">ยังไม่มีกิจกรรมกับแฟ้มนี้ — เขียนบันทึกได้ที่คอลัมน์ซ้าย</p>
+        ) : (
+          <Timeline groups={groups} />
+        )}
+      </div>
+    </Card>
+  );
+}
+
+function AddEvent({ onSave, onCancel }: { onSave: (ev: PersonnelEvent) => void; onCancel: () => void }) {
   const [type, setType] = useState(EVENT_TYPES[1]);
   const [date, setDate] = useState(TODAY);
   const [detail, setDetail] = useState("");
@@ -601,10 +914,10 @@ function AddEvent({
   const bad = tried && detail.trim().length < 5;
 
   return (
-    <div className={"mt-4 p-3 " + SURFACE}>
+    <div className={"p-4 " + SURFACE}>
       <div className="grid grid-cols-2 gap-3">
         <Field label="ประเภทเหตุการณ์">
-          <Select value={type} onChange={setType} options={EVENT_TYPES} />
+          <Select value={type} onChange={setType} options={EVENT_TYPES} className="w-full" />
         </Field>
         <Field label="วันที่มีผล">
           <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className={FIELD + " w-full"} />
@@ -618,38 +931,123 @@ function AddEvent({
         >
           <input
             value={detail}
-            onChange={(e) => {
-              setDetail(e.target.value);
-              if (tried) setTried(true);
-            }}
-            className={
-              FIELD + " w-full " + (bad ? "border-rose-400 dark:border-rose-500" : "")
-            }
+            onChange={(e) => setDetail(e.target.value)}
+            className={FIELD + " w-full " + (bad ? "border-rose-400 dark:border-rose-500" : "")}
           />
         </Field>
       </div>
       <div className="mt-3 flex gap-2">
-        <button
-          onClick={onCancel}
-          className="rounded-lg border border-slate-300 px-3 py-1.5 text-[12.5px] text-slate-600 dark:border-slate-700 dark:text-slate-300"
-        >
-          ยกเลิก
-        </button>
-        <button
+        <Button variant="secondary" onClick={onCancel}>ยกเลิก</Button>
+        <Button
+          variant="primary"
+          className="flex-1"
           onClick={() => {
             setTried(true);
             if (detail.trim().length >= 5) onSave({ date, type, detail: detail.trim() });
           }}
-          className="flex-1 rounded-lg bg-sky-600 py-1.5 text-[12.5px] font-medium text-white transition hover:bg-sky-700"
         >
           บันทึกเหตุการณ์
-        </button>
+        </Button>
       </div>
     </div>
   );
 }
 
-/* ------------------------------------------------------------------ wizard */
+/* ---------------------------------------------------------------- resign */
+
+function ResignDialog({
+  employee: e,
+  onCancel,
+  onConfirm,
+}: {
+  employee: Employee | null;
+  onCancel: () => void;
+  onConfirm: (e: Employee, reason: string, message: string) => void;
+}) {
+  const [reason, setReason] = useState(RESIGN_REASONS[0]);
+  const [message, setMessage] = useState("");
+  const ready = reason !== RESIGN_REASONS[0];
+
+  // A courteous note drafted from the reason — a template filled in, not a
+  // model call, and labelled as such so nobody mistakes it for one.
+  const draft = () =>
+    setMessage(
+      `เรียน คุณ${e?.nickname ?? ""}\n\nบริษัทรับทราบการลาออกของท่าน (${reason}) และขอขอบคุณสำหรับการทำงานที่ผ่านมา ฝ่ายบุคคลจะติดต่อเรื่องการส่งมอบงาน ทรัพย์สินของบริษัท และเอกสารสิทธิประโยชน์ภายใน 3 วันทำการ\n\nขอให้ท่านประสบความสำเร็จในเส้นทางต่อไป`
+    );
+
+  const reset = () => {
+    setReason(RESIGN_REASONS[0]);
+    setMessage("");
+  };
+
+  return (
+    <ConfirmDialog
+      open={e !== null}
+      title="บันทึกการลาออก"
+      body="ระบุเหตุผลและข้อความถึงพนักงาน เพื่อให้กระบวนการเป็นระบบและสุภาพ"
+      confirmLabel="บันทึกการลาออก"
+      disabled={!ready}
+      onCancel={() => {
+        reset();
+        onCancel();
+      }}
+      onConfirm={() => {
+        if (e && ready) {
+          onConfirm(e, reason, message);
+          reset();
+        }
+      }}
+      subject={
+        e && (
+          <div className={"flex items-center gap-3 p-3 " + SURFACE}>
+            <Avatar name={e.name} />
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-[13px] font-semibold text-slate-900 dark:text-slate-50">
+                {e.name} <GenderMark id={e.id} />
+              </p>
+              <p className="flex items-center gap-1 text-[11.5px] text-slate-500">
+                <CalendarDays size={11} /> เริ่มงาน {e.contract.startedAt}
+              </p>
+            </div>
+            <div className="text-right text-[11.5px] text-slate-500">
+              <p className="flex items-center justify-end gap-1"><Briefcase size={11} />{e.position}</p>
+              <p className="flex items-center justify-end gap-1"><Building size={11} />{e.department}</p>
+            </div>
+          </div>
+        )
+      }
+      fields={
+        <>
+          <Field label="เหตุผล">
+            <Select value={reason} onChange={setReason} options={RESIGN_REASONS} className="w-full" />
+          </Field>
+          <Field label="ข้อความถึงพนักงาน">
+            <div className={"relative overflow-hidden " + SURFACE}>
+              <textarea
+                value={message}
+                onChange={(ev) => setMessage(ev.target.value)}
+                rows={5}
+                placeholder="พิมพ์ข้อความ…"
+                className="w-full resize-none bg-transparent px-3.5 py-3 pb-12 text-[13px] leading-relaxed text-slate-800 outline-none placeholder:text-slate-400 dark:text-slate-100"
+              />
+              <motion.button
+                whileTap={{ scale: 0.96 }}
+                onClick={draft}
+                disabled={!ready}
+                className="absolute bottom-3 left-3 inline-flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-fuchsia-500 to-orange-400 px-3 py-1.5 text-[12px] font-medium text-white shadow-sm disabled:opacity-40"
+              >
+                <Sparkles size={13} />
+                ร่างข้อความอัตโนมัติ
+              </motion.button>
+            </div>
+          </Field>
+        </>
+      }
+    />
+  );
+}
+
+/* ---------------------------------------------------------------- wizard */
 
 function employeeFrom(d: Draft, n: number): Employee {
   return {
@@ -660,13 +1058,7 @@ function employeeFrom(d: Draft, n: number): Employee {
     position: d.position,
     department: d.department,
     status: "ทดลองงาน",
-    personal: {
-      birthDate: d.birthDate,
-      nationalId: d.nationalId,
-      phone: d.phone,
-      email: d.email,
-      address: "—",
-    },
+    personal: { birthDate: d.birthDate, nationalId: d.nationalId, phone: d.phone, email: d.email, address: "—" },
     contract: {
       type: d.type,
       startedAt: d.startedAt,
@@ -688,11 +1080,8 @@ function employeeFrom(d: Draft, n: number): Employee {
 }
 
 /**
- * Declared out here, not inside the wizard.
- *
- * A component defined during render is a new type every render, so React throws
- * the input away and mounts a fresh one — which takes the caret with it and
- * leaves you able to type exactly one character per field.
+ * Declared out here, not inside the wizard: a component defined during render
+ * is a new type every render, so React remounts the input and takes the caret.
  */
 function DraftText({
   value,
@@ -734,14 +1123,7 @@ function NewEmployee({
 }) {
   const set = (k: keyof Draft) => (v: string) => setDraft({ ...draft, [k]: v });
   const text = (k: keyof Draft, label: string, errors: Record<string, string>, extra?: { hint?: string; placeholder?: string }) => (
-    <DraftText
-      value={draft[k]}
-      onChange={set(k)}
-      label={label}
-      error={errors[k]}
-      hint={extra?.hint}
-      placeholder={extra?.placeholder}
-    />
+    <DraftText value={draft[k]} onChange={set(k)} label={label} error={errors[k]} hint={extra?.hint} placeholder={extra?.placeholder} />
   );
 
   const steps: Step[] = [
@@ -777,20 +1159,15 @@ function NewEmployee({
       validate: () => {
         const e: Record<string, string> = {};
         if (draft.position.trim().length < 2) e.position = "ระบุตำแหน่ง";
-        if (!draft.baseSalary || Number(draft.baseSalary) < 10000)
-          e.baseSalary = "เงินเดือนต้องไม่ต่ำกว่า 10,000 บาท";
+        if (!draft.baseSalary || Number(draft.baseSalary) < 10000) e.baseSalary = "เงินเดือนต้องไม่ต่ำกว่า 10,000 บาท";
         return e;
       },
       render: (errors) => (
         <>
           {text("position", "ตำแหน่ง", errors, { placeholder: "พนักงานขาย" })}
           <div className="grid grid-cols-2 gap-3">
-            <Field label="แผนก">
-              <Select value={draft.department} onChange={set("department")} options={DEPARTMENTS} />
-            </Field>
-            <Field label="ประเภทการจ้าง">
-              <Select value={draft.type} onChange={set("type")} options={CONTRACT_TYPES} />
-            </Field>
+            <Field label="แผนก"><Select value={draft.department} onChange={set("department")} options={DEPARTMENTS} className="w-full" /></Field>
+            <Field label="ประเภทการจ้าง"><Select value={draft.type} onChange={set("type")} options={CONTRACT_TYPES} className="w-full" /></Field>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <Field label="วันเริ่มงาน">
@@ -813,14 +1190,11 @@ function NewEmployee({
         <>
           {text("ssoNumber", "เลขประกันสังคม", errors, { hint: "10 หลัก ไม่ต้องใส่ขีด", placeholder: "1234567890" })}
           <div className="grid grid-cols-2 gap-3">
-            <Field label="ธนาคาร">
-              <Select value={draft.bankName} onChange={set("bankName")} options={BANKS} />
-            </Field>
+            <Field label="ธนาคาร"><Select value={draft.bankName} onChange={set("bankName")} options={BANKS} className="w-full" /></Field>
             {text("bankAccount", "เลขบัญชี", errors, { placeholder: "xxx-x-x1234-5" })}
           </div>
-          <Note tone="info">
-            เลขผู้เสียภาษีจะใช้เลขบัตรประชาชนที่กรอกไว้ และตั้งกองทุนสำรองเลี้ยงชีพเริ่มต้นที่ 3%
-            แก้ได้ภายหลังในแฟ้มประวัติ
+          <Note tone="accent">
+            เลขผู้เสียภาษีจะใช้เลขบัตรประชาชนที่กรอกไว้ และตั้งกองทุนสำรองเลี้ยงชีพเริ่มต้นที่ 3% แก้ได้ภายหลังในแฟ้มประวัติ
           </Note>
         </>
       ),

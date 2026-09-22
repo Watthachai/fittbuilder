@@ -1,17 +1,21 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
-import { FIELD, SURFACE, Skeleton } from "./ui";
+import { AnimatePresence, motion } from "motion/react";
+import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp, ChevronsUpDown, X } from "lucide-react";
+import { Button, FIELD, SURFACE, Skeleton, enter } from "./ui";
 
 /**
  * The working parts of a management screen: the table people live in, the panel
- * that shows one row without losing the list, the confirmation that makes a
- * destructive act deliberate, and the form that does not ask for forty fields at
- * once.
+ * that shows one record without losing the list, the confirmation that makes a
+ * destructive act deliberate, and the form that does not ask for forty fields
+ * at once.
  *
  * They are here rather than inside a module because every module needs the same
  * ones, and a table that sorts differently on the payroll screen than on the
  * personnel screen is a defect nobody files and everybody feels.
  */
+
+const EASE = [0.22, 1, 0.36, 1] as const;
 
 export type Column<T> = {
   key: string;
@@ -20,8 +24,7 @@ export type Column<T> = {
   /** Supplying this makes the column sortable; leaving it off means it is not. */
   sort?: (a: T, b: T) => number;
   align?: "right";
-  /** Hidden by default in compact density, for columns that are nice-to-have. */
-  secondary?: boolean;
+  width?: string;
 };
 
 type Density = "comfortable" | "compact";
@@ -36,24 +39,26 @@ export function DataTable<T>({
   toolbar,
   empty = "ไม่มีข้อมูลที่ตรงกับเงื่อนไข",
   loading,
+  trailing,
 }: {
   rows: T[];
   columns: Column<T>[];
   getId: (row: T) => string | number;
-  /** Opening a row shows it beside the list, so the list stays where it was. */
+  /** Opening a row shows it over the list, so the list stays where it was. */
   onOpen?: (row: T) => void;
   selectable?: boolean;
   bulkActions?: (selected: T[], clear: () => void) => ReactNode;
   toolbar?: ReactNode;
   empty?: string;
   loading?: boolean;
+  /** Per-row controls at the far right — favourite, menu — that must not open the row. */
+  trailing?: (row: T) => ReactNode;
 }) {
   const [sortKey, setSortKey] = useState<string>();
   const [desc, setDesc] = useState(false);
   const [density, setDensity] = useState<Density>("comfortable");
   const [picked, setPicked] = useState<Set<string | number>>(new Set());
 
-  const shown = density === "compact" ? columns : columns;
   const pad = density === "compact" ? "px-3 py-1.5" : "px-4 py-3";
 
   const sorted = useMemo(() => {
@@ -87,53 +92,40 @@ export function DataTable<T>({
   if (loading) return <Skeleton rows={6} cols={Math.min(5, columns.length)} />;
 
   return (
-    <div className="space-y-2">
-      {(toolbar || selectable) && (
-        <div className="flex flex-wrap items-center gap-2">
-          {toolbar}
-          <div className="ml-auto flex items-center gap-1 rounded-lg border border-slate-200 p-0.5 dark:border-slate-800">
-            {(["comfortable", "compact"] as const).map((d) => (
-              <button
-                key={d}
-                onClick={() => setDensity(d)}
-                title={d === "comfortable" ? "แถวห่าง อ่านสบาย" : "แถวถี่ เห็นข้อมูลเยอะ"}
-                className={
-                  "rounded-md px-2 py-1 text-[11.5px] transition " +
-                  (density === d
-                    ? "bg-slate-100 font-medium text-slate-800 dark:bg-slate-800 dark:text-slate-100"
-                    : "text-slate-400 hover:text-slate-700 dark:hover:text-slate-200")
-                }
-              >
-                {d === "comfortable" ? "ห่าง" : "ถี่"}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
+    <div className="space-y-3">
+      {toolbar}
 
       {/* The contextual bar only exists while something is ticked, so the screen
           is not carrying a row of disabled buttons the rest of the time. */}
-      {selectable && selected.length > 0 && (
-        <div className="flex flex-wrap items-center gap-2 rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 dark:border-sky-500/30 dark:bg-sky-500/10">
-          <span className="text-[12.5px] font-medium text-sky-800 dark:text-sky-300">
-            เลือกไว้ {selected.length} รายการ
-          </span>
-          <span className="ml-auto flex flex-wrap items-center gap-1.5">
-            {bulkActions?.(selected, () => setPicked(new Set()))}
-            <button
-              onClick={() => setPicked(new Set())}
-              className="rounded-md px-2 py-1 text-[12px] text-sky-700 transition hover:bg-sky-100 dark:text-sky-300 dark:hover:bg-sky-500/20"
-            >
-              ยกเลิกการเลือก
-            </button>
-          </span>
-        </div>
-      )}
+      <AnimatePresence initial={false}>
+        {selectable && selected.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: -6 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -6 }}
+            transition={{ duration: 0.2 }}
+            className="flex flex-wrap items-center gap-2 rounded-xl border border-violet-200 bg-violet-50 px-3.5 py-2 dark:border-violet-500/30 dark:bg-violet-500/10"
+          >
+            <span className="text-[12.5px] font-medium text-violet-800 dark:text-violet-200">
+              เลือกไว้ {selected.length} รายการ
+            </span>
+            <span className="ml-auto flex flex-wrap items-center gap-1.5">
+              {bulkActions?.(selected, () => setPicked(new Set()))}
+              <button
+                onClick={() => setPicked(new Set())}
+                className="rounded-lg px-2 py-1 text-[12px] text-violet-700 transition hover:bg-violet-100 dark:text-violet-300 dark:hover:bg-violet-500/20"
+              >
+                ยกเลิกการเลือก
+              </button>
+            </span>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <div className={"overflow-hidden " + SURFACE}>
-        <div className="max-h-[calc(100vh-19rem)] overflow-auto">
-          <table className="w-full text-sm">
-            <thead className="sticky top-0 z-10 bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500 dark:bg-slate-800 dark:text-slate-400">
+        <div className="max-h-[calc(100vh-22rem)] overflow-auto">
+          <table className="w-full text-[13px]">
+            <thead className="sticky top-0 z-10 bg-slate-50/95 text-left text-[11.5px] text-slate-500 backdrop-blur dark:bg-slate-800/95 dark:text-slate-400">
               <tr>
                 {selectable && (
                   <th className={pad + " w-10"}>
@@ -141,15 +133,17 @@ export function DataTable<T>({
                       type="checkbox"
                       checked={allOn}
                       aria-label="เลือกทั้งหมด"
-                      onChange={() =>
-                        setPicked(allOn ? new Set() : new Set(sorted.map(getId)))
-                      }
-                      className="size-3.5 accent-sky-600"
+                      onChange={() => setPicked(allOn ? new Set() : new Set(sorted.map(getId)))}
+                      className="size-3.5 rounded accent-violet-600"
                     />
                   </th>
                 )}
-                {shown.map((c) => (
-                  <th key={c.key} className={pad + (c.align === "right" ? " text-right" : "")}>
+                {columns.map((c) => (
+                  <th
+                    key={c.key}
+                    style={c.width ? { width: c.width } : undefined}
+                    className={pad + " font-medium" + (c.align === "right" ? " text-right" : "")}
+                  >
                     {c.sort ? (
                       <button
                         onClick={() => {
@@ -160,29 +154,46 @@ export function DataTable<T>({
                           }
                         }}
                         className={
-                          "inline-flex items-center gap-1 transition hover:text-slate-800 dark:hover:text-slate-100 " +
-                          (sortKey === c.key ? "text-slate-800 dark:text-slate-100" : "")
+                          "inline-flex items-center gap-1 transition hover:text-slate-900 dark:hover:text-slate-100 " +
+                          (sortKey === c.key ? "text-slate-900 dark:text-slate-100" : "")
                         }
                       >
                         {c.header}
-                        <span className="text-[9px] opacity-60">
-                          {sortKey === c.key ? (desc ? "▼" : "▲") : "↕"}
-                        </span>
+                        {sortKey === c.key ? (
+                          desc ? <ChevronDown size={13} /> : <ChevronUp size={13} />
+                        ) : (
+                          <ChevronsUpDown size={13} className="opacity-50" />
+                        )}
                       </button>
                     ) : (
                       c.header
                     )}
                   </th>
                 ))}
+                {trailing && <th className={pad + " w-24"} />}
+                {(toolbar || selectable) && !trailing && (
+                  <th className={pad + " w-16 text-right"}>
+                    <button
+                      onClick={() => setDensity((d) => (d === "compact" ? "comfortable" : "compact"))}
+                      title={density === "compact" ? "แถวห่าง อ่านสบาย" : "แถวถี่ เห็นข้อมูลเยอะ"}
+                      className="text-[11px] font-normal text-slate-400 hover:text-slate-800 dark:hover:text-slate-100"
+                    >
+                      {density === "compact" ? "ห่าง" : "ถี่"}
+                    </button>
+                  </th>
+                )}
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-              {sorted.map((r) => {
+              {sorted.map((r, i) => {
                 const id = getId(r);
                 const on = picked.has(id);
                 return (
-                  <tr
+                  <motion.tr
                     key={id}
+                    initial={enter({ opacity: 0, y: 4 })}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.25, ease: EASE, delay: Math.min(i, 12) * 0.025 }}
                     tabIndex={onOpen ? 0 : undefined}
                     onClick={onOpen ? () => onOpen(r) : undefined}
                     onKeyDown={
@@ -194,10 +205,8 @@ export function DataTable<T>({
                     }
                     className={
                       (onOpen ? "cursor-pointer " : "") +
-                      "outline-none focus-visible:bg-sky-100/60 dark:focus-visible:bg-sky-500/15 " +
-                      (on
-                        ? "bg-sky-50/60 dark:bg-sky-500/10"
-                        : "hover:bg-slate-50 dark:hover:bg-slate-800/50")
+                      "outline-none focus-visible:bg-violet-50 dark:focus-visible:bg-violet-500/10 " +
+                      (on ? "bg-violet-50/60 dark:bg-violet-500/10" : "hover:bg-slate-50 dark:hover:bg-slate-800/50")
                     }
                   >
                     {selectable && (
@@ -207,29 +216,31 @@ export function DataTable<T>({
                           checked={on}
                           aria-label="เลือกแถวนี้"
                           onChange={() => toggle(id)}
-                          className="size-3.5 accent-sky-600"
+                          className="size-3.5 rounded accent-violet-600"
                         />
                       </td>
                     )}
-                    {shown.map((c) => (
+                    {columns.map((c) => (
                       <td
                         key={c.key}
-                        className={
-                          pad +
-                          (c.align === "right" ? " text-right" : "") +
-                          " text-slate-600 dark:text-slate-300"
-                        }
+                        className={pad + (c.align === "right" ? " text-right" : "") + " text-slate-600 dark:text-slate-300"}
                       >
                         {c.cell(r)}
                       </td>
                     ))}
-                  </tr>
+                    {trailing && (
+                      <td className={pad + " text-right"} onClick={(e) => e.stopPropagation()}>
+                        {trailing(r)}
+                      </td>
+                    )}
+                    {(toolbar || selectable) && !trailing && <td className={pad} />}
+                  </motion.tr>
                 );
               })}
               {sorted.length === 0 && (
                 <tr>
                   <td
-                    colSpan={shown.length + (selectable ? 1 : 0)}
+                    colSpan={columns.length + (selectable ? 1 : 0) + 1}
                     className="px-4 py-14 text-center text-[13px] text-slate-400 dark:text-slate-500"
                   >
                     {empty}
@@ -245,11 +256,111 @@ export function DataTable<T>({
 }
 
 /**
+ * One record, large, over the list — with a way to step to the next one.
+ *
+ * The list stays behind it dimmed, so the filters and scroll position survive.
+ * The pager is what makes it a working tool rather than a preview: someone
+ * reviewing twenty records reads them in sequence without closing anything.
+ */
+export function DetailModal({
+  open,
+  title,
+  onClose,
+  index,
+  total,
+  onStep,
+  children,
+}: {
+  open: boolean;
+  title: ReactNode;
+  onClose: () => void;
+  index?: number;
+  total?: number;
+  onStep?: (delta: 1 | -1) => void;
+  children: ReactNode;
+}) {
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+      if (onStep && e.key === "ArrowRight") onStep(1);
+      if (onStep && e.key === "ArrowLeft") onStep(-1);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open, onClose, onStep]);
+
+  return (
+    <AnimatePresence>
+      {open && (
+        <motion.div
+          role="dialog"
+          aria-modal="true"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.18 }}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/45 p-3 backdrop-blur-[2px] dark:bg-black/65 sm:p-6"
+          onClick={onClose}
+        >
+          <motion.div
+            onClick={(e) => e.stopPropagation()}
+            initial={{ opacity: 0, y: 16, scale: 0.985 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 10, scale: 0.99 }}
+            transition={{ type: "spring", stiffness: 360, damping: 34 }}
+            className="flex h-[88vh] w-full max-w-6xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl dark:bg-slate-900 dark:ring-1 dark:ring-slate-800"
+          >
+            <div className="flex items-center gap-3 border-b border-slate-100 px-5 py-3 dark:border-slate-800">
+              <h2 className="min-w-0 flex-1 truncate text-[15px] font-semibold text-slate-900 dark:text-slate-50">
+                {title}
+              </h2>
+              {onStep && index !== undefined && total !== undefined && (
+                <div className="flex items-center gap-1.5">
+                  <button
+                    onClick={() => onStep(-1)}
+                    disabled={index <= 0}
+                    aria-label="รายการก่อนหน้า"
+                    className="grid size-8 place-items-center rounded-full border border-slate-200 text-slate-500 transition hover:bg-slate-50 disabled:opacity-30 dark:border-slate-700 dark:hover:bg-slate-800"
+                  >
+                    <ChevronLeft size={15} />
+                  </button>
+                  <button
+                    onClick={() => onStep(1)}
+                    disabled={index >= total - 1}
+                    aria-label="รายการถัดไป"
+                    className="grid size-8 place-items-center rounded-full border border-slate-200 text-slate-500 transition hover:bg-slate-50 disabled:opacity-30 dark:border-slate-700 dark:hover:bg-slate-800"
+                  >
+                    <ChevronRight size={15} />
+                  </button>
+                  <span className="ml-1 text-[12.5px] tabular-nums text-slate-500 dark:text-slate-400">
+                    <span className="font-semibold text-slate-900 dark:text-slate-50">
+                      {String(index + 1).padStart(2, "0")}
+                    </span>{" "}
+                    จาก {total}
+                  </span>
+                </div>
+              )}
+              <button
+                onClick={onClose}
+                aria-label="ปิด"
+                className="ml-2 grid size-8 place-items-center rounded-lg text-slate-400 transition hover:bg-slate-100 hover:text-slate-800 dark:hover:bg-slate-800 dark:hover:text-slate-100"
+              >
+                <X size={16} />
+              </button>
+            </div>
+            <div className="min-h-0 flex-1">{children}</div>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+}
+
+/**
  * Detail beside the list rather than instead of it.
  *
- * Sending someone to a new page to read one row costs them their scroll position,
- * their filters and their place in the queue they were working through. The panel
- * slides over, the list stays behind it, and Escape puts them back.
+ * The panel slides over, the list stays behind, and Escape puts them back.
  */
 export function Drawer({
   open,
@@ -277,121 +388,151 @@ export function Drawer({
     return () => window.removeEventListener("keydown", onKey);
   }, [open, onClose]);
 
-  if (!open) return null;
-
   return (
-    <div className="fixed inset-0 z-50" role="dialog" aria-modal="true">
-      <div onClick={onClose} className="absolute inset-0 bg-slate-900/40 dark:bg-black/60" />
-      <div
-        className={
-          "absolute inset-y-0 right-0 flex w-full flex-col bg-white shadow-2xl dark:bg-slate-900 dark:ring-1 dark:ring-slate-800 " +
-          width
-        }
-      >
-        <div className="flex items-start justify-between gap-4 border-b border-slate-100 px-5 py-4 dark:border-slate-800">
-          <div className="min-w-0">
-            <h2 className="truncate text-base font-semibold text-slate-900 dark:text-slate-50">{title}</h2>
-            {subtitle && (
-              <p className="mt-0.5 truncate text-[12.5px] text-slate-500 dark:text-slate-400">{subtitle}</p>
-            )}
-          </div>
-          <button
+    <AnimatePresence>
+      {open && (
+        <div className="fixed inset-0 z-50" role="dialog" aria-modal="true">
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.18 }}
             onClick={onClose}
-            aria-label="ปิดแผงรายละเอียด"
-            className="shrink-0 rounded-lg px-2 py-1 text-slate-400 transition hover:bg-slate-100 dark:hover:bg-slate-800"
+            className="absolute inset-0 bg-slate-900/40 backdrop-blur-[2px] dark:bg-black/60"
+          />
+          <motion.div
+            initial={{ x: "100%" }}
+            animate={{ x: 0 }}
+            exit={{ x: "100%" }}
+            transition={{ type: "spring", stiffness: 380, damping: 38 }}
+            className={
+              "absolute inset-y-0 right-0 flex w-full flex-col bg-white shadow-2xl dark:bg-slate-900 dark:ring-1 dark:ring-slate-800 " +
+              width
+            }
           >
-            ✕
-          </button>
+            <div className="flex items-start justify-between gap-4 border-b border-slate-100 px-5 py-4 dark:border-slate-800">
+              <div className="min-w-0">
+                <h2 className="truncate text-[15px] font-semibold text-slate-900 dark:text-slate-50">{title}</h2>
+                {subtitle && <p className="mt-0.5 truncate text-[12.5px] text-slate-500 dark:text-slate-400">{subtitle}</p>}
+              </div>
+              <button
+                onClick={onClose}
+                aria-label="ปิดแผงรายละเอียด"
+                className="grid size-8 shrink-0 place-items-center rounded-lg text-slate-400 transition hover:bg-slate-100 dark:hover:bg-slate-800"
+              >
+                <X size={16} />
+              </button>
+            </div>
+            <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">{children}</div>
+            {footer && <div className="border-t border-slate-100 px-5 py-3 dark:border-slate-800">{footer}</div>}
+          </motion.div>
         </div>
-
-        <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">{children}</div>
-
-        {/* Sticky, so the actions are reachable without scrolling back up. */}
-        {footer && (
-          <div className="border-t border-slate-100 px-5 py-3 dark:border-slate-800">{footer}</div>
-        )}
-      </div>
-    </div>
+      )}
+    </AnimatePresence>
   );
 }
 
 /**
  * Deliberate destruction.
  *
- * `confirmWord` makes the person type something before the button works. It is
- * for the acts that cannot be taken back — not for every delete, or people learn
- * to type it without reading.
+ * `subject` is the record about to be acted on, shown so nobody confirms the
+ * wrong one. `fields` is whatever the act needs recorded — a reason, a message.
+ * `confirmWord` makes the person type something first; it is for the acts that
+ * cannot be taken back, not for every delete, or people learn to type it
+ * without reading.
  */
 export function ConfirmDialog({
   open,
   title,
   body,
+  subject,
+  fields,
   confirmWord,
   confirmLabel = "ยืนยัน",
   onConfirm,
   onCancel,
+  disabled,
 }: {
   open: boolean;
   title: string;
   body: ReactNode;
+  subject?: ReactNode;
+  fields?: ReactNode;
   confirmWord?: string;
   confirmLabel?: string;
   onConfirm: () => void;
   onCancel: () => void;
+  disabled?: boolean;
 }) {
   const [typed, setTyped] = useState("");
   useEffect(() => {
     if (open) setTyped("");
   }, [open]);
 
-  if (!open) return null;
-  const armed = !confirmWord || typed.trim() === confirmWord;
+  const armed = (!confirmWord || typed.trim() === confirmWord) && !disabled;
 
   return (
-    <div
-      role="alertdialog"
-      aria-modal="true"
-      onClick={onCancel}
-      className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/50 p-4 dark:bg-black/70"
-    >
-      <div
-        onClick={(e) => e.stopPropagation()}
-        className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl dark:bg-slate-900 dark:ring-1 dark:ring-slate-800"
-      >
-        <h2 className="text-base font-semibold text-slate-900 dark:text-slate-50">{title}</h2>
-        <div className="mt-1.5 text-[13px] leading-relaxed text-slate-600 dark:text-slate-300">{body}</div>
-
-        {confirmWord && (
-          <label className="mt-4 block">
-            <span className="text-[12px] text-slate-500 dark:text-slate-400">
-              พิมพ์ <span className="font-mono font-semibold text-slate-800 dark:text-slate-100">{confirmWord}</span> เพื่อยืนยัน
-            </span>
-            <input
-              autoFocus
-              value={typed}
-              onChange={(e) => setTyped(e.target.value)}
-              className={FIELD + " mt-1 w-full"}
-            />
-          </label>
-        )}
-
-        <div className="mt-5 flex gap-2">
-          <button
-            onClick={onCancel}
-            className="flex-1 rounded-lg border border-slate-300 py-2.5 text-sm text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
+    <AnimatePresence>
+      {open && (
+        <motion.div
+          role="alertdialog"
+          aria-modal="true"
+          onClick={onCancel}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.18 }}
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/50 p-4 backdrop-blur-[2px] dark:bg-black/70"
+        >
+          <motion.div
+            onClick={(e) => e.stopPropagation()}
+            initial={{ opacity: 0, y: 14, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 8, scale: 0.99 }}
+            transition={{ type: "spring", stiffness: 380, damping: 32 }}
+            className="w-full max-w-md overflow-hidden rounded-2xl bg-white shadow-2xl dark:bg-slate-900 dark:ring-1 dark:ring-slate-800"
           >
-            ยกเลิก
-          </button>
-          <button
-            onClick={onConfirm}
-            disabled={!armed}
-            className="flex-1 rounded-lg bg-rose-600 py-2.5 text-sm font-medium text-white transition hover:bg-rose-700 disabled:cursor-not-allowed disabled:opacity-40"
-          >
-            {confirmLabel}
-          </button>
-        </div>
-      </div>
-    </div>
+            {/* The dotted field behind the title is the reference's tell for
+                "stop and read" — texture, not colour, so it survives dark mode. */}
+            <div
+              className="px-6 pb-4 pt-6 text-center"
+              style={{
+                backgroundImage: "radial-gradient(circle, rgb(148 163 184 / 0.25) 1px, transparent 1px)",
+                backgroundSize: "10px 10px",
+              }}
+            >
+              <h2 className="text-[17px] font-semibold text-slate-900 dark:text-slate-50">{title}</h2>
+              <div className="mt-1 text-[12.5px] leading-relaxed text-slate-500 dark:text-slate-400">{body}</div>
+            </div>
+
+            <div className="space-y-4 px-6 pb-6">
+              {subject}
+              {fields}
+
+              {confirmWord && (
+                <label className="block">
+                  <span className="text-[12px] text-slate-500 dark:text-slate-400">
+                    พิมพ์{" "}
+                    <span className="font-mono font-semibold text-slate-800 dark:text-slate-100">{confirmWord}</span>{" "}
+                    เพื่อยืนยัน
+                  </span>
+                  <input autoFocus value={typed} onChange={(e) => setTyped(e.target.value)} className={FIELD + " mt-1 w-full"} />
+                </label>
+              )}
+
+              <div className="flex justify-between gap-2 pt-1">
+                <Button variant="secondary" onClick={onCancel}>
+                  ยกเลิก
+                </Button>
+                <Button variant="primary" onClick={onConfirm} disabled={!armed}>
+                  {confirmLabel}
+                </Button>
+              </div>
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
   );
 }
 
@@ -468,19 +609,19 @@ export function Wizard({
       <div ref={topRef}>
         <div className="flex items-center gap-1.5">
           {steps.map((s, i) => (
-            <div key={s.title} className="flex min-w-0 flex-1 flex-col gap-1">
-              <span
-                className={
-                  "h-1 rounded-full transition " +
-                  (i <= at ? "bg-sky-500" : "bg-slate-200 dark:bg-slate-800")
-                }
-              />
+            <div key={s.title} className="flex min-w-0 flex-1 flex-col gap-1.5">
+              <span className="h-1 overflow-hidden rounded-full bg-slate-200 dark:bg-slate-800">
+                <motion.span
+                  initial={false}
+                  animate={{ width: i <= at ? "100%" : "0%" }}
+                  transition={{ duration: 0.35, ease: EASE }}
+                  className="block h-full rounded-full bg-violet-500"
+                />
+              </span>
               <span
                 className={
                   "truncate text-[11px] " +
-                  (i === at
-                    ? "font-medium text-sky-700 dark:text-sky-400"
-                    : "text-slate-400 dark:text-slate-500")
+                  (i === at ? "font-medium text-violet-700 dark:text-violet-300" : "text-slate-400 dark:text-slate-500")
                 }
               >
                 {i + 1}. {s.title}
@@ -490,21 +631,26 @@ export function Wizard({
         </div>
       </div>
 
-      <div className="mt-5 min-h-0 flex-1 space-y-4 overflow-y-auto">{step.render(errors)}</div>
+      <AnimatePresence mode="wait" initial={false}>
+        <motion.div
+          key={at}
+          initial={{ opacity: 0, x: 12 }}
+          animate={{ opacity: 1, x: 0 }}
+          exit={{ opacity: 0, x: -12 }}
+          transition={{ duration: 0.2, ease: EASE }}
+          className="mt-5 min-h-0 flex-1 space-y-4 overflow-y-auto"
+        >
+          {step.render(errors)}
+        </motion.div>
+      </AnimatePresence>
 
       <div className="mt-4 flex gap-2 border-t border-slate-100 pt-3 dark:border-slate-800">
-        <button
-          onClick={() => (at === 0 ? onCancel() : setAt((i) => i - 1))}
-          className="rounded-lg border border-slate-300 px-4 py-2.5 text-sm text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
-        >
+        <Button variant="secondary" onClick={() => (at === 0 ? onCancel() : setAt((i) => i - 1))}>
           {at === 0 ? "ยกเลิก" : "ย้อนกลับ"}
-        </button>
-        <button
-          onClick={advance}
-          className="flex-1 rounded-lg bg-sky-600 py-2.5 text-sm font-medium text-white transition hover:bg-sky-700"
-        >
+        </Button>
+        <Button variant="primary" onClick={advance} className="flex-1">
           {last ? doneLabel : "ถัดไป"}
-        </button>
+        </Button>
       </div>
     </div>
   );

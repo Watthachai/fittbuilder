@@ -1119,18 +1119,22 @@ function EntryDialog({ entry, onClose }: { entry: JournalEntry; onClose: () => v
 
   "kit.tsx": `import { useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
-import { FIELD, SURFACE, Skeleton } from "./ui";
+import { AnimatePresence, motion } from "motion/react";
+import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp, ChevronsUpDown, X } from "lucide-react";
+import { Button, FIELD, SURFACE, Skeleton, enter } from "./ui";
 
 /**
  * The working parts of a management screen: the table people live in, the panel
- * that shows one row without losing the list, the confirmation that makes a
- * destructive act deliberate, and the form that does not ask for forty fields at
- * once.
+ * that shows one record without losing the list, the confirmation that makes a
+ * destructive act deliberate, and the form that does not ask for forty fields
+ * at once.
  *
  * They are here rather than inside a module because every module needs the same
  * ones, and a table that sorts differently on the payroll screen than on the
  * personnel screen is a defect nobody files and everybody feels.
  */
+
+const EASE = [0.22, 1, 0.36, 1] as const;
 
 export type Column<T> = {
   key: string;
@@ -1139,8 +1143,7 @@ export type Column<T> = {
   /** Supplying this makes the column sortable; leaving it off means it is not. */
   sort?: (a: T, b: T) => number;
   align?: "right";
-  /** Hidden by default in compact density, for columns that are nice-to-have. */
-  secondary?: boolean;
+  width?: string;
 };
 
 type Density = "comfortable" | "compact";
@@ -1155,24 +1158,26 @@ export function DataTable<T>({
   toolbar,
   empty = "ไม่มีข้อมูลที่ตรงกับเงื่อนไข",
   loading,
+  trailing,
 }: {
   rows: T[];
   columns: Column<T>[];
   getId: (row: T) => string | number;
-  /** Opening a row shows it beside the list, so the list stays where it was. */
+  /** Opening a row shows it over the list, so the list stays where it was. */
   onOpen?: (row: T) => void;
   selectable?: boolean;
   bulkActions?: (selected: T[], clear: () => void) => ReactNode;
   toolbar?: ReactNode;
   empty?: string;
   loading?: boolean;
+  /** Per-row controls at the far right — favourite, menu — that must not open the row. */
+  trailing?: (row: T) => ReactNode;
 }) {
   const [sortKey, setSortKey] = useState<string>();
   const [desc, setDesc] = useState(false);
   const [density, setDensity] = useState<Density>("comfortable");
   const [picked, setPicked] = useState<Set<string | number>>(new Set());
 
-  const shown = density === "compact" ? columns : columns;
   const pad = density === "compact" ? "px-3 py-1.5" : "px-4 py-3";
 
   const sorted = useMemo(() => {
@@ -1206,53 +1211,40 @@ export function DataTable<T>({
   if (loading) return <Skeleton rows={6} cols={Math.min(5, columns.length)} />;
 
   return (
-    <div className="space-y-2">
-      {(toolbar || selectable) && (
-        <div className="flex flex-wrap items-center gap-2">
-          {toolbar}
-          <div className="ml-auto flex items-center gap-1 rounded-lg border border-slate-200 p-0.5 dark:border-slate-800">
-            {(["comfortable", "compact"] as const).map((d) => (
-              <button
-                key={d}
-                onClick={() => setDensity(d)}
-                title={d === "comfortable" ? "แถวห่าง อ่านสบาย" : "แถวถี่ เห็นข้อมูลเยอะ"}
-                className={
-                  "rounded-md px-2 py-1 text-[11.5px] transition " +
-                  (density === d
-                    ? "bg-slate-100 font-medium text-slate-800 dark:bg-slate-800 dark:text-slate-100"
-                    : "text-slate-400 hover:text-slate-700 dark:hover:text-slate-200")
-                }
-              >
-                {d === "comfortable" ? "ห่าง" : "ถี่"}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
+    <div className="space-y-3">
+      {toolbar}
 
       {/* The contextual bar only exists while something is ticked, so the screen
           is not carrying a row of disabled buttons the rest of the time. */}
-      {selectable && selected.length > 0 && (
-        <div className="flex flex-wrap items-center gap-2 rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 dark:border-sky-500/30 dark:bg-sky-500/10">
-          <span className="text-[12.5px] font-medium text-sky-800 dark:text-sky-300">
-            เลือกไว้ {selected.length} รายการ
-          </span>
-          <span className="ml-auto flex flex-wrap items-center gap-1.5">
-            {bulkActions?.(selected, () => setPicked(new Set()))}
-            <button
-              onClick={() => setPicked(new Set())}
-              className="rounded-md px-2 py-1 text-[12px] text-sky-700 transition hover:bg-sky-100 dark:text-sky-300 dark:hover:bg-sky-500/20"
-            >
-              ยกเลิกการเลือก
-            </button>
-          </span>
-        </div>
-      )}
+      <AnimatePresence initial={false}>
+        {selectable && selected.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: -6 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -6 }}
+            transition={{ duration: 0.2 }}
+            className="flex flex-wrap items-center gap-2 rounded-xl border border-violet-200 bg-violet-50 px-3.5 py-2 dark:border-violet-500/30 dark:bg-violet-500/10"
+          >
+            <span className="text-[12.5px] font-medium text-violet-800 dark:text-violet-200">
+              เลือกไว้ {selected.length} รายการ
+            </span>
+            <span className="ml-auto flex flex-wrap items-center gap-1.5">
+              {bulkActions?.(selected, () => setPicked(new Set()))}
+              <button
+                onClick={() => setPicked(new Set())}
+                className="rounded-lg px-2 py-1 text-[12px] text-violet-700 transition hover:bg-violet-100 dark:text-violet-300 dark:hover:bg-violet-500/20"
+              >
+                ยกเลิกการเลือก
+              </button>
+            </span>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <div className={"overflow-hidden " + SURFACE}>
-        <div className="max-h-[calc(100vh-19rem)] overflow-auto">
-          <table className="w-full text-sm">
-            <thead className="sticky top-0 z-10 bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500 dark:bg-slate-800 dark:text-slate-400">
+        <div className="max-h-[calc(100vh-22rem)] overflow-auto">
+          <table className="w-full text-[13px]">
+            <thead className="sticky top-0 z-10 bg-slate-50/95 text-left text-[11.5px] text-slate-500 backdrop-blur dark:bg-slate-800/95 dark:text-slate-400">
               <tr>
                 {selectable && (
                   <th className={pad + " w-10"}>
@@ -1260,15 +1252,17 @@ export function DataTable<T>({
                       type="checkbox"
                       checked={allOn}
                       aria-label="เลือกทั้งหมด"
-                      onChange={() =>
-                        setPicked(allOn ? new Set() : new Set(sorted.map(getId)))
-                      }
-                      className="size-3.5 accent-sky-600"
+                      onChange={() => setPicked(allOn ? new Set() : new Set(sorted.map(getId)))}
+                      className="size-3.5 rounded accent-violet-600"
                     />
                   </th>
                 )}
-                {shown.map((c) => (
-                  <th key={c.key} className={pad + (c.align === "right" ? " text-right" : "")}>
+                {columns.map((c) => (
+                  <th
+                    key={c.key}
+                    style={c.width ? { width: c.width } : undefined}
+                    className={pad + " font-medium" + (c.align === "right" ? " text-right" : "")}
+                  >
                     {c.sort ? (
                       <button
                         onClick={() => {
@@ -1279,29 +1273,46 @@ export function DataTable<T>({
                           }
                         }}
                         className={
-                          "inline-flex items-center gap-1 transition hover:text-slate-800 dark:hover:text-slate-100 " +
-                          (sortKey === c.key ? "text-slate-800 dark:text-slate-100" : "")
+                          "inline-flex items-center gap-1 transition hover:text-slate-900 dark:hover:text-slate-100 " +
+                          (sortKey === c.key ? "text-slate-900 dark:text-slate-100" : "")
                         }
                       >
                         {c.header}
-                        <span className="text-[9px] opacity-60">
-                          {sortKey === c.key ? (desc ? "▼" : "▲") : "↕"}
-                        </span>
+                        {sortKey === c.key ? (
+                          desc ? <ChevronDown size={13} /> : <ChevronUp size={13} />
+                        ) : (
+                          <ChevronsUpDown size={13} className="opacity-50" />
+                        )}
                       </button>
                     ) : (
                       c.header
                     )}
                   </th>
                 ))}
+                {trailing && <th className={pad + " w-24"} />}
+                {(toolbar || selectable) && !trailing && (
+                  <th className={pad + " w-16 text-right"}>
+                    <button
+                      onClick={() => setDensity((d) => (d === "compact" ? "comfortable" : "compact"))}
+                      title={density === "compact" ? "แถวห่าง อ่านสบาย" : "แถวถี่ เห็นข้อมูลเยอะ"}
+                      className="text-[11px] font-normal text-slate-400 hover:text-slate-800 dark:hover:text-slate-100"
+                    >
+                      {density === "compact" ? "ห่าง" : "ถี่"}
+                    </button>
+                  </th>
+                )}
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-              {sorted.map((r) => {
+              {sorted.map((r, i) => {
                 const id = getId(r);
                 const on = picked.has(id);
                 return (
-                  <tr
+                  <motion.tr
                     key={id}
+                    initial={enter({ opacity: 0, y: 4 })}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.25, ease: EASE, delay: Math.min(i, 12) * 0.025 }}
                     tabIndex={onOpen ? 0 : undefined}
                     onClick={onOpen ? () => onOpen(r) : undefined}
                     onKeyDown={
@@ -1313,10 +1324,8 @@ export function DataTable<T>({
                     }
                     className={
                       (onOpen ? "cursor-pointer " : "") +
-                      "outline-none focus-visible:bg-sky-100/60 dark:focus-visible:bg-sky-500/15 " +
-                      (on
-                        ? "bg-sky-50/60 dark:bg-sky-500/10"
-                        : "hover:bg-slate-50 dark:hover:bg-slate-800/50")
+                      "outline-none focus-visible:bg-violet-50 dark:focus-visible:bg-violet-500/10 " +
+                      (on ? "bg-violet-50/60 dark:bg-violet-500/10" : "hover:bg-slate-50 dark:hover:bg-slate-800/50")
                     }
                   >
                     {selectable && (
@@ -1326,29 +1335,31 @@ export function DataTable<T>({
                           checked={on}
                           aria-label="เลือกแถวนี้"
                           onChange={() => toggle(id)}
-                          className="size-3.5 accent-sky-600"
+                          className="size-3.5 rounded accent-violet-600"
                         />
                       </td>
                     )}
-                    {shown.map((c) => (
+                    {columns.map((c) => (
                       <td
                         key={c.key}
-                        className={
-                          pad +
-                          (c.align === "right" ? " text-right" : "") +
-                          " text-slate-600 dark:text-slate-300"
-                        }
+                        className={pad + (c.align === "right" ? " text-right" : "") + " text-slate-600 dark:text-slate-300"}
                       >
                         {c.cell(r)}
                       </td>
                     ))}
-                  </tr>
+                    {trailing && (
+                      <td className={pad + " text-right"} onClick={(e) => e.stopPropagation()}>
+                        {trailing(r)}
+                      </td>
+                    )}
+                    {(toolbar || selectable) && !trailing && <td className={pad} />}
+                  </motion.tr>
                 );
               })}
               {sorted.length === 0 && (
                 <tr>
                   <td
-                    colSpan={shown.length + (selectable ? 1 : 0)}
+                    colSpan={columns.length + (selectable ? 1 : 0) + 1}
                     className="px-4 py-14 text-center text-[13px] text-slate-400 dark:text-slate-500"
                   >
                     {empty}
@@ -1364,11 +1375,111 @@ export function DataTable<T>({
 }
 
 /**
+ * One record, large, over the list — with a way to step to the next one.
+ *
+ * The list stays behind it dimmed, so the filters and scroll position survive.
+ * The pager is what makes it a working tool rather than a preview: someone
+ * reviewing twenty records reads them in sequence without closing anything.
+ */
+export function DetailModal({
+  open,
+  title,
+  onClose,
+  index,
+  total,
+  onStep,
+  children,
+}: {
+  open: boolean;
+  title: ReactNode;
+  onClose: () => void;
+  index?: number;
+  total?: number;
+  onStep?: (delta: 1 | -1) => void;
+  children: ReactNode;
+}) {
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+      if (onStep && e.key === "ArrowRight") onStep(1);
+      if (onStep && e.key === "ArrowLeft") onStep(-1);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open, onClose, onStep]);
+
+  return (
+    <AnimatePresence>
+      {open && (
+        <motion.div
+          role="dialog"
+          aria-modal="true"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.18 }}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/45 p-3 backdrop-blur-[2px] dark:bg-black/65 sm:p-6"
+          onClick={onClose}
+        >
+          <motion.div
+            onClick={(e) => e.stopPropagation()}
+            initial={{ opacity: 0, y: 16, scale: 0.985 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 10, scale: 0.99 }}
+            transition={{ type: "spring", stiffness: 360, damping: 34 }}
+            className="flex h-[88vh] w-full max-w-6xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl dark:bg-slate-900 dark:ring-1 dark:ring-slate-800"
+          >
+            <div className="flex items-center gap-3 border-b border-slate-100 px-5 py-3 dark:border-slate-800">
+              <h2 className="min-w-0 flex-1 truncate text-[15px] font-semibold text-slate-900 dark:text-slate-50">
+                {title}
+              </h2>
+              {onStep && index !== undefined && total !== undefined && (
+                <div className="flex items-center gap-1.5">
+                  <button
+                    onClick={() => onStep(-1)}
+                    disabled={index <= 0}
+                    aria-label="รายการก่อนหน้า"
+                    className="grid size-8 place-items-center rounded-full border border-slate-200 text-slate-500 transition hover:bg-slate-50 disabled:opacity-30 dark:border-slate-700 dark:hover:bg-slate-800"
+                  >
+                    <ChevronLeft size={15} />
+                  </button>
+                  <button
+                    onClick={() => onStep(1)}
+                    disabled={index >= total - 1}
+                    aria-label="รายการถัดไป"
+                    className="grid size-8 place-items-center rounded-full border border-slate-200 text-slate-500 transition hover:bg-slate-50 disabled:opacity-30 dark:border-slate-700 dark:hover:bg-slate-800"
+                  >
+                    <ChevronRight size={15} />
+                  </button>
+                  <span className="ml-1 text-[12.5px] tabular-nums text-slate-500 dark:text-slate-400">
+                    <span className="font-semibold text-slate-900 dark:text-slate-50">
+                      {String(index + 1).padStart(2, "0")}
+                    </span>{" "}
+                    จาก {total}
+                  </span>
+                </div>
+              )}
+              <button
+                onClick={onClose}
+                aria-label="ปิด"
+                className="ml-2 grid size-8 place-items-center rounded-lg text-slate-400 transition hover:bg-slate-100 hover:text-slate-800 dark:hover:bg-slate-800 dark:hover:text-slate-100"
+              >
+                <X size={16} />
+              </button>
+            </div>
+            <div className="min-h-0 flex-1">{children}</div>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+}
+
+/**
  * Detail beside the list rather than instead of it.
  *
- * Sending someone to a new page to read one row costs them their scroll position,
- * their filters and their place in the queue they were working through. The panel
- * slides over, the list stays behind it, and Escape puts them back.
+ * The panel slides over, the list stays behind, and Escape puts them back.
  */
 export function Drawer({
   open,
@@ -1396,121 +1507,151 @@ export function Drawer({
     return () => window.removeEventListener("keydown", onKey);
   }, [open, onClose]);
 
-  if (!open) return null;
-
   return (
-    <div className="fixed inset-0 z-50" role="dialog" aria-modal="true">
-      <div onClick={onClose} className="absolute inset-0 bg-slate-900/40 dark:bg-black/60" />
-      <div
-        className={
-          "absolute inset-y-0 right-0 flex w-full flex-col bg-white shadow-2xl dark:bg-slate-900 dark:ring-1 dark:ring-slate-800 " +
-          width
-        }
-      >
-        <div className="flex items-start justify-between gap-4 border-b border-slate-100 px-5 py-4 dark:border-slate-800">
-          <div className="min-w-0">
-            <h2 className="truncate text-base font-semibold text-slate-900 dark:text-slate-50">{title}</h2>
-            {subtitle && (
-              <p className="mt-0.5 truncate text-[12.5px] text-slate-500 dark:text-slate-400">{subtitle}</p>
-            )}
-          </div>
-          <button
+    <AnimatePresence>
+      {open && (
+        <div className="fixed inset-0 z-50" role="dialog" aria-modal="true">
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.18 }}
             onClick={onClose}
-            aria-label="ปิดแผงรายละเอียด"
-            className="shrink-0 rounded-lg px-2 py-1 text-slate-400 transition hover:bg-slate-100 dark:hover:bg-slate-800"
+            className="absolute inset-0 bg-slate-900/40 backdrop-blur-[2px] dark:bg-black/60"
+          />
+          <motion.div
+            initial={{ x: "100%" }}
+            animate={{ x: 0 }}
+            exit={{ x: "100%" }}
+            transition={{ type: "spring", stiffness: 380, damping: 38 }}
+            className={
+              "absolute inset-y-0 right-0 flex w-full flex-col bg-white shadow-2xl dark:bg-slate-900 dark:ring-1 dark:ring-slate-800 " +
+              width
+            }
           >
-            ✕
-          </button>
+            <div className="flex items-start justify-between gap-4 border-b border-slate-100 px-5 py-4 dark:border-slate-800">
+              <div className="min-w-0">
+                <h2 className="truncate text-[15px] font-semibold text-slate-900 dark:text-slate-50">{title}</h2>
+                {subtitle && <p className="mt-0.5 truncate text-[12.5px] text-slate-500 dark:text-slate-400">{subtitle}</p>}
+              </div>
+              <button
+                onClick={onClose}
+                aria-label="ปิดแผงรายละเอียด"
+                className="grid size-8 shrink-0 place-items-center rounded-lg text-slate-400 transition hover:bg-slate-100 dark:hover:bg-slate-800"
+              >
+                <X size={16} />
+              </button>
+            </div>
+            <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">{children}</div>
+            {footer && <div className="border-t border-slate-100 px-5 py-3 dark:border-slate-800">{footer}</div>}
+          </motion.div>
         </div>
-
-        <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">{children}</div>
-
-        {/* Sticky, so the actions are reachable without scrolling back up. */}
-        {footer && (
-          <div className="border-t border-slate-100 px-5 py-3 dark:border-slate-800">{footer}</div>
-        )}
-      </div>
-    </div>
+      )}
+    </AnimatePresence>
   );
 }
 
 /**
  * Deliberate destruction.
  *
- * \`confirmWord\` makes the person type something before the button works. It is
- * for the acts that cannot be taken back — not for every delete, or people learn
- * to type it without reading.
+ * \`subject\` is the record about to be acted on, shown so nobody confirms the
+ * wrong one. \`fields\` is whatever the act needs recorded — a reason, a message.
+ * \`confirmWord\` makes the person type something first; it is for the acts that
+ * cannot be taken back, not for every delete, or people learn to type it
+ * without reading.
  */
 export function ConfirmDialog({
   open,
   title,
   body,
+  subject,
+  fields,
   confirmWord,
   confirmLabel = "ยืนยัน",
   onConfirm,
   onCancel,
+  disabled,
 }: {
   open: boolean;
   title: string;
   body: ReactNode;
+  subject?: ReactNode;
+  fields?: ReactNode;
   confirmWord?: string;
   confirmLabel?: string;
   onConfirm: () => void;
   onCancel: () => void;
+  disabled?: boolean;
 }) {
   const [typed, setTyped] = useState("");
   useEffect(() => {
     if (open) setTyped("");
   }, [open]);
 
-  if (!open) return null;
-  const armed = !confirmWord || typed.trim() === confirmWord;
+  const armed = (!confirmWord || typed.trim() === confirmWord) && !disabled;
 
   return (
-    <div
-      role="alertdialog"
-      aria-modal="true"
-      onClick={onCancel}
-      className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/50 p-4 dark:bg-black/70"
-    >
-      <div
-        onClick={(e) => e.stopPropagation()}
-        className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl dark:bg-slate-900 dark:ring-1 dark:ring-slate-800"
-      >
-        <h2 className="text-base font-semibold text-slate-900 dark:text-slate-50">{title}</h2>
-        <div className="mt-1.5 text-[13px] leading-relaxed text-slate-600 dark:text-slate-300">{body}</div>
-
-        {confirmWord && (
-          <label className="mt-4 block">
-            <span className="text-[12px] text-slate-500 dark:text-slate-400">
-              พิมพ์ <span className="font-mono font-semibold text-slate-800 dark:text-slate-100">{confirmWord}</span> เพื่อยืนยัน
-            </span>
-            <input
-              autoFocus
-              value={typed}
-              onChange={(e) => setTyped(e.target.value)}
-              className={FIELD + " mt-1 w-full"}
-            />
-          </label>
-        )}
-
-        <div className="mt-5 flex gap-2">
-          <button
-            onClick={onCancel}
-            className="flex-1 rounded-lg border border-slate-300 py-2.5 text-sm text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
+    <AnimatePresence>
+      {open && (
+        <motion.div
+          role="alertdialog"
+          aria-modal="true"
+          onClick={onCancel}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.18 }}
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/50 p-4 backdrop-blur-[2px] dark:bg-black/70"
+        >
+          <motion.div
+            onClick={(e) => e.stopPropagation()}
+            initial={{ opacity: 0, y: 14, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 8, scale: 0.99 }}
+            transition={{ type: "spring", stiffness: 380, damping: 32 }}
+            className="w-full max-w-md overflow-hidden rounded-2xl bg-white shadow-2xl dark:bg-slate-900 dark:ring-1 dark:ring-slate-800"
           >
-            ยกเลิก
-          </button>
-          <button
-            onClick={onConfirm}
-            disabled={!armed}
-            className="flex-1 rounded-lg bg-rose-600 py-2.5 text-sm font-medium text-white transition hover:bg-rose-700 disabled:cursor-not-allowed disabled:opacity-40"
-          >
-            {confirmLabel}
-          </button>
-        </div>
-      </div>
-    </div>
+            {/* The dotted field behind the title is the reference's tell for
+                "stop and read" — texture, not colour, so it survives dark mode. */}
+            <div
+              className="px-6 pb-4 pt-6 text-center"
+              style={{
+                backgroundImage: "radial-gradient(circle, rgb(148 163 184 / 0.25) 1px, transparent 1px)",
+                backgroundSize: "10px 10px",
+              }}
+            >
+              <h2 className="text-[17px] font-semibold text-slate-900 dark:text-slate-50">{title}</h2>
+              <div className="mt-1 text-[12.5px] leading-relaxed text-slate-500 dark:text-slate-400">{body}</div>
+            </div>
+
+            <div className="space-y-4 px-6 pb-6">
+              {subject}
+              {fields}
+
+              {confirmWord && (
+                <label className="block">
+                  <span className="text-[12px] text-slate-500 dark:text-slate-400">
+                    พิมพ์{" "}
+                    <span className="font-mono font-semibold text-slate-800 dark:text-slate-100">{confirmWord}</span>{" "}
+                    เพื่อยืนยัน
+                  </span>
+                  <input autoFocus value={typed} onChange={(e) => setTyped(e.target.value)} className={FIELD + " mt-1 w-full"} />
+                </label>
+              )}
+
+              <div className="flex justify-between gap-2 pt-1">
+                <Button variant="secondary" onClick={onCancel}>
+                  ยกเลิก
+                </Button>
+                <Button variant="primary" onClick={onConfirm} disabled={!armed}>
+                  {confirmLabel}
+                </Button>
+              </div>
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
   );
 }
 
@@ -1587,19 +1728,19 @@ export function Wizard({
       <div ref={topRef}>
         <div className="flex items-center gap-1.5">
           {steps.map((s, i) => (
-            <div key={s.title} className="flex min-w-0 flex-1 flex-col gap-1">
-              <span
-                className={
-                  "h-1 rounded-full transition " +
-                  (i <= at ? "bg-sky-500" : "bg-slate-200 dark:bg-slate-800")
-                }
-              />
+            <div key={s.title} className="flex min-w-0 flex-1 flex-col gap-1.5">
+              <span className="h-1 overflow-hidden rounded-full bg-slate-200 dark:bg-slate-800">
+                <motion.span
+                  initial={false}
+                  animate={{ width: i <= at ? "100%" : "0%" }}
+                  transition={{ duration: 0.35, ease: EASE }}
+                  className="block h-full rounded-full bg-violet-500"
+                />
+              </span>
               <span
                 className={
                   "truncate text-[11px] " +
-                  (i === at
-                    ? "font-medium text-sky-700 dark:text-sky-400"
-                    : "text-slate-400 dark:text-slate-500")
+                  (i === at ? "font-medium text-violet-700 dark:text-violet-300" : "text-slate-400 dark:text-slate-500")
                 }
               >
                 {i + 1}. {s.title}
@@ -1609,21 +1750,26 @@ export function Wizard({
         </div>
       </div>
 
-      <div className="mt-5 min-h-0 flex-1 space-y-4 overflow-y-auto">{step.render(errors)}</div>
+      <AnimatePresence mode="wait" initial={false}>
+        <motion.div
+          key={at}
+          initial={{ opacity: 0, x: 12 }}
+          animate={{ opacity: 1, x: 0 }}
+          exit={{ opacity: 0, x: -12 }}
+          transition={{ duration: 0.2, ease: EASE }}
+          className="mt-5 min-h-0 flex-1 space-y-4 overflow-y-auto"
+        >
+          {step.render(errors)}
+        </motion.div>
+      </AnimatePresence>
 
       <div className="mt-4 flex gap-2 border-t border-slate-100 pt-3 dark:border-slate-800">
-        <button
-          onClick={() => (at === 0 ? onCancel() : setAt((i) => i - 1))}
-          className="rounded-lg border border-slate-300 px-4 py-2.5 text-sm text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
-        >
+        <Button variant="secondary" onClick={() => (at === 0 ? onCancel() : setAt((i) => i - 1))}>
           {at === 0 ? "ยกเลิก" : "ย้อนกลับ"}
-        </button>
-        <button
-          onClick={advance}
-          className="flex-1 rounded-lg bg-sky-600 py-2.5 text-sm font-medium text-white transition hover:bg-sky-700"
-        >
+        </Button>
+        <Button variant="primary" onClick={advance} className="flex-1">
           {last ? doneLabel : "ถัดไป"}
-        </button>
+        </Button>
       </div>
     </div>
   );
@@ -2677,6 +2823,49 @@ export function upcoming(withinDays = 120): Upcoming[] {
   return out.sort((a, b) => a.inDays - b.inDays);
 }
 
+/** เพศ — เก็บแยกจากทะเบียนหลักเพราะเป็นข้อมูลแสดงผล ไม่ใช่ข้อมูลทางบุคคล */
+export const GENDER: Record<number, "ชาย" | "หญิง"> = {
+  1: "ชาย", 2: "หญิง", 3: "ชาย", 4: "หญิง", 5: "ชาย", 6: "หญิง", 7: "ชาย", 8: "หญิง",
+};
+
+export const ageOf = (e: Employee) => Math.floor(daysBetween(e.personal.birthDate, TODAY) / 365.25);
+export const tenureYears = (e: Employee) => daysBetween(e.contract.startedAt, TODAY) / 365.25;
+
+/**
+ * เอกสารที่ฝ่ายบุคคลต้องมีของแต่ละคน — ใช้ทำแถบความคืบหน้าในข้อมูลทางปกครอง
+ * ค่าตั้งต้นคือครบ ยกเว้นคนที่ระบุไว้ เพราะของจริงคนส่วนใหญ่ยื่นครบตอนรับเข้า
+ */
+export const DOCUMENT_KINDS = [
+  "สำเนาบัตรประชาชน",
+  "สำเนาทะเบียนบ้าน",
+  "วุฒิการศึกษา",
+  "หนังสือรับรองการทำงานเดิม",
+  "ผลตรวจสุขภาพ",
+];
+
+const MISSING_DOCS: Record<number, string[]> = {
+  5: ["หนังสือรับรองการทำงานเดิม", "ผลตรวจสุขภาพ"],
+  6: ["ผลตรวจสุขภาพ"],
+};
+
+export const documentsOf = (e: Employee) =>
+  DOCUMENT_KINDS.map((name) => ({ name, done: !(MISSING_DOCS[e.id] ?? []).includes(name) }));
+
+export type ActivityEntry = { date: string; time: string; actor: string; text: string; target?: string };
+
+/** บันทึกการทำงานของฝ่ายบุคคลกับแฟ้มนี้ — ใครทำอะไรเมื่อไร */
+export const ACTIVITY: Record<number, ActivityEntry[]> = {
+  1: [
+    { date: "2026-09-18", time: "14:10", actor: "กมลวรรณ ใจงาม", text: "อัปเดตที่อยู่ตามทะเบียนบ้าน" },
+    { date: "2026-09-18", time: "09:42", actor: "กมลวรรณ ใจงาม", text: "แนบเอกสาร", target: "ผลตรวจสุขภาพ 2569.pdf" },
+    { date: "2026-04-01", time: "10:05", actor: "วิภาดา ศรีสุข", text: "บันทึกปรับเงินเดือน", target: "38,000 → 45,000" },
+  ],
+  5: [
+    { date: "2026-09-18", time: "16:30", actor: "กมลวรรณ ใจงาม", text: "ส่งเตือนขอเอกสาร", target: "หนังสือรับรองการทำงานเดิม" },
+    { date: "2026-09-18", time: "16:28", actor: "กมลวรรณ ใจงาม", text: "บันทึกต่อสัญญา", target: "ต่ออีก 1 ปี ถึง 17 ก.ย. 2570" },
+  ],
+};
+
 export function byDepartment() {
   const active = EMPLOYEES.filter(isActive);
   return [...new Set(active.map((e) => e.department))]
@@ -2687,14 +2876,23 @@ export function byDepartment() {
 
   "pa/screen.tsx": `import { useMemo, useState } from "react";
 import type { ReactNode } from "react";
+import { AnimatePresence, motion } from "motion/react";
 import {
-  EMPLOYEES, EVENT_TYPES, TODAY, baht,
-  allEvents, byDepartment, daysBetween, headcountAt, headcountTrend,
-  hiredIn, leftIn, upcoming,
+  Banknote, Briefcase, Building, Cake, CalendarClock, CalendarDays, CircleCheck, CircleDashed, CircleX,
+  Clock3, Contact, CreditCard, Ellipsis, FileText, Gift, Heart, Hourglass, IdCard, Landmark, Mail, MapPin,
+  MessageSquare, Phone, PiggyBank, Plus, ScanFace, Search as SearchIcon, Send, ShieldCheck, Sparkles,
+  TrendingUp, UserMinus, UserPlus, UserRound, Users, Wallet,
+} from "lucide-react";
+import {
+  ACTIVITY, EMPLOYEES, EVENT_TYPES, GENDER, TODAY, ageOf, baht, daysBetween,
+  documentsOf, hiredIn, leftIn, tenureYears,
 } from "./data";
-import type { Employee, PersonnelEvent } from "./data";
-import { Badge, Bar, Card, ColumnChart, FIELD, Metric, Note, PageHead, Search, Select, SURFACE } from "../ui";
-import { ConfirmDialog, DataTable, Drawer, Field, Wizard } from "../kit";
+import type { ActivityEntry, Employee, PersonnelEvent } from "./data";
+import {
+  Avatar, Badge, Button, Card, Chip, FIELD, IconButton, IconRow, Note, PageHead, Progress, Reveal,
+  Search, SectionTitle, Segmented, Select, StatStrip, Stepper, SURFACE, Tabs, Timeline, ViewToggle, enter,
+} from "../ui";
+import { ConfirmDialog, DataTable, DetailModal, Drawer, Field, Wizard } from "../kit";
 import type { Column, Step } from "../kit";
 
 const TABS = [
@@ -2705,7 +2903,39 @@ const TABS = [
   "ค่าตอบแทนและสวัสดิการ",
 ];
 
-/** A draft employee: everything the wizard collects before the record exists. */
+/** The record's own tabs: the five capabilities plus the log of who did what to it. */
+const RECORD_TABS = [...TABS, "กิจกรรม"];
+
+const STATUSES = ["ทั้งหมด", "ทำงานอยู่", "ทดลองงาน", "ลาออก"] as const;
+
+const RESIGN_REASONS = [
+  "เลือกเหตุผล",
+  "ลาออกตามความสมัครใจ",
+  "ได้งานใหม่",
+  "ย้ายภูมิลำเนา",
+  "ปัญหาสุขภาพ",
+  "หมดสัญญาจ้าง",
+  "อื่น ๆ",
+];
+
+const STEP_ICONS = {
+  done: <CircleCheck size={15} />,
+  current: <CircleDashed size={15} className="animate-[spin_3s_linear_infinite]" />,
+  todo: <CircleDashed size={15} />,
+  failed: <CircleX size={15} />,
+};
+
+const TAB_ICONS: Record<string, ReactNode> = {
+  "ข้อมูลส่วนตัว": <UserRound size={14} />,
+  "ข้อมูลสัญญาจ้าง": <FileText size={14} />,
+  "ข้อมูลทางปกครอง": <ShieldCheck size={14} />,
+  "เหตุการณ์ทางบุคคล": <CalendarClock size={14} />,
+  "ค่าตอบแทนและสวัสดิการ": <Wallet size={14} />,
+  "กิจกรรม": <Clock3 size={14} />,
+};
+
+/* ------------------------------------------------------------------ draft */
+
 type Draft = {
   name: string; nickname: string; position: string; department: string;
   birthDate: string; nationalId: string; phone: string; email: string;
@@ -2724,124 +2954,224 @@ const DEPARTMENTS = [...new Set(EMPLOYEES.map((e) => e.department))];
 const CONTRACT_TYPES = ["พนักงานประจำ", "สัญญาจ้าง 1 ปี", "พนักงานรายวัน", "พนักงานชั่วคราว"];
 const BANKS = ["กสิกรไทย", "ไทยพาณิชย์", "กรุงไทย", "กรุงเทพ", "กรุงศรีอยุธยา"];
 
+/* ----------------------------------------------------------------- screen */
+
 export default function PaScreen({ section }: { section?: string }) {
-  // No section means the module's own overview; a section means one capability.
+  // The section chosen in the navigation decides which columns the register
+  // shows and which part of a record opens first. Without one, the default set.
   const tab = section && TABS.includes(section) ? section : undefined;
 
   const [q, setQ] = useState("");
+  const [status, setStatus] = useState<(typeof STATUSES)[number]>("ทั้งหมด");
   const [dept, setDept] = useState("ทุกแผนก");
-  const [picked, setPicked] = useState<Employee | null>(null);
+  const [view, setView] = useState<"list" | "grid">("list");
+  const [openAt, setOpenAt] = useState<number | null>(null);
   const [adding, setAdding] = useState(false);
   const [draft, setDraft] = useState<Draft>(EMPTY);
   const [added, setAdded] = useState<Employee[]>([]);
   const [events, setEvents] = useState<Record<number, PersonnelEvent[]>>({});
   const [resigned, setResigned] = useState<number[]>([]);
-  const [confirming, setConfirming] = useState<Employee[] | null>(null);
+  const [favourites, setFavourites] = useState<number[]>([1]);
+  const [notes, setNotes] = useState<Record<number, ActivityEntry[]>>({});
+  const [resigning, setResigning] = useState<Employee | null>(null);
 
   const people = useMemo(() => [...EMPLOYEES, ...added], [added]);
   const statusOf = (e: Employee) => (resigned.includes(e.id) ? "ลาออก" : e.status);
   const eventsOf = (e: Employee) => [...e.events, ...(events[e.id] ?? [])];
+  const activityOf = (e: Employee) => [...(ACTIVITY[e.id] ?? []), ...(notes[e.id] ?? [])];
 
   const rows = people.filter(
     (e) =>
+      (status === "ทั้งหมด" || statusOf(e) === status) &&
       (dept === "ทุกแผนก" || e.department === dept) &&
       (q.trim() === "" ||
-        [e.name, e.nickname, e.code, e.position].some((t) =>
-          t.toLowerCase().includes(q.trim().toLowerCase())
-        ))
+        [e.name, e.nickname, e.code, e.position].some((t) => t.toLowerCase().includes(q.trim().toLowerCase())))
+  );
+  const picked = openAt === null ? null : (rows[openAt] ?? null);
+
+  const counts = Object.fromEntries(
+    STATUSES.map((s) => [s, s === "ทั้งหมด" ? people.length : people.filter((e) => statusOf(e) === s).length])
   );
 
   const addEvent = (id: number, ev: PersonnelEvent) =>
     setEvents((m) => ({ ...m, [id]: [...(m[id] ?? []), ev] }));
+  const addNote = (id: number, entry: ActivityEntry) =>
+    setNotes((m) => ({ ...m, [id]: [...(m[id] ?? []), entry] }));
+  const toggleFavourite = (id: number) =>
+    setFavourites((f) => (f.includes(id) ? f.filter((x) => x !== id) : [...f, id]));
 
-  const commitResignation = (who: Employee[]) => {
-    setResigned((prev) => [...new Set([...prev, ...who.map((e) => e.id)])]);
-    for (const e of who) {
-      addEvent(e.id, { date: TODAY, type: "ลาออก", detail: "บันทึกจากหน้าทะเบียนพนักงาน" });
-    }
-    setConfirming(null);
-    setPicked(null);
+  const commitResignation = (e: Employee, reason: string, message: string) => {
+    setResigned((prev) => [...new Set([...prev, e.id])]);
+    addEvent(e.id, { date: TODAY, type: "ลาออก", detail: reason + (message ? " · แจ้งพนักงานแล้ว" : "") });
+    addNote(e.id, { date: TODAY, time: "ตอนนี้", actor: "คุณ", text: "บันทึกการลาออก", target: reason });
+    setResigning(null);
   };
 
-  if (!tab) return <Overview people={people} statusOf={statusOf} />;
+  /* ------------------------------------------------------------ figures */
+  const active = people.filter((e) => statusOf(e) !== "ลาออก");
+  const probation = active.filter((e) => statusOf(e) === "ทดลองงาน");
+  const expiring = active.filter(
+    (e) => e.contract.endsAt && daysBetween(TODAY, e.contract.endsAt) <= 90 && daysBetween(TODAY, e.contract.endsAt) >= 0
+  );
+  const left = people.filter((e) => statusOf(e) === "ลาออก");
+  const year = TODAY.slice(0, 4);
+  const hires = hiredIn(year);
+  const leavers = leftIn(year).length + resigned.length;
+  const avgTenure = active.length ? active.reduce((n, e) => n + tenureYears(e), 0) / active.length : 0;
+  const soonest = expiring.map((e) => daysBetween(TODAY, e.contract.endsAt!)).sort((a, b) => a - b)[0];
 
   return (
     <div>
       <PageHead
         title="ทะเบียนพนักงาน"
         meta={
-          <>
-            {tab} · {rows.length} คน จากทั้งหมด{" "}
-            {people.filter((e) => statusOf(e) !== "ลาออก").length} คนที่ยังทำงานอยู่
-          </>
+          tab
+            ? \`\${tab} · \${rows.length} คนที่แสดง จาก \${people.length} คนในทะเบียน\`
+            : \`\${people.length} คนในทะเบียน · ข้อมูล ณ \${TODAY}\`
         }
-        right={
-          <button
+      />
+
+      <Reveal>
+        <div className="grid gap-3 xl:grid-cols-[1.9fr_1fr]">
+          <StatStrip
+            title="สถานะกำลังคน"
+            icon={<Users size={16} />}
+            cells={[
+              {
+                icon: <UserRound size={14} />, label: "ทำงานอยู่", value: active.length,
+                sub: <>อายุงานเฉลี่ย <b className="text-slate-700 dark:text-slate-200">{avgTenure.toFixed(1)} ปี</b></>, tone: "accent",
+              },
+              {
+                icon: <Hourglass size={14} />, label: "ทดลองงาน", value: probation.length,
+                sub: probation.length ? <>{probation.map((e) => e.nickname).join(" · ")}</> : "ไม่มีในงวดนี้", tone: "warn",
+              },
+              {
+                icon: <CalendarClock size={14} />, label: "สัญญาใกล้หมด", value: expiring.length,
+                sub: soonest !== undefined ? <>ใกล้สุดใน <b className="text-slate-700 dark:text-slate-200">{soonest} วัน</b></> : "ไม่มีใน 90 วัน", tone: "bad",
+              },
+              {
+                icon: <UserMinus size={14} />, label: "ลาออกแล้ว", value: left.length,
+                sub: <>ยังอยู่ในทะเบียนเพื่ออ้างอิง</>, tone: "idle",
+              },
+            ]}
+          />
+          <StatStrip
+            title={\`ปี \${year}\`}
+            icon={<TrendingUp size={16} />}
+            cells={[
+              {
+                icon: <UserPlus size={14} />, label: "รับเข้า", value: hires.length,
+                sub: <>คิดเป็น <b className="text-slate-700 dark:text-slate-200">{active.length ? Math.round((hires.length / active.length) * 100) : 0}%</b> ของกำลังคน</>, tone: "ok",
+              },
+              {
+                icon: <UserMinus size={14} />, label: "ลาออก", value: leavers,
+                sub: <>อัตราลาออก <b className="text-slate-700 dark:text-slate-200">{people.length ? Math.round((leavers / people.length) * 100) : 0}%</b></>, tone: "bad",
+              },
+            ]}
+          />
+        </div>
+      </Reveal>
+
+      <Reveal delay={0.08} className="mt-4">
+        <div className="mb-3 flex flex-wrap items-center gap-2">
+          <Search value={q} onChange={setQ} placeholder="ค้นหาชื่อ ชื่อเล่น รหัส ตำแหน่ง" icon={<SearchIcon size={14} />} className="w-56" />
+          <span className="mx-1 hidden h-6 w-px bg-slate-200 sm:block dark:bg-slate-700" />
+          <ViewToggle value={view} onChange={setView} />
+          <Segmented options={STATUSES} value={status} onChange={(v) => setStatus(v as (typeof STATUSES)[number])} counts={counts} />
+          <Select value={dept} onChange={setDept} options={["ทุกแผนก", ...DEPARTMENTS]} className="w-40" />
+          <span className="ml-auto" />
+          <Button
+            variant="primary"
+            icon={<Plus size={15} />}
             onClick={() => {
               setDraft(EMPTY);
               setAdding(true);
             }}
-            className="rounded-lg bg-sky-600 px-3.5 py-2 text-[13px] font-medium text-white transition hover:bg-sky-700"
           >
-            + เพิ่มพนักงาน
-          </button>
-        }
-      />
+            เพิ่มพนักงาน
+          </Button>
+        </div>
 
-      <DataTable
-        rows={rows}
-        getId={(e) => e.id}
-        onOpen={setPicked}
-        selectable
-        columns={columnsFor(tab, statusOf, eventsOf)}
-        toolbar={
-          <>
-            <Select
-              value={dept}
-              onChange={setDept}
-              options={["ทุกแผนก", ...DEPARTMENTS]}
-            />
-            <Search value={q} onChange={setQ} placeholder="ค้นหาชื่อ ชื่อเล่น รหัส หรือตำแหน่ง" />
-          </>
-        }
-        bulkActions={(selected, clear) => (
-          <button
-            onClick={() => setConfirming(selected.filter((e) => statusOf(e) !== "ลาออก"))}
-            disabled={selected.every((e) => statusOf(e) === "ลาออก")}
-            className="rounded-md border border-rose-300 px-2.5 py-1 text-[12px] text-rose-700 transition hover:bg-rose-50 disabled:opacity-40 dark:border-rose-500/40 dark:text-rose-300 dark:hover:bg-rose-500/10"
-            title={\`บันทึกการลาออกให้ \${selected.length} คนที่เลือกไว้\`}
-          >
-            บันทึกการลาออก
-          </button>
-        )}
-      />
-
-      <Drawer
-        open={picked !== null}
-        title={picked?.name ?? ""}
-        subtitle={picked ? \`\${picked.code} · \${picked.position} · \${picked.department}\` : undefined}
-        onClose={() => setPicked(null)}
-        footer={
-          picked && statusOf(picked) !== "ลาออก" ? (
-            <button
-              onClick={() => setConfirming([picked])}
-              className="w-full rounded-lg border border-rose-300 py-2 text-[13px] text-rose-700 transition hover:bg-rose-50 dark:border-rose-500/40 dark:text-rose-300 dark:hover:bg-rose-500/10"
+        {view === "list" ? (
+            <motion.div key="list" initial={enter({ opacity: 0 })} animate={{ opacity: 1 }} transition={{ duration: 0.15 }}>
+              <DataTable
+                rows={rows}
+                getId={(e) => e.id}
+                onOpen={(e) => setOpenAt(rows.indexOf(e))}
+                selectable
+                columns={columnsFor(tab, statusOf, eventsOf)}
+                trailing={(e) => (
+                  <span className="inline-flex items-center gap-1">
+                    <FavouriteButton on={favourites.includes(e.id)} onToggle={() => toggleFavourite(e.id)} />
+                    <IconButton label="เปิดแฟ้ม" onClick={() => setOpenAt(rows.indexOf(e))} className="border-transparent bg-transparent dark:bg-transparent">
+                      <Ellipsis size={15} />
+                    </IconButton>
+                  </span>
+                )}
+                bulkActions={(selected) => (
+                  <button
+                    onClick={() => {
+                      const first = selected.find((e) => statusOf(e) !== "ลาออก");
+                      if (first) setResigning(first);
+                    }}
+                    disabled={selected.every((e) => statusOf(e) === "ลาออก")}
+                    className="rounded-lg border border-rose-300 px-2.5 py-1 text-[12px] text-rose-700 transition hover:bg-rose-50 disabled:opacity-40 dark:border-rose-500/40 dark:text-rose-300 dark:hover:bg-rose-500/10"
+                  >
+                    บันทึกการลาออก
+                  </button>
+                )}
+              />
+            </motion.div>
+          ) : (
+            <motion.div
+              key="grid"
+              initial={enter({ opacity: 0 })}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.15 }}
+              className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4"
             >
-              บันทึกการลาออก
-            </button>
-          ) : undefined
-        }
+              {rows.map((e, i) => (
+                <PersonCard
+                  key={e.id}
+                  employee={e}
+                  status={statusOf(e)}
+                  index={i}
+                  favourite={favourites.includes(e.id)}
+                  onFavourite={() => toggleFavourite(e.id)}
+                  onOpen={() => setOpenAt(i)}
+                />
+              ))}
+              {rows.length === 0 && (
+                <p className="col-span-full py-14 text-center text-[13px] text-slate-400">ไม่มีข้อมูลที่ตรงกับเงื่อนไข</p>
+              )}
+            </motion.div>
+          )}
+      </Reveal>
+
+      <DetailModal
+        open={picked !== null}
+        title="แฟ้มพนักงาน"
+        onClose={() => setOpenAt(null)}
+        index={openAt ?? 0}
+        total={rows.length}
+        onStep={(d) => setOpenAt((i) => (i === null ? i : Math.max(0, Math.min(rows.length - 1, i + d))))}
       >
         {picked && (
           <Record
+            key={picked.id}
             employee={picked}
             status={statusOf(picked)}
             events={eventsOf(picked)}
-            openAt={tab}
+            activity={activityOf(picked)}
+            favourite={favourites.includes(picked.id)}
+            openAt={tab ?? TABS[0]}
+            onFavourite={() => toggleFavourite(picked.id)}
             onAddEvent={(ev) => addEvent(picked.id, ev)}
+            onAddNote={(entry) => addNote(picked.id, entry)}
+            onResign={() => setResigning(picked)}
           />
         )}
-      </Drawer>
+      </DetailModal>
 
       <Drawer
         open={adding}
@@ -2860,78 +3190,102 @@ export default function PaScreen({ section }: { section?: string }) {
         />
       </Drawer>
 
-      <ConfirmDialog
-        open={confirming !== null}
-        title="บันทึกการลาออก"
-        confirmWord="ลาออก"
-        confirmLabel="บันทึกการลาออก"
-        body={
-          <>
-            จะบันทึกการลาออกให้{" "}
-            <span className="font-medium text-slate-900 dark:text-slate-100">
-              {confirming?.map((e) => e.name).join(", ")}
-            </span>{" "}
-            มีผลวันที่ {TODAY} · สถานะจะเปลี่ยนเป็นลาออกและมีเหตุการณ์บันทึกในประวัติ
-            เงินเดือนงวดถัดไปจะไม่รวมคนเหล่านี้
-          </>
-        }
-        onCancel={() => setConfirming(null)}
-        onConfirm={() => confirming && commitResignation(confirming)}
-      />
+      <ResignDialog employee={resigning} onCancel={() => setResigning(null)} onConfirm={commitResignation} />
 
       <div hidden data-fitt-index>
         <button data-fitt-screen="ทะเบียนพนักงาน" />
-        <button data-fitt-screen="แฟ้มประวัติพนักงาน" data-fitt-modal onClick={() => setPicked(EMPLOYEES[0])} />
+        <button data-fitt-screen="แฟ้มประวัติพนักงาน" data-fitt-modal onClick={() => setOpenAt(0)} />
       </div>
     </div>
   );
 }
 
+/* ---------------------------------------------------------------- pieces */
+
+function GenderMark({ id }: { id: number }) {
+  const g = GENDER[id];
+  if (!g) return null;
+  return (
+    <span className={"text-[12px] " + (g === "ชาย" ? "text-sky-500" : "text-pink-500")} title={g}>
+      {g === "ชาย" ? "♂" : "♀"}
+    </span>
+  );
+}
+
+function FavouriteButton({ on, onToggle }: { on: boolean; onToggle: () => void }) {
+  return (
+    <motion.button
+      whileTap={{ scale: 0.8 }}
+      onClick={onToggle}
+      aria-label={on ? "เอาออกจากรายการโปรด" : "เพิ่มเป็นรายการโปรด"}
+      className={"grid size-8 place-items-center rounded-lg transition " + (on ? "text-rose-500" : "text-slate-300 hover:text-rose-400 dark:text-slate-600")}
+    >
+      <Heart size={16} fill={on ? "currentColor" : "none"} />
+    </motion.button>
+  );
+}
+
+function StatusBadge({ status }: { status: string }) {
+  return (
+    <Badge dot tone={status === "ทำงานอยู่" ? "ok" : status === "ทดลองงาน" ? "warn" : "idle"}>
+      {status}
+    </Badge>
+  );
+}
+
 /** Each capability is a different set of columns over the same register. */
 function columnsFor(
-  tab: string,
+  tab: string | undefined,
   statusOf: (e: Employee) => string,
   eventsOf: (e: Employee) => PersonnelEvent[]
 ): Column<Employee>[] {
+  const mono = (v: string) => <span className="font-mono text-[12px] text-slate-500 dark:text-slate-400">{v}</span>;
   const head: Column<Employee>[] = [
-    {
-      key: "code",
-      header: "รหัส",
-      sort: (a, b) => a.code.localeCompare(b.code),
-      cell: (e) => <span className="font-mono text-xs text-slate-500 dark:text-slate-400">{e.code}</span>,
-    },
+    { key: "code", header: "รหัส", width: "7.5rem", sort: (a, b) => a.code.localeCompare(b.code), cell: (e) => mono("#" + e.code.slice(4)) },
     {
       key: "name",
       header: "ชื่อ-นามสกุล",
       sort: (a, b) => a.name.localeCompare(b.name, "th"),
       cell: (e) => (
-        <span>
+        <span className="flex items-center gap-2.5">
+          <Avatar name={e.name} />
           <span className="font-medium text-slate-900 dark:text-slate-100">{e.name}</span>
-          <span className="ml-1.5 text-xs text-slate-400 dark:text-slate-500">({e.nickname})</span>
+          <GenderMark id={e.id} />
         </span>
       ),
     },
-    {
-      key: "department",
-      header: "แผนก",
-      sort: (a, b) => a.department.localeCompare(b.department, "th"),
-      cell: (e) => e.department,
-    },
   ];
 
-  const rest: Record<string, Column<Employee>[]> = {
+  const base: Column<Employee>[] = [
+    {
+      key: "position", header: "ตำแหน่ง", sort: (a, b) => a.position.localeCompare(b.position, "th"),
+      cell: (e) => <span className="flex items-center gap-1.5"><Briefcase size={13} className="text-slate-400" />{e.position}</span>,
+    },
+    {
+      key: "department", header: "แผนก", sort: (a, b) => a.department.localeCompare(b.department, "th"),
+      cell: (e) => <span className="flex items-center gap-1.5"><Building size={13} className="text-slate-400" />{e.department}</span>,
+    },
+    { key: "type", header: "ประเภทจ้าง", cell: (e) => e.contract.type },
+    {
+      key: "tenure", header: "อายุงาน", sort: (a, b) => tenureYears(a) - tenureYears(b),
+      cell: (e) => { const y = tenureYears(e); return y < 1 ? "ไม่ถึงปี" : y.toFixed(1) + " ปี"; },
+    },
+    { key: "status", header: "สถานะ", cell: (e) => <StatusBadge status={statusOf(e)} /> },
+  ];
+
+  const bySection: Record<string, Column<Employee>[]> = {
     "ข้อมูลส่วนตัว": [
-      { key: "birth", header: "วันเกิด", sort: (a, b) => a.personal.birthDate.localeCompare(b.personal.birthDate), cell: (e) => e.personal.birthDate },
-      { key: "nid", header: "เลขบัตรประชาชน", cell: (e) => <span className="font-mono text-xs">{e.personal.nationalId}</span> },
-      { key: "phone", header: "โทรศัพท์", cell: (e) => e.personal.phone },
-      { key: "email", header: "อีเมล", cell: (e) => e.personal.email },
+      { key: "birth", header: "วันเกิด", sort: (a, b) => a.personal.birthDate.localeCompare(b.personal.birthDate), cell: (e) => <>{e.personal.birthDate} <span className="text-slate-400">({ageOf(e)} ปี)</span></> },
+      { key: "nid", header: "เลขบัตรประชาชน", cell: (e) => mono(e.personal.nationalId) },
+      { key: "phone", header: "โทรศัพท์", cell: (e) => <span className="flex items-center gap-1.5"><Phone size={13} className="text-slate-400" />{e.personal.phone}</span> },
+      { key: "email", header: "อีเมล", cell: (e) => <span className="text-violet-600 dark:text-violet-300">{e.personal.email}</span> },
+      { key: "department", header: "แผนก", cell: (e) => e.department },
     ],
     "ข้อมูลสัญญาจ้าง": [
-      { key: "type", header: "ประเภทจ้าง", sort: (a, b) => a.contract.type.localeCompare(b.contract.type, "th"), cell: (e) => e.contract.type },
+      { key: "type", header: "ประเภทจ้าง", sort: (a, b) => a.contract.type.localeCompare(b.contract.type, "th"), cell: (e) => <span className="flex items-center gap-1.5"><Briefcase size={13} className="text-slate-400" />{e.contract.type}</span> },
       { key: "start", header: "วันเริ่มงาน", sort: (a, b) => a.contract.startedAt.localeCompare(b.contract.startedAt), cell: (e) => e.contract.startedAt },
       {
-        key: "end",
-        header: "สิ้นสุดสัญญา",
+        key: "end", header: "สิ้นสุดสัญญา",
         sort: (a, b) => (a.contract.endsAt ?? "9999").localeCompare(b.contract.endsAt ?? "9999"),
         cell: (e) => {
           if (!e.contract.endsAt) return <span className="text-slate-400 dark:text-slate-500">ไม่กำหนด</span>;
@@ -2944,343 +3298,491 @@ function columnsFor(
       { key: "status", header: "สถานะ", cell: (e) => <StatusBadge status={statusOf(e)} /> },
     ],
     "ข้อมูลทางปกครอง": [
-      { key: "sso", header: "เลขประกันสังคม", cell: (e) => <span className="font-mono text-xs">{e.admin.ssoNumber}</span> },
-      { key: "tax", header: "เลขผู้เสียภาษี", cell: (e) => <span className="font-mono text-xs">{e.admin.taxId}</span> },
-      { key: "bank", header: "ธนาคาร", sort: (a, b) => a.admin.bankName.localeCompare(b.admin.bankName, "th"), cell: (e) => e.admin.bankName },
-      { key: "acct", header: "เลขบัญชี", cell: (e) => <span className="font-mono text-xs">{e.admin.bankAccount}</span> },
+      { key: "sso", header: "เลขประกันสังคม", cell: (e) => mono(e.admin.ssoNumber) },
+      { key: "tax", header: "เลขผู้เสียภาษี", cell: (e) => mono(e.admin.taxId) },
+      { key: "bank", header: "ธนาคาร", sort: (a, b) => a.admin.bankName.localeCompare(b.admin.bankName, "th"), cell: (e) => <span className="flex items-center gap-1.5"><CreditCard size={13} className="text-slate-400" />{e.admin.bankName} {mono(e.admin.bankAccount)}</span> },
+      {
+        key: "docs", header: "เอกสาร",
+        sort: (a, b) => documentsOf(a).filter((d) => d.done).length - documentsOf(b).filter((d) => d.done).length,
+        cell: (e) => { const d = documentsOf(e); const n = d.filter((x) => x.done).length; return <Badge tone={n === d.length ? "ok" : "warn"}>{n}/{d.length}</Badge>; },
+      },
       { key: "pvd", header: "กองทุนสำรองฯ", align: "right", sort: (a, b) => a.admin.pvdRate - b.admin.pvdRate, cell: (e) => e.admin.pvdRate + "%" },
     ],
     "เหตุการณ์ทางบุคคล": [
-      { key: "last", header: "เหตุการณ์ล่าสุด", cell: (e) => eventsOf(e).at(-1)?.type ?? "—" },
+      { key: "last", header: "เหตุการณ์ล่าสุด", cell: (e) => <Badge tone="accent">{eventsOf(e).at(-1)?.type ?? "—"}</Badge> },
       { key: "when", header: "เมื่อ", sort: (a, b) => (eventsOf(a).at(-1)?.date ?? "").localeCompare(eventsOf(b).at(-1)?.date ?? ""), cell: (e) => eventsOf(e).at(-1)?.date ?? "—" },
-      { key: "count", header: "จำนวนเหตุการณ์", align: "right", sort: (a, b) => eventsOf(a).length - eventsOf(b).length, cell: (e) => eventsOf(e).length + " ครั้ง" },
+      { key: "detail", header: "รายละเอียด", cell: (e) => <span className="text-slate-500">{eventsOf(e).at(-1)?.detail ?? "—"}</span> },
+      { key: "count", header: "ทั้งหมด", align: "right", sort: (a, b) => eventsOf(a).length - eventsOf(b).length, cell: (e) => eventsOf(e).length + " ครั้ง" },
     ],
     "ค่าตอบแทนและสวัสดิการ": [
-      { key: "salary", header: "เงินเดือนฐาน", align: "right", sort: (a, b) => a.contract.baseSalary - b.contract.baseSalary, cell: (e) => baht(e.contract.baseSalary) + " ฿" },
-      { key: "ben", header: "สวัสดิการ", align: "right", sort: (a, b) => a.benefits.length - b.benefits.length, cell: (e) => e.benefits.length + " รายการ" },
-      { key: "first", header: "รายการแรก", cell: (e) => e.benefits[0] ?? "—" },
+      { key: "salary", header: "เงินเดือนฐาน", align: "right", sort: (a, b) => a.contract.baseSalary - b.contract.baseSalary, cell: (e) => <span className="font-medium text-slate-900 dark:text-slate-100">{baht(e.contract.baseSalary)} ฿</span> },
+      { key: "ben", header: "สวัสดิการ", align: "right", sort: (a, b) => a.benefits.length - b.benefits.length, cell: (e) => <Badge tone="accent" icon={<Gift size={11} />}>{e.benefits.length} รายการ</Badge> },
+      { key: "first", header: "รายการหลัก", cell: (e) => <span className="flex flex-wrap gap-1">{e.benefits.slice(0, 2).map((b) => <Chip key={b}>{b}</Chip>)}</span> },
+      { key: "pvd", header: "กองทุนสำรองฯ", align: "right", cell: (e) => e.admin.pvdRate + "%" },
     ],
   };
 
-  return [...head, ...(rest[tab] ?? [])];
+  return [...head, ...(tab ? bySection[tab] : base)];
 }
 
-function StatusBadge({ status }: { status: string }) {
+function PersonCard({
+  employee: e,
+  status,
+  index,
+  favourite,
+  onFavourite,
+  onOpen,
+}: {
+  employee: Employee;
+  status: string;
+  index: number;
+  favourite: boolean;
+  onFavourite: () => void;
+  onOpen: () => void;
+}) {
   return (
-    <Badge tone={status === "ทำงานอยู่" ? "ok" : status === "ทดลองงาน" ? "warn" : "idle"}>
-      {status}
-    </Badge>
+    <motion.article
+      initial={enter({ opacity: 0, y: 8 })}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3, delay: Math.min(index, 12) * 0.03 }}
+      whileHover={{ y: -2 }}
+      className={"p-4 transition hover:shadow-md hover:shadow-slate-900/5 " + SURFACE}
+    >
+      <div className="flex items-center gap-2.5">
+        <Avatar name={e.name} />
+        <button onClick={onOpen} className="min-w-0 flex-1 truncate text-left text-[14px] font-semibold text-slate-900 hover:text-violet-700 dark:text-slate-50">
+          {e.name} <GenderMark id={e.id} />
+        </button>
+        <FavouriteButton on={favourite} onToggle={onFavourite} />
+        <IconButton label="เปิดแฟ้ม" onClick={onOpen} className="border-transparent bg-transparent dark:bg-transparent">
+          <Ellipsis size={15} />
+        </IconButton>
+      </div>
+      <dl className="mt-3 space-y-1.5 text-[12.5px]">
+        <CardRow icon={<IdCard size={13} />} label="รหัส">#{e.code.slice(4)}</CardRow>
+        <CardRow icon={<Briefcase size={13} />} label="ตำแหน่ง">{e.position}</CardRow>
+        <CardRow icon={<Building size={13} />} label="แผนก">{e.department}</CardRow>
+        <CardRow icon={<CalendarDays size={13} />} label="เริ่มงาน">{e.contract.startedAt}</CardRow>
+        <CardRow icon={<Clock3 size={13} />} label="สถานะ"><StatusBadge status={status} /></CardRow>
+      </dl>
+    </motion.article>
   );
 }
 
-/* ---------------------------------------------------------------- overview */
-
-function Overview({
-  people,
-  statusOf,
-}: {
-  people: Employee[];
-  statusOf: (e: Employee) => string;
-}) {
-  const active = people.filter((e) => statusOf(e) !== "ลาออก");
-  const trend = headcountTrend();
-  const yearAgo = headcountAt(TODAY.slice(0, 7).replace(/^(\\d{4})/, (y) => String(Number(y) - 1)));
-  const thisYear = TODAY.slice(0, 4);
-  const lastYear = String(Number(thisYear) - 1);
-  const hires = hiredIn(thisYear);
-  const lastYearHires = hiredIn(lastYear);
-  const leavers = leftIn(thisYear);
-  const probation = active.filter((e) => statusOf(e) === "ทดลองงาน");
-  const todo = upcoming();
-  const departments = byDepartment();
-  const recent = allEvents().slice(0, 7);
-
-  const pct = (now: number, then: number) =>
-    then === 0 ? 0 : Math.round(((now - then) / then) * 100);
-
+function CardRow({ icon, label, children }: { icon: ReactNode; label: string; children: ReactNode }) {
   return (
-    <div>
-      <PageHead
-        title="ภาพรวมทะเบียนพนักงาน"
-        meta={\`ข้อมูล ณ \${TODAY} · อัปเดตอัตโนมัติจากเหตุการณ์ทางบุคคล\`}
-      />
-
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <Metric
-          label="พนักงานทั้งหมด"
-          value={active.length + " คน"}
-          delta={pct(active.length, yearAgo)}
-          deltaLabel={\`เทียบกับปีก่อน \${yearAgo} คน\`}
-          icon={<GlyphPeople />}
-        />
-        <Metric
-          label={\`รับเข้าปี \${thisYear}\`}
-          value={hires.length + " คน"}
-          delta={lastYearHires.length === 0 ? undefined : pct(hires.length, lastYearHires.length)}
-          deltaLabel={\`ปี \${lastYear} รับเข้า \${lastYearHires.length} คน\`}
-          icon={<GlyphIn />}
-        />
-        <Metric
-          label={\`ลาออกปี \${thisYear}\`}
-          value={leavers.length + " คน"}
-          delta={leavers.length === 0 ? 0 : Math.round((leavers.length / Math.max(1, active.length)) * 100)}
-          goodWhen="down"
-          deltaLabel="คิดเป็นอัตราการลาออกต่อกำลังคน"
-          icon={<GlyphOut />}
-        />
-        <Metric
-          label="อยู่ระหว่างทดลองงาน"
-          value={probation.length + " คน"}
-          deltaLabel={probation.length > 0 ? probation.map((e) => e.nickname).join(" · ") : "ไม่มีในงวดนี้"}
-          icon={<GlyphClock />}
-        />
-      </div>
-
-      <div className="mt-3 grid gap-3 lg:grid-cols-[1.6fr_1fr]">
-        <Card
-          title="จำนวนพนักงานย้อนหลัง 12 เดือน"
-          action={
-            <span className="text-[11.5px] text-slate-400 dark:text-slate-500">
-              นับจากวันเริ่มงานหักคนที่ลาออกแล้ว
-            </span>
-          }
-        >
-          <ColumnChart data={trend.map((t) => ({ label: t.label, value: t.value }))} format={(n) => n + " คน"} />
-        </Card>
-
-        <Card title={\`ต้องทำก่อนสาย (\${todo.length})\`}>
-          {todo.length === 0 ? (
-            <p className="px-4 py-8 text-center text-[13px] text-slate-400 dark:text-slate-500">
-              ไม่มีรายการที่ครบกำหนดใน 120 วันข้างหน้า
-            </p>
-          ) : (
-            <ul className="max-h-72 divide-y divide-slate-100 overflow-y-auto dark:divide-slate-800">
-              {todo.map((t, i) => (
-                <li key={i} className="flex items-center gap-3 px-4 py-2.5">
-                  <span
-                    className={
-                      "h-8 w-1 shrink-0 rounded-full " +
-                      (t.tone === "bad" ? "bg-rose-500" : t.tone === "warn" ? "bg-amber-400" : "bg-sky-400")
-                    }
-                  />
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate text-[13px] text-slate-800 dark:text-slate-100">{t.name}</span>
-                    <span className="block truncate text-[11.5px] text-slate-500 dark:text-slate-400">
-                      {t.kind} · {t.date}
-                    </span>
-                  </span>
-                  <span className="shrink-0 text-[11.5px] tabular-nums text-slate-400 dark:text-slate-500">
-                    อีก {t.inDays} วัน
-                  </span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </Card>
-      </div>
-
-      <div className="mt-3 grid gap-3 lg:grid-cols-2">
-        <Card title="กำลังคนตามแผนก">
-          <ul className="divide-y divide-slate-100 dark:divide-slate-800">
-            {departments.map((d) => (
-              <li key={d.department} className="flex items-center gap-3 px-4 py-2.5 text-sm">
-                <span className="w-28 shrink-0 truncate text-slate-700 dark:text-slate-200">{d.department}</span>
-                <span className="flex-1">
-                  <Bar pct={(d.count / active.length) * 100} tone="info" width="w-full" />
-                </span>
-                <span className="w-10 shrink-0 text-right tabular-nums text-slate-600 dark:text-slate-300">
-                  {d.count}
-                </span>
-              </li>
-            ))}
-          </ul>
-        </Card>
-
-        <Card title="เหตุการณ์ทางบุคคลล่าสุด">
-          <ul className="divide-y divide-slate-100 dark:divide-slate-800">
-            {recent.map((e, i) => (
-              <li key={i} className="flex items-start gap-3 px-4 py-2.5">
-                <span className="w-20 shrink-0 text-[11.5px] tabular-nums text-slate-400 dark:text-slate-500">
-                  {e.date}
-                </span>
-                <span className="min-w-0 flex-1">
-                  <span className="block text-[13px] text-slate-800 dark:text-slate-100">
-                    {e.name} — {e.type}
-                  </span>
-                  <span className="block truncate text-[11.5px] text-slate-500 dark:text-slate-400">{e.detail}</span>
-                </span>
-              </li>
-            ))}
-          </ul>
-        </Card>
-      </div>
+    <div className="flex items-center gap-2">
+      <span className="text-slate-400">{icon}</span>
+      <dt className="w-16 shrink-0 text-slate-500 dark:text-slate-400">{label}</dt>
+      <dd className="min-w-0 flex-1 truncate text-slate-800 dark:text-slate-100">{children}</dd>
     </div>
   );
 }
 
-const GlyphPeople = () => <span className="text-[15px]">👥</span>;
-const GlyphIn = () => <span className="text-[15px]">📥</span>;
-const GlyphOut = () => <span className="text-[15px]">📤</span>;
-const GlyphClock = () => <span className="text-[15px]">⏳</span>;
-
-/* ------------------------------------------------------------------ record */
+/* ---------------------------------------------------------------- record */
 
 function Record({
   employee: e,
   status,
   events,
+  activity,
+  favourite,
   openAt,
+  onFavourite,
   onAddEvent,
+  onAddNote,
+  onResign,
 }: {
   employee: Employee;
   status: string;
   events: PersonnelEvent[];
+  activity: ActivityEntry[];
+  favourite: boolean;
   openAt: string;
+  onFavourite: () => void;
   onAddEvent: (ev: PersonnelEvent) => void;
+  onAddNote: (entry: ActivityEntry) => void;
+  onResign: () => void;
 }) {
-  // Opens on the part of the record the list was showing, then moves freely.
   const [tab, setTab] = useState(openAt);
-  const [logging, setLogging] = useState(false);
+  const [note, setNote] = useState("");
+  const [noteType, setNoteType] = useState("บันทึก");
+  const docs = documentsOf(e);
+  const done = docs.filter((d) => d.done).length;
+
+  const sendNote = () => {
+    if (!note.trim()) return;
+    onAddNote({ date: TODAY, time: "ตอนนี้", actor: "คุณ", text: noteType, target: note.trim() });
+    setNote("");
+    setTab("กิจกรรม");
+  };
 
   return (
-    <div>
-      <div className="flex flex-wrap gap-1 rounded-lg bg-slate-100 p-1 dark:bg-slate-800">
-        {TABS.map((t) => (
-          <button
-            key={t}
-            onClick={() => setTab(t)}
-            className={
-              "rounded-md px-2.5 py-1.5 text-[12px] transition " +
-              (t === tab
-                ? "bg-white font-medium text-slate-900 shadow-sm dark:bg-slate-900 dark:text-slate-50"
-                : "text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-100")
-            }
-          >
-            {t}
-          </button>
-        ))}
-      </div>
-
-      <div className="mt-4">
-        {tab === "ข้อมูลส่วนตัว" && (
-          <Facts
-            items={[
-              ["วันเกิด", e.personal.birthDate],
-              ["เลขบัตรประชาชน", e.personal.nationalId],
-              ["โทรศัพท์", e.personal.phone],
-              ["อีเมล", e.personal.email],
-              ["ที่อยู่ตามทะเบียนบ้าน", e.personal.address, true],
-            ]}
-          />
-        )}
-
-        {tab === "ข้อมูลสัญญาจ้าง" && (
-          <>
-            <Facts
-              items={[
-                ["ประเภทการจ้าง", e.contract.type],
-                ["สถานะ", <StatusBadge key="s" status={status} />],
-                ["วันเริ่มงาน", e.contract.startedAt],
-                ["สิ้นสุดสัญญา", e.contract.endsAt ?? "ไม่กำหนด"],
-                ["ครบกำหนดทดลองงาน", e.contract.probationUntil],
-                ["วันทำงาน", e.contract.workDays],
-              ]}
-            />
-            {e.contract.endsAt && daysBetween(TODAY, e.contract.endsAt) <= 90 && (
-              <div className="mt-3">
-                <Note tone="warn">
-                  สัญญาหมดอายุ {e.contract.endsAt} — เหลืออีก {daysBetween(TODAY, e.contract.endsAt)} วัน
-                  ควรเริ่มกระบวนการต่อสัญญาหรือแจ้งล่วงหน้าตามกฎหมายแรงงาน
-                </Note>
-              </div>
-            )}
-          </>
-        )}
-
-        {tab === "ข้อมูลทางปกครอง" && (
-          <Facts
-            items={[
-              ["เลขประกันสังคม", e.admin.ssoNumber],
-              ["เลขผู้เสียภาษี", e.admin.taxId],
-              ["ธนาคาร", e.admin.bankName],
-              ["เลขบัญชี", e.admin.bankAccount],
-              ["กองทุนสำรองเลี้ยงชีพ", e.admin.pvdRate + "% ของเงินเดือน"],
-            ]}
-          />
-        )}
-
-        {tab === "เหตุการณ์ทางบุคคล" && (
-          <div>
-            <ol className="relative space-y-3 border-l border-slate-200 pl-4 dark:border-slate-800">
-              {[...events].reverse().map((ev, i) => (
-                <li key={i} className="relative">
-                  <span className="absolute -left-[21px] top-1.5 size-2 rounded-full bg-sky-500" />
-                  <p className="text-[12.5px] font-medium text-slate-900 dark:text-slate-100">{ev.type}</p>
-                  <p className="text-[11.5px] text-slate-400 dark:text-slate-500">{ev.date}</p>
-                  <p className="mt-0.5 text-[12.5px] text-slate-600 dark:text-slate-300">{ev.detail}</p>
-                </li>
-              ))}
-            </ol>
-
-            {logging ? (
-              <AddEvent
-                onCancel={() => setLogging(false)}
-                onSave={(ev) => {
-                  onAddEvent(ev);
-                  setLogging(false);
-                }}
-              />
-            ) : (
-              <button
-                onClick={() => setLogging(true)}
-                className="mt-4 w-full rounded-lg border border-dashed border-slate-300 py-2 text-[12.5px] text-slate-500 transition hover:border-sky-400 hover:text-sky-600 dark:border-slate-700 dark:text-slate-400"
-              >
-                + บันทึกเหตุการณ์ใหม่
-              </button>
-            )}
+    <div className="grid h-full grid-cols-1 lg:grid-cols-[320px_1fr]">
+      <aside className="min-h-0 overflow-y-auto border-r border-slate-100 dark:border-slate-800">
+        <div
+          className="px-5 pb-4 pt-5"
+          style={{
+            backgroundImage: "radial-gradient(circle, rgb(148 163 184 / 0.22) 1px, transparent 1px)",
+            backgroundSize: "10px 10px",
+          }}
+        >
+          <div className="flex items-center gap-3">
+            <Avatar name={e.name} size="lg" />
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-[15px] font-semibold text-slate-900 dark:text-slate-50">
+                {e.name} <GenderMark id={e.id} />
+              </p>
+              <p className="text-[12px] text-slate-500 dark:text-slate-400">
+                รหัสพนักงาน: <span className="font-semibold text-slate-800 dark:text-slate-100">#{e.code.slice(4)}</span>
+              </p>
+            </div>
+            <FavouriteButton on={favourite} onToggle={onFavourite} />
           </div>
-        )}
+          <div className="mt-4 flex gap-2">
+            <Button variant="primary" icon={<Mail size={14} />} href={\`mailto:\${e.personal.email}\`} className="flex-1">
+              ส่งอีเมล
+            </Button>
+            <Button variant="secondary" icon={<MessageSquare size={14} />} onClick={() => setTab("กิจกรรม")} className="flex-1">
+              บันทึกข้อความ
+            </Button>
+          </div>
+        </div>
 
-        {tab === "ค่าตอบแทนและสวัสดิการ" && (
-          <>
-            <Facts items={[["เงินเดือนฐาน", baht(e.contract.baseSalary) + " บาท/เดือน"]]} />
-            <ul className="mt-3 space-y-1.5">
-              {e.benefits.map((b) => (
-                <li
-                  key={b}
-                  className="rounded-lg bg-slate-50 px-3 py-2 text-[12.5px] text-slate-700 dark:bg-slate-800/60 dark:text-slate-200"
+        <div className="space-y-5 px-5 pb-5">
+          <div>
+            <SectionTitle icon={<UserRound size={15} />}>ข้อมูลส่วนตัว</SectionTitle>
+            <div className="mt-1.5">
+              <IconRow icon={<Cake size={14} />} label="วันเกิด">{e.personal.birthDate} ({ageOf(e)} ปี)</IconRow>
+              <IconRow icon={<ScanFace size={14} />} label="บัตรประชาชน"><span className="font-mono text-[12px]">{e.personal.nationalId}</span></IconRow>
+              <IconRow icon={<Briefcase size={14} />} label="อายุงาน">{tenureYears(e) < 1 ? "ไม่ถึงปี" : tenureYears(e).toFixed(1) + " ปี"}</IconRow>
+            </div>
+          </div>
+
+          <div className="border-t border-slate-100 pt-4 dark:border-slate-800">
+            <SectionTitle icon={<Contact size={15} />}>ที่อยู่และการติดต่อ</SectionTitle>
+            <div className="mt-1.5">
+              <IconRow icon={<MapPin size={14} />} label="ที่อยู่"><span className="line-clamp-2">{e.personal.address}</span></IconRow>
+              <IconRow icon={<Mail size={14} />} label="อีเมล">
+                <a href={\`mailto:\${e.personal.email}\`} className="rounded-md bg-violet-50 px-1.5 py-0.5 text-[12px] text-violet-700 dark:bg-violet-500/15 dark:text-violet-300">{e.personal.email}</a>
+              </IconRow>
+              <IconRow icon={<Phone size={14} />} label="โทรศัพท์">
+                <a href={\`tel:\${e.personal.phone}\`} className="rounded-md bg-violet-50 px-1.5 py-0.5 text-[12px] text-violet-700 dark:bg-violet-500/15 dark:text-violet-300">{e.personal.phone}</a>
+              </IconRow>
+            </div>
+          </div>
+
+          <div className="border-t border-slate-100 pt-4 dark:border-slate-800">
+            <SectionTitle icon={<Building size={15} />}>การจ้างงาน</SectionTitle>
+            <div className="mt-1.5">
+              <IconRow icon={<Briefcase size={14} />} label="ตำแหน่ง"><Chip>{e.position}</Chip></IconRow>
+              <IconRow icon={<Building size={14} />} label="แผนก"><Chip>{e.department}</Chip></IconRow>
+              <IconRow icon={<FileText size={14} />} label="ประเภทจ้าง"><Chip>{e.contract.type}</Chip></IconRow>
+              <IconRow icon={<Clock3 size={14} />} label="สถานะ"><StatusBadge status={status} /></IconRow>
+            </div>
+          </div>
+
+          <div className="border-t border-slate-100 pt-4 dark:border-slate-800">
+            <p className="mb-2 text-[13px] font-semibold text-slate-900 dark:text-slate-50">บันทึกกิจกรรม</p>
+            <div className={"overflow-hidden " + SURFACE}>
+              <textarea
+                value={note}
+                onChange={(ev) => setNote(ev.target.value)}
+                placeholder="เขียนบันทึกถึงแฟ้มนี้…"
+                rows={3}
+                className="w-full resize-none bg-transparent px-3 py-2.5 text-[13px] text-slate-800 outline-none placeholder:text-slate-400 dark:text-slate-100"
+              />
+              <div className="flex items-center justify-between gap-2 border-t border-slate-100 px-2.5 py-2 dark:border-slate-800">
+                <span className="flex items-center gap-1.5 text-[12px] text-slate-500">
+                  ประเภท:
+                  <Select value={noteType} onChange={setNoteType} options={["บันทึก", "โทรคุย", "นัดหมาย"]} className="w-28 [&_select]:py-1.5 [&_select]:text-[12px]" />
+                </span>
+                <motion.button
+                  whileTap={{ scale: 0.9 }}
+                  onClick={sendNote}
+                  aria-label="บันทึก"
+                  className="grid size-8 place-items-center rounded-lg bg-violet-600 text-white shadow-sm shadow-violet-600/20 hover:bg-violet-700"
                 >
-                  {b}
-                </li>
-              ))}
-            </ul>
-          </>
-        )}
-      </div>
+                  <Send size={14} />
+                </motion.button>
+              </div>
+            </div>
+          </div>
+
+          {status !== "ลาออก" && (
+            <button
+              onClick={onResign}
+              className="w-full rounded-xl border border-rose-200 py-2 text-[12.5px] text-rose-700 transition hover:bg-rose-50 dark:border-rose-500/30 dark:text-rose-300 dark:hover:bg-rose-500/10"
+            >
+              บันทึกการลาออก
+            </button>
+          )}
+        </div>
+      </aside>
+
+      <section className="flex min-h-0 flex-col">
+        <div className="px-5 pt-2">
+          <Tabs id={"record-" + e.id} tabs={RECORD_TABS} active={tab} onPick={setTab} icons={TAB_ICONS} />
+        </div>
+        <div className="min-h-0 flex-1 overflow-y-auto p-5">
+          <AnimatePresence mode="wait" initial={false}>
+            <motion.div
+              key={tab}
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -4 }}
+              transition={{ duration: 0.18 }}
+            >
+              {tab === "ข้อมูลส่วนตัว" && <PersonalTab e={e} />}
+              {tab === "ข้อมูลสัญญาจ้าง" && <ContractTab e={e} status={status} events={events} />}
+              {tab === "ข้อมูลทางปกครอง" && <AdminTab e={e} docs={docs} done={done} />}
+              {tab === "เหตุการณ์ทางบุคคล" && <EventsTab events={events} onAdd={onAddEvent} />}
+              {tab === "ค่าตอบแทนและสวัสดิการ" && <PayTab e={e} />}
+              {tab === "กิจกรรม" && <ActivityTab activity={activity} />}
+            </motion.div>
+          </AnimatePresence>
+        </div>
+      </section>
     </div>
   );
 }
 
-function Facts({ items }: { items: [string, ReactNode, boolean?][] }) {
+function Fact({ icon, label, children, wide }: { icon: ReactNode; label: string; children: ReactNode; wide?: boolean }) {
   return (
-    <dl className="grid grid-cols-2 gap-x-4 gap-y-3">
-      {items.map(([k, v, wide], i) => (
-        <div key={i} className={wide ? "col-span-2" : ""}>
-          <dt className="text-[11.5px] text-slate-500 dark:text-slate-400">{k}</dt>
-          <dd className="mt-0.5 text-[13px] text-slate-900 dark:text-slate-100">{v}</dd>
-        </div>
-      ))}
-    </dl>
+    <div className={"rounded-xl bg-slate-50 px-3.5 py-3 dark:bg-slate-800/60 " + (wide ? "sm:col-span-2" : "")}>
+      <dt className="flex items-center gap-1.5 text-[11.5px] text-slate-500 dark:text-slate-400">
+        <span className="text-slate-400">{icon}</span>
+        {label}
+      </dt>
+      <dd className="mt-1 text-[13.5px] text-slate-900 dark:text-slate-50">{children}</dd>
+    </div>
   );
 }
 
-function AddEvent({
-  onSave,
-  onCancel,
-}: {
-  onSave: (ev: PersonnelEvent) => void;
-  onCancel: () => void;
-}) {
+function PersonalTab({ e }: { e: Employee }) {
+  return (
+    <div className="space-y-4">
+      <Card title="ข้อมูลส่วนตัว">
+        <dl className="grid gap-2.5 p-4 sm:grid-cols-2">
+          <Fact icon={<UserRound size={12} />} label="ชื่อ-นามสกุล">{e.name} ({e.nickname})</Fact>
+          <Fact icon={<Cake size={12} />} label="วันเกิด">{e.personal.birthDate} · อายุ {ageOf(e)} ปี</Fact>
+          <Fact icon={<ScanFace size={12} />} label="เลขบัตรประชาชน"><span className="font-mono">{e.personal.nationalId}</span></Fact>
+          <Fact icon={<Phone size={12} />} label="โทรศัพท์">{e.personal.phone}</Fact>
+          <Fact icon={<Mail size={12} />} label="อีเมล">{e.personal.email}</Fact>
+          <Fact icon={<UserRound size={12} />} label="เพศ">{GENDER[e.id] ?? "—"}</Fact>
+          <Fact icon={<MapPin size={12} />} label="ที่อยู่ตามทะเบียนบ้าน" wide>{e.personal.address}</Fact>
+        </dl>
+      </Card>
+    </div>
+  );
+}
+
+function ContractTab({ e, status, events }: { e: Employee; status: string; events: PersonnelEvent[] }) {
+  const probationOver = daysBetween(TODAY, e.contract.probationUntil) < 0;
+  const renewed = events.some((ev) => ev.type === "ต่อสัญญา");
+  const expiring = e.contract.endsAt ? daysBetween(TODAY, e.contract.endsAt) : null;
+  const leftCo = status === "ลาออก";
+
+  const steps = [
+    { label: "รับเข้าทำงาน", state: "done" as const },
+    { label: "ทดลองงาน", state: leftCo ? ("done" as const) : probationOver ? ("done" as const) : ("current" as const) },
+    { label: "บรรจุ", state: leftCo ? ("done" as const) : probationOver ? ("done" as const) : ("todo" as const) },
+    ...(e.contract.endsAt
+      ? [{ label: "ต่อสัญญา", state: leftCo ? ("failed" as const) : renewed ? ("done" as const) : expiring !== null && expiring <= 90 ? ("current" as const) : ("todo" as const) }]
+      : []),
+    ...(leftCo ? [{ label: "ลาออก", state: "failed" as const }] : []),
+  ];
+
+  return (
+    <div className="space-y-4">
+      <div className={"overflow-hidden border-l-4 " + (leftCo ? "border-l-slate-300" : expiring !== null && expiring <= 90 ? "border-l-amber-400" : "border-l-violet-500") + " " + SURFACE}>
+        <div className="p-4">
+          <div className="flex flex-wrap items-center gap-2">
+            <h3 className="text-[15px] font-semibold text-slate-900 dark:text-slate-50">{e.contract.type}</h3>
+            <StatusBadge status={status} />
+            <span className="ml-auto text-[12px] text-slate-500">เริ่มงาน <b className="text-slate-800 dark:text-slate-100">{e.contract.startedAt}</b></span>
+          </div>
+          <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[12.5px] text-slate-500 dark:text-slate-400">
+            <span className="flex items-center gap-1"><IdCard size={13} />#{e.code.slice(4)}</span>
+            <span className="flex items-center gap-1"><CalendarDays size={13} />{e.contract.workDays}</span>
+            <span className="flex items-center gap-1"><Hourglass size={13} />พ้นทดลองงาน {e.contract.probationUntil}</span>
+            <span className="flex items-center gap-1"><CalendarClock size={13} />สิ้นสุด {e.contract.endsAt ?? "ไม่กำหนด"}</span>
+          </p>
+          <div className="mt-4">
+            <Stepper steps={steps} icons={STEP_ICONS} />
+          </div>
+        </div>
+      </div>
+
+      {expiring !== null && expiring >= 0 && expiring <= 90 && !leftCo && (
+        <Note tone="warn">
+          สัญญาหมดอายุ {e.contract.endsAt} — เหลืออีก {expiring} วัน ควรเริ่มกระบวนการต่อสัญญาหรือแจ้งล่วงหน้าตามกฎหมายแรงงาน
+        </Note>
+      )}
+
+      <Card title="เงื่อนไขการจ้าง">
+        <dl className="grid gap-2.5 p-4 sm:grid-cols-2">
+          <Fact icon={<Banknote size={12} />} label="เงินเดือนฐาน">{baht(e.contract.baseSalary)} บาท/เดือน</Fact>
+          <Fact icon={<CalendarDays size={12} />} label="วันทำงาน">{e.contract.workDays}</Fact>
+          <Fact icon={<PiggyBank size={12} />} label="กองทุนสำรองเลี้ยงชีพ">{e.admin.pvdRate}% ของเงินเดือน</Fact>
+          <Fact icon={<Briefcase size={12} />} label="อายุงาน">{tenureYears(e) < 1 ? "ไม่ถึงปี" : tenureYears(e).toFixed(1) + " ปี"}</Fact>
+        </dl>
+      </Card>
+    </div>
+  );
+}
+
+function AdminTab({ e, docs, done }: { e: Employee; docs: { name: string; done: boolean }[]; done: number }) {
+  return (
+    <div className="space-y-4">
+      <Card title="เอกสารประกอบการจ้าง">
+        <div className="p-4">
+          <Progress done={done} total={docs.length} label={\`ครบ \${done} จาก \${docs.length} รายการ\`} />
+        </div>
+        <ul className="divide-y divide-slate-100 border-t border-slate-100 dark:divide-slate-800 dark:border-slate-800">
+          {docs.map((d) => (
+            <li key={d.name} className="flex items-center gap-3 px-4 py-3">
+              <span className="grid size-9 place-items-center rounded-lg bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400">
+                <FileText size={16} />
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block text-[13px] font-medium text-slate-800 dark:text-slate-100">{d.name}</span>
+                <span className="block text-[11.5px] text-slate-500">{d.done ? "ยื่นแล้ว · อยู่ในแฟ้ม" : "ยังไม่ได้รับ"}</span>
+              </span>
+              <Badge tone={d.done ? "ok" : "warn"} icon={d.done ? <CircleCheck size={11} /> : <Clock3 size={11} />}>
+                {d.done ? "ครบ" : "รอเอกสาร"}
+              </Badge>
+            </li>
+          ))}
+        </ul>
+      </Card>
+
+      <Card title="ภาษีและประกันสังคม">
+        <dl className="grid gap-2.5 p-4 sm:grid-cols-2">
+          <Fact icon={<Landmark size={12} />} label="เลขประกันสังคม"><span className="font-mono">{e.admin.ssoNumber}</span></Fact>
+          <Fact icon={<ShieldCheck size={12} />} label="เลขผู้เสียภาษี"><span className="font-mono">{e.admin.taxId}</span></Fact>
+          <Fact icon={<CreditCard size={12} />} label="บัญชีรับเงินเดือน">{e.admin.bankName} <span className="font-mono">{e.admin.bankAccount}</span></Fact>
+          <Fact icon={<PiggyBank size={12} />} label="กองทุนสำรองเลี้ยงชีพ">{e.admin.pvdRate}% ของเงินเดือน</Fact>
+        </dl>
+      </Card>
+    </div>
+  );
+}
+
+function EventsTab({ events, onAdd }: { events: PersonnelEvent[]; onAdd: (ev: PersonnelEvent) => void }) {
+  const [logging, setLogging] = useState(false);
+  const years = [...new Set(events.map((ev) => ev.date.slice(0, 4)))].sort().reverse();
+  const groups = years.map((y) => ({
+    heading: "ปี " + (Number(y) + 543),
+    items: [...events].filter((ev) => ev.date.startsWith(y)).reverse().map((ev) => ({
+      time: ev.date.slice(5),
+      body: (
+        <span className="flex flex-wrap items-center gap-1.5">
+          <Badge tone={ev.type === "ลาออก" ? "bad" : ev.type === "รับเข้าทำงาน" ? "ok" : "accent"}>{ev.type}</Badge>
+          <span className="text-slate-700 dark:text-slate-200">{ev.detail}</span>
+        </span>
+      ),
+    })),
+  }));
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <p className="text-[13px] text-slate-500">{events.length} เหตุการณ์ในประวัติ</p>
+        {!logging && (
+          <Button variant="secondary" icon={<Plus size={14} />} onClick={() => setLogging(true)}>
+            บันทึกเหตุการณ์
+          </Button>
+        )}
+      </div>
+      {logging && (
+        <AddEvent
+          onCancel={() => setLogging(false)}
+          onSave={(ev) => {
+            onAdd(ev);
+            setLogging(false);
+          }}
+        />
+      )}
+      <Card>
+        <div className="p-4">
+          <Timeline groups={groups} />
+        </div>
+      </Card>
+    </div>
+  );
+}
+
+function PayTab({ e }: { e: Employee }) {
+  return (
+    <div className="space-y-4">
+      <div className={"flex items-center gap-4 p-4 " + SURFACE}>
+        <span className="grid size-12 place-items-center rounded-xl bg-violet-50 text-violet-600 dark:bg-violet-500/15 dark:text-violet-300">
+          <Wallet size={22} />
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="text-[12px] text-slate-500 dark:text-slate-400">เงินเดือนฐาน</p>
+          <p className="text-[24px] font-semibold tabular-nums text-slate-900 dark:text-slate-50">{baht(e.contract.baseSalary)} ฿</p>
+        </div>
+        <div className="text-right text-[12px] text-slate-500">
+          <p>กองทุนสำรองฯ {e.admin.pvdRate}%</p>
+          <p>= {baht(Math.round((e.contract.baseSalary * e.admin.pvdRate) / 100))} ฿/เดือน</p>
+        </div>
+      </div>
+
+      <Card title={\`สวัสดิการ \${e.benefits.length} รายการ\`}>
+        <div className="grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-3">
+          {e.benefits.map((b, i) => (
+            <motion.div
+              key={b}
+              initial={enter({ opacity: 0, y: 6 })}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: i * 0.05 }}
+              className="flex items-start gap-3 rounded-xl border border-slate-100 p-3.5 dark:border-slate-800"
+            >
+              <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-emerald-50 text-emerald-600 dark:bg-emerald-500/15 dark:text-emerald-300">
+                <Gift size={16} />
+              </span>
+              <span className="text-[13px] text-slate-800 dark:text-slate-100">{b}</span>
+            </motion.div>
+          ))}
+        </div>
+      </Card>
+    </div>
+  );
+}
+
+function ActivityTab({ activity }: { activity: ActivityEntry[] }) {
+  const dates = [...new Set(activity.map((a) => a.date))].sort().reverse();
+  const groups = dates.map((d) => ({
+    heading: d === TODAY ? "วันนี้" : d,
+    items: activity.filter((a) => a.date === d).map((a) => ({
+      time: a.time,
+      avatar: <Avatar name={a.actor} size="sm" />,
+      body: (
+        <>
+          <span className="font-medium underline decoration-slate-300 underline-offset-2">{a.actor}</span>{" "}
+          <span className="text-slate-600 dark:text-slate-300">{a.text}</span>
+          {a.target && <span className="ml-1.5 font-medium text-slate-900 dark:text-slate-50">{a.target}</span>}
+        </>
+      ),
+    })),
+  }));
+
+  return (
+    <Card>
+      <div className="p-4">
+        {groups.length === 0 ? (
+          <p className="py-8 text-center text-[13px] text-slate-400">ยังไม่มีกิจกรรมกับแฟ้มนี้ — เขียนบันทึกได้ที่คอลัมน์ซ้าย</p>
+        ) : (
+          <Timeline groups={groups} />
+        )}
+      </div>
+    </Card>
+  );
+}
+
+function AddEvent({ onSave, onCancel }: { onSave: (ev: PersonnelEvent) => void; onCancel: () => void }) {
   const [type, setType] = useState(EVENT_TYPES[1]);
   const [date, setDate] = useState(TODAY);
   const [detail, setDetail] = useState("");
@@ -3288,10 +3790,10 @@ function AddEvent({
   const bad = tried && detail.trim().length < 5;
 
   return (
-    <div className={"mt-4 p-3 " + SURFACE}>
+    <div className={"p-4 " + SURFACE}>
       <div className="grid grid-cols-2 gap-3">
         <Field label="ประเภทเหตุการณ์">
-          <Select value={type} onChange={setType} options={EVENT_TYPES} />
+          <Select value={type} onChange={setType} options={EVENT_TYPES} className="w-full" />
         </Field>
         <Field label="วันที่มีผล">
           <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className={FIELD + " w-full"} />
@@ -3305,38 +3807,123 @@ function AddEvent({
         >
           <input
             value={detail}
-            onChange={(e) => {
-              setDetail(e.target.value);
-              if (tried) setTried(true);
-            }}
-            className={
-              FIELD + " w-full " + (bad ? "border-rose-400 dark:border-rose-500" : "")
-            }
+            onChange={(e) => setDetail(e.target.value)}
+            className={FIELD + " w-full " + (bad ? "border-rose-400 dark:border-rose-500" : "")}
           />
         </Field>
       </div>
       <div className="mt-3 flex gap-2">
-        <button
-          onClick={onCancel}
-          className="rounded-lg border border-slate-300 px-3 py-1.5 text-[12.5px] text-slate-600 dark:border-slate-700 dark:text-slate-300"
-        >
-          ยกเลิก
-        </button>
-        <button
+        <Button variant="secondary" onClick={onCancel}>ยกเลิก</Button>
+        <Button
+          variant="primary"
+          className="flex-1"
           onClick={() => {
             setTried(true);
             if (detail.trim().length >= 5) onSave({ date, type, detail: detail.trim() });
           }}
-          className="flex-1 rounded-lg bg-sky-600 py-1.5 text-[12.5px] font-medium text-white transition hover:bg-sky-700"
         >
           บันทึกเหตุการณ์
-        </button>
+        </Button>
       </div>
     </div>
   );
 }
 
-/* ------------------------------------------------------------------ wizard */
+/* ---------------------------------------------------------------- resign */
+
+function ResignDialog({
+  employee: e,
+  onCancel,
+  onConfirm,
+}: {
+  employee: Employee | null;
+  onCancel: () => void;
+  onConfirm: (e: Employee, reason: string, message: string) => void;
+}) {
+  const [reason, setReason] = useState(RESIGN_REASONS[0]);
+  const [message, setMessage] = useState("");
+  const ready = reason !== RESIGN_REASONS[0];
+
+  // A courteous note drafted from the reason — a template filled in, not a
+  // model call, and labelled as such so nobody mistakes it for one.
+  const draft = () =>
+    setMessage(
+      \`เรียน คุณ\${e?.nickname ?? ""}\\n\\nบริษัทรับทราบการลาออกของท่าน (\${reason}) และขอขอบคุณสำหรับการทำงานที่ผ่านมา ฝ่ายบุคคลจะติดต่อเรื่องการส่งมอบงาน ทรัพย์สินของบริษัท และเอกสารสิทธิประโยชน์ภายใน 3 วันทำการ\\n\\nขอให้ท่านประสบความสำเร็จในเส้นทางต่อไป\`
+    );
+
+  const reset = () => {
+    setReason(RESIGN_REASONS[0]);
+    setMessage("");
+  };
+
+  return (
+    <ConfirmDialog
+      open={e !== null}
+      title="บันทึกการลาออก"
+      body="ระบุเหตุผลและข้อความถึงพนักงาน เพื่อให้กระบวนการเป็นระบบและสุภาพ"
+      confirmLabel="บันทึกการลาออก"
+      disabled={!ready}
+      onCancel={() => {
+        reset();
+        onCancel();
+      }}
+      onConfirm={() => {
+        if (e && ready) {
+          onConfirm(e, reason, message);
+          reset();
+        }
+      }}
+      subject={
+        e && (
+          <div className={"flex items-center gap-3 p-3 " + SURFACE}>
+            <Avatar name={e.name} />
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-[13px] font-semibold text-slate-900 dark:text-slate-50">
+                {e.name} <GenderMark id={e.id} />
+              </p>
+              <p className="flex items-center gap-1 text-[11.5px] text-slate-500">
+                <CalendarDays size={11} /> เริ่มงาน {e.contract.startedAt}
+              </p>
+            </div>
+            <div className="text-right text-[11.5px] text-slate-500">
+              <p className="flex items-center justify-end gap-1"><Briefcase size={11} />{e.position}</p>
+              <p className="flex items-center justify-end gap-1"><Building size={11} />{e.department}</p>
+            </div>
+          </div>
+        )
+      }
+      fields={
+        <>
+          <Field label="เหตุผล">
+            <Select value={reason} onChange={setReason} options={RESIGN_REASONS} className="w-full" />
+          </Field>
+          <Field label="ข้อความถึงพนักงาน">
+            <div className={"relative overflow-hidden " + SURFACE}>
+              <textarea
+                value={message}
+                onChange={(ev) => setMessage(ev.target.value)}
+                rows={5}
+                placeholder="พิมพ์ข้อความ…"
+                className="w-full resize-none bg-transparent px-3.5 py-3 pb-12 text-[13px] leading-relaxed text-slate-800 outline-none placeholder:text-slate-400 dark:text-slate-100"
+              />
+              <motion.button
+                whileTap={{ scale: 0.96 }}
+                onClick={draft}
+                disabled={!ready}
+                className="absolute bottom-3 left-3 inline-flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-fuchsia-500 to-orange-400 px-3 py-1.5 text-[12px] font-medium text-white shadow-sm disabled:opacity-40"
+              >
+                <Sparkles size={13} />
+                ร่างข้อความอัตโนมัติ
+              </motion.button>
+            </div>
+          </Field>
+        </>
+      }
+    />
+  );
+}
+
+/* ---------------------------------------------------------------- wizard */
 
 function employeeFrom(d: Draft, n: number): Employee {
   return {
@@ -3347,13 +3934,7 @@ function employeeFrom(d: Draft, n: number): Employee {
     position: d.position,
     department: d.department,
     status: "ทดลองงาน",
-    personal: {
-      birthDate: d.birthDate,
-      nationalId: d.nationalId,
-      phone: d.phone,
-      email: d.email,
-      address: "—",
-    },
+    personal: { birthDate: d.birthDate, nationalId: d.nationalId, phone: d.phone, email: d.email, address: "—" },
     contract: {
       type: d.type,
       startedAt: d.startedAt,
@@ -3375,11 +3956,8 @@ function employeeFrom(d: Draft, n: number): Employee {
 }
 
 /**
- * Declared out here, not inside the wizard.
- *
- * A component defined during render is a new type every render, so React throws
- * the input away and mounts a fresh one — which takes the caret with it and
- * leaves you able to type exactly one character per field.
+ * Declared out here, not inside the wizard: a component defined during render
+ * is a new type every render, so React remounts the input and takes the caret.
  */
 function DraftText({
   value,
@@ -3421,14 +3999,7 @@ function NewEmployee({
 }) {
   const set = (k: keyof Draft) => (v: string) => setDraft({ ...draft, [k]: v });
   const text = (k: keyof Draft, label: string, errors: Record<string, string>, extra?: { hint?: string; placeholder?: string }) => (
-    <DraftText
-      value={draft[k]}
-      onChange={set(k)}
-      label={label}
-      error={errors[k]}
-      hint={extra?.hint}
-      placeholder={extra?.placeholder}
-    />
+    <DraftText value={draft[k]} onChange={set(k)} label={label} error={errors[k]} hint={extra?.hint} placeholder={extra?.placeholder} />
   );
 
   const steps: Step[] = [
@@ -3464,20 +4035,15 @@ function NewEmployee({
       validate: () => {
         const e: Record<string, string> = {};
         if (draft.position.trim().length < 2) e.position = "ระบุตำแหน่ง";
-        if (!draft.baseSalary || Number(draft.baseSalary) < 10000)
-          e.baseSalary = "เงินเดือนต้องไม่ต่ำกว่า 10,000 บาท";
+        if (!draft.baseSalary || Number(draft.baseSalary) < 10000) e.baseSalary = "เงินเดือนต้องไม่ต่ำกว่า 10,000 บาท";
         return e;
       },
       render: (errors) => (
         <>
           {text("position", "ตำแหน่ง", errors, { placeholder: "พนักงานขาย" })}
           <div className="grid grid-cols-2 gap-3">
-            <Field label="แผนก">
-              <Select value={draft.department} onChange={set("department")} options={DEPARTMENTS} />
-            </Field>
-            <Field label="ประเภทการจ้าง">
-              <Select value={draft.type} onChange={set("type")} options={CONTRACT_TYPES} />
-            </Field>
+            <Field label="แผนก"><Select value={draft.department} onChange={set("department")} options={DEPARTMENTS} className="w-full" /></Field>
+            <Field label="ประเภทการจ้าง"><Select value={draft.type} onChange={set("type")} options={CONTRACT_TYPES} className="w-full" /></Field>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <Field label="วันเริ่มงาน">
@@ -3500,14 +4066,11 @@ function NewEmployee({
         <>
           {text("ssoNumber", "เลขประกันสังคม", errors, { hint: "10 หลัก ไม่ต้องใส่ขีด", placeholder: "1234567890" })}
           <div className="grid grid-cols-2 gap-3">
-            <Field label="ธนาคาร">
-              <Select value={draft.bankName} onChange={set("bankName")} options={BANKS} />
-            </Field>
+            <Field label="ธนาคาร"><Select value={draft.bankName} onChange={set("bankName")} options={BANKS} className="w-full" /></Field>
             {text("bankAccount", "เลขบัญชี", errors, { placeholder: "xxx-x-x1234-5" })}
           </div>
-          <Note tone="info">
-            เลขผู้เสียภาษีจะใช้เลขบัตรประชาชนที่กรอกไว้ และตั้งกองทุนสำรองเลี้ยงชีพเริ่มต้นที่ 3%
-            แก้ได้ภายหลังในแฟ้มประวัติ
+          <Note tone="accent">
+            เลขผู้เสียภาษีจะใช้เลขบัตรประชาชนที่กรอกไว้ และตั้งกองทุนสำรองเลี้ยงชีพเริ่มต้นที่ 3% แก้ได้ภายหลังในแฟ้มประวัติ
           </Note>
         </>
       ),
@@ -5407,38 +5970,97 @@ function ReviewDialog({ leave, onClose, onDecide }: { leave: Leave; onClose: () 
 `,
 
   "ui.tsx": `import type { ReactNode } from "react";
+import { motion } from "motion/react";
+import { ChevronDown, LayoutGrid, LayoutList } from "lucide-react";
 
 /**
  * The pieces every module screen is built from.
  *
- * Each screen used to carry its own Card, Stat, Head and modal — ten copies that
- * drifted in padding and tone names. They are one set now, and the composer ships
- * this file the same way it ships the app shell: no module owns it, so no module
- * can disagree with another about what a table header looks like.
+ * One set, composer-owned, shipped like the app shell — so no module can disagree
+ * with another about what a card or a badge looks like. Every surface declares
+ * both themes: people run a system like this for eight hours a day.
  *
- * Every surface declares both themes. People run a system like this for eight
- * hours, so dark is a first-class mode, not an afterthought bolted on later.
+ * The visual language is the one the product was asked to match: a quiet grey
+ * page, white cards with hairline borders, one violet accent doing all the
+ * pointing, line icons on every label, and motion that answers an action rather
+ * than decorating the page.
  */
 
 export const TH = "px-4 py-3";
 
 export const SURFACE =
-  "rounded-xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900";
+  "rounded-2xl border border-slate-200/80 bg-white dark:border-slate-800 dark:bg-slate-900";
+
+export const FIELD =
+  "rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-800 outline-none transition " +
+  "focus:border-violet-500 focus:ring-4 focus:ring-violet-500/10 " +
+  "dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:focus:border-violet-400";
+
+/* --------------------------------------------------------------- motion */
+
+const EASE = [0.22, 1, 0.36, 1] as const;
+
+/**
+ * Whether an entrance may begin invisible.
+ *
+ * An animation that starts at opacity 0 and never ticks leaves the content
+ * invisible: a background tab throttles frames, the screen-capture bridge
+ * photographs a page nobody is looking at, and a person who asked for reduced
+ * motion should not be made to wait for it. In all three the content just
+ * appears. Nothing is lost but the flourish.
+ */
+export function canEnter(): boolean {
+  if (typeof document === "undefined") return false;
+  if (document.visibilityState === "hidden") return false;
+  if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return false;
+  return true;
+}
+
+/** \`initial\` for an entrance: the hidden pose when it may animate, \`false\` when it may not. */
+export const enter = <T extends object>(pose: T): T | false => (canEnter() ? pose : false);
+
+/** Fades and lifts children in once, on mount. One orchestrated entrance, not confetti. */
+export function Reveal({
+  children,
+  delay = 0,
+  className,
+}: {
+  children: ReactNode;
+  delay?: number;
+  className?: string;
+}) {
+  return (
+    <motion.div
+      initial={enter({ opacity: 0, y: 10 })}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.45, ease: EASE, delay }}
+      className={className}
+    >
+      {children}
+    </motion.div>
+  );
+}
+
+/* ---------------------------------------------------------------- atoms */
 
 export function Card({
   title,
   action,
   children,
+  className = "",
 }: {
   title?: ReactNode;
   action?: ReactNode;
   children: ReactNode;
+  className?: string;
 }) {
   return (
-    <div className={"overflow-hidden " + SURFACE}>
+    <div className={"overflow-hidden " + SURFACE + " " + className}>
       {(title || action) && (
         <div className="flex items-center justify-between gap-3 border-b border-slate-100 px-4 py-3 dark:border-slate-800">
-          <div className="min-w-0 text-sm font-medium text-slate-800 dark:text-slate-100">{title}</div>
+          <div className="min-w-0 text-[13.5px] font-semibold text-slate-800 dark:text-slate-100">
+            {title}
+          </div>
           {action}
         </div>
       )}
@@ -5447,9 +6069,249 @@ export function Card({
   );
 }
 
-export type Tone = "ok" | "warn" | "bad" | "idle" | "info";
+export type Tone = "ok" | "warn" | "bad" | "idle" | "info" | "accent";
 
-/** \`warn\` is something to watch, \`bad\` is a number that should not be there. */
+const BADGE: Record<Tone, string> = {
+  ok: "bg-emerald-50 text-emerald-700 ring-emerald-600/10 dark:bg-emerald-500/15 dark:text-emerald-300",
+  warn: "bg-amber-50 text-amber-700 ring-amber-600/10 dark:bg-amber-500/15 dark:text-amber-300",
+  bad: "bg-rose-50 text-rose-700 ring-rose-600/10 dark:bg-rose-500/15 dark:text-rose-300",
+  idle: "bg-slate-100 text-slate-600 ring-slate-500/10 dark:bg-slate-800 dark:text-slate-300",
+  info: "bg-sky-50 text-sky-700 ring-sky-600/10 dark:bg-sky-500/15 dark:text-sky-300",
+  accent: "bg-violet-50 text-violet-700 ring-violet-600/10 dark:bg-violet-500/15 dark:text-violet-300",
+};
+
+const DOT: Record<Tone, string> = {
+  ok: "bg-emerald-500",
+  warn: "bg-amber-500",
+  bad: "bg-rose-500",
+  idle: "bg-slate-400",
+  info: "bg-sky-500",
+  accent: "bg-violet-500",
+};
+
+export function Badge({
+  tone = "idle",
+  icon,
+  dot,
+  children,
+}: {
+  tone?: Tone;
+  icon?: ReactNode;
+  dot?: boolean;
+  children: ReactNode;
+}) {
+  return (
+    <span
+      className={
+        "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11.5px] font-medium ring-1 ring-inset " +
+        BADGE[tone]
+      }
+    >
+      {dot && <span className={"size-1.5 rounded-full " + DOT[tone]} />}
+      {icon}
+      {children}
+    </span>
+  );
+}
+
+/** A soft chip for a value that is one of several — a preference, a benefit, a tag. */
+export function Chip({ children }: { children: ReactNode }) {
+  return (
+    <span className="inline-flex items-center rounded-md bg-slate-100 px-2 py-0.5 text-[12px] text-slate-700 dark:bg-slate-800 dark:text-slate-200">
+      {children}
+    </span>
+  );
+}
+
+export function Button({
+  children,
+  onClick,
+  variant = "primary",
+  icon,
+  type = "button",
+  disabled,
+  className = "",
+  href,
+}: {
+  children: ReactNode;
+  onClick?: () => void;
+  variant?: "primary" | "secondary" | "ghost" | "danger";
+  icon?: ReactNode;
+  type?: "button" | "submit";
+  disabled?: boolean;
+  className?: string;
+  href?: string;
+}) {
+  const skin =
+    variant === "primary"
+      ? "bg-violet-600 text-white shadow-sm shadow-violet-600/20 hover:bg-violet-700"
+      : variant === "danger"
+        ? "bg-rose-600 text-white hover:bg-rose-700"
+        : variant === "ghost"
+          ? "text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"
+          : "border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800";
+  const cls =
+    "inline-flex items-center justify-center gap-1.5 rounded-xl px-3.5 py-2 text-[13px] font-medium transition disabled:cursor-not-allowed disabled:opacity-40 " +
+    skin +
+    " " +
+    className;
+  if (href) {
+    return (
+      <motion.a whileTap={{ scale: 0.97 }} href={href} className={cls}>
+        {icon}
+        {children}
+      </motion.a>
+    );
+  }
+  return (
+    <motion.button whileTap={{ scale: 0.97 }} type={type} onClick={onClick} disabled={disabled} className={cls}>
+      {icon}
+      {children}
+    </motion.button>
+  );
+}
+
+export function IconButton({
+  children,
+  onClick,
+  label,
+  active,
+  className = "",
+}: {
+  children: ReactNode;
+  onClick?: () => void;
+  label: string;
+  active?: boolean;
+  className?: string;
+}) {
+  return (
+    <motion.button
+      whileTap={{ scale: 0.9 }}
+      onClick={onClick}
+      aria-label={label}
+      title={label}
+      className={
+        "grid size-8 place-items-center rounded-lg border transition " +
+        (active
+          ? "border-violet-200 bg-violet-50 text-violet-600 dark:border-violet-500/30 dark:bg-violet-500/15 dark:text-violet-300"
+          : "border-slate-200 bg-white text-slate-500 hover:border-slate-300 hover:text-slate-800 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400 dark:hover:text-slate-100") +
+        " " +
+        className
+      }
+    >
+      {children}
+    </motion.button>
+  );
+}
+
+const HUES = [
+  "bg-violet-500",
+  "bg-sky-500",
+  "bg-emerald-500",
+  "bg-amber-500",
+  "bg-rose-500",
+  "bg-indigo-500",
+  "bg-teal-500",
+  "bg-orange-500",
+];
+
+/** Initials on a colour picked from the name, so the same person is always the same colour. */
+export function Avatar({ name, size = "md" }: { name: string; size?: "sm" | "md" | "lg" | "xl" }) {
+  const hue = HUES[[...name].reduce((n, c) => n + c.charCodeAt(0), 0) % HUES.length];
+  const dim =
+    size === "xl"
+      ? "size-16 text-xl"
+      : size === "lg"
+        ? "size-11 text-base"
+        : size === "sm"
+          ? "size-6 text-[10px]"
+          : "size-8 text-[12px]";
+  return (
+    <span
+      className={
+        "grid shrink-0 place-items-center rounded-full font-semibold text-white ring-2 ring-white dark:ring-slate-900 " +
+        hue +
+        " " +
+        dim
+      }
+    >
+      {name.trim().slice(0, 1)}
+    </span>
+  );
+}
+
+/** "label : value" with an icon in front — the row every profile column is made of. */
+export function IconRow({
+  icon,
+  label,
+  children,
+}: {
+  icon: ReactNode;
+  label: string;
+  children: ReactNode;
+}) {
+  return (
+    <div className="flex items-start gap-2.5 py-1.5 text-[13px]">
+      <span className="mt-0.5 shrink-0 text-slate-400 dark:text-slate-500">{icon}</span>
+      <span className="w-28 shrink-0 text-slate-500 dark:text-slate-400">{label}</span>
+      <span className="shrink-0 text-slate-300 dark:text-slate-600">:</span>
+      <span className="min-w-0 flex-1 text-slate-800 dark:text-slate-100">{children}</span>
+    </div>
+  );
+}
+
+export function SectionTitle({ icon, children }: { icon: ReactNode; children: ReactNode }) {
+  return (
+    <h3 className="flex items-center gap-2 text-[14px] font-semibold text-slate-900 dark:text-slate-50">
+      <span className="text-slate-500 dark:text-slate-400">{icon}</span>
+      {children}
+    </h3>
+  );
+}
+
+/* ------------------------------------------------------------- numbers */
+
+/**
+ * The strip at the top of a list: several figures in one card, divided by
+ * hairlines, each with an icon, a big number and one line of context beneath.
+ */
+export function StatStrip({
+  title,
+  icon,
+  cells,
+  className = "",
+}: {
+  title: string;
+  icon: ReactNode;
+  cells: { icon: ReactNode; label: string; value: ReactNode; sub: ReactNode; tone?: Tone }[];
+  className?: string;
+}) {
+  return (
+    <div className={"p-4 " + SURFACE + " " + className}>
+      <div className="mb-3 flex items-center gap-2 text-[14px] font-semibold text-slate-900 dark:text-slate-50">
+        <span className="text-slate-500 dark:text-slate-400">{icon}</span>
+        {title}
+      </div>
+      <div className="grid divide-x divide-slate-100 dark:divide-slate-800" style={{ gridTemplateColumns: \`repeat(\${cells.length}, minmax(0, 1fr))\` }}>
+        {cells.map((c, i) => (
+          <div key={c.label} className={i === 0 ? "pr-4" : "px-4"}>
+            <div className="flex items-center gap-1.5 text-[12.5px] text-slate-600 dark:text-slate-300">
+              <span className={c.tone ? "text-" + (c.tone === "accent" ? "violet" : c.tone === "ok" ? "emerald" : c.tone === "warn" ? "amber" : c.tone === "bad" ? "rose" : "sky") + "-500" : "text-slate-400"}>
+                {c.icon}
+              </span>
+              {c.label}
+            </div>
+            <div className="mt-1.5 text-[26px] font-semibold leading-none tabular-nums text-slate-900 dark:text-slate-50">
+              {c.value}
+            </div>
+            <div className="mt-2 text-[11.5px] text-slate-500 dark:text-slate-400">{c.sub}</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export function Stat({
   label,
   value,
@@ -5478,14 +6340,6 @@ export function Stat({
   );
 }
 
-/**
- * The headline number with its movement.
- *
- * A figure on its own answers "how many"; the delta answers "and is that good?",
- * which is the question someone opening a management screen actually has. The
- * direction that counts as good is the caller's to say — resignations rising is
- * not the same news as hires rising.
- */
 export function Metric({
   label,
   value,
@@ -5510,31 +6364,20 @@ export function Metric({
         <div className="flex items-start justify-between gap-3">
           <div className="flex items-center gap-2.5">
             {icon && (
-              <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-sky-50 text-sky-600 dark:bg-sky-500/15 dark:text-sky-400">
+              <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-violet-50 text-violet-600 dark:bg-violet-500/15 dark:text-violet-300">
                 {icon}
               </span>
             )}
             <span className="text-[13px] font-medium text-slate-600 dark:text-slate-300">{label}</span>
           </div>
           {delta !== undefined && (
-            <span
-              className={
-                "shrink-0 rounded-md px-1.5 py-0.5 text-[11.5px] font-medium tabular-nums " +
-                (good
-                  ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-400"
-                  : "bg-rose-50 text-rose-700 dark:bg-rose-500/15 dark:text-rose-400")
-              }
-            >
+            <Badge tone={good ? "ok" : "bad"}>
               {delta >= 0 ? "▲" : "▼"} {Math.abs(delta)}%
-            </span>
+            </Badge>
           )}
         </div>
-        <div className="mt-2 text-2xl font-semibold tabular-nums text-slate-900 dark:text-slate-50">
-          {value}
-        </div>
-        {deltaLabel && (
-          <div className="mt-0.5 text-[11.5px] text-slate-400 dark:text-slate-500">{deltaLabel}</div>
-        )}
+        <div className="mt-2 text-2xl font-semibold tabular-nums text-slate-900 dark:text-slate-50">{value}</div>
+        {deltaLabel && <div className="mt-0.5 text-[11.5px] text-slate-400 dark:text-slate-500">{deltaLabel}</div>}
       </div>
       {footer && (
         <div className="border-t border-slate-100 px-4 py-2 text-[11.5px] text-slate-400 dark:border-slate-800 dark:text-slate-500">
@@ -5545,53 +6388,179 @@ export function Metric({
   );
 }
 
-export type Col = { k: string; right?: boolean };
+/* -------------------------------------------------------------- controls */
 
-export function Head({ cols }: { cols: Col[] }) {
+export function Search({
+  value,
+  onChange,
+  placeholder,
+  icon,
+  className = "w-64",
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  placeholder: string;
+  icon?: ReactNode;
+  className?: string;
+}) {
   return (
-    <thead className="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500 dark:bg-slate-800/60 dark:text-slate-400">
-      <tr>
-        {cols.map((c, i) => (
-          <th key={c.k + i} className={TH + (c.right ? " text-right" : "")}>
-            {c.k}
-          </th>
-        ))}
-      </tr>
-    </thead>
+    <label className={"relative block " + className}>
+      {icon && (
+        <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">{icon}</span>
+      )}
+      <input
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        className={FIELD + " w-full placeholder:text-slate-400 dark:placeholder:text-slate-500 " + (icon ? "pl-9" : "")}
+      />
+    </label>
   );
 }
 
+export function Select({
+  value,
+  onChange,
+  options,
+  className = "",
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  options: readonly string[];
+  className?: string;
+}) {
+  return (
+    <span className={"relative inline-block " + className}>
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className={FIELD + " w-full appearance-none pr-8"}
+      >
+        {options.map((o) => (
+          <option key={o}>{o}</option>
+        ))}
+      </select>
+      <ChevronDown size={14} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
+    </span>
+  );
+}
+
+/** One-of-many, in a pill. The moving highlight is the only thing that animates. */
+export function Segmented({
+  options,
+  value,
+  onChange,
+  counts,
+}: {
+  options: readonly string[];
+  value: string;
+  onChange: (v: string) => void;
+  counts?: Record<string, number>;
+}) {
+  return (
+    <div className="inline-flex items-center gap-0.5 rounded-xl bg-slate-100 p-1 dark:bg-slate-800">
+      {options.map((o) => {
+        const on = o === value;
+        return (
+          <button
+            key={o}
+            onClick={() => onChange(o)}
+            className={
+              "relative rounded-lg px-3 py-1.5 text-[12.5px] transition " +
+              (on ? "text-slate-900 dark:text-slate-50" : "text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-100")
+            }
+          >
+            {on && (
+              <motion.span
+                layoutId="segmented-pill"
+                transition={{ type: "spring", stiffness: 500, damping: 40 }}
+                className="absolute inset-0 rounded-lg bg-white shadow-sm dark:bg-slate-900"
+              />
+            )}
+            <span className="relative">
+              {o}
+              {counts?.[o] !== undefined && (
+                <span className="ml-1.5 text-[11px] tabular-nums text-slate-400">{counts[o]}</span>
+              )}
+            </span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+export function ViewToggle({ value, onChange }: { value: "list" | "grid"; onChange: (v: "list" | "grid") => void }) {
+  return (
+    <div className="inline-flex items-center gap-0.5 rounded-xl border border-slate-200 bg-white p-0.5 dark:border-slate-700 dark:bg-slate-900">
+      {(["list", "grid"] as const).map((v) => (
+        <button
+          key={v}
+          onClick={() => onChange(v)}
+          aria-label={v === "list" ? "มุมมองตาราง" : "มุมมองการ์ด"}
+          title={v === "list" ? "มุมมองตาราง" : "มุมมองการ์ด"}
+          className={
+            "grid size-8 place-items-center rounded-lg transition " +
+            (value === v
+              ? "bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900"
+              : "text-slate-400 hover:text-slate-800 dark:hover:text-slate-100")
+          }
+        >
+          {v === "list" ? <LayoutList size={15} /> : <LayoutGrid size={15} />}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+/** Tabs with a sliding underline. \`layoutId\` moves the line rather than redrawing it. */
 export function Tabs({
   tabs,
   active,
   onPick,
   badges,
+  icons,
+  id = "tabs",
 }: {
   tabs: readonly string[];
   active: string;
   onPick: (tab: string) => void;
   badges?: Record<string, number>;
+  icons?: Record<string, ReactNode>;
+  id?: string;
 }) {
   return (
-    <div className="mb-4 flex gap-1 overflow-x-auto border-b border-slate-200 dark:border-slate-800">
-      {tabs.map((t) => (
-        <button
-          key={t}
-          onClick={() => onPick(t)}
-          className={
-            t === active
-              ? "whitespace-nowrap border-b-2 border-sky-600 px-3 py-2.5 text-[13px] font-medium text-sky-700 dark:border-sky-400 dark:text-sky-400"
-              : "whitespace-nowrap px-3 py-2.5 text-[13px] text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-100"
-          }
-        >
-          {t}
-          {badges?.[t] ? (
-            <span className="ml-1.5 rounded-full bg-amber-100 px-1.5 py-0.5 text-[11px] text-amber-700 dark:bg-amber-500/20 dark:text-amber-300">
-              {badges[t]}
-            </span>
-          ) : null}
-        </button>
-      ))}
+    <div className="flex gap-1 overflow-x-auto border-b border-slate-200 dark:border-slate-800">
+      {tabs.map((t) => {
+        const on = t === active;
+        return (
+          <button
+            key={t}
+            onClick={() => onPick(t)}
+            className={
+              "relative flex shrink-0 items-center gap-1.5 whitespace-nowrap px-3 py-2.5 text-[13px] transition " +
+              (on
+                ? "font-medium text-violet-700 dark:text-violet-300"
+                : "text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-100")
+            }
+          >
+            {icons?.[t] && <span className={on ? "text-violet-600 dark:text-violet-300" : "text-slate-400"}>{icons[t]}</span>}
+            {t}
+            {badges?.[t] ? (
+              <span className="rounded-full bg-amber-100 px-1.5 py-0.5 text-[10.5px] text-amber-700 dark:bg-amber-500/20 dark:text-amber-300">
+                {badges[t]}
+              </span>
+            ) : null}
+            {on && (
+              <motion.span
+                layoutId={id + "-underline"}
+                transition={{ type: "spring", stiffness: 500, damping: 40 }}
+                className="absolute inset-x-2 -bottom-px h-0.5 rounded-full bg-violet-600 dark:bg-violet-400"
+              />
+            )}
+          </button>
+        );
+      })}
     </div>
   );
 }
@@ -5608,46 +6577,29 @@ export function PageHead({
   return (
     <div className="mb-4 flex flex-wrap items-start justify-between gap-4">
       <div>
-        <h1 className="text-xl font-semibold text-slate-900 dark:text-slate-50">{title}</h1>
-        <p className="text-sm text-slate-500 dark:text-slate-400">{meta}</p>
+        <h1 className="text-[20px] font-semibold text-slate-900 dark:text-slate-50">{title}</h1>
+        <p className="text-[13px] text-slate-500 dark:text-slate-400">{meta}</p>
       </div>
       {right}
     </div>
   );
 }
 
-const BADGE: Record<Tone, string> = {
-  ok: "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-400",
-  warn: "bg-amber-50 text-amber-700 dark:bg-amber-500/15 dark:text-amber-400",
-  bad: "bg-rose-50 text-rose-700 dark:bg-rose-500/15 dark:text-rose-400",
-  idle: "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300",
-  info: "bg-sky-50 text-sky-700 dark:bg-sky-500/15 dark:text-sky-400",
-};
+/* ---------------------------------------------------------------- tables */
 
-export function Badge({ tone = "idle", children }: { tone?: Tone; children: ReactNode }) {
-  return <span className={"rounded-full px-2 py-1 text-xs " + BADGE[tone]}>{children}</span>;
-}
+export type Col = { k: string; right?: boolean };
 
-/** A proportion bar. Over 100% clamps, because the colour already says it. */
-export function Bar({ pct, tone, width = "w-20" }: { pct: number; tone?: Tone; width?: string }) {
-  const fill =
-    tone === "bad"
-      ? "bg-rose-500"
-      : tone === "warn"
-        ? "bg-amber-500"
-        : tone === "info"
-          ? "bg-sky-500"
-          : "bg-emerald-500";
+export function Head({ cols }: { cols: Col[] }) {
   return (
-    <span className="flex items-center gap-2">
-      <span className={"h-2 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800 " + width}>
-        <span
-          className={"block h-full rounded-full " + fill}
-          style={{ width: Math.max(0, Math.min(100, pct)) + "%" }}
-        />
-      </span>
-      <span className="text-xs text-slate-600 dark:text-slate-400">{Math.round(pct)}%</span>
-    </span>
+    <thead className="bg-slate-50/80 text-left text-[11px] uppercase tracking-wide text-slate-500 dark:bg-slate-800/60 dark:text-slate-400">
+      <tr>
+        {cols.map((c, i) => (
+          <th key={c.k + i} className={TH + " font-medium" + (c.right ? " text-right" : "")}>
+            {c.k}
+          </th>
+        ))}
+      </tr>
+    </thead>
   );
 }
 
@@ -5690,6 +6642,55 @@ export function Row({
   );
 }
 
+/* --------------------------------------------------------------- signals */
+
+export function Bar({ pct, tone, width = "w-20" }: { pct: number; tone?: Tone; width?: string }) {
+  const fill =
+    tone === "bad"
+      ? "bg-rose-500"
+      : tone === "warn"
+        ? "bg-amber-500"
+        : tone === "info"
+          ? "bg-sky-500"
+          : tone === "accent"
+            ? "bg-violet-500"
+            : "bg-emerald-500";
+  return (
+    <span className="flex items-center gap-2">
+      <span className={"h-2 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800 " + width}>
+        <motion.span
+          initial={{ width: 0 }}
+          animate={{ width: Math.max(0, Math.min(100, pct)) + "%" }}
+          transition={{ duration: 0.6, ease: EASE }}
+          className={"block h-full rounded-full " + fill}
+        />
+      </span>
+      <span className="text-xs tabular-nums text-slate-600 dark:text-slate-400">{Math.round(pct)}%</span>
+    </span>
+  );
+}
+
+/** A completion bar with the gradient the reference uses — for "3 of 4 done". */
+export function Progress({ done, total, label }: { done: number; total: number; label?: string }) {
+  const pct = total === 0 ? 0 : Math.round((done / total) * 100);
+  return (
+    <div>
+      <div className="mb-1.5 flex items-center justify-between text-[12.5px]">
+        <span className="text-slate-700 dark:text-slate-200">{label ?? \`\${done} จาก \${total}\`}</span>
+        <span className="font-medium tabular-nums text-slate-900 dark:text-slate-50">{pct}%</span>
+      </div>
+      <div className="h-2 overflow-hidden rounded-full bg-violet-100 dark:bg-violet-500/15">
+        <motion.div
+          initial={{ width: 0 }}
+          animate={{ width: pct + "%" }}
+          transition={{ duration: 0.7, ease: EASE }}
+          className="h-full rounded-full bg-gradient-to-r from-violet-400 to-violet-600"
+        />
+      </div>
+    </div>
+  );
+}
+
 export function Note({ tone, children }: { tone: Tone; children: ReactNode }) {
   const skin =
     tone === "ok"
@@ -5698,113 +6699,90 @@ export function Note({ tone, children }: { tone: Tone; children: ReactNode }) {
         ? "bg-amber-50 text-amber-800 dark:bg-amber-500/10 dark:text-amber-300"
         : tone === "bad"
           ? "bg-rose-50 text-rose-800 dark:bg-rose-500/10 dark:text-rose-300"
-          : "bg-slate-50 text-slate-600 dark:bg-slate-800/60 dark:text-slate-300";
-  return <div className={"rounded-xl px-4 py-3.5 text-sm " + skin}>{children}</div>;
+          : tone === "accent"
+            ? "bg-violet-50 text-violet-800 dark:bg-violet-500/10 dark:text-violet-300"
+            : "bg-slate-50 text-slate-600 dark:bg-slate-800/60 dark:text-slate-300";
+  return <div className={"rounded-xl px-4 py-3.5 text-[13px] leading-relaxed " + skin}>{children}</div>;
 }
 
+export type StepState = "done" | "current" | "todo" | "failed";
+
 /**
- * Fixed to the viewport, never to whatever box it was rendered inside — the
- * containing-block trap that made every earlier modal cover only its own panel.
- *
- * Reserved for short, safety-critical confirmations. Anything a person needs to
- * read while still seeing the list it came from belongs in a Drawer.
+ * Stages joined by lines. Done stages are ticked, the current one is filled, the
+ * rest are outlined — the shape a process has when you glance at it.
  */
-export function Modal({
-  title,
-  subtitle,
-  onClose,
-  children,
-  size = "md",
+export function Stepper({
+  steps,
+  icons,
 }: {
-  title: ReactNode;
-  subtitle?: ReactNode;
-  onClose: () => void;
-  children: ReactNode;
-  size?: "sm" | "md" | "lg";
+  steps: { label: string; state: StepState }[];
+  icons: { done: ReactNode; current: ReactNode; todo: ReactNode; failed: ReactNode };
 }) {
-  const width = size === "lg" ? "max-w-2xl" : size === "sm" ? "max-w-md" : "max-w-lg";
   return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      onClick={onClose}
-      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4 dark:bg-black/60"
-    >
-      <div
-        onClick={(e) => e.stopPropagation()}
-        className={
-          "max-h-[85vh] w-full overflow-y-auto rounded-2xl bg-white p-6 shadow-xl dark:bg-slate-900 dark:ring-1 dark:ring-slate-800 " +
-          width
-        }
-      >
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-50">{title}</h2>
-            {subtitle && <p className="mt-0.5 text-sm text-slate-500 dark:text-slate-400">{subtitle}</p>}
-          </div>
-          <button
-            onClick={onClose}
-            aria-label="ปิด"
-            className="rounded-lg px-2 py-1 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
-          >
-            ✕
-          </button>
+    <ol className="flex flex-wrap items-center gap-y-2 rounded-xl border border-slate-100 px-3 py-2 dark:border-slate-800">
+      {steps.map((s, i) => {
+        const color =
+          s.state === "done" || s.state === "current"
+            ? "text-violet-600 dark:text-violet-300"
+            : s.state === "failed"
+              ? "text-rose-600 dark:text-rose-400"
+              : "text-slate-400 dark:text-slate-500";
+        return (
+          <li key={s.label} className="flex items-center">
+            <span className={"flex items-center gap-1.5 text-[12.5px] " + color + (s.state === "current" ? " font-medium" : "")}>
+              {icons[s.state]}
+              {s.label}
+            </span>
+            {i < steps.length - 1 && (
+              <span
+                className={
+                  "mx-3 h-px w-8 " +
+                  (s.state === "done" ? "bg-violet-300 dark:bg-violet-500/50" : "bg-slate-200 dark:bg-slate-700")
+                }
+              />
+            )}
+          </li>
+        );
+      })}
+    </ol>
+  );
+}
+
+/** Entries down a line, grouped under a date heading. */
+export function Timeline({
+  groups,
+}: {
+  groups: { heading: string; items: { time: string; avatar?: ReactNode; body: ReactNode; detail?: ReactNode }[] }[];
+}) {
+  return (
+    <div className="space-y-5">
+      {groups.map((g) => (
+        <div key={g.heading}>
+          <p className="mb-2 text-[11px] font-medium uppercase tracking-wide text-slate-400 dark:text-slate-500">
+            {g.heading}
+          </p>
+          <ol className="relative ml-[4.5rem] border-l border-slate-200 dark:border-slate-800">
+            {g.items.map((it, i) => (
+              <li key={i} className="relative mb-4 pl-5 last:mb-0">
+                <span className="absolute -left-[4.5rem] top-0.5 w-14 text-right text-[11.5px] tabular-nums text-slate-400 dark:text-slate-500">
+                  {it.time}
+                </span>
+                <span className="absolute -left-[9px] top-0.5">
+                  {it.avatar ?? <span className="block size-4 rounded-full border-2 border-white bg-violet-500 dark:border-slate-900" />}
+                </span>
+                <div className="text-[13px] text-slate-800 dark:text-slate-100">{it.body}</div>
+                {it.detail && <div className="mt-1.5">{it.detail}</div>}
+              </li>
+            ))}
+          </ol>
         </div>
-        {children}
-      </div>
+      ))}
     </div>
   );
 }
 
-const FIELD =
-  "rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 outline-none focus:border-sky-500 " +
-  "dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:focus:border-sky-400";
+/* --------------------------------------------------------------- loading */
 
-export function Search({
-  value,
-  onChange,
-  placeholder,
-}: {
-  value: string;
-  onChange: (v: string) => void;
-  placeholder: string;
-}) {
-  return (
-    <input
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      placeholder={placeholder}
-      className={FIELD + " w-64 placeholder:text-slate-400 dark:placeholder:text-slate-500"}
-    />
-  );
-}
-
-export function Select({
-  value,
-  onChange,
-  options,
-}: {
-  value: string;
-  onChange: (v: string) => void;
-  options: readonly string[];
-}) {
-  return (
-    <select value={value} onChange={(e) => onChange(e.target.value)} className={FIELD}>
-      {options.map((o) => (
-        <option key={o}>{o}</option>
-      ))}
-    </select>
-  );
-}
-
-export { FIELD };
-
-/**
- * A grey stand-in shaped like the thing that is loading.
- *
- * A spinner says "wait"; this says "here is what is coming", which reads as
- * faster even when it is not, and stops the layout jumping when data lands.
- */
 export function Skeleton({ rows = 5, cols = 4 }: { rows?: number; cols?: number }) {
   return (
     <div className={"overflow-hidden " + SURFACE}>
@@ -5825,12 +6803,8 @@ export function Skeleton({ rows = 5, cols = 4 }: { rows?: number; cols?: number 
   );
 }
 
-/**
- * A column chart drawn with divs.
- *
- * A charting library would be a megabyte of dependency for one shape, and this
- * has to run inside a demo project that a customer may take away and build on.
- */
+/* ---------------------------------------------------------------- charts */
+
 export function ColumnChart({
   data,
   format = (n) => String(n),
@@ -5844,31 +6818,30 @@ export function ColumnChart({
   return (
     <div className="px-4 py-4">
       <div className="flex items-end gap-2" style={{ height }}>
-        {data.map((d) => (
+        {data.map((d, i) => (
           <div key={d.label} className="group flex min-w-0 flex-1 flex-col items-center justify-end gap-1.5">
             <span className="text-[11px] tabular-nums text-slate-400 opacity-0 transition group-hover:opacity-100 dark:text-slate-500">
               {format(d.value)}
             </span>
-            <span
+            <motion.span
+              initial={{ height: 0 }}
+              animate={{ height: Math.max(3, (d.value / max) * (height - 26)) }}
+              transition={{ duration: 0.5, ease: EASE, delay: i * 0.03 }}
               className={
                 "w-full rounded-t-md transition " +
-                (d.tone === "info"
-                  ? "bg-sky-500"
+                (d.tone === "accent"
+                  ? "bg-violet-500"
                   : d.tone === "warn"
                     ? "bg-amber-400"
-                    : "bg-sky-500/35 group-hover:bg-sky-500 dark:bg-sky-400/25 dark:group-hover:bg-sky-400")
+                    : "bg-violet-500/30 group-hover:bg-violet-500 dark:bg-violet-400/25 dark:group-hover:bg-violet-400")
               }
-              style={{ height: Math.max(3, (d.value / max) * (height - 26)) }}
             />
           </div>
         ))}
       </div>
       <div className="mt-2 flex gap-2">
         {data.map((d) => (
-          <div
-            key={d.label}
-            className="min-w-0 flex-1 truncate text-center text-[11px] text-slate-400 dark:text-slate-500"
-          >
+          <div key={d.label} className="min-w-0 flex-1 truncate text-center text-[11px] text-slate-400 dark:text-slate-500">
             {d.label}
           </div>
         ))}
@@ -5877,7 +6850,6 @@ export function ColumnChart({
   );
 }
 
-/** Intensity over two axes — the shape an attendance pattern actually has. */
 export function Heatmap({
   rows,
   cols,
@@ -5896,16 +6868,14 @@ export function Heatmap({
       <div className="min-w-max">
         {rows.map((r) => (
           <div key={r} className="mb-1.5 flex items-center gap-1.5">
-            <span className="w-12 shrink-0 text-right text-[11px] tabular-nums text-slate-400 dark:text-slate-500">
-              {r}
-            </span>
+            <span className="w-12 shrink-0 text-right text-[11px] tabular-nums text-slate-400 dark:text-slate-500">{r}</span>
             {cols.map((c) => {
               const v = value(r, c);
               return (
                 <span
                   key={c}
                   title={\`\${r} · \${c} · \${format(v)}\`}
-                  className="size-9 rounded-md bg-sky-500 transition hover:ring-2 hover:ring-sky-400/50"
+                  className="size-9 rounded-md bg-violet-500 transition hover:ring-2 hover:ring-violet-400/50"
                   style={{ opacity: v === 0 ? 0.07 : 0.15 + (v / max) * 0.85 }}
                 />
               );
@@ -5915,16 +6885,71 @@ export function Heatmap({
         <div className="flex gap-1.5">
           <span className="w-12 shrink-0" />
           {cols.map((c) => (
-            <span
-              key={c}
-              className="w-9 shrink-0 text-center text-[11px] text-slate-400 dark:text-slate-500"
-            >
+            <span key={c} className="w-9 shrink-0 text-center text-[11px] text-slate-400 dark:text-slate-500">
               {c}
             </span>
           ))}
         </div>
       </div>
     </div>
+  );
+}
+
+/* ----------------------------------------------------------------- modal */
+
+/**
+ * Reserved for short confirmations. Anything a person needs to read while still
+ * seeing the list it came from belongs in a Drawer or a DetailModal (kit.tsx).
+ */
+export function Modal({
+  title,
+  subtitle,
+  onClose,
+  children,
+  size = "md",
+}: {
+  title: ReactNode;
+  subtitle?: ReactNode;
+  onClose: () => void;
+  children: ReactNode;
+  size?: "sm" | "md" | "lg";
+}) {
+  const width = size === "lg" ? "max-w-2xl" : size === "sm" ? "max-w-md" : "max-w-lg";
+  return (
+    <motion.div
+      role="dialog"
+      aria-modal="true"
+      onClick={onClose}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-[2px] dark:bg-black/60"
+    >
+      <motion.div
+        onClick={(e) => e.stopPropagation()}
+        initial={{ opacity: 0, y: 12, scale: 0.98 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        transition={{ type: "spring", stiffness: 380, damping: 32 }}
+        className={
+          "max-h-[85vh] w-full overflow-y-auto rounded-2xl bg-white p-6 shadow-2xl dark:bg-slate-900 dark:ring-1 dark:ring-slate-800 " +
+          width
+        }
+      >
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-50">{title}</h2>
+            {subtitle && <p className="mt-0.5 text-sm text-slate-500 dark:text-slate-400">{subtitle}</p>}
+          </div>
+          <button
+            onClick={onClose}
+            aria-label="ปิด"
+            className="rounded-lg px-2 py-1 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
+          >
+            ✕
+          </button>
+        </div>
+        {children}
+      </motion.div>
+    </motion.div>
   );
 }
 `,

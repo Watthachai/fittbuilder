@@ -191,6 +191,49 @@ export function upcoming(withinDays = 120): Upcoming[] {
   return out.sort((a, b) => a.inDays - b.inDays);
 }
 
+/** เพศ — เก็บแยกจากทะเบียนหลักเพราะเป็นข้อมูลแสดงผล ไม่ใช่ข้อมูลทางบุคคล */
+export const GENDER: Record<number, "ชาย" | "หญิง"> = {
+  1: "ชาย", 2: "หญิง", 3: "ชาย", 4: "หญิง", 5: "ชาย", 6: "หญิง", 7: "ชาย", 8: "หญิง",
+};
+
+export const ageOf = (e: Employee) => Math.floor(daysBetween(e.personal.birthDate, TODAY) / 365.25);
+export const tenureYears = (e: Employee) => daysBetween(e.contract.startedAt, TODAY) / 365.25;
+
+/**
+ * เอกสารที่ฝ่ายบุคคลต้องมีของแต่ละคน — ใช้ทำแถบความคืบหน้าในข้อมูลทางปกครอง
+ * ค่าตั้งต้นคือครบ ยกเว้นคนที่ระบุไว้ เพราะของจริงคนส่วนใหญ่ยื่นครบตอนรับเข้า
+ */
+export const DOCUMENT_KINDS = [
+  "สำเนาบัตรประชาชน",
+  "สำเนาทะเบียนบ้าน",
+  "วุฒิการศึกษา",
+  "หนังสือรับรองการทำงานเดิม",
+  "ผลตรวจสุขภาพ",
+];
+
+const MISSING_DOCS: Record<number, string[]> = {
+  5: ["หนังสือรับรองการทำงานเดิม", "ผลตรวจสุขภาพ"],
+  6: ["ผลตรวจสุขภาพ"],
+};
+
+export const documentsOf = (e: Employee) =>
+  DOCUMENT_KINDS.map((name) => ({ name, done: !(MISSING_DOCS[e.id] ?? []).includes(name) }));
+
+export type ActivityEntry = { date: string; time: string; actor: string; text: string; target?: string };
+
+/** บันทึกการทำงานของฝ่ายบุคคลกับแฟ้มนี้ — ใครทำอะไรเมื่อไร */
+export const ACTIVITY: Record<number, ActivityEntry[]> = {
+  1: [
+    { date: "2026-09-18", time: "14:10", actor: "กมลวรรณ ใจงาม", text: "อัปเดตที่อยู่ตามทะเบียนบ้าน" },
+    { date: "2026-09-18", time: "09:42", actor: "กมลวรรณ ใจงาม", text: "แนบเอกสาร", target: "ผลตรวจสุขภาพ 2569.pdf" },
+    { date: "2026-04-01", time: "10:05", actor: "วิภาดา ศรีสุข", text: "บันทึกปรับเงินเดือน", target: "38,000 → 45,000" },
+  ],
+  5: [
+    { date: "2026-09-18", time: "16:30", actor: "กมลวรรณ ใจงาม", text: "ส่งเตือนขอเอกสาร", target: "หนังสือรับรองการทำงานเดิม" },
+    { date: "2026-09-18", time: "16:28", actor: "กมลวรรณ ใจงาม", text: "บันทึกต่อสัญญา", target: "ต่ออีก 1 ปี ถึง 17 ก.ย. 2570" },
+  ],
+};
+
 export function byDepartment() {
   const active = EMPLOYEES.filter(isActive);
   return [...new Set(active.map((e) => e.department))]

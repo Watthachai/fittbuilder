@@ -49,7 +49,9 @@ export const DEMO_PACKAGE_JSON = `{
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "vite": "^6.3.5",
-    "@vitejs/plugin-react": "^4.3.4"
+    "@vitejs/plugin-react": "^4.3.4",
+    "lucide-react": "^1.46.0",
+    "motion": "^13.3.0"
   }
 }`;
 

@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
-  Banknote, Bell, Boxes, ChevronRight, ChevronsLeft, Clock, Factory,
+  ArrowRightToLine, Banknote, Bell, Boxes, ChevronRight, ChevronsLeft, Clock, Factory,
   LayoutGrid, Moon, PanelsTopLeft, Search, Ship, Sun, Truck, Users, Warehouse,
 } from "lucide-react";
 import { FAMILIES, MODULES, modulesOf } from "@/lib/modules/registry";
@@ -106,7 +106,7 @@ export default function ErpShell({ children }: { children: React.ReactNode }) {
 
   // Nothing renders until the stored session has been read, or a signed-in
   // viewer would see the login form flash on every navigation.
-  if (!ready) return <div className="min-h-screen bg-slate-100 dark:bg-slate-950" />;
+  if (!ready) return <div className="min-h-screen bg-[#f4f4f6] dark:bg-[#0b0b10]" />;
 
   if (!role) {
     return (
@@ -145,7 +145,7 @@ export default function ErpShell({ children }: { children: React.ReactNode }) {
     : undefined;
 
   return (
-    <div className="flex min-h-screen bg-slate-100 dark:bg-slate-950">
+    <div className="flex min-h-screen bg-[#f4f4f6] dark:bg-[#0b0b10]">
       <aside
         className={
           "flex shrink-0 flex-col border-r border-slate-200 bg-white transition-[width] dark:border-slate-800 dark:bg-slate-900 " +
@@ -156,7 +156,7 @@ export default function ErpShell({ children }: { children: React.ReactNode }) {
           href={keep("/erp")}
           className="flex items-center gap-2.5 border-b border-slate-100 px-4 py-4 dark:border-slate-800"
         >
-          <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-sky-600 text-[13px] font-bold text-white">
+          <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-violet-600 text-[13px] font-bold text-white shadow-sm shadow-violet-600/30">
             F
           </span>
           {!rail && (
@@ -190,7 +190,7 @@ export default function ErpShell({ children }: { children: React.ReactNode }) {
                       className={
                         "flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] transition " +
                         (on
-                          ? "bg-slate-100 font-medium text-slate-900 dark:bg-slate-800 dark:text-slate-50"
+                          ? "bg-violet-600 font-medium text-white shadow-sm shadow-violet-600/25"
                           : "text-slate-600 hover:bg-slate-50 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800/60 dark:hover:text-slate-100")
                       }
                     >
@@ -198,7 +198,7 @@ export default function ErpShell({ children }: { children: React.ReactNode }) {
                       {!rail && (
                         <>
                           <span className="min-w-0 flex-1 truncate">{m.name}</span>
-                          <span className="shrink-0 text-[10.5px] text-slate-300 dark:text-slate-600">
+                          <span className={"shrink-0 text-[10.5px] " + (on ? "text-white/60" : "text-slate-300 dark:text-slate-600")}>
                             {m.sapCode}
                           </span>
                         </>
@@ -272,11 +272,12 @@ export default function ErpShell({ children }: { children: React.ReactNode }) {
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex items-center gap-3 border-b border-slate-200 bg-white px-5 py-2.5 dark:border-slate-800 dark:bg-slate-900">
+        <header className="flex items-center gap-2.5 border-b border-slate-200/80 bg-white px-5 py-2.5 dark:border-slate-800 dark:bg-slate-900">
           <nav aria-label="เส้นทาง" className="flex min-w-0 items-center gap-1 text-[12.5px]">
+            <ArrowRightToLine size={14} className="mr-1 shrink-0 text-slate-400" />
             <Link
               href={keep("/erp")}
-              className="shrink-0 text-slate-400 transition hover:text-sky-600 dark:text-slate-500"
+              className="shrink-0 text-slate-400 transition hover:text-violet-600 dark:text-slate-500"
             >
               {trial ? "ทดลองใช้" : "หน้าแรก"}
             </Link>
@@ -286,7 +287,7 @@ export default function ErpShell({ children }: { children: React.ReactNode }) {
                 <Link
                   href={keep(`/erp/${current.id}`)}
                   className={
-                    "shrink-0 transition hover:text-sky-600 " +
+                    "shrink-0 transition hover:text-violet-600 " +
                     (sectionName ? "text-slate-400 dark:text-slate-500" : "font-medium text-slate-800 dark:text-slate-100")
                   }
                 >
@@ -304,20 +305,27 @@ export default function ErpShell({ children }: { children: React.ReactNode }) {
 
           <button
             onClick={() => setPalette(true)}
-            className="ml-auto flex items-center gap-2 rounded-lg border border-slate-200 px-2.5 py-1.5 text-[12px] text-slate-400 transition hover:border-sky-400 hover:text-sky-600 dark:border-slate-800 dark:text-slate-500"
+            className="mx-auto hidden w-full max-w-sm items-center gap-2 rounded-full bg-slate-100 px-3.5 py-2 text-[12.5px] text-slate-400 transition hover:bg-slate-200/70 hover:text-slate-600 md:flex dark:bg-slate-800 dark:text-slate-500 dark:hover:bg-slate-700"
           >
-            <Search size={13} />
-            <span className="hidden sm:inline">ค้นหา</span>
-            <kbd className="hidden rounded border border-slate-200 px-1 font-sans text-[10px] sm:inline dark:border-slate-700">
+            <Search size={14} />
+            <span className="flex-1 text-left">ค้นหาโมดูล ความสามารถ…</span>
+            <kbd className="rounded-md border border-slate-200 bg-white px-1.5 font-sans text-[10px] text-slate-400 dark:border-slate-700 dark:bg-slate-900">
               ⌘K
             </kbd>
+          </button>
+          <button
+            onClick={() => setPalette(true)}
+            aria-label="ค้นหา"
+            className="ml-auto rounded-lg border border-slate-200 p-1.5 text-slate-500 md:hidden dark:border-slate-800 dark:text-slate-400"
+          >
+            <Search size={14} />
           </button>
 
           <div className="relative">
             <button
               onClick={() => setBell((b) => !b)}
               aria-label={`การแจ้งเตือน ${alerts.length} รายการ`}
-              className="relative rounded-lg border border-slate-200 p-1.5 text-slate-500 transition hover:border-sky-400 hover:text-sky-600 dark:border-slate-800 dark:text-slate-400"
+              className="relative rounded-lg border border-slate-200 p-1.5 text-slate-500 transition hover:border-violet-300 hover:text-violet-600 dark:border-slate-800 dark:text-slate-400"
             >
               <Bell size={14} />
               {alerts.length > 0 && (
@@ -344,7 +352,7 @@ export default function ErpShell({ children }: { children: React.ReactNode }) {
                           <span
                             className={
                               "mt-1 size-1.5 shrink-0 rounded-full " +
-                              (a.tone === "bad" ? "bg-rose-500" : a.tone === "warn" ? "bg-amber-400" : "bg-sky-400")
+                              (a.tone === "bad" ? "bg-rose-500" : a.tone === "warn" ? "bg-amber-400" : "bg-violet-400")
                             }
                           />
                           <span className="min-w-0">
@@ -377,7 +385,7 @@ export default function ErpShell({ children }: { children: React.ReactNode }) {
               applyTheme(next);
             }}
             aria-label={theme === "dark" ? "สลับเป็นโหมดสว่าง" : "สลับเป็นโหมดมืด"}
-            className="rounded-lg border border-slate-200 p-1.5 text-slate-500 transition hover:border-sky-400 hover:text-sky-600 dark:border-slate-800 dark:text-slate-400"
+            className="rounded-lg border border-slate-200 p-1.5 text-slate-500 transition hover:border-violet-300 hover:text-violet-600 dark:border-slate-800 dark:text-slate-400"
           >
             {theme === "dark" ? <Sun size={14} /> : <Moon size={14} />}
           </button>
@@ -386,13 +394,19 @@ export default function ErpShell({ children }: { children: React.ReactNode }) {
           <TakeProject role={role} only={trial ?? undefined} />
           <Link
             href="/"
-            className="hidden shrink-0 rounded-lg border border-slate-200 px-3 py-1.5 text-[12px] text-slate-600 transition hover:border-sky-400 hover:text-sky-700 lg:block dark:border-slate-800 dark:text-slate-300"
+            className="hidden shrink-0 rounded-lg border border-slate-200 px-3 py-1.5 text-[12px] text-slate-600 transition hover:border-violet-300 hover:text-violet-700 lg:block dark:border-slate-800 dark:text-slate-300"
           >
             กลับหน้า FITT Builder
           </Link>
+          <span
+            title={role.name + " · " + role.title}
+            className="grid size-8 shrink-0 place-items-center rounded-full bg-violet-600 text-[12px] font-semibold text-white shadow-sm shadow-violet-600/30"
+          >
+            {role.name.slice(0, 1)}
+          </span>
         </header>
 
-        <main className="min-h-0 flex-1 overflow-y-auto p-5">{children}</main>
+        <main className="min-h-0 flex-1 overflow-y-auto p-5 lg:p-6">{children}</main>
       </div>
 
       <CommandPalette open={palette} onClose={() => setPalette(false)} allowed={open} />
@@ -408,7 +422,7 @@ function SubLink({ href, active, label }: { href: string; active: boolean; label
         className={
           "block rounded-md px-2 py-1.5 text-[12.5px] transition " +
           (active
-            ? "bg-sky-50 font-medium text-sky-700 dark:bg-sky-500/10 dark:text-sky-400"
+            ? "bg-violet-50 font-medium text-violet-700 dark:bg-violet-500/10 dark:text-violet-300"
             : "text-slate-500 hover:bg-slate-50 hover:text-slate-800 dark:text-slate-400 dark:hover:bg-slate-800/60 dark:hover:text-slate-100")
         }
       >
@@ -436,7 +450,7 @@ function SignIn({
     <div className="grid min-h-screen place-items-center bg-slate-100 p-6 dark:bg-slate-950">
       <div className="w-full max-w-sm">
         <div className="mb-6 text-center">
-          <span className="mx-auto mb-3 grid size-11 place-items-center rounded-xl bg-sky-600 text-base font-bold text-white">
+          <span className="mx-auto mb-3 grid size-11 place-items-center rounded-xl bg-violet-600 text-base font-bold text-white shadow-sm shadow-violet-600/30">
             F
           </span>
           <h1 className="text-lg font-semibold text-slate-900 dark:text-slate-50">
@@ -467,17 +481,17 @@ function SignIn({
                 className={
                   "flex w-full items-center gap-2.5 rounded-lg border px-3 py-2 text-left transition " +
                   (r.id === picked
-                    ? "border-sky-500 bg-sky-50 dark:bg-sky-500/10"
+                    ? "border-violet-500 bg-violet-50 dark:bg-violet-500/10"
                     : "border-slate-200 hover:border-slate-300 dark:border-slate-800 dark:hover:border-slate-700")
                 }
               >
                 <span
                   className={
                     "grid size-4 shrink-0 place-items-center rounded-full border " +
-                    (r.id === picked ? "border-sky-600" : "border-slate-300 dark:border-slate-600")
+                    (r.id === picked ? "border-violet-600" : "border-slate-300 dark:border-slate-600")
                   }
                 >
-                  {r.id === picked && <span className="size-2 rounded-full bg-sky-600" />}
+                  {r.id === picked && <span className="size-2 rounded-full bg-violet-600" />}
                 </span>
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-[13px] font-medium text-slate-900 dark:text-slate-100">
@@ -500,7 +514,7 @@ function SignIn({
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             placeholder={DEMO_PASSWORD_HINT}
-            className="mt-1.5 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 outline-none placeholder:text-slate-400 focus:border-sky-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-500"
+            className="mt-1.5 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 outline-none placeholder:text-slate-400 focus:border-violet-500 focus:ring-4 focus:ring-violet-500/10 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-500"
           />
           {tried && !password.trim() && (
             <p className="mt-1.5 text-[12px] text-rose-600 dark:text-rose-400">กรอกรหัสผ่านก่อนเข้าสู่ระบบ</p>
@@ -508,7 +522,7 @@ function SignIn({
 
           <button
             type="submit"
-            className="mt-4 w-full rounded-lg bg-sky-600 py-2.5 text-sm font-semibold text-white transition hover:bg-sky-700"
+            className="mt-4 w-full rounded-lg bg-violet-600 py-2.5 text-sm font-semibold text-white shadow-sm shadow-violet-600/25 transition hover:bg-violet-700"
           >
             เข้าสู่ระบบ
           </button>
@@ -521,7 +535,7 @@ function SignIn({
               type="button"
               onClick={() => onTheme(theme === "dark" ? "light" : "dark")}
               aria-label="สลับธีม"
-              className="shrink-0 rounded-lg border border-slate-200 p-1.5 text-slate-500 transition hover:text-sky-600 dark:border-slate-800 dark:text-slate-400"
+              className="shrink-0 rounded-lg border border-slate-200 p-1.5 text-slate-500 transition hover:text-violet-600 dark:border-slate-800 dark:text-slate-400"
             >
               {theme === "dark" ? <Sun size={13} /> : <Moon size={13} />}
             </button>

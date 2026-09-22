@@ -24,6 +24,7 @@ function shellFor(selected: Module[]): string {
     )
     .join("\n");
   return `import { useEffect, useState } from "react";
+import { ArrowRightToLine, ChevronsLeft, LayoutGrid, Moon, Search, Sun } from "lucide-react";
 ${imports}
 
 const MODULES = [
@@ -40,6 +41,7 @@ export default function App() {
   const [moduleId, setModuleId] = useState(MODULES[0].id);
   const [section, setSection] = useState(MODULES[0].overview ? null : MODULES[0].sections[0]);
   const [dark, setDark] = useState(false);
+  const [rail, setRail] = useState(false);
   const current = MODULES.find((m) => m.id === moduleId);
   const Current = current.Screen;
 
@@ -55,18 +57,20 @@ export default function App() {
   };
 
   return (
-    <div className="flex min-h-screen bg-slate-100 dark:bg-slate-950">
-      <aside className="flex w-60 shrink-0 flex-col border-r border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
+    <div className="flex min-h-screen bg-[#f4f4f6] dark:bg-[#0b0b10]">
+      <aside className={"flex shrink-0 flex-col border-r border-slate-200/80 bg-white transition-[width] dark:border-slate-800 dark:bg-slate-900 " + (rail ? "w-[60px]" : "w-60")}>
         <div className="flex items-center gap-2.5 border-b border-slate-100 px-4 py-4 dark:border-slate-800">
-          <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-sky-600 text-[13px] font-bold text-white">
+          <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-violet-600 text-[13px] font-bold text-white shadow-sm shadow-violet-600/30">
             F
           </span>
-          <span className="min-w-0">
-            <span className="block truncate text-[13.5px] font-semibold text-slate-900 dark:text-slate-50">
-              บจก. ตัวอย่างอุตสาหกรรม
+          {!rail && (
+            <span className="min-w-0">
+              <span className="block truncate text-[13.5px] font-semibold text-slate-900 dark:text-slate-50">
+                บจก. ตัวอย่างอุตสาหกรรม
+              </span>
+              <span className="block text-[11.5px] text-slate-500 dark:text-slate-400">ระบบบริหารทรัพยากรองค์กร</span>
             </span>
-            <span className="block text-[11.5px] text-slate-500 dark:text-slate-400">ระบบบริหารทรัพยากรองค์กร</span>
-          </span>
+          )}
         </div>
 
         <nav className="min-h-0 flex-1 overflow-y-auto px-2 py-3">
@@ -74,19 +78,21 @@ export default function App() {
             <div key={m.id}>
               <button
                 onClick={() => open(m)}
+                title={rail ? m.label : undefined}
                 className={
-                  "flex w-full items-center justify-between gap-2 rounded-lg px-2.5 py-2 text-left text-[13px] transition " +
+                  "flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-[13px] transition " +
                   (m.id === moduleId
-                    ? "bg-slate-100 font-medium text-slate-900 dark:bg-slate-800 dark:text-slate-50"
+                    ? "bg-violet-600 font-medium text-white shadow-sm shadow-violet-600/25"
                     : "text-slate-600 hover:bg-slate-50 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800/60 dark:hover:text-slate-100")
                 }
               >
-                <span className="min-w-0 truncate">{m.label}</span>
-                <span className="shrink-0 text-[10.5px] text-slate-300 dark:text-slate-600">{m.code}</span>
+                <LayoutGrid size={16} className="shrink-0" />
+                {!rail && <span className="min-w-0 flex-1 truncate">{m.label}</span>}
+                {!rail && <span className={"shrink-0 text-[10.5px] " + (m.id === moduleId ? "text-white/60" : "text-slate-300 dark:text-slate-600")}>{m.code}</span>}
               </button>
 
-              {m.id === moduleId && (
-                <ul className="mb-1 ml-2.5 border-l border-slate-200 pl-2 dark:border-slate-800">
+              {m.id === moduleId && !rail && (
+                <ul className="mb-1 ml-[18px] border-l border-slate-200 pl-2 dark:border-slate-800">
                   {m.overview && (
                     <li>
                       <button
@@ -94,7 +100,7 @@ export default function App() {
                         className={
                           "block w-full rounded-md px-2 py-1.5 text-left text-[12.5px] transition " +
                           (section === null
-                            ? "bg-sky-50 font-medium text-sky-700 dark:bg-sky-500/10 dark:text-sky-400"
+                            ? "bg-violet-50 font-medium text-violet-700 dark:bg-violet-500/10 dark:text-violet-300"
                             : "text-slate-500 hover:bg-slate-50 hover:text-slate-800 dark:text-slate-400 dark:hover:bg-slate-800/60")
                         }
                       >
@@ -109,7 +115,7 @@ export default function App() {
                         className={
                           "block w-full rounded-md px-2 py-1.5 text-left text-[12.5px] transition " +
                           (s === section
-                            ? "bg-sky-50 font-medium text-sky-700 dark:bg-sky-500/10 dark:text-sky-400"
+                            ? "bg-violet-50 font-medium text-violet-700 dark:bg-violet-500/10 dark:text-violet-300"
                             : "text-slate-500 hover:bg-slate-50 hover:text-slate-800 dark:text-slate-400 dark:hover:bg-slate-800/60")
                         }
                       >
@@ -122,23 +128,43 @@ export default function App() {
             </div>
           ))}
         </nav>
+
+        <div className="border-t border-slate-100 p-2 dark:border-slate-800">
+          <button
+            onClick={() => setRail((r) => !r)}
+            className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-[12px] text-slate-500 transition hover:bg-slate-50 dark:text-slate-400 dark:hover:bg-slate-800/60"
+            title={rail ? "ขยายแถบเมนู" : "ยุบแถบเมนู"}
+          >
+            <ChevronsLeft size={15} className={"shrink-0 transition " + (rail ? "rotate-180" : "")} />
+            {!rail && "ยุบแถบเมนู"}
+          </button>
+        </div>
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex items-center gap-3 border-b border-slate-200 bg-white px-6 py-3 dark:border-slate-800 dark:bg-slate-900">
-          <div className="min-w-0">
-            <p className="text-[13px] font-medium text-slate-900 dark:text-slate-50">{current.label}</p>
-            <p className="text-[11.5px] text-slate-500 dark:text-slate-400">{section ?? "ภาพรวม"}</p>
-          </div>
+        <header className="flex items-center gap-2.5 border-b border-slate-200/80 bg-white px-5 py-2.5 dark:border-slate-800 dark:bg-slate-900">
+          <nav className="flex min-w-0 items-center gap-1 text-[12.5px]">
+            <ArrowRightToLine size={14} className="mr-1 shrink-0 text-slate-400" />
+            <span className={section ? "text-slate-400 dark:text-slate-500" : "font-medium text-slate-800 dark:text-slate-100"}>{current.label}</span>
+            {section && <span className="text-slate-300 dark:text-slate-600">›</span>}
+            {section && <span className="truncate font-medium text-slate-800 dark:text-slate-100">{section}</span>}
+          </nav>
+          <span className="mx-auto hidden w-full max-w-sm items-center gap-2 rounded-full bg-slate-100 px-3.5 py-2 text-[12.5px] text-slate-400 md:flex dark:bg-slate-800 dark:text-slate-500">
+            <Search size={14} />
+            <span className="flex-1">ค้นหา…</span>
+          </span>
           <button
             onClick={() => setDark((d) => !d)}
             aria-label="สลับธีม"
-            className="ml-auto rounded-lg border border-slate-200 px-2.5 py-1.5 text-[12px] text-slate-500 transition hover:border-sky-400 hover:text-sky-600 dark:border-slate-800 dark:text-slate-400"
+            className="ml-auto grid size-8 place-items-center rounded-lg border border-slate-200 text-slate-500 transition hover:border-violet-300 hover:text-violet-600 md:ml-0 dark:border-slate-800 dark:text-slate-400"
           >
-            {dark ? "โหมดสว่าง" : "โหมดมืด"}
+            {dark ? <Sun size={14} /> : <Moon size={14} />}
           </button>
+          <span className="grid size-8 shrink-0 place-items-center rounded-full bg-violet-600 text-[12px] font-semibold text-white shadow-sm shadow-violet-600/30">
+            ส
+          </span>
         </header>
-        <main className="min-h-0 flex-1 overflow-y-auto p-6">
+        <main className="min-h-0 flex-1 overflow-y-auto p-5 lg:p-6">
           <Current section={section ?? undefined} />
         </main>
       </div>

@@ -9,7 +9,7 @@ import {
 
 describe("newPackages", () => {
   it("installs a package the project does not have", () => {
-    expect(newPackages(["recharts", "lucide-react"], {})).toEqual(["recharts", "lucide-react"]);
+    expect(newPackages(["recharts", "zustand"], {})).toEqual(["recharts", "zustand"]);
   });
 
   it("never re-resolves a scaffold base dependency", () => {
@@ -30,7 +30,7 @@ describe("packageJsonWithDeps", () => {
   });
 
   it("round-trips extras through extraDepsOf", () => {
-    const extra = { recharts: "latest", "lucide-react": "^0.500.0" };
+    const extra = { recharts: "latest", zustand: "^5.0.0" };
     expect(extraDepsOf(packageJsonWithDeps(extra))).toEqual(extra);
   });
 });

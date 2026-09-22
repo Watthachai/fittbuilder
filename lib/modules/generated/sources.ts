@@ -1864,7 +1864,13 @@ export function Wizard({
 }
 `,
 
-  "mm/data.ts": `export const MATERIALS = [
+  "mm/data.ts": `import { TODAY } from "../pa/data";
+
+export { TODAY };
+
+export const MATERIAL_GROUPS = ["วัตถุดิบ", "อะไหล่", "วัสดุสิ้นเปลือง", "บรรจุภัณฑ์", "สินค้าสำเร็จรูป"];
+
+export const MATERIALS = [
   { code: "MAT-1001", name: "เหล็กแผ่นรีดร้อน 3 มม.", group: "วัตถุดิบ", unit: "แผ่น", price: 1850, stock: 240, reorder: 120, bin: "A-01-03" },
   { code: "MAT-1002", name: "เหล็กเส้นกลม 12 มม.", group: "วัตถุดิบ", unit: "เส้น", price: 420, stock: 86, reorder: 150, bin: "A-01-07" },
   { code: "MAT-1003", name: "สีพ่นอุตสาหกรรม สีเทา", group: "วัตถุดิบ", unit: "ถัง", price: 2400, stock: 34, reorder: 20, bin: "B-02-01" },
@@ -1907,6 +1913,11 @@ export const REQUISITIONS = [
 ];
 
 export const PURCHASE_ORDERS = [
+  { no: "PO-2569-101", vendor: "V-001", date: "2026-07-08", lines: [{ material: "MAT-1001", qty: 120, price: 1850 }], status: "รับของครบแล้ว" },
+  { no: "PO-2569-104", vendor: "V-002", date: "2026-07-21", lines: [{ material: "MAT-2001", qty: 80, price: 380 }, { material: "MAT-3001", qty: 400, price: 35 }], status: "รับของครบแล้ว" },
+  { no: "PO-2569-109", vendor: "V-003", date: "2026-08-05", lines: [{ material: "MAT-1003", qty: 30, price: 2400 }], status: "รับของครบแล้ว" },
+  { no: "PO-2569-112", vendor: "V-004", date: "2026-08-14", lines: [{ material: "MAT-2002", qty: 200, price: 145 }], status: "รับของครบแล้ว" },
+  { no: "PO-2569-115", vendor: "V-001", date: "2026-08-27", lines: [{ material: "MAT-1001", qty: 90, price: 1850 }, { material: "MAT-1002", qty: 150, price: 420 }], status: "รับของครบแล้ว" },
   { no: "PO-2569-118", vendor: "V-001", date: "2026-09-12", lines: [{ material: "MAT-1002", qty: 200, price: 420 }], status: "รับของครบแล้ว" },
   { no: "PO-2569-119", vendor: "V-003", date: "2026-09-15", lines: [{ material: "MAT-1003", qty: 20, price: 2400 }], status: "รับของบางส่วน" },
   { no: "PO-2569-120", vendor: "V-004", date: "2026-09-18", lines: [{ material: "MAT-2002", qty: 100, price: 145 }, { material: "MAT-4001", qty: 4, price: 5600 }], status: "รอรับของ" },
@@ -1915,17 +1926,33 @@ export const PURCHASE_ORDERS = [
 
 /** ของที่รับเข้าจริงต่อใบสั่งซื้อ — เทียบกับที่สั่งเพื่อจับของขาด */
 export const GOODS_RECEIPTS = [
+  { no: "GR-2569-180", po: "PO-2569-101", date: "2026-07-15", lines: [{ material: "MAT-1001", qty: 120 }] },
+  { no: "GR-2569-186", po: "PO-2569-104", date: "2026-07-31", lines: [{ material: "MAT-2001", qty: 80 }, { material: "MAT-3001", qty: 400 }] },
+  { no: "GR-2569-191", po: "PO-2569-109", date: "2026-08-08", lines: [{ material: "MAT-1003", qty: 30 }] },
+  { no: "GR-2569-197", po: "PO-2569-112", date: "2026-08-28", lines: [{ material: "MAT-2002", qty: 200 }] },
+  { no: "GR-2569-201", po: "PO-2569-115", date: "2026-09-03", lines: [{ material: "MAT-1001", qty: 90 }, { material: "MAT-1002", qty: 150 }] },
   { no: "GR-2569-206", po: "PO-2569-118", date: "2026-09-19", lines: [{ material: "MAT-1002", qty: 200 }] },
   { no: "GR-2569-207", po: "PO-2569-119", date: "2026-09-20", lines: [{ material: "MAT-1003", qty: 14 }] },
 ];
 
 export const INVOICES = [
+  { no: "INV-87102", po: "PO-2569-101", vendor: "V-001", date: "2026-07-16", amount: 222000 },
+  { no: "INV-87340", po: "PO-2569-104", vendor: "V-002", date: "2026-08-01", amount: 44400 },
+  { no: "INV-87588", po: "PO-2569-109", vendor: "V-003", date: "2026-08-09", amount: 72000 },
+  { no: "INV-87901", po: "PO-2569-112", vendor: "V-004", date: "2026-08-29", amount: 29000 },
+  { no: "INV-88060", po: "PO-2569-115", vendor: "V-001", date: "2026-09-04", amount: 229500 },
   { no: "INV-88214", po: "PO-2569-118", vendor: "V-001", date: "2026-09-20", amount: 84000 },
   { no: "INV-88301", po: "PO-2569-119", vendor: "V-003", date: "2026-09-21", amount: 48000 },
 ];
 
 /** การเคลื่อนไหวสต็อก — รับเข้าเป็นบวก จ่ายออกเป็นลบ */
 export const STOCK_MOVES = [
+  { date: "2026-09-03", material: "MAT-1001", qty: 90, reason: "รับจากใบสั่งซื้อ PO-2569-115" },
+  { date: "2026-09-03", material: "MAT-1002", qty: 150, reason: "รับจากใบสั่งซื้อ PO-2569-115" },
+  { date: "2026-09-08", material: "MAT-1001", qty: -35, reason: "เบิกเข้าสายการผลิต" },
+  { date: "2026-09-10", material: "MAT-2002", qty: -18, reason: "เบิกซ่อมบำรุง" },
+  { date: "2026-09-12", material: "MAT-3002", qty: -220, reason: "เบิกใช้บรรจุสินค้า" },
+  { date: "2026-09-15", material: "MAT-1001", qty: -55, reason: "เบิกเข้าสายการผลิต" },
   { date: "2026-09-19", material: "MAT-1002", qty: 200, reason: "รับจากใบสั่งซื้อ PO-2569-118" },
   { date: "2026-09-19", material: "MAT-1001", qty: -40, reason: "เบิกเข้าสายการผลิต" },
   { date: "2026-09-20", material: "MAT-1003", qty: 14, reason: "รับจากใบสั่งซื้อ PO-2569-119" },
@@ -1986,16 +2013,65 @@ export function vendorScore(code: string) {
     fillRate: closed.length ? Math.round((complete.length / closed.length) * 100) : null,
   };
 }
+
+/** ใบสั่งซื้อที่อ้างถึงใบขอซื้อใบนั้น — ใช้ปิดสถานะใบขอซื้อ */
+export const poFor = (prNo: string) =>
+  PURCHASE_ORDERS.find((p) => REQUISITIONS.some((r) => r.no === prNo && p.lines.some((l) => l.material === r.material)));
+
+export const receiptsOf = (poNo: string) => GOODS_RECEIPTS.filter((g) => g.po === poNo);
+export const invoicesOf = (poNo: string) => INVOICES.filter((i) => i.po === poNo);
+
+/** ยอดสั่งซื้อรายเดือน เรียงจากเก่าไปใหม่ */
+export function spendByMonth() {
+  const months = [...new Set(PURCHASE_ORDERS.map((p) => p.date.slice(0, 7)))].sort();
+  return months.map((m) => ({
+    month: m,
+    value: PURCHASE_ORDERS.filter((p) => p.date.slice(0, 7) === m).reduce((n, p) => n + poTotal(p), 0),
+    orders: PURCHASE_ORDERS.filter((p) => p.date.slice(0, 7) === m).length,
+  }));
+}
+
+/** มูลค่าสต็อกแยกตามกลุ่มวัสดุ */
+export const stockByGroup = () =>
+  MATERIAL_GROUPS.map((g) => ({
+    group: g,
+    value: MATERIALS.filter((m) => m.group === g).reduce((n, m) => n + m.stock * m.price, 0),
+    items: MATERIALS.filter((m) => m.group === g).length,
+  })).filter((x) => x.items > 0);
+
+export const stockValue = () => MATERIALS.reduce((n, m) => n + m.stock * m.price, 0);
+export const belowReorder = () => MATERIALS.filter((m) => m.stock < m.reorder);
+
+/** ราคาที่ดีที่สุดที่เคยได้สำหรับวัสดุตัวหนึ่ง */
+export const bestPriceFor = (code: string) => {
+  const rows = INFO_RECORDS.filter((r) => r.material === code);
+  return rows.length ? rows.reduce((best, r) => (r.price < best.price ? r : best)) : undefined;
+};
+
+export const movesOf = (code: string) => STOCK_MOVES.filter((m) => m.material === code);
 `,
 
   "mm/screen.tsx": `import { useState } from "react";
+import type { ReactNode } from "react";
 import {
-  MATERIALS, VENDORS, INFO_RECORDS, REQUISITIONS, PURCHASE_ORDERS,
-  GOODS_RECEIPTS, INVOICES, STOCK_MOVES,
-  material, vendor, baht, poTotal, threeWayMatch, vendorScore,
+  ArrowRight, Boxes, Building, CircleCheck, CircleX, ClipboardList, Coins, FileText, Handshake,
+  Layers, PackageCheck, PackageSearch, Receipt, Search as SearchIcon, ShoppingCart, Star,
+  TrendingDown, TrendingUp, Truck, TriangleAlert, Warehouse,
+} from "lucide-react";
+import {
+  GOODS_RECEIPTS, INFO_RECORDS, INVOICES, MATERIALS, MATERIAL_GROUPS, PURCHASE_ORDERS,
+  REQUISITIONS, STOCK_MOVES, TODAY, VENDORS, baht, belowReorder, bestPriceFor, invoicesOf,
+  material, movesOf, poTotal, receiptsOf, spendByMonth, stockByGroup, stockValue, threeWayMatch,
+  vendor, vendorScore,
 } from "./data";
-import type { PurchaseOrder } from "./data";
-import { Card, Stat, Head, Row, TH } from "../ui";
+import type { Material, PurchaseOrder, Vendor } from "./data";
+import {
+  Avatar, Badge, Bar, Button, Card, Chip, ColumnChart, Donut, Dot, FIELD, IconRow, Note, PageHead,
+  Progress, Reveal, Search, Segmented, Select, StatStrip, Stepper, Tabs, Tag, TintCard, swatchFor,
+} from "../ui";
+import type { StepState } from "../ui";
+import { ConfirmDialog, DataTable, DetailModal, Field, FormModal } from "../kit";
+import type { Column } from "../kit";
 
 const TABS = [
   "ข้อมูลหลักวัสดุและผู้ขาย",
@@ -2005,389 +2081,1181 @@ const TABS = [
   "ประเมินผู้ขาย",
 ];
 
-export default function MmScreen({ section }: { section?: string }) {
-  // Which capability to show is the navigation's decision, not this screen's.
-  const tab = section && TABS.includes(section) ? section : TABS[0];
+const MASTER_TABS = ["แฟ้มวัสดุ", "แฟ้มผู้ขาย", "ราคาที่เคยเสนอ"];
+const MASTER_ICONS: Record<string, ReactNode> = {
+  แฟ้มวัสดุ: <Boxes size={13} />,
+  แฟ้มผู้ขาย: <Building size={13} />,
+  ราคาที่เคยเสนอ: <Coins size={13} />,
+};
+
+const MATERIAL_TABS = ["ข้อมูลวัสดุ", "ระดับสต็อก", "แหล่งซื้อ", "ความเคลื่อนไหว"];
+const MATERIAL_ICONS: Record<string, ReactNode> = {
+  ข้อมูลวัสดุ: <FileText size={13} />,
+  ระดับสต็อก: <Warehouse size={13} />,
+  แหล่งซื้อ: <Handshake size={13} />,
+  ความเคลื่อนไหว: <TrendingUp size={13} />,
+};
+
+const groupSwatch = (g: string) => swatchFor(g, MATERIAL_GROUPS);
+
+const PO_FLOW = ["รอรับของ", "รับของบางส่วน", "รับของครบแล้ว"];
+const PO_TONE: Record<string, "idle" | "warn" | "ok"> = {
+  รอรับของ: "idle",
+  รับของบางส่วน: "warn",
+  รับของครบแล้ว: "ok",
+};
+
+/* ----------------------------------------------------------------- screen */
+
+export default function MmScreen({
+  section,
+  onOpenSection,
+}: {
+  section?: string;
+  onOpenSection?: (index: number) => void;
+}) {
+  const tab = section && TABS.includes(section) ? section : undefined;
+
+  const [approved, setApproved] = useState<string[]>([]);
+  const [q, setQ] = useState("");
+  const [group, setGroup] = useState("ทุกกลุ่ม");
+  const [openMaterialAt, setOpenMaterialAt] = useState<number | null>(null);
   const [openPo, setOpenPo] = useState<PurchaseOrder | null>(null);
-  const low = MATERIALS.filter((m) => m.stock < m.reorder);
+  const [openVendor, setOpenVendor] = useState<Vendor | null>(null);
+  const [ordering, setOrdering] = useState<(typeof REQUISITIONS)[number] | null>(null);
+
+  const statusOf = (no: string, seed: string) => (approved.includes(no) ? "อนุมัติแล้ว" : seed);
+  const waiting = REQUISITIONS.filter((r) => statusOf(r.no, r.status) === "รออนุมัติ");
+
+  const needle = q.trim().toLowerCase();
+  const materialRows = MATERIALS.filter(
+    (m) =>
+      (group === "ทุกกลุ่ม" || m.group === group) &&
+      (needle === "" || [m.code, m.name, m.bin].some((t) => t.toLowerCase().includes(needle)))
+  );
+  const pickedMaterial = openMaterialAt === null ? null : (materialRows[openMaterialAt] ?? null);
+
+  const unmatched = PURCHASE_ORDERS.filter((p) => {
+    const m = threeWayMatch(p);
+    return m.invoice > 0 && !m.matched;
+  });
+
+  const panels = (
+    <>
+      <DetailModal
+        open={pickedMaterial !== null}
+        title="แฟ้มวัสดุ"
+        onClose={() => setOpenMaterialAt(null)}
+        index={openMaterialAt ?? 0}
+        total={materialRows.length}
+        onStep={(d) => setOpenMaterialAt((i) => Math.min(materialRows.length - 1, Math.max(0, (i ?? 0) + d)))}
+      >
+        {pickedMaterial && <MaterialRecord key={pickedMaterial.code} m={pickedMaterial} />}
+      </DetailModal>
+
+      <FormModal
+        open={openPo !== null}
+        title="ใบสั่งซื้อ"
+        subtitle={openPo ? \`\${openPo.no} · \${vendor(openPo.vendor).name}\` : undefined}
+        onClose={() => setOpenPo(null)}
+        size="lg"
+      >
+        {openPo && <PoRecord po={openPo} />}
+      </FormModal>
+
+      <FormModal
+        open={openVendor !== null}
+        title="แฟ้มผู้ขาย"
+        subtitle={openVendor ? openVendor.name : undefined}
+        onClose={() => setOpenVendor(null)}
+      >
+        {openVendor && <VendorRecord v={openVendor} />}
+      </FormModal>
+
+      <ConfirmDialog
+        open={ordering !== null}
+        title="อนุมัติใบขอซื้อ"
+        body="อนุมัติแล้วใบขอซื้อจะพร้อมแปลงเป็นใบสั่งซื้อ ระบบจะเสนอผู้ขายที่เคยให้ราคาดีที่สุดกับวัสดุตัวนี้"
+        subject={
+          ordering && (
+            <span className="block">
+              <span className="block text-[13px] font-medium text-slate-900 dark:text-slate-50">
+                {ordering.no} · {material(ordering.material).name}
+              </span>
+              <span className="block text-[11.5px] text-slate-500 dark:text-slate-400">
+                {ordering.qty} {material(ordering.material).unit} · ต้องการภายใน {ordering.needBy} · ขอโดย {ordering.requester}
+              </span>
+            </span>
+          )
+        }
+        confirmLabel="อนุมัติใบขอซื้อ"
+        onCancel={() => setOrdering(null)}
+        onConfirm={() => {
+          if (ordering) setApproved((a) => [...new Set([...a, ordering.no])]);
+          setOrdering(null);
+        }}
+      />
+    </>
+  );
+
+  if (!tab) {
+    return (
+      <>
+        <Overview
+          waiting={waiting.length}
+          unmatched={unmatched.length}
+          onOpenSection={onOpenSection}
+          onOpenMaterial={(m) => {
+            setQ("");
+            setGroup("ทุกกลุ่ม");
+            setOpenMaterialAt(MATERIALS.indexOf(m));
+          }}
+          onOpenPo={setOpenPo}
+        />
+        {panels}
+      </>
+    );
+  }
 
   return (
     <div>
-      <div className="mb-4">
-        <h1 className="text-xl font-semibold text-slate-900">จัดซื้อและคลังวัสดุ</h1>
-        <p className="text-sm text-slate-500">
-          {MATERIALS.length} รายการวัสดุ · {VENDORS.length} ผู้ขาย · ต่ำกว่าจุดสั่งซื้อ {low.length} รายการ
-        </p>
-      </div>
+      <PageHead
+        title="จัดซื้อและคลังวัสดุ"
+        meta={\`\${tab} · \${MATERIALS.length} รายการวัสดุ · \${VENDORS.length} ผู้ขาย · มูลค่าสต็อก \${baht(stockValue())}\`}
+      />
 
-      {tab === "ข้อมูลหลักวัสดุและผู้ขาย" && <MasterData />}
-      {tab === "ใบขอซื้อและใบสั่งซื้อ" && <Purchasing onOpen={setOpenPo} />}
-      {tab === "รับของและตรวจสอบใบแจ้งหนี้" && <Receiving onOpen={setOpenPo} />}
-      {tab === "บริหารสต็อกวัสดุ" && <Stock />}
-      {tab === "ประเมินผู้ขาย" && <VendorRating />}
+      {tab === "ข้อมูลหลักวัสดุและผู้ขาย" && (
+        <Master
+          rows={materialRows}
+          q={q}
+          setQ={setQ}
+          group={group}
+          setGroup={setGroup}
+          onOpenMaterial={(m) => setOpenMaterialAt(materialRows.indexOf(m))}
+          onOpenVendor={setOpenVendor}
+        />
+      )}
 
-      {openPo && <PoDialog po={openPo} onClose={() => setOpenPo(null)} />}
+      {tab === "ใบขอซื้อและใบสั่งซื้อ" && (
+        <Ordering statusOf={statusOf} onApprove={setOrdering} onOpenPo={setOpenPo} />
+      )}
+
+      {tab === "รับของและตรวจสอบใบแจ้งหนี้" && <Receiving onOpenPo={setOpenPo} />}
+
+      {tab === "บริหารสต็อกวัสดุ" && (
+        <Stock onOpenMaterial={(m) => setOpenMaterialAt(MATERIALS.indexOf(m))} />
+      )}
+
+      {tab === "ประเมินผู้ขาย" && <VendorReview onOpenVendor={setOpenVendor} />}
+
+      {panels}
 
       <div hidden data-fitt-index>
         <button data-fitt-screen="จัดซื้อและคลังวัสดุ" />
-        <button data-fitt-screen="ใบสั่งซื้อและการตรวจสามทาง" data-fitt-modal onClick={() => setOpenPo(PURCHASE_ORDERS[0])} />
+        <button data-fitt-screen="แฟ้มวัสดุ" data-fitt-modal onClick={() => setOpenMaterialAt(0)} />
+        <button data-fitt-screen="ใบสั่งซื้อ" data-fitt-modal onClick={() => setOpenPo(PURCHASE_ORDERS[0])} />
+        <button data-fitt-screen="อนุมัติใบขอซื้อ" data-fitt-modal onClick={() => setOrdering(REQUISITIONS[0])} />
       </div>
     </div>
   );
 }
 
-function MasterData() {
-  const [q, setQ] = useState("");
-  const [group, setGroup] = useState("ทุกกลุ่ม");
-  const groups = ["ทุกกลุ่ม", ...new Set(MATERIALS.map((m) => m.group))];
-  const rows = MATERIALS.filter(
-    (m) => (group === "ทุกกลุ่ม" || m.group === group) && (m.name.includes(q) || m.code.includes(q))
-  );
+/* ------------------------------------------------------------- overview */
+
+function Overview({
+  waiting,
+  unmatched,
+  onOpenSection,
+  onOpenMaterial,
+  onOpenPo,
+}: {
+  waiting: number;
+  unmatched: number;
+  onOpenSection?: (index: number) => void;
+  onOpenMaterial: (m: Material) => void;
+  onOpenPo: (p: PurchaseOrder) => void;
+}) {
+  const groups = stockByGroup();
+  const low = belowReorder();
+  const spend = spendByMonth();
+  const openOrders = PURCHASE_ORDERS.filter((p) => p.status !== "รับของครบแล้ว");
+
+  const byVendor = VENDORS.map((v) => ({ v, ...vendorScore(v.code) }))
+    .filter((x) => x.orders > 0)
+    .sort((a, b) => b.value - a.value);
+  const topValue = Math.max(...byVendor.map((x) => x.value));
+
+  const seeAll = (index: number) =>
+    onOpenSection ? (
+      <button
+        onClick={() => onOpenSection(index)}
+        className="flex items-center gap-1 rounded-lg border border-slate-200 px-2.5 py-1 text-[12px] text-slate-600 transition hover:border-violet-300 hover:text-violet-700 dark:border-slate-700 dark:text-slate-300"
+      >
+        ดูทั้งหมด <ArrowRight size={12} />
+      </button>
+    ) : undefined;
+
   return (
-    <div className="space-y-4">
-      <div className="flex justify-end gap-2">
-        <select
-          value={group}
-          onChange={(e) => setGroup(e.target.value)}
-          className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:border-sky-500"
-        >
-          {groups.map((g) => <option key={g}>{g}</option>)}
-        </select>
-        <input
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-          placeholder="ค้นหาชื่อหรือรหัสวัสดุ"
-          className="w-64 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 outline-none placeholder:text-slate-400 focus:border-sky-500"
-        />
-      </div>
+    <div>
+      <PageHead
+        title="ภาพรวมจัดซื้อและคลังวัสดุ"
+        meta={\`\${MATERIALS.length} รายการวัสดุ · \${VENDORS.length} ผู้ขาย · ข้อมูล ณ \${TODAY}\`}
+        right={
+          onOpenSection ? (
+            <Button variant="primary" icon={<ShoppingCart size={15} />} onClick={() => onOpenSection(1)}>
+              เปิดใบขอซื้อและใบสั่งซื้อ
+            </Button>
+          ) : undefined
+        }
+      />
 
-      <Card title="แฟ้มวัสดุ" subtitle={rows.length + " รายการ"}>
-        <table className="w-full text-sm">
-          <Head cols={[{ k: "รหัส" }, { k: "ชื่อวัสดุ" }, { k: "กลุ่ม" }, { k: "หน่วย" }, { k: "ราคามาตรฐาน", right: true }, { k: "คงเหลือ", right: true }]} />
-          <tbody className="divide-y divide-slate-100">
-            {rows.map((m) => (
-              <tr key={m.code} className="hover:bg-sky-50">
-                <td className={TH + " font-mono text-xs text-slate-500"}>{m.code}</td>
-                <td className={TH + " font-medium text-slate-900"}>{m.name}</td>
-                <td className={TH + " text-slate-600"}>{m.group}</td>
-                <td className={TH + " text-slate-600"}>{m.unit}</td>
-                <td className={TH + " text-right text-slate-700"}>{baht(m.price)}</td>
-                <td className={TH + " text-right " + (m.stock < m.reorder ? "font-semibold text-amber-700" : "text-slate-700")}>
-                  {m.stock.toLocaleString("th-TH")}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </Card>
-
-      <Card title="แฟ้มผู้ขาย">
-        <table className="w-full text-sm">
-          <Head cols={[{ k: "รหัส" }, { k: "ชื่อผู้ขาย" }, { k: "ผู้ติดต่อ" }, { k: "เงื่อนไขชำระ" }, { k: "เลขผู้เสียภาษี" }, { k: "รอของ (วัน)", right: true }]} />
-          <tbody className="divide-y divide-slate-100">
-            {VENDORS.map((v) => (
-              <tr key={v.code} className="hover:bg-sky-50">
-                <td className={TH + " font-mono text-xs text-slate-500"}>{v.code}</td>
-                <td className={TH + " font-medium text-slate-900"}>{v.name}</td>
-                <td className={TH + " text-slate-600"}>{v.contact}</td>
-                <td className={TH + " text-slate-600"}>{v.terms}</td>
-                <td className={TH + " font-mono text-xs text-slate-500"}>{v.taxId}</td>
-                <td className={TH + " text-right text-slate-700"}>{v.leadDays}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </Card>
-
-      <Card title="ราคาที่ผู้ขายเคยเสนอ" subtitle="ใช้ประกอบการเลือกแหล่งซื้อในรอบถัดไป">
-        <table className="w-full text-sm">
-          <Head cols={[{ k: "วัสดุ" }, { k: "ผู้ขาย" }, { k: "ราคา", right: true }, { k: "รอของ (วัน)", right: true }]} />
-          <tbody className="divide-y divide-slate-100">
-            {INFO_RECORDS.map((r, i) => {
-              const cheapest = Math.min(...INFO_RECORDS.filter((x) => x.material === r.material).map((x) => x.price));
-              return (
-                <tr key={i} className="hover:bg-sky-50">
-                  <td className={TH + " text-slate-800"}>{material(r.material)?.name}</td>
-                  <td className={TH + " text-slate-600"}>{vendor(r.vendor)?.name}</td>
-                  <td className={TH + " text-right " + (r.price === cheapest ? "font-semibold text-emerald-700" : "text-slate-700")}>
-                    {baht(r.price)}
-                  </td>
-                  <td className={TH + " text-right text-slate-700"}>{r.leadDays}</td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </Card>
-    </div>
-  );
-}
-
-function Purchasing({ onOpen }: { onOpen: (po: PurchaseOrder) => void }) {
-  const [prs, setPrs] = useState(REQUISITIONS);
-  const approve = (no: string) =>
-    setPrs((all) => all.map((p) => (p.no === no ? { ...p, status: "อนุมัติแล้ว" } : p)));
-  return (
-    <div className="space-y-4">
-      <Card title="ใบขอซื้อ">
-        <table className="w-full text-sm">
-          <Head cols={[{ k: "เลขที่" }, { k: "วัสดุ" }, { k: "จำนวน", right: true }, { k: "ต้องการใช้" }, { k: "ผู้ขอ" }, { k: "สถานะ" }, { k: "" }]} />
-          <tbody className="divide-y divide-slate-100">
-            {prs.map((p) => (
-              <tr key={p.no} className="hover:bg-sky-50">
-                <td className={TH + " font-mono text-xs text-slate-500"}>{p.no}</td>
-                <td className={TH + " font-medium text-slate-900"}>{material(p.material)?.name}</td>
-                <td className={TH + " text-right text-slate-700"}>{p.qty} {material(p.material)?.unit}</td>
-                <td className={TH + " text-slate-600"}>{p.needBy}</td>
-                <td className={TH + " text-slate-600"}>{p.requester}</td>
-                <td className={TH}>
-                  <span className={"rounded-full px-2 py-1 text-xs " + (
-                    p.status === "รออนุมัติ" ? "bg-amber-50 text-amber-700" : "bg-emerald-50 text-emerald-700"
-                  )}>{p.status}</span>
-                </td>
-                <td className={TH + " text-right"}>
-                  {p.status === "รออนุมัติ" && (
-                    <button onClick={() => approve(p.no)} className="rounded-lg bg-sky-600 px-3 py-1.5 text-xs text-white hover:bg-sky-700">
-                      อนุมัติ
-                    </button>
-                  )}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </Card>
-
-      <Card title="ใบสั่งซื้อ">
-        <table className="w-full text-sm">
-          <Head cols={[{ k: "เลขที่" }, { k: "ผู้ขาย" }, { k: "วันที่" }, { k: "รายการ", right: true }, { k: "มูลค่า", right: true }, { k: "สถานะ" }, { k: "" }]} />
-          <tbody className="divide-y divide-slate-100">
-            {PURCHASE_ORDERS.map((po) => (
-              <tr key={po.no} className="hover:bg-sky-50">
-                <td className={TH + " font-mono text-xs text-slate-500"}>{po.no}</td>
-                <td className={TH + " font-medium text-slate-900"}>{vendor(po.vendor)?.name}</td>
-                <td className={TH + " text-slate-600"}>{po.date}</td>
-                <td className={TH + " text-right text-slate-700"}>{po.lines.length}</td>
-                <td className={TH + " text-right font-semibold text-slate-900"}>{baht(poTotal(po))}</td>
-                <td className={TH}>
-                  <span className={"rounded-full px-2 py-1 text-xs " + (
-                    po.status === "รับของครบแล้ว" ? "bg-emerald-50 text-emerald-700"
-                    : po.status === "รับของบางส่วน" ? "bg-amber-50 text-amber-700" : "bg-slate-100 text-slate-600"
-                  )}>{po.status}</span>
-                </td>
-                <td className={TH + " text-right"}>
-                  <button onClick={() => onOpen(po)} className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs text-slate-700 hover:border-sky-500 hover:text-sky-700">
-                    เปิดดู
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </Card>
-    </div>
-  );
-}
-
-function Receiving({ onOpen }: { onOpen: (po: PurchaseOrder) => void }) {
-  const checked = PURCHASE_ORDERS.map((po) => ({ po, m: threeWayMatch(po) }));
-  const blocked = checked.filter((c) => c.m.invoice > 0 && !c.m.matched);
-  return (
-    <div className="space-y-4">
-      <div className="grid grid-cols-3 gap-3">
-        <Stat label="ใบรับของ" value={GOODS_RECEIPTS.length + " ใบ"} />
-        <Stat label="ใบแจ้งหนี้ที่ตั้งไว้" value={INVOICES.length + " ใบ"} />
-        <Stat label="ติดตรวจสามทาง" value={blocked.length + " ใบ"} tone={blocked.length ? "warn" : undefined} />
-      </div>
-
-      <Card title="ใบรับของ">
-        <table className="w-full text-sm">
-          <Head cols={[{ k: "เลขที่" }, { k: "อ้างใบสั่งซื้อ" }, { k: "วันที่" }, { k: "รายการที่รับ" }]} />
-          <tbody className="divide-y divide-slate-100">
-            {GOODS_RECEIPTS.map((g) => (
-              <tr key={g.no} className="hover:bg-sky-50">
-                <td className={TH + " font-mono text-xs text-slate-500"}>{g.no}</td>
-                <td className={TH + " font-medium text-slate-900"}>{g.po}</td>
-                <td className={TH + " text-slate-600"}>{g.date}</td>
-                <td className={TH + " text-slate-700"}>
-                  {g.lines.map((l) => material(l.material)?.name + " × " + l.qty).join(" · ")}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </Card>
-
-      <Card title="ตรวจสามทาง" subtitle="เทียบใบสั่งซื้อ ใบรับของ และใบวางบิล ให้ตรงกันก่อนอนุมัติจ่าย">
-        <table className="w-full text-sm">
-          <Head cols={[{ k: "ใบสั่งซื้อ" }, { k: "สั่ง", right: true }, { k: "รับแล้ว", right: true }, { k: "วางบิล", right: true }, { k: "ผล" }, { k: "" }]} />
-          <tbody className="divide-y divide-slate-100">
-            {checked.map(({ po, m }) => (
-              <tr key={po.no} className="hover:bg-sky-50">
-                <td className={TH + " font-mono text-xs text-slate-500"}>{po.no}</td>
-                <td className={TH + " text-right text-slate-700"}>{baht(m.ordered)}</td>
-                <td className={TH + " text-right text-slate-700"}>{baht(m.received)}</td>
-                <td className={TH + " text-right text-slate-700"}>{m.invoice ? baht(m.invoice) : "—"}</td>
-                <td className={TH}>
-                  {m.invoice === 0 ? <span className="text-xs text-slate-400">ยังไม่วางบิล</span>
-                    : m.matched ? <span className="rounded-full bg-emerald-50 px-2 py-1 text-xs text-emerald-700">ตรงกัน จ่ายได้</span>
-                    : <span className="rounded-full bg-rose-50 px-2 py-1 text-xs text-rose-700">ไม่ตรง ยังจ่ายไม่ได้</span>}
-                </td>
-                <td className={TH + " text-right"}>
-                  <button onClick={() => onOpen(po)} className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs text-slate-700 hover:border-sky-500 hover:text-sky-700">
-                    ดูรายละเอียด
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </Card>
-    </div>
-  );
-}
-
-function Stock() {
-  const value = MATERIALS.reduce((n, m) => n + m.stock * m.price, 0);
-  const low = MATERIALS.filter((m) => m.stock < m.reorder);
-  return (
-    <div className="space-y-4">
-      <div className="grid grid-cols-3 gap-3">
-        <Stat label="มูลค่าสต็อกรวม" value={baht(value)} />
-        <Stat label="ต่ำกว่าจุดสั่งซื้อ" value={low.length + " รายการ"} tone={low.length ? "warn" : undefined} />
-        <Stat label="ความเคลื่อนไหวสัปดาห์นี้" value={STOCK_MOVES.length + " รายการ"} />
-      </div>
-
-      <Card title="ระดับสต็อกเทียบจุดสั่งซื้อ">
-        <table className="w-full text-sm">
-          <Head cols={[{ k: "วัสดุ" }, { k: "ช่องเก็บ" }, { k: "คงเหลือ", right: true }, { k: "จุดสั่งซื้อ", right: true }, { k: "มูลค่า", right: true }, { k: "ระดับ" }]} />
-          <tbody className="divide-y divide-slate-100">
-            {MATERIALS.map((m) => {
-              const pct = Math.min(100, Math.round((m.stock / (m.reorder * 2)) * 100));
-              return (
-                <tr key={m.code} className="hover:bg-sky-50">
-                  <td className={TH + " font-medium text-slate-900"}>{m.name}</td>
-                  <td className={TH + " font-mono text-xs text-slate-500"}>{m.bin}</td>
-                  <td className={TH + " text-right text-slate-700"}>{m.stock.toLocaleString("th-TH")}</td>
-                  <td className={TH + " text-right text-slate-500"}>{m.reorder.toLocaleString("th-TH")}</td>
-                  <td className={TH + " text-right text-slate-700"}>{baht(m.stock * m.price)}</td>
-                  <td className={TH}>
-                    <span className="h-2 block w-24 overflow-hidden rounded-full bg-slate-100">
-                      <span className={"block h-full rounded-full " + (m.stock < m.reorder ? "bg-amber-500" : "bg-emerald-500")} style={{ width: pct + "%" }} />
+      <Reveal>
+        <div className="grid gap-3 xl:grid-cols-3">
+          <Card
+            className="xl:col-span-2"
+            title={<span className="flex items-center gap-2"><Warehouse size={15} className="text-slate-400" />มูลค่าสต็อกคงเหลือ</span>}
+            action={seeAll(3)}
+          >
+            <div className="p-4">
+              <p className="text-[32px] font-semibold leading-none tabular-nums text-slate-900 dark:text-slate-50">
+                {baht(stockValue())}
+              </p>
+              <p className="mt-1.5 text-[12.5px] text-slate-500 dark:text-slate-400">
+                กระจายใน {groups.length} กลุ่มวัสดุ · ต่ำกว่าจุดสั่งซื้อ {low.length} รายการ
+              </p>
+              <div className="mt-4 space-y-2.5">
+                {groups.map((g) => (
+                  <div key={g.group} className="flex items-center gap-3">
+                    <span className="flex w-32 shrink-0 items-center gap-1.5 text-[12.5px] text-slate-600 dark:text-slate-300">
+                      <Dot className={groupSwatch(g.group).dot} />
+                      {g.group}
                     </span>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </Card>
+                    <span className="min-w-0 flex-1">
+                      <Bar pct={(g.value / stockValue()) * 100} tone="accent" width="w-full" />
+                    </span>
+                    <span className="w-32 shrink-0 text-right text-[12.5px] tabular-nums text-slate-700 dark:text-slate-200">
+                      {baht(g.value)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </Card>
 
-      <Card title="ความเคลื่อนไหวสต็อก">
-        <table className="w-full text-sm">
-          <Head cols={[{ k: "วันที่" }, { k: "วัสดุ" }, { k: "จำนวน", right: true }, { k: "เหตุผล" }]} />
-          <tbody className="divide-y divide-slate-100">
-            {STOCK_MOVES.map((s, i) => (
-              <tr key={i} className="hover:bg-sky-50">
-                <td className={TH + " text-slate-600"}>{s.date}</td>
-                <td className={TH + " font-medium text-slate-900"}>{material(s.material)?.name}</td>
-                <td className={TH + " text-right font-semibold " + (s.qty > 0 ? "text-emerald-700" : "text-rose-600")}>
-                  {s.qty > 0 ? "+" : ""}{s.qty}
-                </td>
-                <td className={TH + " text-slate-600"}>{s.reason}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </Card>
-    </div>
-  );
-}
+          <Card
+            title={<span className="flex items-center gap-2"><TriangleAlert size={15} className="text-slate-400" />ต้องจัดการ</span>}
+            action={seeAll(1)}
+          >
+            <div className="space-y-2.5 p-4">
+              {[
+                { icon: <ClipboardList size={15} />, label: "ใบขอซื้อรออนุมัติ", value: waiting, unit: "ใบ", tone: "warn" as const, to: 1 },
+                { icon: <TrendingDown size={15} />, label: "วัสดุต่ำกว่าจุดสั่งซื้อ", value: low.length, unit: "รายการ", tone: "bad" as const, to: 3 },
+                { icon: <Receipt size={15} />, label: "ตรวจสามทางไม่ผ่าน", value: unmatched, unit: "ใบ", tone: "bad" as const, to: 2 },
+                { icon: <Truck size={15} />, label: "ใบสั่งซื้อที่ยังรับไม่ครบ", value: openOrders.length, unit: "ใบ", tone: "info" as const, to: 2 },
+              ].map((r) => (
+                <button
+                  key={r.label}
+                  onClick={() => onOpenSection?.(r.to)}
+                  className="flex w-full items-center gap-3 rounded-xl bg-slate-50 px-3.5 py-3 text-left transition hover:bg-slate-100 dark:bg-slate-800/50 dark:hover:bg-slate-800"
+                >
+                  <span className="text-slate-400">{r.icon}</span>
+                  <span className="min-w-0 flex-1 text-[12.5px] text-slate-700 dark:text-slate-200">{r.label}</span>
+                  <Badge tone={r.value > 0 ? r.tone : "ok"}>
+                    {r.value} {r.unit}
+                  </Badge>
+                </button>
+              ))}
+            </div>
+          </Card>
+        </div>
+      </Reveal>
 
-function VendorRating() {
-  return (
-    <Card title="ผลงานผู้ขาย" subtitle="ใช้ประกอบการตัดสินใจว่าจะสั่งกับรายใดในรอบถัดไป">
-      <table className="w-full text-sm">
-        <Head cols={[{ k: "ผู้ขาย" }, { k: "เงื่อนไขชำระ" }, { k: "ใบสั่งซื้อ", right: true }, { k: "มูลค่ารวม", right: true }, { k: "ส่งของครบ" }]} />
-        <tbody className="divide-y divide-slate-100">
-          {VENDORS.map((v) => {
-            const s = vendorScore(v.code);
-            return (
-              <tr key={v.code} className="hover:bg-sky-50">
-                <td className={TH + " font-medium text-slate-900"}>{v.name}</td>
-                <td className={TH + " text-slate-600"}>{v.terms}</td>
-                <td className={TH + " text-right text-slate-700"}>{s.orders}</td>
-                <td className={TH + " text-right text-slate-700"}>{baht(s.value)}</td>
-                <td className={TH}>
-                  {s.fillRate === null ? <span className="text-xs text-slate-400">ยังไม่มีใบที่ปิด</span> : (
-                    <span className="flex items-center gap-2">
-                      <span className="h-2 w-20 overflow-hidden rounded-full bg-slate-100">
-                        <span className={"block h-full rounded-full " + (s.fillRate === 100 ? "bg-emerald-500" : "bg-amber-500")} style={{ width: s.fillRate + "%" }} />
+      <Reveal delay={0.08} className="mt-3">
+        <div className="grid gap-3 xl:grid-cols-3">
+          <Card
+            className="xl:col-span-2"
+            title={<span className="flex items-center gap-2"><TrendingUp size={15} className="text-slate-400" />ยอดสั่งซื้อรายเดือน</span>}
+            subtitle="คิดจากมูลค่าในใบสั่งซื้อที่เปิดในเดือนนั้น"
+          >
+            <ColumnChart
+              data={spend.map((s, i) => ({
+                label: s.month.slice(5) + "/" + s.month.slice(2, 4),
+                value: s.value,
+                tone: i === spend.length - 1 ? ("accent" as const) : undefined,
+              }))}
+              format={(n) => baht(n)}
+              height={180}
+            />
+            <ul className="divide-y divide-slate-100 border-t border-slate-100 dark:divide-slate-800 dark:border-slate-800">
+              {spend.map((s) => (
+                <li key={s.month} className="flex items-center gap-3 px-4 py-2 text-[12.5px]">
+                  <span className="w-20 shrink-0 tabular-nums text-slate-600 dark:text-slate-300">{s.month}</span>
+                  <span className="min-w-0 flex-1 text-slate-400">{s.orders} ใบสั่งซื้อ</span>
+                  <span className="shrink-0 tabular-nums text-slate-900 dark:text-slate-50">{baht(s.value)}</span>
+                </li>
+              ))}
+            </ul>
+          </Card>
+
+          <Card
+            title={<span className="flex items-center gap-2"><Building size={15} className="text-slate-400" />ผู้ขายตามมูลค่าที่สั่ง</span>}
+            action={seeAll(4)}
+          >
+            <ul className="divide-y divide-slate-100 dark:divide-slate-800">
+              {byVendor.map(({ v, value, orders, fillRate }) => (
+                <li key={v.code} className="px-4 py-2.5">
+                  <div className="flex items-center gap-2.5">
+                    <Avatar name={v.name.replace(/^(บจก\\.|หจก\\.)\\s*/, "")} size="sm" />
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-[13px] text-slate-900 dark:text-slate-50">{v.name}</span>
+                      <span className="block text-[11px] text-slate-400">
+                        {orders} ใบ · {fillRate === null ? "ยังไม่มีใบที่ปิด" : \`ส่งครบ \${fillRate}%\`}
                       </span>
-                      <span className="text-xs text-slate-600">{s.fillRate}%</span>
                     </span>
-                  )}
-                </td>
-              </tr>
+                    <span className="shrink-0 text-[12px] tabular-nums text-slate-700 dark:text-slate-200">{baht(value)}</span>
+                  </div>
+                  <div className="mt-1.5">
+                    <Bar pct={(value / topValue) * 100} tone="info" width="w-full" />
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </Card>
+        </div>
+      </Reveal>
+
+      <Reveal delay={0.16} className="mt-3">
+        <Card
+          title={<span className="flex items-center gap-2"><TrendingDown size={15} className="text-slate-400" />วัสดุที่ต่ำกว่าจุดสั่งซื้อ</span>}
+          subtitle="ควรเปิดใบขอซื้อก่อนของหมด ระบบเสนอผู้ขายที่เคยให้ราคาดีที่สุดไว้ให้"
+          action={seeAll(3)}
+        >
+          {low.length === 0 ? (
+            <p className="py-10 text-center text-[12.5px] text-slate-400">ทุกรายการอยู่เหนือจุดสั่งซื้อ</p>
+          ) : (
+            <ul className="divide-y divide-slate-100 dark:divide-slate-800">
+              {low.map((m) => {
+                const best = bestPriceFor(m.code);
+                return (
+                  <li key={m.code} className="flex flex-wrap items-center gap-3 px-4 py-2.5">
+                    <Dot className={groupSwatch(m.group).dot} />
+                    <button onClick={() => onOpenMaterial(m)} className="w-56 shrink-0 text-left">
+                      <span className="block truncate text-[13px] text-slate-900 dark:text-slate-50">{m.name}</span>
+                      <span className="block font-mono text-[11px] text-slate-400">{m.code}</span>
+                    </button>
+                    <span className="min-w-0 flex-1">
+                      <Bar pct={(m.stock / m.reorder) * 100} tone="bad" width="w-full" />
+                    </span>
+                    <span className="w-32 shrink-0 text-right text-[11.5px] tabular-nums text-slate-500 dark:text-slate-400">
+                      เหลือ {m.stock} / จุดสั่ง {m.reorder}
+                    </span>
+                    <span className="w-48 shrink-0 text-right text-[11.5px] text-slate-400">
+                      {best ? \`\${vendor(best.vendor).name} \${baht(best.price)}\` : "ยังไม่มีราคาอ้างอิง"}
+                    </span>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </Card>
+      </Reveal>
+    </div>
+  );
+}
+
+/* ---------------------------------------------------------------- master */
+
+function Master({
+  rows,
+  q,
+  setQ,
+  group,
+  setGroup,
+  onOpenMaterial,
+  onOpenVendor,
+}: {
+  rows: Material[];
+  q: string;
+  setQ: (v: string) => void;
+  group: string;
+  setGroup: (v: string) => void;
+  onOpenMaterial: (m: Material) => void;
+  onOpenVendor: (v: Vendor) => void;
+}) {
+  const [view, setView] = useState(MASTER_TABS[0]);
+
+  const columns: Column<Material>[] = [
+    {
+      key: "name",
+      header: "วัสดุ",
+      width: "28%",
+      sort: (a, b) => a.name.localeCompare(b.name, "th"),
+      cell: (m) => (
+        <span>
+          <span className="block font-medium text-slate-900 dark:text-slate-50">{m.name}</span>
+          <span className="block font-mono text-[11px] text-slate-400">{m.code}</span>
+        </span>
+      ),
+    },
+    {
+      key: "group",
+      header: "กลุ่ม",
+      width: "16%",
+      sort: (a, b) => MATERIAL_GROUPS.indexOf(a.group) - MATERIAL_GROUPS.indexOf(b.group),
+      cell: (m) => <Tag swatch={groupSwatch(m.group)}>{m.group}</Tag>,
+    },
+    {
+      key: "bin",
+      header: "ช่องเก็บ",
+      width: "12%",
+      cell: (m) => <span className="font-mono text-[12px] text-slate-500 dark:text-slate-400">{m.bin}</span>,
+    },
+    {
+      key: "stock",
+      header: "คงเหลือ",
+      align: "right",
+      width: "14%",
+      sort: (a, b) => a.stock - b.stock,
+      cell: (m) => (
+        <span className={"tabular-nums " + (m.stock < m.reorder ? "font-semibold text-rose-600 dark:text-rose-400" : "text-slate-700 dark:text-slate-200")}>
+          {m.stock} {m.unit}
+        </span>
+      ),
+    },
+    {
+      key: "price",
+      header: "ราคาต่อหน่วย",
+      align: "right",
+      width: "15%",
+      sort: (a, b) => a.price - b.price,
+      cell: (m) => <span className="tabular-nums text-slate-700 dark:text-slate-200">{baht(m.price)}</span>,
+    },
+    {
+      key: "value",
+      header: "มูลค่า",
+      align: "right",
+      width: "15%",
+      sort: (a, b) => a.stock * a.price - b.stock * b.price,
+      cell: (m) => <span className="tabular-nums text-slate-900 dark:text-slate-50">{baht(m.stock * m.price)}</span>,
+    },
+  ];
+
+  return (
+    <div className="space-y-3">
+      <Tabs tabs={MASTER_TABS} active={view} onPick={setView} icons={MASTER_ICONS} id="master" />
+
+      {view === "แฟ้มวัสดุ" && (
+        <DataTable
+          rows={rows}
+          columns={columns}
+          getId={(m) => m.code}
+          onOpen={onOpenMaterial}
+          toolbar={
+            <div className="flex flex-wrap items-center gap-2">
+              <Search value={q} onChange={setQ} placeholder="ค้นหาชื่อวัสดุ รหัส หรือช่องเก็บ" icon={<SearchIcon size={14} />} />
+              <Select value={group} onChange={setGroup} options={["ทุกกลุ่ม", ...MATERIAL_GROUPS]} />
+              <span className="ml-auto text-[12px] text-slate-400">
+                แสดง {rows.length} รายการ · มูลค่า {baht(rows.reduce((n, m) => n + m.stock * m.price, 0))}
+              </span>
+            </div>
+          }
+        />
+      )}
+
+      {view === "แฟ้มผู้ขาย" && (
+        <div className="grid gap-3 lg:grid-cols-2">
+          {VENDORS.map((v) => {
+            const score = vendorScore(v.code);
+            return (
+              <Card
+                key={v.code}
+                title={
+                  <button onClick={() => onOpenVendor(v)} className="flex items-center gap-2.5 text-left transition hover:text-violet-700">
+                    <Avatar name={v.name.replace(/^(บจก\\.|หจก\\.)\\s*/, "")} size="sm" />
+                    {v.name}
+                  </button>
+                }
+                subtitle={\`\${v.code} · เลขผู้เสียภาษี \${v.taxId}\`}
+                action={<Badge tone={score.fillRate === 100 ? "ok" : score.fillRate === null ? "idle" : "warn"}>
+                  {score.fillRate === null ? "ยังไม่มีใบที่ปิด" : \`ส่งครบ \${score.fillRate}%\`}
+                </Badge>}
+              >
+                <div className="space-y-1 p-4">
+                  <IconRow icon={<Handshake size={14} />} label="ผู้ติดต่อ">{v.contact}</IconRow>
+                  <IconRow icon={<Receipt size={14} />} label="เงื่อนไขชำระ">{v.terms}</IconRow>
+                  <IconRow icon={<Truck size={14} />} label="เวลาส่งของ">{v.leadDays} วัน</IconRow>
+                  <IconRow icon={<Coins size={14} />} label="มูลค่าที่สั่งรวม">{baht(score.value)}</IconRow>
+                </div>
+              </Card>
             );
           })}
-        </tbody>
-      </table>
-    </Card>
+        </div>
+      )}
+
+      {view === "ราคาที่เคยเสนอ" && (
+        <Card
+          title={<span className="flex items-center gap-2"><Coins size={15} className="text-slate-400" />ราคาที่ผู้ขายเคยเสนอ</span>}
+          subtitle="ใช้ประกอบการเลือกแหล่งซื้อในรอบถัดไป แถวที่ทำเครื่องหมายคือราคาดีที่สุดของวัสดุนั้น"
+        >
+          <table className="w-full text-[13px]">
+            <thead className="bg-slate-50/80 text-left text-[11px] uppercase tracking-wide text-slate-500 dark:bg-slate-800/60 dark:text-slate-400">
+              <tr>
+                <th className="px-4 py-3 font-medium">วัสดุ</th>
+                <th className="px-4 py-3 font-medium">ผู้ขาย</th>
+                <th className="px-4 py-3 text-right font-medium">ราคา</th>
+                <th className="px-4 py-3 text-right font-medium">เวลาส่ง</th>
+                <th className="px-4 py-3 font-medium" />
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+              {INFO_RECORDS.map((r, i) => {
+                const best = bestPriceFor(r.material)!;
+                const isBest = best.vendor === r.vendor && best.price === r.price;
+                return (
+                  <tr key={i} className="transition hover:bg-slate-50 dark:hover:bg-slate-800/40">
+                    <td className="px-4 py-2.5 text-slate-900 dark:text-slate-50">{material(r.material).name}</td>
+                    <td className="px-4 py-2.5 text-slate-600 dark:text-slate-300">{vendor(r.vendor).name}</td>
+                    <td className={"px-4 py-2.5 text-right tabular-nums " + (isBest ? "font-semibold text-emerald-700 dark:text-emerald-400" : "text-slate-700 dark:text-slate-200")}>
+                      {baht(r.price)}
+                    </td>
+                    <td className="px-4 py-2.5 text-right tabular-nums text-slate-500 dark:text-slate-400">{r.leadDays} วัน</td>
+                    <td className="px-4 py-2.5">
+                      {isBest && <Badge tone="ok" icon={<Star size={11} />}>ราคาดีที่สุด</Badge>}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </Card>
+      )}
+    </div>
   );
 }
 
-function PoDialog({ po, onClose }: { po: PurchaseOrder; onClose: () => void }) {
-  const m = threeWayMatch(po);
-  return (
-    <div role="dialog" aria-modal="true" onClick={onClose} className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4">
-      <div onClick={(e) => e.stopPropagation()} className="max-h-[85vh] w-full max-w-lg overflow-y-auto rounded-2xl bg-white p-6 shadow-xl">
-        <div className="flex items-start justify-between">
-          <div>
-            <h2 className="text-lg font-semibold text-slate-900">ใบสั่งซื้อ {po.no}</h2>
-            <p className="text-sm text-slate-500">{vendor(po.vendor)?.name} · {po.date}</p>
-          </div>
-          <button onClick={onClose} className="rounded-lg px-2 py-1 text-slate-400 hover:bg-slate-100">✕</button>
-        </div>
+/* -------------------------------------------------------------- ordering */
 
-        <table className="mt-4 w-full text-sm">
-          <Head cols={[{ k: "วัสดุ" }, { k: "สั่ง", right: true }, { k: "รับแล้ว", right: true }, { k: "รวม", right: true }]} />
-          <tbody className="divide-y divide-slate-100">
-            {po.lines.map((l) => {
-              const short = m.shortLines.find((s) => s.material === l.material);
-              return (
-                <tr key={l.material}>
-                  <td className="py-2.5 text-slate-800">{material(l.material)?.name}</td>
-                  <td className="py-2.5 text-right text-slate-700">{l.qty}</td>
-                  <td className={"py-2.5 text-right " + (short ? "font-semibold text-amber-700" : "text-slate-700")}>
-                    {short ? short.got : l.qty}
-                  </td>
-                  <td className="py-2.5 text-right text-slate-900">{baht(l.qty * l.price)}</td>
-                </tr>
-              );
-            })}
+function Ordering({
+  statusOf,
+  onApprove,
+  onOpenPo,
+}: {
+  statusOf: (no: string, seed: string) => string;
+  onApprove: (r: (typeof REQUISITIONS)[number]) => void;
+  onOpenPo: (p: PurchaseOrder) => void;
+}) {
+  return (
+    <div className="space-y-3">
+      <Card
+        title={<span className="flex items-center gap-2"><ClipboardList size={15} className="text-slate-400" />ใบขอซื้อ</span>}
+        subtitle="หน่วยงานเปิดใบขอซื้อ จัดซื้ออนุมัติแล้วจึงแปลงเป็นใบสั่งซื้อ"
+      >
+        <ul className="divide-y divide-slate-100 dark:divide-slate-800">
+          {REQUISITIONS.map((r) => {
+            const m = material(r.material);
+            const status = statusOf(r.no, r.status);
+            const best = bestPriceFor(r.material);
+            return (
+              <li key={r.no} className="flex flex-wrap items-center gap-3 px-4 py-3">
+                <span className="w-32 shrink-0 font-mono text-[12px] text-slate-500 dark:text-slate-400">{r.no}</span>
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-[13px] font-medium text-slate-900 dark:text-slate-50">{m.name}</span>
+                  <span className="block truncate text-[11.5px] text-slate-400">
+                    {r.qty} {m.unit} · ขอโดย{r.requester} · ต้องการภายใน {r.needBy}
+                    {best && \` · ราคาอ้างอิง \${baht(best.price)} จาก\${vendor(best.vendor).name}\`}
+                  </span>
+                </span>
+                <span className="shrink-0 text-[12.5px] tabular-nums text-slate-600 dark:text-slate-300">
+                  {best ? baht(best.price * r.qty) : "—"}
+                </span>
+                <Badge tone={status === "รออนุมัติ" ? "warn" : status === "อนุมัติแล้ว" ? "info" : "ok"} dot>
+                  {status}
+                </Badge>
+                {status === "รออนุมัติ" && (
+                  <Button variant="secondary" onClick={() => onApprove(r)}>
+                    อนุมัติ
+                  </Button>
+                )}
+              </li>
+            );
+          })}
+        </ul>
+      </Card>
+
+      <Card
+        title={<span className="flex items-center gap-2"><ShoppingCart size={15} className="text-slate-400" />ใบสั่งซื้อ</span>}
+        subtitle="กดที่แถวเพื่อดูรายบรรทัด ของที่รับแล้ว และใบแจ้งหนี้ที่ผูกอยู่"
+      >
+        <table className="w-full text-[13px]">
+          <thead className="bg-slate-50/80 text-left text-[11px] uppercase tracking-wide text-slate-500 dark:bg-slate-800/60 dark:text-slate-400">
+            <tr>
+              <th className="px-4 py-3 font-medium">เลขที่</th>
+              <th className="px-4 py-3 font-medium">ผู้ขาย</th>
+              <th className="px-4 py-3 font-medium">วันที่</th>
+              <th className="px-4 py-3 text-right font-medium">รายการ</th>
+              <th className="px-4 py-3 text-right font-medium">มูลค่า</th>
+              <th className="px-4 py-3 font-medium">สถานะ</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+            {[...PURCHASE_ORDERS].reverse().map((po) => (
+              <tr
+                key={po.no}
+                onClick={() => onOpenPo(po)}
+                className="cursor-pointer transition hover:bg-slate-50 dark:hover:bg-slate-800/40"
+              >
+                <td className="px-4 py-2.5 font-mono text-[12px] text-slate-500 dark:text-slate-400">{po.no}</td>
+                <td className="px-4 py-2.5 text-slate-900 dark:text-slate-50">{vendor(po.vendor).name}</td>
+                <td className="px-4 py-2.5 tabular-nums text-slate-500 dark:text-slate-400">{po.date}</td>
+                <td className="px-4 py-2.5 text-right tabular-nums text-slate-600 dark:text-slate-300">{po.lines.length}</td>
+                <td className="px-4 py-2.5 text-right tabular-nums text-slate-900 dark:text-slate-50">{baht(poTotal(po))}</td>
+                <td className="px-4 py-2.5">
+                  <Badge tone={PO_TONE[po.status]} dot>{po.status}</Badge>
+                </td>
+              </tr>
+            ))}
           </tbody>
         </table>
+      </Card>
+    </div>
+  );
+}
 
-        <dl className="mt-4 divide-y divide-slate-100 text-sm">
-          <Row k="มูลค่าที่สั่ง" v={baht(m.ordered)} />
-          <Row k="มูลค่าที่รับแล้ว" v={baht(m.received)} />
-          <Row k="ใบแจ้งหนี้" v={m.invoice ? baht(m.invoice) : "ยังไม่วางบิล"} />
-        </dl>
+/* ------------------------------------------------------------- receiving */
 
-        <div className={"mt-5 rounded-xl px-4 py-3.5 text-sm " + (
-          m.invoice === 0 ? "bg-slate-50 text-slate-600"
-          : m.matched ? "bg-emerald-50 text-emerald-800" : "bg-rose-50 text-rose-800"
-        )}>
-          {m.invoice === 0 ? "ยังไม่มีใบแจ้งหนี้ ตรวจสามทางเมื่อผู้ขายวางบิล"
-            : m.matched ? "สั่ง รับ และวางบิล ตรงกันทั้งสามทาง อนุมัติจ่ายได้"
-            : "ยอดวางบิลยังไม่ตรงกับของที่รับจริง " + m.shortLines.map((s) => material(s.material)?.name + " ขาด " + (s.qty - s.got)).join(", ")}
-        </div>
+function Receiving({ onOpenPo }: { onOpenPo: (p: PurchaseOrder) => void }) {
+  const rows = PURCHASE_ORDERS.map((po) => ({ po, m: threeWayMatch(po) }));
+  const blocked = rows.filter((r) => r.m.invoice > 0 && !r.m.matched);
+
+  return (
+    <div className="space-y-3">
+      <StatStrip
+        title="การรับของและการตรวจสอบ"
+        icon={<PackageCheck size={15} />}
+        cells={[
+          { icon: <Truck size={13} />, label: "ใบรับของ", value: GOODS_RECEIPTS.length + " ใบ", sub: "บันทึกของที่รับเข้าจริง" },
+          { icon: <Receipt size={13} />, label: "ใบแจ้งหนี้ที่ตั้งไว้", value: INVOICES.length + " ใบ", sub: "ผู้ขายวางบิลเข้ามาแล้ว", tone: "info" },
+          { icon: <CircleCheck size={13} />, label: "ตรวจผ่าน", value: rows.filter((r) => r.m.matched).length + " ใบ", sub: "สั่ง รับ และวางบิลตรงกัน", tone: "ok" },
+          { icon: <CircleX size={13} />, label: "ตรวจไม่ผ่าน", value: blocked.length + " ใบ", sub: "ยังอนุมัติจ่ายไม่ได้", tone: blocked.length > 0 ? "bad" : "ok" },
+        ]}
+      />
+
+      {blocked.length > 0 && (
+        <Note tone="bad">
+          มี {blocked.length} ใบที่ยอดวางบิลไม่ตรงกับของที่รับจริง ควรให้ผู้ขายออกใบลดหนี้หรือส่งของส่วนที่ขาดก่อนอนุมัติจ่าย
+        </Note>
+      )}
+
+      <Card
+        title={<span className="flex items-center gap-2"><Truck size={15} className="text-slate-400" />ใบรับของ</span>}
+        subtitle="แต่ละใบอ้างถึงใบสั่งซื้อที่เป็นต้นเรื่อง"
+      >
+        <table className="w-full text-[13px]">
+          <thead className="bg-slate-50/80 text-left text-[11px] uppercase tracking-wide text-slate-500 dark:bg-slate-800/60 dark:text-slate-400">
+            <tr>
+              <th className="px-4 py-3 font-medium">เลขที่</th>
+              <th className="px-4 py-3 font-medium">อ้างใบสั่งซื้อ</th>
+              <th className="px-4 py-3 font-medium">วันที่</th>
+              <th className="px-4 py-3 font-medium">รายการที่รับ</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+            {[...GOODS_RECEIPTS].reverse().map((g) => (
+              <tr key={g.no} className="transition hover:bg-slate-50 dark:hover:bg-slate-800/40">
+                <td className="px-4 py-2.5 font-mono text-[12px] text-slate-500 dark:text-slate-400">{g.no}</td>
+                <td className="px-4 py-2.5">
+                  <button
+                    onClick={() => onOpenPo(PURCHASE_ORDERS.find((p) => p.no === g.po)!)}
+                    className="font-mono text-[12px] text-violet-700 transition hover:underline dark:text-violet-300"
+                  >
+                    {g.po}
+                  </button>
+                </td>
+                <td className="px-4 py-2.5 tabular-nums text-slate-500 dark:text-slate-400">{g.date}</td>
+                <td className="px-4 py-2.5 text-slate-700 dark:text-slate-200">
+                  {g.lines.map((l) => \`\${material(l.material).name} × \${l.qty}\`).join(" · ")}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </Card>
+
+      <Card
+        title={<span className="flex items-center gap-2"><PackageSearch size={15} className="text-slate-400" />ตรวจสามทาง</span>}
+        subtitle="เทียบใบสั่งซื้อ ใบรับของ และใบวางบิล ให้ตรงกันก่อนอนุมัติจ่าย"
+      >
+        <table className="w-full text-[13px]">
+          <thead className="bg-slate-50/80 text-left text-[11px] uppercase tracking-wide text-slate-500 dark:bg-slate-800/60 dark:text-slate-400">
+            <tr>
+              <th className="px-4 py-3 font-medium">ใบสั่งซื้อ</th>
+              <th className="px-4 py-3 text-right font-medium">สั่ง</th>
+              <th className="px-4 py-3 text-right font-medium">รับแล้ว</th>
+              <th className="px-4 py-3 text-right font-medium">วางบิล</th>
+              <th className="px-4 py-3 font-medium">ผล</th>
+              <th className="px-4 py-3 text-right font-medium" />
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+            {[...rows].reverse().map(({ po, m }) => (
+              <tr key={po.no} className="transition hover:bg-slate-50 dark:hover:bg-slate-800/40">
+                <td className="px-4 py-2.5 font-mono text-[12px] text-slate-500 dark:text-slate-400">{po.no}</td>
+                <td className="px-4 py-2.5 text-right tabular-nums text-slate-700 dark:text-slate-200">{baht(m.ordered)}</td>
+                <td className="px-4 py-2.5 text-right tabular-nums text-slate-700 dark:text-slate-200">{baht(m.received)}</td>
+                <td className="px-4 py-2.5 text-right tabular-nums text-slate-700 dark:text-slate-200">{m.invoice ? baht(m.invoice) : "—"}</td>
+                <td className="px-4 py-2.5">
+                  {m.invoice === 0 ? (
+                    <Badge tone="idle">ยังไม่วางบิล</Badge>
+                  ) : m.matched ? (
+                    <Badge tone="ok" dot>ตรงกัน จ่ายได้</Badge>
+                  ) : (
+                    <Badge tone="bad" dot>ไม่ตรง ยังจ่ายไม่ได้</Badge>
+                  )}
+                </td>
+                <td className="px-4 py-2.5 text-right">
+                  <Button variant="secondary" onClick={() => onOpenPo(po)}>
+                    ดูรายละเอียด
+                  </Button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </Card>
+    </div>
+  );
+}
+
+/* ----------------------------------------------------------------- stock */
+
+function Stock({ onOpenMaterial }: { onOpenMaterial: (m: Material) => void }) {
+  const groups = stockByGroup();
+  const low = belowReorder();
+
+  return (
+    <div className="space-y-3">
+      <StatStrip
+        title="สต็อกวัสดุ"
+        icon={<Warehouse size={15} />}
+        cells={[
+          { icon: <Coins size={13} />, label: "มูลค่าสต็อกรวม", value: baht(stockValue()), sub: \`\${MATERIALS.length} รายการในแฟ้มวัสดุ\` },
+          { icon: <TrendingDown size={13} />, label: "ต่ำกว่าจุดสั่งซื้อ", value: low.length + " รายการ", sub: "ควรเปิดใบขอซื้อ", tone: low.length > 0 ? "bad" : "ok" },
+          { icon: <Layers size={13} />, label: "กลุ่มวัสดุ", value: groups.length + " กลุ่ม", sub: "แบ่งตามการใช้งาน", tone: "info" },
+          { icon: <TrendingUp size={13} />, label: "ความเคลื่อนไหวสัปดาห์นี้", value: STOCK_MOVES.filter((m) => m.date >= "2026-09-15").length + " รายการ", sub: "รับเข้าและจ่ายออก", tone: "accent" },
+        ]}
+      />
+
+      <div className="grid gap-3 xl:grid-cols-3">
+        <Card
+          title={<span className="flex items-center gap-2"><Layers size={15} className="text-slate-400" />มูลค่าตามกลุ่มวัสดุ</span>}
+        >
+          <div className="p-4">
+            <Donut
+              segments={groups.map((g) => ({ label: g.group, value: g.value, swatch: groupSwatch(g.group) }))}
+              size={128}
+              center={
+                <span>
+                  <span className="block text-[18px] font-semibold leading-none tabular-nums text-slate-900 dark:text-slate-50">
+                    {groups.length}
+                  </span>
+                  <span className="mt-1 block text-[10.5px] uppercase tracking-wide text-slate-400">กลุ่ม</span>
+                </span>
+              }
+            />
+          </div>
+        </Card>
+
+        <Card
+          className="xl:col-span-2"
+          title={<span className="flex items-center gap-2"><Boxes size={15} className="text-slate-400" />ระดับสต็อกเทียบจุดสั่งซื้อ</span>}
+          subtitle="แถบสีแดงคือรายการที่คงเหลือต่ำกว่าจุดสั่งซื้อแล้ว"
+        >
+          <ul className="divide-y divide-slate-100 dark:divide-slate-800">
+            {[...MATERIALS]
+              .sort((a, b) => a.stock / a.reorder - b.stock / b.reorder)
+              .map((m) => (
+                <li key={m.code} className="flex items-center gap-3 px-4 py-2">
+                  <Dot className={groupSwatch(m.group).dot} />
+                  <button onClick={() => onOpenMaterial(m)} className="w-52 shrink-0 truncate text-left text-[13px] text-slate-900 hover:text-violet-700 dark:text-slate-50">
+                    {m.name}
+                  </button>
+                  <span className="min-w-0 flex-1">
+                    <Bar pct={Math.min(100, (m.stock / m.reorder) * 100)} tone={m.stock < m.reorder ? "bad" : "ok"} width="w-full" />
+                  </span>
+                  <span className="w-32 shrink-0 text-right text-[11.5px] tabular-nums text-slate-500 dark:text-slate-400">
+                    {m.stock} / {m.reorder} {m.unit}
+                  </span>
+                </li>
+              ))}
+          </ul>
+        </Card>
+      </div>
+
+      <Card
+        title={<span className="flex items-center gap-2"><TrendingUp size={15} className="text-slate-400" />ความเคลื่อนไหวสต็อก</span>}
+        subtitle="รับเข้าเป็นบวก จ่ายออกเป็นลบ ทุกแถวอ้างถึงเอกสารที่เป็นต้นเรื่อง"
+      >
+        <table className="w-full text-[13px]">
+          <thead className="bg-slate-50/80 text-left text-[11px] uppercase tracking-wide text-slate-500 dark:bg-slate-800/60 dark:text-slate-400">
+            <tr>
+              <th className="px-4 py-3 font-medium">วันที่</th>
+              <th className="px-4 py-3 font-medium">วัสดุ</th>
+              <th className="px-4 py-3 text-right font-medium">จำนวน</th>
+              <th className="px-4 py-3 font-medium">เหตุผล</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+            {[...STOCK_MOVES].reverse().map((mv, i) => (
+              <tr key={i} className="transition hover:bg-slate-50 dark:hover:bg-slate-800/40">
+                <td className="px-4 py-2.5 tabular-nums text-slate-500 dark:text-slate-400">{mv.date}</td>
+                <td className="px-4 py-2.5 text-slate-900 dark:text-slate-50">{material(mv.material).name}</td>
+                <td className={"px-4 py-2.5 text-right font-semibold tabular-nums " + (mv.qty > 0 ? "text-emerald-700 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400")}>
+                  {mv.qty > 0 ? "+" : ""}
+                  {mv.qty}
+                </td>
+                <td className="px-4 py-2.5 text-slate-600 dark:text-slate-300">{mv.reason}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </Card>
+    </div>
+  );
+}
+
+/* --------------------------------------------------------- vendor review */
+
+function VendorReview({ onOpenVendor }: { onOpenVendor: (v: Vendor) => void }) {
+  const rows = VENDORS.map((v) => ({ v, ...vendorScore(v.code) })).sort((a, b) => b.value - a.value);
+  const [sortBy, setSortBy] = useState("มูลค่าที่สั่ง");
+  const shown =
+    sortBy === "มูลค่าที่สั่ง"
+      ? rows
+      : sortBy === "อัตราส่งครบ"
+        ? [...rows].sort((a, b) => (b.fillRate ?? -1) - (a.fillRate ?? -1))
+        : [...rows].sort((a, b) => a.v.leadDays - b.v.leadDays);
+
+  return (
+    <div className="space-y-3">
+      <div className="flex flex-wrap items-center gap-2">
+        <Segmented options={["มูลค่าที่สั่ง", "อัตราส่งครบ", "เวลาส่งของ"]} value={sortBy} onChange={setSortBy} />
+        <span className="ml-auto text-[12px] text-slate-400">อัตราส่งครบคิดจากใบสั่งซื้อที่ปิดแล้วเท่านั้น</span>
+      </div>
+
+      <div className="grid gap-3 lg:grid-cols-2">
+        {shown.map(({ v, orders, value, fillRate }) => (
+          <Card
+            key={v.code}
+            title={
+              <button onClick={() => onOpenVendor(v)} className="flex items-center gap-2.5 text-left transition hover:text-violet-700">
+                <Avatar name={v.name.replace(/^(บจก\\.|หจก\\.)\\s*/, "")} size="sm" />
+                {v.name}
+              </button>
+            }
+            subtitle={\`\${v.contact} · \${v.terms}\`}
+            action={
+              <Badge tone={fillRate === null ? "idle" : fillRate === 100 ? "ok" : "warn"}>
+                {fillRate === null ? "ยังไม่มีใบที่ปิด" : \`ส่งครบ \${fillRate}%\`}
+              </Badge>
+            }
+          >
+            <div className="grid grid-cols-3 gap-px bg-slate-100 dark:bg-slate-800">
+              {[
+                { label: "ใบสั่งซื้อ", value: orders + " ใบ" },
+                { label: "มูลค่ารวม", value: baht(value) },
+                { label: "เวลาส่ง", value: v.leadDays + " วัน" },
+              ].map((c) => (
+                <div key={c.label} className="bg-white p-3 dark:bg-slate-900">
+                  <div className="text-[11.5px] text-slate-500 dark:text-slate-400">{c.label}</div>
+                  <div className="mt-1 text-[15px] font-semibold tabular-nums text-slate-900 dark:text-slate-50">{c.value}</div>
+                </div>
+              ))}
+            </div>
+            {fillRate !== null && (
+              <div className="px-4 py-3">
+                <Progress done={fillRate} total={100} label="อัตราส่งของครบตามใบสั่งซื้อ" />
+              </div>
+            )}
+          </Card>
+        ))}
       </div>
     </div>
   );
 }
 
+/* --------------------------------------------------------------- records */
+
+function MaterialRecord({ m }: { m: Material }) {
+  const [tab, setTab] = useState(MATERIAL_TABS[0]);
+  const sources = INFO_RECORDS.filter((r) => r.material === m.code);
+  const best = bestPriceFor(m.code);
+  const moves = movesOf(m.code);
+  const sw = groupSwatch(m.group);
+
+  return (
+    <div>
+      <div className="flex flex-wrap items-start gap-4 border-b border-slate-100 px-5 pb-5 dark:border-slate-800">
+        <span className={"grid size-14 shrink-0 place-items-center rounded-2xl " + sw.tint}>
+          <Boxes size={24} />
+        </span>
+        <div className="min-w-0 flex-1">
+          <h2 className="text-[18px] font-semibold text-slate-900 dark:text-slate-50">{m.name}</h2>
+          <p className="mt-0.5 font-mono text-[12.5px] text-slate-500 dark:text-slate-400">
+            {m.code} · ช่องเก็บ {m.bin}
+          </p>
+          <div className="mt-2 flex flex-wrap items-center gap-1.5">
+            <Tag swatch={sw}>{m.group}</Tag>
+            <Badge tone={m.stock < m.reorder ? "bad" : "ok"} dot>
+              {m.stock < m.reorder ? "ต่ำกว่าจุดสั่งซื้อ" : "สต็อกเพียงพอ"}
+            </Badge>
+            <Chip>{m.unit}</Chip>
+          </div>
+        </div>
+        <div className="shrink-0 text-right">
+          <p className="text-[11.5px] text-slate-400">มูลค่าคงเหลือ</p>
+          <p className="text-[22px] font-semibold tabular-nums text-slate-900 dark:text-slate-50">{baht(m.stock * m.price)}</p>
+        </div>
+      </div>
+
+      <div className="px-5">
+        <Tabs tabs={MATERIAL_TABS} active={tab} onPick={setTab} icons={MATERIAL_ICONS} id="material" />
+      </div>
+
+      <div className="px-5 py-4">
+        {tab === "ข้อมูลวัสดุ" && (
+          <div className="space-y-1">
+            <IconRow icon={<FileText size={14} />} label="รหัสวัสดุ">{m.code}</IconRow>
+            <IconRow icon={<Layers size={14} />} label="กลุ่ม">{m.group}</IconRow>
+            <IconRow icon={<Warehouse size={14} />} label="ช่องเก็บ">{m.bin}</IconRow>
+            <IconRow icon={<Coins size={14} />} label="ราคาต่อหน่วย">{baht(m.price)} ต่อ {m.unit}</IconRow>
+            <IconRow icon={<Boxes size={14} />} label="จุดสั่งซื้อ">{m.reorder} {m.unit}</IconRow>
+          </div>
+        )}
+
+        {tab === "ระดับสต็อก" && (
+          <div className="space-y-3">
+            <Progress done={Math.min(m.stock, m.reorder * 2)} total={m.reorder * 2} label={\`คงเหลือ \${m.stock} \${m.unit} · จุดสั่งซื้อ \${m.reorder}\`} />
+            <div className="grid grid-cols-3 gap-3">
+              {[
+                { label: "คงเหลือ", value: m.stock + " " + m.unit },
+                { label: "จุดสั่งซื้อ", value: m.reorder + " " + m.unit },
+                { label: "มูลค่า", value: baht(m.stock * m.price) },
+              ].map((c) => (
+                <div key={c.label} className="rounded-xl bg-slate-50 p-3 dark:bg-slate-800/50">
+                  <div className="text-[11.5px] text-slate-500 dark:text-slate-400">{c.label}</div>
+                  <div className="mt-1 text-[15px] font-semibold tabular-nums text-slate-900 dark:text-slate-50">{c.value}</div>
+                </div>
+              ))}
+            </div>
+            <Note tone={m.stock < m.reorder ? "warn" : "ok"}>
+              {m.stock < m.reorder
+                ? \`คงเหลือต่ำกว่าจุดสั่งซื้ออยู่ \${m.reorder - m.stock} \${m.unit} ควรเปิดใบขอซื้อ\`
+                : \`ยังเหนือจุดสั่งซื้ออยู่ \${m.stock - m.reorder} \${m.unit}\`}
+            </Note>
+          </div>
+        )}
+
+        {tab === "แหล่งซื้อ" && (
+          <div className="space-y-2">
+            {sources.length === 0 ? (
+              <p className="py-6 text-center text-[12.5px] text-slate-400">ยังไม่มีผู้ขายรายใดเคยเสนอราคาสำหรับวัสดุตัวนี้</p>
+            ) : (
+              sources.map((r) => {
+                const isBest = best!.vendor === r.vendor && best!.price === r.price;
+                return (
+                  <div
+                    key={r.vendor}
+                    className={
+                      "flex items-center gap-3 rounded-xl px-3.5 py-2.5 " +
+                      (isBest ? "bg-emerald-50 dark:bg-emerald-500/10" : "bg-slate-50 dark:bg-slate-800/50")
+                    }
+                  >
+                    <Avatar name={vendor(r.vendor).name.replace(/^(บจก\\.|หจก\\.)\\s*/, "")} size="sm" />
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-[13px] text-slate-900 dark:text-slate-50">{vendor(r.vendor).name}</span>
+                      <span className="block text-[11.5px] text-slate-400">
+                        {vendor(r.vendor).terms} · ส่งภายใน {r.leadDays} วัน
+                      </span>
+                    </span>
+                    <span className="shrink-0 text-[13px] font-semibold tabular-nums text-slate-900 dark:text-slate-50">{baht(r.price)}</span>
+                    {isBest && <Badge tone="ok" icon={<Star size={11} />}>ดีที่สุด</Badge>}
+                  </div>
+                );
+              })
+            )}
+          </div>
+        )}
+
+        {tab === "ความเคลื่อนไหว" && (
+          <ul className="divide-y divide-slate-100 dark:divide-slate-800">
+            {moves.length === 0 ? (
+              <li className="py-6 text-center text-[12.5px] text-slate-400">ยังไม่มีความเคลื่อนไหวของวัสดุตัวนี้</li>
+            ) : (
+              [...moves].reverse().map((mv, i) => (
+                <li key={i} className="flex items-center gap-3 py-2.5">
+                  <span className={"grid size-8 shrink-0 place-items-center rounded-full " + (mv.qty > 0 ? "bg-emerald-50 text-emerald-600 dark:bg-emerald-500/15 dark:text-emerald-300" : "bg-rose-50 text-rose-600 dark:bg-rose-500/15 dark:text-rose-300")}>
+                    {mv.qty > 0 ? <TrendingUp size={14} /> : <TrendingDown size={14} />}
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-[13px] text-slate-800 dark:text-slate-100">{mv.reason}</span>
+                    <span className="block text-[11.5px] tabular-nums text-slate-400">{mv.date}</span>
+                  </span>
+                  <span className={"shrink-0 text-[13px] font-semibold tabular-nums " + (mv.qty > 0 ? "text-emerald-700 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400")}>
+                    {mv.qty > 0 ? "+" : ""}
+                    {mv.qty} {m.unit}
+                  </span>
+                </li>
+              ))
+            )}
+          </ul>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function PoRecord({ po }: { po: PurchaseOrder }) {
+  const m = threeWayMatch(po);
+  const grs = receiptsOf(po.no);
+  const invs = invoicesOf(po.no);
+  const at = PO_FLOW.indexOf(po.status);
+  const flow: { label: string; state: StepState }[] = PO_FLOW.map((s, i) => ({
+    label: s,
+    state: i < at ? "done" : i === at ? "current" : "todo",
+  }));
+
+  return (
+    <div className="space-y-4">
+      <Stepper
+        steps={flow}
+        icons={{
+          done: <CircleCheck size={14} />,
+          current: <Truck size={14} />,
+          todo: <PackageSearch size={14} />,
+          failed: <CircleX size={14} />,
+        }}
+      />
+
+      <div className="space-y-1">
+        <IconRow icon={<Building size={14} />} label="ผู้ขาย">{vendor(po.vendor).name}</IconRow>
+        <IconRow icon={<Receipt size={14} />} label="เงื่อนไขชำระ">{vendor(po.vendor).terms}</IconRow>
+        <IconRow icon={<FileText size={14} />} label="วันที่สั่ง">{po.date}</IconRow>
+      </div>
+
+      <div>
+        <p className="mb-2 text-[11px] font-medium uppercase tracking-wide text-slate-400">รายการในใบสั่งซื้อ</p>
+        <ul className="divide-y divide-slate-100 dark:divide-slate-800">
+          {po.lines.map((l) => {
+            const got = grs.reduce((n, g) => n + (g.lines.find((x) => x.material === l.material)?.qty ?? 0), 0);
+            return (
+              <li key={l.material} className="flex flex-wrap items-center gap-3 py-2.5">
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-[13px] text-slate-900 dark:text-slate-50">{material(l.material).name}</span>
+                  <span className="block font-mono text-[11px] text-slate-400">{l.material}</span>
+                </span>
+                <span className="w-28 shrink-0 text-right text-[12.5px] tabular-nums text-slate-500 dark:text-slate-400">
+                  {baht(l.price)} × {l.qty}
+                </span>
+                <Badge tone={got >= l.qty ? "ok" : got > 0 ? "warn" : "idle"}>
+                  รับแล้ว {got} / {l.qty}
+                </Badge>
+                <span className="w-28 shrink-0 text-right text-[13px] tabular-nums text-slate-900 dark:text-slate-50">
+                  {baht(l.price * l.qty)}
+                </span>
+              </li>
+            );
+          })}
+        </ul>
+      </div>
+
+      <div className="grid grid-cols-3 gap-3">
+        {[
+          { label: "สั่ง", value: m.ordered },
+          { label: "รับแล้ว", value: m.received },
+          { label: "วางบิล", value: m.invoice },
+        ].map((c) => (
+          <div key={c.label} className="rounded-xl bg-slate-50 p-3 dark:bg-slate-800/50">
+            <div className="text-[11.5px] text-slate-500 dark:text-slate-400">{c.label}</div>
+            <div className="mt-1 text-[15px] font-semibold tabular-nums text-slate-900 dark:text-slate-50">
+              {c.value ? baht(c.value) : "—"}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <Note tone={m.invoice === 0 ? "idle" : m.matched ? "ok" : "bad"}>
+        {m.invoice === 0
+          ? "ยังไม่มีใบแจ้งหนี้ ตรวจสามทางเมื่อผู้ขายวางบิล"
+          : m.matched
+            ? "สั่ง รับ และวางบิล ตรงกันทั้งสามทาง อนุมัติจ่ายได้"
+            : "ยอดวางบิลยังไม่ตรงกับของที่รับจริง " +
+              m.shortLines.map((s) => material(s.material).name + " ขาด " + (s.qty - s.got)).join(", ")}
+      </Note>
+
+      {invs.length > 0 && (
+        <div>
+          <p className="mb-2 text-[11px] font-medium uppercase tracking-wide text-slate-400">ใบแจ้งหนี้ที่ผูกอยู่</p>
+          <ul className="space-y-1.5">
+            {invs.map((i) => (
+              <li key={i.no} className="flex items-center gap-3 text-[13px]">
+                <span className="font-mono text-[12px] text-slate-500 dark:text-slate-400">{i.no}</span>
+                <span className="tabular-nums text-slate-400">{i.date}</span>
+                <span className="ml-auto tabular-nums text-slate-900 dark:text-slate-50">{baht(i.amount)}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function VendorRecord({ v }: { v: Vendor }) {
+  const score = vendorScore(v.code);
+  const orders = PURCHASE_ORDERS.filter((p) => p.vendor === v.code);
+  const prices = INFO_RECORDS.filter((r) => r.vendor === v.code);
+
+  return (
+    <div className="space-y-4">
+      <div className="space-y-1">
+        <IconRow icon={<FileText size={14} />} label="รหัสผู้ขาย">{v.code}</IconRow>
+        <IconRow icon={<Handshake size={14} />} label="ผู้ติดต่อ">{v.contact}</IconRow>
+        <IconRow icon={<Receipt size={14} />} label="เงื่อนไขชำระ">{v.terms}</IconRow>
+        <IconRow icon={<Truck size={14} />} label="เวลาส่งของ">{v.leadDays} วัน</IconRow>
+        <IconRow icon={<Building size={14} />} label="เลขผู้เสียภาษี">{v.taxId}</IconRow>
+      </div>
+
+      {score.fillRate !== null && <Progress done={score.fillRate} total={100} label="อัตราส่งของครบตามใบสั่งซื้อ" />}
+
+      <div>
+        <p className="mb-2 text-[11px] font-medium uppercase tracking-wide text-slate-400">ใบสั่งซื้อที่เปิดกับรายนี้</p>
+        <ul className="divide-y divide-slate-100 dark:divide-slate-800">
+          {orders.map((p) => (
+            <li key={p.no} className="flex items-center gap-3 py-2 text-[13px]">
+              <span className="font-mono text-[12px] text-slate-500 dark:text-slate-400">{p.no}</span>
+              <span className="tabular-nums text-slate-400">{p.date}</span>
+              <Badge tone={PO_TONE[p.status]}>{p.status}</Badge>
+              <span className="ml-auto tabular-nums text-slate-900 dark:text-slate-50">{baht(poTotal(p))}</span>
+            </li>
+          ))}
+        </ul>
+      </div>
+
+      {prices.length > 0 && (
+        <div>
+          <p className="mb-2 text-[11px] font-medium uppercase tracking-wide text-slate-400">ราคาที่เคยเสนอ</p>
+          <ul className="flex flex-wrap gap-1.5">
+            {prices.map((r) => (
+              <li key={r.material} className={"rounded-full px-2.5 py-1 text-[11.5px] " + groupSwatch(material(r.material).group).tint}>
+                {material(r.material).name} {baht(r.price)}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
+  );
+}
 `,
 
   "om/data.ts": `import { EMPLOYEES, TODAY } from "../pa/data";

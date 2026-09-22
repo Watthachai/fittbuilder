@@ -1,3 +1,9 @@
+import { TODAY } from "../pa/data";
+
+export { TODAY };
+
+export const MATERIAL_GROUPS = ["วัตถุดิบ", "อะไหล่", "วัสดุสิ้นเปลือง", "บรรจุภัณฑ์", "สินค้าสำเร็จรูป"];
+
 export const MATERIALS = [
   { code: "MAT-1001", name: "เหล็กแผ่นรีดร้อน 3 มม.", group: "วัตถุดิบ", unit: "แผ่น", price: 1850, stock: 240, reorder: 120, bin: "A-01-03" },
   { code: "MAT-1002", name: "เหล็กเส้นกลม 12 มม.", group: "วัตถุดิบ", unit: "เส้น", price: 420, stock: 86, reorder: 150, bin: "A-01-07" },
@@ -41,6 +47,11 @@ export const REQUISITIONS = [
 ];
 
 export const PURCHASE_ORDERS = [
+  { no: "PO-2569-101", vendor: "V-001", date: "2026-07-08", lines: [{ material: "MAT-1001", qty: 120, price: 1850 }], status: "รับของครบแล้ว" },
+  { no: "PO-2569-104", vendor: "V-002", date: "2026-07-21", lines: [{ material: "MAT-2001", qty: 80, price: 380 }, { material: "MAT-3001", qty: 400, price: 35 }], status: "รับของครบแล้ว" },
+  { no: "PO-2569-109", vendor: "V-003", date: "2026-08-05", lines: [{ material: "MAT-1003", qty: 30, price: 2400 }], status: "รับของครบแล้ว" },
+  { no: "PO-2569-112", vendor: "V-004", date: "2026-08-14", lines: [{ material: "MAT-2002", qty: 200, price: 145 }], status: "รับของครบแล้ว" },
+  { no: "PO-2569-115", vendor: "V-001", date: "2026-08-27", lines: [{ material: "MAT-1001", qty: 90, price: 1850 }, { material: "MAT-1002", qty: 150, price: 420 }], status: "รับของครบแล้ว" },
   { no: "PO-2569-118", vendor: "V-001", date: "2026-09-12", lines: [{ material: "MAT-1002", qty: 200, price: 420 }], status: "รับของครบแล้ว" },
   { no: "PO-2569-119", vendor: "V-003", date: "2026-09-15", lines: [{ material: "MAT-1003", qty: 20, price: 2400 }], status: "รับของบางส่วน" },
   { no: "PO-2569-120", vendor: "V-004", date: "2026-09-18", lines: [{ material: "MAT-2002", qty: 100, price: 145 }, { material: "MAT-4001", qty: 4, price: 5600 }], status: "รอรับของ" },
@@ -49,17 +60,33 @@ export const PURCHASE_ORDERS = [
 
 /** ของที่รับเข้าจริงต่อใบสั่งซื้อ — เทียบกับที่สั่งเพื่อจับของขาด */
 export const GOODS_RECEIPTS = [
+  { no: "GR-2569-180", po: "PO-2569-101", date: "2026-07-15", lines: [{ material: "MAT-1001", qty: 120 }] },
+  { no: "GR-2569-186", po: "PO-2569-104", date: "2026-07-31", lines: [{ material: "MAT-2001", qty: 80 }, { material: "MAT-3001", qty: 400 }] },
+  { no: "GR-2569-191", po: "PO-2569-109", date: "2026-08-08", lines: [{ material: "MAT-1003", qty: 30 }] },
+  { no: "GR-2569-197", po: "PO-2569-112", date: "2026-08-28", lines: [{ material: "MAT-2002", qty: 200 }] },
+  { no: "GR-2569-201", po: "PO-2569-115", date: "2026-09-03", lines: [{ material: "MAT-1001", qty: 90 }, { material: "MAT-1002", qty: 150 }] },
   { no: "GR-2569-206", po: "PO-2569-118", date: "2026-09-19", lines: [{ material: "MAT-1002", qty: 200 }] },
   { no: "GR-2569-207", po: "PO-2569-119", date: "2026-09-20", lines: [{ material: "MAT-1003", qty: 14 }] },
 ];
 
 export const INVOICES = [
+  { no: "INV-87102", po: "PO-2569-101", vendor: "V-001", date: "2026-07-16", amount: 222000 },
+  { no: "INV-87340", po: "PO-2569-104", vendor: "V-002", date: "2026-08-01", amount: 44400 },
+  { no: "INV-87588", po: "PO-2569-109", vendor: "V-003", date: "2026-08-09", amount: 72000 },
+  { no: "INV-87901", po: "PO-2569-112", vendor: "V-004", date: "2026-08-29", amount: 29000 },
+  { no: "INV-88060", po: "PO-2569-115", vendor: "V-001", date: "2026-09-04", amount: 229500 },
   { no: "INV-88214", po: "PO-2569-118", vendor: "V-001", date: "2026-09-20", amount: 84000 },
   { no: "INV-88301", po: "PO-2569-119", vendor: "V-003", date: "2026-09-21", amount: 48000 },
 ];
 
 /** การเคลื่อนไหวสต็อก — รับเข้าเป็นบวก จ่ายออกเป็นลบ */
 export const STOCK_MOVES = [
+  { date: "2026-09-03", material: "MAT-1001", qty: 90, reason: "รับจากใบสั่งซื้อ PO-2569-115" },
+  { date: "2026-09-03", material: "MAT-1002", qty: 150, reason: "รับจากใบสั่งซื้อ PO-2569-115" },
+  { date: "2026-09-08", material: "MAT-1001", qty: -35, reason: "เบิกเข้าสายการผลิต" },
+  { date: "2026-09-10", material: "MAT-2002", qty: -18, reason: "เบิกซ่อมบำรุง" },
+  { date: "2026-09-12", material: "MAT-3002", qty: -220, reason: "เบิกใช้บรรจุสินค้า" },
+  { date: "2026-09-15", material: "MAT-1001", qty: -55, reason: "เบิกเข้าสายการผลิต" },
   { date: "2026-09-19", material: "MAT-1002", qty: 200, reason: "รับจากใบสั่งซื้อ PO-2569-118" },
   { date: "2026-09-19", material: "MAT-1001", qty: -40, reason: "เบิกเข้าสายการผลิต" },
   { date: "2026-09-20", material: "MAT-1003", qty: 14, reason: "รับจากใบสั่งซื้อ PO-2569-119" },
@@ -120,3 +147,39 @@ export function vendorScore(code: string) {
     fillRate: closed.length ? Math.round((complete.length / closed.length) * 100) : null,
   };
 }
+
+/** ใบสั่งซื้อที่อ้างถึงใบขอซื้อใบนั้น — ใช้ปิดสถานะใบขอซื้อ */
+export const poFor = (prNo: string) =>
+  PURCHASE_ORDERS.find((p) => REQUISITIONS.some((r) => r.no === prNo && p.lines.some((l) => l.material === r.material)));
+
+export const receiptsOf = (poNo: string) => GOODS_RECEIPTS.filter((g) => g.po === poNo);
+export const invoicesOf = (poNo: string) => INVOICES.filter((i) => i.po === poNo);
+
+/** ยอดสั่งซื้อรายเดือน เรียงจากเก่าไปใหม่ */
+export function spendByMonth() {
+  const months = [...new Set(PURCHASE_ORDERS.map((p) => p.date.slice(0, 7)))].sort();
+  return months.map((m) => ({
+    month: m,
+    value: PURCHASE_ORDERS.filter((p) => p.date.slice(0, 7) === m).reduce((n, p) => n + poTotal(p), 0),
+    orders: PURCHASE_ORDERS.filter((p) => p.date.slice(0, 7) === m).length,
+  }));
+}
+
+/** มูลค่าสต็อกแยกตามกลุ่มวัสดุ */
+export const stockByGroup = () =>
+  MATERIAL_GROUPS.map((g) => ({
+    group: g,
+    value: MATERIALS.filter((m) => m.group === g).reduce((n, m) => n + m.stock * m.price, 0),
+    items: MATERIALS.filter((m) => m.group === g).length,
+  })).filter((x) => x.items > 0);
+
+export const stockValue = () => MATERIALS.reduce((n, m) => n + m.stock * m.price, 0);
+export const belowReorder = () => MATERIALS.filter((m) => m.stock < m.reorder);
+
+/** ราคาที่ดีที่สุดที่เคยได้สำหรับวัสดุตัวหนึ่ง */
+export const bestPriceFor = (code: string) => {
+  const rows = INFO_RECORDS.filter((r) => r.material === code);
+  return rows.length ? rows.reduce((best, r) => (r.price < best.price ? r : best)) : undefined;
+};
+
+export const movesOf = (code: string) => STOCK_MOVES.filter((m) => m.material === code);

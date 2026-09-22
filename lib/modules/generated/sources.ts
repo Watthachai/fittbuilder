@@ -1477,6 +1477,87 @@ export function DetailModal({
 }
 
 /**
+ * A short, self-contained task: create this, edit that.
+ *
+ * It is centred and only as tall as it needs to be. A drawer was wrong for this —
+ * a drawer is full height because it exists to show one row of a list without
+ * losing the list, so a six-field form left most of the screen empty with its
+ * buttons stranded at the bottom of it.
+ */
+export function FormModal({
+  open,
+  title,
+  subtitle,
+  onClose,
+  children,
+  size = "md",
+}: {
+  open: boolean;
+  title: ReactNode;
+  subtitle?: ReactNode;
+  onClose: () => void;
+  children: ReactNode;
+  size?: "sm" | "md" | "lg";
+}) {
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open, onClose]);
+
+  const width = size === "lg" ? "max-w-3xl" : size === "sm" ? "max-w-md" : "max-w-xl";
+
+  return (
+    <AnimatePresence>
+      {open && (
+        <motion.div
+          role="dialog"
+          aria-modal="true"
+          onClick={onClose}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.18 }}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/45 p-4 backdrop-blur-[2px] dark:bg-black/65"
+        >
+          <motion.div
+            onClick={(e) => e.stopPropagation()}
+            initial={{ opacity: 0, y: 14, scale: 0.985 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 8, scale: 0.99 }}
+            transition={{ type: "spring", stiffness: 380, damping: 34 }}
+            className={
+              "flex max-h-[85vh] w-full flex-col overflow-hidden rounded-2xl bg-white shadow-2xl dark:bg-slate-900 dark:ring-1 dark:ring-slate-800 " +
+              width
+            }
+          >
+            <div className="flex shrink-0 items-start justify-between gap-4 border-b border-slate-100 px-5 py-4 dark:border-slate-800">
+              <div className="min-w-0">
+                <h2 className="text-[15px] font-semibold text-slate-900 dark:text-slate-50">{title}</h2>
+                {subtitle && (
+                  <p className="mt-0.5 text-[12.5px] leading-snug text-slate-500 dark:text-slate-400">{subtitle}</p>
+                )}
+              </div>
+              <button
+                onClick={onClose}
+                aria-label="ปิด"
+                className="grid size-8 shrink-0 place-items-center rounded-lg text-slate-400 transition hover:bg-slate-100 hover:text-slate-800 dark:hover:bg-slate-800 dark:hover:text-slate-100"
+              >
+                <X size={16} />
+              </button>
+            </div>
+            <div className="min-h-0 flex-1 overflow-y-auto p-5">{children}</div>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+}
+
+/**
  * Detail beside the list rather than instead of it.
  *
  * The panel slides over, the list stays behind, and Escape puts them back.
@@ -1724,7 +1805,7 @@ export function Wizard({
   };
 
   return (
-    <div className="flex h-full flex-col">
+    <div className="flex flex-col">
       <div ref={topRef}>
         <div className="flex items-center gap-1.5">
           {steps.map((s, i) => (
@@ -1757,17 +1838,21 @@ export function Wizard({
           animate={{ opacity: 1, x: 0 }}
           exit={{ opacity: 0, x: -12 }}
           transition={{ duration: 0.2, ease: EASE }}
-          className="mt-5 min-h-0 flex-1 space-y-4 overflow-y-auto"
+          className="mt-5 space-y-4"
         >
           {step.render(errors)}
         </motion.div>
       </AnimatePresence>
 
-      <div className="mt-4 flex gap-2 border-t border-slate-100 pt-3 dark:border-slate-800">
+      {/* Sticky, so a long step keeps its actions reachable without scrolling. */}
+      <div className="sticky bottom-0 -mx-5 -mb-5 mt-5 flex items-center justify-between gap-3 border-t border-slate-100 bg-white px-5 py-3 dark:border-slate-800 dark:bg-slate-900">
         <Button variant="secondary" onClick={() => (at === 0 ? onCancel() : setAt((i) => i - 1))}>
           {at === 0 ? "ยกเลิก" : "ย้อนกลับ"}
         </Button>
-        <Button variant="primary" onClick={advance} className="flex-1">
+        <span className="text-[11.5px] text-slate-400 dark:text-slate-500">
+          ขั้นที่ {at + 1} จาก {steps.length}
+        </span>
+        <Button variant="primary" onClick={advance} className="min-w-[8rem]">
           {last ? doneLabel : "ถัดไป"}
         </Button>
       </div>
@@ -2893,7 +2978,7 @@ import {
   PageHead, Progress, Reveal, Search, SectionTitle, Segmented, Select, StatStrip, Stepper, SURFACE, Tabs,
   Tag, Timeline, TintCard, ViewToggle, WeekStrip, enter, swatchFor,
 } from "../ui";
-import { ConfirmDialog, DataTable, DetailModal, Drawer, Field, Wizard } from "../kit";
+import { ConfirmDialog, DataTable, DetailModal, Field, FormModal, Wizard } from "../kit";
 import type { Column, Step } from "../kit";
 
 const TABS = [
@@ -3217,7 +3302,7 @@ export default function PaScreen({
         )}
       </DetailModal>
 
-      <Drawer
+      <FormModal
         open={adding}
         title="เพิ่มพนักงานใหม่"
         subtitle="สามขั้นตอน — ตรวจความถูกต้องทีละขั้น ไม่ปล่อยไปเจอตอนบันทึก"
@@ -3232,7 +3317,7 @@ export default function PaScreen({
             setAdding(false);
           }}
         />
-      </Drawer>
+      </FormModal>
 
       <ResignDialog employee={resigning} onCancel={() => setResigning(null)} onConfirm={commitResignation} />
 

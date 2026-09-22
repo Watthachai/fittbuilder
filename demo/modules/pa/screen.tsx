@@ -17,7 +17,7 @@ import {
   PageHead, Progress, Reveal, Search, SectionTitle, Segmented, Select, StatStrip, Stepper, SURFACE, Tabs,
   Tag, Timeline, TintCard, ViewToggle, WeekStrip, enter, swatchFor,
 } from "../ui";
-import { ConfirmDialog, DataTable, DetailModal, Drawer, Field, Wizard } from "../kit";
+import { ConfirmDialog, DataTable, DetailModal, Field, FormModal, Wizard } from "../kit";
 import type { Column, Step } from "../kit";
 
 const TABS = [
@@ -341,7 +341,7 @@ export default function PaScreen({
         )}
       </DetailModal>
 
-      <Drawer
+      <FormModal
         open={adding}
         title="เพิ่มพนักงานใหม่"
         subtitle="สามขั้นตอน — ตรวจความถูกต้องทีละขั้น ไม่ปล่อยไปเจอตอนบันทึก"
@@ -356,7 +356,7 @@ export default function PaScreen({
             setAdding(false);
           }}
         />
-      </Drawer>
+      </FormModal>
 
       <ResignDialog employee={resigning} onCancel={() => setResigning(null)} onConfirm={commitResignation} />
 

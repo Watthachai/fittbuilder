@@ -63,6 +63,7 @@ and is kept in sync with the entries below.
 - Frosted-glass surfaces + Google-Stitch-style entrance animations across pages (projects, login, changelog, admin).
 
 ### Fixed
+- The new-employee form opened in a full-height side drawer, so six fields left most of the screen empty and stranded the buttons at the bottom of it. It is a `FormModal` now — centred, only as tall as its contents, actions directly under the fields with the step count between them. Drawers keep their job: showing one row without losing the list.
 - The sidebar and top bar scrolled away with the page: the shell was `min-h-screen`, so the document grew and took the chrome with it. Both shells are now exactly the viewport with `<main>` as the only scroller, and the data table sizes against `dvh` so it stops fighting the page for the scrollbar.
 - The navigation offered "ภาพรวม" for every module although only personnel records has a dashboard, so the entry showed the first capability instead. `Module.hasOverview` now gates the entry in both shells and the command palette, and the first capability is highlighted where there is no dashboard.
 - "ลองใช้" from a marketplace listing opened the whole suite. `?only=<id>` now narrows the shell to that one module — sidebar, command palette, alerts and the take-as-project action — and every in-shell link carries it so a capability click does not silently widen the trial. "ดูทั้งระบบ" leaves it. It is a view scope, not a permission: the role still decides what may be opened at all.

@@ -54,7 +54,7 @@ export const EMPLOYEES = [
     id: 5, code: "EMP-0005", name: "อนุชา มั่นคง", nickname: "ชา",
     position: "ช่างเทคนิค", department: "ฝ่ายผลิต", status: "ทดลองงาน",
     personal: { birthDate: "1999-01-25", nationalId: "1-7208-00334-55-7", phone: "094-555-6677", email: "anucha@example.co.th", address: "56 หมู่ 2 ต.หนองปรือ อ.บางละมุง จ.ชลบุรี 20150" },
-    contract: { type: "สัญญาจ้าง 1 ปี", startedAt: "2023-09-18", endsAt: "2026-09-17", probationUntil: "2026-12-18", baseSalary: 21000, workDays: "จันทร์–เสาร์" },
+    contract: { type: "สัญญาจ้าง 1 ปี", startedAt: "2023-09-18", endsAt: "2027-09-17", probationUntil: "2026-12-18", baseSalary: 21000, workDays: "จันทร์–เสาร์" },
     admin: { ssoNumber: "5678901234", taxId: "1720800334557", bankName: "กรุงเทพ", bankAccount: "xxx-x-x8642-0", pvdRate: 0 },
     benefits: ["ประกันสุขภาพกลุ่ม", "ค่ากะกลางคืน 300/กะ"],
     events: [

@@ -26,6 +26,7 @@ import {
   buildGenerationSystemPrompt,
   buildIterationSystemPrompt,
   buildIterationUserPrompt,
+  buildShellPrompt,
 } from "@/lib/prompts";
 import { clientIp, rateLimit } from "@/lib/rate-limit";
 import { PRESET_IDS } from "@/lib/presets";
@@ -38,6 +39,12 @@ import type { GenerateEvent } from "@/lib/types";
 // output is still written live, and there's no all-or-nothing JSON parse.
 export const maxDuration = 300;
 const ATTEMPT_TIMEOUT_MS = 240_000;
+
+/**
+ * The wall clock the whole route has, kept a little under maxDuration so the
+ * shell retry below can still answer instead of being cut off mid-write.
+ */
+const DEADLINE_MS = 285_000;
 
 /** How often the server parks what it has produced. Mirrors the studio's own
  *  cadence — see DRAFT_INTERVAL_MS in Studio.tsx. */
@@ -250,6 +257,7 @@ export async function POST(request: Request) {
       // from the package UI) — the base for this turn's package.json AND the
       // filter that keeps a re-declared package from triggering a reinstall.
       const extra = iteration ? extraDepsOf(body.previousFiles?.["package.json"]) : {};
+      const startedAt = Date.now();
       const wantedDeps = new Set<string>();
 
       try {
@@ -389,8 +397,6 @@ export async function POST(request: Request) {
         // race and a completed turn leaves a stale draft behind (or worse, the
         // complete set is written after the clear and offered back as if it
         // were unfinished).
-        await parkDraft(true);
-
         /**
          * A first build that wrote screens but no shell has not built anything.
          *
@@ -408,7 +414,61 @@ export async function POST(request: Request) {
         const wroteScreens = Object.keys(produced).some(
           (path) => path.startsWith("src/pages/") || path.startsWith("src/components/")
         );
-        const shellGap = (["src/App.tsx", "src/main.tsx"] as const).filter((f) => !produced[f]);
+        let shellGap = (["src/App.tsx", "src/main.tsx"] as const).filter(
+          (f) => !produced[f]
+        ) as string[];
+
+        /**
+         * Finish the job rather than hand it back.
+         *
+         * A first build that wrote the screens and stopped before its entry
+         * files has not produced an app, and the reason is almost always the
+         * output ceiling — the structure rule puts these two last, so they are
+         * what a long build runs out of room for. Asking the user to press a
+         * button is asking them to pay for our own truncation.
+         *
+         * The retry cannot fail the same way: it is two small files written
+         * against a tree that already exists, a fraction of the turn that just
+         * ran. It is capped by whatever wall clock is left under maxDuration,
+         * and if it still comes back short the honest note below stands.
+         */
+        if (!iteration && wroteScreens && shellGap.length > 0) {
+          const left = DEADLINE_MS - (Date.now() - startedAt);
+          if (left > 20_000) {
+            send({ type: "status", message: `เขียนไฟล์หลักที่ยังขาด: ${shellGap.join(", ")}` });
+            const shellParser = new FileStreamParser();
+            try {
+              for await (const part of streamParts({
+                system,
+                user: buildShellPrompt(shellGap, Object.keys(produced)),
+                thinking: false,
+                abortSignal: AbortSignal.timeout(Math.min(left - 5_000, 90_000)),
+                level: "medium",
+                onUsage: (u) => {
+                  usage = u;
+                },
+              })) {
+                if (part.thought) continue;
+                for (const file of shellParser.push(part.text).files) {
+                  const path = normalizePath(file.path);
+                  // Only the two that are missing: a second pass that starts
+                  // rewriting pages is the failure this exists to avoid.
+                  if (!shellGap.includes(path)) continue;
+                  fileCount++;
+                  send({ type: "file", path, content: file.content });
+                }
+              }
+            } catch (shellError) {
+              console.error("[generate] shell retry failed:", shellError);
+            }
+            shellGap = shellGap.filter((f) => !produced[f]);
+          }
+        }
+
+        // One park marks completeness, and it lands after every file this turn
+        // will ever produce — including the retry's.
+        await parkDraft(true);
+
         const shellMissing = !iteration && wroteScreens && shellGap.length > 0;
 
         send({

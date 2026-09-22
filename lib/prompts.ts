@@ -374,3 +374,28 @@ export function buildDnaCaptureSystem(): string {
 {"block": "decisionRights"|"information"|"motivators"|"structure"|null, "snippet": "ประโยคสรุปสั้นๆ เป็นภาษาไทย (<=140 ตัวอักษร)"}
 ถ้าข้อความเป็นแค่คำสั่งสร้างงาน/คำถามทั่วไป/ไม่ได้บอกลักษณะองค์กร ให้ block=null.`;
 }
+
+/**
+ * The follow-up turn for a build that stopped before its entry files.
+ *
+ * Asking again for the whole app is what ran out of output budget the first
+ * time. This asks for two small files against the tree that already exists, so
+ * the second attempt is a fraction of the first and cannot fail the same way.
+ */
+export function buildShellPrompt(missing: string[], written: string[]): string {
+  const pages = written.filter((p) => p.startsWith("src/pages/"));
+  const parts = written.filter(
+    (p) => p.startsWith("src/components/") || p.startsWith("src/lib/") || p.startsWith("src/data/")
+  );
+  return `รอบที่แล้วเขียนหน้าจอและคอมโพเนนต์ไว้ครบแล้ว แต่ยังขาดไฟล์หลักของแอป: ${missing.join(", ")}
+
+ไฟล์ที่มีอยู่แล้วในโปรเจกต์ (ห้ามเขียนทับ ห้ามสร้างใหม่):
+${pages.map((p) => `- ${p}`).join("\n")}
+${parts.length ? parts.map((p) => `- ${p}`).join("\n") : ""}
+
+เขียนเฉพาะ ${missing.join(" และ ")} เท่านั้น:
+- src/main.tsx mount <App /> เข้า #root ด้วย react-dom/client createRoot และ import "./index.css"
+- src/App.tsx เป็นเชลล์อย่างเดียว ต่ำกว่า 120 บรรทัด คือ chrome ของแอป (แถบข้าง/แถบบนจาก src/components/layout ถ้ามี) กับ useState ว่าหน้าไหนกำลังแสดง แล้ว render <XxxPage /> ตามนั้น ห้ามมี markup ของฟีเจอร์
+- import หน้าจอจากไฟล์ที่ลิสต์ไว้ข้างบนด้วย path สัมพัทธ์ไม่ใส่นามสกุล และใช้ชื่อ default export ตามชื่อไฟล์
+- ใส่ data-fitt-index ให้ครบทุกหน้าตามกติกาใน PROJECT STRUCTURE`;
+}

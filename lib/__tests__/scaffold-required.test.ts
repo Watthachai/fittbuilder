@@ -132,3 +132,47 @@ describe("the preview says so too", () => {
     expect(fn.slice(0, 900)).toContain("ห้ามเขียนไฟล์หน้าจอใหม่");
   });
 });
+
+/**
+ * Detection was the first half. A user who is told their build is missing two
+ * files, and handed a button to ask for them, is being charged for our own
+ * truncation — the structure rule is what put those files last.
+ */
+describe("the server finishes the job itself", () => {
+  const route = readFileSync("app/api/generate/route.ts", "utf8");
+  const prompts = readFileSync("lib/prompts.ts", "utf8");
+
+  it("retries for the entry files before reporting the turn", () => {
+    expect(route).toContain("buildShellPrompt");
+    const retry = route.slice(route.lastIndexOf("buildShellPrompt"));
+    // The report is what the retry runs ahead of.
+    expect(retry).toContain("shellMissing");
+  });
+
+  it("budgets the retry against the route's own deadline", () => {
+    // maxDuration is the hard stop; a retry started without checking the clock
+    // is cut off mid-write and leaves a half-written shell behind.
+    expect(route).toContain("DEADLINE_MS");
+    expect(route).toMatch(/left > 20_000/);
+  });
+
+  it("marks the draft complete only after the retry has run", () => {
+    // Parking `complete` on a set about to gain two files hands a returning
+    // browser a truncated project labelled as finished.
+    const marks = route.match(/await parkDraft\(true\)/g) ?? [];
+    expect(marks).toHaveLength(1);
+    expect(route.lastIndexOf("buildShellPrompt")).toBeLessThan(route.lastIndexOf("await parkDraft(true)"));
+  });
+
+  it("accepts only the two files it asked for", () => {
+    // A second pass that starts rewriting pages is the failure it exists to avoid.
+    const retry = route.slice(route.lastIndexOf("buildShellPrompt"));
+    expect(retry.slice(0, 900)).toContain("!shellGap.includes(path)");
+  });
+
+  it("asks against the tree that already exists, not for the app again", () => {
+    const fn = prompts.slice(prompts.indexOf("export function buildShellPrompt"));
+    expect(fn.slice(0, 1200)).toContain("ห้ามเขียนทับ ห้ามสร้างใหม่");
+    expect(fn.slice(0, 1200)).toContain("src/pages/");
+  });
+});

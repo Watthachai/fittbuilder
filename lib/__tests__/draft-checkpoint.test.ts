@@ -199,12 +199,14 @@ describe("generation checkpoints", () => {
       // banner saying "16 ไฟล์" and a chat panel showing nothing at all, so a
       // build running in another tab read as less informative than a local one.
       const poll = studio.slice(studio.indexOf("const tick = async ()"));
-      const body = poll.slice(0, 900);
+      const body = poll.slice(0, 1400);
       expect(body).toContain("Object.keys(d.files)");
       // Fed into the same live turn a local stream fills, so the chat renders it
       // with the action list it already knows how to draw.
       expect(body).toContain("setLiveBoth");
-      expect(body).toContain('icon: "file"');
+      // A parked document is not a rewrite of the app — the chat labels the two
+      // differently, and the preview's "being rebuilt" mark must not fire on one.
+      expect(body).toContain('startsWith("docs/") ? "doc" : "file"');
     });
 
     /**

@@ -2,14 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import {
-  ExternalLink,
-  Maximize2,
-  Minimize2,
-  Monitor,
-  RotateCw,
-  Smartphone,
-  Tablet,
-  Wand2,
+  ExternalLink, Loader2, Maximize2, Minimize2, Monitor, RotateCw, Smartphone, Tablet, Wand2,
 } from "lucide-react";
 import type { AgentAction, GenerationPhase } from "@/lib/types";
 import type { PhaseId } from "@/lib/phases";
@@ -93,6 +86,9 @@ export default function PreviewPanel({
   // is already dead but `url` still points at it — showing the iframe then is a
   // guaranteed white screen for the whole install. Show the loader instead.
   const busyBoot = phase === "generating" || phase === "installing" || phase === "starting";
+  // Files landing means this app is being rewritten under the preview, whether
+  // the turn is streaming here or in another tab — the poller fills the same list.
+  const writing = build.actions.filter((a) => a.icon === "file").length;
 
   // Network watchdog: server-ready is an in-container event — it fires green
   // even when the user's network (corporate proxy, ad-blocker) blocks
@@ -405,7 +401,7 @@ export default function PreviewPanel({
           />
         ) : url && !busyBoot ? (
           <div
-            className="my-0 flex h-full justify-center transition-all"
+            className="relative my-0 flex h-full justify-center transition-all"
             style={{ width: isFs || !active.width ? "100%" : `${active.width}px` }}
           >
             <iframe
@@ -417,6 +413,25 @@ export default function PreviewPanel({
               className={`h-full w-full bg-chalk ${!isFs && active.width ? "border-x border-night-edge" : ""}`}
               title="Demo preview"
             />
+            {/*
+              A build with a server already running never flips the phase — the
+              files stream into the live container and hot-reload in place, which
+              is the point. But until enough of them land the iframe still shows
+              whatever was there before, and on a first build that is the
+              scaffold saying "กำลังรอบทสนทนา" while eighteen files are being
+              written beside it. So the preview is marked as being worked on
+              rather than replaced: the sweep says something is happening, the
+              chip says what.
+            */}
+            {writing > 0 && (
+              <div className="pointer-events-none absolute inset-0 z-10">
+                <div className="preview-sweep absolute inset-0" />
+                <span className="glass absolute bottom-3 left-3 inline-flex items-center gap-2 rounded-full py-1.5 pl-2.5 pr-3 text-[11.5px] text-chalk shadow-lg">
+                  <Loader2 size={12} className="animate-spin text-shine" />
+                  กำลังสร้างหน้านี้ใหม่ · {writing} ไฟล์
+                </span>
+              </div>
+            )}
           </div>
         ) : phase === "error" ? (
           <CenterNote title="เกิดข้อผิดพลาด — ดูรายละเอียดที่แถบด้านล่าง" />

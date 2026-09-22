@@ -384,6 +384,40 @@ body {
   animation: tip-fade 0.5s ease-out;
 }
 
+/*
+ * A band crossing the live preview while its files are being rewritten.
+ *
+ * The preview keeps showing the app that is there — the new one hot-reloads in
+ * over it — so without a mark the panel reads as idle at exactly the moment it
+ * is busiest. Kept to a single soft sweep: it sits over someone's work, and
+ * anything stronger would compete with it.
+ */
+@keyframes preview-sweep {
+  from {
+    background-position: 130% 0;
+  }
+  to {
+    background-position: -130% 0;
+  }
+}
+.preview-sweep {
+  background: linear-gradient(
+    115deg,
+    transparent 38%,
+    color-mix(in srgb, var(--shine) 22%, transparent) 50%,
+    transparent 62%
+  );
+  background-size: 260% 100%;
+  animation: preview-sweep 2.4s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .preview-sweep {
+    animation: none;
+    background: none;
+  }
+}
+
 /* Thin scrollbars for studio panels */
 .scroll-thin {
   scrollbar-width: thin;

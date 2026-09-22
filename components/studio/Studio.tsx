@@ -1626,7 +1626,12 @@ export default function Studio({ projectId }: { projectId: string }) {
         setLiveBoth({
           thinking: "",
           content: "",
-          actions: paths.map((path) => ({ icon: "file", label: path })),
+          // A document turn and a build turn both park files; the chat labels
+          // them differently, and only one of them is rewriting the preview.
+          actions: paths.map((path) => ({
+            icon: path.startsWith("docs/") ? "doc" : "file",
+            label: path,
+          })),
         });
         timer = setTimeout(() => void tick(), 4_000);
         return;

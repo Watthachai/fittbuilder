@@ -15,7 +15,7 @@ import {
   useState,
   useSyncExternalStore,
 } from "react";
-import { DOC_PATHS, docOnlyFiles, docsFromFiles, hasRunnableApp } from "@/lib/define";
+import { DOC_PATHS, docOnlyFiles, docsFromFiles, hasRunnableApp, phaseArtefacts } from "@/lib/define";
 import { DOC_MAX_CHARS } from "@/lib/limits";
 import { REORGANIZE_PROMPT } from "@/lib/code-health";
 import { commitRevision, revisionFiles } from "@/lib/revisions";
@@ -2560,6 +2560,7 @@ export default function Studio({ projectId }: { projectId: string }) {
 
       <PhaseStepper
         phase={project.phase}
+        artefacts={phaseArtefacts(project.files)}
         version={project.files ? activeVersion : undefined}
         onVersionChange={readOnly ? undefined : changeVersion}
         switching={switchingVersion}
@@ -2680,6 +2681,12 @@ export default function Studio({ projectId }: { projectId: string }) {
                 previewKey={previewKey}
                 phase={phase}
                 supported={previewSupported}
+                build={{
+                  workflow: project.phase,
+                  approved: project.approvedPhases ?? [],
+                  has: { brd: Boolean(reworkDocs.brd), prd: Boolean(reworkDocs.prd) },
+                  actions: live?.actions ?? [],
+                }}
                 runtimeError={previewRuntimeError}
                 onFixError={readOnly ? undefined : fixPreviewError}
                 onDismissError={() => setPreviewRuntimeError(null)}

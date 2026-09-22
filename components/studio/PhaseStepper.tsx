@@ -1,6 +1,9 @@
 "use client";
 
-import { ArrowRight, Check, FileText, Loader2, RotateCcw, Sparkles } from "lucide-react";
+import {
+  ArrowRight, Check, ClipboardList, FileText, FlaskConical, Hammer, Loader2, RotateCcw,
+  Rocket, ShieldCheck, Sparkles,
+} from "lucide-react";
 import { VERSION_KEYS, VERSION_LABEL, type VersionKey } from "@/lib/versions";
 import { PHASES, phaseDef, phaseIndex, type PhaseId } from "@/lib/phases";
 
@@ -25,8 +28,20 @@ function gateHint(phase: PhaseId): string {
   }
 }
 
+/** The artefact each phase leaves behind, shown under its name in the rail. */
+const PHASE_ICON: Record<PhaseId, typeof FileText> = {
+  define: FileText,
+  plan: ClipboardList,
+  build: Hammer,
+  verify: FlaskConical,
+  review: ShieldCheck,
+  ship: Rocket,
+};
+
 interface PhaseStepperProps {
   phase: PhaseId;
+  /** What each phase has to show for itself — "BRD.md", "18 ไฟล์", or nothing yet. */
+  artefacts?: Partial<Record<PhaseId, string>>;
   busy: boolean;
   /** The current phase's exit gate is satisfied (doc/app ready). */
   canAdvance: boolean;
@@ -53,6 +68,7 @@ interface PhaseStepperProps {
 
 export default function PhaseStepper({
   phase,
+  artefacts = {},
   busy,
   canAdvance,
   canRework,
@@ -76,33 +92,37 @@ export default function PhaseStepper({
     : "อนุมัติ & ไปต่อ";
 
   return (
-    <div className="flex h-11 shrink-0 items-center gap-2 border-b border-night-edge bg-night-panel px-3">
-      <ol className="scroll-thin flex min-w-0 shrink items-center gap-1 overflow-x-auto">
+    <div className="flex h-14 shrink-0 items-center gap-2 border-b border-night-edge bg-night-panel px-3">
+      <ol className="scroll-thin flex min-w-0 shrink items-center gap-0.5 overflow-x-auto">
         {PHASES.map((step, index) => {
           const done = index < currentIndex;
           const active = index === currentIndex;
+          const Icon = PHASE_ICON[step.id];
+          // The artefact is what makes the rail worth reading: "Plan" alone says
+          // where you are, "Plan · PRD.md" says what came of it.
+          const artefact = artefacts[step.id];
           // Only completed steps are clickable — they open a doc preview. The
           // active step is where you are; future steps aren't reachable yet.
           return (
-            <li key={step.id} className="flex shrink-0 items-center gap-1">
+            <li key={step.id} className="flex shrink-0 items-center gap-0.5">
               {index > 0 && (
-                <span className={`h-px w-3 ${done || active ? "bg-shine/50" : "bg-night-edge"}`} />
+                <span className={`h-px w-3 ${done ? "bg-go/40" : active ? "bg-shine/50" : "bg-night-edge"}`} />
               )}
               <button
                 type="button"
                 disabled={!done}
                 onClick={() => done && onStep(step.id)}
                 title={done ? `${step.user} — ย้อนกลับมาแก้ หรือดูเอกสาร` : `${step.user} / ${step.dev} — ${step.blurb}`}
-                className={`inline-flex items-center gap-1.5 rounded-full py-1 pl-1 pr-2.5 text-xs transition ${
+                className={`inline-flex items-center gap-1.5 rounded-lg py-1 pl-1.5 pr-2.5 text-left transition ${
                   active
-                    ? "bg-shine font-semibold text-night"
+                    ? "bg-shine text-night"
                     : done
                       ? "cursor-pointer text-go hover:bg-chalk/5"
                       : "cursor-default text-chalk-dim/50"
                 }`}
               >
                 <span
-                  className={`grid h-4 w-4 place-items-center rounded-full text-[9px] font-bold ${
+                  className={`grid size-5 shrink-0 place-items-center rounded-full ${
                     active
                       ? "bg-night/20 text-night"
                       : done
@@ -110,9 +130,18 @@ export default function PhaseStepper({
                         : "border border-night-edge text-chalk-dim/50"
                   }`}
                 >
-                  {done ? <Check size={10} /> : index + 1}
+                  {done ? <Check size={11} /> : <Icon size={11} />}
                 </span>
-                {step.user}
+                <span className="min-w-0">
+                  <span className={`block text-xs leading-tight ${active ? "font-semibold" : ""}`}>{step.user}</span>
+                  <span
+                    className={`block truncate font-mono text-[10px] leading-tight ${
+                      active ? "text-night/60" : done ? "text-go/60" : "text-chalk-dim/40"
+                    }`}
+                  >
+                    {artefact ?? "—"}
+                  </span>
+                </span>
               </button>
             </li>
           );

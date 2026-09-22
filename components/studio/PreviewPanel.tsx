@@ -11,10 +11,11 @@ import {
   Tablet,
   Wand2,
 } from "lucide-react";
-import type { GenerationPhase } from "@/lib/types";
+import type { AgentAction, GenerationPhase } from "@/lib/types";
+import type { PhaseId } from "@/lib/phases";
 import type { WandTarget } from "@/lib/wand";
 import type { MissingImport } from "@/lib/import-check";
-import BuildingLoader from "./BuildingLoader";
+import BuildFlow from "./BuildFlow";
 
 type Viewport = "mobile" | "tablet" | "desktop";
 
@@ -29,6 +30,13 @@ interface PreviewPanelProps {
   previewKey: number;
   phase: GenerationPhase;
   supported: boolean;
+  /** The build view needs the workflow phase to show what it was built from. */
+  build: {
+    workflow: PhaseId;
+    approved: PhaseId[];
+    has: { brd: boolean; prd: boolean };
+    actions: AgentAction[];
+  };
   /** Runtime error reported from inside the demo iframe (error bridge). */
   runtimeError: { message: string } | null;
   /** Feed the runtime error into an AI fix turn (absent for read-only viewers). */
@@ -60,6 +68,7 @@ export default function PreviewPanel({
   previewKey,
   phase,
   supported,
+  build,
   runtimeError,
   onFixError,
   onDismissError,
@@ -412,7 +421,13 @@ export default function PreviewPanel({
         ) : phase === "error" ? (
           <CenterNote title="เกิดข้อผิดพลาด — ดูรายละเอียดที่แถบด้านล่าง" />
         ) : (
-          <BuildingLoader phase={phase} />
+          <BuildFlow
+            phase={phase}
+            workflow={build.workflow}
+            approved={build.approved}
+            has={build.has}
+            actions={build.actions}
+          />
         )}
       </div>
     </div>

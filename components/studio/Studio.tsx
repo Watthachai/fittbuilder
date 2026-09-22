@@ -341,7 +341,11 @@ export default function Studio({ projectId }: { projectId: string }) {
    * and then showed nothing at all happening. The draft's heartbeat can see
    * them, so this polls it while one is alive and reports how far it has got.
    */
-  const [remoteProgress, setRemoteProgress] = useState<number | null>(null);
+  /** File paths a build running elsewhere has written so far (null = none running). */
+  const [remoteFiles, setRemoteFiles] = useState<string[] | null>(null);
+  // Mirrored in a ref for the same reason `live` is: the poller's tick closes
+  // over its first render and would otherwise read a stale value.
+  const remoteFilesRef = useRef<string[] | null>(null);
   /**
    * Which tier version is being edited.
    *
@@ -1607,11 +1611,25 @@ export default function Studio({ projectId }: { projectId: string }) {
       const d = await loadDraft(projectId).catch(() => null);
       if (stop) return;
       if (d && isDraftLive(d) && !d.complete) {
-        setRemoteProgress(Object.keys(d.files).length);
+        // Show the turn in the chat the way a local one appears — same action
+        // list, same spinner. A build running in another tab is still this
+        // project's turn, and the paths say what it is doing.
+        const paths = Object.keys(d.files);
+        remoteFilesRef.current = paths;
+        setRemoteFiles(paths);
+        setLiveBoth({
+          thinking: "",
+          content: "",
+          actions: paths.map((path) => ({ icon: "file", label: path })),
+        });
         timer = setTimeout(() => void tick(), 4_000);
         return;
       }
-      setRemoteProgress(null);
+      // Clear the synthesized turn, but never a locally streaming one — the
+      // guard above means this effect only runs while none is streaming.
+      if (remoteFilesRef.current !== null) setLiveBoth(null);
+      remoteFilesRef.current = null;
+      setRemoteFiles(null);
       // A turn that just finished elsewhere leaves a complete draft — hand it to
       // the same path that takes background work, so it lands here too.
       if (d && !isDraftLive(d)) setDraft(d);
@@ -1622,7 +1640,7 @@ export default function Studio({ projectId }: { projectId: string }) {
       stop = true;
       clearTimeout(timer);
     };
-  }, [projectId, chatStreaming, readOnly]);
+  }, [projectId, chatStreaming, readOnly, setLiveBoth]);
 
   /**
    * A turn that finished on the server while nobody was watching is not a
@@ -2515,12 +2533,12 @@ export default function Studio({ projectId }: { projectId: string }) {
           onClose={closeWandTarget}
         />
       )}
-      {(bgActive || remoteProgress !== null) && (
+      {(bgActive || remoteFiles !== null) && (
         <div className="pointer-events-none fixed left-1/2 top-3 z-[60] -translate-x-1/2">
           <span className="glass inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs text-chalk shadow-lg">
             <span className="loader-dot h-1.5 w-1.5 rounded-full bg-shine" />
-            {remoteProgress !== null
-              ? `กำลังสร้างอยู่… เขียนไปแล้ว ${remoteProgress} ไฟล์ · จะลงให้เมื่อเสร็จ`
+            {remoteFiles !== null
+              ? `กำลังสร้างอยู่… เขียนไปแล้ว ${remoteFiles.length} ไฟล์ · ดูรายการในช่องแชท`
               : "กำลังสร้างเบื้องหลัง… จะอัปเดตให้เมื่อเสร็จ"}
           </span>
         </div>

@@ -188,9 +188,22 @@ describe("generation checkpoints", () => {
     it("shows progress for a turn running somewhere else", () => {
       // The registry lives on globalThis and cannot see another tab's turn; the
       // heartbeat can. Without this the studio said "busy" and showed nothing.
-      expect(studio).toContain("remoteProgress");
+      expect(studio).toContain("remoteFiles");
       const poll = studio.slice(studio.indexOf("const tick = async ()"));
-      expect(poll.slice(0, 600)).toContain("isDraftLive");
+      expect(poll.slice(0, 900)).toContain("isDraftLive");
+    });
+
+    it("names the files that turn is writing, not just how many", () => {
+      // The draft holds the paths. Counting them and dropping the names left a
+      // banner saying "16 ไฟล์" and a chat panel showing nothing at all, so a
+      // build running in another tab read as less informative than a local one.
+      const poll = studio.slice(studio.indexOf("const tick = async ()"));
+      const body = poll.slice(0, 900);
+      expect(body).toContain("Object.keys(d.files)");
+      // Fed into the same live turn a local stream fills, so the chat renders it
+      // with the action list it already knows how to draw.
+      expect(body).toContain("setLiveBoth");
+      expect(body).toContain('icon: "file"');
     });
 
     it("takes a completed turn without asking", () => {

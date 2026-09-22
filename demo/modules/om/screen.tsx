@@ -941,19 +941,23 @@ function Assignments({
         </div>
       }
       trailing={(s) => (
-        <span className="flex items-center gap-1.5">
+        <span className="flex items-center justify-end gap-1">
           <button
             onClick={() => onAssign(s.position)}
-            className="rounded-lg border border-slate-300 px-2.5 py-1 text-[11.5px] text-slate-700 transition hover:border-violet-400 hover:text-violet-700 dark:border-slate-700 dark:text-slate-200"
+            title={s.holder ? "เปลี่ยนผู้ดำรงตำแหน่ง" : "มอบหมายผู้ดำรงตำแหน่ง"}
+            aria-label={s.holder ? "เปลี่ยนผู้ดำรงตำแหน่ง" : "มอบหมายผู้ดำรงตำแหน่ง"}
+            className="grid size-7 place-items-center rounded-lg text-slate-400 transition hover:bg-violet-50 hover:text-violet-600 dark:hover:bg-violet-500/15 dark:hover:text-violet-300"
           >
-            {s.holder ? "เปลี่ยนผู้ดำรง" : "มอบหมาย"}
+            <UserPlus size={16} />
           </button>
           {s.holder && (
             <button
               onClick={() => onRelease(s)}
-              className="rounded-lg px-2 py-1 text-[11.5px] text-slate-400 transition hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-500/10"
+              title="ปลดออกจากตำแหน่ง"
+              aria-label="ปลดออกจากตำแหน่ง"
+              className="grid size-7 place-items-center rounded-lg text-slate-400 transition hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-500/15 dark:hover:text-rose-300"
             >
-              ปลด
+              <UserX size={16} />
             </button>
           )}
         </span>

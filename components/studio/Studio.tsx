@@ -1527,6 +1527,26 @@ export default function Studio({ projectId }: { projectId: string }) {
     void generate(buildMissingFilesPrompt(missing));
   }, [generate]);
 
+  /**
+   * Ask for the shell alone.
+   *
+   * A build that wrote the screens and stopped before src/App.tsx needs one
+   * small file, not another full pass over twenty — so this is an iteration
+   * prompt naming what exists, which is both cheaper and far less likely to run
+   * out of output budget the same way twice.
+   */
+  const rebuildShell = useCallback(() => {
+    const files = projectRef.current?.files ?? {};
+    const pages = Object.keys(files).filter((p) => p.startsWith("src/pages/"));
+    if (pages.length === 0) return;
+    void generate(
+      "เขียน src/App.tsx และ src/main.tsx ที่ยังขาดอยู่ ให้ประกอบหน้าจอที่มีอยู่แล้วเข้าด้วยกัน: " +
+        pages.join(", ") +
+        " · App.tsx เป็นเชลล์อย่างเดียว คือแถบเมนู แถบบน และ useState ว่าหน้าไหนกำลังแสดง " +
+        "แล้ว render <XxxPage /> ตามนั้น พร้อม data-fitt-index ครบทุกหน้า · ห้ามเขียนไฟล์หน้าจอใหม่ ใช้ของเดิม"
+    );
+  }, [generate]);
+
   const handleUndo = useCallback(async () => {
     const current = projectRef.current;
     if (!current || busy || readOnly) return;
@@ -2286,6 +2306,11 @@ export default function Studio({ projectId }: { projectId: string }) {
   // Imports with no file behind them — the cause of the "จอขาว" the compile
   // error only hints at. Derived, never stored: it must follow project.files.
   const missingFiles = hasApp ? missingImports(project.files) : [];
+  // Screens with no shell to render them: the build stopped before src/App.tsx,
+  // so the container is still serving whatever App.tsx was already on disk.
+  const shellMissing =
+    Object.keys(project.files ?? {}).some((p) => p.startsWith("src/pages/")) &&
+    !project.files?.["src/App.tsx"];
   // Rework is available once an app exists alongside its BRD/PRD: the user can go
   // back, edit the docs, then regenerate the app from them.
   const reworkDocs = docsFromFiles(project.files);
@@ -2741,6 +2766,8 @@ export default function Studio({ projectId }: { projectId: string }) {
                 wandNudge={wandNudge}
                 missingFiles={missingFiles}
                 onCreateMissingFiles={readOnly ? undefined : createMissingFiles}
+                shellMissing={shellMissing}
+                onRebuildShell={readOnly ? undefined : rebuildShell}
                 onBridge={takeBridge}
               />
             ) : view === "history" ? (

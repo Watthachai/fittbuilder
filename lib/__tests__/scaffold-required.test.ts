@@ -101,3 +101,30 @@ describe("a build that wrote no shell", () => {
     expect(prompts).toContain("CUT SCOPE");
   });
 });
+
+describe("the preview says so too", () => {
+  const preview = readFileSync("components/studio/PreviewPanel.tsx", "utf8");
+  const studio = readFileSync("components/studio/Studio.tsx", "utf8");
+
+  it("names the missing shell in the problem bar", () => {
+    // The sweep only runs DURING a build. When one ends without a shell there
+    // was nothing left saying the preview is not what was just built.
+    expect(preview).toContain("ยังไม่มีไฟล์หลักของแอป");
+    expect(preview).toContain("shellMissing");
+  });
+
+  it("outranks the compile error it causes", () => {
+    // Same reason missing imports outrank theirs: the cause is what can be
+    // acted on, and stacking bars pushes the demo off screen.
+    const chain = preview.slice(preview.indexOf("} | null = "));
+    expect(chain.indexOf("shellMissing")).toBeLessThan(chain.indexOf("missingFiles.length"));
+  });
+
+  it("asks only for the shell, not for another full pass", () => {
+    // Twenty screens already exist; regenerating them is what ran out of output
+    // budget the first time.
+    const fn = studio.slice(studio.indexOf("const rebuildShell = useCallback"));
+    expect(fn.slice(0, 900)).toContain("src/pages/");
+    expect(fn.slice(0, 900)).toContain("ห้ามเขียนไฟล์หน้าจอใหม่");
+  });
+});

@@ -52,6 +52,10 @@ interface PreviewPanelProps {
   /** Imports with no file behind them — a guaranteed white screen. */
   missingFiles?: MissingImport[];
   onCreateMissingFiles?: () => void;
+  /** Screens exist but src/App.tsx does not — nothing renders them. */
+  shellMissing?: boolean;
+  /** Ask the AI for the shell (absent for read-only viewers). */
+  onRebuildShell?: () => void;
   /** Hands the studio a channel into the preview (screen capture drives it). */
   onBridge?: (send: (msg: Record<string, unknown>) => void) => void;
 }
@@ -75,6 +79,8 @@ export default function PreviewPanel({
   wandNudge,
   missingFiles = [],
   onCreateMissingFiles,
+  shellMissing = false,
+  onRebuildShell,
   onBridge,
 }: PreviewPanelProps) {
   const frameRef = useRef<HTMLIFrameElement>(null);
@@ -202,7 +208,25 @@ export default function PreviewPanel({
     also?: string;
     action?: { label: string; run: () => void };
     dismiss?: () => void;
-  } | null = missingFiles.length
+  } | null = shellMissing
+    ? {
+        /**
+         * Pages with no shell to render them.
+         *
+         * The sweep says a build is in progress; when it ends there is nothing
+         * left saying the preview is not the thing that was just built. A turn
+         * that wrote twenty screens and no src/App.tsx leaves the container
+         * serving whatever App.tsx was already on disk — on a first build, the
+         * scaffold's "กำลังรอบทสนทนา". Silent, and indistinguishable from a
+         * build that simply has not started.
+         */
+        tone: "warn",
+        title: "ยังไม่มีไฟล์หลักของแอป",
+        body: "มีหน้าจอที่สร้างไว้แล้ว แต่ยังไม่มี src/App.tsx ที่ประกอบเข้าด้วยกัน หน้านี้จึงยังเป็นหน้าเดิม — สั่ง AI ให้เขียนไฟล์หลักให้ครบ",
+        detail: "src/App.tsx",
+        action: onRebuildShell ? { label: "เขียนไฟล์หลักให้ครบ", run: onRebuildShell } : undefined,
+      }
+    : missingFiles.length
     ? {
         tone: "warn",
         title: `ไฟล์หาย ${missingFiles.length}`,

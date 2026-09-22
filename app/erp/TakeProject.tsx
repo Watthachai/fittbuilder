@@ -55,7 +55,7 @@ export default function TakeProject({ role, only }: { role: Role; only?: ModuleF
         disabled={busy}
         className="shrink-0 rounded-lg bg-sky-600 px-3 py-1.5 text-[12px] font-medium text-white transition hover:bg-sky-700 disabled:opacity-50"
       >
-        {busy ? "กำลังสร้าง…" : only ? `เอาระบบ${FAMILIES.find((f) => f.id === only)?.name}ไปเป็นโปรเจ็กต์` : `เอา ${selected.length} ส่วนนี้ไปเป็นโปรเจ็กต์`}
+        {busy ? "กำลังสร้าง…" : only ? `เอาระบบ${FAMILIES.find((f) => f.id === only)?.name}ไปเป็นโปรเจกต์` : `เอา ${selected.length} ส่วนนี้ไปเป็นโปรเจกต์`}
       </button>
     </div>
   );

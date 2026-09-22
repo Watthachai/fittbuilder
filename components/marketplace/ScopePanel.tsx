@@ -96,7 +96,7 @@ export default function ScopePanel({
           disabled={busy || chosen.length === 0}
           className="mt-4 w-full rounded-lg bg-shine py-2.5 font-display text-[13.5px] font-semibold text-night transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-35"
         >
-          {busy ? "กำลังสร้าง…" : "สร้างโปรเจ็กต์จากขอบเขตนี้"}
+          {busy ? "กำลังสร้าง…" : "สร้างโปรเจกต์จากขอบเขตนี้"}
         </button>
         <p className="mt-2 text-center text-[11.5px] text-chalk/40">โค้ดพร้อมอยู่แล้ว ไม่ต้องรอ AI เขียน</p>
       </div>

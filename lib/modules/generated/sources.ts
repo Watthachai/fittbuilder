@@ -1117,6 +1117,519 @@ function EntryDialog({ entry, onClose }: { entry: JournalEntry; onClose: () => v
 }
 `,
 
+  "kit.tsx": `import { useEffect, useMemo, useRef, useState } from "react";
+import type { ReactNode } from "react";
+import { FIELD, SURFACE, Skeleton } from "./ui";
+
+/**
+ * The working parts of a management screen: the table people live in, the panel
+ * that shows one row without losing the list, the confirmation that makes a
+ * destructive act deliberate, and the form that does not ask for forty fields at
+ * once.
+ *
+ * They are here rather than inside a module because every module needs the same
+ * ones, and a table that sorts differently on the payroll screen than on the
+ * personnel screen is a defect nobody files and everybody feels.
+ */
+
+export type Column<T> = {
+  key: string;
+  header: string;
+  cell: (row: T) => ReactNode;
+  /** Supplying this makes the column sortable; leaving it off means it is not. */
+  sort?: (a: T, b: T) => number;
+  align?: "right";
+  /** Hidden by default in compact density, for columns that are nice-to-have. */
+  secondary?: boolean;
+};
+
+type Density = "comfortable" | "compact";
+
+export function DataTable<T>({
+  rows,
+  columns,
+  getId,
+  onOpen,
+  selectable,
+  bulkActions,
+  toolbar,
+  empty = "ไม่มีข้อมูลที่ตรงกับเงื่อนไข",
+  loading,
+}: {
+  rows: T[];
+  columns: Column<T>[];
+  getId: (row: T) => string | number;
+  /** Opening a row shows it beside the list, so the list stays where it was. */
+  onOpen?: (row: T) => void;
+  selectable?: boolean;
+  bulkActions?: (selected: T[], clear: () => void) => ReactNode;
+  toolbar?: ReactNode;
+  empty?: string;
+  loading?: boolean;
+}) {
+  const [sortKey, setSortKey] = useState<string>();
+  const [desc, setDesc] = useState(false);
+  const [density, setDensity] = useState<Density>("comfortable");
+  const [picked, setPicked] = useState<Set<string | number>>(new Set());
+
+  const shown = density === "compact" ? columns : columns;
+  const pad = density === "compact" ? "px-3 py-1.5" : "px-4 py-3";
+
+  const sorted = useMemo(() => {
+    const col = columns.find((c) => c.key === sortKey);
+    if (!col?.sort) return rows;
+    const out = [...rows].sort(col.sort);
+    return desc ? out.reverse() : out;
+  }, [rows, columns, sortKey, desc]);
+
+  // A filter can drop rows that were ticked; keeping them selected would let a
+  // bulk action hit records the person can no longer see.
+  useEffect(() => {
+    const visible = new Set(rows.map(getId));
+    setPicked((prev) => {
+      const next = new Set([...prev].filter((id) => visible.has(id)));
+      return next.size === prev.size ? prev : next;
+    });
+  }, [rows, getId]);
+
+  const selected = sorted.filter((r) => picked.has(getId(r)));
+  const allOn = sorted.length > 0 && selected.length === sorted.length;
+
+  const toggle = (id: string | number) =>
+    setPicked((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+
+  if (loading) return <Skeleton rows={6} cols={Math.min(5, columns.length)} />;
+
+  return (
+    <div className="space-y-2">
+      {(toolbar || selectable) && (
+        <div className="flex flex-wrap items-center gap-2">
+          {toolbar}
+          <div className="ml-auto flex items-center gap-1 rounded-lg border border-slate-200 p-0.5 dark:border-slate-800">
+            {(["comfortable", "compact"] as const).map((d) => (
+              <button
+                key={d}
+                onClick={() => setDensity(d)}
+                title={d === "comfortable" ? "แถวห่าง อ่านสบาย" : "แถวถี่ เห็นข้อมูลเยอะ"}
+                className={
+                  "rounded-md px-2 py-1 text-[11.5px] transition " +
+                  (density === d
+                    ? "bg-slate-100 font-medium text-slate-800 dark:bg-slate-800 dark:text-slate-100"
+                    : "text-slate-400 hover:text-slate-700 dark:hover:text-slate-200")
+                }
+              >
+                {d === "comfortable" ? "ห่าง" : "ถี่"}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* The contextual bar only exists while something is ticked, so the screen
+          is not carrying a row of disabled buttons the rest of the time. */}
+      {selectable && selected.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2 rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 dark:border-sky-500/30 dark:bg-sky-500/10">
+          <span className="text-[12.5px] font-medium text-sky-800 dark:text-sky-300">
+            เลือกไว้ {selected.length} รายการ
+          </span>
+          <span className="ml-auto flex flex-wrap items-center gap-1.5">
+            {bulkActions?.(selected, () => setPicked(new Set()))}
+            <button
+              onClick={() => setPicked(new Set())}
+              className="rounded-md px-2 py-1 text-[12px] text-sky-700 transition hover:bg-sky-100 dark:text-sky-300 dark:hover:bg-sky-500/20"
+            >
+              ยกเลิกการเลือก
+            </button>
+          </span>
+        </div>
+      )}
+
+      <div className={"overflow-hidden " + SURFACE}>
+        <div className="max-h-[calc(100vh-19rem)] overflow-auto">
+          <table className="w-full text-sm">
+            <thead className="sticky top-0 z-10 bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500 dark:bg-slate-800 dark:text-slate-400">
+              <tr>
+                {selectable && (
+                  <th className={pad + " w-10"}>
+                    <input
+                      type="checkbox"
+                      checked={allOn}
+                      aria-label="เลือกทั้งหมด"
+                      onChange={() =>
+                        setPicked(allOn ? new Set() : new Set(sorted.map(getId)))
+                      }
+                      className="size-3.5 accent-sky-600"
+                    />
+                  </th>
+                )}
+                {shown.map((c) => (
+                  <th key={c.key} className={pad + (c.align === "right" ? " text-right" : "")}>
+                    {c.sort ? (
+                      <button
+                        onClick={() => {
+                          if (sortKey === c.key) setDesc((d) => !d);
+                          else {
+                            setSortKey(c.key);
+                            setDesc(false);
+                          }
+                        }}
+                        className={
+                          "inline-flex items-center gap-1 transition hover:text-slate-800 dark:hover:text-slate-100 " +
+                          (sortKey === c.key ? "text-slate-800 dark:text-slate-100" : "")
+                        }
+                      >
+                        {c.header}
+                        <span className="text-[9px] opacity-60">
+                          {sortKey === c.key ? (desc ? "▼" : "▲") : "↕"}
+                        </span>
+                      </button>
+                    ) : (
+                      c.header
+                    )}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+              {sorted.map((r) => {
+                const id = getId(r);
+                const on = picked.has(id);
+                return (
+                  <tr
+                    key={id}
+                    tabIndex={onOpen ? 0 : undefined}
+                    onClick={onOpen ? () => onOpen(r) : undefined}
+                    onKeyDown={
+                      onOpen
+                        ? (e) => {
+                            if (e.key === "Enter") onOpen(r);
+                          }
+                        : undefined
+                    }
+                    className={
+                      (onOpen ? "cursor-pointer " : "") +
+                      "outline-none focus-visible:bg-sky-100/60 dark:focus-visible:bg-sky-500/15 " +
+                      (on
+                        ? "bg-sky-50/60 dark:bg-sky-500/10"
+                        : "hover:bg-slate-50 dark:hover:bg-slate-800/50")
+                    }
+                  >
+                    {selectable && (
+                      <td className={pad} onClick={(e) => e.stopPropagation()}>
+                        <input
+                          type="checkbox"
+                          checked={on}
+                          aria-label="เลือกแถวนี้"
+                          onChange={() => toggle(id)}
+                          className="size-3.5 accent-sky-600"
+                        />
+                      </td>
+                    )}
+                    {shown.map((c) => (
+                      <td
+                        key={c.key}
+                        className={
+                          pad +
+                          (c.align === "right" ? " text-right" : "") +
+                          " text-slate-600 dark:text-slate-300"
+                        }
+                      >
+                        {c.cell(r)}
+                      </td>
+                    ))}
+                  </tr>
+                );
+              })}
+              {sorted.length === 0 && (
+                <tr>
+                  <td
+                    colSpan={shown.length + (selectable ? 1 : 0)}
+                    className="px-4 py-14 text-center text-[13px] text-slate-400 dark:text-slate-500"
+                  >
+                    {empty}
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Detail beside the list rather than instead of it.
+ *
+ * Sending someone to a new page to read one row costs them their scroll position,
+ * their filters and their place in the queue they were working through. The panel
+ * slides over, the list stays behind it, and Escape puts them back.
+ */
+export function Drawer({
+  open,
+  title,
+  subtitle,
+  onClose,
+  children,
+  footer,
+  width = "max-w-xl",
+}: {
+  open: boolean;
+  title: ReactNode;
+  subtitle?: ReactNode;
+  onClose: () => void;
+  children: ReactNode;
+  footer?: ReactNode;
+  width?: string;
+}) {
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open, onClose]);
+
+  if (!open) return null;
+
+  return (
+    <div className="fixed inset-0 z-50" role="dialog" aria-modal="true">
+      <div onClick={onClose} className="absolute inset-0 bg-slate-900/40 dark:bg-black/60" />
+      <div
+        className={
+          "absolute inset-y-0 right-0 flex w-full flex-col bg-white shadow-2xl dark:bg-slate-900 dark:ring-1 dark:ring-slate-800 " +
+          width
+        }
+      >
+        <div className="flex items-start justify-between gap-4 border-b border-slate-100 px-5 py-4 dark:border-slate-800">
+          <div className="min-w-0">
+            <h2 className="truncate text-base font-semibold text-slate-900 dark:text-slate-50">{title}</h2>
+            {subtitle && (
+              <p className="mt-0.5 truncate text-[12.5px] text-slate-500 dark:text-slate-400">{subtitle}</p>
+            )}
+          </div>
+          <button
+            onClick={onClose}
+            aria-label="ปิดแผงรายละเอียด"
+            className="shrink-0 rounded-lg px-2 py-1 text-slate-400 transition hover:bg-slate-100 dark:hover:bg-slate-800"
+          >
+            ✕
+          </button>
+        </div>
+
+        <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">{children}</div>
+
+        {/* Sticky, so the actions are reachable without scrolling back up. */}
+        {footer && (
+          <div className="border-t border-slate-100 px-5 py-3 dark:border-slate-800">{footer}</div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Deliberate destruction.
+ *
+ * \`confirmWord\` makes the person type something before the button works. It is
+ * for the acts that cannot be taken back — not for every delete, or people learn
+ * to type it without reading.
+ */
+export function ConfirmDialog({
+  open,
+  title,
+  body,
+  confirmWord,
+  confirmLabel = "ยืนยัน",
+  onConfirm,
+  onCancel,
+}: {
+  open: boolean;
+  title: string;
+  body: ReactNode;
+  confirmWord?: string;
+  confirmLabel?: string;
+  onConfirm: () => void;
+  onCancel: () => void;
+}) {
+  const [typed, setTyped] = useState("");
+  useEffect(() => {
+    if (open) setTyped("");
+  }, [open]);
+
+  if (!open) return null;
+  const armed = !confirmWord || typed.trim() === confirmWord;
+
+  return (
+    <div
+      role="alertdialog"
+      aria-modal="true"
+      onClick={onCancel}
+      className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/50 p-4 dark:bg-black/70"
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl dark:bg-slate-900 dark:ring-1 dark:ring-slate-800"
+      >
+        <h2 className="text-base font-semibold text-slate-900 dark:text-slate-50">{title}</h2>
+        <div className="mt-1.5 text-[13px] leading-relaxed text-slate-600 dark:text-slate-300">{body}</div>
+
+        {confirmWord && (
+          <label className="mt-4 block">
+            <span className="text-[12px] text-slate-500 dark:text-slate-400">
+              พิมพ์ <span className="font-mono font-semibold text-slate-800 dark:text-slate-100">{confirmWord}</span> เพื่อยืนยัน
+            </span>
+            <input
+              autoFocus
+              value={typed}
+              onChange={(e) => setTyped(e.target.value)}
+              className={FIELD + " mt-1 w-full"}
+            />
+          </label>
+        )}
+
+        <div className="mt-5 flex gap-2">
+          <button
+            onClick={onCancel}
+            className="flex-1 rounded-lg border border-slate-300 py-2.5 text-sm text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
+          >
+            ยกเลิก
+          </button>
+          <button
+            onClick={onConfirm}
+            disabled={!armed}
+            className="flex-1 rounded-lg bg-rose-600 py-2.5 text-sm font-medium text-white transition hover:bg-rose-700 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            {confirmLabel}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export function Field({
+  label,
+  error,
+  hint,
+  children,
+}: {
+  label: string;
+  error?: string;
+  hint?: string;
+  children: ReactNode;
+}) {
+  return (
+    <label className="block">
+      <span className="text-[12px] font-medium text-slate-600 dark:text-slate-300">{label}</span>
+      <div className="mt-1">{children}</div>
+      {/* The message replaces the hint rather than pushing it down, so the form
+          does not reflow every time someone is mid-typing. */}
+      {error ? (
+        <span className="mt-1 block text-[11.5px] text-rose-600 dark:text-rose-400">{error}</span>
+      ) : hint ? (
+        <span className="mt-1 block text-[11.5px] text-slate-400 dark:text-slate-500">{hint}</span>
+      ) : null}
+    </label>
+  );
+}
+
+export type Step = {
+  title: string;
+  /** Returns the fields that are wrong; an empty object means the step passes. */
+  validate?: () => Record<string, string>;
+  render: (errors: Record<string, string>) => ReactNode;
+};
+
+/**
+ * A long form cut into steps.
+ *
+ * Validation runs when someone tries to leave a step, not when they submit at the
+ * end — finding out on the last screen that the first one was wrong is the thing
+ * that makes people abandon a form.
+ */
+export function Wizard({
+  steps,
+  onDone,
+  onCancel,
+  doneLabel = "บันทึก",
+}: {
+  steps: Step[];
+  onDone: () => void;
+  onCancel: () => void;
+  doneLabel?: string;
+}) {
+  const [at, setAt] = useState(0);
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const step = steps[at];
+  const last = at === steps.length - 1;
+  const topRef = useRef<HTMLDivElement>(null);
+
+  const advance = () => {
+    const found = step.validate?.() ?? {};
+    setErrors(found);
+    if (Object.keys(found).length > 0) return;
+    if (last) onDone();
+    else {
+      setAt((i) => i + 1);
+      topRef.current?.scrollIntoView({ block: "nearest" });
+    }
+  };
+
+  return (
+    <div className="flex h-full flex-col">
+      <div ref={topRef}>
+        <div className="flex items-center gap-1.5">
+          {steps.map((s, i) => (
+            <div key={s.title} className="flex min-w-0 flex-1 flex-col gap-1">
+              <span
+                className={
+                  "h-1 rounded-full transition " +
+                  (i <= at ? "bg-sky-500" : "bg-slate-200 dark:bg-slate-800")
+                }
+              />
+              <span
+                className={
+                  "truncate text-[11px] " +
+                  (i === at
+                    ? "font-medium text-sky-700 dark:text-sky-400"
+                    : "text-slate-400 dark:text-slate-500")
+                }
+              >
+                {i + 1}. {s.title}
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="mt-5 min-h-0 flex-1 space-y-4 overflow-y-auto">{step.render(errors)}</div>
+
+      <div className="mt-4 flex gap-2 border-t border-slate-100 pt-3 dark:border-slate-800">
+        <button
+          onClick={() => (at === 0 ? onCancel() : setAt((i) => i - 1))}
+          className="rounded-lg border border-slate-300 px-4 py-2.5 text-sm text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
+        >
+          {at === 0 ? "ยกเลิก" : "ย้อนกลับ"}
+        </button>
+        <button
+          onClick={advance}
+          className="flex-1 rounded-lg bg-sky-600 py-2.5 text-sm font-medium text-white transition hover:bg-sky-700"
+        >
+          {last ? doneLabel : "ถัดไป"}
+        </button>
+      </div>
+    </div>
+  );
+}
+`,
+
   "mm/data.ts": `export const MATERIALS = [
   { code: "MAT-1001", name: "เหล็กแผ่นรีดร้อน 3 มม.", group: "วัตถุดิบ", unit: "แผ่น", price: 1850, stock: 240, reorder: 120, bin: "A-01-03" },
   { code: "MAT-1002", name: "เหล็กเส้นกลม 12 มม.", group: "วัตถุดิบ", unit: "เส้น", price: 420, stock: 86, reorder: 150, bin: "A-01-07" },
@@ -2074,17 +2587,116 @@ function AssignDialog({ position, onClose, onPick }: { position: Position; onClo
 export const EVENT_TYPES = ["รับเข้าทำงาน", "ย้ายแผนก", "เลื่อนตำแหน่ง", "ปรับเงินเดือน", "ต่อสัญญา", "ลาออก"];
 
 export type Employee = (typeof EMPLOYEES)[number];
+export type PersonnelEvent = Employee["events"][number];
+
+/** งวดที่หน้าจอถือว่าเป็น "วันนี้" — ตรึงไว้เพื่อให้เดโมอ่านเหมือนกันทุกครั้ง */
+export const TODAY = "2026-09-22";
+
+export const baht = (n: number) => n.toLocaleString("th-TH");
+
+const monthOf = (iso: string) => iso.slice(0, 7);
+
+export const addMonths = (iso: string, n: number) => {
+  const d = new Date(iso + "-01");
+  d.setMonth(d.getMonth() + n);
+  return d.toISOString().slice(0, 7);
+};
+
+export const daysBetween = (a: string, b: string) =>
+  Math.round((new Date(b).getTime() - new Date(a).getTime()) / 86400000);
+
+export const allEvents = (): (PersonnelEvent & { employeeId: number; name: string })[] =>
+  EMPLOYEES.flatMap((e) => e.events.map((ev) => ({ ...ev, employeeId: e.id, name: e.name })))
+    .sort((a, b) => b.date.localeCompare(a.date));
+
+export const isActive = (e: Employee) => e.status !== "ลาออก";
+
+/**
+ * จำนวนพนักงาน ณ สิ้นเดือนหนึ่ง นับจากวันที่เริ่มงานลบคนที่ลาออกไปแล้ว
+ * ไม่ได้เก็บตัวเลขไว้ล่วงหน้า เพราะถ้าเพิ่มพนักงานหนึ่งคนกราฟต้องขยับเอง
+ */
+export function headcountAt(month: string) {
+  return EMPLOYEES.filter((e) => {
+    if (monthOf(e.contract.startedAt) > month) return false;
+    const left = e.events.find((ev) => ev.type === "ลาออก");
+    return !left || monthOf(left.date) > month;
+  }).length;
+}
+
+/** ย้อนหลัง n เดือนจากงวดปัจจุบัน สำหรับกราฟแท่ง */
+export function headcountTrend(months = 12) {
+  const now = monthOf(TODAY);
+  return Array.from({ length: months }, (_, i) => {
+    const m = addMonths(now, i - months + 1);
+    return { month: m, label: m.slice(5) + "/" + m.slice(2, 4), value: headcountAt(m) };
+  });
+}
+
+export const hiredIn = (year: string) =>
+  EMPLOYEES.filter((e) => e.contract.startedAt.startsWith(year));
+
+export const leftIn = (year: string) =>
+  EMPLOYEES.filter((e) => e.events.some((ev) => ev.type === "ลาออก" && ev.date.startsWith(year)));
+
+export type Upcoming = {
+  employeeId: number;
+  name: string;
+  kind: string;
+  date: string;
+  inDays: number;
+  tone: "warn" | "info" | "bad";
+};
+
+/**
+ * สิ่งที่ฝ่ายบุคคลต้องทำก่อนมันสาย — สัญญาใกล้หมด ทดลองงานใกล้ครบ
+ * และวันครบรอบการทำงานที่ผูกกับการประเมิน
+ */
+export function upcoming(withinDays = 120): Upcoming[] {
+  const out: Upcoming[] = [];
+  for (const e of EMPLOYEES) {
+    if (!isActive(e)) continue;
+
+    if (e.contract.endsAt) {
+      const d = daysBetween(TODAY, e.contract.endsAt);
+      if (d >= 0 && d <= withinDays) {
+        out.push({ employeeId: e.id, name: e.name, kind: "สัญญาหมดอายุ", date: e.contract.endsAt, inDays: d, tone: "bad" });
+      }
+    }
+
+    const d = daysBetween(TODAY, e.contract.probationUntil);
+    if (d >= 0 && d <= withinDays) {
+      out.push({ employeeId: e.id, name: e.name, kind: "ครบกำหนดทดลองงาน", date: e.contract.probationUntil, inDays: d, tone: "warn" });
+    }
+
+    const anniversary = TODAY.slice(0, 4) + e.contract.startedAt.slice(4);
+    const a = daysBetween(TODAY, anniversary);
+    if (a >= 0 && a <= withinDays) {
+      out.push({ employeeId: e.id, name: e.name, kind: "ครบรอบการทำงาน", date: anniversary, inDays: a, tone: "info" });
+    }
+  }
+  return out.sort((a, b) => a.inDays - b.inDays);
+}
+
+export function byDepartment() {
+  const active = EMPLOYEES.filter(isActive);
+  return [...new Set(active.map((e) => e.department))]
+    .map((d) => ({ department: d, count: active.filter((e) => e.department === d).length }))
+    .sort((a, b) => b.count - a.count);
+}
 `,
 
-  "pa/screen.tsx": `import { useState } from "react";
+  "pa/screen.tsx": `import { useMemo, useState } from "react";
 import type { ReactNode } from "react";
-import { EMPLOYEES, EVENT_TYPES } from "./data";
-import type { Employee } from "./data";
-import { TH } from "../ui";
+import {
+  EMPLOYEES, EVENT_TYPES, TODAY, baht,
+  allEvents, byDepartment, daysBetween, headcountAt, headcountTrend,
+  hiredIn, leftIn, upcoming,
+} from "./data";
+import type { Employee, PersonnelEvent } from "./data";
+import { Badge, Bar, Card, ColumnChart, FIELD, Metric, Note, PageHead, Search, Select, SURFACE } from "../ui";
+import { ConfirmDialog, DataTable, Drawer, Field, Wizard } from "../kit";
+import type { Column, Step } from "../kit";
 
-type PersonnelEvent = Employee["events"][number];
-
-const baht = (n: number) => n.toLocaleString("th-TH");
 const TABS = [
   "ข้อมูลส่วนตัว",
   "ข้อมูลสัญญาจ้าง",
@@ -2093,131 +2705,179 @@ const TABS = [
   "ค่าตอบแทนและสวัสดิการ",
 ];
 
-/**
- * Each capability is its own view of the same register, so picking one from the
- * navigation changes what the table shows — not just which tab is underlined.
- * Opening a row then lands on that part of the person's record.
- */
-const COLUMNS: Record<string, { k: string; cell: (e: Employee) => ReactNode }[]> = {
-  "ข้อมูลส่วนตัว": [
-    { k: "วันเกิด", cell: (e) => e.personal.birthDate },
-    { k: "เลขบัตรประชาชน", cell: (e) => <span className="font-mono text-xs">{e.personal.nationalId}</span> },
-    { k: "โทรศัพท์", cell: (e) => e.personal.phone },
-    { k: "อีเมล", cell: (e) => e.personal.email },
-  ],
-  "ข้อมูลสัญญาจ้าง": [
-    { k: "ประเภทจ้าง", cell: (e) => e.contract.type },
-    { k: "วันเริ่มงาน", cell: (e) => e.contract.startedAt },
-    { k: "สิ้นสุดสัญญา", cell: (e) => e.contract.endsAt ?? "ไม่กำหนด" },
-    { k: "พ้นทดลองงาน", cell: (e) => e.contract.probationUntil },
-    { k: "สถานะ", cell: (e) => <StatusBadge status={e.status} /> },
-  ],
-  "ข้อมูลทางปกครอง": [
-    { k: "เลขประกันสังคม", cell: (e) => <span className="font-mono text-xs">{e.admin.ssoNumber}</span> },
-    { k: "เลขผู้เสียภาษี", cell: (e) => <span className="font-mono text-xs">{e.admin.taxId}</span> },
-    { k: "ธนาคาร", cell: (e) => e.admin.bankName },
-    { k: "เลขบัญชี", cell: (e) => <span className="font-mono text-xs">{e.admin.bankAccount}</span> },
-    { k: "กองทุนสำรองฯ", cell: (e) => e.admin.pvdRate + "%" },
-  ],
-  "เหตุการณ์ทางบุคคล": [
-    { k: "เหตุการณ์ล่าสุด", cell: (e) => e.events[e.events.length - 1]?.type ?? "—" },
-    { k: "เมื่อ", cell: (e) => e.events[e.events.length - 1]?.date ?? "—" },
-    { k: "จำนวนเหตุการณ์", cell: (e) => e.events.length + " ครั้ง" },
-  ],
-  "ค่าตอบแทนและสวัสดิการ": [
-    { k: "เงินเดือนฐาน", cell: (e) => baht(e.contract.baseSalary) + " ฿" },
-    { k: "สวัสดิการ", cell: (e) => e.benefits.length + " รายการ" },
-    { k: "รายการแรก", cell: (e) => e.benefits[0] ?? "—" },
-  ],
+/** A draft employee: everything the wizard collects before the record exists. */
+type Draft = {
+  name: string; nickname: string; position: string; department: string;
+  birthDate: string; nationalId: string; phone: string; email: string;
+  type: string; startedAt: string; baseSalary: string;
+  ssoNumber: string; bankName: string; bankAccount: string;
 };
 
+const EMPTY: Draft = {
+  name: "", nickname: "", position: "", department: "ฝ่ายขาย",
+  birthDate: "", nationalId: "", phone: "", email: "",
+  type: "พนักงานประจำ", startedAt: TODAY, baseSalary: "",
+  ssoNumber: "", bankName: "กสิกรไทย", bankAccount: "",
+};
+
+const DEPARTMENTS = [...new Set(EMPLOYEES.map((e) => e.department))];
+const CONTRACT_TYPES = ["พนักงานประจำ", "สัญญาจ้าง 1 ปี", "พนักงานรายวัน", "พนักงานชั่วคราว"];
+const BANKS = ["กสิกรไทย", "ไทยพาณิชย์", "กรุงไทย", "กรุงเทพ", "กรุงศรีอยุธยา"];
+
 export default function PaScreen({ section }: { section?: string }) {
-  // Which capability to show is the navigation's decision, not this screen's.
-  const tab = section && TABS.includes(section) ? section : TABS[0];
+  // No section means the module's own overview; a section means one capability.
+  const tab = section && TABS.includes(section) ? section : undefined;
+
   const [q, setQ] = useState("");
   const [dept, setDept] = useState("ทุกแผนก");
   const [picked, setPicked] = useState<Employee | null>(null);
-  // Events added in this session, keyed by employee — the seed list stays untouched.
+  const [adding, setAdding] = useState(false);
+  const [draft, setDraft] = useState<Draft>(EMPTY);
+  const [added, setAdded] = useState<Employee[]>([]);
   const [events, setEvents] = useState<Record<number, PersonnelEvent[]>>({});
+  const [resigned, setResigned] = useState<number[]>([]);
+  const [confirming, setConfirming] = useState<Employee[] | null>(null);
 
-  const departments = ["ทุกแผนก", ...new Set(EMPLOYEES.map((e) => e.department))];
-  const rows = EMPLOYEES.filter(
+  const people = useMemo(() => [...EMPLOYEES, ...added], [added]);
+  const statusOf = (e: Employee) => (resigned.includes(e.id) ? "ลาออก" : e.status);
+  const eventsOf = (e: Employee) => [...e.events, ...(events[e.id] ?? [])];
+
+  const rows = people.filter(
     (e) =>
       (dept === "ทุกแผนก" || e.department === dept) &&
-      (e.name.includes(q) || e.code.toLowerCase().includes(q.toLowerCase()) || e.nickname.includes(q))
+      (q.trim() === "" ||
+        [e.name, e.nickname, e.code, e.position].some((t) =>
+          t.toLowerCase().includes(q.trim().toLowerCase())
+        ))
   );
 
-  const eventsOf = (e: Employee) => [...e.events, ...(events[e.id] ?? [])];
   const addEvent = (id: number, ev: PersonnelEvent) =>
     setEvents((m) => ({ ...m, [id]: [...(m[id] ?? []), ev] }));
 
+  const commitResignation = (who: Employee[]) => {
+    setResigned((prev) => [...new Set([...prev, ...who.map((e) => e.id)])]);
+    for (const e of who) {
+      addEvent(e.id, { date: TODAY, type: "ลาออก", detail: "บันทึกจากหน้าทะเบียนพนักงาน" });
+    }
+    setConfirming(null);
+    setPicked(null);
+  };
+
+  if (!tab) return <Overview people={people} statusOf={statusOf} />;
+
   return (
     <div>
-      <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-semibold text-slate-900">ทะเบียนพนักงาน</h1>
-          <p className="text-sm text-slate-500">
+      <PageHead
+        title="ทะเบียนพนักงาน"
+        meta={
+          <>
             {tab} · {rows.length} คน จากทั้งหมด{" "}
-            {EMPLOYEES.filter((e) => e.status !== "ลาออก").length} คนที่ยังทำงานอยู่
-          </p>
-        </div>
-        <div className="flex gap-2">
-          <select
-            value={dept}
-            onChange={(e) => setDept(e.target.value)}
-            className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:border-sky-500"
+            {people.filter((e) => statusOf(e) !== "ลาออก").length} คนที่ยังทำงานอยู่
+          </>
+        }
+        right={
+          <button
+            onClick={() => {
+              setDraft(EMPTY);
+              setAdding(true);
+            }}
+            className="rounded-lg bg-sky-600 px-3.5 py-2 text-[13px] font-medium text-white transition hover:bg-sky-700"
           >
-            {departments.map((d) => <option key={d}>{d}</option>)}
-          </select>
-          <input
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            placeholder="ค้นหาชื่อ ชื่อเล่น หรือรหัส"
-            className="w-64 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 outline-none placeholder:text-slate-400 focus:border-sky-500"
+            + เพิ่มพนักงาน
+          </button>
+        }
+      />
+
+      <DataTable
+        rows={rows}
+        getId={(e) => e.id}
+        onOpen={setPicked}
+        selectable
+        columns={columnsFor(tab, statusOf, eventsOf)}
+        toolbar={
+          <>
+            <Select
+              value={dept}
+              onChange={setDept}
+              options={["ทุกแผนก", ...DEPARTMENTS]}
+            />
+            <Search value={q} onChange={setQ} placeholder="ค้นหาชื่อ ชื่อเล่น รหัส หรือตำแหน่ง" />
+          </>
+        }
+        bulkActions={(selected, clear) => (
+          <button
+            onClick={() => setConfirming(selected.filter((e) => statusOf(e) !== "ลาออก"))}
+            disabled={selected.every((e) => statusOf(e) === "ลาออก")}
+            className="rounded-md border border-rose-300 px-2.5 py-1 text-[12px] text-rose-700 transition hover:bg-rose-50 disabled:opacity-40 dark:border-rose-500/40 dark:text-rose-300 dark:hover:bg-rose-500/10"
+            title={\`บันทึกการลาออกให้ \${selected.length} คนที่เลือกไว้\`}
+          >
+            บันทึกการลาออก
+          </button>
+        )}
+      />
+
+      <Drawer
+        open={picked !== null}
+        title={picked?.name ?? ""}
+        subtitle={picked ? \`\${picked.code} · \${picked.position} · \${picked.department}\` : undefined}
+        onClose={() => setPicked(null)}
+        footer={
+          picked && statusOf(picked) !== "ลาออก" ? (
+            <button
+              onClick={() => setConfirming([picked])}
+              className="w-full rounded-lg border border-rose-300 py-2 text-[13px] text-rose-700 transition hover:bg-rose-50 dark:border-rose-500/40 dark:text-rose-300 dark:hover:bg-rose-500/10"
+            >
+              บันทึกการลาออก
+            </button>
+          ) : undefined
+        }
+      >
+        {picked && (
+          <Record
+            employee={picked}
+            status={statusOf(picked)}
+            events={eventsOf(picked)}
+            openAt={tab}
+            onAddEvent={(ev) => addEvent(picked.id, ev)}
           />
-        </div>
-      </div>
+        )}
+      </Drawer>
 
-      <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
-        <table className="w-full text-sm">
-          <thead className="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
-            <tr>
-              <th className="px-4 py-3">รหัส</th>
-              <th className="px-4 py-3">ชื่อ-นามสกุล</th>
-              <th className="px-4 py-3">แผนก</th>
-              {COLUMNS[tab].map((c) => <th key={c.k} className="px-4 py-3">{c.k}</th>)}
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100">
-            {rows.map((e) => (
-              <tr key={e.id} onClick={() => setPicked(e)} className="cursor-pointer hover:bg-sky-50">
-                <td className="px-4 py-3 font-mono text-xs text-slate-500">{e.code}</td>
-                <td className="px-4 py-3">
-                  <span className="font-medium text-slate-900">{e.name}</span>
-                  <span className="ml-1.5 text-xs text-slate-400">({e.nickname})</span>
-                </td>
-                <td className="px-4 py-3 text-slate-600">{e.department}</td>
-                {COLUMNS[tab].map((c) => (
-                  <td key={c.k} className="px-4 py-3 text-slate-600">{c.cell(e)}</td>
-                ))}
-              </tr>
-            ))}
-            {rows.length === 0 && (
-              <tr><td colSpan={7} className="px-4 py-10 text-center text-slate-400">ไม่พบพนักงานที่ตรงกับที่ค้นหา</td></tr>
-            )}
-          </tbody>
-        </table>
-      </div>
-
-      {picked && (
-        <EmployeeRecord
-          openAt={tab}
-          employee={picked}
-          events={eventsOf(picked)}
-          onAddEvent={(ev) => addEvent(picked.id, ev)}
-          onClose={() => setPicked(null)}
+      <Drawer
+        open={adding}
+        title="เพิ่มพนักงานใหม่"
+        subtitle="สามขั้นตอน — ตรวจความถูกต้องทีละขั้น ไม่ปล่อยไปเจอตอนบันทึก"
+        onClose={() => setAdding(false)}
+      >
+        <NewEmployee
+          draft={draft}
+          setDraft={setDraft}
+          onCancel={() => setAdding(false)}
+          onDone={() => {
+            setAdded((prev) => [...prev, employeeFrom(draft, people.length + 1)]);
+            setAdding(false);
+          }}
         />
-      )}
+      </Drawer>
+
+      <ConfirmDialog
+        open={confirming !== null}
+        title="บันทึกการลาออก"
+        confirmWord="ลาออก"
+        confirmLabel="บันทึกการลาออก"
+        body={
+          <>
+            จะบันทึกการลาออกให้{" "}
+            <span className="font-medium text-slate-900 dark:text-slate-100">
+              {confirming?.map((e) => e.name).join(", ")}
+            </span>{" "}
+            มีผลวันที่ {TODAY} · สถานะจะเปลี่ยนเป็นลาออกและมีเหตุการณ์บันทึกในประวัติ
+            เงินเดือนงวดถัดไปจะไม่รวมคนเหล่านี้
+          </>
+        }
+        onCancel={() => setConfirming(null)}
+        onConfirm={() => confirming && commitResignation(confirming)}
+      />
 
       <div hidden data-fitt-index>
         <button data-fitt-screen="ทะเบียนพนักงาน" />
@@ -2227,215 +2887,634 @@ export default function PaScreen({ section }: { section?: string }) {
   );
 }
 
-function StatusBadge({ status }: { status: string }) {
-  const tone =
-    status === "ทำงานอยู่" ? "bg-emerald-50 text-emerald-700"
-    : status === "ทดลองงาน" ? "bg-amber-50 text-amber-700"
-    : "bg-slate-100 text-slate-600";
-  return <span className={"rounded-full px-2 py-1 text-xs " + tone}>{status}</span>;
+/** Each capability is a different set of columns over the same register. */
+function columnsFor(
+  tab: string,
+  statusOf: (e: Employee) => string,
+  eventsOf: (e: Employee) => PersonnelEvent[]
+): Column<Employee>[] {
+  const head: Column<Employee>[] = [
+    {
+      key: "code",
+      header: "รหัส",
+      sort: (a, b) => a.code.localeCompare(b.code),
+      cell: (e) => <span className="font-mono text-xs text-slate-500 dark:text-slate-400">{e.code}</span>,
+    },
+    {
+      key: "name",
+      header: "ชื่อ-นามสกุล",
+      sort: (a, b) => a.name.localeCompare(b.name, "th"),
+      cell: (e) => (
+        <span>
+          <span className="font-medium text-slate-900 dark:text-slate-100">{e.name}</span>
+          <span className="ml-1.5 text-xs text-slate-400 dark:text-slate-500">({e.nickname})</span>
+        </span>
+      ),
+    },
+    {
+      key: "department",
+      header: "แผนก",
+      sort: (a, b) => a.department.localeCompare(b.department, "th"),
+      cell: (e) => e.department,
+    },
+  ];
+
+  const rest: Record<string, Column<Employee>[]> = {
+    "ข้อมูลส่วนตัว": [
+      { key: "birth", header: "วันเกิด", sort: (a, b) => a.personal.birthDate.localeCompare(b.personal.birthDate), cell: (e) => e.personal.birthDate },
+      { key: "nid", header: "เลขบัตรประชาชน", cell: (e) => <span className="font-mono text-xs">{e.personal.nationalId}</span> },
+      { key: "phone", header: "โทรศัพท์", cell: (e) => e.personal.phone },
+      { key: "email", header: "อีเมล", cell: (e) => e.personal.email },
+    ],
+    "ข้อมูลสัญญาจ้าง": [
+      { key: "type", header: "ประเภทจ้าง", sort: (a, b) => a.contract.type.localeCompare(b.contract.type, "th"), cell: (e) => e.contract.type },
+      { key: "start", header: "วันเริ่มงาน", sort: (a, b) => a.contract.startedAt.localeCompare(b.contract.startedAt), cell: (e) => e.contract.startedAt },
+      {
+        key: "end",
+        header: "สิ้นสุดสัญญา",
+        sort: (a, b) => (a.contract.endsAt ?? "9999").localeCompare(b.contract.endsAt ?? "9999"),
+        cell: (e) => {
+          if (!e.contract.endsAt) return <span className="text-slate-400 dark:text-slate-500">ไม่กำหนด</span>;
+          const left = daysBetween(TODAY, e.contract.endsAt);
+          if (left < 0) return <Badge tone="idle">{e.contract.endsAt} · หมดอายุแล้ว</Badge>;
+          if (left <= 90) return <Badge tone="bad">{e.contract.endsAt} · เหลือ {left} วัน</Badge>;
+          return e.contract.endsAt;
+        },
+      },
+      { key: "status", header: "สถานะ", cell: (e) => <StatusBadge status={statusOf(e)} /> },
+    ],
+    "ข้อมูลทางปกครอง": [
+      { key: "sso", header: "เลขประกันสังคม", cell: (e) => <span className="font-mono text-xs">{e.admin.ssoNumber}</span> },
+      { key: "tax", header: "เลขผู้เสียภาษี", cell: (e) => <span className="font-mono text-xs">{e.admin.taxId}</span> },
+      { key: "bank", header: "ธนาคาร", sort: (a, b) => a.admin.bankName.localeCompare(b.admin.bankName, "th"), cell: (e) => e.admin.bankName },
+      { key: "acct", header: "เลขบัญชี", cell: (e) => <span className="font-mono text-xs">{e.admin.bankAccount}</span> },
+      { key: "pvd", header: "กองทุนสำรองฯ", align: "right", sort: (a, b) => a.admin.pvdRate - b.admin.pvdRate, cell: (e) => e.admin.pvdRate + "%" },
+    ],
+    "เหตุการณ์ทางบุคคล": [
+      { key: "last", header: "เหตุการณ์ล่าสุด", cell: (e) => eventsOf(e).at(-1)?.type ?? "—" },
+      { key: "when", header: "เมื่อ", sort: (a, b) => (eventsOf(a).at(-1)?.date ?? "").localeCompare(eventsOf(b).at(-1)?.date ?? ""), cell: (e) => eventsOf(e).at(-1)?.date ?? "—" },
+      { key: "count", header: "จำนวนเหตุการณ์", align: "right", sort: (a, b) => eventsOf(a).length - eventsOf(b).length, cell: (e) => eventsOf(e).length + " ครั้ง" },
+    ],
+    "ค่าตอบแทนและสวัสดิการ": [
+      { key: "salary", header: "เงินเดือนฐาน", align: "right", sort: (a, b) => a.contract.baseSalary - b.contract.baseSalary, cell: (e) => baht(e.contract.baseSalary) + " ฿" },
+      { key: "ben", header: "สวัสดิการ", align: "right", sort: (a, b) => a.benefits.length - b.benefits.length, cell: (e) => e.benefits.length + " รายการ" },
+      { key: "first", header: "รายการแรก", cell: (e) => e.benefits[0] ?? "—" },
+    ],
+  };
+
+  return [...head, ...(rest[tab] ?? [])];
 }
 
-/** The record itself. One tab per capability, so nothing is claimed that is not here. */
-function EmployeeRecord({
+function StatusBadge({ status }: { status: string }) {
+  return (
+    <Badge tone={status === "ทำงานอยู่" ? "ok" : status === "ทดลองงาน" ? "warn" : "idle"}>
+      {status}
+    </Badge>
+  );
+}
+
+/* ---------------------------------------------------------------- overview */
+
+function Overview({
+  people,
+  statusOf,
+}: {
+  people: Employee[];
+  statusOf: (e: Employee) => string;
+}) {
+  const active = people.filter((e) => statusOf(e) !== "ลาออก");
+  const trend = headcountTrend();
+  const yearAgo = headcountAt(TODAY.slice(0, 7).replace(/^(\\d{4})/, (y) => String(Number(y) - 1)));
+  const thisYear = TODAY.slice(0, 4);
+  const lastYear = String(Number(thisYear) - 1);
+  const hires = hiredIn(thisYear);
+  const lastYearHires = hiredIn(lastYear);
+  const leavers = leftIn(thisYear);
+  const probation = active.filter((e) => statusOf(e) === "ทดลองงาน");
+  const todo = upcoming();
+  const departments = byDepartment();
+  const recent = allEvents().slice(0, 7);
+
+  const pct = (now: number, then: number) =>
+    then === 0 ? 0 : Math.round(((now - then) / then) * 100);
+
+  return (
+    <div>
+      <PageHead
+        title="ภาพรวมทะเบียนพนักงาน"
+        meta={\`ข้อมูล ณ \${TODAY} · อัปเดตอัตโนมัติจากเหตุการณ์ทางบุคคล\`}
+      />
+
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <Metric
+          label="พนักงานทั้งหมด"
+          value={active.length + " คน"}
+          delta={pct(active.length, yearAgo)}
+          deltaLabel={\`เทียบกับปีก่อน \${yearAgo} คน\`}
+          icon={<GlyphPeople />}
+        />
+        <Metric
+          label={\`รับเข้าปี \${thisYear}\`}
+          value={hires.length + " คน"}
+          delta={lastYearHires.length === 0 ? undefined : pct(hires.length, lastYearHires.length)}
+          deltaLabel={\`ปี \${lastYear} รับเข้า \${lastYearHires.length} คน\`}
+          icon={<GlyphIn />}
+        />
+        <Metric
+          label={\`ลาออกปี \${thisYear}\`}
+          value={leavers.length + " คน"}
+          delta={leavers.length === 0 ? 0 : Math.round((leavers.length / Math.max(1, active.length)) * 100)}
+          goodWhen="down"
+          deltaLabel="คิดเป็นอัตราการลาออกต่อกำลังคน"
+          icon={<GlyphOut />}
+        />
+        <Metric
+          label="อยู่ระหว่างทดลองงาน"
+          value={probation.length + " คน"}
+          deltaLabel={probation.length > 0 ? probation.map((e) => e.nickname).join(" · ") : "ไม่มีในงวดนี้"}
+          icon={<GlyphClock />}
+        />
+      </div>
+
+      <div className="mt-3 grid gap-3 lg:grid-cols-[1.6fr_1fr]">
+        <Card
+          title="จำนวนพนักงานย้อนหลัง 12 เดือน"
+          action={
+            <span className="text-[11.5px] text-slate-400 dark:text-slate-500">
+              นับจากวันเริ่มงานหักคนที่ลาออกแล้ว
+            </span>
+          }
+        >
+          <ColumnChart data={trend.map((t) => ({ label: t.label, value: t.value }))} format={(n) => n + " คน"} />
+        </Card>
+
+        <Card title={\`ต้องทำก่อนสาย (\${todo.length})\`}>
+          {todo.length === 0 ? (
+            <p className="px-4 py-8 text-center text-[13px] text-slate-400 dark:text-slate-500">
+              ไม่มีรายการที่ครบกำหนดใน 120 วันข้างหน้า
+            </p>
+          ) : (
+            <ul className="max-h-72 divide-y divide-slate-100 overflow-y-auto dark:divide-slate-800">
+              {todo.map((t, i) => (
+                <li key={i} className="flex items-center gap-3 px-4 py-2.5">
+                  <span
+                    className={
+                      "h-8 w-1 shrink-0 rounded-full " +
+                      (t.tone === "bad" ? "bg-rose-500" : t.tone === "warn" ? "bg-amber-400" : "bg-sky-400")
+                    }
+                  />
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-[13px] text-slate-800 dark:text-slate-100">{t.name}</span>
+                    <span className="block truncate text-[11.5px] text-slate-500 dark:text-slate-400">
+                      {t.kind} · {t.date}
+                    </span>
+                  </span>
+                  <span className="shrink-0 text-[11.5px] tabular-nums text-slate-400 dark:text-slate-500">
+                    อีก {t.inDays} วัน
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Card>
+      </div>
+
+      <div className="mt-3 grid gap-3 lg:grid-cols-2">
+        <Card title="กำลังคนตามแผนก">
+          <ul className="divide-y divide-slate-100 dark:divide-slate-800">
+            {departments.map((d) => (
+              <li key={d.department} className="flex items-center gap-3 px-4 py-2.5 text-sm">
+                <span className="w-28 shrink-0 truncate text-slate-700 dark:text-slate-200">{d.department}</span>
+                <span className="flex-1">
+                  <Bar pct={(d.count / active.length) * 100} tone="info" width="w-full" />
+                </span>
+                <span className="w-10 shrink-0 text-right tabular-nums text-slate-600 dark:text-slate-300">
+                  {d.count}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </Card>
+
+        <Card title="เหตุการณ์ทางบุคคลล่าสุด">
+          <ul className="divide-y divide-slate-100 dark:divide-slate-800">
+            {recent.map((e, i) => (
+              <li key={i} className="flex items-start gap-3 px-4 py-2.5">
+                <span className="w-20 shrink-0 text-[11.5px] tabular-nums text-slate-400 dark:text-slate-500">
+                  {e.date}
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block text-[13px] text-slate-800 dark:text-slate-100">
+                    {e.name} — {e.type}
+                  </span>
+                  <span className="block truncate text-[11.5px] text-slate-500 dark:text-slate-400">{e.detail}</span>
+                </span>
+              </li>
+            ))}
+          </ul>
+        </Card>
+      </div>
+    </div>
+  );
+}
+
+const GlyphPeople = () => <span className="text-[15px]">👥</span>;
+const GlyphIn = () => <span className="text-[15px]">📥</span>;
+const GlyphOut = () => <span className="text-[15px]">📤</span>;
+const GlyphClock = () => <span className="text-[15px]">⏳</span>;
+
+/* ------------------------------------------------------------------ record */
+
+function Record({
   employee: e,
+  status,
   events,
   openAt,
   onAddEvent,
-  onClose,
 }: {
   employee: Employee;
+  status: string;
   events: PersonnelEvent[];
   openAt: string;
   onAddEvent: (ev: PersonnelEvent) => void;
-  onClose: () => void;
 }) {
-  // Opens on the part of the record the list was showing, then flips freely.
+  // Opens on the part of the record the list was showing, then moves freely.
   const [tab, setTab] = useState(openAt);
-  const [adding, setAdding] = useState(false);
+  const [logging, setLogging] = useState(false);
 
   return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      onClick={onClose}
-      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4"
-    >
-      <div
-        onClick={(ev) => ev.stopPropagation()}
-        className="flex max-h-[88vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl bg-white shadow-xl"
-      >
-        <div className="flex items-start justify-between border-b border-slate-200 px-6 py-4">
-          <div>
-            <h2 className="text-lg font-semibold text-slate-900">{e.name}</h2>
-            <p className="text-sm text-slate-500">{e.code} · {e.position} · {e.department}</p>
-          </div>
-          <button onClick={onClose} aria-label="ปิด" className="text-slate-400 hover:text-slate-700">✕</button>
-        </div>
+    <div>
+      <div className="flex flex-wrap gap-1 rounded-lg bg-slate-100 p-1 dark:bg-slate-800">
+        {TABS.map((t) => (
+          <button
+            key={t}
+            onClick={() => setTab(t)}
+            className={
+              "rounded-md px-2.5 py-1.5 text-[12px] transition " +
+              (t === tab
+                ? "bg-white font-medium text-slate-900 shadow-sm dark:bg-slate-900 dark:text-slate-50"
+                : "text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-100")
+            }
+          >
+            {t}
+          </button>
+        ))}
+      </div>
 
-        <div className="flex gap-1 overflow-x-auto border-b border-slate-200 px-4">
-          {TABS.map((t) => (
-            <button
-              key={t}
-              onClick={() => setTab(t)}
-              className={
-                t === tab
-                  ? "whitespace-nowrap border-b-2 border-sky-600 px-3 py-2.5 text-[13px] font-medium text-sky-700"
-                  : "whitespace-nowrap px-3 py-2.5 text-[13px] text-slate-500 hover:text-slate-800"
-              }
-            >
-              {t}
-            </button>
-          ))}
-        </div>
+      <div className="mt-4">
+        {tab === "ข้อมูลส่วนตัว" && (
+          <Facts
+            items={[
+              ["วันเกิด", e.personal.birthDate],
+              ["เลขบัตรประชาชน", e.personal.nationalId],
+              ["โทรศัพท์", e.personal.phone],
+              ["อีเมล", e.personal.email],
+              ["ที่อยู่ตามทะเบียนบ้าน", e.personal.address, true],
+            ]}
+          />
+        )}
 
-        <div className="min-h-0 flex-1 overflow-y-auto p-6">
-          {tab === "ข้อมูลส่วนตัว" && (
-            <dl className="grid grid-cols-2 gap-4 text-sm">
-              <Field label="วันเกิด" value={e.personal.birthDate} />
-              <Field label="เลขบัตรประชาชน" value={e.personal.nationalId} />
-              <Field label="โทรศัพท์" value={e.personal.phone} />
-              <Field label="อีเมล" value={e.personal.email} />
-              <Field label="ที่อยู่ตามทะเบียนบ้าน" value={e.personal.address} wide />
-            </dl>
-          )}
-
-          {tab === "ข้อมูลสัญญาจ้าง" && (
-            <>
-              <dl className="grid grid-cols-2 gap-4 text-sm">
-                <Field label="ประเภทการจ้าง" value={e.contract.type} />
-                <Field label="วันเริ่มงาน" value={e.contract.startedAt} />
-                <Field label="วันสิ้นสุดสัญญา" value={e.contract.endsAt ?? "ไม่กำหนด"} />
-                <Field label="ครบทดลองงาน" value={e.contract.probationUntil} />
-                <Field label="เงินเดือนฐาน" value={baht(e.contract.baseSalary) + " บาท"} />
-                <Field label="วันทำงาน" value={e.contract.workDays} />
-              </dl>
-              {e.contract.endsAt && e.status !== "ลาออก" && (
-                <p className="mt-4 rounded-lg bg-amber-50 p-3 text-[13px] text-amber-800">
-                  สัญญาสิ้นสุด {e.contract.endsAt} — ควรเริ่มพิจารณาต่อสัญญาล่วงหน้าอย่างน้อย 30 วัน
-                </p>
-              )}
-            </>
-          )}
-
-          {tab === "ข้อมูลทางปกครอง" && (
-            <dl className="grid grid-cols-2 gap-4 text-sm">
-              <Field label="เลขประกันสังคม" value={e.admin.ssoNumber} />
-              <Field label="เลขประจำตัวผู้เสียภาษี" value={e.admin.taxId} />
-              <Field label="ธนาคาร" value={e.admin.bankName} />
-              <Field label="เลขบัญชีรับเงินเดือน" value={e.admin.bankAccount} />
-              <Field label="สะสมกองทุนสำรองเลี้ยงชีพ" value={e.admin.pvdRate + "%"} />
-            </dl>
-          )}
-
-          {tab === "เหตุการณ์ทางบุคคล" && (
-            <>
-              <ol className="relative border-l border-slate-200 pl-5">
-                {events.map((ev, i) => (
-                  <li key={i} className="mb-4 last:mb-0">
-                    <span className="absolute -left-[5px] mt-1.5 size-2.5 rounded-full bg-sky-500" />
-                    <div className="text-[13px] text-slate-400">{ev.date}</div>
-                    <div className="text-sm font-medium text-slate-900">{ev.type}</div>
-                    <div className="text-[13px] text-slate-600">{ev.detail}</div>
-                  </li>
-                ))}
-              </ol>
-              {adding ? (
-                <AddEvent
-                  onCancel={() => setAdding(false)}
-                  onSave={(ev) => { onAddEvent(ev); setAdding(false); }}
-                />
-              ) : (
-                <button
-                  onClick={() => setAdding(true)}
-                  className="mt-5 w-full rounded-lg border border-dashed border-slate-300 py-2.5 text-sm text-slate-600 hover:border-sky-500 hover:text-sky-700"
-                >
-                  + บันทึกเหตุการณ์ใหม่
-                </button>
-              )}
-            </>
-          )}
-
-          {tab === "ค่าตอบแทนและสวัสดิการ" && (
-            <>
-              <div className="rounded-xl border border-slate-200 p-4">
-                <div className="text-xs text-slate-500">เงินเดือนฐานปัจจุบัน</div>
-                <div className="mt-0.5 text-2xl font-semibold text-slate-900">{baht(e.contract.baseSalary)} บาท</div>
+        {tab === "ข้อมูลสัญญาจ้าง" && (
+          <>
+            <Facts
+              items={[
+                ["ประเภทการจ้าง", e.contract.type],
+                ["สถานะ", <StatusBadge key="s" status={status} />],
+                ["วันเริ่มงาน", e.contract.startedAt],
+                ["สิ้นสุดสัญญา", e.contract.endsAt ?? "ไม่กำหนด"],
+                ["ครบกำหนดทดลองงาน", e.contract.probationUntil],
+                ["วันทำงาน", e.contract.workDays],
+              ]}
+            />
+            {e.contract.endsAt && daysBetween(TODAY, e.contract.endsAt) <= 90 && (
+              <div className="mt-3">
+                <Note tone="warn">
+                  สัญญาหมดอายุ {e.contract.endsAt} — เหลืออีก {daysBetween(TODAY, e.contract.endsAt)} วัน
+                  ควรเริ่มกระบวนการต่อสัญญาหรือแจ้งล่วงหน้าตามกฎหมายแรงงาน
+                </Note>
               </div>
-              <h3 className="mt-5 text-sm font-medium text-slate-800">สวัสดิการที่ได้รับ</h3>
-              <ul className="mt-2 space-y-1.5">
-                {e.benefits.map((b) => (
-                  <li key={b} className="flex items-start gap-2 text-sm text-slate-700">
-                    <span className="mt-0.5 text-emerald-600">✓</span>{b}
-                  </li>
-                ))}
-              </ul>
-            </>
-          )}
-        </div>
+            )}
+          </>
+        )}
+
+        {tab === "ข้อมูลทางปกครอง" && (
+          <Facts
+            items={[
+              ["เลขประกันสังคม", e.admin.ssoNumber],
+              ["เลขผู้เสียภาษี", e.admin.taxId],
+              ["ธนาคาร", e.admin.bankName],
+              ["เลขบัญชี", e.admin.bankAccount],
+              ["กองทุนสำรองเลี้ยงชีพ", e.admin.pvdRate + "% ของเงินเดือน"],
+            ]}
+          />
+        )}
+
+        {tab === "เหตุการณ์ทางบุคคล" && (
+          <div>
+            <ol className="relative space-y-3 border-l border-slate-200 pl-4 dark:border-slate-800">
+              {[...events].reverse().map((ev, i) => (
+                <li key={i} className="relative">
+                  <span className="absolute -left-[21px] top-1.5 size-2 rounded-full bg-sky-500" />
+                  <p className="text-[12.5px] font-medium text-slate-900 dark:text-slate-100">{ev.type}</p>
+                  <p className="text-[11.5px] text-slate-400 dark:text-slate-500">{ev.date}</p>
+                  <p className="mt-0.5 text-[12.5px] text-slate-600 dark:text-slate-300">{ev.detail}</p>
+                </li>
+              ))}
+            </ol>
+
+            {logging ? (
+              <AddEvent
+                onCancel={() => setLogging(false)}
+                onSave={(ev) => {
+                  onAddEvent(ev);
+                  setLogging(false);
+                }}
+              />
+            ) : (
+              <button
+                onClick={() => setLogging(true)}
+                className="mt-4 w-full rounded-lg border border-dashed border-slate-300 py-2 text-[12.5px] text-slate-500 transition hover:border-sky-400 hover:text-sky-600 dark:border-slate-700 dark:text-slate-400"
+              >
+                + บันทึกเหตุการณ์ใหม่
+              </button>
+            )}
+          </div>
+        )}
+
+        {tab === "ค่าตอบแทนและสวัสดิการ" && (
+          <>
+            <Facts items={[["เงินเดือนฐาน", baht(e.contract.baseSalary) + " บาท/เดือน"]]} />
+            <ul className="mt-3 space-y-1.5">
+              {e.benefits.map((b) => (
+                <li
+                  key={b}
+                  className="rounded-lg bg-slate-50 px-3 py-2 text-[12.5px] text-slate-700 dark:bg-slate-800/60 dark:text-slate-200"
+                >
+                  {b}
+                </li>
+              ))}
+            </ul>
+          </>
+        )}
       </div>
     </div>
   );
 }
 
-function AddEvent({ onSave, onCancel }: { onSave: (ev: PersonnelEvent) => void; onCancel: () => void }) {
+function Facts({ items }: { items: [string, ReactNode, boolean?][] }) {
+  return (
+    <dl className="grid grid-cols-2 gap-x-4 gap-y-3">
+      {items.map(([k, v, wide], i) => (
+        <div key={i} className={wide ? "col-span-2" : ""}>
+          <dt className="text-[11.5px] text-slate-500 dark:text-slate-400">{k}</dt>
+          <dd className="mt-0.5 text-[13px] text-slate-900 dark:text-slate-100">{v}</dd>
+        </div>
+      ))}
+    </dl>
+  );
+}
+
+function AddEvent({
+  onSave,
+  onCancel,
+}: {
+  onSave: (ev: PersonnelEvent) => void;
+  onCancel: () => void;
+}) {
   const [type, setType] = useState(EVENT_TYPES[1]);
-  const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
+  const [date, setDate] = useState(TODAY);
   const [detail, setDetail] = useState("");
+  const [tried, setTried] = useState(false);
+  const bad = tried && detail.trim().length < 5;
 
   return (
-    <div className="mt-5 rounded-xl border border-slate-200 p-4">
+    <div className={"mt-4 p-3 " + SURFACE}>
       <div className="grid grid-cols-2 gap-3">
-        <label className="text-sm">
-          <span className="mb-1 block text-xs text-slate-500">ประเภทเหตุการณ์</span>
-          <select
-            value={type}
-            onChange={(e) => setType(e.target.value)}
-            className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-sky-500"
-          >
-            {EVENT_TYPES.map((t) => <option key={t}>{t}</option>)}
-          </select>
-        </label>
-        <label className="text-sm">
-          <span className="mb-1 block text-xs text-slate-500">วันที่มีผล</span>
-          <input
-            type="date"
-            value={date}
-            onChange={(e) => setDate(e.target.value)}
-            className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-sky-500"
-          />
-        </label>
+        <Field label="ประเภทเหตุการณ์">
+          <Select value={type} onChange={setType} options={EVENT_TYPES} />
+        </Field>
+        <Field label="วันที่มีผล">
+          <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className={FIELD + " w-full"} />
+        </Field>
       </div>
-      <label className="mt-3 block text-sm">
-        <span className="mb-1 block text-xs text-slate-500">รายละเอียด</span>
-        <input
-          value={detail}
-          onChange={(e) => setDetail(e.target.value)}
-          placeholder="เช่น ย้ายจากฝ่ายขายไปฝ่ายการตลาด"
-          className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-sky-500"
-        />
-      </label>
-      <div className="mt-4 flex gap-2">
-        <button onClick={onCancel} className="flex-1 rounded-lg border border-slate-300 py-2 text-sm text-slate-700 hover:bg-slate-50">
+      <div className="mt-3">
+        <Field
+          label="รายละเอียด"
+          error={bad ? "ใส่รายละเอียดอย่างน้อย 5 ตัวอักษร เพื่อให้คนอ่านประวัติย้อนหลังเข้าใจ" : undefined}
+          hint="เช่น ย้ายจากฝ่ายขายไปฝ่ายการตลาด"
+        >
+          <input
+            value={detail}
+            onChange={(e) => {
+              setDetail(e.target.value);
+              if (tried) setTried(true);
+            }}
+            className={
+              FIELD + " w-full " + (bad ? "border-rose-400 dark:border-rose-500" : "")
+            }
+          />
+        </Field>
+      </div>
+      <div className="mt-3 flex gap-2">
+        <button
+          onClick={onCancel}
+          className="rounded-lg border border-slate-300 px-3 py-1.5 text-[12.5px] text-slate-600 dark:border-slate-700 dark:text-slate-300"
+        >
           ยกเลิก
         </button>
         <button
-          onClick={() => onSave({ date, type, detail: detail || "—" })}
-          className="flex-1 rounded-lg bg-slate-900 py-2 text-sm font-medium text-white"
+          onClick={() => {
+            setTried(true);
+            if (detail.trim().length >= 5) onSave({ date, type, detail: detail.trim() });
+          }}
+          className="flex-1 rounded-lg bg-sky-600 py-1.5 text-[12.5px] font-medium text-white transition hover:bg-sky-700"
         >
-          บันทึก
+          บันทึกเหตุการณ์
         </button>
       </div>
     </div>
   );
 }
 
-function Field({ label, value, wide }: { label: string; value: ReactNode; wide?: boolean }) {
+/* ------------------------------------------------------------------ wizard */
+
+function employeeFrom(d: Draft, n: number): Employee {
+  return {
+    id: 1000 + n,
+    code: "EMP-" + String(1000 + n).slice(1).padStart(4, "0"),
+    name: d.name,
+    nickname: d.nickname || d.name.split(" ")[0],
+    position: d.position,
+    department: d.department,
+    status: "ทดลองงาน",
+    personal: {
+      birthDate: d.birthDate,
+      nationalId: d.nationalId,
+      phone: d.phone,
+      email: d.email,
+      address: "—",
+    },
+    contract: {
+      type: d.type,
+      startedAt: d.startedAt,
+      endsAt: null,
+      probationUntil: d.startedAt,
+      baseSalary: Number(d.baseSalary) || 0,
+      workDays: "จันทร์–ศุกร์",
+    },
+    admin: {
+      ssoNumber: d.ssoNumber,
+      taxId: d.nationalId.replace(/-/g, ""),
+      bankName: d.bankName,
+      bankAccount: d.bankAccount,
+      pvdRate: 3,
+    },
+    benefits: ["ประกันสุขภาพกลุ่ม"],
+    events: [{ date: d.startedAt, type: "รับเข้าทำงาน", detail: \`ตำแหน่ง \${d.position} · เงินเดือน \${d.baseSalary}\` }],
+  } as Employee;
+}
+
+/**
+ * Declared out here, not inside the wizard.
+ *
+ * A component defined during render is a new type every render, so React throws
+ * the input away and mounts a fresh one — which takes the caret with it and
+ * leaves you able to type exactly one character per field.
+ */
+function DraftText({
+  value,
+  onChange,
+  label,
+  error,
+  hint,
+  placeholder,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  label: string;
+  error?: string;
+  hint?: string;
+  placeholder?: string;
+}) {
   return (
-    <div className={wide ? "col-span-2" : ""}>
-      <dt className="text-xs text-slate-500">{label}</dt>
-      <dd className="mt-0.5 text-slate-900">{value}</dd>
-    </div>
+    <Field label={label} hint={hint} error={error}>
+      <input
+        value={value}
+        placeholder={placeholder}
+        onChange={(e) => onChange(e.target.value)}
+        className={FIELD + " w-full " + (error ? "border-rose-400 dark:border-rose-500" : "")}
+      />
+    </Field>
   );
+}
+
+function NewEmployee({
+  draft,
+  setDraft,
+  onDone,
+  onCancel,
+}: {
+  draft: Draft;
+  setDraft: (d: Draft) => void;
+  onDone: () => void;
+  onCancel: () => void;
+}) {
+  const set = (k: keyof Draft) => (v: string) => setDraft({ ...draft, [k]: v });
+  const text = (k: keyof Draft, label: string, errors: Record<string, string>, extra?: { hint?: string; placeholder?: string }) => (
+    <DraftText
+      value={draft[k]}
+      onChange={set(k)}
+      label={label}
+      error={errors[k]}
+      hint={extra?.hint}
+      placeholder={extra?.placeholder}
+    />
+  );
+
+  const steps: Step[] = [
+    {
+      title: "ข้อมูลส่วนตัว",
+      validate: () => {
+        const e: Record<string, string> = {};
+        if (draft.name.trim().split(" ").length < 2) e.name = "ใส่ทั้งชื่อและนามสกุล";
+        if (!/^\\d-\\d{4}-\\d{5}-\\d{2}-\\d$/.test(draft.nationalId)) e.nationalId = "รูปแบบต้องเป็น 1-2345-67890-12-3";
+        if (!/^0\\d{2}-\\d{3}-\\d{4}$/.test(draft.phone)) e.phone = "รูปแบบต้องเป็น 08X-XXX-XXXX";
+        if (!/^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$/.test(draft.email)) e.email = "อีเมลไม่ถูกต้อง";
+        return e;
+      },
+      render: (errors) => (
+        <>
+          <div className="grid grid-cols-2 gap-3">
+            {text("name", "ชื่อ-นามสกุล", errors, { placeholder: "สมชาย รักดี" })}
+            {text("nickname", "ชื่อเล่น", errors, { placeholder: "ชาย" })}
+          </div>
+          {text("nationalId", "เลขบัตรประชาชน", errors, { hint: "ใส่ขีดตามบัตร", placeholder: "1-2345-67890-12-3" })}
+          <div className="grid grid-cols-2 gap-3">
+            {text("phone", "โทรศัพท์", errors, { hint: "รูปแบบ 08X-XXX-XXXX", placeholder: "081-234-5678" })}
+            <Field label="วันเกิด">
+              <input type="date" value={draft.birthDate} onChange={(e) => set("birthDate")(e.target.value)} className={FIELD + " w-full"} />
+            </Field>
+          </div>
+          {text("email", "อีเมล", errors, { placeholder: "somchai@example.co.th" })}
+        </>
+      ),
+    },
+    {
+      title: "ข้อมูลการจ้าง",
+      validate: () => {
+        const e: Record<string, string> = {};
+        if (draft.position.trim().length < 2) e.position = "ระบุตำแหน่ง";
+        if (!draft.baseSalary || Number(draft.baseSalary) < 10000)
+          e.baseSalary = "เงินเดือนต้องไม่ต่ำกว่า 10,000 บาท";
+        return e;
+      },
+      render: (errors) => (
+        <>
+          {text("position", "ตำแหน่ง", errors, { placeholder: "พนักงานขาย" })}
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="แผนก">
+              <Select value={draft.department} onChange={set("department")} options={DEPARTMENTS} />
+            </Field>
+            <Field label="ประเภทการจ้าง">
+              <Select value={draft.type} onChange={set("type")} options={CONTRACT_TYPES} />
+            </Field>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="วันเริ่มงาน">
+              <input type="date" value={draft.startedAt} onChange={(e) => set("startedAt")(e.target.value)} className={FIELD + " w-full"} />
+            </Field>
+            {text("baseSalary", "เงินเดือนฐาน (บาท)", errors, { placeholder: "22000" })}
+          </div>
+        </>
+      ),
+    },
+    {
+      title: "ข้อมูลทางปกครอง",
+      validate: () => {
+        const e: Record<string, string> = {};
+        if (!/^\\d{10}$/.test(draft.ssoNumber)) e.ssoNumber = "เลขประกันสังคมต้องมี 10 หลัก";
+        if (draft.bankAccount.trim().length < 6) e.bankAccount = "ใส่เลขบัญชีให้ครบ";
+        return e;
+      },
+      render: (errors) => (
+        <>
+          {text("ssoNumber", "เลขประกันสังคม", errors, { hint: "10 หลัก ไม่ต้องใส่ขีด", placeholder: "1234567890" })}
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="ธนาคาร">
+              <Select value={draft.bankName} onChange={set("bankName")} options={BANKS} />
+            </Field>
+            {text("bankAccount", "เลขบัญชี", errors, { placeholder: "xxx-x-x1234-5" })}
+          </div>
+          <Note tone="info">
+            เลขผู้เสียภาษีจะใช้เลขบัตรประชาชนที่กรอกไว้ และตั้งกองทุนสำรองเลี้ยงชีพเริ่มต้นที่ 3%
+            แก้ได้ภายหลังในแฟ้มประวัติ
+          </Note>
+        </>
+      ),
+    },
+  ];
+
+  return <Wizard steps={steps} onDone={onDone} onCancel={onCancel} doneLabel="เพิ่มพนักงาน" />;
 }
 `,
 
@@ -4336,22 +5415,39 @@ function ReviewDialog({ leave, onClose, onDecide }: { leave: Leave; onClose: () 
  * drifted in padding and tone names. They are one set now, and the composer ships
  * this file the same way it ships the app shell: no module owns it, so no module
  * can disagree with another about what a table header looks like.
+ *
+ * Every surface declares both themes. People run a system like this for eight
+ * hours, so dark is a first-class mode, not an afterthought bolted on later.
  */
 
 export const TH = "px-4 py-3";
 
-export function Card({ title, children }: { title?: ReactNode; children: ReactNode }) {
+export const SURFACE =
+  "rounded-xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900";
+
+export function Card({
+  title,
+  action,
+  children,
+}: {
+  title?: ReactNode;
+  action?: ReactNode;
+  children: ReactNode;
+}) {
   return (
-    <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
-      {title && (
-        <div className="border-b border-slate-100 px-4 py-3 text-sm font-medium text-slate-800">
-          {title}
+    <div className={"overflow-hidden " + SURFACE}>
+      {(title || action) && (
+        <div className="flex items-center justify-between gap-3 border-b border-slate-100 px-4 py-3 dark:border-slate-800">
+          <div className="min-w-0 text-sm font-medium text-slate-800 dark:text-slate-100">{title}</div>
+          {action}
         </div>
       )}
       {children}
     </div>
   );
 }
+
+export type Tone = "ok" | "warn" | "bad" | "idle" | "info";
 
 /** \`warn\` is something to watch, \`bad\` is a number that should not be there. */
 export function Stat({
@@ -4364,12 +5460,16 @@ export function Stat({
   tone?: "warn" | "bad";
 }) {
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-4">
-      <div className="text-xs text-slate-500">{label}</div>
+    <div className={SURFACE + " p-4"}>
+      <div className="text-xs text-slate-500 dark:text-slate-400">{label}</div>
       <div
         className={
           "mt-1 text-lg font-semibold " +
-          (tone === "warn" ? "text-amber-700" : tone === "bad" ? "text-rose-600" : "text-slate-900")
+          (tone === "warn"
+            ? "text-amber-700 dark:text-amber-400"
+            : tone === "bad"
+              ? "text-rose-600 dark:text-rose-400"
+              : "text-slate-900 dark:text-slate-50")
         }
       >
         {value}
@@ -4378,11 +5478,78 @@ export function Stat({
   );
 }
 
+/**
+ * The headline number with its movement.
+ *
+ * A figure on its own answers "how many"; the delta answers "and is that good?",
+ * which is the question someone opening a management screen actually has. The
+ * direction that counts as good is the caller's to say — resignations rising is
+ * not the same news as hires rising.
+ */
+export function Metric({
+  label,
+  value,
+  delta,
+  deltaLabel,
+  goodWhen = "up",
+  icon,
+  footer,
+}: {
+  label: string;
+  value: ReactNode;
+  delta?: number;
+  deltaLabel?: string;
+  goodWhen?: "up" | "down";
+  icon?: ReactNode;
+  footer?: ReactNode;
+}) {
+  const good = delta === undefined ? true : goodWhen === "up" ? delta >= 0 : delta <= 0;
+  return (
+    <div className={"flex flex-col " + SURFACE}>
+      <div className="flex-1 p-4">
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex items-center gap-2.5">
+            {icon && (
+              <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-sky-50 text-sky-600 dark:bg-sky-500/15 dark:text-sky-400">
+                {icon}
+              </span>
+            )}
+            <span className="text-[13px] font-medium text-slate-600 dark:text-slate-300">{label}</span>
+          </div>
+          {delta !== undefined && (
+            <span
+              className={
+                "shrink-0 rounded-md px-1.5 py-0.5 text-[11.5px] font-medium tabular-nums " +
+                (good
+                  ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-400"
+                  : "bg-rose-50 text-rose-700 dark:bg-rose-500/15 dark:text-rose-400")
+              }
+            >
+              {delta >= 0 ? "▲" : "▼"} {Math.abs(delta)}%
+            </span>
+          )}
+        </div>
+        <div className="mt-2 text-2xl font-semibold tabular-nums text-slate-900 dark:text-slate-50">
+          {value}
+        </div>
+        {deltaLabel && (
+          <div className="mt-0.5 text-[11.5px] text-slate-400 dark:text-slate-500">{deltaLabel}</div>
+        )}
+      </div>
+      {footer && (
+        <div className="border-t border-slate-100 px-4 py-2 text-[11.5px] text-slate-400 dark:border-slate-800 dark:text-slate-500">
+          {footer}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export type Col = { k: string; right?: boolean };
 
 export function Head({ cols }: { cols: Col[] }) {
   return (
-    <thead className="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
+    <thead className="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500 dark:bg-slate-800/60 dark:text-slate-400">
       <tr>
         {cols.map((c, i) => (
           <th key={c.k + i} className={TH + (c.right ? " text-right" : "")}>
@@ -4406,20 +5573,20 @@ export function Tabs({
   badges?: Record<string, number>;
 }) {
   return (
-    <div className="mb-4 flex gap-1 overflow-x-auto border-b border-slate-200">
+    <div className="mb-4 flex gap-1 overflow-x-auto border-b border-slate-200 dark:border-slate-800">
       {tabs.map((t) => (
         <button
           key={t}
           onClick={() => onPick(t)}
           className={
             t === active
-              ? "whitespace-nowrap border-b-2 border-sky-600 px-3 py-2.5 text-[13px] font-medium text-sky-700"
-              : "whitespace-nowrap px-3 py-2.5 text-[13px] text-slate-500 hover:text-slate-800"
+              ? "whitespace-nowrap border-b-2 border-sky-600 px-3 py-2.5 text-[13px] font-medium text-sky-700 dark:border-sky-400 dark:text-sky-400"
+              : "whitespace-nowrap px-3 py-2.5 text-[13px] text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-100"
           }
         >
           {t}
           {badges?.[t] ? (
-            <span className="ml-1.5 rounded-full bg-amber-100 px-1.5 py-0.5 text-[11px] text-amber-700">
+            <span className="ml-1.5 rounded-full bg-amber-100 px-1.5 py-0.5 text-[11px] text-amber-700 dark:bg-amber-500/20 dark:text-amber-300">
               {badges[t]}
             </span>
           ) : null}
@@ -4439,24 +5606,22 @@ export function PageHead({
   right?: ReactNode;
 }) {
   return (
-    <div className="mb-4 flex items-start justify-between gap-4">
+    <div className="mb-4 flex flex-wrap items-start justify-between gap-4">
       <div>
-        <h1 className="text-xl font-semibold text-slate-900">{title}</h1>
-        <p className="text-sm text-slate-500">{meta}</p>
+        <h1 className="text-xl font-semibold text-slate-900 dark:text-slate-50">{title}</h1>
+        <p className="text-sm text-slate-500 dark:text-slate-400">{meta}</p>
       </div>
       {right}
     </div>
   );
 }
 
-export type Tone = "ok" | "warn" | "bad" | "idle" | "info";
-
 const BADGE: Record<Tone, string> = {
-  ok: "bg-emerald-50 text-emerald-700",
-  warn: "bg-amber-50 text-amber-700",
-  bad: "bg-rose-50 text-rose-700",
-  idle: "bg-slate-100 text-slate-600",
-  info: "bg-sky-50 text-sky-700",
+  ok: "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-400",
+  warn: "bg-amber-50 text-amber-700 dark:bg-amber-500/15 dark:text-amber-400",
+  bad: "bg-rose-50 text-rose-700 dark:bg-rose-500/15 dark:text-rose-400",
+  idle: "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300",
+  info: "bg-sky-50 text-sky-700 dark:bg-sky-500/15 dark:text-sky-400",
 };
 
 export function Badge({ tone = "idle", children }: { tone?: Tone; children: ReactNode }) {
@@ -4466,13 +5631,22 @@ export function Badge({ tone = "idle", children }: { tone?: Tone; children: Reac
 /** A proportion bar. Over 100% clamps, because the colour already says it. */
 export function Bar({ pct, tone, width = "w-20" }: { pct: number; tone?: Tone; width?: string }) {
   const fill =
-    tone === "bad" ? "bg-rose-500" : tone === "warn" ? "bg-amber-500" : tone === "info" ? "bg-sky-500" : "bg-emerald-500";
+    tone === "bad"
+      ? "bg-rose-500"
+      : tone === "warn"
+        ? "bg-amber-500"
+        : tone === "info"
+          ? "bg-sky-500"
+          : "bg-emerald-500";
   return (
     <span className="flex items-center gap-2">
-      <span className={"h-2 overflow-hidden rounded-full bg-slate-100 " + width}>
-        <span className={"block h-full rounded-full " + fill} style={{ width: Math.max(0, Math.min(100, pct)) + "%" }} />
+      <span className={"h-2 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800 " + width}>
+        <span
+          className={"block h-full rounded-full " + fill}
+          style={{ width: Math.max(0, Math.min(100, pct)) + "%" }}
+        />
       </span>
-      <span className="text-xs text-slate-600">{Math.round(pct)}%</span>
+      <span className="text-xs text-slate-600 dark:text-slate-400">{Math.round(pct)}%</span>
     </span>
   );
 }
@@ -4492,10 +5666,22 @@ export function Row({
 }) {
   return (
     <div className="flex justify-between gap-4 py-2">
-      <dt className={bold ? "font-medium text-slate-900" : muted ? "text-slate-600" : "text-slate-500"}>{k}</dt>
+      <dt
+        className={
+          bold
+            ? "font-medium text-slate-900 dark:text-slate-100"
+            : muted
+              ? "text-slate-600 dark:text-slate-400"
+              : "text-slate-500 dark:text-slate-400"
+        }
+      >
+        {k}
+      </dt>
       <dd
         className={
-          "text-right " + (bold ? "font-semibold " : "") + (cut ? "text-rose-600" : "text-slate-900")
+          "text-right " +
+          (bold ? "font-semibold " : "") +
+          (cut ? "text-rose-600 dark:text-rose-400" : "text-slate-900 dark:text-slate-100")
         }
       >
         {v}
@@ -4507,18 +5693,21 @@ export function Row({
 export function Note({ tone, children }: { tone: Tone; children: ReactNode }) {
   const skin =
     tone === "ok"
-      ? "bg-emerald-50 text-emerald-800"
+      ? "bg-emerald-50 text-emerald-800 dark:bg-emerald-500/10 dark:text-emerald-300"
       : tone === "warn"
-        ? "bg-amber-50 text-amber-800"
+        ? "bg-amber-50 text-amber-800 dark:bg-amber-500/10 dark:text-amber-300"
         : tone === "bad"
-          ? "bg-rose-50 text-rose-800"
-          : "bg-slate-50 text-slate-600";
+          ? "bg-rose-50 text-rose-800 dark:bg-rose-500/10 dark:text-rose-300"
+          : "bg-slate-50 text-slate-600 dark:bg-slate-800/60 dark:text-slate-300";
   return <div className={"rounded-xl px-4 py-3.5 text-sm " + skin}>{children}</div>;
 }
 
 /**
  * Fixed to the viewport, never to whatever box it was rendered inside — the
  * containing-block trap that made every earlier modal cover only its own panel.
+ *
+ * Reserved for short, safety-critical confirmations. Anything a person needs to
+ * read while still seeing the list it came from belongs in a Drawer.
  */
 export function Modal({
   title,
@@ -4539,18 +5728,25 @@ export function Modal({
       role="dialog"
       aria-modal="true"
       onClick={onClose}
-      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4 dark:bg-black/60"
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className={"max-h-[85vh] w-full overflow-y-auto rounded-2xl bg-white p-6 shadow-xl " + width}
+        className={
+          "max-h-[85vh] w-full overflow-y-auto rounded-2xl bg-white p-6 shadow-xl dark:bg-slate-900 dark:ring-1 dark:ring-slate-800 " +
+          width
+        }
       >
         <div className="flex items-start justify-between gap-4">
           <div>
-            <h2 className="text-lg font-semibold text-slate-900">{title}</h2>
-            {subtitle && <p className="mt-0.5 text-sm text-slate-500">{subtitle}</p>}
+            <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-50">{title}</h2>
+            {subtitle && <p className="mt-0.5 text-sm text-slate-500 dark:text-slate-400">{subtitle}</p>}
           </div>
-          <button onClick={onClose} aria-label="ปิด" className="rounded-lg px-2 py-1 text-slate-400 hover:bg-slate-100">
+          <button
+            onClick={onClose}
+            aria-label="ปิด"
+            className="rounded-lg px-2 py-1 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
+          >
             ✕
           </button>
         </div>
@@ -4559,6 +5755,10 @@ export function Modal({
     </div>
   );
 }
+
+const FIELD =
+  "rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 outline-none focus:border-sky-500 " +
+  "dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:focus:border-sky-400";
 
 export function Search({
   value,
@@ -4574,7 +5774,7 @@ export function Search({
       value={value}
       onChange={(e) => onChange(e.target.value)}
       placeholder={placeholder}
-      className="w-64 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 outline-none placeholder:text-slate-400 focus:border-sky-500"
+      className={FIELD + " w-64 placeholder:text-slate-400 dark:placeholder:text-slate-500"}
     />
   );
 }
@@ -4589,15 +5789,142 @@ export function Select({
   options: readonly string[];
 }) {
   return (
-    <select
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:border-sky-500"
-    >
+    <select value={value} onChange={(e) => onChange(e.target.value)} className={FIELD}>
       {options.map((o) => (
         <option key={o}>{o}</option>
       ))}
     </select>
+  );
+}
+
+export { FIELD };
+
+/**
+ * A grey stand-in shaped like the thing that is loading.
+ *
+ * A spinner says "wait"; this says "here is what is coming", which reads as
+ * faster even when it is not, and stops the layout jumping when data lands.
+ */
+export function Skeleton({ rows = 5, cols = 4 }: { rows?: number; cols?: number }) {
+  return (
+    <div className={"overflow-hidden " + SURFACE}>
+      <div className="animate-pulse divide-y divide-slate-100 dark:divide-slate-800">
+        {Array.from({ length: rows }).map((_, r) => (
+          <div key={r} className="flex items-center gap-4 px-4 py-3.5">
+            {Array.from({ length: cols }).map((_, c) => (
+              <div
+                key={c}
+                className="h-3 rounded bg-slate-200 dark:bg-slate-800"
+                style={{ width: c === 0 ? "18%" : c === 1 ? "30%" : "16%" }}
+              />
+            ))}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * A column chart drawn with divs.
+ *
+ * A charting library would be a megabyte of dependency for one shape, and this
+ * has to run inside a demo project that a customer may take away and build on.
+ */
+export function ColumnChart({
+  data,
+  format = (n) => String(n),
+  height = 160,
+}: {
+  data: { label: string; value: number; tone?: Tone }[];
+  format?: (n: number) => string;
+  height?: number;
+}) {
+  const max = Math.max(1, ...data.map((d) => d.value));
+  return (
+    <div className="px-4 py-4">
+      <div className="flex items-end gap-2" style={{ height }}>
+        {data.map((d) => (
+          <div key={d.label} className="group flex min-w-0 flex-1 flex-col items-center justify-end gap-1.5">
+            <span className="text-[11px] tabular-nums text-slate-400 opacity-0 transition group-hover:opacity-100 dark:text-slate-500">
+              {format(d.value)}
+            </span>
+            <span
+              className={
+                "w-full rounded-t-md transition " +
+                (d.tone === "info"
+                  ? "bg-sky-500"
+                  : d.tone === "warn"
+                    ? "bg-amber-400"
+                    : "bg-sky-500/35 group-hover:bg-sky-500 dark:bg-sky-400/25 dark:group-hover:bg-sky-400")
+              }
+              style={{ height: Math.max(3, (d.value / max) * (height - 26)) }}
+            />
+          </div>
+        ))}
+      </div>
+      <div className="mt-2 flex gap-2">
+        {data.map((d) => (
+          <div
+            key={d.label}
+            className="min-w-0 flex-1 truncate text-center text-[11px] text-slate-400 dark:text-slate-500"
+          >
+            {d.label}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/** Intensity over two axes — the shape an attendance pattern actually has. */
+export function Heatmap({
+  rows,
+  cols,
+  value,
+  format = (n) => String(n),
+}: {
+  rows: string[];
+  cols: string[];
+  value: (row: string, col: string) => number;
+  format?: (n: number) => string;
+}) {
+  const all = rows.flatMap((r) => cols.map((c) => value(r, c)));
+  const max = Math.max(1, ...all);
+  return (
+    <div className="overflow-x-auto px-4 py-4">
+      <div className="min-w-max">
+        {rows.map((r) => (
+          <div key={r} className="mb-1.5 flex items-center gap-1.5">
+            <span className="w-12 shrink-0 text-right text-[11px] tabular-nums text-slate-400 dark:text-slate-500">
+              {r}
+            </span>
+            {cols.map((c) => {
+              const v = value(r, c);
+              return (
+                <span
+                  key={c}
+                  title={\`\${r} · \${c} · \${format(v)}\`}
+                  className="size-9 rounded-md bg-sky-500 transition hover:ring-2 hover:ring-sky-400/50"
+                  style={{ opacity: v === 0 ? 0.07 : 0.15 + (v / max) * 0.85 }}
+                />
+              );
+            })}
+          </div>
+        ))}
+        <div className="flex gap-1.5">
+          <span className="w-12 shrink-0" />
+          {cols.map((c) => (
+            <span
+              key={c}
+              className="w-9 shrink-0 text-center text-[11px] text-slate-400 dark:text-slate-500"
+            >
+              {c}
+            </span>
+          ))}
+        </div>
+      </div>
+    </div>
   );
 }
 `,

@@ -101,3 +101,99 @@ export const EMPLOYEES = [
 export const EVENT_TYPES = ["รับเข้าทำงาน", "ย้ายแผนก", "เลื่อนตำแหน่ง", "ปรับเงินเดือน", "ต่อสัญญา", "ลาออก"];
 
 export type Employee = (typeof EMPLOYEES)[number];
+export type PersonnelEvent = Employee["events"][number];
+
+/** งวดที่หน้าจอถือว่าเป็น "วันนี้" — ตรึงไว้เพื่อให้เดโมอ่านเหมือนกันทุกครั้ง */
+export const TODAY = "2026-09-22";
+
+export const baht = (n: number) => n.toLocaleString("th-TH");
+
+const monthOf = (iso: string) => iso.slice(0, 7);
+
+export const addMonths = (iso: string, n: number) => {
+  const d = new Date(iso + "-01");
+  d.setMonth(d.getMonth() + n);
+  return d.toISOString().slice(0, 7);
+};
+
+export const daysBetween = (a: string, b: string) =>
+  Math.round((new Date(b).getTime() - new Date(a).getTime()) / 86400000);
+
+export const allEvents = (): (PersonnelEvent & { employeeId: number; name: string })[] =>
+  EMPLOYEES.flatMap((e) => e.events.map((ev) => ({ ...ev, employeeId: e.id, name: e.name })))
+    .sort((a, b) => b.date.localeCompare(a.date));
+
+export const isActive = (e: Employee) => e.status !== "ลาออก";
+
+/**
+ * จำนวนพนักงาน ณ สิ้นเดือนหนึ่ง นับจากวันที่เริ่มงานลบคนที่ลาออกไปแล้ว
+ * ไม่ได้เก็บตัวเลขไว้ล่วงหน้า เพราะถ้าเพิ่มพนักงานหนึ่งคนกราฟต้องขยับเอง
+ */
+export function headcountAt(month: string) {
+  return EMPLOYEES.filter((e) => {
+    if (monthOf(e.contract.startedAt) > month) return false;
+    const left = e.events.find((ev) => ev.type === "ลาออก");
+    return !left || monthOf(left.date) > month;
+  }).length;
+}
+
+/** ย้อนหลัง n เดือนจากงวดปัจจุบัน สำหรับกราฟแท่ง */
+export function headcountTrend(months = 12) {
+  const now = monthOf(TODAY);
+  return Array.from({ length: months }, (_, i) => {
+    const m = addMonths(now, i - months + 1);
+    return { month: m, label: m.slice(5) + "/" + m.slice(2, 4), value: headcountAt(m) };
+  });
+}
+
+export const hiredIn = (year: string) =>
+  EMPLOYEES.filter((e) => e.contract.startedAt.startsWith(year));
+
+export const leftIn = (year: string) =>
+  EMPLOYEES.filter((e) => e.events.some((ev) => ev.type === "ลาออก" && ev.date.startsWith(year)));
+
+export type Upcoming = {
+  employeeId: number;
+  name: string;
+  kind: string;
+  date: string;
+  inDays: number;
+  tone: "warn" | "info" | "bad";
+};
+
+/**
+ * สิ่งที่ฝ่ายบุคคลต้องทำก่อนมันสาย — สัญญาใกล้หมด ทดลองงานใกล้ครบ
+ * และวันครบรอบการทำงานที่ผูกกับการประเมิน
+ */
+export function upcoming(withinDays = 120): Upcoming[] {
+  const out: Upcoming[] = [];
+  for (const e of EMPLOYEES) {
+    if (!isActive(e)) continue;
+
+    if (e.contract.endsAt) {
+      const d = daysBetween(TODAY, e.contract.endsAt);
+      if (d >= 0 && d <= withinDays) {
+        out.push({ employeeId: e.id, name: e.name, kind: "สัญญาหมดอายุ", date: e.contract.endsAt, inDays: d, tone: "bad" });
+      }
+    }
+
+    const d = daysBetween(TODAY, e.contract.probationUntil);
+    if (d >= 0 && d <= withinDays) {
+      out.push({ employeeId: e.id, name: e.name, kind: "ครบกำหนดทดลองงาน", date: e.contract.probationUntil, inDays: d, tone: "warn" });
+    }
+
+    const anniversary = TODAY.slice(0, 4) + e.contract.startedAt.slice(4);
+    const a = daysBetween(TODAY, anniversary);
+    if (a >= 0 && a <= withinDays) {
+      out.push({ employeeId: e.id, name: e.name, kind: "ครบรอบการทำงาน", date: anniversary, inDays: a, tone: "info" });
+    }
+  }
+  return out.sort((a, b) => a.inDays - b.inDays);
+}
+
+export function byDepartment() {
+  const active = EMPLOYEES.filter(isActive);
+  return [...new Set(active.map((e) => e.department))]
+    .map((d) => ({ department: d, count: active.filter((e) => e.department === d).length }))
+    .sort((a, b) => b.count - a.count);
+}

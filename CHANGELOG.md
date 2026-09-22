@@ -15,6 +15,11 @@ and is kept in sync with the entries below.
 ## [Unreleased]
 
 ### Added
+- **The management-system kit** (`demo/modules/kit.tsx`, composer-owned like `ui.tsx`): a data table with a sticky header, per-column sorting, a density toggle, row selection with a contextual bulk bar and Enter-to-open; a slide-out `Drawer` for row detail; a `ConfirmDialog` that can require typing a word; and a `Wizard` that validates on leaving each step rather than at submit.
+- **A module overview page.** `/erp/[module]` now renders the module's own dashboard and `/erp/[module]/[n]` its capabilities. Personnel records ships the first one: headline figures with year-over-year movement, a twelve-month headcount column chart, what falls due inside 120 days, headcount by department and the latest personnel events — all derived, none stored.
+- **Shell chrome for people who live in it**: a sidebar that collapses to icons, breadcrumbs, a Cmd/Ctrl+K command palette over every module and capability, and a notification bell whose contents are derived from the same data the screens read (`app/erp/alerts.ts`).
+- **Dark mode** for the demo system, on the document root so it is a real theme. The generated project gets the class-based `dark:` variant through the scaffold's inline Tailwind config, so a taken project behaves the same.
+- Skeleton loading states, in the table and as `app/erp/[module]/loading.tsx`.
 - **`/marketplace` — the catalogue as a shop.** Each module is a listing with its price, its capabilities and what it must be bought alongside; `/marketplace/[id]` gives the full capability list, what the module reads and who reads it. Filter by family, search across names, SAP codes and capability names. Public, same as `/erp`.
 - **A scope basket** (`components/marketplace/scope.ts`) that survives navigation: adding a module pulls in its transitive dependencies and says which and why; removing one drops whatever was left reading from it, so the scope is always buildable.
 - `lib/modules/start-project.ts` — the one path from a chosen scope to a built project, shared by the marketplace and the ERP header.
@@ -50,6 +55,10 @@ and is kept in sync with the entries below.
 
 ### Changed
 - Frosted-glass surfaces + Google-Stitch-style entrance animations across pages (projects, login, changelog, admin).
+
+### Fixed
+- The new-employee form let you type one character per field. `Text` was declared inside `NewEmployee`, so every keystroke produced a new component type and React remounted the input, taking the caret with it. Declared at module scope.
+- An expired contract counted down past zero ("เหลือ -5 วัน"). It now reads as expired.
 
 ### Fixed
 - Shift `S` (กะเสริม) appeared in a roster but was never declared in `SHIFTS`. The old code hid it behind a lookup that printed "เสริม" when it found nothing; once lookups started throwing, the roster crashed. Fixed in the data, where the gap was.

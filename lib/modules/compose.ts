@@ -1,7 +1,7 @@
 import type { ProjectFiles } from "@/lib/types";
 import type { Composition, MissingEntity, Module, QuoteLine } from "./types";
 import { FAMILY_ORDER } from "./types";
-import { UI_SOURCE } from "./sources";
+import { SHARED_SOURCES } from "./sources";
 
 /**
  * The app shell: navigation plus one route per selected module.
@@ -22,7 +22,7 @@ function shellFor(selected: Module[]): string {
         ` sections: ${JSON.stringify(m.keyFeatures)}, Screen: ${screenName(m)} },`
     )
     .join("\n");
-  return `import { useState } from "react";
+  return `import { useEffect, useState } from "react";
 ${imports}
 
 const MODULES = [
@@ -37,27 +37,34 @@ ${entries}
  */
 export default function App() {
   const [moduleId, setModuleId] = useState(MODULES[0].id);
-  const [section, setSection] = useState(MODULES[0].sections[0]);
+  const [section, setSection] = useState(null);
+  const [dark, setDark] = useState(false);
   const current = MODULES.find((m) => m.id === moduleId);
   const Current = current.Screen;
 
+  // People run a system like this all day, so dark is a real theme on the root,
+  // not a filter over a light one.
+  useEffect(() => {
+    document.documentElement.classList.toggle("dark", dark);
+  }, [dark]);
+
   const open = (m) => {
     setModuleId(m.id);
-    setSection(m.sections[0]);
+    setSection(null);
   };
 
   return (
-    <div className="flex min-h-screen bg-slate-100">
-      <aside className="flex w-60 shrink-0 flex-col border-r border-slate-200 bg-white">
-        <div className="flex items-center gap-2.5 border-b border-slate-100 px-4 py-4">
+    <div className="flex min-h-screen bg-slate-100 dark:bg-slate-950">
+      <aside className="flex w-60 shrink-0 flex-col border-r border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
+        <div className="flex items-center gap-2.5 border-b border-slate-100 px-4 py-4 dark:border-slate-800">
           <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-sky-600 text-[13px] font-bold text-white">
             F
           </span>
           <span className="min-w-0">
-            <span className="block truncate text-[13.5px] font-semibold text-slate-900">
+            <span className="block truncate text-[13.5px] font-semibold text-slate-900 dark:text-slate-50">
               บจก. ตัวอย่างอุตสาหกรรม
             </span>
-            <span className="block text-[11.5px] text-slate-500">ระบบบริหารทรัพยากรองค์กร</span>
+            <span className="block text-[11.5px] text-slate-500 dark:text-slate-400">ระบบบริหารทรัพยากรองค์กร</span>
           </span>
         </div>
 
@@ -69,16 +76,29 @@ export default function App() {
                 className={
                   "flex w-full items-center justify-between gap-2 rounded-lg px-2.5 py-2 text-left text-[13px] transition " +
                   (m.id === moduleId
-                    ? "font-medium text-slate-900"
-                    : "text-slate-600 hover:bg-slate-50 hover:text-slate-900")
+                    ? "bg-slate-100 font-medium text-slate-900 dark:bg-slate-800 dark:text-slate-50"
+                    : "text-slate-600 hover:bg-slate-50 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800/60 dark:hover:text-slate-100")
                 }
               >
                 <span className="min-w-0 truncate">{m.label}</span>
-                <span className="shrink-0 text-[10.5px] text-slate-300">{m.code}</span>
+                <span className="shrink-0 text-[10.5px] text-slate-300 dark:text-slate-600">{m.code}</span>
               </button>
 
               {m.id === moduleId && (
-                <ul className="mb-1 ml-2.5 border-l border-slate-200 pl-2">
+                <ul className="mb-1 ml-2.5 border-l border-slate-200 pl-2 dark:border-slate-800">
+                  <li>
+                    <button
+                      onClick={() => setSection(null)}
+                      className={
+                        "block w-full rounded-md px-2 py-1.5 text-left text-[12.5px] transition " +
+                        (section === null
+                          ? "bg-sky-50 font-medium text-sky-700 dark:bg-sky-500/10 dark:text-sky-400"
+                          : "text-slate-500 hover:bg-slate-50 hover:text-slate-800 dark:text-slate-400 dark:hover:bg-slate-800/60")
+                      }
+                    >
+                      ภาพรวม
+                    </button>
+                  </li>
                   {m.sections.map((s) => (
                     <li key={s}>
                       <button
@@ -86,8 +106,8 @@ export default function App() {
                         className={
                           "block w-full rounded-md px-2 py-1.5 text-left text-[12.5px] transition " +
                           (s === section
-                            ? "bg-sky-50 font-medium text-sky-700"
-                            : "text-slate-500 hover:bg-slate-50 hover:text-slate-800")
+                            ? "bg-sky-50 font-medium text-sky-700 dark:bg-sky-500/10 dark:text-sky-400"
+                            : "text-slate-500 hover:bg-slate-50 hover:text-slate-800 dark:text-slate-400 dark:hover:bg-slate-800/60")
                         }
                       >
                         {s}
@@ -102,12 +122,21 @@ export default function App() {
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="border-b border-slate-200 bg-white px-6 py-3">
-          <p className="text-[13px] font-medium text-slate-900">{current.label}</p>
-          <p className="text-[11.5px] text-slate-500">{section}</p>
+        <header className="flex items-center gap-3 border-b border-slate-200 bg-white px-6 py-3 dark:border-slate-800 dark:bg-slate-900">
+          <div className="min-w-0">
+            <p className="text-[13px] font-medium text-slate-900 dark:text-slate-50">{current.label}</p>
+            <p className="text-[11.5px] text-slate-500 dark:text-slate-400">{section ?? "ภาพรวม"}</p>
+          </div>
+          <button
+            onClick={() => setDark((d) => !d)}
+            aria-label="สลับธีม"
+            className="ml-auto rounded-lg border border-slate-200 px-2.5 py-1.5 text-[12px] text-slate-500 transition hover:border-sky-400 hover:text-sky-600 dark:border-slate-800 dark:text-slate-400"
+          >
+            {dark ? "โหมดสว่าง" : "โหมดมืด"}
+          </button>
         </header>
         <main className="min-h-0 flex-1 overflow-y-auto p-6">
-          <Current section={section} />
+          <Current section={section ?? undefined} />
         </main>
       </div>
     </div>
@@ -221,7 +250,7 @@ export function composeModules(picked: Module[]): Composition {
     Object.assign(files, m.files);
   }
   // Composer-owned, like the shell: shared by every screen, owned by no module.
-  files["src/modules/ui.tsx"] = UI_SOURCE;
+  Object.assign(files, SHARED_SOURCES);
   files["src/App.tsx"] = shellFor(selected);
 
   const quoteLines: QuoteLine[] = selected.map((m) => ({

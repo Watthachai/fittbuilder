@@ -1474,6 +1474,11 @@ const SCAFFOLD_INDEX_HTML = `<!doctype html>
     <style>
       body { font-family: 'Anuphan', 'Inter', system-ui, sans-serif; }
     </style>
+    <!-- Class-based dark, so a theme switch in the app controls it rather than
+         the operating system. Tailwind v4 defaults \`dark:\` to a media query. -->
+    <style type="text/tailwindcss">
+      @custom-variant dark (&:where(.dark, .dark *));
+    </style>
   </head>
   <body>
     <div id="root"></div>

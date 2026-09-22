@@ -21,4 +21,7 @@ export function filesFor(id: string, names: string[]): Record<string, string> {
 }
 
 /** The shared screen pieces. Composer-owned, like the app shell. */
-export const UI_SOURCE = MODULE_SOURCES["ui.tsx"];
+export const SHARED_SOURCES: Record<string, string> = {
+  "src/modules/ui.tsx": MODULE_SOURCES["ui.tsx"],
+  "src/modules/kit.tsx": MODULE_SOURCES["kit.tsx"],
+};

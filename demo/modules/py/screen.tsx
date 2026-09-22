@@ -18,8 +18,9 @@ import { Card, Stat, Row, TH } from "../ui";
 
 const TABS = ["คำนวณเงินเดือน", "สวัสดิการ", "ขาดลามาสาย", "ภาษีและประกันสังคม", "การจ่ายเงิน"];
 
-export default function PyScreen() {
-  const [tab, setTab] = useState(TABS[0]);
+export default function PyScreen({ section }: { section?: string }) {
+  // Which capability to show is the navigation's decision, not this screen's.
+  const tab = section && TABS.includes(section) ? section : TABS[0];
   const [period, setPeriod] = useState<Period>(PERIODS[0]);
   const [open, setOpen] = useState<Payslip | null>(null);
 
@@ -39,22 +40,6 @@ export default function PyScreen() {
         >
           {PERIODS.map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}
         </select>
-      </div>
-
-      <div className="mb-4 flex gap-1 overflow-x-auto border-b border-slate-200">
-        {TABS.map((t) => (
-          <button
-            key={t}
-            onClick={() => setTab(t)}
-            className={
-              t === tab
-                ? "whitespace-nowrap border-b-2 border-sky-600 px-3 py-2.5 text-[13px] font-medium text-sky-700"
-                : "whitespace-nowrap px-3 py-2.5 text-[13px] text-slate-500 hover:text-slate-800"
-            }
-          >
-            {t}
-          </button>
-        ))}
       </div>
 
       {tab === "คำนวณเงินเดือน" && <Calculation period={period} onOpen={setOpen} />}

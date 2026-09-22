@@ -23,8 +23,9 @@ const TABS = [
   "วงเงินเครดิตลูกค้า",
 ];
 
-export default function SdScreen() {
-  const [tab, setTab] = useState(TABS[0]);
+export default function SdScreen({ section }: { section?: string }) {
+  // Which capability to show is the navigation's decision, not this screen's.
+  const tab = section && TABS.includes(section) ? section : TABS[0];
   const [openSo, setOpenSo] = useState<SalesOrder | null>(null);
   const revenue = SALES_ORDERS.reduce((n, so) => n + orderTotal(so).gross, 0);
 
@@ -35,22 +36,6 @@ export default function SdScreen() {
         <p className="text-sm text-slate-500">
           {CUSTOMERS.length} ลูกค้า · {SALES_ORDERS.length} ใบสั่งขาย · มูลค่ารวม {baht(revenue)}
         </p>
-      </div>
-
-      <div className="mb-4 flex gap-1 overflow-x-auto border-b border-slate-200">
-        {TABS.map((t) => (
-          <button
-            key={t}
-            onClick={() => setTab(t)}
-            className={
-              t === tab
-                ? "whitespace-nowrap border-b-2 border-sky-600 px-3 py-2.5 text-[13px] font-medium text-sky-700"
-                : "whitespace-nowrap px-3 py-2.5 text-[13px] text-slate-500 hover:text-slate-800"
-            }
-          >
-            {t}
-          </button>
-        ))}
       </div>
 
       {tab === "ข้อมูลหลักลูกค้า" && <Customers />}

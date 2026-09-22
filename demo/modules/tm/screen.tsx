@@ -10,8 +10,9 @@ import { Card, Stat, Row } from "../ui";
 
 const TABS = ["แผนกะการทำงาน", "บันทึกเวลาทำงาน", "การลาและการขาดงาน", "ติดตามการเข้างาน"];
 
-export default function TmScreen() {
-  const [tab, setTab] = useState(TABS[0]);
+export default function TmScreen({ section }: { section?: string }) {
+  // Which capability to show is the navigation's decision, not this screen's.
+  const tab = section && TABS.includes(section) ? section : TABS[0];
   const [leaves, setLeaves] = useState<Leave[]>(LEAVES);
   const [reviewing, setReviewing] = useState<Leave | null>(null);
 
@@ -28,25 +29,6 @@ export default function TmScreen() {
         <p className="text-sm text-slate-500">
           {SHIFTS.length} กะ · ตอกบัตรวันนี้ {PUNCHES.filter((p) => p.date === "2026-09-21" && p.in).length} คน · รออนุมัติลา {waiting} รายการ
         </p>
-      </div>
-
-      <div className="mb-4 flex gap-1 overflow-x-auto border-b border-slate-200">
-        {TABS.map((t) => (
-          <button
-            key={t}
-            onClick={() => setTab(t)}
-            className={
-              t === tab
-                ? "whitespace-nowrap border-b-2 border-sky-600 px-3 py-2.5 text-[13px] font-medium text-sky-700"
-                : "whitespace-nowrap px-3 py-2.5 text-[13px] text-slate-500 hover:text-slate-800"
-            }
-          >
-            {t}
-            {t === "การลาและการขาดงาน" && waiting > 0 && (
-              <span className="ml-1.5 rounded-full bg-amber-100 px-1.5 py-0.5 text-[11px] text-amber-700">{waiting}</span>
-            )}
-          </button>
-        ))}
       </div>
 
       {tab === "แผนกะการทำงาน" && <Roster />}
@@ -67,6 +49,7 @@ export default function TmScreen() {
 const CHIP: Record<string, string> = {
   sky: "bg-sky-100 text-sky-700", violet: "bg-violet-100 text-violet-700",
   slate: "bg-slate-200 text-slate-600", emerald: "bg-emerald-50 text-emerald-700",
+  amber: "bg-amber-100 text-amber-700",
 };
 
 function Roster() {
@@ -99,8 +82,8 @@ function Roster() {
                   const s = shiftOf(code);
                   return (
                     <td key={i} className="px-2 py-2.5 text-center">
-                      <span className={"inline-flex min-w-[2.2rem] justify-center rounded-md px-1.5 py-1 text-xs " + (s ? CHIP[s.color] : "bg-amber-100 text-amber-700")}>
-                        {s ? s.name.replace("กะ", "") : "เสริม"}
+                      <span className={"inline-flex min-w-[2.2rem] justify-center rounded-md px-1.5 py-1 text-xs " + CHIP[s.color]}>
+                        {s.name.replace("กะ", "")}
                       </span>
                     </td>
                   );

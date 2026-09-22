@@ -144,8 +144,9 @@ const TABS = [
   "ศูนย์กำไร",
 ];
 
-export default function CoScreen() {
-  const [tab, setTab] = useState(TABS[0]);
+export default function CoScreen({ section }: { section?: string }) {
+  // Which capability to show is the navigation's decision, not this screen's.
+  const tab = section && TABS.includes(section) ? section : TABS[0];
   const [openCc, setOpenCc] = useState<CostCentre | null>(null);
   const over = costCenterRows().filter((c) => c.over);
 
@@ -156,22 +157,6 @@ export default function CoScreen() {
         <p className="text-sm text-slate-500">
           {COST_CENTERS.length} ศูนย์ต้นทุน · {PROFIT_CENTERS.length} ศูนย์กำไร · เกินงบ {over.length} ศูนย์
         </p>
-      </div>
-
-      <div className="mb-4 flex gap-1 overflow-x-auto border-b border-slate-200">
-        {TABS.map((t) => (
-          <button
-            key={t}
-            onClick={() => setTab(t)}
-            className={
-              t === tab
-                ? "whitespace-nowrap border-b-2 border-sky-600 px-3 py-2.5 text-[13px] font-medium text-sky-700"
-                : "whitespace-nowrap px-3 py-2.5 text-[13px] text-slate-500 hover:text-slate-800"
-            }
-          >
-            {t}
-          </button>
-        ))}
       </div>
 
       {tab === "ศูนย์ต้นทุน" && <CostCenters onOpen={setOpenCc} />}
@@ -773,8 +758,9 @@ const TABS = [
   "งบการเงิน",
 ];
 
-export default function FiScreen() {
-  const [tab, setTab] = useState(TABS[0]);
+export default function FiScreen({ section }: { section?: string }) {
+  // Which capability to show is the navigation's decision, not this screen's.
+  const tab = section && TABS.includes(section) ? section : TABS[0];
   const [openEntry, setOpenEntry] = useState<JournalEntry | null>(null);
   const bs = balanceSheet();
 
@@ -790,22 +776,6 @@ export default function FiScreen() {
         <span className={"rounded-full px-3 py-1.5 text-xs " + (bs.balances ? "bg-emerald-50 text-emerald-700" : "bg-rose-50 text-rose-700")}>
           {bs.balances ? "งบดุลลงตัว" : "งบดุลไม่ลงตัว"}
         </span>
-      </div>
-
-      <div className="mb-4 flex gap-1 overflow-x-auto border-b border-slate-200">
-        {TABS.map((t) => (
-          <button
-            key={t}
-            onClick={() => setTab(t)}
-            className={
-              t === tab
-                ? "whitespace-nowrap border-b-2 border-sky-600 px-3 py-2.5 text-[13px] font-medium text-sky-700"
-                : "whitespace-nowrap px-3 py-2.5 text-[13px] text-slate-500 hover:text-slate-800"
-            }
-          >
-            {t}
-          </button>
-        ))}
       </div>
 
       {tab === "ผังบัญชีและสมุดรายวัน" && <Ledger onOpen={setOpenEntry} />}
@@ -1288,8 +1258,9 @@ const TABS = [
   "ประเมินผู้ขาย",
 ];
 
-export default function MmScreen() {
-  const [tab, setTab] = useState(TABS[0]);
+export default function MmScreen({ section }: { section?: string }) {
+  // Which capability to show is the navigation's decision, not this screen's.
+  const tab = section && TABS.includes(section) ? section : TABS[0];
   const [openPo, setOpenPo] = useState<PurchaseOrder | null>(null);
   const low = MATERIALS.filter((m) => m.stock < m.reorder);
 
@@ -1300,22 +1271,6 @@ export default function MmScreen() {
         <p className="text-sm text-slate-500">
           {MATERIALS.length} รายการวัสดุ · {VENDORS.length} ผู้ขาย · ต่ำกว่าจุดสั่งซื้อ {low.length} รายการ
         </p>
-      </div>
-
-      <div className="mb-4 flex gap-1 overflow-x-auto border-b border-slate-200">
-        {TABS.map((t) => (
-          <button
-            key={t}
-            onClick={() => setTab(t)}
-            className={
-              t === tab
-                ? "whitespace-nowrap border-b-2 border-sky-600 px-3 py-2.5 text-[13px] font-medium text-sky-700"
-                : "whitespace-nowrap px-3 py-2.5 text-[13px] text-slate-500 hover:text-slate-800"
-            }
-          >
-            {t}
-          </button>
-        ))}
       </div>
 
       {tab === "ข้อมูลหลักวัสดุและผู้ขาย" && <MasterData />}
@@ -1750,8 +1705,9 @@ const TABS = [
   "รายงานและการวิเคราะห์",
 ];
 
-export default function OmScreen() {
-  const [tab, setTab] = useState(TABS[0]);
+export default function OmScreen({ section }: { section?: string }) {
+  // Which capability to show is the navigation's decision, not this screen's.
+  const tab = section && TABS.includes(section) ? section : TABS[0];
   const [assigning, setAssigning] = useState<Position | null>(null);
   // Seats reassigned in this session; the seed holder still answers for the rest.
   const [assigned, setAssigned] = useState<Record<number, number>>({});
@@ -1774,22 +1730,6 @@ export default function OmScreen() {
         <p className="text-sm text-slate-500">
           {ORG_UNITS.length} หน่วยงาน · {POSITIONS.length} ตำแหน่ง · ว่าง {vacant.length} ตำแหน่ง
         </p>
-      </div>
-
-      <div className="mb-4 flex gap-1 overflow-x-auto border-b border-slate-200">
-        {TABS.map((t) => (
-          <button
-            key={t}
-            onClick={() => setTab(t)}
-            className={
-              t === tab
-                ? "whitespace-nowrap border-b-2 border-sky-600 px-3 py-2.5 text-[13px] font-medium text-sky-700"
-                : "whitespace-nowrap px-3 py-2.5 text-[13px] text-slate-500 hover:text-slate-800"
-            }
-          >
-            {t}
-          </button>
-        ))}
       </div>
 
       {tab === "โครงสร้างองค์กร" && <Structure staffOf={staffOf} />}
@@ -2153,7 +2093,47 @@ const TABS = [
   "ค่าตอบแทนและสวัสดิการ",
 ];
 
-export default function PaScreen() {
+/**
+ * Each capability is its own view of the same register, so picking one from the
+ * navigation changes what the table shows — not just which tab is underlined.
+ * Opening a row then lands on that part of the person's record.
+ */
+const COLUMNS: Record<string, { k: string; cell: (e: Employee) => ReactNode }[]> = {
+  "ข้อมูลส่วนตัว": [
+    { k: "วันเกิด", cell: (e) => e.personal.birthDate },
+    { k: "เลขบัตรประชาชน", cell: (e) => <span className="font-mono text-xs">{e.personal.nationalId}</span> },
+    { k: "โทรศัพท์", cell: (e) => e.personal.phone },
+    { k: "อีเมล", cell: (e) => e.personal.email },
+  ],
+  "ข้อมูลสัญญาจ้าง": [
+    { k: "ประเภทจ้าง", cell: (e) => e.contract.type },
+    { k: "วันเริ่มงาน", cell: (e) => e.contract.startedAt },
+    { k: "สิ้นสุดสัญญา", cell: (e) => e.contract.endsAt ?? "ไม่กำหนด" },
+    { k: "พ้นทดลองงาน", cell: (e) => e.contract.probationUntil },
+    { k: "สถานะ", cell: (e) => <StatusBadge status={e.status} /> },
+  ],
+  "ข้อมูลทางปกครอง": [
+    { k: "เลขประกันสังคม", cell: (e) => <span className="font-mono text-xs">{e.admin.ssoNumber}</span> },
+    { k: "เลขผู้เสียภาษี", cell: (e) => <span className="font-mono text-xs">{e.admin.taxId}</span> },
+    { k: "ธนาคาร", cell: (e) => e.admin.bankName },
+    { k: "เลขบัญชี", cell: (e) => <span className="font-mono text-xs">{e.admin.bankAccount}</span> },
+    { k: "กองทุนสำรองฯ", cell: (e) => e.admin.pvdRate + "%" },
+  ],
+  "เหตุการณ์ทางบุคคล": [
+    { k: "เหตุการณ์ล่าสุด", cell: (e) => e.events[e.events.length - 1]?.type ?? "—" },
+    { k: "เมื่อ", cell: (e) => e.events[e.events.length - 1]?.date ?? "—" },
+    { k: "จำนวนเหตุการณ์", cell: (e) => e.events.length + " ครั้ง" },
+  ],
+  "ค่าตอบแทนและสวัสดิการ": [
+    { k: "เงินเดือนฐาน", cell: (e) => baht(e.contract.baseSalary) + " ฿" },
+    { k: "สวัสดิการ", cell: (e) => e.benefits.length + " รายการ" },
+    { k: "รายการแรก", cell: (e) => e.benefits[0] ?? "—" },
+  ],
+};
+
+export default function PaScreen({ section }: { section?: string }) {
+  // Which capability to show is the navigation's decision, not this screen's.
+  const tab = section && TABS.includes(section) ? section : TABS[0];
   const [q, setQ] = useState("");
   const [dept, setDept] = useState("ทุกแผนก");
   const [picked, setPicked] = useState<Employee | null>(null);
@@ -2177,8 +2157,8 @@ export default function PaScreen() {
         <div>
           <h1 className="text-xl font-semibold text-slate-900">ทะเบียนพนักงาน</h1>
           <p className="text-sm text-slate-500">
-            {EMPLOYEES.filter((e) => e.status !== "ลาออก").length} คนที่ยังทำงานอยู่ ·
-            {" "}{EMPLOYEES.filter((e) => e.status === "ทดลองงาน").length} คนอยู่ระหว่างทดลองงาน
+            {tab} · {rows.length} คน จากทั้งหมด{" "}
+            {EMPLOYEES.filter((e) => e.status !== "ลาออก").length} คนที่ยังทำงานอยู่
           </p>
         </div>
         <div className="flex gap-2">
@@ -2204,11 +2184,8 @@ export default function PaScreen() {
             <tr>
               <th className="px-4 py-3">รหัส</th>
               <th className="px-4 py-3">ชื่อ-นามสกุล</th>
-              <th className="px-4 py-3">ตำแหน่ง</th>
               <th className="px-4 py-3">แผนก</th>
-              <th className="px-4 py-3">ประเภทจ้าง</th>
-              <th className="px-4 py-3">วันเริ่มงาน</th>
-              <th className="px-4 py-3">สถานะ</th>
+              {COLUMNS[tab].map((c) => <th key={c.k} className="px-4 py-3">{c.k}</th>)}
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
@@ -2219,11 +2196,10 @@ export default function PaScreen() {
                   <span className="font-medium text-slate-900">{e.name}</span>
                   <span className="ml-1.5 text-xs text-slate-400">({e.nickname})</span>
                 </td>
-                <td className="px-4 py-3 text-slate-600">{e.position}</td>
                 <td className="px-4 py-3 text-slate-600">{e.department}</td>
-                <td className="px-4 py-3 text-slate-600">{e.contract.type}</td>
-                <td className="px-4 py-3 text-slate-600">{e.contract.startedAt}</td>
-                <td className="px-4 py-3"><StatusBadge status={e.status} /></td>
+                {COLUMNS[tab].map((c) => (
+                  <td key={c.k} className="px-4 py-3 text-slate-600">{c.cell(e)}</td>
+                ))}
               </tr>
             ))}
             {rows.length === 0 && (
@@ -2235,6 +2211,7 @@ export default function PaScreen() {
 
       {picked && (
         <EmployeeRecord
+          openAt={tab}
           employee={picked}
           events={eventsOf(picked)}
           onAddEvent={(ev) => addEvent(picked.id, ev)}
@@ -2262,15 +2239,18 @@ function StatusBadge({ status }: { status: string }) {
 function EmployeeRecord({
   employee: e,
   events,
+  openAt,
   onAddEvent,
   onClose,
 }: {
   employee: Employee;
   events: PersonnelEvent[];
+  openAt: string;
   onAddEvent: (ev: PersonnelEvent) => void;
   onClose: () => void;
 }) {
-  const [tab, setTab] = useState(TABS[0]);
+  // Opens on the part of the record the list was showing, then flips freely.
+  const [tab, setTab] = useState(openAt);
   const [adding, setAdding] = useState(false);
 
   return (
@@ -2592,8 +2572,9 @@ const TABS = [
   "รายงานผลการผลิต",
 ];
 
-export default function PpScreen() {
-  const [tab, setTab] = useState(TABS[0]);
+export default function PpScreen({ section }: { section?: string }) {
+  // Which capability to show is the navigation's decision, not this screen's.
+  const tab = section && TABS.includes(section) ? section : TABS[0];
   const [openOrder, setOpenOrder] = useState<ProductionOrder | null>(null);
   const short = runMrp().filter((r) => r.shortage > 0);
 
@@ -2604,22 +2585,6 @@ export default function PpScreen() {
         <p className="text-sm text-slate-500">
           {PRODUCTS.length} สินค้า · {ORDERS.filter((o) => o.status !== "ปิดงานแล้ว").length} ใบสั่งผลิตที่เปิดอยู่ · วัสดุขาด {short.length} รายการ
         </p>
-      </div>
-
-      <div className="mb-4 flex gap-1 overflow-x-auto border-b border-slate-200">
-        {TABS.map((t) => (
-          <button
-            key={t}
-            onClick={() => setTab(t)}
-            className={
-              t === tab
-                ? "whitespace-nowrap border-b-2 border-sky-600 px-3 py-2.5 text-[13px] font-medium text-sky-700"
-                : "whitespace-nowrap px-3 py-2.5 text-[13px] text-slate-500 hover:text-slate-800"
-            }
-          >
-            {t}
-          </button>
-        ))}
       </div>
 
       {tab === "ข้อมูลหลักการผลิต" && <MasterData />}
@@ -3093,8 +3058,9 @@ import { Card, Stat, Row, TH } from "../ui";
 
 const TABS = ["คำนวณเงินเดือน", "สวัสดิการ", "ขาดลามาสาย", "ภาษีและประกันสังคม", "การจ่ายเงิน"];
 
-export default function PyScreen() {
-  const [tab, setTab] = useState(TABS[0]);
+export default function PyScreen({ section }: { section?: string }) {
+  // Which capability to show is the navigation's decision, not this screen's.
+  const tab = section && TABS.includes(section) ? section : TABS[0];
   const [period, setPeriod] = useState<Period>(PERIODS[0]);
   const [open, setOpen] = useState<Payslip | null>(null);
 
@@ -3114,22 +3080,6 @@ export default function PyScreen() {
         >
           {PERIODS.map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}
         </select>
-      </div>
-
-      <div className="mb-4 flex gap-1 overflow-x-auto border-b border-slate-200">
-        {TABS.map((t) => (
-          <button
-            key={t}
-            onClick={() => setTab(t)}
-            className={
-              t === tab
-                ? "whitespace-nowrap border-b-2 border-sky-600 px-3 py-2.5 text-[13px] font-medium text-sky-700"
-                : "whitespace-nowrap px-3 py-2.5 text-[13px] text-slate-500 hover:text-slate-800"
-            }
-          >
-            {t}
-          </button>
-        ))}
       </div>
 
       {tab === "คำนวณเงินเดือน" && <Calculation period={period} onOpen={setOpen} />}
@@ -3572,8 +3522,9 @@ const TABS = [
   "วงเงินเครดิตลูกค้า",
 ];
 
-export default function SdScreen() {
-  const [tab, setTab] = useState(TABS[0]);
+export default function SdScreen({ section }: { section?: string }) {
+  // Which capability to show is the navigation's decision, not this screen's.
+  const tab = section && TABS.includes(section) ? section : TABS[0];
   const [openSo, setOpenSo] = useState<SalesOrder | null>(null);
   const revenue = SALES_ORDERS.reduce((n, so) => n + orderTotal(so).gross, 0);
 
@@ -3584,22 +3535,6 @@ export default function SdScreen() {
         <p className="text-sm text-slate-500">
           {CUSTOMERS.length} ลูกค้า · {SALES_ORDERS.length} ใบสั่งขาย · มูลค่ารวม {baht(revenue)}
         </p>
-      </div>
-
-      <div className="mb-4 flex gap-1 overflow-x-auto border-b border-slate-200">
-        {TABS.map((t) => (
-          <button
-            key={t}
-            onClick={() => setTab(t)}
-            className={
-              t === tab
-                ? "whitespace-nowrap border-b-2 border-sky-600 px-3 py-2.5 text-[13px] font-medium text-sky-700"
-                : "whitespace-nowrap px-3 py-2.5 text-[13px] text-slate-500 hover:text-slate-800"
-            }
-          >
-            {t}
-          </button>
-        ))}
       </div>
 
       {tab === "ข้อมูลหลักลูกค้า" && <Customers />}
@@ -3974,6 +3909,7 @@ export const SHIFTS = [
   { code: "B", name: "กะบ่าย", start: "13:00", end: "22:00", breakMin: 60, color: "violet" },
   { code: "N", name: "กะดึก", start: "22:00", end: "07:00", breakMin: 60, color: "slate" },
   { code: "O", name: "วันหยุด", start: "—", end: "—", breakMin: 0, color: "emerald" },
+  { code: "S", name: "กะเสริม", start: "09:00", end: "15:00", breakMin: 30, color: "amber" },
 ];
 
 export const WEEK_DAYS = ["จ", "อ", "พ", "พฤ", "ศ", "ส", "อา"];
@@ -4074,8 +4010,9 @@ import { Card, Stat, Row } from "../ui";
 
 const TABS = ["แผนกะการทำงาน", "บันทึกเวลาทำงาน", "การลาและการขาดงาน", "ติดตามการเข้างาน"];
 
-export default function TmScreen() {
-  const [tab, setTab] = useState(TABS[0]);
+export default function TmScreen({ section }: { section?: string }) {
+  // Which capability to show is the navigation's decision, not this screen's.
+  const tab = section && TABS.includes(section) ? section : TABS[0];
   const [leaves, setLeaves] = useState<Leave[]>(LEAVES);
   const [reviewing, setReviewing] = useState<Leave | null>(null);
 
@@ -4092,25 +4029,6 @@ export default function TmScreen() {
         <p className="text-sm text-slate-500">
           {SHIFTS.length} กะ · ตอกบัตรวันนี้ {PUNCHES.filter((p) => p.date === "2026-09-21" && p.in).length} คน · รออนุมัติลา {waiting} รายการ
         </p>
-      </div>
-
-      <div className="mb-4 flex gap-1 overflow-x-auto border-b border-slate-200">
-        {TABS.map((t) => (
-          <button
-            key={t}
-            onClick={() => setTab(t)}
-            className={
-              t === tab
-                ? "whitespace-nowrap border-b-2 border-sky-600 px-3 py-2.5 text-[13px] font-medium text-sky-700"
-                : "whitespace-nowrap px-3 py-2.5 text-[13px] text-slate-500 hover:text-slate-800"
-            }
-          >
-            {t}
-            {t === "การลาและการขาดงาน" && waiting > 0 && (
-              <span className="ml-1.5 rounded-full bg-amber-100 px-1.5 py-0.5 text-[11px] text-amber-700">{waiting}</span>
-            )}
-          </button>
-        ))}
       </div>
 
       {tab === "แผนกะการทำงาน" && <Roster />}
@@ -4131,6 +4049,7 @@ export default function TmScreen() {
 const CHIP: Record<string, string> = {
   sky: "bg-sky-100 text-sky-700", violet: "bg-violet-100 text-violet-700",
   slate: "bg-slate-200 text-slate-600", emerald: "bg-emerald-50 text-emerald-700",
+  amber: "bg-amber-100 text-amber-700",
 };
 
 function Roster() {
@@ -4163,8 +4082,8 @@ function Roster() {
                   const s = shiftOf(code);
                   return (
                     <td key={i} className="px-2 py-2.5 text-center">
-                      <span className={"inline-flex min-w-[2.2rem] justify-center rounded-md px-1.5 py-1 text-xs " + (s ? CHIP[s.color] : "bg-amber-100 text-amber-700")}>
-                        {s ? s.name.replace("กะ", "") : "เสริม"}
+                      <span className={"inline-flex min-w-[2.2rem] justify-center rounded-md px-1.5 py-1 text-xs " + CHIP[s.color]}>
+                        {s.name.replace("กะ", "")}
                       </span>
                     </td>
                   );
@@ -4792,8 +4711,9 @@ const TABS = [
   "ตรวจนับสต็อก",
 ];
 
-export default function WmScreen() {
-  const [tab, setTab] = useState(TABS[0]);
+export default function WmScreen({ section }: { section?: string }) {
+  // Which capability to show is the navigation's decision, not this screen's.
+  const tab = section && TABS.includes(section) ? section : TABS[0];
   const [openBin, setOpenBin] = useState<Bin | null>(null);
   const used = BINS.filter((b) => b.material);
 
@@ -4804,22 +4724,6 @@ export default function WmScreen() {
         <p className="text-sm text-slate-500">
           {WAREHOUSE.name} · {STORAGE_TYPES.length} พื้นที่ · {BINS.length} ช่องเก็บ · ใช้อยู่ {used.length} ช่อง
         </p>
-      </div>
-
-      <div className="mb-4 flex gap-1 overflow-x-auto border-b border-slate-200">
-        {TABS.map((t) => (
-          <button
-            key={t}
-            onClick={() => setTab(t)}
-            className={
-              t === tab
-                ? "whitespace-nowrap border-b-2 border-sky-600 px-3 py-2.5 text-[13px] font-medium text-sky-700"
-                : "whitespace-nowrap px-3 py-2.5 text-[13px] text-slate-500 hover:text-slate-800"
-            }
-          >
-            {t}
-          </button>
-        ))}
       </div>
 
       {tab === "ผังคลังและช่องเก็บ" && <Layout onOpen={setOpenBin} />}

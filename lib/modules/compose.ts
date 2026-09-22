@@ -15,39 +15,101 @@ function shellFor(selected: Module[]): string {
   const imports = selected
     .map((m) => `import ${screenName(m)} from "./modules/${m.id}/screen";`)
     .join("\n");
-  const tabs = selected
-    .map((m) => `  { id: "${m.id}", label: "${m.name}", Screen: ${screenName(m)} },`)
+  const entries = selected
+    .map(
+      (m) =>
+        `  { id: "${m.id}", label: ${JSON.stringify(m.name)}, code: ${JSON.stringify(m.sapCode ?? "")},` +
+        ` sections: ${JSON.stringify(m.keyFeatures)}, Screen: ${screenName(m)} },`
+    )
     .join("\n");
   return `import { useState } from "react";
 ${imports}
 
-const TABS = [
-${tabs}
+const MODULES = [
+${entries}
 ];
 
+/**
+ * Sidebar first, capability second — the shape of the system this was built from.
+ * A screen renders one capability and is told which, so the navigation is the only
+ * place that decides and a module can never disagree with the menu about what it
+ * contains.
+ */
 export default function App() {
-  const [active, setActive] = useState(TABS[0].id);
-  const Current = TABS.find((t) => t.id === active).Screen;
+  const [moduleId, setModuleId] = useState(MODULES[0].id);
+  const [section, setSection] = useState(MODULES[0].sections[0]);
+  const current = MODULES.find((m) => m.id === moduleId);
+  const Current = current.Screen;
+
+  const open = (m) => {
+    setModuleId(m.id);
+    setSection(m.sections[0]);
+  };
+
   return (
-    <div className="min-h-screen bg-slate-50">
-      <nav className="flex gap-1 border-b border-slate-200 bg-white px-4">
-        {TABS.map((t) => (
-          <button
-            key={t.id}
-            onClick={() => setActive(t.id)}
-            className={
-              t.id === active
-                ? "border-b-2 border-sky-600 px-4 py-3 text-sm font-medium text-sky-700"
-                : "px-4 py-3 text-sm text-slate-600 hover:text-slate-900"
-            }
-          >
-            {t.label}
-          </button>
-        ))}
-      </nav>
-      <main className="p-6">
-        <Current />
-      </main>
+    <div className="flex min-h-screen bg-slate-100">
+      <aside className="flex w-60 shrink-0 flex-col border-r border-slate-200 bg-white">
+        <div className="flex items-center gap-2.5 border-b border-slate-100 px-4 py-4">
+          <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-sky-600 text-[13px] font-bold text-white">
+            F
+          </span>
+          <span className="min-w-0">
+            <span className="block truncate text-[13.5px] font-semibold text-slate-900">
+              บจก. ตัวอย่างอุตสาหกรรม
+            </span>
+            <span className="block text-[11.5px] text-slate-500">ระบบบริหารทรัพยากรองค์กร</span>
+          </span>
+        </div>
+
+        <nav className="min-h-0 flex-1 overflow-y-auto px-2 py-3">
+          {MODULES.map((m) => (
+            <div key={m.id}>
+              <button
+                onClick={() => open(m)}
+                className={
+                  "flex w-full items-center justify-between gap-2 rounded-lg px-2.5 py-2 text-left text-[13px] transition " +
+                  (m.id === moduleId
+                    ? "font-medium text-slate-900"
+                    : "text-slate-600 hover:bg-slate-50 hover:text-slate-900")
+                }
+              >
+                <span className="min-w-0 truncate">{m.label}</span>
+                <span className="shrink-0 text-[10.5px] text-slate-300">{m.code}</span>
+              </button>
+
+              {m.id === moduleId && (
+                <ul className="mb-1 ml-2.5 border-l border-slate-200 pl-2">
+                  {m.sections.map((s) => (
+                    <li key={s}>
+                      <button
+                        onClick={() => setSection(s)}
+                        className={
+                          "block w-full rounded-md px-2 py-1.5 text-left text-[12.5px] transition " +
+                          (s === section
+                            ? "bg-sky-50 font-medium text-sky-700"
+                            : "text-slate-500 hover:bg-slate-50 hover:text-slate-800")
+                        }
+                      >
+                        {s}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          ))}
+        </nav>
+      </aside>
+
+      <div className="flex min-w-0 flex-1 flex-col">
+        <header className="border-b border-slate-200 bg-white px-6 py-3">
+          <p className="text-[13px] font-medium text-slate-900">{current.label}</p>
+          <p className="text-[11.5px] text-slate-500">{section}</p>
+        </header>
+        <main className="min-h-0 flex-1 overflow-y-auto p-6">
+          <Current section={section} />
+        </main>
+      </div>
     </div>
   );
 }

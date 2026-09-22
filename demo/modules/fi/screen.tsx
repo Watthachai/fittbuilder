@@ -18,8 +18,9 @@ const TABS = [
   "งบการเงิน",
 ];
 
-export default function FiScreen() {
-  const [tab, setTab] = useState(TABS[0]);
+export default function FiScreen({ section }: { section?: string }) {
+  // Which capability to show is the navigation's decision, not this screen's.
+  const tab = section && TABS.includes(section) ? section : TABS[0];
   const [openEntry, setOpenEntry] = useState<JournalEntry | null>(null);
   const bs = balanceSheet();
 
@@ -35,22 +36,6 @@ export default function FiScreen() {
         <span className={"rounded-full px-3 py-1.5 text-xs " + (bs.balances ? "bg-emerald-50 text-emerald-700" : "bg-rose-50 text-rose-700")}>
           {bs.balances ? "งบดุลลงตัว" : "งบดุลไม่ลงตัว"}
         </span>
-      </div>
-
-      <div className="mb-4 flex gap-1 overflow-x-auto border-b border-slate-200">
-        {TABS.map((t) => (
-          <button
-            key={t}
-            onClick={() => setTab(t)}
-            className={
-              t === tab
-                ? "whitespace-nowrap border-b-2 border-sky-600 px-3 py-2.5 text-[13px] font-medium text-sky-700"
-                : "whitespace-nowrap px-3 py-2.5 text-[13px] text-slate-500 hover:text-slate-800"
-            }
-          >
-            {t}
-          </button>
-        ))}
       </div>
 
       {tab === "ผังบัญชีและสมุดรายวัน" && <Ledger onOpen={setOpenEntry} />}

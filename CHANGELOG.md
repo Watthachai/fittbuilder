@@ -28,6 +28,8 @@ and is kept in sync with the entries below.
 - `Module.keyFeatures` — the capability list a module claims. `lib/__tests__/modules-coverage.test.ts` holds each module's own generated source and quotation copy against it, so a module cannot claim a feature it does not build.
 
 ### Changed
+- **One capability per page.** Each module screen takes a `section` prop and renders only that capability; the in-page tab strips are gone. The sidebar expands the open module into its `keyFeatures`, each at `/erp/[module]/[n]`, and the composer's generated shell carries the same two-level sidebar so a built project navigates the way the demo does.
+- The personnel register's columns follow the chosen capability rather than staying fixed, and opening a record lands on that part of it.
 - The landing page's second entry point is now a link into `/erp` rather than a module picker; `components/landing/ModuleGallery.tsx` and `LaunchPad`'s `createFromModules` are gone, their job moved into the running system.
 - The composer orders tabs by family before data flow, so a ten-module demo reads as whole businesses rather than interleaving personnel and warehouse screens. `FAMILY_ORDER` must stay dependency-safe for this to remain correct.
 - The module picker groups by family and puts each module's dependency on its own card; one tap adds a selection's whole transitive closure rather than one provider at a time.
@@ -45,6 +47,9 @@ and is kept in sync with the entries below.
 
 ### Changed
 - Frosted-glass surfaces + Google-Stitch-style entrance animations across pages (projects, login, changelog, admin).
+
+### Fixed
+- Shift `S` (กะเสริม) appeared in a roster but was never declared in `SHIFTS`. The old code hid it behind a lookup that printed "เสริม" when it found nothing; once lookups started throwing, the roster crashed. Fixed in the data, where the gap was.
 
 ### Fixed
 - Project creation failed with an RLS error — `INSERT…RETURNING` applied a SELECT policy whose owner check was a self-referential subquery that couldn't see the new row.

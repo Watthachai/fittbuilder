@@ -6,6 +6,7 @@ export const SHIFTS = [
   { code: "B", name: "กะบ่าย", start: "13:00", end: "22:00", breakMin: 60, color: "violet" },
   { code: "N", name: "กะดึก", start: "22:00", end: "07:00", breakMin: 60, color: "slate" },
   { code: "O", name: "วันหยุด", start: "—", end: "—", breakMin: 0, color: "emerald" },
+  { code: "S", name: "กะเสริม", start: "09:00", end: "15:00", breakMin: 30, color: "amber" },
 ];
 
 export const WEEK_DAYS = ["จ", "อ", "พ", "พฤ", "ศ", "ส", "อา"];

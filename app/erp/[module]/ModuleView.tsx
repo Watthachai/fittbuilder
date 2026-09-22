@@ -12,7 +12,7 @@ import type { Role } from "../session";
  * and a buyer evaluating an ERP will type the URL to check whether it is more than
  * that. The role that opens the module is the same one the sidebar was built from.
  */
-export default function ModuleView({ id }: { id: string }) {
+export default function ModuleView({ id, sectionIndex = 0 }: { id: string; sectionIndex?: number }) {
   const [role, setRole] = useState<Role | undefined>();
   const [ready, setReady] = useState(false);
 
@@ -27,7 +27,7 @@ export default function ModuleView({ id }: { id: string }) {
   if (!ready) return null;
   if (!role?.families.includes(module.family)) return <NoAccess name={module.name} />;
 
-  return <Screen />;
+  return <Screen section={module.keyFeatures[sectionIndex] ?? module.keyFeatures[0]} />;
 }
 
 function Panel({ title, body, children }: { title: string; body: string; children?: React.ReactNode }) {

@@ -15,8 +15,9 @@ const TABS = [
   "ประเมินผู้ขาย",
 ];
 
-export default function MmScreen() {
-  const [tab, setTab] = useState(TABS[0]);
+export default function MmScreen({ section }: { section?: string }) {
+  // Which capability to show is the navigation's decision, not this screen's.
+  const tab = section && TABS.includes(section) ? section : TABS[0];
   const [openPo, setOpenPo] = useState<PurchaseOrder | null>(null);
   const low = MATERIALS.filter((m) => m.stock < m.reorder);
 
@@ -27,22 +28,6 @@ export default function MmScreen() {
         <p className="text-sm text-slate-500">
           {MATERIALS.length} รายการวัสดุ · {VENDORS.length} ผู้ขาย · ต่ำกว่าจุดสั่งซื้อ {low.length} รายการ
         </p>
-      </div>
-
-      <div className="mb-4 flex gap-1 overflow-x-auto border-b border-slate-200">
-        {TABS.map((t) => (
-          <button
-            key={t}
-            onClick={() => setTab(t)}
-            className={
-              t === tab
-                ? "whitespace-nowrap border-b-2 border-sky-600 px-3 py-2.5 text-[13px] font-medium text-sky-700"
-                : "whitespace-nowrap px-3 py-2.5 text-[13px] text-slate-500 hover:text-slate-800"
-            }
-          >
-            {t}
-          </button>
-        ))}
       </div>
 
       {tab === "ข้อมูลหลักวัสดุและผู้ขาย" && <MasterData />}

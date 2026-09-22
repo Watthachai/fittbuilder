@@ -15,8 +15,9 @@ const TABS = [
   "ตรวจนับสต็อก",
 ];
 
-export default function WmScreen() {
-  const [tab, setTab] = useState(TABS[0]);
+export default function WmScreen({ section }: { section?: string }) {
+  // Which capability to show is the navigation's decision, not this screen's.
+  const tab = section && TABS.includes(section) ? section : TABS[0];
   const [openBin, setOpenBin] = useState<Bin | null>(null);
   const used = BINS.filter((b) => b.material);
 
@@ -27,22 +28,6 @@ export default function WmScreen() {
         <p className="text-sm text-slate-500">
           {WAREHOUSE.name} · {STORAGE_TYPES.length} พื้นที่ · {BINS.length} ช่องเก็บ · ใช้อยู่ {used.length} ช่อง
         </p>
-      </div>
-
-      <div className="mb-4 flex gap-1 overflow-x-auto border-b border-slate-200">
-        {TABS.map((t) => (
-          <button
-            key={t}
-            onClick={() => setTab(t)}
-            className={
-              t === tab
-                ? "whitespace-nowrap border-b-2 border-sky-600 px-3 py-2.5 text-[13px] font-medium text-sky-700"
-                : "whitespace-nowrap px-3 py-2.5 text-[13px] text-slate-500 hover:text-slate-800"
-            }
-          >
-            {t}
-          </button>
-        ))}
       </div>
 
       {tab === "ผังคลังและช่องเก็บ" && <Layout onOpen={setOpenBin} />}

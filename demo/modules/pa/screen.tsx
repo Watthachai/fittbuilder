@@ -15,7 +15,47 @@ const TABS = [
   "ค่าตอบแทนและสวัสดิการ",
 ];
 
-export default function PaScreen() {
+/**
+ * Each capability is its own view of the same register, so picking one from the
+ * navigation changes what the table shows — not just which tab is underlined.
+ * Opening a row then lands on that part of the person's record.
+ */
+const COLUMNS: Record<string, { k: string; cell: (e: Employee) => ReactNode }[]> = {
+  "ข้อมูลส่วนตัว": [
+    { k: "วันเกิด", cell: (e) => e.personal.birthDate },
+    { k: "เลขบัตรประชาชน", cell: (e) => <span className="font-mono text-xs">{e.personal.nationalId}</span> },
+    { k: "โทรศัพท์", cell: (e) => e.personal.phone },
+    { k: "อีเมล", cell: (e) => e.personal.email },
+  ],
+  "ข้อมูลสัญญาจ้าง": [
+    { k: "ประเภทจ้าง", cell: (e) => e.contract.type },
+    { k: "วันเริ่มงาน", cell: (e) => e.contract.startedAt },
+    { k: "สิ้นสุดสัญญา", cell: (e) => e.contract.endsAt ?? "ไม่กำหนด" },
+    { k: "พ้นทดลองงาน", cell: (e) => e.contract.probationUntil },
+    { k: "สถานะ", cell: (e) => <StatusBadge status={e.status} /> },
+  ],
+  "ข้อมูลทางปกครอง": [
+    { k: "เลขประกันสังคม", cell: (e) => <span className="font-mono text-xs">{e.admin.ssoNumber}</span> },
+    { k: "เลขผู้เสียภาษี", cell: (e) => <span className="font-mono text-xs">{e.admin.taxId}</span> },
+    { k: "ธนาคาร", cell: (e) => e.admin.bankName },
+    { k: "เลขบัญชี", cell: (e) => <span className="font-mono text-xs">{e.admin.bankAccount}</span> },
+    { k: "กองทุนสำรองฯ", cell: (e) => e.admin.pvdRate + "%" },
+  ],
+  "เหตุการณ์ทางบุคคล": [
+    { k: "เหตุการณ์ล่าสุด", cell: (e) => e.events[e.events.length - 1]?.type ?? "—" },
+    { k: "เมื่อ", cell: (e) => e.events[e.events.length - 1]?.date ?? "—" },
+    { k: "จำนวนเหตุการณ์", cell: (e) => e.events.length + " ครั้ง" },
+  ],
+  "ค่าตอบแทนและสวัสดิการ": [
+    { k: "เงินเดือนฐาน", cell: (e) => baht(e.contract.baseSalary) + " ฿" },
+    { k: "สวัสดิการ", cell: (e) => e.benefits.length + " รายการ" },
+    { k: "รายการแรก", cell: (e) => e.benefits[0] ?? "—" },
+  ],
+};
+
+export default function PaScreen({ section }: { section?: string }) {
+  // Which capability to show is the navigation's decision, not this screen's.
+  const tab = section && TABS.includes(section) ? section : TABS[0];
   const [q, setQ] = useState("");
   const [dept, setDept] = useState("ทุกแผนก");
   const [picked, setPicked] = useState<Employee | null>(null);
@@ -39,8 +79,8 @@ export default function PaScreen() {
         <div>
           <h1 className="text-xl font-semibold text-slate-900">ทะเบียนพนักงาน</h1>
           <p className="text-sm text-slate-500">
-            {EMPLOYEES.filter((e) => e.status !== "ลาออก").length} คนที่ยังทำงานอยู่ ·
-            {" "}{EMPLOYEES.filter((e) => e.status === "ทดลองงาน").length} คนอยู่ระหว่างทดลองงาน
+            {tab} · {rows.length} คน จากทั้งหมด{" "}
+            {EMPLOYEES.filter((e) => e.status !== "ลาออก").length} คนที่ยังทำงานอยู่
           </p>
         </div>
         <div className="flex gap-2">
@@ -66,11 +106,8 @@ export default function PaScreen() {
             <tr>
               <th className="px-4 py-3">รหัส</th>
               <th className="px-4 py-3">ชื่อ-นามสกุล</th>
-              <th className="px-4 py-3">ตำแหน่ง</th>
               <th className="px-4 py-3">แผนก</th>
-              <th className="px-4 py-3">ประเภทจ้าง</th>
-              <th className="px-4 py-3">วันเริ่มงาน</th>
-              <th className="px-4 py-3">สถานะ</th>
+              {COLUMNS[tab].map((c) => <th key={c.k} className="px-4 py-3">{c.k}</th>)}
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
@@ -81,11 +118,10 @@ export default function PaScreen() {
                   <span className="font-medium text-slate-900">{e.name}</span>
                   <span className="ml-1.5 text-xs text-slate-400">({e.nickname})</span>
                 </td>
-                <td className="px-4 py-3 text-slate-600">{e.position}</td>
                 <td className="px-4 py-3 text-slate-600">{e.department}</td>
-                <td className="px-4 py-3 text-slate-600">{e.contract.type}</td>
-                <td className="px-4 py-3 text-slate-600">{e.contract.startedAt}</td>
-                <td className="px-4 py-3"><StatusBadge status={e.status} /></td>
+                {COLUMNS[tab].map((c) => (
+                  <td key={c.k} className="px-4 py-3 text-slate-600">{c.cell(e)}</td>
+                ))}
               </tr>
             ))}
             {rows.length === 0 && (
@@ -97,6 +133,7 @@ export default function PaScreen() {
 
       {picked && (
         <EmployeeRecord
+          openAt={tab}
           employee={picked}
           events={eventsOf(picked)}
           onAddEvent={(ev) => addEvent(picked.id, ev)}
@@ -124,15 +161,18 @@ function StatusBadge({ status }: { status: string }) {
 function EmployeeRecord({
   employee: e,
   events,
+  openAt,
   onAddEvent,
   onClose,
 }: {
   employee: Employee;
   events: PersonnelEvent[];
+  openAt: string;
   onAddEvent: (ev: PersonnelEvent) => void;
   onClose: () => void;
 }) {
-  const [tab, setTab] = useState(TABS[0]);
+  // Opens on the part of the record the list was showing, then flips freely.
+  const [tab, setTab] = useState(openAt);
   const [adding, setAdding] = useState(false);
 
   return (

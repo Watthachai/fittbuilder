@@ -40,7 +40,9 @@ export default function ErpShell({ children }: { children: React.ReactNode }) {
   }
 
   const open = MODULES.filter((m) => role.families.includes(m.family));
-  const current = MODULES.find((m) => pathname === `/erp/${m.id}`);
+  const segments = pathname.split("/").filter(Boolean); // ["erp", id, section?]
+  const current = MODULES.find((m) => m.id === segments[1]);
+  const currentSection = Number(segments[2] ?? 1);
 
   return (
     <div className="flex min-h-screen bg-slate-100">
@@ -66,21 +68,47 @@ export default function ErpShell({ children }: { children: React.ReactNode }) {
               {modulesOf(family.id).map((m) => {
                 const on = current?.id === m.id;
                 return (
-                  <Link
-                    key={m.id}
-                    href={`/erp/${m.id}`}
-                    className={
-                      "flex items-center justify-between gap-2 rounded-lg px-2.5 py-2 text-[13px] transition " +
-                      (on
-                        ? "bg-sky-50 font-medium text-sky-700"
-                        : "text-slate-600 hover:bg-slate-50 hover:text-slate-900")
-                    }
-                  >
-                    <span className="min-w-0 truncate">{m.name}</span>
-                    <span className={"shrink-0 text-[10.5px] " + (on ? "text-sky-500" : "text-slate-300")}>
-                      {m.sapCode}
-                    </span>
-                  </Link>
+                  <div key={m.id}>
+                    <Link
+                      href={`/erp/${m.id}`}
+                      className={
+                        "flex items-center justify-between gap-2 rounded-lg px-2.5 py-2 text-[13px] transition " +
+                        (on
+                          ? "font-medium text-slate-900"
+                          : "text-slate-600 hover:bg-slate-50 hover:text-slate-900")
+                      }
+                    >
+                      <span className="min-w-0 truncate">{m.name}</span>
+                      <span className={"shrink-0 text-[10.5px] " + (on ? "text-slate-400" : "text-slate-300")}>
+                        {m.sapCode}
+                      </span>
+                    </Link>
+
+                    {/* Only the open module lists its capabilities. Ten modules
+                        expanded at once is a wall of fifty links nobody reads. */}
+                    {on && (
+                      <ul className="mb-1 ml-2.5 border-l border-slate-200 pl-2">
+                        {m.keyFeatures.map((feature, i) => {
+                          const active = currentSection === i + 1;
+                          return (
+                            <li key={feature}>
+                              <Link
+                                href={`/erp/${m.id}/${i + 1}`}
+                                className={
+                                  "block rounded-md px-2 py-1.5 text-[12.5px] transition " +
+                                  (active
+                                    ? "bg-sky-50 font-medium text-sky-700"
+                                    : "text-slate-500 hover:bg-slate-50 hover:text-slate-800")
+                                }
+                              >
+                                {feature}
+                              </Link>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    )}
+                  </div>
                 );
               })}
             </div>
@@ -117,7 +145,9 @@ export default function ErpShell({ children }: { children: React.ReactNode }) {
               {current ? current.name : "ภาพรวมระบบ"}
             </p>
             <p className="truncate text-[11.5px] text-slate-500">
-              {current ? `เทียบเท่า SAP ${current.sapCode}` : `${open.length} โมดูลที่เปิดให้ ${role.title}`}
+              {current
+                ? `${current.keyFeatures[currentSection - 1] ?? current.keyFeatures[0]} · เทียบเท่า SAP ${current.sapCode}`
+                : `${open.length} โมดูลที่เปิดให้ ${role.title}`}
             </p>
           </div>
           <div className="flex shrink-0 items-center gap-2">

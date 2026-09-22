@@ -23,6 +23,21 @@ export const CHANGE_BADGE: Record<ChangeType, { label: string; className: string
 // Newest first. SemVer: fix → PATCH, feature → MINOR, breaking → MAJOR.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.71.3",
+    date: "2026-09-22",
+    title: "เรียบเรียงข้อความบนหน้าจอใหม่ให้อ่านง่ายขึ้น",
+    items: [
+      {
+        type: "improvement",
+        text: "เกลาข้อความในมาร์เก็ตเพลสและระบบตัวอย่างให้เป็นภาษาเดียวกันทั้งหมด บอกว่าแต่ละหน้าทำอะไรได้ตรง ๆ แทนคำโฆษณาและประโยคที่เปรียบเทียบว่าของเดิมแย่อย่างไร",
+      },
+      {
+        type: "improvement",
+        text: "แยกคำอธิบายที่เคยต่อท้ายชื่อการ์ดออกมาเป็นบรรทัดคำอธิบายใต้ชื่อ ทำให้กวาดตาหาหัวข้อที่ต้องการได้เร็วขึ้นในทุกหน้าจอของระบบตัวอย่าง",
+      },
+    ],
+  },
+  {
     version: "0.71.2",
     date: "2026-09-22",
     title: "ปรับหน้าต่างเพิ่มพนักงานให้กรอกง่ายขึ้น",

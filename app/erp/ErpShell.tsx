@@ -352,7 +352,7 @@ export default function ErpShell({ children }: { children: React.ReactNode }) {
                 <div className="fixed inset-0 z-30" onClick={() => setBell(false)} />
                 <div className="absolute right-0 z-40 mt-2 w-80 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xl dark:border-slate-800 dark:bg-slate-900">
                   <p className="border-b border-slate-100 px-4 py-2.5 text-[12.5px] font-medium text-slate-800 dark:border-slate-800 dark:text-slate-100">
-                    ต้องจัดการ {alerts.length} เรื่อง
+                    มี {alerts.length} เรื่องที่ต้องจัดการ
                   </p>
                   <ul className="max-h-80 divide-y divide-slate-100 overflow-y-auto dark:divide-slate-800">
                     {alerts.map((a) => (
@@ -542,7 +542,7 @@ function SignIn({
 
           <div className="mt-3 flex items-center justify-between gap-2">
             <p className="text-[11.5px] leading-snug text-slate-500 dark:text-slate-400">
-              ระบบตัวอย่าง — เลือกฝ่ายเพื่อดูว่าสิทธิ์นั้นเปิดส่วนไหนของระบบได้บ้าง
+              ระบบตัวอย่าง เลือกฝ่ายเพื่อดูว่าสิทธิ์ของฝ่ายนั้นเปิดส่วนไหนของระบบได้บ้าง
             </p>
             <button
               type="button"

@@ -71,7 +71,7 @@ function MasterData() {
         />
       </div>
 
-      <Card title={"แฟ้มวัสดุ — " + rows.length + " รายการ"}>
+      <Card title="แฟ้มวัสดุ" subtitle={rows.length + " รายการ"}>
         <table className="w-full text-sm">
           <Head cols={[{ k: "รหัส" }, { k: "ชื่อวัสดุ" }, { k: "กลุ่ม" }, { k: "หน่วย" }, { k: "ราคามาตรฐาน", right: true }, { k: "คงเหลือ", right: true }]} />
           <tbody className="divide-y divide-slate-100">
@@ -109,7 +109,7 @@ function MasterData() {
         </table>
       </Card>
 
-      <Card title="ราคาที่ผู้ขายเคยเสนอ — ใช้เลือกแหล่งซื้อ">
+      <Card title="ราคาที่ผู้ขายเคยเสนอ" subtitle="ใช้ประกอบการเลือกแหล่งซื้อในรอบถัดไป">
         <table className="w-full text-sm">
           <Head cols={[{ k: "วัสดุ" }, { k: "ผู้ขาย" }, { k: "ราคา", right: true }, { k: "รอของ (วัน)", right: true }]} />
           <tbody className="divide-y divide-slate-100">
@@ -228,7 +228,7 @@ function Receiving({ onOpen }: { onOpen: (po: PurchaseOrder) => void }) {
         </table>
       </Card>
 
-      <Card title="ตรวจสามทาง — สั่ง เทียบ รับ เทียบ วางบิล">
+      <Card title="ตรวจสามทาง" subtitle="เทียบใบสั่งซื้อ ใบรับของ และใบวางบิล ให้ตรงกันก่อนอนุมัติจ่าย">
         <table className="w-full text-sm">
           <Head cols={[{ k: "ใบสั่งซื้อ" }, { k: "สั่ง", right: true }, { k: "รับแล้ว", right: true }, { k: "วางบิล", right: true }, { k: "ผล" }, { k: "" }]} />
           <tbody className="divide-y divide-slate-100">
@@ -241,7 +241,7 @@ function Receiving({ onOpen }: { onOpen: (po: PurchaseOrder) => void }) {
                 <td className={TH}>
                   {m.invoice === 0 ? <span className="text-xs text-slate-400">ยังไม่วางบิล</span>
                     : m.matched ? <span className="rounded-full bg-emerald-50 px-2 py-1 text-xs text-emerald-700">ตรงกัน จ่ายได้</span>
-                    : <span className="rounded-full bg-rose-50 px-2 py-1 text-xs text-rose-700">ไม่ตรง ห้ามจ่าย</span>}
+                    : <span className="rounded-full bg-rose-50 px-2 py-1 text-xs text-rose-700">ไม่ตรง ยังจ่ายไม่ได้</span>}
                 </td>
                 <td className={TH + " text-right"}>
                   <button onClick={() => onOpen(po)} className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs text-slate-700 hover:border-sky-500 hover:text-sky-700">
@@ -316,7 +316,7 @@ function Stock() {
 
 function VendorRating() {
   return (
-    <Card title="ผลงานผู้ขาย — ใช้ตัดสินว่าจะสั่งกับใครรอบหน้า">
+    <Card title="ผลงานผู้ขาย" subtitle="ใช้ประกอบการตัดสินใจว่าจะสั่งกับรายใดในรอบถัดไป">
       <table className="w-full text-sm">
         <Head cols={[{ k: "ผู้ขาย" }, { k: "เงื่อนไขชำระ" }, { k: "ใบสั่งซื้อ", right: true }, { k: "มูลค่ารวม", right: true }, { k: "ส่งของครบ" }]} />
         <tbody className="divide-y divide-slate-100">
@@ -391,7 +391,7 @@ function PoDialog({ po, onClose }: { po: PurchaseOrder; onClose: () => void }) {
         )}>
           {m.invoice === 0 ? "ยังไม่มีใบแจ้งหนี้ ตรวจสามทางเมื่อผู้ขายวางบิล"
             : m.matched ? "สั่ง รับ และวางบิล ตรงกันทั้งสามทาง อนุมัติจ่ายได้"
-            : "ยอดวางบิลไม่ตรงกับของที่รับจริง — " + m.shortLines.map((s) => material(s.material)?.name + " ขาด " + (s.qty - s.got)).join(", ")}
+            : "ยอดวางบิลยังไม่ตรงกับของที่รับจริง " + m.shortLines.map((s) => material(s.material)?.name + " ขาด " + (s.qty - s.got)).join(", ")}
         </div>
       </div>
     </div>

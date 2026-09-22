@@ -59,7 +59,7 @@ function Ledger({ onOpen }: { onOpen: (e: JournalEntry) => void }) {
   const unbalanced = JOURNAL.filter((e) => !isBalanced(e));
   return (
     <div className="space-y-4">
-      <Card title="ผังบัญชีและยอดคงเหลือ">
+      <Card title="ผังบัญชีและยอดคงเหลือ" subtitle="ยอดเดบิตรวมต้องเท่ากับยอดเครดิตรวม">
         <table className="w-full text-sm">
           <Head cols={[{ k: "รหัสบัญชี" }, { k: "ชื่อบัญชี" }, { k: "ประเภท" }, { k: "เดบิต", right: true }, { k: "เครดิต", right: true }]} />
           <tbody className="divide-y divide-slate-100">
@@ -75,7 +75,7 @@ function Ledger({ onOpen }: { onOpen: (e: JournalEntry) => void }) {
           </tbody>
           <tfoot className="bg-slate-50">
             <tr>
-              <td colSpan={3} className={TH + " text-right text-slate-600"}>รวม — เดบิตต้องเท่าเครดิต</td>
+              <td colSpan={3} className={TH + " text-right text-slate-600"}>รวมทั้งสองด้าน</td>
               <td className={TH + " text-right font-semibold text-slate-900"}>
                 {baht(tb.filter((a) => a.balance > 0).reduce((n, a) => n + a.balance, 0))}
               </td>
@@ -87,7 +87,10 @@ function Ledger({ onOpen }: { onOpen: (e: JournalEntry) => void }) {
         </table>
       </Card>
 
-      <Card title={"สมุดรายวัน" + (unbalanced.length ? " — มี " + unbalanced.length + " รายการที่ไม่ลงตัว" : "")}>
+      <Card
+        title="สมุดรายวัน"
+        subtitle={unbalanced.length ? "มี " + unbalanced.length + " รายการที่เดบิตยังไม่เท่าเครดิต" : undefined}
+      >
         <table className="w-full text-sm">
           <Head cols={[{ k: "เลขที่" }, { k: "วันที่" }, { k: "คำอธิบาย" }, { k: "บรรทัด", right: true }, { k: "จำนวนเงิน", right: true }, { k: "ลงตัว" }, { k: "" }]} />
           <tbody className="divide-y divide-slate-100">
@@ -153,7 +156,7 @@ function Payables() {
         <Stat label="เลยกำหนดชำระ" value={late.length + " ใบ"} tone={late.length ? "warn" : undefined} />
       </div>
 
-      <Card title="ใบแจ้งหนี้ที่ยังไม่ได้จ่าย — ผู้ขายอ่านจากแฟ้มจัดซื้อ">
+      <Card title="ใบแจ้งหนี้ที่ยังไม่ได้จ่าย" subtitle="รายชื่อผู้ขายอ่านจากแฟ้มจัดซื้อ">
         <table className="w-full text-sm">
           <Head cols={[{ k: "ใบแจ้งหนี้" }, { k: "ผู้ขาย" }, { k: "อ้างใบสั่งซื้อ" }, { k: "วันที่" }, { k: "เงื่อนไข" }, { k: "ครบกำหนด" }, { k: "ยอดรวมภาษี", right: true }, { k: "สถานะ" }]} />
           <tbody className="divide-y divide-slate-100">
@@ -195,7 +198,7 @@ function Receivables() {
         <Stat label="ส่งของแล้วยังไม่ออกใบแจ้งหนี้" value={unbilled.length + " ใบ"} tone={unbilled.length ? "warn" : undefined} />
       </div>
 
-      <Card title="ยอดที่ลูกค้ายังไม่ชำระ — ลูกค้าอ่านจากแฟ้มขาย">
+      <Card title="ยอดที่ลูกค้ายังไม่ชำระ" subtitle="รายชื่อลูกค้าอ่านจากแฟ้มขาย">
         <table className="w-full text-sm">
           <Head cols={[{ k: "ใบสั่งขาย" }, { k: "ลูกค้า" }, { k: "วันที่" }, { k: "เงื่อนไข" }, { k: "ครบกำหนด" }, { k: "ยอดรวมภาษี", right: true }, { k: "ออกใบแจ้งหนี้" }, { k: "สถานะ" }]} />
           <tbody className="divide-y divide-slate-100">
@@ -239,7 +242,7 @@ function FixedAssets() {
         <Stat label="ค่าเสื่อมราคางวดนี้" value={baht(month)} />
       </div>
 
-      <Card title="ทะเบียนสินทรัพย์ — ค่าเสื่อมราคาวิธีเส้นตรง">
+      <Card title="ทะเบียนสินทรัพย์" subtitle="คิดค่าเสื่อมราคาด้วยวิธีเส้นตรง">
         <table className="w-full text-sm">
           <Head cols={[{ k: "รหัส" }, { k: "สินทรัพย์" }, { k: "วันที่ได้มา" }, { k: "อายุใช้งาน", right: true }, { k: "ราคาทุน", right: true }, { k: "ต่อเดือน", right: true }, { k: "สะสม", right: true }, { k: "คงเหลือตามบัญชี", right: true }]} />
           <tbody className="divide-y divide-slate-100">
@@ -325,7 +328,7 @@ function Statements() {
 
       <div className={"rounded-xl px-4 py-3.5 text-sm " + (bs.balances ? "bg-emerald-50 text-emerald-800" : "bg-rose-50 text-rose-800")}>
         {bs.balances
-          ? "สินทรัพย์เท่ากับหนี้สินบวกส่วนของเจ้าของบวกกำไรงวดนี้ — งบดุลลงตัว"
+          ? "งบดุลลงตัว สินทรัพย์เท่ากับหนี้สินบวกส่วนของเจ้าของบวกกำไรงวดนี้"
           : "สินทรัพย์ไม่เท่ากับหนี้สินบวกส่วนของเจ้าของ ต่างกัน " + baht(Math.abs(bs.assetTotal - (bs.liabilityTotal + bs.equityTotal + bs.profit)))}
       </div>
     </div>

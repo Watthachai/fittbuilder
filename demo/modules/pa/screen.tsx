@@ -344,7 +344,7 @@ export default function PaScreen({
       <FormModal
         open={adding}
         title="เพิ่มพนักงานใหม่"
-        subtitle="สามขั้นตอน — ตรวจความถูกต้องทีละขั้น ไม่ปล่อยไปเจอตอนบันทึก"
+        subtitle="กรอกสามขั้นตอน ระบบตรวจความถูกต้องให้ก่อนไปขั้นถัดไป"
         onClose={() => setAdding(false)}
       >
         <NewEmployee
@@ -1084,7 +1084,7 @@ function ContractTab({ e, status, events }: { e: Employee; status: string; event
 
       {expiring !== null && expiring >= 0 && expiring <= 90 && !leftCo && (
         <Note tone="warn">
-          สัญญาหมดอายุ {e.contract.endsAt} — เหลืออีก {expiring} วัน ควรเริ่มกระบวนการต่อสัญญาหรือแจ้งล่วงหน้าตามกฎหมายแรงงาน
+          สัญญาหมดอายุ {e.contract.endsAt} เหลืออีก {expiring} วัน ควรเริ่มกระบวนการต่อสัญญาหรือแจ้งล่วงหน้าตามกฎหมายแรงงาน
         </Note>
       )}
 
@@ -1241,7 +1241,7 @@ function ActivityTab({ activity }: { activity: ActivityEntry[] }) {
     <Card>
       <div className="p-4">
         {groups.length === 0 ? (
-          <p className="py-8 text-center text-[13px] text-slate-400">ยังไม่มีกิจกรรมกับแฟ้มนี้ — เขียนบันทึกได้ที่คอลัมน์ซ้าย</p>
+          <p className="py-8 text-center text-[13px] text-slate-400">ยังไม่มีกิจกรรมกับแฟ้มนี้ เขียนบันทึกแรกได้จากช่องทางด้านซ้าย</p>
         ) : (
           <Timeline groups={groups} />
         )}

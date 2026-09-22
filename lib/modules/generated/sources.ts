@@ -191,7 +191,7 @@ function CostCenters({ onOpen }: { onOpen: (cc: CostCentre) => void }) {
         />
       </div>
 
-      <Card title="ศูนย์ต้นทุน — ยอดใช้จริงกระจายมาจากบัญชีค่าใช้จ่ายตามสัดส่วนที่ประกาศไว้">
+      <Card title="ศูนย์ต้นทุน" subtitle="ยอดใช้จริงกระจายมาจากบัญชีค่าใช้จ่ายตามสัดส่วนที่ประกาศไว้">
         <table className="w-full text-sm">
           <Head cols={[{ k: "รหัส" }, { k: "ศูนย์ต้นทุน" }, { k: "ผู้รับผิดชอบ" }, { k: "ศูนย์กำไร" }, { k: "งบ", right: true }, { k: "ใช้จริง", right: true }, { k: "ต่าง", right: true }, { k: "การใช้งบ" }, { k: "" }]} />
           <tbody className="divide-y divide-slate-100">
@@ -242,7 +242,7 @@ function InternalOrders() {
         <Stat label="งานที่ใช้เกินงบ" value={over.length + " งาน"} tone={over.length ? "bad" : undefined} />
       </div>
 
-      <Card title="คำสั่งงานภายใน — เก็บค่าใช้จ่ายของงานชั่วคราวแยกจากงบประจำ">
+      <Card title="คำสั่งงานภายใน" subtitle="เก็บค่าใช้จ่ายของงานชั่วคราวแยกออกจากงบประจำ">
         <table className="w-full text-sm">
           <Head cols={[{ k: "เลขที่" }, { k: "ชื่องาน" }, { k: "ศูนย์ต้นทุน" }, { k: "เปิดงาน" }, { k: "งบ", right: true }, { k: "ใช้ไป", right: true }, { k: "คงเหลือ", right: true }, { k: "สถานะ" }]} />
           <tbody className="divide-y divide-slate-100">
@@ -432,7 +432,7 @@ function ProfitCenters() {
         />
       </div>
 
-      <Card title="ศูนย์กำไร — กำไรขั้นต้นที่ช่องทางนำมาให้ ลบค่าใช้จ่ายทางอ้อมของศูนย์ต้นทุนที่สังกัดอยู่">
+      <Card title="ศูนย์กำไร" subtitle="กำไรขั้นต้นที่แต่ละช่องทางทำได้ หักด้วยค่าใช้จ่ายทางอ้อมของศูนย์ต้นทุนที่สังกัด">
         <table className="w-full text-sm">
           <Head cols={[{ k: "ศูนย์กำไร" }, { k: "ศูนย์ต้นทุนที่สังกัด" }, { k: "รายได้", right: true }, { k: "ต้นทุนสินค้า", right: true }, { k: "กำไรขั้นต้น", right: true }, { k: "ทางอ้อมที่ปันเข้า", right: true }, { k: "คิดกลับเข้าต้นทุนแล้ว", right: true }, { k: "ผลการดำเนินงาน", right: true }]} />
           <tbody className="divide-y divide-slate-100">
@@ -458,8 +458,8 @@ function ProfitCenters() {
 
       <div className={"rounded-xl px-4 py-3.5 text-sm " + (tiesOut ? "bg-emerald-50 text-emerald-800" : "bg-amber-50 text-amber-800")}>
         {tiesOut
-          ? "ผลรวมของทุกศูนย์กำไร " + baht(total) + " ตรงกับ" + (company >= 0 ? "กำไร" : "ขาดทุน") + "สุทธิในงบการเงิน — ปันส่วนครบ ไม่มีค่าใช้จ่ายตกหล่นหรือนับซ้ำ"
-          : "ผลรวมของทุกศูนย์กำไร " + baht(total) + " ต่างจากงบการเงิน " + baht(Math.abs(total - company)) + " — ตรวจสัดส่วนการปันส่วน"}
+          ? "ผลรวมของทุกศูนย์กำไร " + baht(total) + " ตรงกับ" + (company >= 0 ? "กำไร" : "ขาดทุน") + "สุทธิในงบการเงิน ปันส่วนครบถ้วน ไม่มีค่าใช้จ่ายตกหล่นหรือนับซ้ำ"
+          : "ผลรวมของทุกศูนย์กำไร " + baht(total) + " ต่างจากงบการเงิน " + baht(Math.abs(total - company)) + " ควรตรวจสัดส่วนการปันส่วนอีกครั้ง"}
       </div>
     </div>
   );
@@ -799,7 +799,7 @@ function Ledger({ onOpen }: { onOpen: (e: JournalEntry) => void }) {
   const unbalanced = JOURNAL.filter((e) => !isBalanced(e));
   return (
     <div className="space-y-4">
-      <Card title="ผังบัญชีและยอดคงเหลือ">
+      <Card title="ผังบัญชีและยอดคงเหลือ" subtitle="ยอดเดบิตรวมต้องเท่ากับยอดเครดิตรวม">
         <table className="w-full text-sm">
           <Head cols={[{ k: "รหัสบัญชี" }, { k: "ชื่อบัญชี" }, { k: "ประเภท" }, { k: "เดบิต", right: true }, { k: "เครดิต", right: true }]} />
           <tbody className="divide-y divide-slate-100">
@@ -815,7 +815,7 @@ function Ledger({ onOpen }: { onOpen: (e: JournalEntry) => void }) {
           </tbody>
           <tfoot className="bg-slate-50">
             <tr>
-              <td colSpan={3} className={TH + " text-right text-slate-600"}>รวม — เดบิตต้องเท่าเครดิต</td>
+              <td colSpan={3} className={TH + " text-right text-slate-600"}>รวมทั้งสองด้าน</td>
               <td className={TH + " text-right font-semibold text-slate-900"}>
                 {baht(tb.filter((a) => a.balance > 0).reduce((n, a) => n + a.balance, 0))}
               </td>
@@ -827,7 +827,10 @@ function Ledger({ onOpen }: { onOpen: (e: JournalEntry) => void }) {
         </table>
       </Card>
 
-      <Card title={"สมุดรายวัน" + (unbalanced.length ? " — มี " + unbalanced.length + " รายการที่ไม่ลงตัว" : "")}>
+      <Card
+        title="สมุดรายวัน"
+        subtitle={unbalanced.length ? "มี " + unbalanced.length + " รายการที่เดบิตยังไม่เท่าเครดิต" : undefined}
+      >
         <table className="w-full text-sm">
           <Head cols={[{ k: "เลขที่" }, { k: "วันที่" }, { k: "คำอธิบาย" }, { k: "บรรทัด", right: true }, { k: "จำนวนเงิน", right: true }, { k: "ลงตัว" }, { k: "" }]} />
           <tbody className="divide-y divide-slate-100">
@@ -893,7 +896,7 @@ function Payables() {
         <Stat label="เลยกำหนดชำระ" value={late.length + " ใบ"} tone={late.length ? "warn" : undefined} />
       </div>
 
-      <Card title="ใบแจ้งหนี้ที่ยังไม่ได้จ่าย — ผู้ขายอ่านจากแฟ้มจัดซื้อ">
+      <Card title="ใบแจ้งหนี้ที่ยังไม่ได้จ่าย" subtitle="รายชื่อผู้ขายอ่านจากแฟ้มจัดซื้อ">
         <table className="w-full text-sm">
           <Head cols={[{ k: "ใบแจ้งหนี้" }, { k: "ผู้ขาย" }, { k: "อ้างใบสั่งซื้อ" }, { k: "วันที่" }, { k: "เงื่อนไข" }, { k: "ครบกำหนด" }, { k: "ยอดรวมภาษี", right: true }, { k: "สถานะ" }]} />
           <tbody className="divide-y divide-slate-100">
@@ -935,7 +938,7 @@ function Receivables() {
         <Stat label="ส่งของแล้วยังไม่ออกใบแจ้งหนี้" value={unbilled.length + " ใบ"} tone={unbilled.length ? "warn" : undefined} />
       </div>
 
-      <Card title="ยอดที่ลูกค้ายังไม่ชำระ — ลูกค้าอ่านจากแฟ้มขาย">
+      <Card title="ยอดที่ลูกค้ายังไม่ชำระ" subtitle="รายชื่อลูกค้าอ่านจากแฟ้มขาย">
         <table className="w-full text-sm">
           <Head cols={[{ k: "ใบสั่งขาย" }, { k: "ลูกค้า" }, { k: "วันที่" }, { k: "เงื่อนไข" }, { k: "ครบกำหนด" }, { k: "ยอดรวมภาษี", right: true }, { k: "ออกใบแจ้งหนี้" }, { k: "สถานะ" }]} />
           <tbody className="divide-y divide-slate-100">
@@ -979,7 +982,7 @@ function FixedAssets() {
         <Stat label="ค่าเสื่อมราคางวดนี้" value={baht(month)} />
       </div>
 
-      <Card title="ทะเบียนสินทรัพย์ — ค่าเสื่อมราคาวิธีเส้นตรง">
+      <Card title="ทะเบียนสินทรัพย์" subtitle="คิดค่าเสื่อมราคาด้วยวิธีเส้นตรง">
         <table className="w-full text-sm">
           <Head cols={[{ k: "รหัส" }, { k: "สินทรัพย์" }, { k: "วันที่ได้มา" }, { k: "อายุใช้งาน", right: true }, { k: "ราคาทุน", right: true }, { k: "ต่อเดือน", right: true }, { k: "สะสม", right: true }, { k: "คงเหลือตามบัญชี", right: true }]} />
           <tbody className="divide-y divide-slate-100">
@@ -1065,7 +1068,7 @@ function Statements() {
 
       <div className={"rounded-xl px-4 py-3.5 text-sm " + (bs.balances ? "bg-emerald-50 text-emerald-800" : "bg-rose-50 text-rose-800")}>
         {bs.balances
-          ? "สินทรัพย์เท่ากับหนี้สินบวกส่วนของเจ้าของบวกกำไรงวดนี้ — งบดุลลงตัว"
+          ? "งบดุลลงตัว สินทรัพย์เท่ากับหนี้สินบวกส่วนของเจ้าของบวกกำไรงวดนี้"
           : "สินทรัพย์ไม่เท่ากับหนี้สินบวกส่วนของเจ้าของ ต่างกัน " + baht(Math.abs(bs.assetTotal - (bs.liabilityTotal + bs.equityTotal + bs.profit)))}
       </div>
     </div>
@@ -2058,7 +2061,7 @@ function MasterData() {
         />
       </div>
 
-      <Card title={"แฟ้มวัสดุ — " + rows.length + " รายการ"}>
+      <Card title="แฟ้มวัสดุ" subtitle={rows.length + " รายการ"}>
         <table className="w-full text-sm">
           <Head cols={[{ k: "รหัส" }, { k: "ชื่อวัสดุ" }, { k: "กลุ่ม" }, { k: "หน่วย" }, { k: "ราคามาตรฐาน", right: true }, { k: "คงเหลือ", right: true }]} />
           <tbody className="divide-y divide-slate-100">
@@ -2096,7 +2099,7 @@ function MasterData() {
         </table>
       </Card>
 
-      <Card title="ราคาที่ผู้ขายเคยเสนอ — ใช้เลือกแหล่งซื้อ">
+      <Card title="ราคาที่ผู้ขายเคยเสนอ" subtitle="ใช้ประกอบการเลือกแหล่งซื้อในรอบถัดไป">
         <table className="w-full text-sm">
           <Head cols={[{ k: "วัสดุ" }, { k: "ผู้ขาย" }, { k: "ราคา", right: true }, { k: "รอของ (วัน)", right: true }]} />
           <tbody className="divide-y divide-slate-100">
@@ -2215,7 +2218,7 @@ function Receiving({ onOpen }: { onOpen: (po: PurchaseOrder) => void }) {
         </table>
       </Card>
 
-      <Card title="ตรวจสามทาง — สั่ง เทียบ รับ เทียบ วางบิล">
+      <Card title="ตรวจสามทาง" subtitle="เทียบใบสั่งซื้อ ใบรับของ และใบวางบิล ให้ตรงกันก่อนอนุมัติจ่าย">
         <table className="w-full text-sm">
           <Head cols={[{ k: "ใบสั่งซื้อ" }, { k: "สั่ง", right: true }, { k: "รับแล้ว", right: true }, { k: "วางบิล", right: true }, { k: "ผล" }, { k: "" }]} />
           <tbody className="divide-y divide-slate-100">
@@ -2228,7 +2231,7 @@ function Receiving({ onOpen }: { onOpen: (po: PurchaseOrder) => void }) {
                 <td className={TH}>
                   {m.invoice === 0 ? <span className="text-xs text-slate-400">ยังไม่วางบิล</span>
                     : m.matched ? <span className="rounded-full bg-emerald-50 px-2 py-1 text-xs text-emerald-700">ตรงกัน จ่ายได้</span>
-                    : <span className="rounded-full bg-rose-50 px-2 py-1 text-xs text-rose-700">ไม่ตรง ห้ามจ่าย</span>}
+                    : <span className="rounded-full bg-rose-50 px-2 py-1 text-xs text-rose-700">ไม่ตรง ยังจ่ายไม่ได้</span>}
                 </td>
                 <td className={TH + " text-right"}>
                   <button onClick={() => onOpen(po)} className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs text-slate-700 hover:border-sky-500 hover:text-sky-700">
@@ -2303,7 +2306,7 @@ function Stock() {
 
 function VendorRating() {
   return (
-    <Card title="ผลงานผู้ขาย — ใช้ตัดสินว่าจะสั่งกับใครรอบหน้า">
+    <Card title="ผลงานผู้ขาย" subtitle="ใช้ประกอบการตัดสินใจว่าจะสั่งกับรายใดในรอบถัดไป">
       <table className="w-full text-sm">
         <Head cols={[{ k: "ผู้ขาย" }, { k: "เงื่อนไขชำระ" }, { k: "ใบสั่งซื้อ", right: true }, { k: "มูลค่ารวม", right: true }, { k: "ส่งของครบ" }]} />
         <tbody className="divide-y divide-slate-100">
@@ -2378,7 +2381,7 @@ function PoDialog({ po, onClose }: { po: PurchaseOrder; onClose: () => void }) {
         )}>
           {m.invoice === 0 ? "ยังไม่มีใบแจ้งหนี้ ตรวจสามทางเมื่อผู้ขายวางบิล"
             : m.matched ? "สั่ง รับ และวางบิล ตรงกันทั้งสามทาง อนุมัติจ่ายได้"
-            : "ยอดวางบิลไม่ตรงกับของที่รับจริง — " + m.shortLines.map((s) => material(s.material)?.name + " ขาด " + (s.qty - s.got)).join(", ")}
+            : "ยอดวางบิลยังไม่ตรงกับของที่รับจริง " + m.shortLines.map((s) => material(s.material)?.name + " ขาด " + (s.qty - s.got)).join(", ")}
         </div>
       </div>
     </div>
@@ -3305,7 +3308,7 @@ export default function PaScreen({
       <FormModal
         open={adding}
         title="เพิ่มพนักงานใหม่"
-        subtitle="สามขั้นตอน — ตรวจความถูกต้องทีละขั้น ไม่ปล่อยไปเจอตอนบันทึก"
+        subtitle="กรอกสามขั้นตอน ระบบตรวจความถูกต้องให้ก่อนไปขั้นถัดไป"
         onClose={() => setAdding(false)}
       >
         <NewEmployee
@@ -4045,7 +4048,7 @@ function ContractTab({ e, status, events }: { e: Employee; status: string; event
 
       {expiring !== null && expiring >= 0 && expiring <= 90 && !leftCo && (
         <Note tone="warn">
-          สัญญาหมดอายุ {e.contract.endsAt} — เหลืออีก {expiring} วัน ควรเริ่มกระบวนการต่อสัญญาหรือแจ้งล่วงหน้าตามกฎหมายแรงงาน
+          สัญญาหมดอายุ {e.contract.endsAt} เหลืออีก {expiring} วัน ควรเริ่มกระบวนการต่อสัญญาหรือแจ้งล่วงหน้าตามกฎหมายแรงงาน
         </Note>
       )}
 
@@ -4202,7 +4205,7 @@ function ActivityTab({ activity }: { activity: ActivityEntry[] }) {
     <Card>
       <div className="p-4">
         {groups.length === 0 ? (
-          <p className="py-8 text-center text-[13px] text-slate-400">ยังไม่มีกิจกรรมกับแฟ้มนี้ — เขียนบันทึกได้ที่คอลัมน์ซ้าย</p>
+          <p className="py-8 text-center text-[13px] text-slate-400">ยังไม่มีกิจกรรมกับแฟ้มนี้ เขียนบันทึกแรกได้จากช่องทางด้านซ้าย</p>
         ) : (
           <Timeline groups={groups} />
         )}
@@ -4697,7 +4700,7 @@ function MasterData() {
         <Stat label="ต้นทุนรวมต่อหน่วย" value={baht(cost.total)} />
       </div>
 
-      <Card title="สูตรการผลิต — ผลิตหนึ่งหน่วยใช้อะไรบ้าง">
+      <Card title="สูตรการผลิต" subtitle="ผลิตหนึ่งหน่วยต้องใช้วัสดุอะไรบ้าง">
         <table className="w-full text-sm">
           <Head cols={[{ k: "วัสดุ" }, { k: "ใช้ต่อหน่วย", right: true }, { k: "ราคาวัสดุ", right: true }, { k: "เป็นเงิน", right: true }]} />
           <tbody className="divide-y divide-slate-100">
@@ -4766,7 +4769,7 @@ function Mrp() {
         </table>
       </Card>
 
-      <Card title="กางสูตรแล้วหักสต็อก — ที่เหลือคือของที่ต้องเปิดใบขอซื้อ">
+      <Card title="กางสูตรแล้วหักสต็อก" subtitle="ส่วนที่ยังขาดคือของที่ต้องเปิดใบขอซื้อ">
         <table className="w-full text-sm">
           <Head cols={[{ k: "วัสดุ" }, { k: "ต้องใช้", right: true }, { k: "มีในคลัง", right: true }, { k: "ต้องซื้อเพิ่ม", right: true }, { k: "เป็นเงิน", right: true }]} />
           <tbody className="divide-y divide-slate-100">
@@ -4802,7 +4805,7 @@ function Capacity() {
         <Stat label="ศูนย์งานที่เกินกำลัง" value={over.length + " แห่ง"} tone={over.length ? "warn" : undefined} />
       </div>
 
-      <Card title="ภาระงานเทียบกำลังการผลิต — เกิน 100% ต้องเลื่อนใบสั่งผลิตหรือเพิ่มกะ">
+      <Card title="ภาระงานเทียบกำลังการผลิต" subtitle="ศูนย์งานที่เกิน 100% ต้องเลื่อนใบสั่งผลิตออกไปหรือเพิ่มกะ">
         <table className="w-full text-sm">
           <Head cols={[{ k: "ศูนย์งาน" }, { k: "กำลังต่อสัปดาห์", right: true }, { k: "ถูกจองแล้ว", right: true }, { k: "การใช้กำลัง" }, { k: "ผล" }]} />
           <tbody className="divide-y divide-slate-100">
@@ -5308,10 +5311,10 @@ function Statutory() {
         <Stat label="สมทบนายจ้าง" value={baht(sso)} />
         <Stat label="ภาษีหัก ณ ที่จ่าย" value={baht(tax)} />
       </div>
-      <Card>
-        <div className="border-b border-slate-100 px-4 py-3 text-sm font-medium text-slate-800">
-          รายการนำส่ง — ประกันสังคม {SSO_RATE * 100}% ของเงินเดือน สูงสุด {SSO_CAP} ฿ · กองทุนสำรองเลี้ยงชีพรวม {baht(pvd)}
-        </div>
+      <Card
+        title="รายการนำส่ง"
+        subtitle={\`ประกันสังคม \${SSO_RATE * 100}% ของเงินเดือน สูงสุด \${SSO_CAP} บาท · กองทุนสำรองเลี้ยงชีพรวม \${baht(pvd)}\`}
+      >
         <table className="w-full text-sm">
           <thead className="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
             <tr>
@@ -5640,7 +5643,7 @@ function Customers() {
           {channels.map((c) => <option key={c}>{c}</option>)}
         </select>
       </div>
-      <Card title={"แฟ้มลูกค้า — " + rows.length + " ราย"}>
+      <Card title="แฟ้มลูกค้า" subtitle={rows.length + " ราย"}>
         <table className="w-full text-sm">
           <Head cols={[{ k: "รหัส" }, { k: "ชื่อลูกค้า" }, { k: "ผู้ติดต่อ" }, { k: "ช่องทาง" }, { k: "เงื่อนไขชำระ" }, { k: "จังหวัด" }, { k: "เลขผู้เสียภาษี" }]} />
           <tbody className="divide-y divide-slate-100">
@@ -5847,7 +5850,7 @@ function Billing() {
       </Card>
 
       {shippedNotBilled.length > 0 && (
-        <Card title="ส่งของแล้วแต่ยังไม่ได้ออกใบแจ้งหนี้ — เงินยังไม่เข้า">
+        <Card title="ส่งของแล้วแต่ยังไม่ได้ออกใบแจ้งหนี้" subtitle="ของออกจากคลังไปแล้ว แต่ยังไม่กลายเป็นรายได้จนกว่าจะออกใบแจ้งหนี้">
           <ul className="divide-y divide-slate-100">
             {shippedNotBilled.map((d) => {
               const so = orderNo(d.so);
@@ -5876,7 +5879,7 @@ function Credit() {
         <Stat label="ลูกค้าที่เกินวงเงิน" value={blocked.length + " ราย"} tone={blocked.length ? "warn" : undefined} />
       </div>
 
-      <Card title="วงเงินเครดิต — เกินวงเงินคือห้ามเปิดใบสั่งขายใบถัดไป">
+      <Card title="วงเงินเครดิต" subtitle="ลูกค้าที่ใช้เกินวงเงินจะเปิดใบสั่งขายใบถัดไปไม่ได้">
         <table className="w-full text-sm">
           <Head cols={[{ k: "ลูกค้า" }, { k: "เงื่อนไขชำระ" }, { k: "วงเงิน", right: true }, { k: "ใช้ไป", right: true }, { k: "เหลือ", right: true }, { k: "การใช้วงเงิน" }, { k: "ผล" }]} />
           <tbody className="divide-y divide-slate-100">
@@ -6474,11 +6477,14 @@ export function Reveal({
 
 export function Card({
   title,
+  subtitle,
   action,
   children,
   className = "",
 }: {
   title?: ReactNode;
+  /** What the card is for, set below the name in a lighter weight. */
+  subtitle?: ReactNode;
   action?: ReactNode;
   children: ReactNode;
   className?: string;
@@ -6487,8 +6493,11 @@ export function Card({
     <div className={"overflow-hidden " + SURFACE + " " + className}>
       {(title || action) && (
         <div className="flex items-center justify-between gap-3 border-b border-slate-100 px-4 py-3 dark:border-slate-800">
-          <div className="min-w-0 text-[13.5px] font-semibold text-slate-800 dark:text-slate-100">
-            {title}
+          <div className="min-w-0">
+            <div className="text-[13.5px] font-semibold text-slate-800 dark:text-slate-100">{title}</div>
+            {subtitle && (
+              <p className="mt-0.5 text-[11.5px] leading-snug text-slate-500 dark:text-slate-400">{subtitle}</p>
+            )}
           </div>
           {action}
         </div>
@@ -7803,7 +7812,7 @@ function Putaway() {
         <Stat label="ช่องพักรับของ" value={BINS.filter((b) => b.type === "REC").length + " ช่อง"} />
       </div>
 
-      <Card title="ใบสั่งจัดเก็บ — ระบบเสนอช่องให้จากพื้นที่ที่ยังรับน้ำหนักไหว">
+      <Card title="ใบสั่งจัดเก็บ" subtitle="ระบบเสนอช่องเก็บจากพื้นที่ที่ยังรับน้ำหนักได้">
         <table className="w-full text-sm">
           <Head cols={[{ k: "เลขที่" }, { k: "วัสดุ" }, { k: "จำนวน", right: true }, { k: "จากช่องพัก" }, { k: "ช่องที่เสนอ" }, { k: "สถานะ" }, { k: "" }]} />
           <tbody className="divide-y divide-slate-100">
@@ -7858,7 +7867,7 @@ function Picking() {
         <Stat label="ช่องที่ต้องเดินผ่าน" value={new Set(waiting.map((j) => j.bin)).size + " ช่อง"} />
       </div>
 
-      <Card title="ใบสั่งหยิบ — เรียงตามลำดับช่องเพื่อเดินทางเดียวจบ">
+      <Card title="ใบสั่งหยิบ" subtitle="เรียงตามลำดับช่องเก็บ เพื่อให้เดินหยิบรอบเดียวจบ">
         <table className="w-full text-sm">
           <Head cols={[{ k: "ลำดับเดิน" }, { k: "เลขที่" }, { k: "อ้างถึง" }, { k: "วัสดุ" }, { k: "จำนวน", right: true }, { k: "หยิบจากช่อง" }, { k: "ไปพักที่" }, { k: "สถานะ" }, { k: "" }]} />
           <tbody className="divide-y divide-slate-100">
@@ -7926,7 +7935,7 @@ function Counting() {
         <Stat label="ผลต่างเป็นเงิน" value={(value >= 0 ? "+" : "") + baht(value)} tone={value < 0 ? "warn" : undefined} />
       </div>
 
-      <Card title="ผลตรวจนับ — นับจริงเทียบกับที่ระบบบอก">
+      <Card title="ผลตรวจนับ" subtitle="เทียบจำนวนที่นับได้จริงกับจำนวนที่ระบบบันทึกไว้">
         <table className="w-full text-sm">
           <Head cols={[{ k: "ช่องเก็บ" }, { k: "วัสดุ" }, { k: "ระบบบอก", right: true }, { k: "นับได้จริง", right: true }, { k: "ผลต่าง", right: true }, { k: "เป็นเงิน", right: true }, { k: "ผู้นับ" }, { k: "วันที่" }]} />
           <tbody className="divide-y divide-slate-100">

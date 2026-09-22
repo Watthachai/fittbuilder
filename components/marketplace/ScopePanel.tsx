@@ -43,7 +43,7 @@ export default function ScopePanel({
 
         {systems.length === 0 ? (
           <p className="mt-2.5 text-[12.5px] leading-relaxed text-chalk/50">
-            ยังไม่ได้เลือกระบบ กด “ลองใช้ทั้งระบบ” เพื่อเข้าไปใช้ของจริงก่อน หรือ “เพิ่มลงขอบเขต” เมื่อตัดสินใจแล้ว
+            ยังไม่ได้เลือกระบบไว้ กด “ลองใช้ทั้งระบบ” เพื่อเข้าไปใช้งานดูก่อน แล้วกด “เพิ่มลงขอบเขต” เมื่อตัดสินใจแล้ว
           </p>
         ) : (
           <>
@@ -73,11 +73,11 @@ export default function ScopePanel({
 
             <dl className="mt-3 space-y-1 border-t border-chalk/10 pt-3 text-[12.5px]">
               <div className="flex justify-between">
-                <dt className="text-chalk/60">แรงงานรวม</dt>
+                <dt className="text-chalk/60">รวมเวลาพัฒนา</dt>
                 <dd className="font-semibold tabular-nums text-chalk">{days} วัน</dd>
               </div>
               <div className="flex justify-between">
-                <dt className="text-chalk/60">ดูแลรายเดือน</dt>
+                <dt className="text-chalk/60">ค่าดูแลรายเดือน</dt>
                 <dd className="font-semibold tabular-nums text-chalk">{ma.toLocaleString("th-TH")} บาท</dd>
               </div>
             </dl>
@@ -98,7 +98,11 @@ export default function ScopePanel({
         >
           {busy ? "กำลังสร้าง…" : "สร้างโปรเจกต์จากขอบเขตนี้"}
         </button>
-        <p className="mt-2 text-center text-[11.5px] text-chalk/40">โค้ดพร้อมอยู่แล้ว ไม่ต้องรอ AI เขียน</p>
+        {systems.length > 0 && (
+          <p className="mt-2 text-center text-[11.5px] leading-snug text-chalk/40">
+            ระบบที่เลือกไว้จะถูกคัดลอกเข้าโปรเจกต์ใหม่ แก้ไขต่อได้ทันที
+          </p>
+        )}
       </div>
     </aside>
   );

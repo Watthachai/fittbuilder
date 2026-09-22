@@ -38,9 +38,9 @@ export default function Storefront() {
     const name = FAMILIES.find((f) => f.id === family)!.name;
     setNote(
       pulled.length > 0
-        ? `เพิ่มระบบ${name}แล้ว — พ่วงระบบ${pulled
+        ? `เพิ่มระบบ${name}แล้ว พร้อมกับระบบ${pulled
             .map((f) => FAMILIES.find((x) => x.id === f)!.name)
-            .join(" และ ")}มาด้วย เพราะต้องอ่านข้อมูลจากตรงนั้น`
+            .join(" และ ")} ซึ่งระบบนี้ต้องอ่านข้อมูลจากที่นั่น`
         : `เพิ่มระบบ${name}แล้ว`
     );
   };
@@ -61,7 +61,7 @@ export default function Storefront() {
             <div className="min-w-0">
               <h1 className="font-display text-[15px] font-semibold text-chalk">มาร์เก็ตเพลสระบบ</h1>
               <p className="truncate text-[12px] text-chalk/50">
-                {FAMILIES.length} ระบบสำเร็จรูป {MODULES.length} ส่วนประกอบ เขียนเสร็จแล้ว ลองใช้ของจริงได้ก่อนเลือก
+                ระบบสำเร็จรูป {FAMILIES.length} ระบบ รวม {MODULES.length} ส่วนประกอบ เข้าไปลองใช้งานได้ก่อนตัดสินใจ
               </p>
             </div>
           </div>
@@ -71,7 +71,7 @@ export default function Storefront() {
       <div className="mx-auto max-w-6xl px-5 py-6">
         <div className="mb-5 flex flex-wrap items-center gap-2">
           <p className="text-[12.5px] text-chalk/45">
-            ซื้อและทดลองเป็นระบบ — ใครในบริษัทเห็นส่วนไหนของระบบ ตั้งเป็นสิทธิ์ทีหลังในระบบเอง
+            เลือกและทดลองใช้ทีละระบบ ส่วนเรื่องที่ว่าใครเห็นส่วนไหน ตั้งเป็นสิทธิ์ได้ภายหลังในตัวระบบ
           </p>
           <div className="relative ml-auto">
             <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-chalk/30" />
@@ -94,7 +94,7 @@ export default function Storefront() {
               <SystemCard key={f.id} family={f.id} inScope={scope.hasSystem(f.id)} onAdd={() => add(f.id)} />
             ))}
             {systems.length === 0 && (
-              <p className="py-10 text-center text-[13px] text-chalk/40">ไม่มีระบบที่ตรงกับ “{q}”</p>
+              <p className="py-10 text-center text-[13px] text-chalk/40">ไม่พบระบบที่ตรงกับ “{q}”</p>
             )}
           </div>
 

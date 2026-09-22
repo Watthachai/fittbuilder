@@ -69,7 +69,7 @@ function MasterData() {
         <Stat label="ต้นทุนรวมต่อหน่วย" value={baht(cost.total)} />
       </div>
 
-      <Card title="สูตรการผลิต — ผลิตหนึ่งหน่วยใช้อะไรบ้าง">
+      <Card title="สูตรการผลิต" subtitle="ผลิตหนึ่งหน่วยต้องใช้วัสดุอะไรบ้าง">
         <table className="w-full text-sm">
           <Head cols={[{ k: "วัสดุ" }, { k: "ใช้ต่อหน่วย", right: true }, { k: "ราคาวัสดุ", right: true }, { k: "เป็นเงิน", right: true }]} />
           <tbody className="divide-y divide-slate-100">
@@ -138,7 +138,7 @@ function Mrp() {
         </table>
       </Card>
 
-      <Card title="กางสูตรแล้วหักสต็อก — ที่เหลือคือของที่ต้องเปิดใบขอซื้อ">
+      <Card title="กางสูตรแล้วหักสต็อก" subtitle="ส่วนที่ยังขาดคือของที่ต้องเปิดใบขอซื้อ">
         <table className="w-full text-sm">
           <Head cols={[{ k: "วัสดุ" }, { k: "ต้องใช้", right: true }, { k: "มีในคลัง", right: true }, { k: "ต้องซื้อเพิ่ม", right: true }, { k: "เป็นเงิน", right: true }]} />
           <tbody className="divide-y divide-slate-100">
@@ -174,7 +174,7 @@ function Capacity() {
         <Stat label="ศูนย์งานที่เกินกำลัง" value={over.length + " แห่ง"} tone={over.length ? "warn" : undefined} />
       </div>
 
-      <Card title="ภาระงานเทียบกำลังการผลิต — เกิน 100% ต้องเลื่อนใบสั่งผลิตหรือเพิ่มกะ">
+      <Card title="ภาระงานเทียบกำลังการผลิต" subtitle="ศูนย์งานที่เกิน 100% ต้องเลื่อนใบสั่งผลิตออกไปหรือเพิ่มกะ">
         <table className="w-full text-sm">
           <Head cols={[{ k: "ศูนย์งาน" }, { k: "กำลังต่อสัปดาห์", right: true }, { k: "ถูกจองแล้ว", right: true }, { k: "การใช้กำลัง" }, { k: "ผล" }]} />
           <tbody className="divide-y divide-slate-100">

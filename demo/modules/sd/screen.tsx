@@ -70,7 +70,7 @@ function Customers() {
           {channels.map((c) => <option key={c}>{c}</option>)}
         </select>
       </div>
-      <Card title={"แฟ้มลูกค้า — " + rows.length + " ราย"}>
+      <Card title="แฟ้มลูกค้า" subtitle={rows.length + " ราย"}>
         <table className="w-full text-sm">
           <Head cols={[{ k: "รหัส" }, { k: "ชื่อลูกค้า" }, { k: "ผู้ติดต่อ" }, { k: "ช่องทาง" }, { k: "เงื่อนไขชำระ" }, { k: "จังหวัด" }, { k: "เลขผู้เสียภาษี" }]} />
           <tbody className="divide-y divide-slate-100">
@@ -277,7 +277,7 @@ function Billing() {
       </Card>
 
       {shippedNotBilled.length > 0 && (
-        <Card title="ส่งของแล้วแต่ยังไม่ได้ออกใบแจ้งหนี้ — เงินยังไม่เข้า">
+        <Card title="ส่งของแล้วแต่ยังไม่ได้ออกใบแจ้งหนี้" subtitle="ของออกจากคลังไปแล้ว แต่ยังไม่กลายเป็นรายได้จนกว่าจะออกใบแจ้งหนี้">
           <ul className="divide-y divide-slate-100">
             {shippedNotBilled.map((d) => {
               const so = orderNo(d.so);
@@ -306,7 +306,7 @@ function Credit() {
         <Stat label="ลูกค้าที่เกินวงเงิน" value={blocked.length + " ราย"} tone={blocked.length ? "warn" : undefined} />
       </div>
 
-      <Card title="วงเงินเครดิต — เกินวงเงินคือห้ามเปิดใบสั่งขายใบถัดไป">
+      <Card title="วงเงินเครดิต" subtitle="ลูกค้าที่ใช้เกินวงเงินจะเปิดใบสั่งขายใบถัดไปไม่ได้">
         <table className="w-full text-sm">
           <Head cols={[{ k: "ลูกค้า" }, { k: "เงื่อนไขชำระ" }, { k: "วงเงิน", right: true }, { k: "ใช้ไป", right: true }, { k: "เหลือ", right: true }, { k: "การใช้วงเงิน" }, { k: "ผล" }]} />
           <tbody className="divide-y divide-slate-100">

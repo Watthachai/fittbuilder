@@ -74,11 +74,14 @@ export function Reveal({
 
 export function Card({
   title,
+  subtitle,
   action,
   children,
   className = "",
 }: {
   title?: ReactNode;
+  /** What the card is for, set below the name in a lighter weight. */
+  subtitle?: ReactNode;
   action?: ReactNode;
   children: ReactNode;
   className?: string;
@@ -87,8 +90,11 @@ export function Card({
     <div className={"overflow-hidden " + SURFACE + " " + className}>
       {(title || action) && (
         <div className="flex items-center justify-between gap-3 border-b border-slate-100 px-4 py-3 dark:border-slate-800">
-          <div className="min-w-0 text-[13.5px] font-semibold text-slate-800 dark:text-slate-100">
-            {title}
+          <div className="min-w-0">
+            <div className="text-[13.5px] font-semibold text-slate-800 dark:text-slate-100">{title}</div>
+            {subtitle && (
+              <p className="mt-0.5 text-[11.5px] leading-snug text-slate-500 dark:text-slate-400">{subtitle}</p>
+            )}
           </div>
           {action}
         </div>

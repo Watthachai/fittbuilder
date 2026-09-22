@@ -49,8 +49,8 @@ function Panel({ title, body, children }: { title: string; body: string; childre
 function NoAccess({ name }: { name: string }) {
   return (
     <Panel
-      title="สิทธิ์ของคุณไม่ครอบคลุมโมดูลนี้"
-      body={`บัญชีที่เข้าใช้งานอยู่เปิด${name}ไม่ได้ ออกจากระบบแล้วเข้าใหม่ด้วยฝ่ายที่มีสิทธิ์เพื่อดูหน้านี้`}
+      title="ไม่มีสิทธิ์เปิดส่วนนี้"
+      body={`บัญชีที่เข้าใช้งานอยู่ยังเปิด${name}ไม่ได้ ออกจากระบบแล้วเข้าใหม่ด้วยฝ่ายที่มีสิทธิ์จึงจะเห็นหน้านี้`}
     >
       <Link
         href="/erp"
@@ -63,5 +63,5 @@ function NoAccess({ name }: { name: string }) {
 }
 
 function NotFound({ id }: { id: string }) {
-  return <Panel title="ไม่มีโมดูลนี้" body={`ไม่พบโมดูลรหัส ${id} ในระบบ`} />;
+  return <Panel title="ไม่พบส่วนนี้" body={`ไม่มีโมดูลรหัส ${id} อยู่ในระบบ`} />;
 }

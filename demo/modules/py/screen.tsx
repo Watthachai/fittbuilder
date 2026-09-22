@@ -197,10 +197,10 @@ function Statutory() {
         <Stat label="สมทบนายจ้าง" value={baht(sso)} />
         <Stat label="ภาษีหัก ณ ที่จ่าย" value={baht(tax)} />
       </div>
-      <Card>
-        <div className="border-b border-slate-100 px-4 py-3 text-sm font-medium text-slate-800">
-          รายการนำส่ง — ประกันสังคม {SSO_RATE * 100}% ของเงินเดือน สูงสุด {SSO_CAP} ฿ · กองทุนสำรองเลี้ยงชีพรวม {baht(pvd)}
-        </div>
+      <Card
+        title="รายการนำส่ง"
+        subtitle={`ประกันสังคม ${SSO_RATE * 100}% ของเงินเดือน สูงสุด ${SSO_CAP} บาท · กองทุนสำรองเลี้ยงชีพรวม ${baht(pvd)}`}
+      >
         <table className="w-full text-sm">
           <thead className="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
             <tr>

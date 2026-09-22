@@ -113,7 +113,7 @@ function Putaway() {
         <Stat label="ช่องพักรับของ" value={BINS.filter((b) => b.type === "REC").length + " ช่อง"} />
       </div>
 
-      <Card title="ใบสั่งจัดเก็บ — ระบบเสนอช่องให้จากพื้นที่ที่ยังรับน้ำหนักไหว">
+      <Card title="ใบสั่งจัดเก็บ" subtitle="ระบบเสนอช่องเก็บจากพื้นที่ที่ยังรับน้ำหนักได้">
         <table className="w-full text-sm">
           <Head cols={[{ k: "เลขที่" }, { k: "วัสดุ" }, { k: "จำนวน", right: true }, { k: "จากช่องพัก" }, { k: "ช่องที่เสนอ" }, { k: "สถานะ" }, { k: "" }]} />
           <tbody className="divide-y divide-slate-100">
@@ -168,7 +168,7 @@ function Picking() {
         <Stat label="ช่องที่ต้องเดินผ่าน" value={new Set(waiting.map((j) => j.bin)).size + " ช่อง"} />
       </div>
 
-      <Card title="ใบสั่งหยิบ — เรียงตามลำดับช่องเพื่อเดินทางเดียวจบ">
+      <Card title="ใบสั่งหยิบ" subtitle="เรียงตามลำดับช่องเก็บ เพื่อให้เดินหยิบรอบเดียวจบ">
         <table className="w-full text-sm">
           <Head cols={[{ k: "ลำดับเดิน" }, { k: "เลขที่" }, { k: "อ้างถึง" }, { k: "วัสดุ" }, { k: "จำนวน", right: true }, { k: "หยิบจากช่อง" }, { k: "ไปพักที่" }, { k: "สถานะ" }, { k: "" }]} />
           <tbody className="divide-y divide-slate-100">
@@ -236,7 +236,7 @@ function Counting() {
         <Stat label="ผลต่างเป็นเงิน" value={(value >= 0 ? "+" : "") + baht(value)} tone={value < 0 ? "warn" : undefined} />
       </div>
 
-      <Card title="ผลตรวจนับ — นับจริงเทียบกับที่ระบบบอก">
+      <Card title="ผลตรวจนับ" subtitle="เทียบจำนวนที่นับได้จริงกับจำนวนที่ระบบบันทึกไว้">
         <table className="w-full text-sm">
           <Head cols={[{ k: "ช่องเก็บ" }, { k: "วัสดุ" }, { k: "ระบบบอก", right: true }, { k: "นับได้จริง", right: true }, { k: "ผลต่าง", right: true }, { k: "เป็นเงิน", right: true }, { k: "ผู้นับ" }, { k: "วันที่" }]} />
           <tbody className="divide-y divide-slate-100">

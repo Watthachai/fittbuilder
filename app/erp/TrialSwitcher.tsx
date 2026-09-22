@@ -62,7 +62,7 @@ export default function TrialSwitcher({ trial, licensed }: { trial: ModuleFamily
             <span className="min-w-0">
               <span className="block text-[12.5px] font-medium text-slate-800 dark:text-slate-100">ดูทุกระบบ</span>
               <span className="block text-[11px] text-slate-500 dark:text-slate-400">
-                {licensed.length} ส่วนที่สิทธิ์นี้เปิดได้ ทำงานเชื่อมกัน
+                เปิดได้ {licensed.length} ส่วน ทุกส่วนทำงานเชื่อมถึงกัน
               </span>
             </span>
           </Link>

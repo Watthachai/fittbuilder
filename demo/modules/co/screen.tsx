@@ -62,7 +62,7 @@ function CostCenters({ onOpen }: { onOpen: (cc: CostCentre) => void }) {
         />
       </div>
 
-      <Card title="ศูนย์ต้นทุน — ยอดใช้จริงกระจายมาจากบัญชีค่าใช้จ่ายตามสัดส่วนที่ประกาศไว้">
+      <Card title="ศูนย์ต้นทุน" subtitle="ยอดใช้จริงกระจายมาจากบัญชีค่าใช้จ่ายตามสัดส่วนที่ประกาศไว้">
         <table className="w-full text-sm">
           <Head cols={[{ k: "รหัส" }, { k: "ศูนย์ต้นทุน" }, { k: "ผู้รับผิดชอบ" }, { k: "ศูนย์กำไร" }, { k: "งบ", right: true }, { k: "ใช้จริง", right: true }, { k: "ต่าง", right: true }, { k: "การใช้งบ" }, { k: "" }]} />
           <tbody className="divide-y divide-slate-100">
@@ -113,7 +113,7 @@ function InternalOrders() {
         <Stat label="งานที่ใช้เกินงบ" value={over.length + " งาน"} tone={over.length ? "bad" : undefined} />
       </div>
 
-      <Card title="คำสั่งงานภายใน — เก็บค่าใช้จ่ายของงานชั่วคราวแยกจากงบประจำ">
+      <Card title="คำสั่งงานภายใน" subtitle="เก็บค่าใช้จ่ายของงานชั่วคราวแยกออกจากงบประจำ">
         <table className="w-full text-sm">
           <Head cols={[{ k: "เลขที่" }, { k: "ชื่องาน" }, { k: "ศูนย์ต้นทุน" }, { k: "เปิดงาน" }, { k: "งบ", right: true }, { k: "ใช้ไป", right: true }, { k: "คงเหลือ", right: true }, { k: "สถานะ" }]} />
           <tbody className="divide-y divide-slate-100">
@@ -303,7 +303,7 @@ function ProfitCenters() {
         />
       </div>
 
-      <Card title="ศูนย์กำไร — กำไรขั้นต้นที่ช่องทางนำมาให้ ลบค่าใช้จ่ายทางอ้อมของศูนย์ต้นทุนที่สังกัดอยู่">
+      <Card title="ศูนย์กำไร" subtitle="กำไรขั้นต้นที่แต่ละช่องทางทำได้ หักด้วยค่าใช้จ่ายทางอ้อมของศูนย์ต้นทุนที่สังกัด">
         <table className="w-full text-sm">
           <Head cols={[{ k: "ศูนย์กำไร" }, { k: "ศูนย์ต้นทุนที่สังกัด" }, { k: "รายได้", right: true }, { k: "ต้นทุนสินค้า", right: true }, { k: "กำไรขั้นต้น", right: true }, { k: "ทางอ้อมที่ปันเข้า", right: true }, { k: "คิดกลับเข้าต้นทุนแล้ว", right: true }, { k: "ผลการดำเนินงาน", right: true }]} />
           <tbody className="divide-y divide-slate-100">
@@ -329,8 +329,8 @@ function ProfitCenters() {
 
       <div className={"rounded-xl px-4 py-3.5 text-sm " + (tiesOut ? "bg-emerald-50 text-emerald-800" : "bg-amber-50 text-amber-800")}>
         {tiesOut
-          ? "ผลรวมของทุกศูนย์กำไร " + baht(total) + " ตรงกับ" + (company >= 0 ? "กำไร" : "ขาดทุน") + "สุทธิในงบการเงิน — ปันส่วนครบ ไม่มีค่าใช้จ่ายตกหล่นหรือนับซ้ำ"
-          : "ผลรวมของทุกศูนย์กำไร " + baht(total) + " ต่างจากงบการเงิน " + baht(Math.abs(total - company)) + " — ตรวจสัดส่วนการปันส่วน"}
+          ? "ผลรวมของทุกศูนย์กำไร " + baht(total) + " ตรงกับ" + (company >= 0 ? "กำไร" : "ขาดทุน") + "สุทธิในงบการเงิน ปันส่วนครบถ้วน ไม่มีค่าใช้จ่ายตกหล่นหรือนับซ้ำ"
+          : "ผลรวมของทุกศูนย์กำไร " + baht(total) + " ต่างจากงบการเงิน " + baht(Math.abs(total - company)) + " ควรตรวจสัดส่วนการปันส่วนอีกครั้ง"}
       </div>
     </div>
   );

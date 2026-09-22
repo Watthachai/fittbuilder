@@ -76,7 +76,7 @@ export default function SystemDetail({ family }: { family: ModuleFamily }) {
             <section className="mt-8 space-y-3">
               <h2 className="font-display text-[14px] font-semibold text-chalk">ส่วนประกอบและความสามารถ</h2>
               <p className="-mt-2 text-[12.5px] text-chalk/45">
-                แต่ละส่วนคือหน่วยที่ตั้งสิทธิ์ได้ — ฝ่ายไหนเห็นส่วนไหน กำหนดในระบบเอง
+                แต่ละส่วนเป็นหน่วยที่ตั้งสิทธิ์ได้ กำหนดในระบบได้ว่าฝ่ายไหนเห็นส่วนใดบ้าง
               </p>
               {parts.map((m) => (
                 <div key={m.id} className="overflow-hidden rounded-xl border border-chalk/12 bg-night-panel">
@@ -114,7 +114,7 @@ export default function SystemDetail({ family }: { family: ModuleFamily }) {
               <div className="rounded-xl border border-chalk/12 bg-night-panel p-4">
                 <h3 className="text-[13px] font-medium text-chalk">อ่านข้อมูลจากระบบ</h3>
                 {needs.length === 0 ? (
-                  <p className="mt-1 text-[12.5px] text-chalk/45">ไม่ต้องพึ่งระบบอื่น ซื้อแยกได้</p>
+                  <p className="mt-1 text-[12.5px] text-chalk/45">ระบบนี้ทำงานได้ด้วยตัวเอง ไม่ต้องมีระบบอื่นประกอบ</p>
                 ) : (
                   <ul className="mt-1.5 space-y-1">
                     {needs.map((f) => (
@@ -133,7 +133,7 @@ export default function SystemDetail({ family }: { family: ModuleFamily }) {
               <div className="rounded-xl border border-chalk/12 bg-night-panel p-4">
                 <h3 className="text-[13px] font-medium text-chalk">ระบบที่อ่านต่อจากระบบนี้</h3>
                 {neededBy.length === 0 ? (
-                  <p className="mt-1 text-[12.5px] text-chalk/45">ยังไม่มีระบบไหนอ่านต่อ</p>
+                  <p className="mt-1 text-[12.5px] text-chalk/45">ยังไม่มีระบบอื่นที่อ่านข้อมูลต่อจากระบบนี้</p>
                 ) : (
                   <ul className="mt-1.5 space-y-1">
                     {neededBy.map((f) => (

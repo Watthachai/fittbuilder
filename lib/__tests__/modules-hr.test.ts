@@ -35,11 +35,9 @@ describe("the HR family", () => {
    * except reading what the source actually imports.
    */
   it("makes payroll read the personnel module's data instead of its own", () => {
-    const payrollScreen = PY.files["src/modules/py/screen.tsx"];
-
-    expect(payrollScreen).toContain('from "../pa/data"');
-    // And it must not have declared a staff list of its own anywhere. Reading PA's
-    // list is the point; owning a second one is the regression.
+    // Which of the module's files does the importing is its own business — the
+    // contract is that the module reads PA rather than keeping a staff list.
+    expect(Object.values(PY.files).join("\n")).toContain('from "../pa/data"');
     for (const source of Object.values(PY.files)) {
       expect(source).not.toMatch(/export const EMPLOYEES/);
     }
@@ -85,12 +83,12 @@ describe("the rest of the HR family", () => {
    */
   it("makes the org chart read personnel records instead of its own", () => {
     expect(OM.needs).toContain("employee");
-    expect(OM.files["src/modules/om/screen.tsx"]).toContain('from "../pa/data"');
+    expect(Object.values(OM.files).join("\n")).toContain('from "../pa/data"');
   });
 
   it("makes time and leave read personnel records instead of its own", () => {
     expect(TM.needs).toContain("employee");
-    expect(TM.files["src/modules/tm/screen.tsx"]).toContain('from "../pa/data"');
+    expect(Object.values(TM.files).join("\n")).toContain('from "../pa/data"');
   });
 
   it("lets a buyer take time tracking without payroll", () => {

@@ -2,9 +2,9 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
-  Banknote, Bell, Boxes, ChevronRight, ChevronsLeft, Clock, Factory,
+  Banknote, Bell, Boxes, ChevronRight, ChevronsLeft, Clock, Factory, Grid3x3,
   LayoutGrid, Moon, PanelsTopLeft, Search, Ship, Sun, Truck, Users, Warehouse,
 } from "lucide-react";
 import { FAMILIES, MODULES, modulesOf } from "@/lib/modules/registry";
@@ -50,6 +50,17 @@ export default function ErpShell({ children }: { children: React.ReactNode }) {
   const [bell, setBell] = useState(false);
   const router = useRouter();
   const pathname = usePathname();
+  const params = useSearchParams();
+
+  /**
+   * `?only=` is a trial of one module, arriving from the marketplace.
+   *
+   * Someone who clicked "ลองใช้" on a listing is evaluating that product, not
+   * shopping the whole suite — a sidebar of ten modules answers a question they
+   * did not ask and hides the one they did. The parameter narrows what is listed;
+   * it is not a permission, which the role already decides.
+   */
+  const only = params.get("only");
 
   useEffect(() => {
     setRole(readSession());
@@ -81,11 +92,16 @@ export default function ErpShell({ children }: { children: React.ReactNode }) {
   const current = MODULES.find((m) => m.id === segments[1]);
   const sectionAt = segments[2] ? Number(segments[2]) : undefined;
 
-  const open = useMemo(
+  const licensed = useMemo(
     () => (role ? MODULES.filter((m) => role.families.includes(m.family)) : []),
     [role]
   );
+  const trial = only ? licensed.find((m) => m.id === only) : undefined;
+  const open = trial ? [trial] : licensed;
   const alerts = useMemo(() => alertsFor(open), [open]);
+
+  /** Every in-shell link keeps the trial, or one click would widen it silently. */
+  const keep = (href: string) => (trial ? `${href}?only=${trial.id}` : href);
 
   // Nothing renders until the stored session has been read, or a signed-in
   // viewer would see the login form flash on every navigation.
@@ -130,7 +146,7 @@ export default function ErpShell({ children }: { children: React.ReactNode }) {
         }
       >
         <Link
-          href="/erp"
+          href={keep("/erp")}
           className="flex items-center gap-2.5 border-b border-slate-100 px-4 py-4 dark:border-slate-800"
         >
           <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-sky-600 text-[13px] font-bold text-white">
@@ -149,20 +165,20 @@ export default function ErpShell({ children }: { children: React.ReactNode }) {
         </Link>
 
         <nav className="min-h-0 flex-1 overflow-y-auto px-2 py-3">
-          {FAMILIES.filter((f) => role.families.includes(f.id)).map((family) => (
+          {FAMILIES.filter((f) => open.some((m) => m.family === f.id)).map((family) => (
             <div key={family.id} className="mb-4">
               {!rail && (
                 <p className="px-2 pb-1.5 text-[11px] font-medium uppercase tracking-wide text-slate-400 dark:text-slate-500">
                   {family.name}
                 </p>
               )}
-              {modulesOf(family.id).map((m) => {
+              {modulesOf(family.id).filter((m) => open.some((o) => o.id === m.id)).map((m) => {
                 const on = current?.id === m.id;
                 const Icon = ICONS[m.id] ?? LayoutGrid;
                 return (
                   <div key={m.id}>
                     <Link
-                      href={`/erp/${m.id}`}
+                      href={keep(`/erp/${m.id}`)}
                       title={rail ? m.name : undefined}
                       className={
                         "flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] transition " +
@@ -186,11 +202,11 @@ export default function ErpShell({ children }: { children: React.ReactNode }) {
                         expanded at once is a wall of fifty links nobody reads. */}
                     {on && !rail && (
                       <ul className="mb-1 ml-[18px] border-l border-slate-200 pl-2 dark:border-slate-800">
-                        <SubLink href={`/erp/${m.id}`} active={!sectionAt} label="ภาพรวม" />
+                        <SubLink href={keep(`/erp/${m.id}`)} active={!sectionAt} label="ภาพรวม" />
                         {m.keyFeatures.map((feature, i) => (
                           <SubLink
                             key={feature}
-                            href={`/erp/${m.id}/${i + 1}`}
+                            href={keep(`/erp/${m.id}/${i + 1}`)}
                             active={sectionAt === i + 1}
                             label={feature}
                           />
@@ -247,14 +263,17 @@ export default function ErpShell({ children }: { children: React.ReactNode }) {
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="flex items-center gap-3 border-b border-slate-200 bg-white px-5 py-2.5 dark:border-slate-800 dark:bg-slate-900">
           <nav aria-label="เส้นทาง" className="flex min-w-0 items-center gap-1 text-[12.5px]">
-            <Link href="/erp" className="shrink-0 text-slate-400 transition hover:text-sky-600 dark:text-slate-500">
-              หน้าแรก
+            <Link
+              href={keep("/erp")}
+              className="shrink-0 text-slate-400 transition hover:text-sky-600 dark:text-slate-500"
+            >
+              {trial ? "ทดลองใช้" : "หน้าแรก"}
             </Link>
             {current && (
               <>
                 <ChevronRight size={13} className="shrink-0 text-slate-300 dark:text-slate-600" />
                 <Link
-                  href={`/erp/${current.id}`}
+                  href={keep(`/erp/${current.id}`)}
                   className={
                     "shrink-0 transition hover:text-sky-600 " +
                     (sectionName ? "text-slate-400 dark:text-slate-500" : "font-medium text-slate-800 dark:text-slate-100")
@@ -352,7 +371,17 @@ export default function ErpShell({ children }: { children: React.ReactNode }) {
             {theme === "dark" ? <Sun size={14} /> : <Moon size={14} />}
           </button>
 
-          <TakeProject role={role} />
+          {trial && (
+            <Link
+              href="/erp"
+              className="hidden shrink-0 items-center gap-1.5 rounded-lg border border-sky-300 px-2.5 py-1.5 text-[12px] text-sky-700 transition hover:bg-sky-50 md:flex dark:border-sky-500/40 dark:text-sky-400 dark:hover:bg-sky-500/10"
+              title="ออกจากโหมดทดลองใช้แล้วดูทุกโมดูลที่สิทธิ์นี้เปิดได้"
+            >
+              <Grid3x3 size={13} />
+              ดูทั้งระบบ ({licensed.length})
+            </Link>
+          )}
+          <TakeProject role={role} only={trial ?? undefined} />
           <Link
             href="/"
             className="hidden shrink-0 rounded-lg border border-slate-200 px-3 py-1.5 text-[12px] text-slate-600 transition hover:border-sky-400 hover:text-sky-700 lg:block dark:border-slate-800 dark:text-slate-300"

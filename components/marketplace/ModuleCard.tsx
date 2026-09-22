@@ -71,7 +71,7 @@ export default function ModuleCard({
 
       <div className="mt-4 flex gap-2 border-t border-chalk/10 pt-3">
         <Link
-          href={`/erp/${m.id}`}
+          href={`/erp/${m.id}?only=${m.id}`}
           className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-chalk/15 py-2 text-[12.5px] text-chalk/75 transition hover:border-shine/60 hover:text-shine"
         >
           <PlayCircle size={14} />

@@ -57,6 +57,7 @@ and is kept in sync with the entries below.
 - Frosted-glass surfaces + Google-Stitch-style entrance animations across pages (projects, login, changelog, admin).
 
 ### Fixed
+- "ลองใช้" from a marketplace listing opened the whole suite. `?only=<id>` now narrows the shell to that one module — sidebar, command palette, alerts and the take-as-project action — and every in-shell link carries it so a capability click does not silently widen the trial. "ดูทั้งระบบ" leaves it. It is a view scope, not a permission: the role still decides what may be opened at all.
 - The new-employee form let you type one character per field. `Text` was declared inside `NewEmployee`, so every keystroke produced a new component type and React remounted the input, taking the caret with it. Declared at module scope.
 - An expired contract counted down past zero ("เหลือ -5 วัน"). It now reads as expired.
 

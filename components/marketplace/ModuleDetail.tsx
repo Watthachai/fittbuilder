@@ -70,7 +70,7 @@ export default function ModuleDetail({ id }: { id: string }) {
 
             <div className="mt-5 flex gap-2">
               <Link
-                href={`/erp/${m.id}`}
+                href={`/erp/${m.id}?only=${m.id}`}
                 className="flex items-center gap-1.5 rounded-lg border border-chalk/15 px-4 py-2.5 text-[13px] text-chalk/80 transition hover:border-shine/60 hover:text-shine"
               >
                 <PlayCircle size={15} />
@@ -104,7 +104,7 @@ export default function ModuleDetail({ id }: { id: string }) {
                     </span>
                     <span className="min-w-0 flex-1 text-[13px] text-chalk/85">{f}</span>
                     <Link
-                      href={`/erp/${m.id}/${i + 1}`}
+                      href={`/erp/${m.id}/${i + 1}?only=${m.id}`}
                       className="shrink-0 text-[12px] text-chalk/35 transition hover:text-shine"
                     >
                       เปิดดู

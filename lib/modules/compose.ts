@@ -174,7 +174,7 @@ export default function App() {
           </span>
         </header>
         <main className="min-h-0 flex-1 overflow-y-auto p-5 lg:p-6">
-          <Current section={section ?? undefined} />
+          <Current section={section ?? undefined} onOpenSection={(i) => setSection(current.sections[i])} />
         </main>
       </div>
     </div>

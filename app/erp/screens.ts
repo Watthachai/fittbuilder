@@ -11,7 +11,10 @@ import FiScreen from "@/demo/modules/fi/screen";
 import CoScreen from "@/demo/modules/co/screen";
 
 /** The same components the WebContainer build gets as text. */
-export const SCREENS: Record<string, ComponentType<{ section?: string }>> = {
+/** What a screen may be handed: which capability to show, and a way to move to another. */
+export type ScreenProps = { section?: string; onOpenSection?: (index: number) => void };
+
+export const SCREENS: Record<string, ComponentType<ScreenProps>> = {
   pa: PaScreen,
   om: OmScreen,
   tm: TmScreen,

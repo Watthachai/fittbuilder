@@ -981,3 +981,216 @@ export function Modal({
     </motion.div>
   );
 }
+
+/* ------------------------------------------------------------ colour keys */
+
+/**
+ * Hues that stay apart from one another, for things that are categories rather
+ * than states: departments, event kinds, tags. Picked by index so the same
+ * category is the same colour on every screen that draws it.
+ */
+export const PALETTE = [
+  { name: "violet", hex: "#7c3aed", dot: "bg-violet-500", tint: "bg-violet-50 text-violet-800 dark:bg-violet-500/15 dark:text-violet-200", ring: "ring-violet-300 dark:ring-violet-500/40" },
+  { name: "sky", hex: "#0ea5e9", dot: "bg-sky-500", tint: "bg-sky-50 text-sky-800 dark:bg-sky-500/15 dark:text-sky-200", ring: "ring-sky-300 dark:ring-sky-500/40" },
+  { name: "emerald", hex: "#10b981", dot: "bg-emerald-500", tint: "bg-emerald-50 text-emerald-800 dark:bg-emerald-500/15 dark:text-emerald-200", ring: "ring-emerald-300 dark:ring-emerald-500/40" },
+  { name: "amber", hex: "#f59e0b", dot: "bg-amber-500", tint: "bg-amber-50 text-amber-800 dark:bg-amber-500/15 dark:text-amber-200", ring: "ring-amber-300 dark:ring-amber-500/40" },
+  { name: "rose", hex: "#f43f5e", dot: "bg-rose-500", tint: "bg-rose-50 text-rose-800 dark:bg-rose-500/15 dark:text-rose-200", ring: "ring-rose-300 dark:ring-rose-500/40" },
+  { name: "teal", hex: "#14b8a6", dot: "bg-teal-500", tint: "bg-teal-50 text-teal-800 dark:bg-teal-500/15 dark:text-teal-200", ring: "ring-teal-300 dark:ring-teal-500/40" },
+  { name: "orange", hex: "#f97316", dot: "bg-orange-500", tint: "bg-orange-50 text-orange-800 dark:bg-orange-500/15 dark:text-orange-200", ring: "ring-orange-300 dark:ring-orange-500/40" },
+  { name: "indigo", hex: "#6366f1", dot: "bg-indigo-500", tint: "bg-indigo-50 text-indigo-800 dark:bg-indigo-500/15 dark:text-indigo-200", ring: "ring-indigo-300 dark:ring-indigo-500/40" },
+] as const;
+
+export type Swatch = (typeof PALETTE)[number];
+
+/** A stable swatch for a category name — the same name, the same colour, everywhere. */
+export function swatchFor(name: string, order?: readonly string[]): Swatch {
+  const i = order ? order.indexOf(name) : -1;
+  const idx = i >= 0 ? i : [...name].reduce((n, c) => n + c.charCodeAt(0), 0);
+  return PALETTE[idx % PALETTE.length];
+}
+
+/** A small outlined label in a category's colour — the "MARKETING" pill on a meeting card. */
+export function Tag({ swatch, children }: { swatch: Swatch; children: ReactNode }) {
+  return (
+    <span
+      className={
+        "inline-flex items-center rounded-full px-2 py-0.5 text-[10.5px] font-semibold uppercase tracking-wide ring-1 " +
+        swatch.tint +
+        " " +
+        swatch.ring
+      }
+    >
+      {children}
+    </span>
+  );
+}
+
+/** A card washed in a category's colour, so a list of mixed kinds reads at a glance. */
+export function TintCard({
+  swatch,
+  children,
+  className = "",
+}: {
+  swatch: Swatch;
+  children: ReactNode;
+  className?: string;
+}) {
+  return <div className={"rounded-2xl p-4 " + swatch.tint + " " + className}>{children}</div>;
+}
+
+/** A coloured dot, for a legend or a status. */
+export function Dot({ className }: { className: string }) {
+  return <span className={"inline-block size-2 shrink-0 rounded-full " + className} />;
+}
+
+/* ---------------------------------------------------------------- charts */
+
+const DEG = Math.PI / 180;
+
+/** Half a ring, filled to a fraction — the shape of "16 out of 20". */
+export function Gauge({
+  value,
+  max,
+  label,
+  hex = "#7c3aed",
+  size = 200,
+}: {
+  value: number;
+  max: number;
+  label: string;
+  hex?: string;
+  size?: number;
+}) {
+  const r = 78;
+  const cx = 100;
+  const cy = 96;
+  const arc = (a0: number, a1: number) => {
+    const x0 = cx + r * Math.cos(a0 * DEG);
+    const y0 = cy - r * Math.sin(a0 * DEG);
+    const x1 = cx + r * Math.cos(a1 * DEG);
+    const y1 = cy - r * Math.sin(a1 * DEG);
+    return `M ${x0} ${y0} A ${r} ${r} 0 ${a0 - a1 > 180 ? 1 : 0} 1 ${x1} ${y1}`;
+  };
+  const frac = max === 0 ? 0 : Math.max(0, Math.min(1, value / max));
+  return (
+    <div className="flex flex-col items-center">
+      <svg viewBox="0 0 200 110" width={size} height={size * 0.55} className="overflow-visible">
+        <path d={arc(180, 0)} fill="none" strokeWidth={16} strokeLinecap="round" className="stroke-slate-100 dark:stroke-slate-800" />
+        <motion.path
+          d={arc(180, 0)}
+          fill="none"
+          stroke={hex}
+          strokeWidth={16}
+          strokeLinecap="round"
+          pathLength={1}
+          strokeDasharray="1 1"
+          initial={{ strokeDashoffset: 1 }}
+          animate={{ strokeDashoffset: 1 - frac }}
+          transition={{ duration: 0.9, ease: EASE }}
+        />
+        <text x={cx} y={cy - 14} textAnchor="middle" className="fill-slate-900 dark:fill-slate-50" style={{ fontSize: 34, fontWeight: 600 }}>
+          {value}
+        </text>
+        <text x={cx} y={cy + 6} textAnchor="middle" className="fill-slate-400 dark:fill-slate-500" style={{ fontSize: 10.5, letterSpacing: 1 }}>
+          {label}
+        </text>
+      </svg>
+    </div>
+  );
+}
+
+/** A ring cut into categories, with the legend that gives the colours their names. */
+export function Donut({
+  segments,
+  center,
+  size = 150,
+  thickness = 18,
+}: {
+  segments: { label: string; value: number; swatch: Swatch }[];
+  center?: ReactNode;
+  size?: number;
+  thickness?: number;
+}) {
+  const total = segments.reduce((n, s) => n + s.value, 0);
+  const r = 50 - thickness / 2;
+  const C = 2 * Math.PI * r;
+  let offset = 0;
+  return (
+    <div className="flex items-center gap-5">
+      <div className="relative shrink-0" style={{ width: size, height: size }}>
+        <svg viewBox="0 0 100 100" width={size} height={size} className="-rotate-90">
+          <circle cx={50} cy={50} r={r} fill="none" strokeWidth={thickness} className="stroke-slate-100 dark:stroke-slate-800" />
+          {segments.map((s, i) => {
+            const len = total === 0 ? 0 : (s.value / total) * C;
+            const start = offset;
+            offset += len;
+            return (
+              <motion.circle
+                key={s.label}
+                cx={50}
+                cy={50}
+                r={r}
+                fill="none"
+                stroke={s.swatch.hex}
+                strokeWidth={thickness}
+                strokeDasharray={`${len} ${C}`}
+                strokeDashoffset={-start}
+                initial={{ opacity: 0, strokeDasharray: `0 ${C}` }}
+                animate={{ opacity: 1, strokeDasharray: `${len} ${C}` }}
+                transition={{ duration: 0.7, ease: EASE, delay: i * 0.08 }}
+              />
+            );
+          })}
+        </svg>
+        {center && <div className="absolute inset-0 grid place-items-center text-center">{center}</div>}
+      </div>
+      <ul className="min-w-0 flex-1 space-y-1.5">
+        {segments.map((s) => (
+          <li key={s.label} className="flex items-center gap-2 text-[12.5px]">
+            <Dot className={s.swatch.dot} />
+            <span className="min-w-0 flex-1 truncate text-slate-600 dark:text-slate-300">{s.label}</span>
+            <span className="tabular-nums text-slate-900 dark:text-slate-50">{s.value}</span>
+            <span className="w-9 text-right text-[11px] tabular-nums text-slate-400">
+              {total ? Math.round((s.value / total) * 100) : 0}%
+            </span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+/** A row of days with the chosen one filled and marks under days that carry something. */
+export function WeekStrip({
+  days,
+  active,
+  onPick,
+}: {
+  days: { date: string; dow: string; day: string; marked?: boolean }[];
+  active: string;
+  onPick: (date: string) => void;
+}) {
+  return (
+    <div className="flex gap-1.5">
+      {days.map((d) => {
+        const on = d.date === active;
+        return (
+          <button
+            key={d.date}
+            onClick={() => onPick(d.date)}
+            className={
+              "flex min-w-0 flex-1 flex-col items-center rounded-xl px-1 py-2 transition " +
+              (on
+                ? "bg-violet-600 text-white shadow-sm shadow-violet-600/25"
+                : "bg-slate-50 text-slate-600 hover:bg-slate-100 dark:bg-slate-800/60 dark:text-slate-300 dark:hover:bg-slate-800")
+            }
+          >
+            <span className={"text-[10.5px] " + (on ? "text-white/80" : "text-slate-400 dark:text-slate-500")}>{d.dow}</span>
+            <span className="text-[15px] font-semibold tabular-nums">{d.day}</span>
+            <span className={"mt-1 size-1 rounded-full " + (d.marked ? (on ? "bg-white" : "bg-violet-500") : "bg-transparent")} />
+          </button>
+        );
+      })}
+    </div>
+  );
+}

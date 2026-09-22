@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
 import { getModule } from "@/lib/modules/registry";
 import { SCREENS } from "../screens";
 import { mayOpen, readSession } from "../session";
@@ -15,6 +16,8 @@ import type { Role } from "../session";
 export default function ModuleView({ id, sectionIndex }: { id: string; sectionIndex?: number }) {
   const [role, setRole] = useState<Role | undefined>();
   const [ready, setReady] = useState(false);
+  const router = useRouter();
+  const params = useSearchParams();
 
   useEffect(() => {
     setRole(readSession());
@@ -22,12 +25,15 @@ export default function ModuleView({ id, sectionIndex }: { id: string; sectionIn
   }, []);
 
   const module = getModule(id);
+  // A trial stays a trial when the screen itself asks to move.
+  const suffix = params.get("system") ? `?system=${params.get("system")}` : "";
+  const openSection = (index: number) => router.push(`/erp/${id}/${index + 1}${suffix}`);
   const Screen = SCREENS[id];
   if (!module || !Screen) return <NotFound id={id} />;
   if (!ready) return null;
   if (!role || !mayOpen(role, module.id)) return <NoAccess name={module.name} />;
 
-  return <Screen section={sectionIndex === undefined ? undefined : module.keyFeatures[sectionIndex]} />;
+  return <Screen section={sectionIndex === undefined ? undefined : module.keyFeatures[sectionIndex]} onOpenSection={openSection} />;
 }
 
 function Panel({ title, body, children }: { title: string; body: string; children?: React.ReactNode }) {

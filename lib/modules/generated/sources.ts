@@ -2878,19 +2878,20 @@ export function byDepartment() {
 import type { ReactNode } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import {
-  Banknote, Briefcase, Building, Cake, CalendarClock, CalendarDays, CircleCheck, CircleDashed, CircleX,
-  Clock3, Contact, CreditCard, Ellipsis, FileText, Gift, Heart, Hourglass, IdCard, Landmark, Mail, MapPin,
-  MessageSquare, Phone, PiggyBank, Plus, ScanFace, Search as SearchIcon, Send, ShieldCheck, Sparkles,
+  ArrowRight, Banknote, Briefcase, Building, Cake, CalendarClock, CalendarDays, CircleCheck, CircleDashed,
+  CircleX, Clock3, Contact, CreditCard, Ellipsis, FileText, Gift, Heart, Hourglass, IdCard, Landmark, Mail,
+  MapPin, MessageSquare, Phone, PiggyBank, Plus, ScanFace, Search as SearchIcon, Send, ShieldCheck, Sparkles,
   TrendingUp, UserMinus, UserPlus, UserRound, Users, Wallet,
 } from "lucide-react";
 import {
   ACTIVITY, EMPLOYEES, EVENT_TYPES, GENDER, TODAY, ageOf, baht, daysBetween,
-  documentsOf, hiredIn, leftIn, tenureYears,
+  documentsOf, headcountTrend, hiredIn, leftIn, tenureYears, upcoming,
 } from "./data";
 import type { ActivityEntry, Employee, PersonnelEvent } from "./data";
 import {
-  Avatar, Badge, Button, Card, Chip, FIELD, IconButton, IconRow, Note, PageHead, Progress, Reveal,
-  Search, SectionTitle, Segmented, Select, StatStrip, Stepper, SURFACE, Tabs, Timeline, ViewToggle, enter,
+  Avatar, Badge, Button, Card, Chip, ColumnChart, Donut, Dot, FIELD, Gauge, IconButton, IconRow, Note,
+  PageHead, Progress, Reveal, Search, SectionTitle, Segmented, Select, StatStrip, Stepper, SURFACE, Tabs,
+  Tag, Timeline, TintCard, ViewToggle, WeekStrip, enter, swatchFor,
 } from "../ui";
 import { ConfirmDialog, DataTable, DetailModal, Drawer, Field, Wizard } from "../kit";
 import type { Column, Step } from "../kit";
@@ -2951,14 +2952,32 @@ const EMPTY: Draft = {
 };
 
 const DEPARTMENTS = [...new Set(EMPLOYEES.map((e) => e.department))];
+
+/**
+ * Colour keys. Departments take their swatch from catalogue order so ฝ่ายขาย is
+ * the same hue on the donut, the chip and the list; event kinds are ordered by
+ * hand so the alarming ones land on the alarming colours.
+ */
+const deptSwatch = (name: string) => swatchFor(name, DEPARTMENTS);
+const EVENT_ORDER = ["ปรับเงินเดือน", "ย้ายแผนก", "รับเข้าทำงาน", "ต่อสัญญา", "ลาออก", "เลื่อนตำแหน่ง"];
+const eventSwatch = (type: string) => swatchFor(type, EVENT_ORDER);
+const KIND_ORDER = ["ครบรอบการทำงาน", "", "", "ครบกำหนดทดลองงาน", "สัญญาหมดอายุ"];
+const kindSwatch = (kind: string) => swatchFor(kind, KIND_ORDER);
 const CONTRACT_TYPES = ["พนักงานประจำ", "สัญญาจ้าง 1 ปี", "พนักงานรายวัน", "พนักงานชั่วคราว"];
 const BANKS = ["กสิกรไทย", "ไทยพาณิชย์", "กรุงไทย", "กรุงเทพ", "กรุงศรีอยุธยา"];
 
 /* ----------------------------------------------------------------- screen */
 
-export default function PaScreen({ section }: { section?: string }) {
+export default function PaScreen({
+  section,
+  onOpenSection,
+}: {
+  section?: string;
+  /** The host's way of moving to a capability, so "ดูทั้งหมด" can point somewhere. */
+  onOpenSection?: (index: number) => void;
+}) {
   // The section chosen in the navigation decides which columns the register
-  // shows and which part of a record opens first. Without one, the default set.
+  // shows and which part of a record opens first. Without one, the overview.
   const tab = section && TABS.includes(section) ? section : undefined;
 
   const [q, setQ] = useState("");
@@ -3020,15 +3039,40 @@ export default function PaScreen({ section }: { section?: string }) {
   const avgTenure = active.length ? active.reduce((n, e) => n + tenureYears(e), 0) / active.length : 0;
   const soonest = expiring.map((e) => daysBetween(TODAY, e.contract.endsAt!)).sort((a, b) => a - b)[0];
 
+  if (!tab) {
+    return (
+      <Dashboard
+        people={people}
+        statusOf={statusOf}
+        eventsOf={eventsOf}
+        onOpenSection={onOpenSection}
+        onOpen={(e) => {
+          // The register list is the pager's universe; open the person there.
+          setStatus("ทั้งหมด");
+          setDept("ทุกแผนก");
+          setQ("");
+          setOpenAt(people.indexOf(e));
+        }}
+        openAt={openAt}
+        picked={picked}
+        onClose={() => setOpenAt(null)}
+        activityOf={activityOf}
+        favourites={favourites}
+        toggleFavourite={toggleFavourite}
+        addEvent={addEvent}
+        addNote={addNote}
+        setResigning={setResigning}
+        resigning={resigning}
+        commitResignation={commitResignation}
+      />
+    );
+  }
+
   return (
     <div>
       <PageHead
         title="ทะเบียนพนักงาน"
-        meta={
-          tab
-            ? \`\${tab} · \${rows.length} คนที่แสดง จาก \${people.length} คนในทะเบียน\`
-            : \`\${people.length} คนในทะเบียน · ข้อมูล ณ \${TODAY}\`
-        }
+        meta={\`\${tab} · \${rows.length} คนที่แสดง จาก \${people.length} คนในทะเบียน\`}
       />
 
       <Reveal>
@@ -3200,6 +3244,306 @@ export default function PaScreen({ section }: { section?: string }) {
   );
 }
 
+/* ------------------------------------------------------------- dashboard */
+
+function Dashboard({
+  people,
+  statusOf,
+  eventsOf,
+  onOpenSection,
+  onOpen,
+  openAt,
+  picked,
+  onClose,
+  activityOf,
+  favourites,
+  toggleFavourite,
+  addEvent,
+  addNote,
+  setResigning,
+  resigning,
+  commitResignation,
+}: {
+  people: Employee[];
+  statusOf: (e: Employee) => string;
+  eventsOf: (e: Employee) => PersonnelEvent[];
+  onOpenSection?: (index: number) => void;
+  onOpen: (e: Employee) => void;
+  openAt: number | null;
+  picked: Employee | null;
+  onClose: () => void;
+  activityOf: (e: Employee) => ActivityEntry[];
+  favourites: number[];
+  toggleFavourite: (id: number) => void;
+  addEvent: (id: number, ev: PersonnelEvent) => void;
+  addNote: (id: number, entry: ActivityEntry) => void;
+  setResigning: (e: Employee | null) => void;
+  resigning: Employee | null;
+  commitResignation: (e: Employee, reason: string, message: string) => void;
+}) {
+  const active = people.filter((e) => statusOf(e) !== "ลาออก");
+
+  // Documents: one gauge for the whole register, then who is short.
+  const docs = active.map((e) => ({ e, list: documentsOf(e) }));
+  const docTotal = docs.reduce((n, x) => n + x.list.length, 0);
+  const docDone = docs.reduce((n, x) => n + x.list.filter((d) => d.done).length, 0);
+  const short = docs.filter((x) => x.list.some((d) => !d.done));
+  const complete = docs.filter((x) => x.list.every((d) => d.done));
+
+  // Headcount by department, coloured by catalogue order.
+  const byDept = DEPARTMENTS.map((d) => ({
+    label: d,
+    value: active.filter((e) => e.department === d).length,
+    swatch: deptSwatch(d),
+  })).filter((s) => s.value > 0);
+
+  const trend = headcountTrend();
+  const todo = upcoming(120);
+
+  // The strip shows the next week; the list shows what falls on or after the
+  // chosen day, so a quiet week still tells you what is coming.
+  const [day, setDay] = useState(TODAY);
+  const week = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(TODAY);
+    d.setDate(d.getDate() + i);
+    const iso = d.toISOString().slice(0, 10);
+    return {
+      date: iso,
+      dow: ["อา", "จ", "อ", "พ", "พฤ", "ศ", "ส"][d.getDay()],
+      day: String(d.getDate()).padStart(2, "0"),
+      marked: todo.some((t) => t.date === iso),
+    };
+  });
+  const agenda = todo.filter((t) => t.date >= day).slice(0, 4);
+
+  const probation = active.filter((e) => statusOf(e) === "ทดลองงาน");
+  const fixedTerm = active.filter((e) => e.contract.endsAt);
+  const gone = people.filter((e) => statusOf(e) === "ลาออก");
+
+  const recent = people
+    .flatMap((e) => eventsOf(e).map((ev) => ({ ...ev, e })))
+    .sort((a, b) => b.date.localeCompare(a.date))
+    .slice(0, 6);
+
+  const seeAll = (index: number) =>
+    onOpenSection ? (
+      <button
+        onClick={() => onOpenSection(index)}
+        className="flex items-center gap-1 rounded-lg border border-slate-200 px-2.5 py-1 text-[12px] text-slate-600 transition hover:border-violet-300 hover:text-violet-700 dark:border-slate-700 dark:text-slate-300"
+      >
+        ดูทั้งหมด <ArrowRight size={12} />
+      </button>
+    ) : undefined;
+
+  const byId = (id: number) => people.find((e) => e.id === id)!;
+
+  return (
+    <div>
+      <PageHead
+        title="ภาพรวมทะเบียนพนักงาน"
+        meta={\`\${active.length} คนที่ทำงานอยู่ · ข้อมูล ณ \${TODAY} · ทุกตัวเลขคำนวณจากทะเบียน ไม่ได้พิมพ์ทิ้งไว้\`}
+        right={
+          onOpenSection ? (
+            <Button variant="primary" icon={<Users size={15} />} onClick={() => onOpenSection(0)}>
+              เปิดรายชื่อพนักงาน
+            </Button>
+          ) : undefined
+        }
+      />
+
+      <Reveal>
+        <div className="grid gap-3 xl:grid-cols-3">
+          <Card title={<span className="flex items-center gap-2"><FileText size={15} className="text-slate-400" />เอกสารการจ้าง</span>} action={seeAll(2)}>
+            <div className="px-4 pt-3">
+              <Gauge value={docDone} max={docTotal} label={\`จาก \${docTotal} รายการ\`} hex="#7c3aed" size={210} />
+            </div>
+            <ul className="divide-y divide-slate-100 dark:divide-slate-800">
+              {[...short, ...complete.slice(0, Math.max(1, 3 - short.length))].slice(0, 3).map(({ e, list }) => {
+                const missing = list.filter((d) => !d.done).length;
+                return (
+                  <li key={e.id} className="flex items-center gap-3 px-4 py-2.5">
+                    <Dot className={missing ? "bg-amber-500" : "bg-emerald-500"} />
+                    <button onClick={() => onOpen(e)} className="min-w-0 flex-1 truncate text-left text-[13px] text-slate-800 hover:text-violet-700 dark:text-slate-100">
+                      {e.name} <span className="text-slate-400">({e.department})</span>
+                    </button>
+                    <Badge tone={missing ? "warn" : "ok"}>{missing ? \`รอ \${missing} รายการ\` : "ครบ"}</Badge>
+                  </li>
+                );
+              })}
+            </ul>
+          </Card>
+
+          <Card title={<span className="flex items-center gap-2"><Building size={15} className="text-slate-400" />กำลังคนตามแผนก</span>} action={seeAll(0)}>
+            <div className="p-4">
+              <Donut
+                segments={byDept}
+                center={
+                  <span>
+                    <span className="block text-[26px] font-semibold leading-none tabular-nums text-slate-900 dark:text-slate-50">{active.length}</span>
+                    <span className="mt-1 block text-[10.5px] uppercase tracking-wide text-slate-400">คน</span>
+                  </span>
+                }
+              />
+            </div>
+          </Card>
+
+          <Card title={<span className="flex items-center gap-2"><CalendarDays size={15} className="text-slate-400" />กำหนดการ</span>} action={seeAll(1)}>
+            <div className="space-y-3 p-4">
+              <WeekStrip days={week} active={day} onPick={setDay} />
+              {agenda.length === 0 ? (
+                <p className="py-6 text-center text-[12.5px] text-slate-400">ไม่มีรายการตั้งแต่วันที่เลือกไปอีก 120 วัน</p>
+              ) : (
+                agenda.map((t, i) => {
+                  const sw = kindSwatch(t.kind);
+                  return (
+                    <TintCard key={i} swatch={sw}>
+                      <div className="flex items-start justify-between gap-2">
+                        <button onClick={() => onOpen(byId(t.employeeId))} className="min-w-0 text-left">
+                          <span className="block truncate text-[13.5px] font-semibold">{t.name}</span>
+                          <span className="block text-[12px] opacity-75">
+                            {t.date} · อีก {t.inDays} วัน
+                          </span>
+                        </button>
+                        <Avatar name={t.name} size="sm" />
+                      </div>
+                      <div className="mt-3 flex items-center justify-between gap-2">
+                        <span className="text-[11.5px] opacity-75">{t.kind === "สัญญาหมดอายุ" ? "เริ่มกระบวนการต่อสัญญา" : t.kind === "ครบกำหนดทดลองงาน" ? "ประเมินผลก่อนบรรจุ" : "ทบทวนค่าตอบแทนประจำปี"}</span>
+                        <Tag swatch={sw}>{t.kind}</Tag>
+                      </div>
+                    </TintCard>
+                  );
+                })
+              )}
+            </div>
+          </Card>
+        </div>
+      </Reveal>
+
+      <Reveal delay={0.08} className="mt-3">
+        <div className="grid gap-3 xl:grid-cols-3">
+          <Card
+            className="xl:col-span-2"
+            title={<span className="flex items-center gap-2"><TrendingUp size={15} className="text-slate-400" />จำนวนพนักงานย้อนหลัง 12 เดือน</span>}
+            action={<span className="text-[11.5px] text-slate-400">นับจากวันเริ่มงานหักคนที่ลาออกแล้ว</span>}
+          >
+            <ColumnChart
+              data={trend.map((t, i) => ({ label: t.label, value: t.value, tone: i === trend.length - 1 ? "accent" : undefined }))}
+              format={(n) => n + " คน"}
+              height={180}
+            />
+          </Card>
+
+          <Card title={<span className="flex items-center gap-2"><Clock3 size={15} className="text-slate-400" />สถานะกำลังคน</span>} action={seeAll(1)}>
+            <div className="space-y-4 p-4">
+              <TrackerGroup label="ทดลองงาน" empty="ไม่มีในงวดนี้">
+                {probation.map((e) => (
+                  <TrackerRow key={e.id} e={e} onOpen={onOpen} sub={e.position}>
+                    <Badge tone="warn" icon={<Hourglass size={11} />}>อีก {Math.max(0, daysBetween(TODAY, e.contract.probationUntil))} วัน</Badge>
+                  </TrackerRow>
+                ))}
+              </TrackerGroup>
+              <TrackerGroup label="สัญญาจ้างมีกำหนด" empty="ทุกคนเป็นสัญญาไม่มีกำหนด">
+                {fixedTerm.map((e) => {
+                  const left = daysBetween(TODAY, e.contract.endsAt!);
+                  return (
+                    <TrackerRow key={e.id} e={e} onOpen={onOpen} sub={e.contract.type}>
+                      <Badge tone={left < 0 ? "idle" : left <= 90 ? "bad" : "info"} icon={<CalendarClock size={11} />}>
+                        {left < 0 ? "หมดอายุแล้ว" : \`เหลือ \${left} วัน\`}
+                      </Badge>
+                    </TrackerRow>
+                  );
+                })}
+              </TrackerGroup>
+              <TrackerGroup label="ลาออกแล้ว" empty="ยังไม่มีในปีนี้">
+                {gone.map((e) => (
+                  <TrackerRow key={e.id} e={e} onOpen={onOpen} sub={eventsOf(e).find((ev) => ev.type === "ลาออก")?.date ?? ""}>
+                    <Badge tone="idle" icon={<UserMinus size={11} />}>ลาออก</Badge>
+                  </TrackerRow>
+                ))}
+              </TrackerGroup>
+            </div>
+          </Card>
+        </div>
+      </Reveal>
+
+      <Reveal delay={0.16} className="mt-3">
+        <Card title={<span className="flex items-center gap-2"><CalendarClock size={15} className="text-slate-400" />เหตุการณ์ทางบุคคลล่าสุด</span>} action={seeAll(3)}>
+          <ul className="divide-y divide-slate-100 dark:divide-slate-800">
+            {recent.map((ev, i) => {
+              const sw = eventSwatch(ev.type);
+              return (
+                <li key={i} className="flex items-start gap-3 px-4 py-3">
+                  <span className={"mt-0.5 grid size-7 shrink-0 place-items-center rounded-full " + sw.tint}>
+                    <CircleCheck size={14} />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <button onClick={() => onOpen(ev.e)} className="text-left text-[13px] text-slate-900 hover:text-violet-700 dark:text-slate-50">
+                      <span className="font-medium">{ev.e.name}</span>
+                      <span className="text-slate-500 dark:text-slate-400"> — {ev.detail}</span>
+                    </button>
+                    <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                      <Tag swatch={sw}>{ev.type}</Tag>
+                      <Chip>{ev.e.department}</Chip>
+                    </div>
+                  </div>
+                  <span className="flex shrink-0 items-center gap-1 text-[11.5px] tabular-nums text-slate-400">
+                    <CalendarDays size={12} /> {ev.date}
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
+        </Card>
+      </Reveal>
+
+      <DetailModal open={picked !== null} title="แฟ้มพนักงาน" onClose={onClose} index={openAt ?? 0} total={people.length}>
+        {picked && (
+          <Record
+            key={picked.id}
+            employee={picked}
+            status={statusOf(picked)}
+            events={eventsOf(picked)}
+            activity={activityOf(picked)}
+            favourite={favourites.includes(picked.id)}
+            openAt={TABS[0]}
+            onFavourite={() => toggleFavourite(picked.id)}
+            onAddEvent={(ev) => addEvent(picked.id, ev)}
+            onAddNote={(entry) => addNote(picked.id, entry)}
+            onResign={() => setResigning(picked)}
+          />
+        )}
+      </DetailModal>
+      <ResignDialog employee={resigning} onCancel={() => setResigning(null)} onConfirm={commitResignation} />
+    </div>
+  );
+}
+
+function TrackerGroup({ label, empty, children }: { label: string; empty: string; children: ReactNode[] }) {
+  return (
+    <div>
+      <p className="mb-1.5 text-[12px] font-medium text-slate-500 dark:text-slate-400">{label}</p>
+      {children.length === 0 ? (
+        <p className="text-[12px] text-slate-400 dark:text-slate-500">{empty}</p>
+      ) : (
+        <ul className="space-y-1.5">{children}</ul>
+      )}
+    </div>
+  );
+}
+
+function TrackerRow({ e, sub, onOpen, children }: { e: Employee; sub: string; onOpen: (e: Employee) => void; children: ReactNode }) {
+  return (
+    <li className="flex items-center gap-2.5">
+      <Avatar name={e.name} />
+      <button onClick={() => onOpen(e)} className="min-w-0 flex-1 text-left">
+        <span className="block truncate text-[13px] font-medium text-slate-900 hover:text-violet-700 dark:text-slate-50">{e.name}</span>
+        <span className="block truncate text-[11.5px] text-slate-400">{sub}</span>
+      </button>
+      {children}
+    </li>
+  );
+}
+
 /* ---------------------------------------------------------------- pieces */
 
 function GenderMark({ id }: { id: number }) {
@@ -3263,7 +3607,7 @@ function columnsFor(
     },
     {
       key: "department", header: "แผนก", sort: (a, b) => a.department.localeCompare(b.department, "th"),
-      cell: (e) => <span className="flex items-center gap-1.5"><Building size={13} className="text-slate-400" />{e.department}</span>,
+      cell: (e) => <span className="flex items-center gap-1.5"><Dot className={deptSwatch(e.department).dot} />{e.department}</span>,
     },
     { key: "type", header: "ประเภทจ้าง", cell: (e) => e.contract.type },
     {
@@ -3309,7 +3653,7 @@ function columnsFor(
       { key: "pvd", header: "กองทุนสำรองฯ", align: "right", sort: (a, b) => a.admin.pvdRate - b.admin.pvdRate, cell: (e) => e.admin.pvdRate + "%" },
     ],
     "เหตุการณ์ทางบุคคล": [
-      { key: "last", header: "เหตุการณ์ล่าสุด", cell: (e) => <Badge tone="accent">{eventsOf(e).at(-1)?.type ?? "—"}</Badge> },
+      { key: "last", header: "เหตุการณ์ล่าสุด", cell: (e) => { const t = eventsOf(e).at(-1)?.type; return t ? <Tag swatch={eventSwatch(t)}>{t}</Tag> : "—"; } },
       { key: "when", header: "เมื่อ", sort: (a, b) => (eventsOf(a).at(-1)?.date ?? "").localeCompare(eventsOf(b).at(-1)?.date ?? ""), cell: (e) => eventsOf(e).at(-1)?.date ?? "—" },
       { key: "detail", header: "รายละเอียด", cell: (e) => <span className="text-slate-500">{eventsOf(e).at(-1)?.detail ?? "—"}</span> },
       { key: "count", header: "ทั้งหมด", align: "right", sort: (a, b) => eventsOf(a).length - eventsOf(b).length, cell: (e) => eventsOf(e).length + " ครั้ง" },
@@ -6950,6 +7294,219 @@ export function Modal({
         {children}
       </motion.div>
     </motion.div>
+  );
+}
+
+/* ------------------------------------------------------------ colour keys */
+
+/**
+ * Hues that stay apart from one another, for things that are categories rather
+ * than states: departments, event kinds, tags. Picked by index so the same
+ * category is the same colour on every screen that draws it.
+ */
+export const PALETTE = [
+  { name: "violet", hex: "#7c3aed", dot: "bg-violet-500", tint: "bg-violet-50 text-violet-800 dark:bg-violet-500/15 dark:text-violet-200", ring: "ring-violet-300 dark:ring-violet-500/40" },
+  { name: "sky", hex: "#0ea5e9", dot: "bg-sky-500", tint: "bg-sky-50 text-sky-800 dark:bg-sky-500/15 dark:text-sky-200", ring: "ring-sky-300 dark:ring-sky-500/40" },
+  { name: "emerald", hex: "#10b981", dot: "bg-emerald-500", tint: "bg-emerald-50 text-emerald-800 dark:bg-emerald-500/15 dark:text-emerald-200", ring: "ring-emerald-300 dark:ring-emerald-500/40" },
+  { name: "amber", hex: "#f59e0b", dot: "bg-amber-500", tint: "bg-amber-50 text-amber-800 dark:bg-amber-500/15 dark:text-amber-200", ring: "ring-amber-300 dark:ring-amber-500/40" },
+  { name: "rose", hex: "#f43f5e", dot: "bg-rose-500", tint: "bg-rose-50 text-rose-800 dark:bg-rose-500/15 dark:text-rose-200", ring: "ring-rose-300 dark:ring-rose-500/40" },
+  { name: "teal", hex: "#14b8a6", dot: "bg-teal-500", tint: "bg-teal-50 text-teal-800 dark:bg-teal-500/15 dark:text-teal-200", ring: "ring-teal-300 dark:ring-teal-500/40" },
+  { name: "orange", hex: "#f97316", dot: "bg-orange-500", tint: "bg-orange-50 text-orange-800 dark:bg-orange-500/15 dark:text-orange-200", ring: "ring-orange-300 dark:ring-orange-500/40" },
+  { name: "indigo", hex: "#6366f1", dot: "bg-indigo-500", tint: "bg-indigo-50 text-indigo-800 dark:bg-indigo-500/15 dark:text-indigo-200", ring: "ring-indigo-300 dark:ring-indigo-500/40" },
+] as const;
+
+export type Swatch = (typeof PALETTE)[number];
+
+/** A stable swatch for a category name — the same name, the same colour, everywhere. */
+export function swatchFor(name: string, order?: readonly string[]): Swatch {
+  const i = order ? order.indexOf(name) : -1;
+  const idx = i >= 0 ? i : [...name].reduce((n, c) => n + c.charCodeAt(0), 0);
+  return PALETTE[idx % PALETTE.length];
+}
+
+/** A small outlined label in a category's colour — the "MARKETING" pill on a meeting card. */
+export function Tag({ swatch, children }: { swatch: Swatch; children: ReactNode }) {
+  return (
+    <span
+      className={
+        "inline-flex items-center rounded-full px-2 py-0.5 text-[10.5px] font-semibold uppercase tracking-wide ring-1 " +
+        swatch.tint +
+        " " +
+        swatch.ring
+      }
+    >
+      {children}
+    </span>
+  );
+}
+
+/** A card washed in a category's colour, so a list of mixed kinds reads at a glance. */
+export function TintCard({
+  swatch,
+  children,
+  className = "",
+}: {
+  swatch: Swatch;
+  children: ReactNode;
+  className?: string;
+}) {
+  return <div className={"rounded-2xl p-4 " + swatch.tint + " " + className}>{children}</div>;
+}
+
+/** A coloured dot, for a legend or a status. */
+export function Dot({ className }: { className: string }) {
+  return <span className={"inline-block size-2 shrink-0 rounded-full " + className} />;
+}
+
+/* ---------------------------------------------------------------- charts */
+
+const DEG = Math.PI / 180;
+
+/** Half a ring, filled to a fraction — the shape of "16 out of 20". */
+export function Gauge({
+  value,
+  max,
+  label,
+  hex = "#7c3aed",
+  size = 200,
+}: {
+  value: number;
+  max: number;
+  label: string;
+  hex?: string;
+  size?: number;
+}) {
+  const r = 78;
+  const cx = 100;
+  const cy = 96;
+  const arc = (a0: number, a1: number) => {
+    const x0 = cx + r * Math.cos(a0 * DEG);
+    const y0 = cy - r * Math.sin(a0 * DEG);
+    const x1 = cx + r * Math.cos(a1 * DEG);
+    const y1 = cy - r * Math.sin(a1 * DEG);
+    return \`M \${x0} \${y0} A \${r} \${r} 0 \${a0 - a1 > 180 ? 1 : 0} 1 \${x1} \${y1}\`;
+  };
+  const frac = max === 0 ? 0 : Math.max(0, Math.min(1, value / max));
+  return (
+    <div className="flex flex-col items-center">
+      <svg viewBox="0 0 200 110" width={size} height={size * 0.55} className="overflow-visible">
+        <path d={arc(180, 0)} fill="none" strokeWidth={16} strokeLinecap="round" className="stroke-slate-100 dark:stroke-slate-800" />
+        <motion.path
+          d={arc(180, 0)}
+          fill="none"
+          stroke={hex}
+          strokeWidth={16}
+          strokeLinecap="round"
+          pathLength={1}
+          strokeDasharray="1 1"
+          initial={{ strokeDashoffset: 1 }}
+          animate={{ strokeDashoffset: 1 - frac }}
+          transition={{ duration: 0.9, ease: EASE }}
+        />
+        <text x={cx} y={cy - 14} textAnchor="middle" className="fill-slate-900 dark:fill-slate-50" style={{ fontSize: 34, fontWeight: 600 }}>
+          {value}
+        </text>
+        <text x={cx} y={cy + 6} textAnchor="middle" className="fill-slate-400 dark:fill-slate-500" style={{ fontSize: 10.5, letterSpacing: 1 }}>
+          {label}
+        </text>
+      </svg>
+    </div>
+  );
+}
+
+/** A ring cut into categories, with the legend that gives the colours their names. */
+export function Donut({
+  segments,
+  center,
+  size = 150,
+  thickness = 18,
+}: {
+  segments: { label: string; value: number; swatch: Swatch }[];
+  center?: ReactNode;
+  size?: number;
+  thickness?: number;
+}) {
+  const total = segments.reduce((n, s) => n + s.value, 0);
+  const r = 50 - thickness / 2;
+  const C = 2 * Math.PI * r;
+  let offset = 0;
+  return (
+    <div className="flex items-center gap-5">
+      <div className="relative shrink-0" style={{ width: size, height: size }}>
+        <svg viewBox="0 0 100 100" width={size} height={size} className="-rotate-90">
+          <circle cx={50} cy={50} r={r} fill="none" strokeWidth={thickness} className="stroke-slate-100 dark:stroke-slate-800" />
+          {segments.map((s, i) => {
+            const len = total === 0 ? 0 : (s.value / total) * C;
+            const start = offset;
+            offset += len;
+            return (
+              <motion.circle
+                key={s.label}
+                cx={50}
+                cy={50}
+                r={r}
+                fill="none"
+                stroke={s.swatch.hex}
+                strokeWidth={thickness}
+                strokeDasharray={\`\${len} \${C}\`}
+                strokeDashoffset={-start}
+                initial={{ opacity: 0, strokeDasharray: \`0 \${C}\` }}
+                animate={{ opacity: 1, strokeDasharray: \`\${len} \${C}\` }}
+                transition={{ duration: 0.7, ease: EASE, delay: i * 0.08 }}
+              />
+            );
+          })}
+        </svg>
+        {center && <div className="absolute inset-0 grid place-items-center text-center">{center}</div>}
+      </div>
+      <ul className="min-w-0 flex-1 space-y-1.5">
+        {segments.map((s) => (
+          <li key={s.label} className="flex items-center gap-2 text-[12.5px]">
+            <Dot className={s.swatch.dot} />
+            <span className="min-w-0 flex-1 truncate text-slate-600 dark:text-slate-300">{s.label}</span>
+            <span className="tabular-nums text-slate-900 dark:text-slate-50">{s.value}</span>
+            <span className="w-9 text-right text-[11px] tabular-nums text-slate-400">
+              {total ? Math.round((s.value / total) * 100) : 0}%
+            </span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+/** A row of days with the chosen one filled and marks under days that carry something. */
+export function WeekStrip({
+  days,
+  active,
+  onPick,
+}: {
+  days: { date: string; dow: string; day: string; marked?: boolean }[];
+  active: string;
+  onPick: (date: string) => void;
+}) {
+  return (
+    <div className="flex gap-1.5">
+      {days.map((d) => {
+        const on = d.date === active;
+        return (
+          <button
+            key={d.date}
+            onClick={() => onPick(d.date)}
+            className={
+              "flex min-w-0 flex-1 flex-col items-center rounded-xl px-1 py-2 transition " +
+              (on
+                ? "bg-violet-600 text-white shadow-sm shadow-violet-600/25"
+                : "bg-slate-50 text-slate-600 hover:bg-slate-100 dark:bg-slate-800/60 dark:text-slate-300 dark:hover:bg-slate-800")
+            }
+          >
+            <span className={"text-[10.5px] " + (on ? "text-white/80" : "text-slate-400 dark:text-slate-500")}>{d.dow}</span>
+            <span className="text-[15px] font-semibold tabular-nums">{d.day}</span>
+            <span className={"mt-1 size-1 rounded-full " + (d.marked ? (on ? "bg-white" : "bg-violet-500") : "bg-transparent")} />
+          </button>
+        );
+      })}
+    </div>
   );
 }
 `,

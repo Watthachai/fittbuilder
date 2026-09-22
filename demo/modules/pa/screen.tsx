@@ -2,19 +2,20 @@ import { useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import {
-  Banknote, Briefcase, Building, Cake, CalendarClock, CalendarDays, CircleCheck, CircleDashed, CircleX,
-  Clock3, Contact, CreditCard, Ellipsis, FileText, Gift, Heart, Hourglass, IdCard, Landmark, Mail, MapPin,
-  MessageSquare, Phone, PiggyBank, Plus, ScanFace, Search as SearchIcon, Send, ShieldCheck, Sparkles,
+  ArrowRight, Banknote, Briefcase, Building, Cake, CalendarClock, CalendarDays, CircleCheck, CircleDashed,
+  CircleX, Clock3, Contact, CreditCard, Ellipsis, FileText, Gift, Heart, Hourglass, IdCard, Landmark, Mail,
+  MapPin, MessageSquare, Phone, PiggyBank, Plus, ScanFace, Search as SearchIcon, Send, ShieldCheck, Sparkles,
   TrendingUp, UserMinus, UserPlus, UserRound, Users, Wallet,
 } from "lucide-react";
 import {
   ACTIVITY, EMPLOYEES, EVENT_TYPES, GENDER, TODAY, ageOf, baht, daysBetween,
-  documentsOf, hiredIn, leftIn, tenureYears,
+  documentsOf, headcountTrend, hiredIn, leftIn, tenureYears, upcoming,
 } from "./data";
 import type { ActivityEntry, Employee, PersonnelEvent } from "./data";
 import {
-  Avatar, Badge, Button, Card, Chip, FIELD, IconButton, IconRow, Note, PageHead, Progress, Reveal,
-  Search, SectionTitle, Segmented, Select, StatStrip, Stepper, SURFACE, Tabs, Timeline, ViewToggle, enter,
+  Avatar, Badge, Button, Card, Chip, ColumnChart, Donut, Dot, FIELD, Gauge, IconButton, IconRow, Note,
+  PageHead, Progress, Reveal, Search, SectionTitle, Segmented, Select, StatStrip, Stepper, SURFACE, Tabs,
+  Tag, Timeline, TintCard, ViewToggle, WeekStrip, enter, swatchFor,
 } from "../ui";
 import { ConfirmDialog, DataTable, DetailModal, Drawer, Field, Wizard } from "../kit";
 import type { Column, Step } from "../kit";
@@ -75,14 +76,32 @@ const EMPTY: Draft = {
 };
 
 const DEPARTMENTS = [...new Set(EMPLOYEES.map((e) => e.department))];
+
+/**
+ * Colour keys. Departments take their swatch from catalogue order so ฝ่ายขาย is
+ * the same hue on the donut, the chip and the list; event kinds are ordered by
+ * hand so the alarming ones land on the alarming colours.
+ */
+const deptSwatch = (name: string) => swatchFor(name, DEPARTMENTS);
+const EVENT_ORDER = ["ปรับเงินเดือน", "ย้ายแผนก", "รับเข้าทำงาน", "ต่อสัญญา", "ลาออก", "เลื่อนตำแหน่ง"];
+const eventSwatch = (type: string) => swatchFor(type, EVENT_ORDER);
+const KIND_ORDER = ["ครบรอบการทำงาน", "", "", "ครบกำหนดทดลองงาน", "สัญญาหมดอายุ"];
+const kindSwatch = (kind: string) => swatchFor(kind, KIND_ORDER);
 const CONTRACT_TYPES = ["พนักงานประจำ", "สัญญาจ้าง 1 ปี", "พนักงานรายวัน", "พนักงานชั่วคราว"];
 const BANKS = ["กสิกรไทย", "ไทยพาณิชย์", "กรุงไทย", "กรุงเทพ", "กรุงศรีอยุธยา"];
 
 /* ----------------------------------------------------------------- screen */
 
-export default function PaScreen({ section }: { section?: string }) {
+export default function PaScreen({
+  section,
+  onOpenSection,
+}: {
+  section?: string;
+  /** The host's way of moving to a capability, so "ดูทั้งหมด" can point somewhere. */
+  onOpenSection?: (index: number) => void;
+}) {
   // The section chosen in the navigation decides which columns the register
-  // shows and which part of a record opens first. Without one, the default set.
+  // shows and which part of a record opens first. Without one, the overview.
   const tab = section && TABS.includes(section) ? section : undefined;
 
   const [q, setQ] = useState("");
@@ -144,15 +163,40 @@ export default function PaScreen({ section }: { section?: string }) {
   const avgTenure = active.length ? active.reduce((n, e) => n + tenureYears(e), 0) / active.length : 0;
   const soonest = expiring.map((e) => daysBetween(TODAY, e.contract.endsAt!)).sort((a, b) => a - b)[0];
 
+  if (!tab) {
+    return (
+      <Dashboard
+        people={people}
+        statusOf={statusOf}
+        eventsOf={eventsOf}
+        onOpenSection={onOpenSection}
+        onOpen={(e) => {
+          // The register list is the pager's universe; open the person there.
+          setStatus("ทั้งหมด");
+          setDept("ทุกแผนก");
+          setQ("");
+          setOpenAt(people.indexOf(e));
+        }}
+        openAt={openAt}
+        picked={picked}
+        onClose={() => setOpenAt(null)}
+        activityOf={activityOf}
+        favourites={favourites}
+        toggleFavourite={toggleFavourite}
+        addEvent={addEvent}
+        addNote={addNote}
+        setResigning={setResigning}
+        resigning={resigning}
+        commitResignation={commitResignation}
+      />
+    );
+  }
+
   return (
     <div>
       <PageHead
         title="ทะเบียนพนักงาน"
-        meta={
-          tab
-            ? `${tab} · ${rows.length} คนที่แสดง จาก ${people.length} คนในทะเบียน`
-            : `${people.length} คนในทะเบียน · ข้อมูล ณ ${TODAY}`
-        }
+        meta={`${tab} · ${rows.length} คนที่แสดง จาก ${people.length} คนในทะเบียน`}
       />
 
       <Reveal>
@@ -324,6 +368,306 @@ export default function PaScreen({ section }: { section?: string }) {
   );
 }
 
+/* ------------------------------------------------------------- dashboard */
+
+function Dashboard({
+  people,
+  statusOf,
+  eventsOf,
+  onOpenSection,
+  onOpen,
+  openAt,
+  picked,
+  onClose,
+  activityOf,
+  favourites,
+  toggleFavourite,
+  addEvent,
+  addNote,
+  setResigning,
+  resigning,
+  commitResignation,
+}: {
+  people: Employee[];
+  statusOf: (e: Employee) => string;
+  eventsOf: (e: Employee) => PersonnelEvent[];
+  onOpenSection?: (index: number) => void;
+  onOpen: (e: Employee) => void;
+  openAt: number | null;
+  picked: Employee | null;
+  onClose: () => void;
+  activityOf: (e: Employee) => ActivityEntry[];
+  favourites: number[];
+  toggleFavourite: (id: number) => void;
+  addEvent: (id: number, ev: PersonnelEvent) => void;
+  addNote: (id: number, entry: ActivityEntry) => void;
+  setResigning: (e: Employee | null) => void;
+  resigning: Employee | null;
+  commitResignation: (e: Employee, reason: string, message: string) => void;
+}) {
+  const active = people.filter((e) => statusOf(e) !== "ลาออก");
+
+  // Documents: one gauge for the whole register, then who is short.
+  const docs = active.map((e) => ({ e, list: documentsOf(e) }));
+  const docTotal = docs.reduce((n, x) => n + x.list.length, 0);
+  const docDone = docs.reduce((n, x) => n + x.list.filter((d) => d.done).length, 0);
+  const short = docs.filter((x) => x.list.some((d) => !d.done));
+  const complete = docs.filter((x) => x.list.every((d) => d.done));
+
+  // Headcount by department, coloured by catalogue order.
+  const byDept = DEPARTMENTS.map((d) => ({
+    label: d,
+    value: active.filter((e) => e.department === d).length,
+    swatch: deptSwatch(d),
+  })).filter((s) => s.value > 0);
+
+  const trend = headcountTrend();
+  const todo = upcoming(120);
+
+  // The strip shows the next week; the list shows what falls on or after the
+  // chosen day, so a quiet week still tells you what is coming.
+  const [day, setDay] = useState(TODAY);
+  const week = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(TODAY);
+    d.setDate(d.getDate() + i);
+    const iso = d.toISOString().slice(0, 10);
+    return {
+      date: iso,
+      dow: ["อา", "จ", "อ", "พ", "พฤ", "ศ", "ส"][d.getDay()],
+      day: String(d.getDate()).padStart(2, "0"),
+      marked: todo.some((t) => t.date === iso),
+    };
+  });
+  const agenda = todo.filter((t) => t.date >= day).slice(0, 4);
+
+  const probation = active.filter((e) => statusOf(e) === "ทดลองงาน");
+  const fixedTerm = active.filter((e) => e.contract.endsAt);
+  const gone = people.filter((e) => statusOf(e) === "ลาออก");
+
+  const recent = people
+    .flatMap((e) => eventsOf(e).map((ev) => ({ ...ev, e })))
+    .sort((a, b) => b.date.localeCompare(a.date))
+    .slice(0, 6);
+
+  const seeAll = (index: number) =>
+    onOpenSection ? (
+      <button
+        onClick={() => onOpenSection(index)}
+        className="flex items-center gap-1 rounded-lg border border-slate-200 px-2.5 py-1 text-[12px] text-slate-600 transition hover:border-violet-300 hover:text-violet-700 dark:border-slate-700 dark:text-slate-300"
+      >
+        ดูทั้งหมด <ArrowRight size={12} />
+      </button>
+    ) : undefined;
+
+  const byId = (id: number) => people.find((e) => e.id === id)!;
+
+  return (
+    <div>
+      <PageHead
+        title="ภาพรวมทะเบียนพนักงาน"
+        meta={`${active.length} คนที่ทำงานอยู่ · ข้อมูล ณ ${TODAY} · ทุกตัวเลขคำนวณจากทะเบียน ไม่ได้พิมพ์ทิ้งไว้`}
+        right={
+          onOpenSection ? (
+            <Button variant="primary" icon={<Users size={15} />} onClick={() => onOpenSection(0)}>
+              เปิดรายชื่อพนักงาน
+            </Button>
+          ) : undefined
+        }
+      />
+
+      <Reveal>
+        <div className="grid gap-3 xl:grid-cols-3">
+          <Card title={<span className="flex items-center gap-2"><FileText size={15} className="text-slate-400" />เอกสารการจ้าง</span>} action={seeAll(2)}>
+            <div className="px-4 pt-3">
+              <Gauge value={docDone} max={docTotal} label={`จาก ${docTotal} รายการ`} hex="#7c3aed" size={210} />
+            </div>
+            <ul className="divide-y divide-slate-100 dark:divide-slate-800">
+              {[...short, ...complete.slice(0, Math.max(1, 3 - short.length))].slice(0, 3).map(({ e, list }) => {
+                const missing = list.filter((d) => !d.done).length;
+                return (
+                  <li key={e.id} className="flex items-center gap-3 px-4 py-2.5">
+                    <Dot className={missing ? "bg-amber-500" : "bg-emerald-500"} />
+                    <button onClick={() => onOpen(e)} className="min-w-0 flex-1 truncate text-left text-[13px] text-slate-800 hover:text-violet-700 dark:text-slate-100">
+                      {e.name} <span className="text-slate-400">({e.department})</span>
+                    </button>
+                    <Badge tone={missing ? "warn" : "ok"}>{missing ? `รอ ${missing} รายการ` : "ครบ"}</Badge>
+                  </li>
+                );
+              })}
+            </ul>
+          </Card>
+
+          <Card title={<span className="flex items-center gap-2"><Building size={15} className="text-slate-400" />กำลังคนตามแผนก</span>} action={seeAll(0)}>
+            <div className="p-4">
+              <Donut
+                segments={byDept}
+                center={
+                  <span>
+                    <span className="block text-[26px] font-semibold leading-none tabular-nums text-slate-900 dark:text-slate-50">{active.length}</span>
+                    <span className="mt-1 block text-[10.5px] uppercase tracking-wide text-slate-400">คน</span>
+                  </span>
+                }
+              />
+            </div>
+          </Card>
+
+          <Card title={<span className="flex items-center gap-2"><CalendarDays size={15} className="text-slate-400" />กำหนดการ</span>} action={seeAll(1)}>
+            <div className="space-y-3 p-4">
+              <WeekStrip days={week} active={day} onPick={setDay} />
+              {agenda.length === 0 ? (
+                <p className="py-6 text-center text-[12.5px] text-slate-400">ไม่มีรายการตั้งแต่วันที่เลือกไปอีก 120 วัน</p>
+              ) : (
+                agenda.map((t, i) => {
+                  const sw = kindSwatch(t.kind);
+                  return (
+                    <TintCard key={i} swatch={sw}>
+                      <div className="flex items-start justify-between gap-2">
+                        <button onClick={() => onOpen(byId(t.employeeId))} className="min-w-0 text-left">
+                          <span className="block truncate text-[13.5px] font-semibold">{t.name}</span>
+                          <span className="block text-[12px] opacity-75">
+                            {t.date} · อีก {t.inDays} วัน
+                          </span>
+                        </button>
+                        <Avatar name={t.name} size="sm" />
+                      </div>
+                      <div className="mt-3 flex items-center justify-between gap-2">
+                        <span className="text-[11.5px] opacity-75">{t.kind === "สัญญาหมดอายุ" ? "เริ่มกระบวนการต่อสัญญา" : t.kind === "ครบกำหนดทดลองงาน" ? "ประเมินผลก่อนบรรจุ" : "ทบทวนค่าตอบแทนประจำปี"}</span>
+                        <Tag swatch={sw}>{t.kind}</Tag>
+                      </div>
+                    </TintCard>
+                  );
+                })
+              )}
+            </div>
+          </Card>
+        </div>
+      </Reveal>
+
+      <Reveal delay={0.08} className="mt-3">
+        <div className="grid gap-3 xl:grid-cols-3">
+          <Card
+            className="xl:col-span-2"
+            title={<span className="flex items-center gap-2"><TrendingUp size={15} className="text-slate-400" />จำนวนพนักงานย้อนหลัง 12 เดือน</span>}
+            action={<span className="text-[11.5px] text-slate-400">นับจากวันเริ่มงานหักคนที่ลาออกแล้ว</span>}
+          >
+            <ColumnChart
+              data={trend.map((t, i) => ({ label: t.label, value: t.value, tone: i === trend.length - 1 ? "accent" : undefined }))}
+              format={(n) => n + " คน"}
+              height={180}
+            />
+          </Card>
+
+          <Card title={<span className="flex items-center gap-2"><Clock3 size={15} className="text-slate-400" />สถานะกำลังคน</span>} action={seeAll(1)}>
+            <div className="space-y-4 p-4">
+              <TrackerGroup label="ทดลองงาน" empty="ไม่มีในงวดนี้">
+                {probation.map((e) => (
+                  <TrackerRow key={e.id} e={e} onOpen={onOpen} sub={e.position}>
+                    <Badge tone="warn" icon={<Hourglass size={11} />}>อีก {Math.max(0, daysBetween(TODAY, e.contract.probationUntil))} วัน</Badge>
+                  </TrackerRow>
+                ))}
+              </TrackerGroup>
+              <TrackerGroup label="สัญญาจ้างมีกำหนด" empty="ทุกคนเป็นสัญญาไม่มีกำหนด">
+                {fixedTerm.map((e) => {
+                  const left = daysBetween(TODAY, e.contract.endsAt!);
+                  return (
+                    <TrackerRow key={e.id} e={e} onOpen={onOpen} sub={e.contract.type}>
+                      <Badge tone={left < 0 ? "idle" : left <= 90 ? "bad" : "info"} icon={<CalendarClock size={11} />}>
+                        {left < 0 ? "หมดอายุแล้ว" : `เหลือ ${left} วัน`}
+                      </Badge>
+                    </TrackerRow>
+                  );
+                })}
+              </TrackerGroup>
+              <TrackerGroup label="ลาออกแล้ว" empty="ยังไม่มีในปีนี้">
+                {gone.map((e) => (
+                  <TrackerRow key={e.id} e={e} onOpen={onOpen} sub={eventsOf(e).find((ev) => ev.type === "ลาออก")?.date ?? ""}>
+                    <Badge tone="idle" icon={<UserMinus size={11} />}>ลาออก</Badge>
+                  </TrackerRow>
+                ))}
+              </TrackerGroup>
+            </div>
+          </Card>
+        </div>
+      </Reveal>
+
+      <Reveal delay={0.16} className="mt-3">
+        <Card title={<span className="flex items-center gap-2"><CalendarClock size={15} className="text-slate-400" />เหตุการณ์ทางบุคคลล่าสุด</span>} action={seeAll(3)}>
+          <ul className="divide-y divide-slate-100 dark:divide-slate-800">
+            {recent.map((ev, i) => {
+              const sw = eventSwatch(ev.type);
+              return (
+                <li key={i} className="flex items-start gap-3 px-4 py-3">
+                  <span className={"mt-0.5 grid size-7 shrink-0 place-items-center rounded-full " + sw.tint}>
+                    <CircleCheck size={14} />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <button onClick={() => onOpen(ev.e)} className="text-left text-[13px] text-slate-900 hover:text-violet-700 dark:text-slate-50">
+                      <span className="font-medium">{ev.e.name}</span>
+                      <span className="text-slate-500 dark:text-slate-400"> — {ev.detail}</span>
+                    </button>
+                    <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                      <Tag swatch={sw}>{ev.type}</Tag>
+                      <Chip>{ev.e.department}</Chip>
+                    </div>
+                  </div>
+                  <span className="flex shrink-0 items-center gap-1 text-[11.5px] tabular-nums text-slate-400">
+                    <CalendarDays size={12} /> {ev.date}
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
+        </Card>
+      </Reveal>
+
+      <DetailModal open={picked !== null} title="แฟ้มพนักงาน" onClose={onClose} index={openAt ?? 0} total={people.length}>
+        {picked && (
+          <Record
+            key={picked.id}
+            employee={picked}
+            status={statusOf(picked)}
+            events={eventsOf(picked)}
+            activity={activityOf(picked)}
+            favourite={favourites.includes(picked.id)}
+            openAt={TABS[0]}
+            onFavourite={() => toggleFavourite(picked.id)}
+            onAddEvent={(ev) => addEvent(picked.id, ev)}
+            onAddNote={(entry) => addNote(picked.id, entry)}
+            onResign={() => setResigning(picked)}
+          />
+        )}
+      </DetailModal>
+      <ResignDialog employee={resigning} onCancel={() => setResigning(null)} onConfirm={commitResignation} />
+    </div>
+  );
+}
+
+function TrackerGroup({ label, empty, children }: { label: string; empty: string; children: ReactNode[] }) {
+  return (
+    <div>
+      <p className="mb-1.5 text-[12px] font-medium text-slate-500 dark:text-slate-400">{label}</p>
+      {children.length === 0 ? (
+        <p className="text-[12px] text-slate-400 dark:text-slate-500">{empty}</p>
+      ) : (
+        <ul className="space-y-1.5">{children}</ul>
+      )}
+    </div>
+  );
+}
+
+function TrackerRow({ e, sub, onOpen, children }: { e: Employee; sub: string; onOpen: (e: Employee) => void; children: ReactNode }) {
+  return (
+    <li className="flex items-center gap-2.5">
+      <Avatar name={e.name} />
+      <button onClick={() => onOpen(e)} className="min-w-0 flex-1 text-left">
+        <span className="block truncate text-[13px] font-medium text-slate-900 hover:text-violet-700 dark:text-slate-50">{e.name}</span>
+        <span className="block truncate text-[11.5px] text-slate-400">{sub}</span>
+      </button>
+      {children}
+    </li>
+  );
+}
+
 /* ---------------------------------------------------------------- pieces */
 
 function GenderMark({ id }: { id: number }) {
@@ -387,7 +731,7 @@ function columnsFor(
     },
     {
       key: "department", header: "แผนก", sort: (a, b) => a.department.localeCompare(b.department, "th"),
-      cell: (e) => <span className="flex items-center gap-1.5"><Building size={13} className="text-slate-400" />{e.department}</span>,
+      cell: (e) => <span className="flex items-center gap-1.5"><Dot className={deptSwatch(e.department).dot} />{e.department}</span>,
     },
     { key: "type", header: "ประเภทจ้าง", cell: (e) => e.contract.type },
     {
@@ -433,7 +777,7 @@ function columnsFor(
       { key: "pvd", header: "กองทุนสำรองฯ", align: "right", sort: (a, b) => a.admin.pvdRate - b.admin.pvdRate, cell: (e) => e.admin.pvdRate + "%" },
     ],
     "เหตุการณ์ทางบุคคล": [
-      { key: "last", header: "เหตุการณ์ล่าสุด", cell: (e) => <Badge tone="accent">{eventsOf(e).at(-1)?.type ?? "—"}</Badge> },
+      { key: "last", header: "เหตุการณ์ล่าสุด", cell: (e) => { const t = eventsOf(e).at(-1)?.type; return t ? <Tag swatch={eventSwatch(t)}>{t}</Tag> : "—"; } },
       { key: "when", header: "เมื่อ", sort: (a, b) => (eventsOf(a).at(-1)?.date ?? "").localeCompare(eventsOf(b).at(-1)?.date ?? ""), cell: (e) => eventsOf(e).at(-1)?.date ?? "—" },
       { key: "detail", header: "รายละเอียด", cell: (e) => <span className="text-slate-500">{eventsOf(e).at(-1)?.detail ?? "—"}</span> },
       { key: "count", header: "ทั้งหมด", align: "right", sort: (a, b) => eventsOf(a).length - eventsOf(b).length, cell: (e) => eventsOf(e).length + " ครั้ง" },

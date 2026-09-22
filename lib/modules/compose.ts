@@ -1,6 +1,7 @@
 import type { ProjectFiles } from "@/lib/types";
 import type { Composition, MissingEntity, Module, QuoteLine } from "./types";
 import { FAMILY_ORDER } from "./types";
+import { UI_SOURCE } from "./sources";
 
 /**
  * The app shell: navigation plus one route per selected module.
@@ -157,6 +158,8 @@ export function composeModules(picked: Module[]): Composition {
     assertOwnTerritory(m);
     Object.assign(files, m.files);
   }
+  // Composer-owned, like the shell: shared by every screen, owned by no module.
+  files["src/modules/ui.tsx"] = UI_SOURCE;
   files["src/App.tsx"] = shellFor(selected);
 
   const quoteLines: QuoteLine[] = selected.map((m) => ({

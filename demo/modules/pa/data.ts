@@ -1,6 +1,4 @@
-/** Seed for personnel records. Kept apart from the module so the screen file
- *  stays readable; both ship into the demo under the module's own directory. */
-export const PA_DATA = `export const EMPLOYEES = [
+export const EMPLOYEES = [
   {
     id: 1, code: "EMP-0001", name: "สมชาย รักดี", nickname: "ชาย",
     position: "หัวหน้าฝ่ายขาย", department: "ฝ่ายขาย", status: "ทำงานอยู่",
@@ -101,4 +99,5 @@ export const PA_DATA = `export const EMPLOYEES = [
 ];
 
 export const EVENT_TYPES = ["รับเข้าทำงาน", "ย้ายแผนก", "เลื่อนตำแหน่ง", "ปรับเงินเดือน", "ต่อสัญญา", "ลาออก"];
-`;
+
+export type Employee = (typeof EMPLOYEES)[number];

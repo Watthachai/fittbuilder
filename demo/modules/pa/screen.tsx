@@ -1,9 +1,12 @@
-/** The personnel records screen: one tab per capability SAP PA is expected to
- *  cover, so "complete" is something a reader can check rather than take on trust. */
-export const PA_SCREEN = `import { useState } from "react";
+import { useState } from "react";
+import type { ReactNode } from "react";
 import { EMPLOYEES, EVENT_TYPES } from "./data";
+import type { Employee } from "./data";
+import { TH } from "../ui";
 
-const baht = (n) => n.toLocaleString("th-TH");
+type PersonnelEvent = Employee["events"][number];
+
+const baht = (n: number) => n.toLocaleString("th-TH");
 const TABS = [
   "ข้อมูลส่วนตัว",
   "ข้อมูลสัญญาจ้าง",
@@ -15,8 +18,9 @@ const TABS = [
 export default function PaScreen() {
   const [q, setQ] = useState("");
   const [dept, setDept] = useState("ทุกแผนก");
-  const [picked, setPicked] = useState(null);
-  const [events, setEvents] = useState({});
+  const [picked, setPicked] = useState<Employee | null>(null);
+  // Events added in this session, keyed by employee — the seed list stays untouched.
+  const [events, setEvents] = useState<Record<number, PersonnelEvent[]>>({});
 
   const departments = ["ทุกแผนก", ...new Set(EMPLOYEES.map((e) => e.department))];
   const rows = EMPLOYEES.filter(
@@ -25,8 +29,9 @@ export default function PaScreen() {
       (e.name.includes(q) || e.code.toLowerCase().includes(q.toLowerCase()) || e.nickname.includes(q))
   );
 
-  const eventsOf = (e) => [...(e.events ?? []), ...(events[e.id] ?? [])];
-  const addEvent = (id, ev) => setEvents((m) => ({ ...m, [id]: [...(m[id] ?? []), ev] }));
+  const eventsOf = (e: Employee) => [...e.events, ...(events[e.id] ?? [])];
+  const addEvent = (id: number, ev: PersonnelEvent) =>
+    setEvents((m) => ({ ...m, [id]: [...(m[id] ?? []), ev] }));
 
   return (
     <div>
@@ -107,7 +112,7 @@ export default function PaScreen() {
   );
 }
 
-function StatusBadge({ status }) {
+function StatusBadge({ status }: { status: string }) {
   const tone =
     status === "ทำงานอยู่" ? "bg-emerald-50 text-emerald-700"
     : status === "ทดลองงาน" ? "bg-amber-50 text-amber-700"
@@ -116,7 +121,17 @@ function StatusBadge({ status }) {
 }
 
 /** The record itself. One tab per capability, so nothing is claimed that is not here. */
-function EmployeeRecord({ employee: e, events, onAddEvent, onClose }) {
+function EmployeeRecord({
+  employee: e,
+  events,
+  onAddEvent,
+  onClose,
+}: {
+  employee: Employee;
+  events: PersonnelEvent[];
+  onAddEvent: (ev: PersonnelEvent) => void;
+  onClose: () => void;
+}) {
   const [tab, setTab] = useState(TABS[0]);
   const [adding, setAdding] = useState(false);
 
@@ -244,7 +259,7 @@ function EmployeeRecord({ employee: e, events, onAddEvent, onClose }) {
   );
 }
 
-function AddEvent({ onSave, onCancel }) {
+function AddEvent({ onSave, onCancel }: { onSave: (ev: PersonnelEvent) => void; onCancel: () => void }) {
   const [type, setType] = useState(EVENT_TYPES[1]);
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
   const [detail, setDetail] = useState("");
@@ -296,7 +311,7 @@ function AddEvent({ onSave, onCancel }) {
   );
 }
 
-function Field({ label, value, wide }) {
+function Field({ label, value, wide }: { label: string; value: ReactNode; wide?: boolean }) {
   return (
     <div className={wide ? "col-span-2" : ""}>
       <dt className="text-xs text-slate-500">{label}</dt>
@@ -304,4 +319,3 @@ function Field({ label, value, wide }) {
     </div>
   );
 }
-`;

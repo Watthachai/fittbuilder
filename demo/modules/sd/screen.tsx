@@ -1,111 +1,18 @@
-export const SD_DATA = `import { FINISHED_GOODS, material } from "../mm/data";
-
-/** สินค้าที่ขายได้ — อ่านจากแฟ้มวัสดุ ไม่ได้ถือรายการของตัวเอง */
-export const CATALOG = FINISHED_GOODS;
-
-export const CUSTOMERS = [
-  { code: "C-101", name: "บจก. เจริญคลังสินค้า", contact: "คุณอรุณ", channel: "ขายตรง", terms: "เครดิต 30 วัน", creditLimit: 800000, taxId: "0105544000321", address: "ระยอง" },
-  { code: "C-102", name: "หจก. พาณิชย์ภัณฑ์", contact: "คุณกิตติ", channel: "ตัวแทนจำหน่าย", terms: "เครดิต 60 วัน", creditLimit: 1200000, taxId: "0103550000654", address: "ชลบุรี" },
-  { code: "C-103", name: "บจก. สำนักงานทันสมัย", contact: "คุณพิมพ์", channel: "ขายตรง", terms: "เครดิต 30 วัน", creditLimit: 400000, taxId: "0105558000147", address: "กรุงเทพฯ" },
-  { code: "C-104", name: "ร้านวัสดุบ้านสวน", contact: "คุณสมหญิง", channel: "ขายหน้าร้าน", terms: "เงินสด", creditLimit: 0, taxId: "3101200456789", address: "นครปฐม" },
-  { code: "C-105", name: "บจก. โลจิสติกส์ตะวันออก", contact: "คุณธนา", channel: "ตัวแทนจำหน่าย", terms: "เครดิต 60 วัน", creditLimit: 600000, taxId: "0105561000258", address: "ฉะเชิงเทรา" },
-];
-
-/** ราคาขายและส่วนลดตามช่องทาง — เงื่อนไขที่ประกาศไว้ ไม่ใช่ราคาที่พิมพ์ลงใบสั่งขายทีละใบ */
-export const PRICE_LIST = {
-  "FG-5001": 11900,
-  "FG-5002": 13900,
-  "FG-5003": 18900,
-};
-
-export const CHANNEL_DISCOUNT = {
-  "ขายตรง": 0,
-  "ตัวแทนจำหน่าย": 0.08,
-  "ขายหน้าร้าน": 0.03,
-};
-
-/** ซื้อเยอะลดเพิ่ม — ขั้นบันไดตามจำนวนต่อบรรทัด */
-export const VOLUME_BREAKS = [
-  { minQty: 30, discount: 0.05 },
-  { minQty: 15, discount: 0.03 },
-  { minQty: 5, discount: 0.01 },
-];
-
-export const VAT_RATE = 0.07;
-
-export const SALES_ORDERS = [
-  { no: "SO-2569-0412", customer: "C-102", date: "2026-09-14", lines: [{ material: "FG-5001", qty: 30 }, { material: "FG-5002", qty: 10 }] },
-  { no: "SO-2569-0413", customer: "C-101", date: "2026-09-17", lines: [{ material: "FG-5003", qty: 6 }] },
-  { no: "SO-2569-0414", customer: "C-103", date: "2026-09-19", lines: [{ material: "FG-5002", qty: 16 }] },
-  { no: "SO-2569-0415", customer: "C-104", date: "2026-09-20", lines: [{ material: "FG-5001", qty: 3 }] },
-  { no: "SO-2569-0416", customer: "C-105", date: "2026-09-21", lines: [{ material: "FG-5001", qty: 20 }, { material: "FG-5003", qty: 4 }] },
-];
-
-export const DELIVERIES = [
-  { no: "DO-2569-0301", so: "SO-2569-0412", date: "2026-09-18", route: "ชลบุรี", carrier: "ขนส่งเจริญทรัพย์", status: "ส่งถึงแล้ว", lines: [{ material: "FG-5001", qty: 30 }, { material: "FG-5002", qty: 10 }] },
-  { no: "DO-2569-0302", so: "SO-2569-0413", date: "2026-09-20", route: "ระยอง", carrier: "ขนส่งเจริญทรัพย์", status: "กำลังจัดส่ง", lines: [{ material: "FG-5003", qty: 6 }] },
-  { no: "DO-2569-0303", so: "SO-2569-0415", date: "2026-09-21", route: "นครปฐม", carrier: "รับเองที่โรงงาน", status: "ส่งถึงแล้ว", lines: [{ material: "FG-5001", qty: 3 }] },
-];
-
-/** ใบแจ้งหนี้ที่ออกแล้ว — ยังไม่เก็บเงินคือยอดค้างที่กินวงเงินเครดิต */
-export const BILLINGS = [
-  { no: "IV-2569-0908", so: "SO-2569-0412", date: "2026-09-18", paid: true },
-  { no: "IV-2569-0911", so: "SO-2569-0415", date: "2026-09-21", paid: false },
-];
-
-export const customer = (code) => CUSTOMERS.find((c) => c.code === code);
-export const baht = (n) => n.toLocaleString("th-TH", { maximumFractionDigits: 0 }) + " ฿";
-
-export const volumeDiscount = (qty) =>
-  VOLUME_BREAKS.find((b) => qty >= b.minQty)?.discount ?? 0;
-
-/** ราคาหนึ่งบรรทัด: ราคาตั้ง → ส่วนลดช่องทาง → ส่วนลดตามจำนวน */
-export function priceLine(line, channel) {
-  const list = PRICE_LIST[line.material] ?? 0;
-  const chan = CHANNEL_DISCOUNT[channel] ?? 0;
-  const vol = volumeDiscount(line.qty);
-  const net = Math.round(list * (1 - chan) * (1 - vol));
-  return { list, chan, vol, net, amount: net * line.qty };
-}
-
-/** ทั้งใบ: รวมก่อนภาษี ภาษีมูลค่าเพิ่ม และยอดที่ลูกค้าต้องจ่าย */
-export function orderTotal(so) {
-  const c = customer(so.customer);
-  const lines = so.lines.map((l) => ({ ...l, ...priceLine(l, c.channel) }));
-  const net = lines.reduce((n, l) => n + l.amount, 0);
-  const vat = Math.round(net * VAT_RATE);
-  return { lines, net, vat, gross: net + vat };
-}
-
-export const deliveryOf = (soNo) => DELIVERIES.find((d) => d.so === soNo);
-export const billingOf = (soNo) => BILLINGS.find((b) => b.so === soNo);
-
-/** ยอดที่ลูกค้าติดค้างอยู่ตอนนี้ = ใบสั่งขายที่ยังไม่เก็บเงิน */
-export function exposureOf(code) {
-  return SALES_ORDERS.filter((so) => so.customer === code)
-    .filter((so) => !billingOf(so.no)?.paid)
-    .reduce((n, so) => n + orderTotal(so).gross, 0);
-}
-
-export function creditCheck(code) {
-  const c = customer(code);
-  const used = exposureOf(code);
-  return {
-    limit: c.creditLimit, used,
-    left: c.creditLimit - used,
-    blocked: c.creditLimit > 0 && used > c.creditLimit,
-    cashOnly: c.creditLimit === 0,
-  };
-}
-`;
-
-export const SD_SCREEN = `import { useState } from "react";
+import { useState } from "react";
 import { material } from "../mm/data";
 import {
   CATALOG, CUSTOMERS, PRICE_LIST, CHANNEL_DISCOUNT, VOLUME_BREAKS, VAT_RATE,
   SALES_ORDERS, DELIVERIES, BILLINGS,
   customer, baht, priceLine, orderTotal, deliveryOf, billingOf, creditCheck,
 } from "./data";
+import type { SalesOrder } from "./data";
+
+const orderNo = (no: string) => {
+  const so = SALES_ORDERS.find((x) => x.no === no);
+  if (!so) throw new Error(`ไม่พบใบสั่งขาย ${no}`);
+  return so;
+};
+import { Card, Stat, Head, Row, TH } from "../ui";
 
 const TABS = [
   "ข้อมูลหลักลูกค้า",
@@ -118,7 +25,7 @@ const TABS = [
 
 export default function SdScreen() {
   const [tab, setTab] = useState(TABS[0]);
-  const [openSo, setOpenSo] = useState(null);
+  const [openSo, setOpenSo] = useState<SalesOrder | null>(null);
   const revenue = SALES_ORDERS.reduce((n, so) => n + orderTotal(so).gross, 0);
 
   return (
@@ -160,33 +67,6 @@ export default function SdScreen() {
         <button data-fitt-screen="ใบสั่งขายและการคิดราคา" data-fitt-modal onClick={() => setOpenSo(SALES_ORDERS[0])} />
       </div>
     </div>
-  );
-}
-
-function Card({ title, children }) {
-  return (
-    <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
-      {title && <div className="border-b border-slate-100 px-4 py-3 text-sm font-medium text-slate-800">{title}</div>}
-      {children}
-    </div>
-  );
-}
-
-function Stat({ label, value, tone }) {
-  return (
-    <div className="rounded-xl border border-slate-200 bg-white p-4">
-      <div className="text-xs text-slate-500">{label}</div>
-      <div className={"mt-1 text-lg font-semibold " + (tone === "warn" ? "text-amber-700" : "text-slate-900")}>{value}</div>
-    </div>
-  );
-}
-
-const TH = "px-4 py-3";
-function Head({ cols }) {
-  return (
-    <thead className="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
-      <tr>{cols.map((c) => <th key={c.k} className={TH + (c.right ? " text-right" : "")}>{c.k}</th>)}</tr>
-    </thead>
   );
 }
 
@@ -281,7 +161,7 @@ function Pricing() {
   );
 }
 
-function Orders({ onOpen }) {
+function Orders({ onOpen }: { onOpen: (so: SalesOrder) => void }) {
   return (
     <Card title="ใบสั่งขาย">
       <table className="w-full text-sm">
@@ -372,8 +252,8 @@ function Shipping() {
 }
 
 function Billing() {
-  const billed = BILLINGS.reduce((n, b) => n + orderTotal(SALES_ORDERS.find((s) => s.no === b.so)).gross, 0);
-  const collected = BILLINGS.filter((b) => b.paid).reduce((n, b) => n + orderTotal(SALES_ORDERS.find((s) => s.no === b.so)).gross, 0);
+  const billed = BILLINGS.reduce((n, b) => n + orderTotal(orderNo(b.so)).gross, 0);
+  const collected = BILLINGS.filter((b) => b.paid).reduce((n, b) => n + orderTotal(orderNo(b.so)).gross, 0);
   const shippedNotBilled = DELIVERIES.filter((d) => !billingOf(d.so));
   return (
     <div className="space-y-4">
@@ -388,7 +268,7 @@ function Billing() {
           <Head cols={[{ k: "เลขที่" }, { k: "ลูกค้า" }, { k: "อ้างใบสั่งขาย" }, { k: "วันที่" }, { k: "ก่อนภาษี", right: true }, { k: "ภาษี", right: true }, { k: "รวม", right: true }, { k: "สถานะ" }]} />
           <tbody className="divide-y divide-slate-100">
             {BILLINGS.map((b) => {
-              const so = SALES_ORDERS.find((s) => s.no === b.so);
+              const so = orderNo(b.so);
               const t = orderTotal(so);
               return (
                 <tr key={b.no} className="hover:bg-sky-50">
@@ -415,7 +295,7 @@ function Billing() {
         <Card title="ส่งของแล้วแต่ยังไม่ได้ออกใบแจ้งหนี้ — เงินยังไม่เข้า">
           <ul className="divide-y divide-slate-100">
             {shippedNotBilled.map((d) => {
-              const so = SALES_ORDERS.find((s) => s.no === d.so);
+              const so = orderNo(d.so);
               return (
                 <li key={d.no} className="flex justify-between px-4 py-2.5 text-sm">
                   <span className="text-slate-800">{d.no} → {so.no} · {customer(so.customer)?.name}</span>
@@ -481,7 +361,7 @@ function Credit() {
   );
 }
 
-function SoDialog({ so, onClose }) {
+function SoDialog({ so, onClose }: { so: SalesOrder; onClose: () => void }) {
   const c = customer(so.customer);
   const t = orderTotal(so);
   const k = creditCheck(so.customer);
@@ -518,8 +398,8 @@ function SoDialog({ so, onClose }) {
         </table>
 
         <dl className="mt-4 divide-y divide-slate-100 text-sm">
-          <Line k="รวมก่อนภาษี" v={baht(t.net)} />
-          <Line k={"ภาษีมูลค่าเพิ่ม " + (VAT_RATE * 100).toFixed(0) + "%"} v={baht(t.vat)} />
+          <Row k="รวมก่อนภาษี" v={baht(t.net)} />
+          <Row k={"ภาษีมูลค่าเพิ่ม " + (VAT_RATE * 100).toFixed(0) + "%"} v={baht(t.vat)} />
         </dl>
         <div className="mt-4 flex items-center justify-between rounded-xl bg-sky-50 px-4 py-3.5">
           <span className="text-sm font-medium text-sky-900">ยอดที่ลูกค้าต้องชำระ</span>
@@ -535,12 +415,3 @@ function SoDialog({ so, onClose }) {
   );
 }
 
-function Line({ k, v }) {
-  return (
-    <div className="flex justify-between py-2">
-      <dt className="text-slate-500">{k}</dt>
-      <dd className="text-slate-900">{v}</dd>
-    </div>
-  );
-}
-`;

@@ -1,113 +1,11 @@
-export const MM_DATA = `export const MATERIALS = [
-  { code: "MAT-1001", name: "เหล็กแผ่นรีดร้อน 3 มม.", group: "วัตถุดิบ", unit: "แผ่น", price: 1850, stock: 240, reorder: 120, bin: "A-01-03" },
-  { code: "MAT-1002", name: "เหล็กเส้นกลม 12 มม.", group: "วัตถุดิบ", unit: "เส้น", price: 420, stock: 86, reorder: 150, bin: "A-01-07" },
-  { code: "MAT-1003", name: "สีพ่นอุตสาหกรรม สีเทา", group: "วัตถุดิบ", unit: "ถัง", price: 2400, stock: 34, reorder: 20, bin: "B-02-01" },
-  { code: "MAT-2001", name: "น็อตหัวหกเหลี่ยม M8", group: "อะไหล่", unit: "กล่อง", price: 380, stock: 18, reorder: 40, bin: "C-01-12" },
-  { code: "MAT-2002", name: "ตลับลูกปืน 6204", group: "อะไหล่", unit: "ตัว", price: 145, stock: 320, reorder: 100, bin: "C-02-04" },
-  { code: "MAT-3001", name: "ถุงมือผ้าเคลือบยาง", group: "วัสดุสิ้นเปลือง", unit: "คู่", price: 35, stock: 640, reorder: 200, bin: "D-01-01" },
-  { code: "MAT-3002", name: "กล่องกระดาษลูกฟูก 40x30", group: "บรรจุภัณฑ์", unit: "ใบ", price: 12, stock: 1420, reorder: 500, bin: "D-02-06" },
-  { code: "MAT-4001", name: "มอเตอร์ไฟฟ้า 1 แรงม้า", group: "อะไหล่", unit: "ตัว", price: 5600, stock: 6, reorder: 10, bin: "C-03-02" },
-  { code: "FG-5001", name: "ชั้นวางเหล็ก 4 ชั้น", group: "สินค้าสำเร็จรูป", unit: "ชุด", price: 7976, stock: 34, reorder: 15, bin: "E-01-01" },
-  { code: "FG-5002", name: "โต๊ะทำงานเหล็ก 120 ซม.", group: "สินค้าสำเร็จรูป", unit: "ตัว", price: 9381, stock: 12, reorder: 10, bin: "E-01-04" },
-  { code: "FG-5003", name: "รถเข็นอุตสาหกรรม", group: "สินค้าสำเร็จรูป", unit: "คัน", price: 12990, stock: 5, reorder: 6, bin: "E-02-02" },
-];
-
-/** สินค้าที่ขายได้ — ชนิดหนึ่งในแฟ้มวัสดุ ไม่ใช่รายการแยกอีกชุด */
-export const FINISHED_GOODS = MATERIALS.filter((m) => m.group === "สินค้าสำเร็จรูป");
-
-export const VENDORS = [
-  { code: "V-001", name: "บจก. เหล็กไทยรุ่งเรือง", contact: "คุณสมศักดิ์", terms: "เครดิต 30 วัน", leadDays: 7, taxId: "0105542000123" },
-  { code: "V-002", name: "หจก. ศรีชัยค้าวัสดุ", contact: "คุณมาลี", terms: "เครดิต 45 วัน", leadDays: 10, taxId: "0103548000987" },
-  { code: "V-003", name: "บจก. อุตสาหกรรมสีไทย", contact: "คุณวิชัย", terms: "เงินสด", leadDays: 3, taxId: "0105535000456" },
-  { code: "V-004", name: "บจก. ยนต์ภัณฑ์สากล", contact: "คุณนภา", terms: "เครดิต 30 วัน", leadDays: 14, taxId: "0105551000789" },
-];
-
-/** ราคาและเวลาส่งที่ผู้ขายแต่ละรายเคยให้ไว้กับวัสดุตัวหนึ่ง */
-export const INFO_RECORDS = [
-  { material: "MAT-1001", vendor: "V-001", price: 1850, leadDays: 7 },
-  { material: "MAT-1001", vendor: "V-002", price: 1920, leadDays: 5 },
-  { material: "MAT-1002", vendor: "V-001", price: 420, leadDays: 7 },
-  { material: "MAT-1003", vendor: "V-003", price: 2400, leadDays: 3 },
-  { material: "MAT-2001", vendor: "V-002", price: 380, leadDays: 10 },
-  { material: "MAT-2002", vendor: "V-004", price: 145, leadDays: 14 },
-  { material: "MAT-4001", vendor: "V-004", price: 5600, leadDays: 14 },
-];
-
-export const REQUISITIONS = [
-  { no: "PR-2569-041", material: "MAT-2001", qty: 60, needBy: "2026-10-02", requester: "ฝ่ายผลิต", status: "รออนุมัติ" },
-  { no: "PR-2569-042", material: "MAT-4001", qty: 8, needBy: "2026-10-09", requester: "ฝ่ายซ่อมบำรุง", status: "รออนุมัติ" },
-  { no: "PR-2569-043", material: "MAT-1002", qty: 200, needBy: "2026-09-30", requester: "ฝ่ายผลิต", status: "แปลงเป็นใบสั่งซื้อแล้ว" },
-  { no: "PR-2569-044", material: "MAT-3002", qty: 800, needBy: "2026-10-15", requester: "ฝ่ายคลัง", status: "รออนุมัติ" },
-];
-
-export const PURCHASE_ORDERS = [
-  { no: "PO-2569-118", vendor: "V-001", date: "2026-09-12", lines: [{ material: "MAT-1002", qty: 200, price: 420 }], status: "รับของครบแล้ว" },
-  { no: "PO-2569-119", vendor: "V-003", date: "2026-09-15", lines: [{ material: "MAT-1003", qty: 20, price: 2400 }], status: "รับของบางส่วน" },
-  { no: "PO-2569-120", vendor: "V-004", date: "2026-09-18", lines: [{ material: "MAT-2002", qty: 100, price: 145 }, { material: "MAT-4001", qty: 4, price: 5600 }], status: "รอรับของ" },
-  { no: "PO-2569-121", vendor: "V-002", date: "2026-09-19", lines: [{ material: "MAT-2001", qty: 40, price: 380 }], status: "รอรับของ" },
-];
-
-/** ของที่รับเข้าจริงต่อใบสั่งซื้อ — เทียบกับที่สั่งเพื่อจับของขาด */
-export const GOODS_RECEIPTS = [
-  { no: "GR-2569-206", po: "PO-2569-118", date: "2026-09-19", lines: [{ material: "MAT-1002", qty: 200 }] },
-  { no: "GR-2569-207", po: "PO-2569-119", date: "2026-09-20", lines: [{ material: "MAT-1003", qty: 14 }] },
-];
-
-export const INVOICES = [
-  { no: "INV-88214", po: "PO-2569-118", vendor: "V-001", date: "2026-09-20", amount: 84000 },
-  { no: "INV-88301", po: "PO-2569-119", vendor: "V-003", date: "2026-09-21", amount: 48000 },
-];
-
-/** การเคลื่อนไหวสต็อก — รับเข้าเป็นบวก จ่ายออกเป็นลบ */
-export const STOCK_MOVES = [
-  { date: "2026-09-19", material: "MAT-1002", qty: 200, reason: "รับจากใบสั่งซื้อ PO-2569-118" },
-  { date: "2026-09-19", material: "MAT-1001", qty: -40, reason: "เบิกเข้าสายการผลิต" },
-  { date: "2026-09-20", material: "MAT-1003", qty: 14, reason: "รับจากใบสั่งซื้อ PO-2569-119" },
-  { date: "2026-09-20", material: "MAT-3001", qty: -60, reason: "เบิกใช้ประจำเดือน" },
-  { date: "2026-09-21", material: "MAT-1002", qty: -114, reason: "เบิกเข้าสายการผลิต" },
-  { date: "2026-09-21", material: "MAT-2001", qty: -22, reason: "เบิกซ่อมบำรุง" },
-];
-
-export const material = (code) => MATERIALS.find((m) => m.code === code);
-export const vendor = (code) => VENDORS.find((v) => v.code === code);
-export const baht = (n) => n.toLocaleString("th-TH", { maximumFractionDigits: 0 }) + " ฿";
-export const poTotal = (po) => po.lines.reduce((n, l) => n + l.qty * l.price, 0);
-
-/** สามทางตรง: สั่งเท่าไร รับเท่าไร วางบิลเท่าไร — ไม่ตรงคือห้ามจ่าย */
-export function threeWayMatch(po) {
-  const ordered = poTotal(po);
-  const gr = GOODS_RECEIPTS.filter((g) => g.po === po.no);
-  const receivedQty = (code) =>
-    gr.reduce((n, g) => n + (g.lines.find((l) => l.material === code)?.qty ?? 0), 0);
-  const received = po.lines.reduce((n, l) => n + receivedQty(l.material) * l.price, 0);
-  const invoice = INVOICES.filter((i) => i.po === po.no).reduce((n, i) => n + i.amount, 0);
-  return {
-    ordered, received, invoice,
-    shortLines: po.lines.filter((l) => receivedQty(l.material) < l.qty)
-      .map((l) => ({ ...l, got: receivedQty(l.material) })),
-    matched: invoice > 0 && invoice === received,
-  };
-}
-
-/** คะแนนผู้ขาย: ส่งตรงเวลากี่ครั้ง ส่งของครบกี่ครั้ง */
-export function vendorScore(code) {
-  const pos = PURCHASE_ORDERS.filter((p) => p.vendor === code);
-  const complete = pos.filter((p) => threeWayMatch(p).shortLines.length === 0 && p.status !== "รอรับของ");
-  const closed = pos.filter((p) => p.status !== "รอรับของ");
-  return {
-    orders: pos.length,
-    value: pos.reduce((n, p) => n + poTotal(p), 0),
-    fillRate: closed.length ? Math.round((complete.length / closed.length) * 100) : null,
-  };
-}
-`;
-
-export const MM_SCREEN = `import { useState } from "react";
+import { useState } from "react";
 import {
   MATERIALS, VENDORS, INFO_RECORDS, REQUISITIONS, PURCHASE_ORDERS,
   GOODS_RECEIPTS, INVOICES, STOCK_MOVES,
   material, vendor, baht, poTotal, threeWayMatch, vendorScore,
 } from "./data";
+import type { PurchaseOrder } from "./data";
+import { Card, Stat, Head, Row, TH } from "../ui";
 
 const TABS = [
   "ข้อมูลหลักวัสดุและผู้ขาย",
@@ -119,7 +17,7 @@ const TABS = [
 
 export default function MmScreen() {
   const [tab, setTab] = useState(TABS[0]);
-  const [openPo, setOpenPo] = useState(null);
+  const [openPo, setOpenPo] = useState<PurchaseOrder | null>(null);
   const low = MATERIALS.filter((m) => m.stock < m.reorder);
 
   return (
@@ -160,33 +58,6 @@ export default function MmScreen() {
         <button data-fitt-screen="ใบสั่งซื้อและการตรวจสามทาง" data-fitt-modal onClick={() => setOpenPo(PURCHASE_ORDERS[0])} />
       </div>
     </div>
-  );
-}
-
-function Card({ title, children }) {
-  return (
-    <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
-      {title && <div className="border-b border-slate-100 px-4 py-3 text-sm font-medium text-slate-800">{title}</div>}
-      {children}
-    </div>
-  );
-}
-
-function Stat({ label, value, tone }) {
-  return (
-    <div className="rounded-xl border border-slate-200 bg-white p-4">
-      <div className="text-xs text-slate-500">{label}</div>
-      <div className={"mt-1 text-lg font-semibold " + (tone === "warn" ? "text-amber-700" : "text-slate-900")}>{value}</div>
-    </div>
-  );
-}
-
-const TH = "px-4 py-3";
-function Head({ cols }) {
-  return (
-    <thead className="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
-      <tr>{cols.map((c) => <th key={c.k} className={TH + (c.right ? " text-right" : "")}>{c.k}</th>)}</tr>
-    </thead>
   );
 }
 
@@ -277,9 +148,9 @@ function MasterData() {
   );
 }
 
-function Purchasing({ onOpen }) {
+function Purchasing({ onOpen }: { onOpen: (po: PurchaseOrder) => void }) {
   const [prs, setPrs] = useState(REQUISITIONS);
-  const approve = (no) =>
+  const approve = (no: string) =>
     setPrs((all) => all.map((p) => (p.no === no ? { ...p, status: "อนุมัติแล้ว" } : p)));
   return (
     <div className="space-y-4">
@@ -343,7 +214,7 @@ function Purchasing({ onOpen }) {
   );
 }
 
-function Receiving({ onOpen }) {
+function Receiving({ onOpen }: { onOpen: (po: PurchaseOrder) => void }) {
   const checked = PURCHASE_ORDERS.map((po) => ({ po, m: threeWayMatch(po) }));
   const blocked = checked.filter((c) => c.m.invoice > 0 && !c.m.matched);
   return (
@@ -491,7 +362,7 @@ function VendorRating() {
   );
 }
 
-function PoDialog({ po, onClose }) {
+function PoDialog({ po, onClose }: { po: PurchaseOrder; onClose: () => void }) {
   const m = threeWayMatch(po);
   return (
     <div role="dialog" aria-modal="true" onClick={onClose} className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4">
@@ -524,9 +395,9 @@ function PoDialog({ po, onClose }) {
         </table>
 
         <dl className="mt-4 divide-y divide-slate-100 text-sm">
-          <Line k="มูลค่าที่สั่ง" v={baht(m.ordered)} />
-          <Line k="มูลค่าที่รับแล้ว" v={baht(m.received)} />
-          <Line k="ใบแจ้งหนี้" v={m.invoice ? baht(m.invoice) : "ยังไม่วางบิล"} />
+          <Row k="มูลค่าที่สั่ง" v={baht(m.ordered)} />
+          <Row k="มูลค่าที่รับแล้ว" v={baht(m.received)} />
+          <Row k="ใบแจ้งหนี้" v={m.invoice ? baht(m.invoice) : "ยังไม่วางบิล"} />
         </dl>
 
         <div className={"mt-5 rounded-xl px-4 py-3.5 text-sm " + (
@@ -542,12 +413,3 @@ function PoDialog({ po, onClose }) {
   );
 }
 
-function Line({ k, v }) {
-  return (
-    <div className="flex justify-between py-2">
-      <dt className="text-slate-500">{k}</dt>
-      <dd className="text-slate-900">{v}</dd>
-    </div>
-  );
-}
-`;

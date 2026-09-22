@@ -1,43 +1,18 @@
-export const OM_DATA = `import { EMPLOYEES } from "../pa/data";
-
-export const ORG_UNITS = [
-  { id: 1, name: "ฝ่ายขาย", head: "หัวหน้าฝ่ายขาย", plannedHeadcount: 4 },
-  { id: 2, name: "ฝ่ายบัญชี", head: "นักบัญชีอาวุโส", plannedHeadcount: 3 },
-  { id: 3, name: "ฝ่ายคลัง", head: "ผู้จัดการคลัง", plannedHeadcount: 5 },
-  { id: 4, name: "ฝ่ายบุคคล", head: "เจ้าหน้าที่บุคคล", plannedHeadcount: 2 },
-  { id: 5, name: "ฝ่ายผลิต", head: "หัวหน้าสายการผลิต", plannedHeadcount: 6 },
-  { id: 6, name: "ฝ่ายจัดซื้อ", head: "เจ้าหน้าที่จัดซื้อ", plannedHeadcount: 2 },
-];
-
-export const POSITIONS = [
-  { id: 1, unitId: 1, title: "หัวหน้าฝ่ายขาย", level: "หัวหน้างาน", reportsTo: null, qualifications: ["ประสบการณ์ขาย 5 ปี", "บริหารทีม", "เจรจาต่อรอง"] },
-  { id: 2, unitId: 1, title: "พนักงานขาย", level: "ปฏิบัติการ", reportsTo: "หัวหน้าฝ่ายขาย", qualifications: ["สื่อสารดี", "ใช้ CRM ได้"] },
-  { id: 3, unitId: 2, title: "นักบัญชีอาวุโส", level: "อาวุโส", reportsTo: null, qualifications: ["บัญชีบัณฑิต", "ปิดงบได้", "ภาษีนิติบุคคล"] },
-  { id: 4, unitId: 3, title: "ผู้จัดการคลัง", level: "ผู้จัดการ", reportsTo: null, qualifications: ["บริหารคลัง 5 ปี", "ระบบ WMS"] },
-  { id: 5, unitId: 3, title: "พนักงานคลังสินค้า", level: "ปฏิบัติการ", reportsTo: "ผู้จัดการคลัง", qualifications: ["ขับโฟล์คลิฟท์", "นับสต็อก"] },
-  { id: 6, unitId: 4, title: "เจ้าหน้าที่บุคคล", level: "ปฏิบัติการ", reportsTo: null, qualifications: ["กฎหมายแรงงาน", "สรรหา"] },
-  { id: 7, unitId: 5, title: "ช่างเทคนิค", level: "ปฏิบัติการ", reportsTo: "หัวหน้าสายการผลิต", qualifications: ["ซ่อมบำรุงเครื่องจักร", "ความปลอดภัย"] },
-  { id: 8, unitId: 5, title: "หัวหน้าสายการผลิต", level: "หัวหน้างาน", reportsTo: null, qualifications: ["วางแผนผลิต", "บริหารทีม", "ควบคุมคุณภาพ"] },
-  { id: 9, unitId: 6, title: "เจ้าหน้าที่จัดซื้อ", level: "ปฏิบัติการ", reportsTo: null, qualifications: ["เจรจาต่อรอง", "ประเมินผู้ขาย"] },
-];
-
-/** Skills each person actually holds — compared against what the seat requires. */
-export const EMPLOYEE_SKILLS = {
-  1: ["ประสบการณ์ขาย 5 ปี", "บริหารทีม", "เจรจาต่อรอง"],
-  2: ["บัญชีบัณฑิต", "ปิดงบได้"],
-  3: ["นับสต็อก"],
-  4: ["กฎหมายแรงงาน", "สรรหา"],
-  5: ["ซ่อมบำรุงเครื่องจักร"],
-  6: ["สื่อสารดี", "ใช้ CRM ได้"],
-  7: ["บริหารคลัง 5 ปี", "ระบบ WMS"],
-};
-
-export const holderOf = (title) => EMPLOYEES.find((e) => e.position === title && e.status !== "ลาออก");
-`;
-
-export const OM_SCREEN = `import { useState } from "react";
+import { useState } from "react";
 import { EMPLOYEES } from "../pa/data";
 import { ORG_UNITS, POSITIONS, EMPLOYEE_SKILLS, holderOf } from "./data";
+import type { Employee } from "../pa/data";
+
+type Position = (typeof POSITIONS)[number];
+type SeatHolder = (p: Position) => Employee | undefined;
+type StaffOf = (unitId: number) => Employee[];
+
+const unitName = (id: number) => {
+  const u = ORG_UNITS.find((x) => x.id === id);
+  if (!u) throw new Error(`ไม่พบหน่วยงาน ${id}`);
+  return u.name;
+};
+import { Card, Stat } from "../ui";
 
 const TABS = [
   "โครงสร้างองค์กร",
@@ -50,17 +25,20 @@ const TABS = [
 
 export default function OmScreen() {
   const [tab, setTab] = useState(TABS[0]);
-  const [assigning, setAssigning] = useState(null);
-  const [assigned, setAssigned] = useState({});
+  const [assigning, setAssigning] = useState<Position | null>(null);
+  // Seats reassigned in this session; the seed holder still answers for the rest.
+  const [assigned, setAssigned] = useState<Record<number, number>>({});
 
-  const seatHolder = (p) => {
+  const seatHolder: SeatHolder = (p) => {
     const manual = assigned[p.id];
     if (manual) return EMPLOYEES.find((e) => e.id === manual);
     return holderOf(p.title);
   };
   const vacant = POSITIONS.filter((p) => !seatHolder(p));
-  const staffOf = (unitId) =>
-    POSITIONS.filter((p) => p.unitId === unitId).map(seatHolder).filter(Boolean);
+  const staffOf: StaffOf = (unitId) =>
+    POSITIONS.filter((p) => p.unitId === unitId)
+      .map(seatHolder)
+      .filter((e): e is Employee => e !== undefined);
 
   return (
     <div>
@@ -100,7 +78,7 @@ export default function OmScreen() {
         <AssignDialog
           position={assigning}
           onClose={() => setAssigning(null)}
-          onPick={(empId) => {
+          onPick={(empId: number) => {
             setAssigned((m) => ({ ...m, [assigning.id]: empId }));
             setAssigning(null);
           }}
@@ -115,11 +93,7 @@ export default function OmScreen() {
   );
 }
 
-function Card({ children }) {
-  return <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">{children}</div>;
-}
-
-function Structure({ staffOf }) {
+function Structure({ staffOf }: { staffOf: StaffOf }) {
   return (
     <div className="space-y-3">
       {ORG_UNITS.map((u) => {
@@ -162,7 +136,7 @@ function Positions() {
           {POSITIONS.map((p) => (
             <tr key={p.id} className="hover:bg-sky-50">
               <td className="px-4 py-3 font-medium text-slate-900">{p.title}</td>
-              <td className="px-4 py-3 text-slate-600">{ORG_UNITS.find((u) => u.id === p.unitId).name}</td>
+              <td className="px-4 py-3 text-slate-600">{unitName(p.unitId)}</td>
               <td className="px-4 py-3 text-slate-600">{p.level}</td>
               <td className="px-4 py-3 text-slate-500">{p.reportsTo ?? "—"}</td>
             </tr>
@@ -173,7 +147,7 @@ function Positions() {
   );
 }
 
-function Assignments({ seatHolder, onAssign }) {
+function Assignments({ seatHolder, onAssign }: { seatHolder: SeatHolder; onAssign: (p: Position) => void }) {
   return (
     <Card>
       <table className="w-full text-sm">
@@ -207,7 +181,7 @@ function Assignments({ seatHolder, onAssign }) {
   );
 }
 
-function Planning({ staffOf }) {
+function Planning({ staffOf }: { staffOf: StaffOf }) {
   return (
     <Card>
       <table className="w-full text-sm">
@@ -238,7 +212,7 @@ function Planning({ staffOf }) {
   );
 }
 
-function Qualifications({ seatHolder }) {
+function Qualifications({ seatHolder }: { seatHolder: SeatHolder }) {
   return (
     <div className="space-y-3">
       {POSITIONS.map((p) => {
@@ -272,7 +246,7 @@ function Qualifications({ seatHolder }) {
   );
 }
 
-function Reports({ staffOf, vacantCount }) {
+function Reports({ staffOf, vacantCount }: { staffOf: StaffOf; vacantCount: number }) {
   const total = ORG_UNITS.reduce((n, u) => n + staffOf(u.id).length, 0);
   const planned = ORG_UNITS.reduce((n, u) => n + u.plannedHeadcount, 0);
   const leads = POSITIONS.filter((p) => !p.reportsTo).length;
@@ -305,16 +279,7 @@ function Reports({ staffOf, vacantCount }) {
   );
 }
 
-function Stat({ label, value }) {
-  return (
-    <div className="mb-3 rounded-xl border border-slate-200 bg-white p-4">
-      <div className="text-xs text-slate-500">{label}</div>
-      <div className="mt-1 text-lg font-semibold text-slate-900">{value}</div>
-    </div>
-  );
-}
-
-function AssignDialog({ position, onClose, onPick }) {
+function AssignDialog({ position, onClose, onPick }: { position: Position; onClose: () => void; onPick: (id: number) => void }) {
   return (
     <div role="dialog" aria-modal="true" onClick={onClose} className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4">
       <div onClick={(e) => e.stopPropagation()} className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
@@ -337,4 +302,3 @@ function AssignDialog({ position, onClose, onPick }) {
     </div>
   );
 }
-`;

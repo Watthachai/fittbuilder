@@ -15,6 +15,11 @@ and is kept in sync with the entries below.
 ## [Unreleased]
 
 ### Added
+- **`/erp` — the standard system as a running web app**, not a generator. Sign in as one of four roles, get a sidebar of the modules that role can open, and use them. Public (listed in `PUBLIC_PREFIXES`): it exists to answer "what am I buying?" before anyone has an account.
+- **Role-based access** that is enforced, not decorative: `app/erp/[module]/ModuleView.tsx` gates on the signed-in role, so typing a module URL you lack rights to returns a refusal panel rather than the screen.
+- **"Take these modules as a project"** in the ERP header — the scope is what the role can open, so it is chosen by using the system rather than ticked off a list first.
+- `demo/modules/**` as the single source of truth: real typed `.tsx`/`.ts` the product renders as pages. `scripts/sync-module-sources.mjs` (`npm run modules:sync`) generates `lib/modules/generated/sources.ts` for the WebContainer, and `lib/__tests__/modules-source-sync.test.ts` fails if it goes stale.
+- `demo/modules/ui.tsx` — one typed set of screen pieces (card, table head, badge, bar, modal, stat) replacing ten drifting copies. Composer-owned, shipped like the app shell.
 - **Module catalog** (`lib/modules/`): a "เลือกโมดูล" picker on the landing page beside the template picker. Ticking modules composes a runnable project — screens, a PRD section and a quotation (effort days + monthly MA) — with no AI call.
 - **HR family, four modules, full key-feature coverage** matching the SAP module each is named after: PA (personal / contract / administrative data, personnel events, compensation & benefits), OM (org structure, positions & jobs, assignments, headcount planning, qualifications, reporting), PT (work schedule planning, time recording, absence management, attendance tracking), PY (payroll calculation, benefits, absence & lateness, statutory deductions, payment management).
 - **Logistics family**: MM (material & vendor master, requisitions & purchase orders, goods receipt with three-way invoice match, stock, vendor rating), PP (production master data, MRP, capacity planning, production orders, output reporting), SD (customer master, pricing & discounts, sales orders, shipping, billing, credit limits), WM (bin structure, putaway, picking, internal transfers, physical inventory).
@@ -23,6 +28,7 @@ and is kept in sync with the entries below.
 - `Module.keyFeatures` — the capability list a module claims. `lib/__tests__/modules-coverage.test.ts` holds each module's own generated source and quotation copy against it, so a module cannot claim a feature it does not build.
 
 ### Changed
+- The landing page's second entry point is now a link into `/erp` rather than a module picker; `components/landing/ModuleGallery.tsx` and `LaunchPad`'s `createFromModules` are gone, their job moved into the running system.
 - The composer orders tabs by family before data flow, so a ten-module demo reads as whole businesses rather than interleaving personnel and warehouse screens. `FAMILY_ORDER` must stay dependency-safe for this to remain correct.
 - The module picker groups by family and puts each module's dependency on its own card; one tap adds a selection's whole transitive closure rather than one provider at a time.
 - Every demo figure is computed, not hard-coded: withholding tax walks the real PIT bands, social security is 5% capped at ฿750, absence is priced off the daily rate, and lateness is judged against the roster shift.

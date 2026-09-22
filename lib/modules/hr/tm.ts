@@ -1,5 +1,5 @@
 import type { Module } from "../types";
-import { TM_SCREEN, TM_DATA } from "./tm-src";
+import { filesFor } from "../sources";
 
 /**
  * Time and leave — the module a manager opens on a Monday.
@@ -29,8 +29,5 @@ export const TM: Module = {
   maPerMonth: 3500,
   build:
     "หน้าเวลาทำงานและการลา สี่แท็บ — แผนกะการทำงาน (นิยามกะเช้า/บ่าย/ดึก/วันหยุด ตารางกะรายสัปดาห์ต่อคน และวันหยุดประจำปีที่กระทบตาราง) · บันทึกเวลาทำงาน (เวลาเข้า-ออกจริงรายวัน คำนวณชั่วโมงทำงานหักพัก ล่วงเวลา และตัดสินสาย/ขาดจากกะที่ผูกไว้) · การลาและการขาดงาน (ใบลาพร้อมหน้าต่างพิจารณาอนุมัติ/ไม่อนุมัติที่ขยับสิทธิ์ลาคงเหลือทันที ห้าประเภทลาพร้อมโควตา) · ติดตามการเข้างาน (สรุปมาสาย ขาดงาน วันลา ล่วงเวลา และอัตราเข้างานรายคน)",
-  files: {
-    "src/modules/tm/screen.tsx": TM_SCREEN,
-    "src/modules/tm/data.ts": TM_DATA,
-  },
+  files: filesFor("tm", ["screen.tsx", "data.ts"]),
 };

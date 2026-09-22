@@ -1,6 +1,5 @@
 import type { Module } from "../types";
-import { PA_SCREEN } from "./pa-screen";
-import { PA_DATA } from "./pa-data";
+import { filesFor } from "../sources";
 
 /**
  * Personnel records — the module every other HR module reads from.
@@ -31,8 +30,5 @@ export const PA: Module = {
   maPerMonth: 3500,
   build:
     "หน้าทะเบียนพนักงาน: ตารางค้นหาตามชื่อ ชื่อเล่น รหัส และกรองตามแผนก · คลิกแถวเปิดแฟ้มประวัติที่มีห้าแท็บ — ข้อมูลส่วนตัว (วันเกิด บัตรประชาชน ที่อยู่) · ข้อมูลสัญญาจ้าง (ประเภทจ้าง วันสิ้นสุด ทดลองงาน เงินเดือนฐาน พร้อมเตือนสัญญาใกล้หมด) · ข้อมูลทางปกครอง (ประกันสังคม ผู้เสียภาษี บัญชีธนาคาร กองทุนสำรองเลี้ยงชีพ) · เหตุการณ์ทางบุคคล (ไทม์ไลน์รับเข้า ย้ายแผนก เลื่อนตำแหน่ง ปรับเงินเดือน ลาออก และบันทึกเหตุการณ์ใหม่ได้) · ค่าตอบแทนและสวัสดิการ (เงินเดือนปัจจุบันและรายการสวัสดิการ)",
-  files: {
-    "src/modules/pa/screen.tsx": PA_SCREEN,
-    "src/modules/pa/data.ts": PA_DATA,
-  },
+  files: filesFor("pa", ["screen.tsx", "data.ts"]),
 };

@@ -10,8 +10,14 @@ import type { Database } from "@/lib/db/types";
 // /partner and its form endpoint are public for the obvious reason: the people
 // it is written for do not have an account yet. Redirecting them to /login is
 // redirecting away the only visitors that page exists to reach.
+//
+// /erp is the standard system a prospect is invited to walk into. Gating it
+// behind a FITT Builder account would put a sign-up in front of the one thing
+// that is meant to answer "what am I buying?" before anyone signs up. It has its
+// own sign-in and carries nothing but seeded demo data.
 const PUBLIC_PREFIXES = [
   "/login",
+  "/erp",
   "/auth",
   "/changelog",
   "/join",

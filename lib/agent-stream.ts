@@ -156,6 +156,17 @@ export class AgentStreamFilter {
   }
 
   /** Final turn — call after the stream ends (salvages any held/partial content). */
+  /**
+   * The documents parsed so far, mid-stream.
+   *
+   * `getTurn()` finalises the parser (it salvages a half-written block and
+   * clears state), so it can only be called once, at the end. Checkpointing
+   * needs a read that changes nothing.
+   */
+  peekDocs(): Partial<Record<DocKind, string>> {
+    return { ...this.docs };
+  }
+
   getTurn(): AgentTurn {
     if (this.block !== null) {
       // Stream ended INSIDE a block (e.g. the model hit maxOutputTokens before

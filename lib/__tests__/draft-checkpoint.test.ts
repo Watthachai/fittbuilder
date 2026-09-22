@@ -20,6 +20,7 @@ import { DRAFT_STALE_MS, isDraftLive, type GenerationDraft } from "@/lib/storage
 const studio = readFileSync("components/studio/Studio.tsx", "utf8");
 const storage = readFileSync("lib/storage.ts", "utf8");
 const route = readFileSync("app/api/generate/route.ts", "utf8");
+const agent = readFileSync("app/api/agent/route.ts", "utf8");
 
 /**
  * The generate() turn — where the stream is consumed. Bounded at the next
@@ -206,7 +207,56 @@ describe("generation checkpoints", () => {
       expect(body).toContain('icon: "file"');
     });
 
-    it("takes a completed turn without asking", () => {
+    /**
+   * The build route learned to outlive its tab; the document route never did.
+   * Its model call was tied to request.signal, so a closed tab or a dropped
+   * connection aborted a PRD the server had already paid to write — while the
+   * studio showed "กำลังสร้างเบื้องหลัง… จะอัปเดตให้เมื่อเสร็จ" about a turn that
+   * could not finish.
+   */
+  describe("document turns survive their tab too", () => {
+    it("does not abort the model when the client goes away", () => {
+      // The comment above the stream still names it, so assert on the wiring.
+      expect(agent).not.toMatch(/abortSignal:[^\n]*request\.signal/);
+      expect(agent).toContain("abortSignal: AbortSignal.timeout(ATTEMPT_TIMEOUT_MS)");
+    });
+
+    it("guards the enqueue, since the controller closes with the client", () => {
+      // Without this the first write after a disconnect throws and takes the
+      // rest of the turn — and its parking — down with it.
+      expect(agent).toContain("let closed = false");
+      expect(agent).toMatch(/if \(closed\) return;/);
+    });
+
+    it("parks the documents it writes, on the same row the build route uses", () => {
+      expect(agent).toContain("fittbuilder_project_drafts");
+      // Documents are files, so the studio's existing poller and apply path
+      // take them without caring which route produced them.
+      expect(agent).toContain("DOC_PATHS");
+    });
+
+    it("keeps the heartbeat moving while the model is still writing", () => {
+      expect(agent).toContain("DRAFT_INTERVAL_MS");
+      expect(agent).toMatch(/Date\.now\(\) - lastPark >= DRAFT_INTERVAL_MS/);
+    });
+
+    it("marks complete before telling the client the turn is done", () => {
+      const tail = agent.slice(agent.indexOf("asFiles(turn.docs), true"));
+      expect(tail.slice(0, 200)).toContain('type: "done"');
+    });
+
+    it("has the browser drop the draft once it has taken the turn", () => {
+      // A completed row left behind is offered back when its heartbeat goes
+      // quiet, which would apply the same document twice.
+      const chat = studio.slice(
+        studio.indexOf("const runAgent = useCallback"),
+        studio.indexOf("const generate = useCallback")
+      );
+      expect(chat).toContain("clearDraft(projectId)");
+    });
+  });
+
+  it("takes a completed turn without asking", () => {
       const effect = studio.slice(studio.indexOf("if (!draft?.complete"));
       expect(effect.slice(0, 500)).toContain("applyDraft");
     });

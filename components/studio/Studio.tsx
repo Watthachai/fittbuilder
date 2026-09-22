@@ -735,9 +735,15 @@ export default function Studio({ projectId }: { projectId: string }) {
           assistantMsg.thinking = snap.thinking.trim().slice(0, THINKING_STORE_LIMIT);
         if (snap?.actions.length) assistantMsg.actions = snap.actions;
         working = appendMessage(working, assistantMsg);
+        // The server parks this turn's documents so a lost tab can recover them.
+        // Having taken them here, drop the draft: a completed row left behind is
+        // offered back once its heartbeat goes quiet, which would apply the same
+        // document a second time.
+        void clearDraft(projectId);
         return persist(working);
       } catch (error) {
         if (controller.signal.aborted) {
+          void clearDraft(projectId);
           pushTerminal("✋ ยกเลิกแล้ว");
           return null;
         }

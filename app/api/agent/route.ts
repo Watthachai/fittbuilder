@@ -6,12 +6,13 @@ import { AgentStreamFilter } from "@/lib/agent-stream";
 import { currentUserId, recordUsage } from "@/lib/ai-usage";
 import { MissingApiKeyError, streamParts, type TokenUsage } from "@/lib/gemini";
 import { isBuildPhase, isPhaseId, type PhaseId } from "@/lib/phases";
+import { DOC_PATHS } from "@/lib/define";
 import { buildAgentSystemPrompt } from "@/lib/prompts";
 import { getProjectOrgDnaContext } from "@/lib/org-context";
 import { resolveSkill } from "@/lib/skills/db";
 import { createClient } from "@/lib/supabase/server";
 import { clientIp, rateLimit } from "@/lib/rate-limit";
-import type { AgentEvent } from "@/lib/types";
+import type { AgentEvent, DocKind } from "@/lib/types";
 
 export const maxDuration = 300;
 
@@ -23,6 +24,9 @@ export const maxDuration = 300;
  * spare, and matches what /api/generate already runs at.
  */
 const ATTEMPT_TIMEOUT_MS = 240_000;
+
+/** How often a running turn refreshes its draft — same cadence as the build route. */
+const DRAFT_INTERVAL_MS = 5_000;
 
 /**
  * Phases that rewrite a whole specification get the model's top reasoning tier.
@@ -164,16 +168,82 @@ export async function POST(request: Request) {
         " ถ้ามีส่วนที่ควรเพิ่มลงในเอกสาร BRD/PRD ให้ถามผู้ใช้ก่อนว่าจะเพิ่มเข้าไปไหม แล้วค่อยอัปเดตเมื่อผู้ใช้ตกลง)";
   }
 
+  /** What the user asked, for the recovery dialog to show alongside the draft. */
+  const lastUserMessage =
+    [...body.messages].reverse().find((m) => m.role === "user")?.content ?? "";
+
   let usage: TokenUsage | null = null;
   const userId = await currentUserId();
+  // Built here, not inside the stream: createClient() reads cookies(), which
+  // Next forbids once the response has been handed off.
+  const db = ctxProjectId ? await createClient() : null;
   after(() =>
     void recordUsage({ userId, projectId: ctxProjectId, kind: "agent", usage })
   );
 
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
-      const send = (event: AgentEvent) => controller.enqueue(sse(event));
+      /**
+       * A document turn used to die with its tab.
+       *
+       * The model call was tied to request.signal, so a closed tab or a dropped
+       * connection aborted it — a PRD the server had already paid to write was
+       * thrown away, and the studio meanwhile said "กำลังสร้างเบื้องหลัง… จะอัปเดต
+       * ให้เมื่อเสร็จ" about a turn that would never finish. The build route
+       * solved this long ago; this one never got the same treatment.
+       *
+       * So: the call runs to completion whether or not anyone is listening, the
+       * enqueue is guarded because the controller is closed once they are not,
+       * and the documents are parked as they are produced.
+       */
+      let closed = false;
+      const send = (event: AgentEvent) => {
+        if (closed) return;
+        try {
+          controller.enqueue(sse(event));
+        } catch {
+          closed = true;
+        }
+      };
+
+      /**
+       * Park what this turn has written where a returning browser finds it.
+       *
+       * Documents ARE files — docs/BRD.md and friends — so they ride the same
+       * draft row the build route uses, and the studio's existing poller and
+       * apply path take them without knowing which route produced them.
+       */
+      const parkDocs = async (docs: Record<string, string>, complete: boolean) => {
+        if (!ctxProjectId || !db || Object.keys(docs).length === 0) return;
+        try {
+          await db.from("fittbuilder_project_drafts").upsert(
+            {
+              project_id: ctxProjectId,
+              files: docs,
+              prompt: lastUserMessage,
+              updated_at: new Date().toISOString(),
+              updated_by: userId,
+              complete,
+            },
+            { onConflict: "project_id" }
+          );
+        } catch (e) {
+          // Losing a checkpoint must never take the turn down with it.
+          console.error("[agent] draft checkpoint failed:", e);
+        }
+      };
+
+      /** A doc map addressed the way the project stores its files. */
+      const asFiles = (docs: Partial<Record<DocKind, string>>): Record<string, string> => {
+        const out: Record<string, string> = {};
+        for (const [kind, text] of Object.entries(docs)) {
+          if (text) out[DOC_PATHS[kind as DocKind]] = text;
+        }
+        return out;
+      };
+
       const filter = new AgentStreamFilter();
+      let lastPark = 0;
       try {
         for await (const part of streamParts({
           system,
@@ -181,7 +251,7 @@ export async function POST(request: Request) {
           attachments: body.attachments,
           level: body.express || DEEP_PHASES.has(body.phase) ? "high" : "medium",
           thinking: true,
-          abortSignal: AbortSignal.any([request.signal, AbortSignal.timeout(ATTEMPT_TIMEOUT_MS)]),
+          abortSignal: AbortSignal.timeout(ATTEMPT_TIMEOUT_MS),
           onUsage: (u) => {
             usage = u;
           },
@@ -193,8 +263,18 @@ export async function POST(request: Request) {
           const { text, actions } = filter.push(part.text);
           if (text) send({ type: "text", content: text });
           for (const a of actions) send({ type: "action", icon: a.icon, label: a.label });
+          // Heartbeat: the timestamp is what tells a live turn from a dead one,
+          // so it must keep moving even while the model is still writing.
+          if (Date.now() - lastPark >= DRAFT_INTERVAL_MS) {
+            lastPark = Date.now();
+            await parkDocs(asFiles(filter.peekDocs()), false);
+          }
         }
-        send({ type: "done", turn: filter.getTurn() });
+        const turn = filter.getTurn();
+        // The completed set goes down BEFORE `done`, so a browser that takes the
+        // result never races the server's last write.
+        await parkDocs(asFiles(turn.docs), true);
+        send({ type: "done", turn });
       } catch (error) {
         const message =
           error instanceof MissingApiKeyError
@@ -205,7 +285,14 @@ export async function POST(request: Request) {
         console.error("[agent] failed:", error);
         send({ type: "error", message });
       } finally {
-        controller.close();
+        if (!closed) {
+          closed = true;
+          try {
+            controller.close();
+          } catch {
+            // already closed by the client — nothing to do
+          }
+        }
       }
     },
   });

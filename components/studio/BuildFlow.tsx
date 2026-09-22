@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Boxes, Check, FileText, Loader2, Package, Rocket, Server, Terminal } from "lucide-react";
+import { Check, FileText, Loader2, Package, Rocket, Server, Terminal } from "lucide-react";
 import { PHASES, phaseIndex, type PhaseId } from "@/lib/phases";
 import type { AgentAction, GenerationPhase } from "@/lib/types";
 
@@ -12,9 +12,11 @@ import type { AgentAction, GenerationPhase } from "@/lib/types";
  * thing being waited for. They are still here — a minute of waiting is nicer
  * with them and the cat is the product's face — but they no longer carry it
  * alone. Everything worth showing was already in hand: which documents this
- * build was written from, which of the four runtime steps it is on, and the
- * files and packages as they arrive. A person who can see that can tell a slow
- * build from a stuck one without opening the terminal.
+ * build was written from, which of the four runtime steps it is on, and how many
+ * files have landed. A person who can see that can tell a slow build from a
+ * stuck one without opening the terminal. The file-by-file feed is deliberately
+ * not here — the chat panel's action chips and the terminal both carry it, and a
+ * third copy was an empty box for the first few seconds of every build.
  */
 
 /** The headline over the cat — the one-line answer to "what is it doing". */
@@ -63,7 +65,7 @@ interface BuildFlowProps {
   approved: PhaseId[];
   /** Which source documents exist in the project right now. */
   has: { brd: boolean; prd: boolean };
-  /** The live turn's action chips — files written and packages installed. */
+  /** The live turn's action chips — the file count comes from these. */
   actions: AgentAction[];
 }
 
@@ -77,10 +79,6 @@ export default function BuildFlow({ phase, workflow, approved, has, actions }: B
 
   const at = STEP_ORDER.indexOf(phase);
   const files = actions.filter((a) => a.icon === "file");
-  const deps = actions.filter((a) => a.icon === "deps");
-  // The last few, newest first: a feed that scrolls itself is harder to read
-  // than one that simply shows what just happened.
-  const recent = [...actions].filter((a) => a.icon === "file" || a.icon === "deps").slice(-5).reverse();
 
   return (
     <div className="flex w-full max-w-lg flex-col gap-3 self-center px-6">
@@ -91,7 +89,7 @@ export default function BuildFlow({ phase, workflow, approved, has, actions }: B
         <img
           src="/cat_playing_animation.svg"
           alt=""
-          className="loader-float w-44 select-none opacity-90"
+          className="loader-float w-64 select-none opacity-90"
           draggable={false}
         />
         <p className="-mt-1 font-display text-[14px] text-chalk">{HEADLINE[phase]}</p>
@@ -197,38 +195,6 @@ export default function BuildFlow({ phase, workflow, approved, has, actions }: B
             {files.length > 0 ? `${files.length} ไฟล์` : "เริ่มต้น"}
           </span>
         </div>
-      </div>
-
-      {/* What just landed. Empty until the first file arrives, which is itself
-          the answer to "is it doing anything yet". */}
-      <div className="min-h-[7.5rem] rounded-xl border border-night-edge bg-night-panel px-4 py-3">
-        <div className="mb-2 flex items-center gap-2">
-          <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-chalk-dim/60">กำลังทำ</p>
-          {deps.length > 0 && (
-            <span className="inline-flex items-center gap-1 rounded-full bg-shine/10 px-2 py-0.5 font-mono text-[10px] text-shine">
-              <Boxes size={9} /> {deps.length} ชุดแพ็กเกจ
-            </span>
-          )}
-        </div>
-        {recent.length === 0 ? (
-          <p className="py-4 text-center text-[12px] text-chalk-dim/50">
-            AI กำลังอ่านเอกสารและวางโครงไฟล์
-          </p>
-        ) : (
-          <ul className="space-y-1">
-            {recent.map((a, i) => (
-              <li
-                key={`${a.icon}-${a.label}-${i}`}
-                className={`flex items-center gap-2 text-[12px] transition ${i === 0 ? "text-chalk" : "text-chalk-dim/70"}`}
-              >
-                <span className={a.icon === "deps" ? "text-shine" : "text-chalk-dim/50"}>
-                  {a.icon === "deps" ? <Package size={12} /> : <FileText size={12} />}
-                </span>
-                <span className="min-w-0 flex-1 truncate font-mono text-[11.5px]">{a.label}</span>
-              </li>
-            ))}
-          </ul>
-        )}
       </div>
 
       <p key={tip} className="tip-fade px-1 text-center text-[11.5px] leading-relaxed text-chalk-dim/60">

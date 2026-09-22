@@ -1,33 +1,34 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowRight, MonitorPlay } from "lucide-react";
+import { ArrowRight, Store } from "lucide-react";
 import { MODULES } from "@/lib/modules/registry";
 
 /**
- * The entry to the running system.
+ * The entry to the module shop.
  *
- * It used to be a picker: tick modules, get a demo generated. That asked a buyer
- * to configure a thing before they had seen one. This is the other way round —
- * sign in, use it, and decide afterwards which parts of it you want.
+ * It used to be a picker in a modal: tick things, press build — configuring a
+ * product before seeing one. The shop shows each module as a listing with a price
+ * and a way to open the running system on that exact screen, so the decision is
+ * made after using it rather than before.
  */
-export default function LiveSystemLink({ disabled }: { disabled: boolean }) {
+export default function MarketplaceLink({ disabled }: { disabled: boolean }) {
   return (
     <Link
-      href="/erp"
+      href="/marketplace"
       aria-disabled={disabled}
       className={
         "group flex h-full w-full items-center gap-2.5 rounded-xl border border-chalk/15 px-3.5 py-2.5 text-left transition hover:border-shine/60 hover:bg-chalk/[0.03] " +
         (disabled ? "pointer-events-none opacity-40" : "")
       }
     >
-      <MonitorPlay size={17} className="shrink-0 text-shine" />
+      <Store size={17} className="shrink-0 text-shine" />
       <span className="min-w-0 flex-1">
         <span className="block font-display text-[13px] font-semibold text-chalk group-hover:text-shine">
-          เปิดระบบตัวอย่าง
+          มาร์เก็ตเพลสโมดูล
         </span>
         <span className="block text-[12px] leading-snug text-chalk/55">
-          เข้าสู่ระบบแล้วใช้งานได้เลย {MODULES.length} โมดูล
+          {MODULES.length} โมดูลมาตรฐาน ลองใช้ของจริงได้ก่อนเลือก
         </span>
       </span>
       <ArrowRight

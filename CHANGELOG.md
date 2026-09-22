@@ -15,6 +15,9 @@ and is kept in sync with the entries below.
 ## [Unreleased]
 
 ### Added
+- **`/marketplace` — the catalogue as a shop.** Each module is a listing with its price, its capabilities and what it must be bought alongside; `/marketplace/[id]` gives the full capability list, what the module reads and who reads it. Filter by family, search across names, SAP codes and capability names. Public, same as `/erp`.
+- **A scope basket** (`components/marketplace/scope.ts`) that survives navigation: adding a module pulls in its transitive dependencies and says which and why; removing one drops whatever was left reading from it, so the scope is always buildable.
+- `lib/modules/start-project.ts` — the one path from a chosen scope to a built project, shared by the marketplace and the ERP header.
 - **`/erp` — the standard system as a running web app**, not a generator. Sign in as one of four roles, get a sidebar of the modules that role can open, and use them. Public (listed in `PUBLIC_PREFIXES`): it exists to answer "what am I buying?" before anyone has an account.
 - **Role-based access** that is enforced, not decorative: `app/erp/[module]/ModuleView.tsx` gates on the signed-in role, so typing a module URL you lack rights to returns a refusal panel rather than the screen.
 - **"Take these modules as a project"** in the ERP header — the scope is what the role can open, so it is chosen by using the system rather than ticked off a list first.
@@ -30,7 +33,7 @@ and is kept in sync with the entries below.
 ### Changed
 - **One capability per page.** Each module screen takes a `section` prop and renders only that capability; the in-page tab strips are gone. The sidebar expands the open module into its `keyFeatures`, each at `/erp/[module]/[n]`, and the composer's generated shell carries the same two-level sidebar so a built project navigates the way the demo does.
 - The personnel register's columns follow the chosen capability rather than staying fixed, and opening a record lands on that part of it.
-- The landing page's second entry point is now a link into `/erp` rather than a module picker; `components/landing/ModuleGallery.tsx` and `LaunchPad`'s `createFromModules` are gone, their job moved into the running system.
+- The landing page's second entry point is now the marketplace rather than a module picker or a bare link into `/erp`; `components/landing/ModuleGallery.tsx` and `LaunchPad`'s `createFromModules` are gone, their job moved into the running system.
 - The composer orders tabs by family before data flow, so a ten-module demo reads as whole businesses rather than interleaving personnel and warehouse screens. `FAMILY_ORDER` must stay dependency-safe for this to remain correct.
 - The module picker groups by family and puts each module's dependency on its own card; one tap adds a selection's whole transitive closure rather than one provider at a time.
 - Every demo figure is computed, not hard-coded: withholding tax walks the real PIT bands, social security is 5% capped at ฿750, absence is priced off the daily rate, and lateness is judged against the roster shift.

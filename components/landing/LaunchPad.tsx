@@ -17,7 +17,7 @@ import SkillPicker from "@/components/studio/SkillPicker";
 import SkillDropdown from "@/components/studio/SkillDropdown";
 import OrgSelect from "@/components/org/OrgSelect";
 import TemplateGallery from "@/components/landing/TemplateGallery";
-import LiveSystemLink from "@/components/landing/LiveSystemLink";
+import MarketplaceLink from "@/components/landing/MarketplaceLink";
 import type { ChatAttachmentInput } from "@/lib/types";
 
 
@@ -356,14 +356,14 @@ export default function LaunchPad({
           go find. Ends in the same express path as the box above. */}
       {/* Two ways in besides typing, side by side because they are peers: one
           chooses how it LOOKS and hands a brief to the model, the other opens the
-          standard system and lets them use it before describing anything. */}
+          shop of standard modules, which can be used before they are bought. */}
       <div className="border-t border-dashed border-chalk/10 px-4 py-3">
         <div className="grid gap-2 sm:grid-cols-2">
           <TemplateGallery
             disabled={launching}
             onCreate={(brief) => void createExpress(brief, null)}
           />
-          <LiveSystemLink disabled={launching} />
+          <MarketplaceLink disabled={launching} />
         </div>
       </div>
         </>

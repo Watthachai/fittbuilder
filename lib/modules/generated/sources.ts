@@ -1242,7 +1242,7 @@ export function DataTable<T>({
       </AnimatePresence>
 
       <div className={"overflow-hidden " + SURFACE}>
-        <div className="max-h-[calc(100vh-22rem)] overflow-auto">
+        <div className="max-h-[calc(100dvh-20rem)] overflow-auto">
           <table className="w-full text-[13px]">
             <thead className="sticky top-0 z-10 bg-slate-50/95 text-left text-[11.5px] text-slate-500 backdrop-blur dark:bg-slate-800/95 dark:text-slate-400">
               <tr>

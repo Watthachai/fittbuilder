@@ -23,6 +23,17 @@ export const CHANGE_BADGE: Record<ChangeType, { label: string; className: string
 // Newest first. SemVer: fix → PATCH, feature → MINOR, breaking → MAJOR.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.71.1",
+    date: "2026-09-22",
+    title: "📌 แถบเมนูและแถบบนอยู่นิ่ง ไม่เลื่อนหายตามเนื้อหา",
+    items: [
+      {
+        type: "fix",
+        text: "เลื่อนหน้าลงแล้วแถบเมนูซ้ายกับแถบบนเลื่อนหายไปด้วย เพราะทั้งหน้าเป็นตัวเลื่อน แก้ให้โครงหน้าสูงเท่าจอพอดีและให้เฉพาะพื้นที่เนื้อหาเลื่อน เมนู เส้นทางนำทาง ช่องค้นหา และปุ่มต่าง ๆ จึงอยู่กับที่ตลอด ทั้งในระบบตัวอย่างและเดโมที่สร้างออกไป",
+      },
+    ],
+  },
+  {
     version: "0.71.0",
     date: "2026-09-22",
     title: "📊 หน้าภาพรวมทะเบียนพนักงานมีกราฟและสีที่แยกประเภทได้",

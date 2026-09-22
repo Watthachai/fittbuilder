@@ -4,25 +4,20 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { Check, ChevronDown, Grid3x3, Store } from "lucide-react";
 import { FAMILIES, modulesOf } from "@/lib/modules/registry";
-import type { Module } from "@/lib/modules/types";
+import type { Module, ModuleFamily } from "@/lib/modules/types";
 
 /**
- * Switch what is being trialled without going back to the shop.
+ * Switch which system is being trialled without going back to the shop.
  *
  * A one-way "see everything" link assumed the only thing anyone would want next
- * is the whole suite. The likelier move is sideways — someone evaluating the
- * personnel module wants payroll next, and making them return to the listing
+ * is the whole suite. The likelier move is sideways — someone evaluating the HR
+ * system wants the accounting one next, and making them return to the listing
  * page to get there is a step that exists for no reason.
  */
-export default function TrialSwitcher({
-  trial,
-  licensed,
-}: {
-  trial: Module;
-  licensed: Module[];
-}) {
+export default function TrialSwitcher({ trial, licensed }: { trial: ModuleFamily; licensed: Module[] }) {
   const [open, setOpen] = useState(false);
   const box = useRef<HTMLDivElement>(null);
+  const current = FAMILIES.find((f) => f.id === trial)!;
 
   useEffect(() => {
     if (!open) return;
@@ -40,17 +35,15 @@ export default function TrialSwitcher({
     };
   }, [open]);
 
-  const families = FAMILIES.filter((f) => licensed.some((m) => m.family === f.id));
-
   return (
     <div ref={box} className="relative shrink-0">
       <button
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
         aria-haspopup="menu"
-        className="flex items-center gap-1.5 rounded-lg border border-sky-300 px-2.5 py-1.5 text-[12px] text-sky-700 transition hover:bg-sky-50 dark:border-sky-500/40 dark:text-sky-400 dark:hover:bg-sky-500/10"
+        className="flex items-center gap-1.5 rounded-lg border border-violet-300 px-2.5 py-1.5 text-[12px] text-violet-700 transition hover:bg-violet-50 dark:border-violet-500/40 dark:text-violet-300 dark:hover:bg-violet-500/10"
       >
-        <span className="hidden max-w-[10rem] truncate sm:inline">กำลังลอง {trial.name}</span>
+        <span className="hidden max-w-[12rem] truncate sm:inline">กำลังลองระบบ{current.name}</span>
         <span className="sm:hidden">ทดลองใช้</span>
         <ChevronDown size={12} className={"transition " + (open ? "rotate-180" : "")} />
       </button>
@@ -67,61 +60,46 @@ export default function TrialSwitcher({
           >
             <Grid3x3 size={14} className="shrink-0 text-slate-400" />
             <span className="min-w-0">
-              <span className="block text-[12.5px] font-medium text-slate-800 dark:text-slate-100">
-                ดูทั้งระบบ
-              </span>
+              <span className="block text-[12.5px] font-medium text-slate-800 dark:text-slate-100">ดูทุกระบบ</span>
               <span className="block text-[11px] text-slate-500 dark:text-slate-400">
                 {licensed.length} ส่วนที่สิทธิ์นี้เปิดได้ ทำงานเชื่อมกัน
               </span>
             </span>
           </Link>
 
-          <div className="max-h-80 overflow-y-auto py-1">
-            {families.map((family) => (
-              <div key={family.id}>
-                <p className="px-3.5 pb-1 pt-2 text-[10.5px] font-medium uppercase tracking-wide text-slate-400 dark:text-slate-500">
-                  ระบบ{family.name}
-                </p>
-                {modulesOf(family.id)
-                  .filter((m) => licensed.some((l) => l.id === m.id))
-                  .map((m) => {
-                    const on = m.id === trial.id;
-                    return (
-                      <Link
-                        key={m.id}
-                        href={`/erp/${m.id}?only=${m.id}`}
-                        onClick={() => setOpen(false)}
-                        className={
-                          "flex items-center gap-2.5 px-3.5 py-1.5 transition " +
-                          (on
-                            ? "bg-sky-50 dark:bg-sky-500/10"
-                            : "hover:bg-slate-50 dark:hover:bg-slate-800/60")
-                        }
-                      >
-                        <Check
-                          size={13}
-                          className={"shrink-0 " + (on ? "text-sky-600 dark:text-sky-400" : "opacity-0")}
-                        />
-                        <span className="min-w-0 flex-1 truncate text-[12.5px] text-slate-700 dark:text-slate-200">
-                          {m.name}
-                        </span>
-                        <span className="shrink-0 text-[10.5px] text-slate-300 dark:text-slate-600">
-                          {m.sapCode}
-                        </span>
-                      </Link>
-                    );
-                  })}
-              </div>
-            ))}
+          <div className="py-1">
+            {FAMILIES.map((f) => {
+              const on = f.id === trial;
+              const mine = modulesOf(f.id).filter((m) => licensed.some((l) => l.id === m.id)).length;
+              return (
+                <Link
+                  key={f.id}
+                  href={`/erp?system=${f.id}`}
+                  onClick={() => setOpen(false)}
+                  className={
+                    "flex items-center gap-2.5 px-3.5 py-2 transition " +
+                    (on ? "bg-violet-50 dark:bg-violet-500/10" : "hover:bg-slate-50 dark:hover:bg-slate-800/60")
+                  }
+                >
+                  <Check size={13} className={"shrink-0 " + (on ? "text-violet-600 dark:text-violet-300" : "opacity-0")} />
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-[12.5px] text-slate-700 dark:text-slate-200">ระบบ{f.name}</span>
+                    <span className="block text-[11px] text-slate-400 dark:text-slate-500">
+                      เปิดได้ {mine} จาก {modulesOf(f.id).length} ส่วน
+                    </span>
+                  </span>
+                </Link>
+              );
+            })}
           </div>
 
           <Link
-            href={`/marketplace/${trial.id}`}
+            href={`/marketplace/${trial}`}
             onClick={() => setOpen(false)}
             className="flex items-center gap-2.5 border-t border-slate-100 px-3.5 py-2.5 text-[12px] text-slate-500 transition hover:bg-slate-50 dark:border-slate-800 dark:text-slate-400 dark:hover:bg-slate-800/60"
           >
             <Store size={13} className="shrink-0" />
-            ดูราคาและรายละเอียดใน มาร์เก็ตเพลส
+            ดูราคาและรายละเอียดในมาร์เก็ตเพลส
           </Link>
         </div>
       )}

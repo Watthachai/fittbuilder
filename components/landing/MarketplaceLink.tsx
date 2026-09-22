@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { ArrowRight, Store } from "lucide-react";
-import { MODULES } from "@/lib/modules/registry";
+import { FAMILIES, MODULES } from "@/lib/modules/registry";
 
 /**
  * The entry to the module shop.
@@ -25,10 +25,10 @@ export default function MarketplaceLink({ disabled }: { disabled: boolean }) {
       <Store size={17} className="shrink-0 text-shine" />
       <span className="min-w-0 flex-1">
         <span className="block font-display text-[13px] font-semibold text-chalk group-hover:text-shine">
-          มาร์เก็ตเพลสโมดูล
+          มาร์เก็ตเพลสระบบ
         </span>
         <span className="block text-[12px] leading-snug text-chalk/55">
-          {MODULES.length} โมดูลมาตรฐาน ลองใช้ของจริงได้ก่อนเลือก
+          {FAMILIES.length} ระบบสำเร็จรูป {MODULES.length} ส่วนประกอบ ลองใช้ของจริงได้ก่อนเลือก
         </span>
       </span>
       <ArrowRight

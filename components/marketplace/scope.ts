@@ -1,19 +1,22 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { MODULES } from "@/lib/modules/registry";
-import type { Module } from "@/lib/modules/types";
+import { FAMILIES, MODULES, modulesOf } from "@/lib/modules/registry";
+import type { Module, ModuleFamily } from "@/lib/modules/types";
 
 const KEY = "fitt-marketplace-scope";
 
 export const providerOf = (entity: string) => MODULES.find((m) => m.provides.includes(entity));
 
+/** The system a module is part of, by its buyer-facing name. */
+export const systemOf = (m: Module) => FAMILIES.find((f) => f.id === m.family)!;
+
 /**
  * Everything `picked` transitively needs, the picks excluded.
  *
- * Adding accounting without purchasing produces a ledger with no suppliers in it.
- * The catalogue knows that, so the basket resolves it instead of letting someone
- * discover it after the project is built.
+ * Adding the accounting system without purchasing produces a ledger with no
+ * suppliers in it. The catalogue knows that, so the basket resolves it instead
+ * of letting someone discover it after the project is built.
  */
 export function closureOf(picked: Module[]): Module[] {
   const seen = new Map<string, Module>();
@@ -30,7 +33,28 @@ export function closureOf(picked: Module[]): Module[] {
   return [...seen.values()];
 }
 
-/** The scope a visitor has assembled, kept across the storefront and detail pages. */
+/** The other systems a system cannot run without. */
+export function systemsNeededBy(family: ModuleFamily): ModuleFamily[] {
+  const parts = modulesOf(family);
+  return [...new Set(closureOf(parts).map((m) => m.family))].filter((f) => f !== family);
+}
+
+/** Price of a system: the sum of its parts. No shared-cost discount in v1. */
+export function systemPrice(family: ModuleFamily) {
+  const parts = modulesOf(family);
+  return {
+    days: parts.reduce((n, m) => n + m.effortDays, 0),
+    ma: parts.reduce((n, m) => n + m.maPerMonth, 0),
+  };
+}
+
+/**
+ * The scope a visitor has assembled, kept across the storefront and detail pages.
+ *
+ * It is bought in systems, because that is how it is used: one HR system that
+ * different people see different parts of, not four products. The store still
+ * remembers module ids underneath, since that is what the composer builds from.
+ */
 export function useScope() {
   const [ids, setIds] = useState<string[]>([]);
   const [ready, setReady] = useState(false);
@@ -55,21 +79,23 @@ export function useScope() {
   }, []);
 
   const chosen = MODULES.filter((m) => ids.includes(m.id));
+  const systems = FAMILIES.filter((f) => modulesOf(f.id).every((m) => ids.includes(m.id)));
 
-  /** Adding a module brings what it reads from; nothing else is guessed at. */
-  const add = useCallback(
-    (m: Module) => {
-      const needed = closureOf([...MODULES.filter((x) => ids.includes(x.id)), m]);
-      write([...new Set([...ids, m.id, ...needed.map((x) => x.id)])]);
-      return needed.filter((x) => !ids.includes(x.id));
+  /** Adding a system brings the systems it reads from; nothing else is guessed at. */
+  const addSystem = useCallback(
+    (family: ModuleFamily) => {
+      const parts = modulesOf(family);
+      const needed = closureOf([...MODULES.filter((x) => ids.includes(x.id)), ...parts]);
+      write([...new Set([...ids, ...parts.map((m) => m.id), ...needed.map((x) => x.id)])]);
+      return [...new Set(needed.filter((x) => !ids.includes(x.id)).map((x) => x.family))].filter((f) => f !== family);
     },
     [ids, write]
   );
 
-  /** Removing takes anything left reading from it, so the scope stays buildable. */
-  const remove = useCallback(
-    (m: Module) => {
-      let next = ids.filter((id) => id !== m.id);
+  /** Removing a system takes any system left reading from it, so the scope stays buildable. */
+  const removeSystem = useCallback(
+    (family: ModuleFamily) => {
+      let next = ids.filter((id) => !modulesOf(family).some((m) => m.id === id));
       for (;;) {
         const broken = MODULES.filter(
           (x) =>
@@ -80,7 +106,9 @@ export function useScope() {
             })
         );
         if (broken.length === 0) break;
-        next = next.filter((id) => !broken.some((b) => b.id === id));
+        // A broken part takes its whole system out; half a system is not a product.
+        const families = new Set(broken.map((b) => b.family));
+        next = next.filter((id) => !MODULES.some((m) => m.id === id && families.has(m.family)));
       }
       write(next);
     },
@@ -90,9 +118,10 @@ export function useScope() {
   return {
     ready,
     chosen,
-    add,
-    remove,
+    systems,
+    addSystem,
+    removeSystem,
     clear: useCallback(() => write([]), [write]),
-    has: (id: string) => ids.includes(id),
+    hasSystem: (family: ModuleFamily) => modulesOf(family).every((m) => ids.includes(m.id)),
   };
 }

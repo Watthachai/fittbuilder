@@ -54,14 +54,14 @@ export default function ErpShell({ children }: { children: React.ReactNode }) {
   const params = useSearchParams();
 
   /**
-   * `?only=` is a trial of one module, arriving from the marketplace.
+   * `?system=` is a trial of one system, arriving from the marketplace.
    *
-   * Someone who clicked "ลองใช้" on a listing is evaluating that product, not
-   * shopping the whole suite — a sidebar of ten modules answers a question they
-   * did not ask and hides the one they did. The parameter narrows what is listed;
-   * it is not a permission, which the role already decides.
+   * Someone who clicked "ลองใช้ทั้งระบบ" on a listing is evaluating that
+   * system, not the whole suite — the other systems answer a question they did
+   * not ask. The parameter narrows what is listed to that system, every part
+   * of it; which parts open is still the role's decision, drawn as locks.
    */
-  const only = params.get("only");
+  const system = params.get("system");
 
   useEffect(() => {
     setRole(readSession());
@@ -94,12 +94,12 @@ export default function ErpShell({ children }: { children: React.ReactNode }) {
   const sectionAt = segments[2] ? Number(segments[2]) : undefined;
 
   const licensed = useMemo(() => (role ? MODULES.filter((m) => mayOpen(role, m.id)) : []), [role]);
-  const trial = only ? licensed.find((m) => m.id === only) : undefined;
-  const open = trial ? [trial] : licensed;
+  const trial = system ? FAMILIES.find((f) => f.id === system) : undefined;
+  const open = trial ? licensed.filter((m) => m.family === trial.id) : licensed;
   const alerts = useMemo(() => alertsFor(open), [open]);
 
   /** Every in-shell link keeps the trial, or one click would widen it silently. */
-  const keep = (href: string) => (trial ? `${href}?only=${trial.id}` : href);
+  const keep = (href: string) => (trial ? `${href}?system=${trial.id}` : href);
 
   // Nothing renders until the stored session has been read, or a signed-in
   // viewer would see the login form flash on every navigation.
@@ -169,7 +169,7 @@ export default function ErpShell({ children }: { children: React.ReactNode }) {
         </Link>
 
         <nav className="min-h-0 flex-1 overflow-y-auto px-2 py-3">
-          {FAMILIES.filter((f) => open.some((m) => m.family === f.id)).map((family) => (
+          {FAMILIES.filter((f) => (trial ? f.id === trial.id : open.some((m) => m.family === f.id))).map((family) => (
             <div key={family.id} className="mb-4">
               {!rail && (
                 <p className="px-2 pb-1.5 text-[11px] font-medium uppercase tracking-wide text-slate-400 dark:text-slate-500">
@@ -177,11 +177,10 @@ export default function ErpShell({ children }: { children: React.ReactNode }) {
                 </p>
               )}
               {modulesOf(family.id)
-                // In a trial only the module on trial is listed; otherwise the
-                // whole system is, so what is locked is visible as locked rather
-                // than missing — that is what "one system, separate permissions"
-                // looks like from a seat that has some of it.
-                .filter((m) => !trial || m.id === trial.id)
+                // The whole system is listed, trial or not, so what is locked is
+                // visible as locked rather than missing — that is what "one
+                // system, separate permissions" looks like from a seat that has
+                // some of it.
                 .map((m) => {
                   const on = current?.id === m.id;
                   const locked = !mayOpen(role, m.id);
@@ -404,8 +403,8 @@ export default function ErpShell({ children }: { children: React.ReactNode }) {
             {theme === "dark" ? <Sun size={14} /> : <Moon size={14} />}
           </button>
 
-          {trial && <TrialSwitcher trial={trial} licensed={licensed} />}
-          <TakeProject role={role} only={trial ?? undefined} />
+          {trial && <TrialSwitcher trial={trial.id} licensed={licensed} />}
+          <TakeProject role={role} only={trial?.id} />
           <Link
             href="/"
             className="hidden shrink-0 rounded-lg border border-slate-200 px-3 py-1.5 text-[12px] text-slate-600 transition hover:border-violet-300 hover:text-violet-700 lg:block dark:border-slate-800 dark:text-slate-300"

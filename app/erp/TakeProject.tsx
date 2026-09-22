@@ -7,7 +7,8 @@ import { projectFilesFor } from "@/lib/modules/project";
 import { createProject, saveProject } from "@/lib/storage";
 import { mayOpen } from "./session";
 import type { Role } from "./session";
-import type { Module } from "@/lib/modules/types";
+import type { ModuleFamily } from "@/lib/modules/types";
+import { FAMILIES } from "@/lib/modules/registry";
 
 /**
  * Take what you just used and keep it.
@@ -16,12 +17,13 @@ import type { Module } from "@/lib/modules/types";
  * rather than ticked off a list beforehand — so the two phases that exist to
  * establish scope are already answered by the time the project is created.
  */
-export default function TakeProject({ role, only }: { role: Role; only?: Module }) {
+export default function TakeProject({ role, only }: { role: Role; only?: ModuleFamily }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string>();
   const router = useRouter();
 
-  const selected = only ? [only] : MODULES.filter((m) => mayOpen(role, m.id));
+  // In a trial, the parts of that system this seat may open; otherwise everything it may.
+  const selected = MODULES.filter((m) => mayOpen(role, m.id) && (!only || m.family === only));
 
   const take = async () => {
     if (busy) return;
@@ -53,7 +55,7 @@ export default function TakeProject({ role, only }: { role: Role; only?: Module 
         disabled={busy}
         className="shrink-0 rounded-lg bg-sky-600 px-3 py-1.5 text-[12px] font-medium text-white transition hover:bg-sky-700 disabled:opacity-50"
       >
-        {busy ? "กำลังสร้าง…" : only ? `เอา${only.name}ไปเป็นโปรเจ็กต์` : `เอา ${selected.length} ส่วนนี้ไปเป็นโปรเจ็กต์`}
+        {busy ? "กำลังสร้าง…" : only ? `เอาระบบ${FAMILIES.find((f) => f.id === only)?.name}ไปเป็นโปรเจ็กต์` : `เอา ${selected.length} ส่วนนี้ไปเป็นโปรเจ็กต์`}
       </button>
     </div>
   );

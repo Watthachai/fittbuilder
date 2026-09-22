@@ -74,7 +74,7 @@ describe("generation checkpoints", () => {
     // server's last write landed after that clear, a finished turn would be
     // offered back as unfinished work.
     const tail = route.slice(route.lastIndexOf("await parkDraft(true)"));
-    expect(tail.slice(0, 400)).toContain('type: "done"');
+    expect(tail.slice(0, 1600)).toContain('type: "done"');
   });
 
   it("has only one writer during a turn — the client no longer checkpoints", () => {
@@ -165,7 +165,7 @@ describe("generation checkpoints", () => {
       expect(parks.filter((p) => p === "parkDraft(true)")).toHaveLength(1);
       // …and that one is the awaited call that runs just before `done`.
       const tail = route.slice(route.lastIndexOf("await parkDraft(true)"));
-      expect(tail.slice(0, 400)).toContain('type: "done"');
+      expect(tail.slice(0, 1600)).toContain('type: "done"');
     });
 
     /**

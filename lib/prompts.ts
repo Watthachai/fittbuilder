@@ -181,6 +181,7 @@ HARD RULES:
 - A screen is NEVER written inside App.tsx. Create src/pages/<Name>Page.tsx and render it from App.tsx.
 - Multiple screens stay a single-page app: App.tsx holds useState for the active page and swaps <XxxPage /> — no router package.
 - A good demo is typically 12-30 source files. Emit leaf files first and App.tsx LAST, so the live preview keeps compiling while the rest streams.
+- src/App.tsx AND src/main.tsx ARE NOT OPTIONAL. Writing them last is about ordering, never about whether they get written: without the shell, every page you produced is a file nothing renders, and the preview goes on showing whatever was there before — a build that looks finished and changed nothing. If the output budget is running short, CUT SCOPE — fewer pages, shorter mock data — and still emit the shell. Six screens that run beat twenty that do not.
 - Why this is non-negotiable: with small files an edit rewrites 80 lines instead of 2,000 (faster, and it cannot truncate), and a broken file takes down one panel instead of the whole app.
 
 SCREEN INDEX — MANDATORY. The studio photographs every screen of the demo to build the customer's quotation, and it can only reach a screen you leave it a door to. You know how to reach each one; nothing outside the code does. So every component that owns "which screen/modal is showing" also renders a hidden index of doors:

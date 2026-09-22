@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { SCAFFOLD_REQUIRED, withRequiredScaffold } from "../scaffold";
 import { hasRunnableApp } from "../define";
@@ -62,5 +63,41 @@ describe("withRequiredScaffold", () => {
     const noPkg = { "src/main.tsx": "x", "src/App.tsx": "y" };
     expect(hasRunnableApp(noPkg)).toBe(false);
     expect(hasRunnableApp(withRequiredScaffold(noPkg))).toBe(true);
+  });
+});
+
+/**
+ * The same shape of failure, one file along.
+ *
+ * `withRequiredScaffold` supplies the plumbing a build never writes — index.html,
+ * package.json — but it deliberately does NOT supply src/App.tsx, because the
+ * app's own shell is the build's job. Seen live on 22 Sep 2026: a first build
+ * wrote twenty pages and components, no src/App.tsx, and reported
+ * "สร้างระบบเรียบร้อยแล้ว". The container still had the scaffold's App.tsx on
+ * disk, so Vite served the placeholder and nothing anywhere disagreed.
+ *
+ * The structure rule is what exposes it: App.tsx is asked for LAST, so that the
+ * preview keeps compiling while the rest streams — which makes the one file
+ * without which nothing renders the one a truncated turn drops.
+ */
+describe("a build that wrote no shell", () => {
+  const route = readFileSync("app/api/generate/route.ts", "utf8");
+  const prompts = readFileSync("lib/prompts.ts", "utf8");
+
+  it("is not reported to the user as a finished build", () => {
+    expect(route).toContain("shellMissing");
+    // Screens without a shell is the exact condition — not "no files at all",
+    // which the route already handles separately.
+    expect(route).toContain('!produced["src/App.tsx"]');
+  });
+
+  it("does not fire on an iteration, which may touch one page and nothing else", () => {
+    expect(route).toMatch(/shellMissing = !iteration/);
+  });
+
+  it("tells the model the shell outranks the scope", () => {
+    expect(prompts).toContain("src/App.tsx AND src/main.tsx ARE NOT OPTIONAL");
+    // The instruction has to say what to give up instead, or it is just a wish.
+    expect(prompts).toContain("CUT SCOPE");
   });
 });

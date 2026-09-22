@@ -391,12 +391,33 @@ export async function POST(request: Request) {
         // were unfinished).
         await parkDraft(true);
 
+        /**
+         * A first build that wrote screens but no shell has not built anything.
+         *
+         * The structure rule asks for App.tsx LAST so the preview keeps
+         * compiling while the rest streams — which also makes the one file
+         * without which nothing renders the one most exposed to a truncated
+         * turn. Seen live on 22 Sep 2026: twenty pages and components written,
+         * no src/App.tsx, the turn reported "สร้างระบบเรียบร้อยแล้ว", and the
+         * preview went on serving the scaffold's placeholder because its App.tsx
+         * was still the one on disk. Nothing in the pipeline disagreed.
+         *
+         * Iterations are exempt: they legitimately touch a page and leave the
+         * shell alone.
+         */
+        const wroteScreens = Object.keys(produced).some(
+          (path) => path.startsWith("src/pages/") || path.startsWith("src/components/")
+        );
+        const shellMissing = !iteration && wroteScreens && !produced["src/App.tsx"];
 
         send({
           type: "done",
-          note:
-            ((fromJson ? salvagedNote : parser.getReply()) ||
-              (iteration ? "แก้ไขเรียบร้อยแล้ว" : "สร้างระบบเรียบร้อยแล้ว")) + assetNote,
+          note: shellMissing
+            ? "เขียนหน้าจอและคอมโพเนนต์ครบแล้ว แต่ยังไม่ได้เขียน src/App.tsx ซึ่งเป็นไฟล์ที่ประกอบทุกอย่างเข้าด้วยกัน " +
+              "หน้าตัวอย่างจึงยังเป็นหน้าเดิม กดสร้างใหม่อีกครั้งเพื่อให้เขียนให้ครบ" +
+              assetNote
+            : ((fromJson ? salvagedNote : parser.getReply()) ||
+                (iteration ? "แก้ไขเรียบร้อยแล้ว" : "สร้างระบบเรียบร้อยแล้ว")) + assetNote,
           deleted,
         });
         close();

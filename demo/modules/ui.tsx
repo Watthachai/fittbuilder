@@ -1,4 +1,6 @@
+import { useSyncExternalStore } from "react";
 import type { ReactNode } from "react";
+import { createPortal } from "react-dom";
 import { motion } from "motion/react";
 import { ChevronDown, LayoutGrid, LayoutList } from "lucide-react";
 
@@ -932,6 +934,28 @@ export function Heatmap({
 
 /* ----------------------------------------------------------------- modal */
 
+const noSubscription = () => () => {};
+
+/**
+ * Where every overlay in the kit renders: straight under <body>.
+ *
+ * `position: fixed` covers the window only while no ancestor creates a
+ * containing block, and transform, filter, backdrop-filter, will-change and
+ * contain each create one. A card that lifts on hover, a header with a blur, a
+ * page still sliding in — any of them re-anchors a fixed overlay to its own box,
+ * so the dim stops at the edge of the content column and the dialog centres
+ * inside it. The generator holds every modal it writes to this rule; the kit it
+ * ships has to keep it too.
+ *
+ * Nothing renders on the server or during hydration. An overlay has nothing to
+ * show before the page is interactive, and markup in <body> that the server
+ * never sent is a hydration mismatch.
+ */
+export function Overlay({ children }: { children: ReactNode }) {
+  const client = useSyncExternalStore(noSubscription, () => true, () => false);
+  return client ? createPortal(children, document.body) : null;
+}
+
 /**
  * Reserved for short confirmations. Anything a person needs to read while still
  * seeing the list it came from belongs in a Drawer or a DetailModal (kit.tsx).
@@ -951,40 +975,42 @@ export function Modal({
 }) {
   const width = size === "lg" ? "max-w-2xl" : size === "sm" ? "max-w-md" : "max-w-lg";
   return (
-    <motion.div
-      role="dialog"
-      aria-modal="true"
-      onClick={onClose}
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-[2px] dark:bg-black/60"
-    >
+    <Overlay>
       <motion.div
-        onClick={(e) => e.stopPropagation()}
-        initial={{ opacity: 0, y: 12, scale: 0.98 }}
-        animate={{ opacity: 1, y: 0, scale: 1 }}
-        transition={{ type: "spring", stiffness: 380, damping: 32 }}
-        className={
-          "max-h-[85vh] w-full overflow-y-auto rounded-2xl bg-white p-6 shadow-2xl dark:bg-slate-900 dark:ring-1 dark:ring-slate-800 " +
-          width
-        }
+        role="dialog"
+        aria-modal="true"
+        onClick={onClose}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-[2px] dark:bg-black/60"
       >
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-50">{title}</h2>
-            {subtitle && <p className="mt-0.5 text-sm text-slate-500 dark:text-slate-400">{subtitle}</p>}
+        <motion.div
+          onClick={(e) => e.stopPropagation()}
+          initial={{ opacity: 0, y: 12, scale: 0.98 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          transition={{ type: "spring", stiffness: 380, damping: 32 }}
+          className={
+            "max-h-[85vh] w-full overflow-y-auto rounded-2xl bg-white p-6 shadow-2xl dark:bg-slate-900 dark:ring-1 dark:ring-slate-800 " +
+            width
+          }
+        >
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-50">{title}</h2>
+              {subtitle && <p className="mt-0.5 text-sm text-slate-500 dark:text-slate-400">{subtitle}</p>}
+            </div>
+            <button
+              onClick={onClose}
+              aria-label="ปิด"
+              className="rounded-lg px-2 py-1 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
+            >
+              ✕
+            </button>
           </div>
-          <button
-            onClick={onClose}
-            aria-label="ปิด"
-            className="rounded-lg px-2 py-1 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
-          >
-            ✕
-          </button>
-        </div>
-        {children}
+          {children}
+        </motion.div>
       </motion.div>
-    </motion.div>
+    </Overlay>
   );
 }
 

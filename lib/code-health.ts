@@ -19,6 +19,23 @@ export const OVERSIZE_LINES = 300;
 /** Docs (BRD/PRD) are legitimately long — only real source files are audited. */
 const CODE_FILE = /\.(tsx?|jsx?|css|html)$/;
 
+/**
+ * The design kit the studio ships, in both places it lands: a module project's
+ * shared pieces and a generated project's components/ui.
+ *
+ * They are long on purpose and written by us, not grown by a model one edit at a
+ * time — which is what this audit exists to catch. Reporting them made every
+ * kit-built project start in "structure debt", and the reorganize button would
+ * have asked the model to cut a 1,200-line library into forty files.
+ */
+export const SHIPPED_KIT_PATHS: ReadonlySet<string> = new Set([
+  "src/modules/ui.tsx",
+  "src/modules/kit.tsx",
+  "src/components/ui/ui.tsx",
+  "src/components/ui/kit.tsx",
+  "src/components/ui/shell.tsx",
+]);
+
 export interface OversizedFile {
   path: string;
   lines: number;
@@ -29,7 +46,7 @@ export function oversizedFiles(files: ProjectFiles | null | undefined): Oversize
   if (!files) return [];
   const out: OversizedFile[] = [];
   for (const [path, content] of Object.entries(files)) {
-    if (!CODE_FILE.test(path)) continue;
+    if (!CODE_FILE.test(path) || SHIPPED_KIT_PATHS.has(path)) continue;
     const lines = content.split("\n").length;
     if (lines > OVERSIZE_LINES) out.push({ path, lines });
   }

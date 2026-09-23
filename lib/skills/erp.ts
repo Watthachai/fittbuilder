@@ -122,7 +122,7 @@ Finance (invoice/payment), CFO (อนุมัติวงเงินสูง
   buildGuidance: `## ERP Build Guidance
 
 **หน้าจอที่ควรมี (multi-screen, ใช้ sidebar nav)**
-1. **Dashboard** — KPI cards (PR รออนุมัติ, มูลค่าสต็อก, PO เกินกำหนด, spend เดือนนี้) + recharts (bar: spend ต่อ supplier, line: แนวโน้มจัดซื้อ)
+1. **Dashboard** — KPI (PR รออนุมัติ, มูลค่าสต็อก, PO เกินกำหนด, spend เดือนนี้) + กราฟ spend ต่อ supplier + แนวโน้มการจัดซื้อรายเดือน + รายการที่ต้องจัดการวันนี้ (PR รออนุมัติ, PO เกินกำหนด, ของต่ำกว่า reorder point) ที่กดแล้วไปหน้าที่จัดการได้เลย
 2. **PR list** — ตาราง + filter ตามสถานะ + ปุ่มสร้าง PR
 3. **PO create/detail** — ฟอร์ม header + **line items แบบตาราง** (เพิ่ม/ลบแถว, คำนวณยอดรวมอัตโนมัติ)
 4. **Approval inbox** — รายการรออนุมัติของฉัน + ปุ่มอนุมัติ/ตีกลับ (แสดง approval matrix)
@@ -131,11 +131,11 @@ Finance (invoice/payment), CFO (อนุมัติวงเงินสูง
 7. **Supplier list** — master data
 
 **UI patterns**
-- **Role switcher** มุมบน (สลับเป็น Requester/Approver/Buyer/...) เพื่อโชว์สิทธิ์ต่างกัน
+- **Role switcher** ในแถบบนของแอป (สลับเป็น Requester/Approver/Buyer/...) เพื่อโชว์สิทธิ์ต่างกัน
 - **Status badges** สีตามสถานะ (Draft เทา, Pending Approval เหลือง, Approved เขียว, Rejected แดง)
 - เลขที่เอกสารมี prefix + running (PO-2026-0001)
 - ตารางแน่น, ตัวเลขจัดชิดขวา, มี currency format (฿1,250,000)
-- ใช้ recharts สำหรับกราฟ, lucide-react สำหรับไอคอน`,
+- กราฟใช้ของใน kit (ColumnChart, Donut, Gauge), ไอคอนใช้ lucide-react`,
 
   seedData: `## ERP Seed Data (ใส่ลง demo ให้ดูสมจริง)
 
@@ -166,7 +166,8 @@ Finance (invoice/payment), CFO (อนุมัติวงเงินสูง
 - Spend เดือนนี้: ฿1.02M`,
 
   designHints:
-    "โทน enterprise/จริงจัง: พื้นขาว/เทาอ่อน, sidebar เข้ม, accent น้ำเงิน, ตารางแน่นอ่านง่าย, ตัวเลขเด่น",
+    "โทน enterprise แบบระบบ HR ของสตูดิโอ: พื้นเทาอ่อน การ์ดขาว accent ม่วงสีเดียวตาม kit ตารางแน่นอ่านง่าย ตัวเลขชิดขวา ตัวเลขสำคัญตัวใหญ่ · ป้ายและหัวคอลัมน์ใช้ภาษาเดียว ใช้ตัวย่อที่คนในงานพูดกันจริงได้ (PR, PO, GR) แต่ไม่ต้องต่อคำแปลในวงเล็บ",
+  kit: true,
   premiumOptions: [
     { id: "reorder", name: "เตือนของจะหมด พร้อมร่างใบสั่งซื้อ", pitch: "ของขาดคือออเดอร์ที่เสียไปทั้งใบ — ระบบบอกล่วงหน้าว่าตัวไหนจะหมดวันไหน แล้วร่างใบสั่งซื้อไว้ให้กดอนุมัติ", requires: ["stock"], effortDays: 4, build: "คำนวณอัตราการใช้จากประวัติเคลื่อนไหว → วันที่จะหมด → จัดอันดับความเร่งด่วน → ร่าง PO ต่อผู้ขายพร้อมยอดสั่งที่แนะนำ" },
     { id: "bottleneck", name: "ชี้คอขวดสายการผลิต", pitch: "งานช้าทั้งสายเพราะขั้นตอนเดียว แต่ไม่มีใครรู้ว่าขั้นไหน — ระบบชี้ให้เห็นและบอกว่าต้องเพิ่มกำลังตรงไหน", requires: ["production"], effortDays: 4, build: "วัดเวลาคงค้างแต่ละขั้นจาก seed แล้วแสดงเป็นแผนภาพไหลที่ขั้นคอขวดเด่นชัด พร้อมผลกระทบเป็นวัน" },

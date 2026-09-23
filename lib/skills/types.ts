@@ -78,6 +78,15 @@ export interface SkillTemplate {
   seedData: string;
   /** Optional domain visual direction. */
   designHints?: string;
+  /**
+   * A back-office system: the build starts with the studio's own component kit
+   * and app frame already in the project, and the model composes screens from
+   * them instead of inventing a design system per build.
+   *
+   * Off for anything a customer browses — a storefront, a booking page, a
+   * landing page — where a management table-and-panel kit is the wrong shape.
+   */
+  kit?: boolean;
   /** What this domain sells on top of the standard build. */
   premiumOptions: PremiumOption[];
 }

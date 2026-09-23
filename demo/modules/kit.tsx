@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp, ChevronsUpDown, X } from "lucide-react";
-import { Button, FIELD, SURFACE, Skeleton, enter } from "./ui";
+import { Button, FIELD, Overlay, SURFACE, Skeleton, enter } from "./ui";
 
 /**
  * The working parts of a management screen: the table people live in, the panel
@@ -291,69 +291,71 @@ export function DetailModal({
   }, [open, onClose, onStep]);
 
   return (
-    <AnimatePresence>
-      {open && (
-        <motion.div
-          role="dialog"
-          aria-modal="true"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.18 }}
-          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/45 p-3 backdrop-blur-[2px] dark:bg-black/65 sm:p-6"
-          onClick={onClose}
-        >
+    <Overlay>
+      <AnimatePresence>
+        {open && (
           <motion.div
-            onClick={(e) => e.stopPropagation()}
-            initial={{ opacity: 0, y: 16, scale: 0.985 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 10, scale: 0.99 }}
-            transition={{ type: "spring", stiffness: 360, damping: 34 }}
-            className="flex h-[88vh] w-full max-w-6xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl dark:bg-slate-900 dark:ring-1 dark:ring-slate-800"
+            role="dialog"
+            aria-modal="true"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.18 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/45 p-3 backdrop-blur-[2px] dark:bg-black/65 sm:p-6"
+            onClick={onClose}
           >
-            <div className="flex items-center gap-3 border-b border-slate-100 px-5 py-3 dark:border-slate-800">
-              <h2 className="min-w-0 flex-1 truncate text-[15px] font-semibold text-slate-900 dark:text-slate-50">
-                {title}
-              </h2>
-              {onStep && index !== undefined && total !== undefined && (
-                <div className="flex items-center gap-1.5">
-                  <button
-                    onClick={() => onStep(-1)}
-                    disabled={index <= 0}
-                    aria-label="รายการก่อนหน้า"
-                    className="grid size-8 place-items-center rounded-full border border-slate-200 text-slate-500 transition hover:bg-slate-50 disabled:opacity-30 dark:border-slate-700 dark:hover:bg-slate-800"
-                  >
-                    <ChevronLeft size={15} />
-                  </button>
-                  <button
-                    onClick={() => onStep(1)}
-                    disabled={index >= total - 1}
-                    aria-label="รายการถัดไป"
-                    className="grid size-8 place-items-center rounded-full border border-slate-200 text-slate-500 transition hover:bg-slate-50 disabled:opacity-30 dark:border-slate-700 dark:hover:bg-slate-800"
-                  >
-                    <ChevronRight size={15} />
-                  </button>
-                  <span className="ml-1 text-[12.5px] tabular-nums text-slate-500 dark:text-slate-400">
-                    <span className="font-semibold text-slate-900 dark:text-slate-50">
-                      {String(index + 1).padStart(2, "0")}
-                    </span>{" "}
-                    จาก {total}
-                  </span>
-                </div>
-              )}
-              <button
-                onClick={onClose}
-                aria-label="ปิด"
-                className="ml-2 grid size-8 place-items-center rounded-lg text-slate-400 transition hover:bg-slate-100 hover:text-slate-800 dark:hover:bg-slate-800 dark:hover:text-slate-100"
-              >
-                <X size={16} />
-              </button>
-            </div>
-            <div className="min-h-0 flex-1">{children}</div>
+            <motion.div
+              onClick={(e) => e.stopPropagation()}
+              initial={{ opacity: 0, y: 16, scale: 0.985 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 10, scale: 0.99 }}
+              transition={{ type: "spring", stiffness: 360, damping: 34 }}
+              className="flex h-[88vh] w-full max-w-6xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl dark:bg-slate-900 dark:ring-1 dark:ring-slate-800"
+            >
+              <div className="flex items-center gap-3 border-b border-slate-100 px-5 py-3 dark:border-slate-800">
+                <h2 className="min-w-0 flex-1 truncate text-[15px] font-semibold text-slate-900 dark:text-slate-50">
+                  {title}
+                </h2>
+                {onStep && index !== undefined && total !== undefined && (
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      onClick={() => onStep(-1)}
+                      disabled={index <= 0}
+                      aria-label="รายการก่อนหน้า"
+                      className="grid size-8 place-items-center rounded-full border border-slate-200 text-slate-500 transition hover:bg-slate-50 disabled:opacity-30 dark:border-slate-700 dark:hover:bg-slate-800"
+                    >
+                      <ChevronLeft size={15} />
+                    </button>
+                    <button
+                      onClick={() => onStep(1)}
+                      disabled={index >= total - 1}
+                      aria-label="รายการถัดไป"
+                      className="grid size-8 place-items-center rounded-full border border-slate-200 text-slate-500 transition hover:bg-slate-50 disabled:opacity-30 dark:border-slate-700 dark:hover:bg-slate-800"
+                    >
+                      <ChevronRight size={15} />
+                    </button>
+                    <span className="ml-1 text-[12.5px] tabular-nums text-slate-500 dark:text-slate-400">
+                      <span className="font-semibold text-slate-900 dark:text-slate-50">
+                        {String(index + 1).padStart(2, "0")}
+                      </span>{" "}
+                      จาก {total}
+                    </span>
+                  </div>
+                )}
+                <button
+                  onClick={onClose}
+                  aria-label="ปิด"
+                  className="ml-2 grid size-8 place-items-center rounded-lg text-slate-400 transition hover:bg-slate-100 hover:text-slate-800 dark:hover:bg-slate-800 dark:hover:text-slate-100"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+              <div className="min-h-0 flex-1">{children}</div>
+            </motion.div>
           </motion.div>
-        </motion.div>
-      )}
-    </AnimatePresence>
+        )}
+      </AnimatePresence>
+    </Overlay>
   );
 }
 
@@ -392,49 +394,51 @@ export function FormModal({
   const width = size === "lg" ? "max-w-3xl" : size === "sm" ? "max-w-md" : "max-w-xl";
 
   return (
-    <AnimatePresence>
-      {open && (
-        <motion.div
-          role="dialog"
-          aria-modal="true"
-          onClick={onClose}
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.18 }}
-          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/45 p-4 backdrop-blur-[2px] dark:bg-black/65"
-        >
+    <Overlay>
+      <AnimatePresence>
+        {open && (
           <motion.div
-            onClick={(e) => e.stopPropagation()}
-            initial={{ opacity: 0, y: 14, scale: 0.985 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 8, scale: 0.99 }}
-            transition={{ type: "spring", stiffness: 380, damping: 34 }}
-            className={
-              "flex max-h-[85vh] w-full flex-col overflow-hidden rounded-2xl bg-white shadow-2xl dark:bg-slate-900 dark:ring-1 dark:ring-slate-800 " +
-              width
-            }
+            role="dialog"
+            aria-modal="true"
+            onClick={onClose}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.18 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/45 p-4 backdrop-blur-[2px] dark:bg-black/65"
           >
-            <div className="flex shrink-0 items-start justify-between gap-4 border-b border-slate-100 px-5 py-4 dark:border-slate-800">
-              <div className="min-w-0">
-                <h2 className="text-[15px] font-semibold text-slate-900 dark:text-slate-50">{title}</h2>
-                {subtitle && (
-                  <p className="mt-0.5 text-[12.5px] leading-snug text-slate-500 dark:text-slate-400">{subtitle}</p>
-                )}
+            <motion.div
+              onClick={(e) => e.stopPropagation()}
+              initial={{ opacity: 0, y: 14, scale: 0.985 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 8, scale: 0.99 }}
+              transition={{ type: "spring", stiffness: 380, damping: 34 }}
+              className={
+                "flex max-h-[85vh] w-full flex-col overflow-hidden rounded-2xl bg-white shadow-2xl dark:bg-slate-900 dark:ring-1 dark:ring-slate-800 " +
+                width
+              }
+            >
+              <div className="flex shrink-0 items-start justify-between gap-4 border-b border-slate-100 px-5 py-4 dark:border-slate-800">
+                <div className="min-w-0">
+                  <h2 className="text-[15px] font-semibold text-slate-900 dark:text-slate-50">{title}</h2>
+                  {subtitle && (
+                    <p className="mt-0.5 text-[12.5px] leading-snug text-slate-500 dark:text-slate-400">{subtitle}</p>
+                  )}
+                </div>
+                <button
+                  onClick={onClose}
+                  aria-label="ปิด"
+                  className="grid size-8 shrink-0 place-items-center rounded-lg text-slate-400 transition hover:bg-slate-100 hover:text-slate-800 dark:hover:bg-slate-800 dark:hover:text-slate-100"
+                >
+                  <X size={16} />
+                </button>
               </div>
-              <button
-                onClick={onClose}
-                aria-label="ปิด"
-                className="grid size-8 shrink-0 place-items-center rounded-lg text-slate-400 transition hover:bg-slate-100 hover:text-slate-800 dark:hover:bg-slate-800 dark:hover:text-slate-100"
-              >
-                <X size={16} />
-              </button>
-            </div>
-            <div className="min-h-0 flex-1 overflow-y-auto p-5">{children}</div>
+              <div className="min-h-0 flex-1 overflow-y-auto p-5">{children}</div>
+            </motion.div>
           </motion.div>
-        </motion.div>
-      )}
-    </AnimatePresence>
+        )}
+      </AnimatePresence>
+    </Overlay>
   );
 }
 
@@ -470,46 +474,48 @@ export function Drawer({
   }, [open, onClose]);
 
   return (
-    <AnimatePresence>
-      {open && (
-        <div className="fixed inset-0 z-50" role="dialog" aria-modal="true">
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.18 }}
-            onClick={onClose}
-            className="absolute inset-0 bg-slate-900/40 backdrop-blur-[2px] dark:bg-black/60"
-          />
-          <motion.div
-            initial={{ x: "100%" }}
-            animate={{ x: 0 }}
-            exit={{ x: "100%" }}
-            transition={{ type: "spring", stiffness: 380, damping: 38 }}
-            className={
-              "absolute inset-y-0 right-0 flex w-full flex-col bg-white shadow-2xl dark:bg-slate-900 dark:ring-1 dark:ring-slate-800 " +
-              width
-            }
-          >
-            <div className="flex items-start justify-between gap-4 border-b border-slate-100 px-5 py-4 dark:border-slate-800">
-              <div className="min-w-0">
-                <h2 className="truncate text-[15px] font-semibold text-slate-900 dark:text-slate-50">{title}</h2>
-                {subtitle && <p className="mt-0.5 truncate text-[12.5px] text-slate-500 dark:text-slate-400">{subtitle}</p>}
+    <Overlay>
+      <AnimatePresence>
+        {open && (
+          <div className="fixed inset-0 z-50" role="dialog" aria-modal="true">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.18 }}
+              onClick={onClose}
+              className="absolute inset-0 bg-slate-900/40 backdrop-blur-[2px] dark:bg-black/60"
+            />
+            <motion.div
+              initial={{ x: "100%" }}
+              animate={{ x: 0 }}
+              exit={{ x: "100%" }}
+              transition={{ type: "spring", stiffness: 380, damping: 38 }}
+              className={
+                "absolute inset-y-0 right-0 flex w-full flex-col bg-white shadow-2xl dark:bg-slate-900 dark:ring-1 dark:ring-slate-800 " +
+                width
+              }
+            >
+              <div className="flex items-start justify-between gap-4 border-b border-slate-100 px-5 py-4 dark:border-slate-800">
+                <div className="min-w-0">
+                  <h2 className="truncate text-[15px] font-semibold text-slate-900 dark:text-slate-50">{title}</h2>
+                  {subtitle && <p className="mt-0.5 truncate text-[12.5px] text-slate-500 dark:text-slate-400">{subtitle}</p>}
+                </div>
+                <button
+                  onClick={onClose}
+                  aria-label="ปิดแผงรายละเอียด"
+                  className="grid size-8 shrink-0 place-items-center rounded-lg text-slate-400 transition hover:bg-slate-100 dark:hover:bg-slate-800"
+                >
+                  <X size={16} />
+                </button>
               </div>
-              <button
-                onClick={onClose}
-                aria-label="ปิดแผงรายละเอียด"
-                className="grid size-8 shrink-0 place-items-center rounded-lg text-slate-400 transition hover:bg-slate-100 dark:hover:bg-slate-800"
-              >
-                <X size={16} />
-              </button>
-            </div>
-            <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">{children}</div>
-            {footer && <div className="border-t border-slate-100 px-5 py-3 dark:border-slate-800">{footer}</div>}
-          </motion.div>
-        </div>
-      )}
-    </AnimatePresence>
+              <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">{children}</div>
+              {footer && <div className="border-t border-slate-100 px-5 py-3 dark:border-slate-800">{footer}</div>}
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+    </Overlay>
   );
 }
 
@@ -553,67 +559,69 @@ export function ConfirmDialog({
   const armed = (!confirmWord || typed.trim() === confirmWord) && !disabled;
 
   return (
-    <AnimatePresence>
-      {open && (
-        <motion.div
-          role="alertdialog"
-          aria-modal="true"
-          onClick={onCancel}
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.18 }}
-          className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/50 p-4 backdrop-blur-[2px] dark:bg-black/70"
-        >
+    <Overlay>
+      <AnimatePresence>
+        {open && (
           <motion.div
-            onClick={(e) => e.stopPropagation()}
-            initial={{ opacity: 0, y: 14, scale: 0.98 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 8, scale: 0.99 }}
-            transition={{ type: "spring", stiffness: 380, damping: 32 }}
-            className="w-full max-w-md overflow-hidden rounded-2xl bg-white shadow-2xl dark:bg-slate-900 dark:ring-1 dark:ring-slate-800"
+            role="alertdialog"
+            aria-modal="true"
+            onClick={onCancel}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.18 }}
+            className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/50 p-4 backdrop-blur-[2px] dark:bg-black/70"
           >
-            {/* The dotted field behind the title is the reference's tell for
-                "stop and read" — texture, not colour, so it survives dark mode. */}
-            <div
-              className="px-6 pb-4 pt-6 text-center"
-              style={{
-                backgroundImage: "radial-gradient(circle, rgb(148 163 184 / 0.25) 1px, transparent 1px)",
-                backgroundSize: "10px 10px",
-              }}
+            <motion.div
+              onClick={(e) => e.stopPropagation()}
+              initial={{ opacity: 0, y: 14, scale: 0.98 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 8, scale: 0.99 }}
+              transition={{ type: "spring", stiffness: 380, damping: 32 }}
+              className="w-full max-w-md overflow-hidden rounded-2xl bg-white shadow-2xl dark:bg-slate-900 dark:ring-1 dark:ring-slate-800"
             >
-              <h2 className="text-[17px] font-semibold text-slate-900 dark:text-slate-50">{title}</h2>
-              <div className="mt-1 text-[12.5px] leading-relaxed text-slate-500 dark:text-slate-400">{body}</div>
-            </div>
-
-            <div className="space-y-4 px-6 pb-6">
-              {subject}
-              {fields}
-
-              {confirmWord && (
-                <label className="block">
-                  <span className="text-[12px] text-slate-500 dark:text-slate-400">
-                    พิมพ์{" "}
-                    <span className="font-mono font-semibold text-slate-800 dark:text-slate-100">{confirmWord}</span>{" "}
-                    เพื่อยืนยัน
-                  </span>
-                  <input autoFocus value={typed} onChange={(e) => setTyped(e.target.value)} className={FIELD + " mt-1 w-full"} />
-                </label>
-              )}
-
-              <div className="flex justify-between gap-2 pt-1">
-                <Button variant="secondary" onClick={onCancel}>
-                  ยกเลิก
-                </Button>
-                <Button variant="primary" onClick={onConfirm} disabled={!armed}>
-                  {confirmLabel}
-                </Button>
+              {/* The dotted field behind the title is the reference's tell for
+                  "stop and read" — texture, not colour, so it survives dark mode. */}
+              <div
+                className="px-6 pb-4 pt-6 text-center"
+                style={{
+                  backgroundImage: "radial-gradient(circle, rgb(148 163 184 / 0.25) 1px, transparent 1px)",
+                  backgroundSize: "10px 10px",
+                }}
+              >
+                <h2 className="text-[17px] font-semibold text-slate-900 dark:text-slate-50">{title}</h2>
+                <div className="mt-1 text-[12.5px] leading-relaxed text-slate-500 dark:text-slate-400">{body}</div>
               </div>
-            </div>
+
+              <div className="space-y-4 px-6 pb-6">
+                {subject}
+                {fields}
+
+                {confirmWord && (
+                  <label className="block">
+                    <span className="text-[12px] text-slate-500 dark:text-slate-400">
+                      พิมพ์{" "}
+                      <span className="font-mono font-semibold text-slate-800 dark:text-slate-100">{confirmWord}</span>{" "}
+                      เพื่อยืนยัน
+                    </span>
+                    <input autoFocus value={typed} onChange={(e) => setTyped(e.target.value)} className={FIELD + " mt-1 w-full"} />
+                  </label>
+                )}
+
+                <div className="flex justify-between gap-2 pt-1">
+                  <Button variant="secondary" onClick={onCancel}>
+                    ยกเลิก
+                  </Button>
+                  <Button variant="primary" onClick={onConfirm} disabled={!armed}>
+                    {confirmLabel}
+                  </Button>
+                </div>
+              </div>
+            </motion.div>
           </motion.div>
-        </motion.div>
-      )}
-    </AnimatePresence>
+        )}
+      </AnimatePresence>
+    </Overlay>
   );
 }
 

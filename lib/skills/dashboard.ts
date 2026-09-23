@@ -18,9 +18,10 @@ export const DASHBOARD: SkillTemplate = {
   domainKnowledge:
     "## Dashboard/Analytics\nองค์ประกอบ: KPI cards (ค่า + เทียบช่วงก่อน %), charts (trend/breakdown), ตาราง drill-down, time filter, segment filter. หลัก: insight ก่อน เลือกกราฟตามข้อมูล.",
   buildGuidance:
-    "## Build\nLayout: แถว KPI cards ด้านบน (มี delta สี เขียว/แดง) → กราฟ recharts (line trend + bar/pie breakdown) → ตารางรายละเอียด. มี time filter + segment dropdown. ใช้ recharts + lucide.",
+    "## Build\nLayout: แถว KPI ด้านบน (มี delta สีเขียว/แดงเทียบช่วงก่อน) → กราฟแนวโน้มรายเดือน + กราฟสัดส่วน → ตารางรายละเอียดที่กดเปิดดูแต่ละรายการได้. มี time filter + segment dropdown. กราฟใช้ของใน kit, ไอคอนใช้ lucide.",
   seedData:
-    "## Seed\nKPI 4 ตัวพร้อม delta. Time series 12 จุด (รายเดือน) สำหรับ line. Breakdown 5-6 หมวดสำหรับ bar/pie. ตาราง 10-15 แถว.",
+    "## Seed\nKPI 4 ตัวพร้อม delta. Time series 12 จุด (รายเดือน) สำหรับกราฟแนวโน้ม. Breakdown 5-6 หมวดสำหรับกราฟสัดส่วน. ตาราง 10-15 แถว.",
+  kit: true,
   premiumOptions: [
     { id: "anomaly", name: "จับตัวเลขผิดปกติเองแล้วเตือน", pitch: "แดชบอร์ดที่ต้องมีคนนั่งจ้องถึงจะรู้ว่าผิดปกติ คือแดชบอร์ดที่ไม่มีใครเปิด", requires: [], effortDays: 3, build: "เทียบกับค่าปกติของช่วงเดียวกัน → ชูตัวที่หลุดกรอบขึ้นบนสุดพร้อมบอกว่าหลุดไปเท่าไหร่และตั้งแต่เมื่อไหร่" },
     { id: "forecast", name: "เส้นแนวโน้มล่วงหน้า", pitch: "ตัวเลขเดือนนี้บอกว่าเกิดอะไรไปแล้ว ไม่ได้บอกว่าจะจบเดือนที่เท่าไหร่", requires: ["chart"], effortDays: 3, build: "คาดการณ์จากแนวโน้มย้อนหลังพร้อมช่วงความเชื่อมั่น และเทียบกับเป้าที่ตั้งไว้" },

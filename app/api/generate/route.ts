@@ -30,6 +30,7 @@ import {
 } from "@/lib/prompts";
 import { clientIp, rateLimit } from "@/lib/rate-limit";
 import { PRESET_IDS } from "@/lib/presets";
+import { KIT_SOURCES } from "@/lib/modules/sources";
 import { getProjectOrgDnaContext } from "@/lib/org-context";
 import { resolveSkillForProject } from "@/lib/skills/org-resolve";
 import { createClient } from "@/lib/supabase/server";
@@ -146,6 +147,15 @@ export async function POST(request: Request) {
   // built-in default if the file is unreadable so generation still works.
   const persona = (await getAgent("code-builder").catch(() => null))?.body;
   const skill = await resolveSkillForProject(body.skillId, ctxProjectId);
+  /**
+   * A back-office build starts with the studio's own kit already in the project.
+   *
+   * First builds only: an edit turn finds the kit among the files it is sent,
+   * and re-shipping it would overwrite whatever that project has done to it.
+   */
+  const kit = !iteration && skill?.kit ? KIT_SOURCES : undefined;
+  /** The kit's files are this turn's to write, not the model's. */
+  const shipped = (path: string) => kit !== undefined && path in kit;
   const baseSystem = iteration
     ? buildIterationSystemPrompt(persona)
     : buildGenerationSystemPrompt(
@@ -157,7 +167,8 @@ export async function POST(request: Request) {
           answers: body.presetAnswers,
         }),
         persona,
-        skill
+        skill,
+        kit
       );
   // Workspace Org DNA shapes the build (flow/structure/roles) when present.
   const orgCtx = ctxProjectId ? await getProjectOrgDnaContext(ctxProjectId) : "";
@@ -261,6 +272,14 @@ export async function POST(request: Request) {
       const wantedDeps = new Set<string>();
 
       try {
+        // Before the model's first file, so every page it writes imports
+        // something that is already there and the live preview never breaks on
+        // a missing kit.
+        if (kit) {
+          send({ type: "status", message: "เริ่มจากชุดหน้าจอเดียวกับระบบ HR ของสตูดิโอ" });
+          for (const [path, content] of Object.entries(kit)) send({ type: "file", path, content });
+        }
+
         const abort = AbortSignal.timeout(ATTEMPT_TIMEOUT_MS);
         try {
           for await (const part of streamParts({
@@ -281,14 +300,14 @@ export async function POST(request: Request) {
             const { files, deletes, deps } = parser.push(part.text);
             for (const file of files) {
               const path = normalizePath(file.path);
-              if (RESERVED_PATHS.has(path) || !isSafePath(path)) continue;
+              if (RESERVED_PATHS.has(path) || !isSafePath(path) || shipped(path)) continue;
               fileCount++;
               const content = path.endsWith(".css") ? sanitizeCss(file.content) : file.content;
               send({ type: "file", path, content });
             }
             for (const target of deletes) {
               const path = normalizePath(target);
-              if (RESERVED_PATHS.has(path) || !isSafePath(path)) continue;
+              if (RESERVED_PATHS.has(path) || !isSafePath(path) || shipped(path)) continue;
               deleted.push(path);
               send({ type: "delete", path });
             }
@@ -328,7 +347,7 @@ export async function POST(request: Request) {
             salvagedNote = salvaged.note;
             for (const file of salvaged.files) {
               const path = normalizePath(file.path);
-              if (RESERVED_PATHS.has(path) || !isSafePath(path)) continue;
+              if (RESERVED_PATHS.has(path) || !isSafePath(path) || shipped(path)) continue;
               fileCount++;
               send({
                 type: "file",
@@ -338,7 +357,7 @@ export async function POST(request: Request) {
             }
             for (const target of salvaged.deletes) {
               const path = normalizePath(target);
-              if (RESERVED_PATHS.has(path) || !isSafePath(path)) continue;
+              if (RESERVED_PATHS.has(path) || !isSafePath(path) || shipped(path)) continue;
               deleted.push(path);
               send({ type: "delete", path });
             }
@@ -411,8 +430,10 @@ export async function POST(request: Request) {
          * Iterations are exempt: they legitimately touch a page and leave the
          * shell alone.
          */
+        // The kit sits under src/components/ from the first millisecond, so it
+        // cannot count as the model having written anything.
         const wroteScreens = Object.keys(produced).some(
-          (path) => path.startsWith("src/pages/") || path.startsWith("src/components/")
+          (path) => !shipped(path) && (path.startsWith("src/pages/") || path.startsWith("src/components/"))
         );
         let shellGap = (["src/App.tsx", "src/main.tsx"] as const).filter(
           (f) => !produced[f]

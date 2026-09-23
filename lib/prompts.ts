@@ -117,7 +117,9 @@ ${DEMO_PACKAGE_JSON}
    NEVER use https://cdn.tailwindcss.com. It sends no Cross-Origin-Resource-Policy and no CORS, so under the preview's COEP require-corp the browser DROPS it (net::ERR_FAILED) and NOT ONE utility class resolves — the demo renders as unstyled HTML. It is also Tailwind v3, whose \`tailwind.config = {}\` object does not exist in v4: never emit that script either, put custom colours and fonts in the JSX as arbitrary values (bg-[#0b0b0f]).
    - <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Anuphan:wght@400;500;600;700&display=swap" rel="stylesheet" />
    - <style>body{font-family:'Anuphan','Inter',system-ui,sans-serif}</style>
+   - <style type="text/tailwindcss">@custom-variant dark (&:where(.dark, .dark *));</style>
    and in <body>: <div id="root"></div> then <script type="module" src="/src/main.tsx"></script>.
+   The text/tailwindcss line makes dark: follow a .dark class the app puts on <html>, never the viewer's operating system. Without it Tailwind v4 reads dark: as a media query: anyone whose OS is in dark mode gets every dark: class switched on over a page designed light, and a theme toggle that sets .dark does nothing.
 4. src/main.tsx mounts <App /> into #root via react-dom/client createRoot and imports "./index.css". src/index.css must be PLAIN CSS only (e.g. base resets, body margin, scrollbar styles) — never any Tailwind directive (see rule 3).
 5. TypeScript + JSX (.tsx) ONLY. The project uses @vitejs/plugin-react with a vite.config.js + tsconfig.json that are PROVIDED automatically — do NOT create or modify them. With the automatic JSX runtime you do NOT need to "import React"; just import the hooks you use (e.g. import { useState } from "react"). Write idiomatic TypeScript: type component props with interfaces/types and type your state and mock-data shapes, but the build does NOT typecheck — prefer a running app over exhaustive typing, and never let types block functionality. You may import react, react-dom, and any npm package ALREADY in package.json "dependencies". To use an EXTRA npm package, declare it with a <deps>package-name</deps> directive (see output format) and it is installed automatically — never hand-write "npm install". Import local files with RELATIVE paths WITHOUT extension (e.g. "./components/Header").
 6. DESIGN QUALITY — how to make it look like a real, shipped product rather than a tutorial demo. Everything in this rule is the DEFAULT for what the brief leaves open; where the brief states a layout, a measurement, a palette or a motion behaviour, that wins and this rule yields to it — a 640px email column asked for by name does not get a SaaS navbar bolted on. Absent such direction, aim here (think Linear / Vercel / Stripe dashboards):
@@ -199,13 +201,65 @@ SCREEN INDEX — MANDATORY. The studio photographs every screen of the demo to b
 const DEFAULT_BUILD_PERSONA =
   "You are FITT Builder, a web application generator for non-technical users (designers, product managers, marketers). You turn a natural-language brief into a complete, runnable web demo.";
 
-/** Build-phase system prompt. `persona` is the code-builder SKILL.md body. */
+/**
+ * The kit a back-office build starts with, and what it changes about the rules.
+ *
+ * The design rules describe a kit and ask the model to write one before its
+ * screens. It did — a different one every build, and never the look people
+ * asked for, which was the studio's own HR system: built from these exact files.
+ * Handing over the files turns "design a card" into "use Card", the one kind of
+ * instruction a model follows the same way every time.
+ *
+ * The source goes in whole. A summary of the API would be shorter and would
+ * drift from the files the moment either changed; the source IS the API, and it
+ * is the look too — the class names a page matches when it needs something the
+ * kit has no component for.
+ */
+function renderKit(kit: Record<string, string>): string {
+  const source = Object.entries(kit)
+    .map(([path, content]) => `--- ${path} (already in the project, read-only) ---\n${content}`)
+    .join("\n\n");
+  return `THE STUDIO KIT — THIS BUILD STARTS WITH ITS DESIGN SYSTEM ALREADY WRITTEN.
+Before your first file arrives, the studio writes these three into the project. They are what the studio's own HR system is built from — the screens this app is meant to look like:
+  src/components/ui/ui.tsx     Card, Badge, Chip, Button, IconButton, Avatar, IconRow, SectionTitle, Metric, Stat, StatStrip, PageHead, Search, Select, Segmented, Tabs, Progress, Bar, Note, Stepper, Timeline, Skeleton, ColumnChart, Donut, Gauge, Heatmap, WeekStrip, Modal, Reveal, PALETTE with swatchFor / Tag / TintCard / Dot, and the FIELD and SURFACE class strings
+  src/components/ui/kit.tsx    DataTable (sortable columns, row selection, density), DetailModal (one record over its list, with a pager), FormModal, Drawer, ConfirmDialog, Field, Wizard
+  src/components/ui/shell.tsx  Shell — the whole app frame: sidebar with groups and counts, header trail, screen search, notification bell, signed-in user
+Their full source is at the end of this block. Read it: it is the API, and it is the look.
+
+WHAT THIS CHANGES ABOUT THE RULES ABOVE:
+- NEVER output these three files. They already exist, and a copy you send is discarded.
+- They ARE the "ONE KIT" of design rule 6 and the components/ui/ of the structure contract. Do not write Card.tsx, Badge.tsx, StatCard.tsx, DataTable.tsx, Avatar.tsx, a modal, a chart, theme.ts, Sidebar.tsx or TopBar.tsx: a screen that needs a card imports Card. A piece the kit has no component for — a kanban column, an approval matrix — is a feature file BUILT FROM kit pieces, and where it needs markup of its own it uses the kit's classes: SURFACE for a panel, 13px body text, slate-500 for secondary text, violet-600 as the one accent.
+- src/App.tsx wraps the active page in <Shell>: brand, nav (NavGroup[] — each item an id, a label and a lucide icon, with count for things waiting), active and onNavigate (App's own page state), notices made from the mock data (each one's target is the screen that deals with it) and user. A header control the brief needs — a role switcher, a period picker — goes in Shell's actions, built from Select or Segmented. The data-fitt-index screen index stays in App.tsx, inside <Shell>.
+- COLOUR: the kit's palette is the app's. Slate neutrals on the #f4f4f6 ground, white cards, violet as the only accent; states are Badge tones (ok · warn · bad · idle · info · accent); categories that repeat across screens are swatchFor(name, THE_CANONICAL_LIST) with Tag, Dot or TintCard. No dark sidebar, no coloured header bar, no second accent — and light theme only, with no theme toggle. Where the brief names a brand colour of its own, that wins, and it is set ONCE: in src/index.css, override the accent's scale with that colour's shades — :root { --color-violet-50: …; --color-violet-100: …; … through --color-violet-800: …; } — and every kit piece follows. Never recolour pieces one by one.
+- CHARTS: ColumnChart, Donut, Gauge, Heatmap, Bar, Progress, WeekStrip. A monthly trend is a ColumnChart; a share is a Donut; progress toward a target is a Gauge or a Bar. Do not declare recharts unless the brief asks for a line or area chart by name.
+- MOTION: the kit already animates what it owns — overlays, the tab underline, the segmented pill, the active menu item, the page fade. A page lays its blocks out in <Reveal delay={…}> wrappers, delay in seconds laddered 0 · 0.06 · 0.12 · 0.18; do not hand-roll motion.div entrances around kit pieces.
+- OVERLAYS: DetailModal, FormModal, Drawer, ConfirmDialog and Modal already render through a portal to document.body and close on Escape, on the backdrop and from their own close control. Use them; do not write a dialog.
+
+THE SCREEN SHAPES THIS KIT IS FOR — the studio's HR system is built from exactly these:
+- OVERVIEW, the first screen of a section: PageHead → a row of Metric (icon, value, delta against the last period) or one StatStrip → a two- or three-column grid of Card with title and subtitle, each holding one chart → a Card listing what needs someone today (late, over budget, waiting for approval), each row opening the screen that deals with it.
+- REGISTER, a list of records: PageHead with the primary Button in its right slot → DataTable with a toolbar of Search plus Segmented or Select filters → onOpen sets the open record → DetailModal with Tabs inside it and index / total / onStep for the pager → FormModal for create and edit, each input inside Field and styled with FIELD.
+- A RECORD shows its facts as IconRow lines, its history as a Timeline and its approval path as a Stepper.
+
+IMPORTS: from src/pages/, "../components/ui/ui" and "../components/ui/kit"; from src/components/<feature>/, "../ui/ui" and "../ui/kit"; from src/App.tsx, "./components/ui/shell".
+
+${source}`;
+}
+
+/**
+ * Build-phase system prompt. `persona` is the code-builder SKILL.md body; `kit`
+ * is the component kit the route has already written into the project, when
+ * this build starts with one.
+ */
 export function buildGenerationSystemPrompt(
   specContext?: string,
   persona?: string,
-  skill?: SkillTemplate
+  skill?: SkillTemplate,
+  kit?: Record<string, string>
 ): string {
   const skillBlock = skill ? `${renderSkillForBuild(skill)}\n\n` : "";
+  // After the domain guidance, so the kit has the last word on how things look
+  // and a template that still says "recharts" or "dark sidebar" loses to it.
+  const kitBlock = kit ? `${renderKit(kit)}\n\n` : "";
   return `${persona ?? DEFAULT_BUILD_PERSONA}
 
 ${PROJECT_RULES}
@@ -214,7 +268,7 @@ ${RUNTIME_RULES}
 
 ${ARCHITECTURE}
 
-${skillBlock}${specContext ? `${specContext}\n\n` : ""}${OUTPUT_CONTRACT}`;
+${skillBlock}${kitBlock}${specContext ? `${specContext}\n\n` : ""}${OUTPUT_CONTRACT}`;
 }
 
 export function buildIterationSystemPrompt(persona?: string): string {

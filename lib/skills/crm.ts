@@ -17,9 +17,10 @@ export const CRM: SkillTemplate = {
   domainKnowledge:
     "## CRM\nentities: Contact, Company, Deal (stage, value, owner, close date), Activity (call/email/meeting).\nflow: Lead → Qualified → Proposal → Negotiation → Won/Lost. KPI: pipeline value, win rate, deals by stage.",
   buildGuidance:
-    "## Build\nหน้าจอ: Deal **kanban** (drag ระหว่าง stage), Contact list, Deal detail + activity timeline, Dashboard (pipeline value, win rate, recharts funnel). Status badge ตาม stage.",
+    "## Build\nหน้าจอ: Deal **kanban** (drag ระหว่าง stage), Contact list, Deal detail + activity timeline, Dashboard (pipeline value, win rate, funnel ต่อ stage เป็นแถบแนวนอน). Status badge ตาม stage.",
   seedData:
     "## Seed\nContacts: 6-8 ราย (mix บริษัท/บุคคล). Deals: 10-12 ดีลกระจายทุก stage, value ฿50k-฿2M, owner 2-3 คน. Activities: call/email/meeting ล่าสุดต่อดีล.",
+  kit: true,
   premiumOptions: [
     { id: "dealrisk", name: "เตือนดีลที่กำลังจะหลุด", pitch: "ดีลไม่ได้หายไปวันเดียว มันเงียบลงทีละสัปดาห์จนสาย — ระบบจับสัญญาณให้ก่อนที่จะแก้ไม่ทัน", requires: ["deal"], effortDays: 4, build: "ให้คะแนนความเสี่ยงจากวันที่เงียบ ขั้นที่ค้างนานผิดปกติ และมูลค่า แล้วบอกเหตุผลเป็นข้อๆ พร้อมสิ่งที่ควรทำต่อ" },
     { id: "quotedraft", name: "ร่างใบเสนอราคาจากบทสนทนา", pitch: "กว่าจะได้ใบเสนอราคาออกไปคือสองวันหลังลูกค้าถาม — ให้ร่างเสร็จตั้งแต่วางสาย", requires: ["deal"], effortDays: 3, build: "อ่านบันทึกการคุยของดีล → ดึงรายการที่ลูกค้าขอ → ออกใบเสนอราคาพร้อมราคาและเงื่อนไข แก้ต่อได้" },

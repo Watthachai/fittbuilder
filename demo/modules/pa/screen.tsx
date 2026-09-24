@@ -886,7 +886,7 @@ function Record({
   };
 
   return (
-    <div className="grid h-full grid-cols-1 lg:grid-cols-[320px_1fr]">
+    <div className="grid h-full grid-cols-1 lg:grid-cols-[380px_1fr]">
       <aside className="min-h-0 overflow-y-auto border-r border-slate-100 dark:border-slate-800">
         <div
           className="px-5 pb-4 pt-5"
@@ -932,7 +932,7 @@ function Record({
             <div className="mt-1.5">
               <IconRow icon={<MapPin size={14} />} label="ที่อยู่"><span className="line-clamp-2">{e.personal.address}</span></IconRow>
               <IconRow icon={<Mail size={14} />} label="อีเมล">
-                <a href={`mailto:${e.personal.email}`} className="rounded-md bg-violet-50 px-1.5 py-0.5 text-[12px] text-violet-700 dark:bg-violet-500/15 dark:text-violet-300">{e.personal.email}</a>
+                <a href={`mailto:${e.personal.email}`} className="break-all rounded-md bg-violet-50 px-1.5 py-0.5 text-[12px] text-violet-700 dark:bg-violet-500/15 dark:text-violet-300">{e.personal.email}</a>
               </IconRow>
               <IconRow icon={<Phone size={14} />} label="โทรศัพท์">
                 <a href={`tel:${e.personal.phone}`} className="rounded-md bg-violet-50 px-1.5 py-0.5 text-[12px] text-violet-700 dark:bg-violet-500/15 dark:text-violet-300">{e.personal.phone}</a>

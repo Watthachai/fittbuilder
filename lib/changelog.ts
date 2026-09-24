@@ -23,6 +23,21 @@ export const CHANGE_BADGE: Record<ChangeType, { label: string; className: string
 // Newest first. SemVer: fix → PATCH, feature → MINOR, breaking → MAJOR.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.88.1",
+    date: "2026-09-24",
+    title: "แฟ้มพนักงานกว้างขึ้น ข้อมูลด้านซ้ายไม่ล้นขอบ",
+    items: [
+      {
+        type: "fix",
+        text: "คอลัมน์ข้อมูลด้านซ้ายของแฟ้มพนักงานกว้างขึ้นจาก 320 เป็น 380 พิกเซล อีเมลไม่ล้นเส้นขอบอีก และเลขบัตรประชาชนอยู่ในบรรทัดเดียว อีเมลที่ยาวกว่าคอลัมน์จะขึ้นบรรทัดใหม่แทนการล้น",
+      },
+      {
+        type: "improvement",
+        text: "หน้าต่างดูรายการของทุกโมดูลกว้างขึ้นหนึ่งขนาดบนจอใหญ่ แท็บด้านขวาจึงไม่เสียพื้นที่ให้คอลัมน์ที่กว้างขึ้น",
+      },
+    ],
+  },
+  {
     version: "0.88.0",
     date: "2026-09-23",
     title: "งานหลังบ้านเริ่มจากชุดหน้าจอเดียวกับระบบ HR",

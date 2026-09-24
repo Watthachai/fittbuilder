@@ -2578,7 +2578,7 @@ export function DetailModal({
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 10, scale: 0.99 }}
               transition={{ type: "spring", stiffness: 360, damping: 34 }}
-              className="flex h-[88vh] w-full max-w-6xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl dark:bg-slate-900 dark:ring-1 dark:ring-slate-800"
+              className="flex h-[88vh] w-full max-w-7xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl dark:bg-slate-900 dark:ring-1 dark:ring-slate-800"
             >
               <div className="flex items-center gap-3 border-b border-slate-100 px-5 py-3 dark:border-slate-800">
                 <h2 className="min-w-0 flex-1 truncate text-[15px] font-semibold text-slate-900 dark:text-slate-50">
@@ -7346,7 +7346,7 @@ function Record({
   };
 
   return (
-    <div className="grid h-full grid-cols-1 lg:grid-cols-[320px_1fr]">
+    <div className="grid h-full grid-cols-1 lg:grid-cols-[380px_1fr]">
       <aside className="min-h-0 overflow-y-auto border-r border-slate-100 dark:border-slate-800">
         <div
           className="px-5 pb-4 pt-5"
@@ -7392,7 +7392,7 @@ function Record({
             <div className="mt-1.5">
               <IconRow icon={<MapPin size={14} />} label="ที่อยู่"><span className="line-clamp-2">{e.personal.address}</span></IconRow>
               <IconRow icon={<Mail size={14} />} label="อีเมล">
-                <a href={\`mailto:\${e.personal.email}\`} className="rounded-md bg-violet-50 px-1.5 py-0.5 text-[12px] text-violet-700 dark:bg-violet-500/15 dark:text-violet-300">{e.personal.email}</a>
+                <a href={\`mailto:\${e.personal.email}\`} className="break-all rounded-md bg-violet-50 px-1.5 py-0.5 text-[12px] text-violet-700 dark:bg-violet-500/15 dark:text-violet-300">{e.personal.email}</a>
               </IconRow>
               <IconRow icon={<Phone size={14} />} label="โทรศัพท์">
                 <a href={\`tel:\${e.personal.phone}\`} className="rounded-md bg-violet-50 px-1.5 py-0.5 text-[12px] text-violet-700 dark:bg-violet-500/15 dark:text-violet-300">{e.personal.phone}</a>

@@ -10,6 +10,7 @@ import { filesFor } from "../sources";
 export const SD: Module = {
   id: "sd",
   name: "ขายและกระจายสินค้า",
+  icon: "Ship",
   sapCode: "SD",
   family: "logistics",
   tier: "base",

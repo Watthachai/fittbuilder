@@ -23,6 +23,25 @@ export const CHANGE_BADGE: Record<ChangeType, { label: string; className: string
 // Newest first. SemVer: fix → PATCH, feature → MINOR, breaking → MAJOR.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.88.2",
+    date: "2026-09-24",
+    title: "เมนู Code ไม่ขีดเส้นแดงผิด ๆ และไอคอนโมดูลตามไปถึงโปรเจกต์ที่สร้าง",
+    items: [
+      {
+        type: "fix",
+        text: "เมนู Code ไม่ขีดเส้นแดงใต้ import type ในไฟล์ .tsx อีก สาเหตุคือตัวแก้โค้ดเปิดไฟล์โดยไม่มีชื่อไฟล์ ตัวตรวจ TypeScript จึงเข้าใจว่าเป็นไฟล์ JavaScript",
+      },
+      {
+        type: "fix",
+        text: "โปรเจกต์ที่ประกอบจากโมดูลแสดงไอคอนของแต่ละโมดูลในแถบเมนูเหมือนระบบตัวอย่าง เดิมทุกโมดูลได้ไอคอนตารางเดียวกันหมด",
+      },
+      {
+        type: "improvement",
+        text: "ไอคอนของบัญชีการเงินเปลี่ยนเป็นรูปธนาคาร และบัญชีบริหารและต้นทุนเป็นกราฟวงกลม แทนรูปตารางและรถบรรทุกที่ไม่เกี่ยวกับงานนั้น",
+      },
+    ],
+  },
+  {
     version: "0.88.1",
     date: "2026-09-24",
     title: "แฟ้มพนักงานกว้างขึ้น ข้อมูลด้านซ้ายไม่ล้นขอบ",

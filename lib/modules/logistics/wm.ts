@@ -10,6 +10,7 @@ import { filesFor } from "../sources";
 export const WM: Module = {
   id: "wm",
   name: "บริหารคลังสินค้า",
+  icon: "Warehouse",
   sapCode: "WM",
   family: "logistics",
   tier: "premium",

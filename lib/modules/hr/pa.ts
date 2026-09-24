@@ -12,6 +12,7 @@ import { filesFor } from "../sources";
 export const PA: Module = {
   id: "pa",
   name: "ทะเบียนพนักงาน",
+  icon: "Users",
   sapCode: "PA",
   family: "hr",
   tier: "base",

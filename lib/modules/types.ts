@@ -1,4 +1,5 @@
 import type { ProjectFiles } from "@/lib/types";
+import type { ModuleIconName } from "./icons";
 
 /**
  * A module: one named, priced, buildable piece of business capability.
@@ -39,6 +40,8 @@ export interface Module {
   id: string;
   /** Thai display name — what the buyer reads on the quotation. */
   name: string;
+  /** What the sidebar draws beside the name, in the product and in a built project alike. */
+  icon: ModuleIconName;
   family: ModuleFamily;
   /** `base` is scope the customer is buying; `premium` is sold on top. */
   tier: "base" | "premium";

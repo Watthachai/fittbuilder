@@ -3,10 +3,8 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import {
-  ArrowRightToLine, Banknote, Bell, Boxes, ChevronRight, ChevronsLeft, Clock, Factory,
-  LayoutGrid, Lock, Moon, PanelsTopLeft, Search, Ship, Sun, Truck, Users, Warehouse,
-} from "lucide-react";
+import { ArrowRightToLine, Bell, ChevronRight, ChevronsLeft, Lock, Moon, Search, Sun } from "lucide-react";
+import { MODULE_ICONS } from "@/lib/modules/icons";
 import { FAMILIES, MODULES, modulesOf } from "@/lib/modules/registry";
 import { ROLES, DEMO_PASSWORD_HINT, clearSession, mayOpen, readSession, writeSession } from "./session";
 import type { Role } from "./session";
@@ -16,19 +14,6 @@ import type { Theme } from "./theme";
 import CommandPalette from "./CommandPalette";
 import TakeProject from "./TakeProject";
 import TrialSwitcher from "./TrialSwitcher";
-
-const ICONS: Record<string, typeof Users> = {
-  pa: Users,
-  om: PanelsTopLeft,
-  tm: Clock,
-  py: Banknote,
-  mm: Boxes,
-  pp: Factory,
-  sd: Ship,
-  wm: Warehouse,
-  fi: LayoutGrid,
-  co: Truck,
-};
 
 const RAIL = "fitt-erp-rail";
 
@@ -184,7 +169,7 @@ export default function ErpShell({ children }: { children: React.ReactNode }) {
                 .map((m) => {
                   const on = current?.id === m.id;
                   const locked = !mayOpen(role, m.id);
-                  const Icon = ICONS[m.id] ?? LayoutGrid;
+                  const Icon = MODULE_ICONS[m.icon];
                   if (locked) {
                     return (
                       <div

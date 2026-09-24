@@ -414,6 +414,12 @@ export default function CodePanel({
           {activeFile && (
             <MonacoEditor
               key={activeFile}
+              // The path is how the TypeScript worker knows what kind of file
+              // this is. Without it the model is "inmemory://model/N", and a name
+              // with no extension counts as JavaScript whenever allowJs is on —
+              // so every `import type` in a .tsx file was flagged "can only be
+              // used in TypeScript files", whatever `language` said.
+              path={activeFile}
               height="100%"
               theme="vs-dark"
               language={languageOf(activeFile)}

@@ -12,6 +12,7 @@ import { filesFor } from "../sources";
 export const FI: Module = {
   id: "fi",
   name: "บัญชีการเงิน",
+  icon: "Landmark",
   sapCode: "FI",
   family: "finance",
   tier: "base",

@@ -10,6 +10,7 @@ import { filesFor } from "../sources";
 export const PP: Module = {
   id: "pp",
   name: "วางแผนการผลิต",
+  icon: "Factory",
   sapCode: "PP",
   family: "logistics",
   tier: "premium",

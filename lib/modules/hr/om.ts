@@ -12,6 +12,7 @@ import { filesFor } from "../sources";
 export const OM: Module = {
   id: "om",
   name: "โครงสร้างองค์กร",
+  icon: "PanelsTopLeft",
   sapCode: "OM",
   family: "hr",
   tier: "base",

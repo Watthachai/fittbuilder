@@ -12,6 +12,7 @@ import { filesFor } from "../sources";
 export const TM: Module = {
   id: "tm",
   name: "เวลาทำงานและการลา",
+  icon: "Clock",
   sapCode: "PT",
   family: "hr",
   tier: "premium",

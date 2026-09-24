@@ -16,6 +16,7 @@ import type { Module } from "../modules/types";
 const PA: Module = {
   id: "pa",
   name: "ทะเบียนพนักงาน",
+  icon: "Users",
   family: "hr",
   tier: "base",
   pitch: "ประวัติพนักงานอยู่ที่เดียว ไม่ต้องตามหาในไฟล์ Excel หลายใบ",
@@ -31,6 +32,7 @@ const PA: Module = {
 const PY: Module = {
   id: "py",
   name: "เงินเดือน",
+  icon: "Banknote",
   family: "hr",
   tier: "base",
   pitch: "คำนวณเงินเดือนจากข้อมูลพนักงานที่มีอยู่แล้ว ไม่ต้องคีย์ซ้ำ",

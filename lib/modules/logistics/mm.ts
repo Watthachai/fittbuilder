@@ -12,6 +12,7 @@ import { filesFor } from "../sources";
 export const MM: Module = {
   id: "mm",
   name: "จัดซื้อและคลังวัสดุ",
+  icon: "Boxes",
   sapCode: "MM",
   family: "logistics",
   tier: "base",

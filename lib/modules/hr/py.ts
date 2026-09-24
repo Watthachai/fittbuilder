@@ -12,6 +12,7 @@ import { filesFor } from "../sources";
 export const PY: Module = {
   id: "py",
   name: "เงินเดือน",
+  icon: "Banknote",
   sapCode: "PY",
   family: "hr",
   tier: "premium",

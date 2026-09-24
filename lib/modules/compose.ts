@@ -16,7 +16,11 @@ function systemName(m: Module): string {
   return SYSTEM_NAMES[m.family];
 }
 
+/** Icons the shell's own chrome draws, whatever the selection. */
+const CHROME_ICONS = ["ArrowRightToLine", "ChevronsLeft", "Moon", "Search", "Sun"];
+
 function shellFor(selected: Module[]): string {
+  const icons = [...new Set([...CHROME_ICONS, ...selected.map((m) => m.icon)])].sort();
   const imports = selected
     .map((m) => `import ${screenName(m)} from "./modules/${m.id}/screen";`)
     .join("\n");
@@ -25,11 +29,11 @@ function shellFor(selected: Module[]): string {
       (m) =>
         `  { id: "${m.id}", label: ${JSON.stringify(m.name)}, system: ${JSON.stringify(systemName(m))},` +
         ` sections: ${JSON.stringify(m.keyFeatures)}, overview: ${m.hasOverview === true},` +
-        ` Screen: ${screenName(m)} },`
+        ` Icon: ${m.icon}, Screen: ${screenName(m)} },`
     )
     .join("\n");
   return `import { useEffect, useState } from "react";
-import { ArrowRightToLine, ChevronsLeft, LayoutGrid, Moon, Search, Sun } from "lucide-react";
+import { ${icons.join(", ")} } from "lucide-react";
 ${imports}
 
 const MODULES = [
@@ -96,7 +100,7 @@ export default function App() {
                     : "text-slate-600 hover:bg-slate-50 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800/60 dark:hover:text-slate-100")
                 }
               >
-                <LayoutGrid size={16} className="shrink-0" />
+                <m.Icon size={16} className="shrink-0" />
                 {!rail && <span className="min-w-0 flex-1 truncate">{m.label}</span>}
               </button>
 

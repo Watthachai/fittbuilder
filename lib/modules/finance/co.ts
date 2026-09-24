@@ -11,6 +11,7 @@ import { filesFor } from "../sources";
 export const CO: Module = {
   id: "co",
   name: "บัญชีบริหารและต้นทุน",
+  icon: "ChartPie",
   sapCode: "CO",
   family: "finance",
   tier: "premium",

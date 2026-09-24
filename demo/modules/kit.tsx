@@ -1058,6 +1058,28 @@ const PRINT_CSS = `@media print {
 export const printDocument = () => window.print();
 
 /**
+ * A sheet of paper: the frame every printable document sits on.
+ *
+ * DocumentSheet is the priced one — lines, VAT, the amount in words. A journal
+ * voucher, a payslip, a count sheet or a letter has none of that, so it builds
+ * its own layout inside Paper and prints the same way: printDocument() prints
+ * what is inside Paper and nothing around it.
+ */
+export function Paper({ children, className = "" }: { children: ReactNode; className?: string }) {
+  return (
+    <div
+      className={
+        "fitt-print mx-auto w-full max-w-[794px] rounded-sm bg-white p-8 text-[12.5px] text-slate-800 shadow-sm ring-1 ring-slate-200 sm:p-10 " +
+        className
+      }
+    >
+      <style>{PRINT_CSS}</style>
+      {children}
+    </div>
+  );
+}
+
+/**
  * A business document as it is printed: a tax invoice, a purchase order, a
  * receipt. Always paper-white, in dark mode too, because it is a picture of the
  * paper the customer receives — and the thing an accountant moving off another
@@ -1092,8 +1114,7 @@ export function DocumentSheet({
 }) {
   const { subtotal, vat, total } = totalsOf(lines, vatRate);
   return (
-    <div className="fitt-print mx-auto w-full max-w-[794px] rounded-sm bg-white p-8 text-[12.5px] text-slate-800 shadow-sm ring-1 ring-slate-200 sm:p-10">
-      <style>{PRINT_CSS}</style>
+    <Paper>
       <div className="flex flex-wrap items-start justify-between gap-6 border-b-2 border-slate-800 pb-4">
         <div className="min-w-0">
           <p className="text-[16px] font-bold text-slate-900">{company.name}</p>
@@ -1161,8 +1182,12 @@ export function DocumentSheet({
         <dl className="grid min-w-60 grid-cols-[1fr_auto] gap-x-6 gap-y-1">
           <dt className="text-slate-600">รวมเป็นเงิน</dt>
           <dd className="text-right tabular-nums">{money(subtotal)}</dd>
-          <dt className="text-slate-600">ภาษีมูลค่าเพิ่ม {Math.round(vatRate * 100)}%</dt>
-          <dd className="text-right tabular-nums">{money(vat)}</dd>
+          {vatRate > 0 && (
+            <>
+              <dt className="text-slate-600">ภาษีมูลค่าเพิ่ม {Math.round(vatRate * 100)}%</dt>
+              <dd className="text-right tabular-nums">{money(vat)}</dd>
+            </>
+          )}
           <dt className="border-t border-slate-800 pt-1 font-bold text-slate-900">จำนวนเงินรวมทั้งสิ้น</dt>
           <dd className="border-t border-slate-800 pt-1 text-right font-bold tabular-nums text-slate-900">{money(total)}</dd>
         </dl>
@@ -1177,7 +1202,7 @@ export function DocumentSheet({
           </div>
         ))}
       </div>
-    </div>
+    </Paper>
   );
 }
 

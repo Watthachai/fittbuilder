@@ -85,7 +85,8 @@ describe("the generation prompt when a build starts with the kit", () => {
       "Shell", "Card", "Badge", "Button", "Avatar", "Metric", "StatStrip", "PageHead", "Tabs", "Segmented",
       "Select", "Search", "Timeline", "Stepper", "IconRow", "ColumnChart", "Donut", "Gauge", "Heatmap", "Bar",
       "Progress", "WeekStrip", "Reveal", "Tag", "TintCard", "Dot", "swatchFor", "DataTable", "DetailModal",
-      "FormModal", "Drawer", "ConfirmDialog", "Field", "Wizard", "Modal", "FIELD", "SURFACE",
+      "FormModal", "Drawer", "ConfirmDialog", "Field", "Wizard", "Modal", "FIELD", "SURFACE", "LineItems",
+      "DocumentSheet", "printDocument", "bahtText", "money", "totalsOf", "downloadCsv", "commit", "useData", "notify",
     ];
     const block = withKit.slice(withKit.indexOf("THE STUDIO KIT"), withKit.indexOf("--- src/components/ui/"));
     for (const name of promised) {

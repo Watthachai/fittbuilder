@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { ArrowRightToLine, Bell, ChevronRight, ChevronsLeft, Lock, Moon, Search, Sun } from "lucide-react";
+import { Toaster } from "@/demo/modules/kit";
 import { MODULE_ICONS } from "@/lib/modules/icons";
 import { FAMILIES, MODULES, modulesOf } from "@/lib/modules/registry";
 import { ROLES, DEMO_PASSWORD_HINT, clearSession, mayOpen, readSession, writeSession } from "./session";
@@ -405,6 +406,7 @@ export default function ErpShell({ children }: { children: React.ReactNode }) {
         </header>
 
         <main className="min-h-0 flex-1 overflow-y-auto p-5 lg:p-6">{children}</main>
+        <Toaster />
       </div>
 
       <CommandPalette open={palette} onClose={() => setPalette(false)} allowed={open} />

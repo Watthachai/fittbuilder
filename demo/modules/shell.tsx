@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { ArrowRightToLine, Bell, ChevronsLeft, Search } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+import { Toaster } from "./kit";
 import { Avatar, enter } from "./ui";
 import type { Tone } from "./ui";
 
@@ -320,6 +321,7 @@ export function Shell({
             {children}
           </motion.div>
         </main>
+        <Toaster />
       </div>
     </div>
   );

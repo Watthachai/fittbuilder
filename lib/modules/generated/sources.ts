@@ -2266,11 +2266,15 @@ function AssetRecord({ a }: { a: Asset }) {
 }
 `,
 
-  "kit.tsx": `import { useEffect, useMemo, useRef, useState } from "react";
+  "kit.tsx": `import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import type { ReactNode } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp, ChevronsUpDown, X } from "lucide-react";
+import {
+  ChevronDown, ChevronLeft, ChevronRight, ChevronUp, ChevronsUpDown, CircleAlert, CircleCheck, Info, Plus,
+  Trash2, TriangleAlert, X,
+} from "lucide-react";
 import { Button, FIELD, Overlay, SURFACE, Skeleton, enter } from "./ui";
+import type { Tone } from "./ui";
 
 /**
  * The working parts of a management screen: the table people live in, the panel
@@ -3015,6 +3019,455 @@ export function Wizard({
       </div>
     </div>
   );
+}
+
+/* ------------------------------------------------------------- live data */
+
+let dataVersion = 0;
+const dataListeners = new Set<() => void>();
+const subscribeData = (listener: () => void) => {
+  dataListeners.add(listener);
+  return () => {
+    dataListeners.delete(listener);
+  };
+};
+
+/**
+ * Change the demo's records, then redraw every screen that reads them.
+ *
+ * The records are the arrays each module's data.ts exports, and every screen
+ * and helper reads those arrays directly — the sales list, the billing queue,
+ * the receivables another module works out from them. Changing the array in
+ * place is what lets a sales order keyed in here turn up there with nothing in
+ * between: \`commit(() => SALES_ORDERS.push(order))\`. Every write goes through
+ * this one function, so the change and the redraw can never come apart.
+ */
+export function commit<T>(change: () => T): T {
+  const result = change();
+  dataVersion++;
+  for (const listener of dataListeners) listener();
+  return result;
+}
+
+/**
+ * Redraw this component whenever a record changes anywhere in the demo.
+ *
+ * Returns a counter that moves on every commit. A \`useMemo\` over the records has
+ * to list it among its dependencies: the arrays are the same objects before and
+ * after a change, so without it the memo keeps the old answer.
+ */
+export function useData(): number {
+  return useSyncExternalStore(subscribeData, () => dataVersion, () => dataVersion);
+}
+
+/* --------------------------------------------------------------- feedback */
+
+type Toast = { id: number; message: string; tone: Tone };
+
+let toasts: Toast[] = [];
+let toastSeq = 0;
+const NO_TOASTS: Toast[] = [];
+const toastListeners = new Set<() => void>();
+const subscribeToasts = (listener: () => void) => {
+  toastListeners.add(listener);
+  return () => {
+    toastListeners.delete(listener);
+  };
+};
+const emitToasts = () => {
+  for (const listener of toastListeners) listener();
+};
+
+/** Say that an action happened: "บันทึกใบสั่งขาย SO-2569-0417 แล้ว". Gone after three seconds. */
+export function notify(message: string, tone: Tone = "ok") {
+  const toast = { id: ++toastSeq, message, tone };
+  toasts = [...toasts, toast];
+  emitToasts();
+  setTimeout(() => {
+    toasts = toasts.filter((t) => t.id !== toast.id);
+    emitToasts();
+  }, 3200);
+}
+
+const TOAST_ICON: Record<Tone, ReactNode> = {
+  ok: <CircleCheck size={16} className="shrink-0 text-emerald-500" />,
+  warn: <TriangleAlert size={16} className="shrink-0 text-amber-500" />,
+  bad: <CircleAlert size={16} className="shrink-0 text-rose-500" />,
+  idle: <Info size={16} className="shrink-0 text-slate-400" />,
+  info: <Info size={16} className="shrink-0 text-sky-500" />,
+  accent: <Info size={16} className="shrink-0 text-violet-500" />,
+};
+
+/** Where notify() appears. The app frame renders exactly one; screens never do. */
+export function Toaster() {
+  const list = useSyncExternalStore(subscribeToasts, () => toasts, () => NO_TOASTS);
+  return (
+    <Overlay>
+      <div className="pointer-events-none fixed bottom-5 right-5 z-[70] flex flex-col items-end gap-2">
+        <AnimatePresence initial={false}>
+          {list.map((t) => (
+            <motion.div
+              key={t.id}
+              layout
+              role="status"
+              initial={{ opacity: 0, y: 12, scale: 0.98 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 8, scale: 0.98 }}
+              transition={{ duration: 0.22, ease: EASE }}
+              className="pointer-events-auto flex max-w-sm items-center gap-2.5 rounded-xl border border-slate-200 bg-white px-4 py-3 text-[13px] text-slate-800 shadow-xl dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+            >
+              {TOAST_ICON[t.tone]}
+              {t.message}
+            </motion.div>
+          ))}
+        </AnimatePresence>
+      </div>
+    </Overlay>
+  );
+}
+
+/* ----------------------------------------------------------------- money */
+
+const round2 = (n: number) => Math.round(n * 100) / 100;
+
+/** "12,345.50" — two places, always, the way an invoice prints money. */
+export const money = (n: number) =>
+  n.toLocaleString("th-TH", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+/** Subtotal, VAT and grand total, each rounded to the satang the way a tax invoice states them. */
+export function totalsOf(lines: { qty: number; price: number }[], vatRate = 0.07) {
+  const subtotal = round2(lines.reduce((n, l) => n + l.qty * l.price, 0));
+  const vat = round2(subtotal * vatRate);
+  return { subtotal, vat, total: round2(subtotal + vat) };
+}
+
+const DIGITS = ["", "หนึ่ง", "สอง", "สาม", "สี่", "ห้า", "หก", "เจ็ด", "แปด", "เก้า"];
+const PLACES = ["", "สิบ", "ร้อย", "พัน", "หมื่น", "แสน"];
+
+/** Read a whole number the Thai way; \`tail\` means a higher part was read before it (…ล้านเอ็ด). */
+function readThai(n: number, tail = false): string {
+  if (n === 0) return "";
+  if (n >= 1_000_000) {
+    return readThai(Math.floor(n / 1_000_000)) + "ล้าน" + readThai(n % 1_000_000, true);
+  }
+  const digits = String(n).split("").map(Number);
+  let out = "";
+  digits.forEach((d, i) => {
+    const place = digits.length - i - 1;
+    if (d === 0) return;
+    if (place === 1 && d === 1) out += "สิบ";
+    else if (place === 1 && d === 2) out += "ยี่สิบ";
+    else if (place === 0 && d === 1 && (digits.length > 1 || tail)) out += "เอ็ด";
+    else out += DIGITS[d] + PLACES[place];
+  });
+  return out;
+}
+
+/**
+ * An amount in words, as it is written on a Thai tax invoice or cheque:
+ * 469,334 → "สี่แสนหกหมื่นเก้าพันสามร้อยสามสิบสี่บาทถ้วน". Matches Excel's BAHTTEXT.
+ */
+export function bahtText(amount: number): string {
+  const satangTotal = Math.round(Math.abs(amount) * 100);
+  const baht = Math.floor(satangTotal / 100);
+  const satang = satangTotal % 100;
+  if (baht === 0 && satang === 0) return "ศูนย์บาทถ้วน";
+  const bahtPart = baht > 0 ? readThai(baht) + "บาท" : "";
+  return (amount < 0 ? "ลบ" : "") + bahtPart + (satang > 0 ? readThai(satang) + "สตางค์" : "ถ้วน");
+}
+
+/* ------------------------------------------------------------ line items */
+
+export type LineItem = { key: string; code: string; name: string; qty: number; unit: string; price: number };
+
+/** What a line can be picked from. Picking fills the name, unit and list price. */
+export type CatalogItem = { code: string; name: string; unit: string; price: number };
+
+let lineSeq = 0;
+/** A fresh line, ready to be picked. */
+export const newLine = (): LineItem => ({ key: \`line-\${++lineSeq}\`, code: "", name: "", qty: 1, unit: "", price: 0 });
+
+/**
+ * The body of every commercial document: what, how many, at what price.
+ *
+ * Totals and VAT are worked out as the rows change, so the person keying an
+ * order sees the figure the customer will see before they save it.
+ */
+export function LineItems({
+  lines,
+  onChange,
+  catalog,
+  vatRate = 0.07,
+  error,
+}: {
+  lines: LineItem[];
+  onChange: (lines: LineItem[]) => void;
+  catalog: CatalogItem[];
+  vatRate?: number;
+  /** Shown under the table — "ต้องมีอย่างน้อยหนึ่งรายการ". */
+  error?: string;
+}) {
+  const { subtotal, vat, total } = totalsOf(lines, vatRate);
+  const update = (key: string, patch: Partial<LineItem>) =>
+    onChange(lines.map((l) => (l.key === key ? { ...l, ...patch } : l)));
+  const pick = (key: string, code: string) => {
+    const item = catalog.find((c) => c.code === code);
+    update(key, item ? { code, name: item.name, unit: item.unit, price: item.price } : { code: "", name: "" });
+  };
+  const cell = FIELD + " w-full py-2";
+
+  return (
+    <div className={"overflow-hidden " + SURFACE}>
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[640px] text-[13px]">
+          <thead>
+            <tr className="border-b border-slate-100 bg-slate-50/60 text-left text-[11.5px] font-medium text-slate-500 dark:border-slate-800 dark:bg-slate-800/40 dark:text-slate-400">
+              <th className="w-10 px-3 py-2.5">#</th>
+              <th className="px-3 py-2.5">รายการ</th>
+              <th className="w-24 px-3 py-2.5 text-right">จำนวน</th>
+              <th className="w-20 px-3 py-2.5">หน่วย</th>
+              <th className="w-32 px-3 py-2.5 text-right">ราคาต่อหน่วย</th>
+              <th className="w-32 px-3 py-2.5 text-right">จำนวนเงิน</th>
+              <th className="w-10 px-2 py-2.5" />
+            </tr>
+          </thead>
+          <tbody>
+            {lines.map((l, i) => (
+              <tr key={l.key} className="border-b border-slate-100 last:border-0 dark:border-slate-800">
+                <td className="px-3 py-2 tabular-nums text-slate-400">{i + 1}</td>
+                <td className="px-3 py-2">
+                  <select value={l.code} onChange={(e) => pick(l.key, e.target.value)} className={cell} aria-label={\`รายการที่ \${i + 1}\`}>
+                    <option value="">เลือกรายการ…</option>
+                    {catalog.map((c) => (
+                      <option key={c.code} value={c.code}>
+                        {c.code} · {c.name}
+                      </option>
+                    ))}
+                  </select>
+                </td>
+                <td className="px-3 py-2">
+                  <input
+                    type="number"
+                    min={0}
+                    value={l.qty}
+                    onChange={(e) => update(l.key, { qty: Math.max(0, Number(e.target.value)) })}
+                    className={cell + " text-right tabular-nums"}
+                    aria-label={\`จำนวนรายการที่ \${i + 1}\`}
+                  />
+                </td>
+                <td className="px-3 py-2 text-slate-500 dark:text-slate-400">{l.unit || "—"}</td>
+                <td className="px-3 py-2">
+                  <input
+                    type="number"
+                    min={0}
+                    step="0.01"
+                    value={l.price}
+                    onChange={(e) => update(l.key, { price: Math.max(0, Number(e.target.value)) })}
+                    className={cell + " text-right tabular-nums"}
+                    aria-label={\`ราคาต่อหน่วยรายการที่ \${i + 1}\`}
+                  />
+                </td>
+                <td className="px-3 py-2 text-right font-medium tabular-nums text-slate-800 dark:text-slate-100">
+                  {money(l.qty * l.price)}
+                </td>
+                <td className="px-2 py-2">
+                  <button
+                    type="button"
+                    onClick={() => onChange(lines.filter((x) => x.key !== l.key))}
+                    disabled={lines.length === 1}
+                    aria-label={\`ลบรายการที่ \${i + 1}\`}
+                    className="grid size-8 place-items-center rounded-lg text-slate-400 transition hover:bg-rose-50 hover:text-rose-600 disabled:opacity-30 dark:hover:bg-rose-500/10"
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      <div className="flex flex-wrap items-start justify-between gap-4 border-t border-slate-100 px-3 py-3 dark:border-slate-800">
+        <div>
+          <Button variant="ghost" icon={<Plus size={14} />} onClick={() => onChange([...lines, newLine()])}>
+            เพิ่มรายการ
+          </Button>
+          {error && <p className="mt-1 px-1 text-[11.5px] text-rose-600 dark:text-rose-400">{error}</p>}
+        </div>
+        <dl className="min-w-56 space-y-1 text-[13px]">
+          <div className="flex justify-between gap-6 text-slate-500 dark:text-slate-400">
+            <dt>รวมเป็นเงิน</dt>
+            <dd className="tabular-nums">{money(subtotal)}</dd>
+          </div>
+          <div className="flex justify-between gap-6 text-slate-500 dark:text-slate-400">
+            <dt>ภาษีมูลค่าเพิ่ม {Math.round(vatRate * 100)}%</dt>
+            <dd className="tabular-nums">{money(vat)}</dd>
+          </div>
+          <div className="flex justify-between gap-6 border-t border-slate-100 pt-1.5 font-semibold text-slate-900 dark:border-slate-800 dark:text-slate-50">
+            <dt>จำนวนเงินรวมทั้งสิ้น</dt>
+            <dd className="tabular-nums">{money(total)}</dd>
+          </div>
+        </dl>
+      </div>
+    </div>
+  );
+}
+
+/* -------------------------------------------------------------- documents */
+
+const PRINT_CSS = \`@media print {
+  body * { visibility: hidden !important; }
+  .fitt-print, .fitt-print * { visibility: visible !important; }
+  .fitt-print { position: fixed !important; left: 0; top: 0; width: 100%; margin: 0 !important; box-shadow: none !important; border: 0 !important; }
+  @page { size: A4; margin: 12mm; }
+}\`;
+
+/** Print the document on screen — and only it, not the page around it. */
+export const printDocument = () => window.print();
+
+/**
+ * A business document as it is printed: a tax invoice, a purchase order, a
+ * receipt. Always paper-white, in dark mode too, because it is a picture of the
+ * paper the customer receives — and the thing an accountant moving off another
+ * program checks first.
+ */
+export function DocumentSheet({
+  title,
+  number,
+  date,
+  dueDate,
+  copy = "ต้นฉบับ",
+  company,
+  party,
+  lines,
+  vatRate = 0.07,
+  notes,
+  signatures = ["ผู้รับเอกสาร", "ผู้มีอำนาจลงนาม"],
+}: {
+  /** "ใบกำกับภาษี / ใบแจ้งหนี้", "ใบสั่งซื้อ", "ใบเสร็จรับเงิน". */
+  title: string;
+  number: string;
+  date: string;
+  dueDate?: string;
+  copy?: "ต้นฉบับ" | "สำเนา";
+  company: { name: string; address: string; taxId: string; phone?: string };
+  /** The other side: \`label\` is "ลูกค้า" on a sale and "ผู้ขาย" on a purchase. */
+  party: { label: string; name: string; address?: string; taxId?: string };
+  lines: { name: string; qty: number; unit?: string; price: number }[];
+  vatRate?: number;
+  notes?: ReactNode;
+  signatures?: string[];
+}) {
+  const { subtotal, vat, total } = totalsOf(lines, vatRate);
+  return (
+    <div className="fitt-print mx-auto w-full max-w-[794px] rounded-sm bg-white p-8 text-[12.5px] text-slate-800 shadow-sm ring-1 ring-slate-200 sm:p-10">
+      <style>{PRINT_CSS}</style>
+      <div className="flex flex-wrap items-start justify-between gap-6 border-b-2 border-slate-800 pb-4">
+        <div className="min-w-0">
+          <p className="text-[16px] font-bold text-slate-900">{company.name}</p>
+          <p className="mt-1 max-w-sm leading-relaxed text-slate-600">{company.address}</p>
+          <p className="text-slate-600">เลขประจำตัวผู้เสียภาษี {company.taxId}</p>
+          {company.phone && <p className="text-slate-600">โทร {company.phone}</p>}
+        </div>
+        <div className="text-right">
+          <p className="text-[18px] font-bold text-slate-900">{title}</p>
+          <p className="mt-0.5 text-[11.5px] text-slate-500">{copy}</p>
+        </div>
+      </div>
+
+      <div className="mt-4 grid gap-4 sm:grid-cols-[1fr_auto]">
+        <div className="rounded-md border border-slate-300 p-3">
+          <p className="text-[11px] text-slate-500">{party.label}</p>
+          <p className="font-semibold text-slate-900">{party.name}</p>
+          {party.address && <p className="leading-relaxed text-slate-600">{party.address}</p>}
+          {party.taxId && <p className="text-slate-600">เลขประจำตัวผู้เสียภาษี {party.taxId}</p>}
+        </div>
+        <dl className="grid min-w-52 grid-cols-[auto_1fr] content-start gap-x-4 gap-y-1 rounded-md border border-slate-300 p-3">
+          <dt className="text-slate-500">เลขที่</dt>
+          <dd className="text-right font-semibold tabular-nums text-slate-900">{number}</dd>
+          <dt className="text-slate-500">วันที่</dt>
+          <dd className="text-right tabular-nums">{date}</dd>
+          {dueDate && (
+            <>
+              <dt className="text-slate-500">ครบกำหนด</dt>
+              <dd className="text-right tabular-nums">{dueDate}</dd>
+            </>
+          )}
+        </dl>
+      </div>
+
+      <table className="mt-4 w-full border-collapse">
+        <thead>
+          <tr className="bg-slate-100 text-[11.5px] text-slate-600">
+            <th className="border border-slate-300 px-2 py-1.5 text-center font-medium">ลำดับ</th>
+            <th className="border border-slate-300 px-2 py-1.5 text-left font-medium">รายการ</th>
+            <th className="border border-slate-300 px-2 py-1.5 text-right font-medium">จำนวน</th>
+            <th className="border border-slate-300 px-2 py-1.5 text-left font-medium">หน่วย</th>
+            <th className="border border-slate-300 px-2 py-1.5 text-right font-medium">ราคาต่อหน่วย</th>
+            <th className="border border-slate-300 px-2 py-1.5 text-right font-medium">จำนวนเงิน</th>
+          </tr>
+        </thead>
+        <tbody>
+          {lines.map((l, i) => (
+            <tr key={i}>
+              <td className="border border-slate-300 px-2 py-1.5 text-center tabular-nums">{i + 1}</td>
+              <td className="border border-slate-300 px-2 py-1.5">{l.name}</td>
+              <td className="border border-slate-300 px-2 py-1.5 text-right tabular-nums">{l.qty.toLocaleString("th-TH")}</td>
+              <td className="border border-slate-300 px-2 py-1.5">{l.unit ?? ""}</td>
+              <td className="border border-slate-300 px-2 py-1.5 text-right tabular-nums">{money(l.price)}</td>
+              <td className="border border-slate-300 px-2 py-1.5 text-right tabular-nums">{money(l.qty * l.price)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+
+      <div className="mt-3 flex flex-wrap items-start justify-between gap-4">
+        <div className="min-w-0 flex-1">
+          <p className="rounded-md bg-slate-100 px-3 py-2 font-medium text-slate-800">({bahtText(total)})</p>
+          {notes && <div className="mt-2 leading-relaxed text-slate-600">{notes}</div>}
+        </div>
+        <dl className="grid min-w-60 grid-cols-[1fr_auto] gap-x-6 gap-y-1">
+          <dt className="text-slate-600">รวมเป็นเงิน</dt>
+          <dd className="text-right tabular-nums">{money(subtotal)}</dd>
+          <dt className="text-slate-600">ภาษีมูลค่าเพิ่ม {Math.round(vatRate * 100)}%</dt>
+          <dd className="text-right tabular-nums">{money(vat)}</dd>
+          <dt className="border-t border-slate-800 pt-1 font-bold text-slate-900">จำนวนเงินรวมทั้งสิ้น</dt>
+          <dd className="border-t border-slate-800 pt-1 text-right font-bold tabular-nums text-slate-900">{money(total)}</dd>
+        </dl>
+      </div>
+
+      <div className="mt-12 grid gap-8" style={{ gridTemplateColumns: \`repeat(\${signatures.length}, minmax(0, 1fr))\` }}>
+        {signatures.map((s) => (
+          <div key={s} className="text-center">
+            <div className="mx-auto h-10 w-40 border-b border-dotted border-slate-500" />
+            <p className="mt-1.5 text-slate-600">{s}</p>
+            <p className="text-[11px] text-slate-400">วันที่ ____/____/______</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ----------------------------------------------------------------- export */
+
+/** Rows as CSV text with a byte-order mark, so Excel opens Thai as Thai and not as noise. */
+export function toCsv(header: string[], rows: (string | number)[][]): string {
+  const cell = (v: string | number) => {
+    const s = String(v);
+    return /[",\\r\\n]/.test(s) ? \`"\${s.replace(/"/g, '""')}"\` : s;
+  };
+  return "﻿" + [header, ...rows].map((r) => r.map(cell).join(",")).join("\\r\\n");
+}
+
+/** "ส่งออก Excel": the rows on screen, as a file the accountant opens in Excel. */
+export function downloadCsv(filename: string, header: string[], rows: (string | number)[][]) {
+  const url = URL.createObjectURL(new Blob([toCsv(header, rows)], { type: "text/csv;charset=utf-8" }));
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename.endsWith(".csv") ? filename : \`\${filename}.csv\`;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 `,
 
@@ -11953,6 +12406,7 @@ import type { ReactNode } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { ArrowRightToLine, Bell, ChevronsLeft, Search } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+import { Toaster } from "./kit";
 import { Avatar, enter } from "./ui";
 import type { Tone } from "./ui";
 
@@ -12270,6 +12724,7 @@ export function Shell({
             {children}
           </motion.div>
         </main>
+        <Toaster />
       </div>
     </div>
   );

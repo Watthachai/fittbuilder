@@ -34,6 +34,7 @@ function shellFor(selected: Module[]): string {
     .join("\n");
   return `import { useEffect, useState } from "react";
 import { ${icons.join(", ")} } from "lucide-react";
+import { Toaster } from "./modules/kit";
 ${imports}
 
 const MODULES = [
@@ -180,6 +181,7 @@ export default function App() {
         <main className="min-h-0 flex-1 overflow-y-auto p-5 lg:p-6">
           <Current section={section ?? undefined} onOpenSection={(i) => setSection(current.sections[i])} />
         </main>
+        <Toaster />
       </div>
     </div>
   );

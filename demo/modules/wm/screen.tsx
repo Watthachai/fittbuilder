@@ -1,21 +1,24 @@
 import { useState } from "react";
 import type { ReactNode } from "react";
 import {
-  ArrowRight, ArrowRightLeft, Boxes, CircleCheck, CircleX, ClipboardCheck, Coins, Grid2x2,
-  Import, Layers, MapPin, Package, PackageCheck, PackageOpen, Scale, Search as SearchIcon,
-  Send, TrendingDown, TrendingUp, TriangleAlert, Warehouse, Weight,
+  ArrowRight, ArrowRightLeft, Boxes, CircleCheck, CircleX, ClipboardCheck, Coins, FileDown, Grid2x2,
+  Import, Layers, MapPin, Package, PackageCheck, PackageOpen, Pencil, Plus, Printer, Scale, Search as SearchIcon,
+  Send, TrendingDown, TrendingUp, Truck, TriangleAlert, Warehouse, Weight,
 } from "lucide-react";
 import { TODAY, material } from "../mm/data";
 import {
-  BINS, COUNTS, INBOUND, PICKS, STORAGE_TYPES, TRANSFERS, WAREHOUSE, baht, bin, binLoad, freeBins,
-  storageType, variance, varianceValue,
+  BINS, COUNTS, COUNT_SHEETS, GOODS_ISSUES, INBOUND, PICKS, STORAGE_TYPES, TRANSFERS, WAREHOUSE, available, baht, bin,
+  binLoad, confirmPickList, countKey, freeBins, fullPickProblem, openVariances, pendingReceipts, pickLists, createPutawayTasks,
+  reservedIn, storageType, variance, varianceValue,
 } from "./data";
 import type { Bin, Count } from "./data";
+import { WM_CONFIRMS, WmDialogs } from "./forms";
+import type { WmDialog } from "./forms";
 import {
-  Avatar, Badge, Bar, Button, Card, Chip, ColumnChart, Donut, Dot, IconRow, Note, PageHead,
-  Progress, Reveal, Search, Segmented, Select, StatStrip, Tabs, Tag, TintCard, swatchFor,
+  Avatar, Badge, Bar, Button, Card, Chip, Donut, Dot, IconRow, Note, PageHead,
+  Progress, Reveal, Search, Segmented, Select, StatStrip, Tabs, Tag, swatchFor,
 } from "../ui";
-import { ConfirmDialog, DataTable, DetailModal, FormModal } from "../kit";
+import { DataTable, DetailModal, FormModal, downloadCsv, notify, useData } from "../kit";
 import type { Column } from "../kit";
 
 const TABS = [
@@ -52,18 +55,14 @@ export default function WmScreen({
   section?: string;
   onOpenSection?: (index: number) => void;
 }) {
+  useData();
   const tab = section && TABS.includes(section) ? section : undefined;
 
-  const [storedAway, setStoredAway] = useState<string[]>([]);
-  const [pickedUp, setPickedUp] = useState<string[]>([]);
   const [q, setQ] = useState("");
   const [type, setType] = useState("ทุกพื้นที่");
   const [openBinAt, setOpenBinAt] = useState<number | null>(null);
-  const [storing, setStoring] = useState<(typeof INBOUND)[number] | null>(null);
   const [openCount, setOpenCount] = useState<Count | null>(null);
-
-  const inboundStatus = (no: string, seed: string) => (storedAway.includes(no) ? "จัดเก็บแล้ว" : seed);
-  const pickStatus = (no: string, seed: string) => (pickedUp.includes(no) ? "หยิบแล้ว" : seed);
+  const [dialog, setDialog] = useState<WmDialog | null>(null);
 
   const needle = q.trim().toLowerCase();
   const binRows = BINS.filter(
@@ -74,10 +73,19 @@ export default function WmScreen({
   );
   const pickedBin = openBinAt === null ? null : (binRows[openBinAt] ?? null);
 
-  const waitingIn = INBOUND.filter((i) => inboundStatus(i.no, i.status) === "รอจัดเก็บ");
-  const waitingPick = PICKS.filter((p) => pickStatus(p.no, p.status) === "รอหยิบ");
-  const offCount = COUNTS.filter((c) => variance(c) !== 0);
+  const waitingIn = INBOUND.filter((i) => i.status === "รอจัดเก็บ");
+  const waitingPick = PICKS.filter((p) => p.status === "รอหยิบ");
+  const offCount = openVariances();
   const fullBins = BINS.filter((b) => b.material && binLoad(b).pct >= 80);
+
+  // A question about the record opens over it; a new task replaces it.
+  const act = (d: WmDialog) => {
+    if (!WM_CONFIRMS.includes(d.kind)) {
+      setOpenBinAt(null);
+      setOpenCount(null);
+    }
+    setDialog(d);
+  };
 
   const panels = (
     <>
@@ -89,32 +97,8 @@ export default function WmScreen({
         total={binRows.length}
         onStep={(d) => setOpenBinAt((i) => Math.min(binRows.length - 1, Math.max(0, (i ?? 0) + d)))}
       >
-        {pickedBin && <BinRecord key={pickedBin.code} b={pickedBin} />}
+        {pickedBin && <BinRecord key={pickedBin.code} b={pickedBin} onAct={act} />}
       </DetailModal>
-
-      <ConfirmDialog
-        open={storing !== null}
-        title="ยืนยันการจัดเก็บ"
-        body="ยืนยันแล้วของจะถูกบันทึกเข้าช่องที่เลือก และหายจากคิวท่ารับของ"
-        subject={
-          storing && (
-            <span className="block">
-              <span className="block text-[13px] font-medium text-slate-900 dark:text-slate-50">
-                {material(storing.material).name} × {storing.qty}
-              </span>
-              <span className="block text-[11.5px] text-slate-500 dark:text-slate-400">
-                จาก {storing.from} ไปช่อง {storing.suggestBin} · {storageType(bin(storing.suggestBin).type).name}
-              </span>
-            </span>
-          )
-        }
-        confirmLabel="จัดเก็บเข้าช่อง"
-        onCancel={() => setStoring(null)}
-        onConfirm={() => {
-          if (storing) setStoredAway((s) => [...new Set([...s, storing.no])]);
-          setStoring(null);
-        }}
-      />
 
       <FormModal
         open={openCount !== null}
@@ -123,8 +107,19 @@ export default function WmScreen({
         onClose={() => setOpenCount(null)}
         size="sm"
       >
-        {openCount && <CountRecord c={openCount} />}
+        {openCount && <CountRecord c={openCount} onAct={act} />}
       </FormModal>
+
+      <WmDialogs
+        dialog={dialog}
+        onClose={() => setDialog(null)}
+        onSaved={(saved) => {
+          setDialog(null);
+          // A new pick list or count sheet is walked on paper: open it ready to print.
+          if (saved.pickRef) setDialog({ kind: "print", doc: { type: "pick", ref: saved.pickRef } });
+          else if (saved.sheet) setDialog({ kind: "print", doc: { type: "count", sheet: saved.sheet } });
+        }}
+      />
     </>
   );
 
@@ -149,6 +144,13 @@ export default function WmScreen({
     );
   }
 
+  const firstIn = waitingIn[0] ?? INBOUND[0];
+  const firstPick = waitingPick[0] ?? PICKS[0];
+  const staged = pickLists().find((l) => l.status === "หยิบครบ รอจ่ายออก") ?? pickLists()[0];
+  const openSheet = COUNT_SHEETS.find((s) => s.status === "รอนับ") ?? COUNT_SHEETS[0];
+  const toApprove = COUNTS.find((c) => c.status === "รออนุมัติ") ?? COUNTS[0];
+  const toPost = COUNTS.find((c) => c.status === "อนุมัติแล้ว") ?? COUNTS[0];
+
   return (
     <div>
       <PageHead
@@ -164,24 +166,44 @@ export default function WmScreen({
           type={type}
           setType={setType}
           onOpen={(b) => setOpenBinAt(binRows.indexOf(b))}
+          onAct={act}
         />
       )}
-      {tab === "รับเข้าและจัดเก็บ" && <Inbound statusOf={inboundStatus} onStore={setStoring} />}
-      {tab === "หยิบสินค้าและจ่ายออก" && (
-        <Picking statusOf={pickStatus} onPick={(no) => setPickedUp((p) => [...new Set([...p, no])])} />
-      )}
-      {tab === "ย้ายสินค้าภายในคลัง" && <Transfers />}
-      {tab === "ตรวจนับสต็อก" && <Counting onOpen={setOpenCount} />}
+      {tab === "รับเข้าและจัดเก็บ" && <Inbound onAct={act} />}
+      {tab === "หยิบสินค้าและจ่ายออก" && <Picking onAct={act} />}
+      {tab === "ย้ายสินค้าภายในคลัง" && <Transfers onAct={act} />}
+      {tab === "ตรวจนับสต็อก" && <Counting onOpen={setOpenCount} onAct={act} />}
 
       {panels}
 
       <div hidden data-fitt-index>
         <button data-fitt-screen="บริหารคลังสินค้า" />
         <button data-fitt-screen="ช่องเก็บ" data-fitt-modal onClick={() => setOpenBinAt(0)} />
-        <button data-fitt-screen="ยืนยันการจัดเก็บ" data-fitt-modal onClick={() => setStoring(INBOUND[0])} />
+        <button data-fitt-screen="เพิ่มช่องเก็บ" data-fitt-modal onClick={() => act({ kind: "bin" })} />
+        <button data-fitt-screen="แก้ไขช่องเก็บ" data-fitt-modal onClick={() => act({ kind: "bin", bin: BINS[0] })} />
+        <button data-fitt-screen="ยืนยันการจัดเก็บ" data-fitt-modal onClick={() => act({ kind: "putaway", task: firstIn })} />
+        <button data-fitt-screen="สร้างใบหยิบสินค้า" data-fitt-modal onClick={() => act({ kind: "pickList" })} />
+        <button data-fitt-screen="ยืนยันการหยิบ" data-fitt-modal onClick={() => act({ kind: "pick", task: firstPick })} />
+        <button data-fitt-screen="ตัดจ่ายสินค้าออกจากคลัง" data-fitt-modal onClick={() => act({ kind: "issue", ref: staged.ref })} />
+        <button data-fitt-screen="พิมพ์ใบหยิบสินค้า" data-fitt-modal onClick={() => act({ kind: "print", doc: { type: "pick", ref: PICKS[0].ref } })} />
+        <button data-fitt-screen="ย้ายสินค้าภายในคลัง" data-fitt-modal onClick={() => act({ kind: "transfer" })} />
+        <button data-fitt-screen="สร้างใบตรวจนับ" data-fitt-modal onClick={() => act({ kind: "countSheet" })} />
+        <button data-fitt-screen="บันทึกผลตรวจนับ" data-fitt-modal onClick={() => act({ kind: "countEntry", sheet: openSheet })} />
+        <button data-fitt-screen="พิมพ์ใบตรวจนับ" data-fitt-modal onClick={() => act({ kind: "print", doc: { type: "count", sheet: COUNT_SHEETS[0] } })} />
         <button data-fitt-screen="ผลการตรวจนับ" data-fitt-modal onClick={() => setOpenCount(COUNTS[0])} />
+        <button data-fitt-screen="อนุมัติผลต่างจากการตรวจนับ" data-fitt-modal onClick={() => act({ kind: "approveCount", count: toApprove })} />
+        <button data-fitt-screen="ปรับยอดตามผลตรวจนับ" data-fitt-modal onClick={() => act({ kind: "postCount", count: toPost })} />
       </div>
     </div>
+  );
+}
+
+/** "ส่งออก Excel" — the same small secondary button on every register. */
+function ExportButton({ onClick }: { onClick: () => void }) {
+  return (
+    <Button variant="secondary" icon={<FileDown size={14} />} onClick={onClick}>
+      ส่งออก Excel
+    </Button>
   );
 }
 
@@ -286,10 +308,11 @@ function Overview({
           >
             <div className="space-y-2.5 p-4">
               {[
+                { icon: <Truck size={15} />, label: "ใบรับสินค้ารอสั่งจัดเก็บ", value: pendingReceipts().length, unit: "ใบ", tone: "warn" as const, to: 1 },
                 { icon: <Import size={15} />, label: "รอจัดเก็บเข้าช่อง", value: waitingIn, unit: "ใบ", tone: "warn" as const, to: 1 },
                 { icon: <PackageOpen size={15} />, label: "รอหยิบของ", value: waitingPick, unit: "ใบ", tone: "info" as const, to: 2 },
                 { icon: <Weight size={15} />, label: "ช่องที่ใกล้เต็ม", value: fullBins.length, unit: "ช่อง", tone: "warn" as const, to: 0 },
-                { icon: <ClipboardCheck size={15} />, label: "ตรวจนับพบผลต่าง", value: offCount.length, unit: "ช่อง", tone: "bad" as const, to: 4 },
+                { icon: <ClipboardCheck size={15} />, label: "ผลต่างรออนุมัติหรือรอปรับยอด", value: offCount.length, unit: "ช่อง", tone: "bad" as const, to: 4 },
               ].map((r) => (
                 <button
                   key={r.label}
@@ -376,10 +399,10 @@ function Overview({
           action={seeAll(4)}
         >
           <ul className="divide-y divide-slate-100 dark:divide-slate-800">
-            {COUNTS.map((c) => {
+            {[...COUNTS].reverse().slice(0, 6).map((c) => {
               const diff = variance(c);
               return (
-                <li key={c.bin} className="flex flex-wrap items-center gap-3 px-4 py-2.5">
+                <li key={countKey(c)} className="flex flex-wrap items-center gap-3 px-4 py-2.5">
                   <span className={"grid size-8 shrink-0 place-items-center rounded-full " + (diff === 0 ? "bg-emerald-50 text-emerald-600 dark:bg-emerald-500/15 dark:text-emerald-300" : diff < 0 ? "bg-rose-50 text-rose-600 dark:bg-rose-500/15 dark:text-rose-300" : "bg-amber-50 text-amber-600 dark:bg-amber-500/15 dark:text-amber-300")}>
                     {diff === 0 ? <CircleCheck size={14} /> : diff < 0 ? <TrendingDown size={14} /> : <TrendingUp size={14} />}
                   </span>
@@ -418,6 +441,7 @@ function Layout({
   type,
   setType,
   onOpen,
+  onAct,
 }: {
   rows: Bin[];
   q: string;
@@ -425,8 +449,19 @@ function Layout({
   type: string;
   setType: (v: string) => void;
   onOpen: (b: Bin) => void;
+  onAct: (d: WmDialog) => void;
 }) {
+  useData();
   const [view, setView] = useState("ตาราง");
+  const exportBins = () =>
+    downloadCsv(
+      "ผังช่องเก็บ",
+      ["ช่องเก็บ", "พื้นที่", "วัสดุ", "จำนวน", "หน่วย", "น้ำหนัก (กก.)", "เพดาน (กก.)", "ใช้ไป (%)", "ล็อตเก่าสุด"],
+      rows.map((b) => [
+        b.code, storageType(b.type).name, b.material ? material(b.material).name : "ว่าง", b.qty, b.material ? material(b.material).unit : "",
+        Math.round(binLoad(b).kg), b.maxKg, binLoad(b).pct, b.since ?? "",
+      ])
+    );
 
   const columns: Column<Bin>[] = [
     {
@@ -500,6 +535,10 @@ function Layout({
             </span>
           ))}
         </span>
+        <ExportButton onClick={exportBins} />
+        <Button variant="primary" icon={<Plus size={14} />} onClick={() => onAct({ kind: "bin" })}>
+          เพิ่มช่องเก็บ
+        </Button>
       </div>
 
       {view === "ตาราง" ? (
@@ -581,34 +620,70 @@ function Layout({
 
 /* --------------------------------------------------------------- inbound */
 
-function Inbound({
-  statusOf,
-  onStore,
-}: {
-  statusOf: (no: string, seed: string) => string;
-  onStore: (i: (typeof INBOUND)[number]) => void;
-}) {
+function Inbound({ onAct }: { onAct: (d: WmDialog) => void }) {
+  useData();
+  const pending = pendingReceipts();
+  const waiting = INBOUND.filter((i) => i.status === "รอจัดเก็บ");
+  const rows = [...INBOUND].sort((a, b) => Number(a.status === "จัดเก็บแล้ว") - Number(b.status === "จัดเก็บแล้ว") || b.no.localeCompare(a.no));
+
+  const issue = (grNo: string) => {
+    const tasks = createPutawayTasks(grNo);
+    notify(`ออกใบสั่งจัดเก็บจาก ${grNo} แล้ว · ${tasks.map((t) => t.no).join(", ")}`);
+  };
+  const exportTasks = () =>
+    downloadCsv(
+      "ใบสั่งจัดเก็บ",
+      ["เลขที่", "ใบรับสินค้า", "วัสดุ", "จำนวน", "หน่วย", "จากท่ารับ", "ช่องที่เสนอ", "ช่องที่เก็บจริง", "สถานะ", "วันที่จัดเก็บ"],
+      rows.map((i) => [i.no, i.gr ?? "", material(i.material).name, i.qty, material(i.material).unit, i.from, i.suggestBin, i.bin ?? "", i.status, i.doneAt ?? ""])
+    );
+
   return (
     <div className="space-y-3">
       <StatStrip
         title="การรับเข้าและจัดเก็บ"
         icon={<Import size={15} />}
         cells={[
-          { icon: <Import size={13} />, label: "ใบสั่งจัดเก็บ", value: INBOUND.length + " ใบ", sub: "ของที่มาถึงท่ารับแล้ว" },
-          { icon: <PackageCheck size={13} />, label: "จัดเก็บแล้ว", value: INBOUND.filter((i) => statusOf(i.no, i.status) === "จัดเก็บแล้ว").length + " ใบ", sub: "เข้าช่องเรียบร้อย", tone: "ok" },
-          { icon: <TriangleAlert size={13} />, label: "รอจัดเก็บ", value: INBOUND.filter((i) => statusOf(i.no, i.status) === "รอจัดเก็บ").length + " ใบ", sub: "ยังค้างอยู่ที่ท่ารับ", tone: "warn" },
-          { icon: <Grid2x2 size={13} />, label: "ช่องที่ยังรับได้", value: BINS.filter((b) => !b.material || binLoad(b).pct < 80).length + " ช่อง", sub: "ยังไม่ถึง 80% ของเพดาน", tone: "info" },
+          { icon: <Truck size={13} />, label: "ใบรับสินค้ารอสั่งจัดเก็บ", value: pending.length + " ใบ", sub: "จัดซื้อรับของเข้ามาแล้ว", tone: pending.length > 0 ? "warn" : "ok" },
+          { icon: <PackageCheck size={13} />, label: "จัดเก็บแล้ว", value: INBOUND.filter((i) => i.status === "จัดเก็บแล้ว").length + " ใบ", sub: "เข้าช่องเรียบร้อย", tone: "ok" },
+          { icon: <TriangleAlert size={13} />, label: "รอจัดเก็บ", value: waiting.length + " ใบ", sub: "ยังค้างอยู่ที่ท่ารับ", tone: "warn" },
+          { icon: <Grid2x2 size={13} />, label: "ช่องที่ยังรับได้", value: BINS.filter((b) => ["BLK", "PCK"].includes(b.type) && (!b.material || binLoad(b).pct < 80)).length + " ช่อง", sub: "ยังไม่ถึง 80% ของเพดาน", tone: "info" },
         ]}
       />
 
       <Card
+        title={<span className="flex items-center gap-2"><Truck size={15} className="text-slate-400" />ใบรับสินค้าจากจัดซื้อ</span>}
+        subtitle="จัดซื้อรับของเข้าที่ท่ารับแล้ว ออกใบสั่งจัดเก็บเพื่อบอกคนยกของว่าต้องเอาไปช่องไหน"
+      >
+        {pending.length === 0 ? (
+          <p className="py-8 text-center text-[12.5px] text-slate-400">ไม่มีใบรับสินค้าที่รอสั่งจัดเก็บ</p>
+        ) : (
+          <ul className="divide-y divide-slate-100 dark:divide-slate-800">
+            {pending.map((g) => (
+              <li key={g.no} className="flex flex-wrap items-center gap-3 px-4 py-2.5">
+                <span className="w-32 shrink-0 font-mono text-[12px] text-slate-500 dark:text-slate-400">{g.no}</span>
+                <span className="min-w-0 flex-1 truncate text-[13px] text-slate-900 dark:text-slate-50">
+                  {g.lines.map((l) => `${material(l.material).name} × ${l.qty}`).join(" · ")}
+                </span>
+                <span className="shrink-0 text-[11.5px] tabular-nums text-slate-400">
+                  {g.po} · {g.date}
+                </span>
+                <Button variant="primary" icon={<Import size={13} />} onClick={() => issue(g.no)}>
+                  ออกใบสั่งจัดเก็บ
+                </Button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Card>
+
+      <Card
         title={<span className="flex items-center gap-2"><Import size={15} className="text-slate-400" />ใบสั่งจัดเก็บ</span>}
-        subtitle="ระบบเสนอช่องเก็บจากพื้นที่ที่ยังรับน้ำหนักได้ พร้อมช่องสำรองให้เลือก"
+        subtitle="ระบบเสนอช่องจากพื้นที่ที่ยังรับน้ำหนักไหว กดจัดเก็บเพื่อเลือกช่องจริงและยืนยัน"
+        action={<ExportButton onClick={exportTasks} />}
       >
         <ul className="divide-y divide-slate-100 dark:divide-slate-800">
-          {INBOUND.map((i) => {
-            const status = statusOf(i.no, i.status);
-            const target = bin(i.suggestBin);
+          {rows.map((i) => {
+            const target = bin(i.bin ?? i.suggestBin);
             const l = binLoad(target);
             const alternatives = freeBins(target.type).filter((b) => b.code !== target.code);
             return (
@@ -621,23 +696,25 @@ function Inbound({
                     </span>
                     <span className="block text-[11.5px] text-slate-400">
                       {i.qty} {material(i.material).unit} · มาจากท่ารับ {i.from}
+                      {i.gr ? ` · ${i.gr}` : ""}
+                      {i.doneAt ? ` · เก็บเมื่อ ${i.doneAt}` : ""}
                     </span>
                   </span>
                   <span className="flex shrink-0 items-center gap-2">
                     <Tag swatch={typeSwatch(target.type)}>{storageType(target.type).name}</Tag>
-                    <span className="font-mono text-[12px] text-slate-700 dark:text-slate-200">{i.suggestBin}</span>
+                    <span className="font-mono text-[12px] text-slate-700 dark:text-slate-200">{target.code}</span>
                   </span>
                   <span className="w-28 shrink-0">
                     <Bar pct={Math.min(100, l.pct)} tone={l.pct >= 80 ? "warn" : "ok"} width="w-full" />
                   </span>
-                  <Badge tone={status === "จัดเก็บแล้ว" ? "ok" : "warn"} dot>{status}</Badge>
-                  {status === "รอจัดเก็บ" && (
-                    <Button variant="primary" onClick={() => onStore(i)}>
+                  <Badge tone={i.status === "จัดเก็บแล้ว" ? "ok" : "warn"} dot>{i.status}</Badge>
+                  {i.status === "รอจัดเก็บ" && (
+                    <Button variant="primary" onClick={() => onAct({ kind: "putaway", task: i })}>
                       จัดเก็บ
                     </Button>
                   )}
                 </div>
-                {status === "รอจัดเก็บ" && alternatives.length > 0 && (
+                {i.status === "รอจัดเก็บ" && alternatives.length > 0 && (
                   <p className="mt-1.5 pl-[7.5rem] text-[11.5px] text-slate-400">
                     ช่องสำรองที่ยังรับไหว: {alternatives.map((b) => b.code).join(" · ")}
                   </p>
@@ -653,16 +730,30 @@ function Inbound({
 
 /* --------------------------------------------------------------- picking */
 
-function Picking({
-  statusOf,
-  onPick,
-}: {
-  statusOf: (no: string, seed: string) => string;
-  onPick: (no: string) => void;
-}) {
+const LIST_TONE = { รอหยิบ: "warn", "หยิบครบ รอจ่ายออก": "info", จ่ายออกแล้ว: "ok" } as const;
+
+function Picking({ onAct }: { onAct: (d: WmDialog) => void }) {
+  useData();
   // Sorting by bin code is the whole point: one walk instead of doubling back.
-  const route = [...PICKS].sort((a, b) => a.bin.localeCompare(b.bin));
-  const waiting = route.filter((p) => statusOf(p.no, p.status) === "รอหยิบ");
+  const route = PICKS.filter((p) => p.status === "รอหยิบ").sort((a, b) => a.bin.localeCompare(b.bin));
+  const lists = pickLists();
+  const done = PICKS.filter((p) => p.status !== "รอหยิบ");
+
+  const confirmAll = (ref: string) => {
+    const problem = fullPickProblem(ref);
+    if (problem) {
+      notify(problem, "warn");
+      return;
+    }
+    confirmPickList(ref);
+    notify(`ยืนยันหยิบครบทุกงานของ ${ref} แล้ว · พร้อมตัดจ่ายออก`);
+  };
+  const exportPicks = () =>
+    downloadCsv(
+      "งานหยิบสินค้า",
+      ["เลขที่", "เอกสารต้นเรื่อง", "วัสดุ", "ต้องหยิบ", "หยิบได้จริง", "หน่วย", "จากช่อง", "ไป", "สถานะ", "ใบจ่ายสินค้า"],
+      [...PICKS].reverse().map((p) => [p.no, p.ref, material(p.material).name, p.qty, p.picked ?? "", material(p.material).unit, p.bin, p.to, p.status, p.gi ?? ""])
+    );
 
   return (
     <div className="space-y-3">
@@ -670,67 +761,153 @@ function Picking({
         title="การหยิบของและจ่ายออก"
         icon={<PackageOpen size={15} />}
         cells={[
-          { icon: <PackageOpen size={13} />, label: "ใบสั่งหยิบ", value: PICKS.length + " ใบ", sub: "อ้างถึงใบส่งของหรือใบสั่งผลิต" },
-          { icon: <CircleCheck size={13} />, label: "หยิบแล้ว", value: (PICKS.length - waiting.length) + " ใบ", sub: "ย้ายไปพื้นที่จ่ายออกแล้ว", tone: "ok" },
-          { icon: <TriangleAlert size={13} />, label: "รอหยิบ", value: waiting.length + " ใบ", sub: "ยังไม่ได้เดินหยิบ", tone: waiting.length > 0 ? "warn" : "ok" },
-          { icon: <MapPin size={13} />, label: "ช่องที่ต้องแวะ", value: new Set(waiting.map((p) => p.bin)).size + " ช่อง", sub: "เรียงตามลำดับช่องให้เดินรอบเดียว", tone: "info" },
+          { icon: <PackageOpen size={13} />, label: "ใบหยิบสินค้า", value: lists.length + " ใบ", sub: "อ้างถึงใบส่งของหรือใบสั่งผลิต" },
+          { icon: <TriangleAlert size={13} />, label: "รอหยิบ", value: route.length + " งาน", sub: "ยังไม่ได้เดินหยิบ", tone: route.length > 0 ? "warn" : "ok" },
+          { icon: <Send size={13} />, label: "รอจ่ายออก", value: lists.filter((l) => l.status === "หยิบครบ รอจ่ายออก").length + " ใบ", sub: "หยิบครบ พักที่ท่าจ่าย", tone: "info" },
+          { icon: <CircleCheck size={13} />, label: "จ่ายออกแล้ว", value: GOODS_ISSUES.length + " ใบ", sub: "ตัดออกจากคลังแล้ว", tone: "ok" },
         ]}
       />
 
       <Card
-        title={<span className="flex items-center gap-2"><PackageOpen size={15} className="text-slate-400" />ใบสั่งหยิบ</span>}
-        subtitle="เรียงตามลำดับช่องเก็บ เพื่อให้เดินหยิบรอบเดียวจบ"
+        title={<span className="flex items-center gap-2"><ClipboardCheck size={15} className="text-slate-400" />ใบหยิบสินค้า</span>}
+        subtitle="หนึ่งใบต่อหนึ่งเอกสารต้นเรื่อง พิมพ์ไปเดินหยิบ ยืนยันผล แล้วตัดจ่ายออก"
+        action={
+          <span className="flex gap-2">
+            <ExportButton onClick={exportPicks} />
+            <Button variant="primary" icon={<Plus size={14} />} onClick={() => onAct({ kind: "pickList" })}>
+              สร้างใบหยิบสินค้า
+            </Button>
+          </span>
+        }
       >
-        <ol className="divide-y divide-slate-100 dark:divide-slate-800">
-          {route.map((p, i) => {
-            const status = statusOf(p.no, p.status);
-            const b = bin(p.bin);
+        <ul className="divide-y divide-slate-100 dark:divide-slate-800">
+          {lists.map((l) => {
+            const short = l.tasks.filter((t) => t.picked !== undefined && t.picked < t.qty).length;
             return (
-              <li key={p.no} className="flex flex-wrap items-center gap-3 px-4 py-3">
-                <span className={"grid size-8 shrink-0 place-items-center rounded-full text-[12px] font-semibold " + (status === "หยิบแล้ว" ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300" : typeSwatch(b.type).tint)}>
-                  {status === "หยิบแล้ว" ? <CircleCheck size={15} /> : i + 1}
-                </span>
-                <span className="w-28 shrink-0 font-mono text-[12px] text-slate-500 dark:text-slate-400">{p.no}</span>
+              <li key={l.ref} className="flex flex-wrap items-center gap-3 px-4 py-3">
+                <span className="w-32 shrink-0 font-mono text-[12px] text-slate-700 dark:text-slate-200">{l.ref}</span>
                 <span className="min-w-0 flex-1">
-                  <span className="block truncate text-[13px] font-medium text-slate-900 dark:text-slate-50">
-                    {material(p.material).name}
+                  <span className="block truncate text-[13px] text-slate-900 dark:text-slate-50">
+                    {l.tasks.map((t) => `${material(t.material).name} × ${t.qty}`).join(" · ")}
                   </span>
                   <span className="block text-[11.5px] text-slate-400">
-                    {p.qty} {material(p.material).unit} · เอกสารต้นเรื่อง {p.ref}
+                    {l.tasks.length} งาน · ช่อง {[...new Set(l.tasks.map((t) => t.bin))].join(" → ")}
+                    {short > 0 && ` · หยิบขาด ${short} งาน`}
+                    {l.gi && ` · ${l.gi}`}
                   </span>
                 </span>
-                <span className="flex shrink-0 items-center gap-1.5 font-mono text-[12px] text-slate-700 dark:text-slate-200">
-                  <MapPin size={12} className="text-slate-400" />
-                  {p.bin}
-                  <ArrowRight size={12} className="text-slate-300" />
-                  {p.to}
-                </span>
-                <Badge tone={status === "หยิบแล้ว" ? "ok" : "warn"} dot>{status}</Badge>
-                {status === "รอหยิบ" && (
-                  <Button variant="secondary" onClick={() => onPick(p.no)}>
-                    บันทึกว่าหยิบแล้ว
+                <Badge tone={LIST_TONE[l.status]} dot>{l.status}</Badge>
+                <span className="flex shrink-0 gap-1.5">
+                  <Button variant="ghost" icon={<Printer size={13} />} onClick={() => onAct({ kind: "print", doc: { type: "pick", ref: l.ref } })}>
+                    พิมพ์
                   </Button>
-                )}
+                  {l.status === "รอหยิบ" && (
+                    <Button variant="secondary" onClick={() => confirmAll(l.ref)}>
+                      ยืนยันหยิบครบ
+                    </Button>
+                  )}
+                  {l.status === "หยิบครบ รอจ่ายออก" && (
+                    <Button variant="primary" icon={<Send size={13} />} onClick={() => onAct({ kind: "issue", ref: l.ref })}>
+                      ตัดจ่ายออก
+                    </Button>
+                  )}
+                </span>
               </li>
             );
           })}
-        </ol>
+        </ul>
       </Card>
+
+      <Card
+        title={<span className="flex items-center gap-2"><MapPin size={15} className="text-slate-400" />เส้นทางหยิบ</span>}
+        subtitle="งานที่ยังไม่หยิบ เรียงตามลำดับช่องเก็บ เพื่อให้เดินหยิบรอบเดียวจบ"
+      >
+        {route.length === 0 ? (
+          <p className="py-8 text-center text-[12.5px] text-slate-400">ไม่มีงานรอหยิบ</p>
+        ) : (
+          <ol className="divide-y divide-slate-100 dark:divide-slate-800">
+            {route.map((p, i) => {
+              const b = bin(p.bin);
+              const inBin = b.material === p.material ? b.qty : 0;
+              return (
+                <li key={p.no} className="flex flex-wrap items-center gap-3 px-4 py-3">
+                  <span className={"grid size-8 shrink-0 place-items-center rounded-full text-[12px] font-semibold " + typeSwatch(b.type).tint}>{i + 1}</span>
+                  <span className="w-28 shrink-0 font-mono text-[12px] text-slate-500 dark:text-slate-400">{p.no}</span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-[13px] font-medium text-slate-900 dark:text-slate-50">
+                      {material(p.material).name}
+                    </span>
+                    <span className="block text-[11.5px] text-slate-400">
+                      {p.qty} {material(p.material).unit} · เอกสารต้นเรื่อง {p.ref}
+                      {inBin < p.qty && <span className="text-rose-600 dark:text-rose-400"> · ในช่องมีแค่ {inBin}</span>}
+                    </span>
+                  </span>
+                  <span className="flex shrink-0 items-center gap-1.5 font-mono text-[12px] text-slate-700 dark:text-slate-200">
+                    <MapPin size={12} className="text-slate-400" />
+                    {p.bin}
+                    <ArrowRight size={12} className="text-slate-300" />
+                    {p.to}
+                  </span>
+                  <Button variant="secondary" onClick={() => onAct({ kind: "pick", task: p })}>
+                    บันทึกว่าหยิบแล้ว
+                  </Button>
+                </li>
+              );
+            })}
+          </ol>
+        )}
+      </Card>
+
+      {done.length > 0 && (
+        <Card title={<span className="flex items-center gap-2"><CircleCheck size={15} className="text-slate-400" />หยิบแล้ว</span>}>
+          <ul className="divide-y divide-slate-100 dark:divide-slate-800">
+            {[...done].reverse().map((p) => (
+              <li key={p.no} className="flex flex-wrap items-center gap-3 px-4 py-2.5 text-[13px]">
+                <span className="w-28 shrink-0 font-mono text-[12px] text-slate-500 dark:text-slate-400">{p.no}</span>
+                <span className="min-w-0 flex-1 truncate text-slate-800 dark:text-slate-100">
+                  {material(p.material).name} {p.picked ?? p.qty}/{p.qty} {material(p.material).unit}
+                </span>
+                <span className="shrink-0 font-mono text-[11.5px] text-slate-400">
+                  {p.bin} → {p.to} · {p.ref}
+                </span>
+                <Badge tone={p.status === "จ่ายออกแล้ว" ? "ok" : "info"}>{p.status}</Badge>
+              </li>
+            ))}
+          </ul>
+        </Card>
+      )}
     </div>
   );
 }
 
 /* ------------------------------------------------------------- transfers */
 
-function Transfers() {
+function Transfers({ onAct }: { onAct: (d: WmDialog) => void }) {
+  useData();
+  const heavy = BINS.filter((b) => b.material && binLoad(b).pct >= 80);
+  const exportTransfers = () =>
+    downloadCsv(
+      "ใบย้ายของภายในคลัง",
+      ["เลขที่", "วันที่", "วัสดุ", "จำนวน", "หน่วย", "จากช่อง", "ไปช่อง", "เหตุผล"],
+      [...TRANSFERS].reverse().map((t) => [t.no, t.date, material(t.material).name, t.qty, material(t.material).unit, t.from, t.to, t.reason])
+    );
+
   return (
     <div className="space-y-3">
       <Card
         title={<span className="flex items-center gap-2"><ArrowRightLeft size={15} className="text-slate-400" />ใบย้ายของภายในคลัง</span>}
         subtitle="ย้ายเพื่อเติมช่องหยิบ หรือเพื่อลดน้ำหนักในช่องที่ใกล้เต็ม"
+        action={
+          <span className="flex gap-2">
+            <ExportButton onClick={exportTransfers} />
+            <Button variant="primary" icon={<ArrowRightLeft size={14} />} onClick={() => onAct({ kind: "transfer" })}>
+              ย้ายสินค้า
+            </Button>
+          </span>
+        }
       >
         <ul className="divide-y divide-slate-100 dark:divide-slate-800">
-          {TRANSFERS.map((t) => {
+          {[...TRANSFERS].reverse().map((t) => {
             const from = bin(t.from);
             const to = bin(t.to);
             return (
@@ -765,15 +942,15 @@ function Transfers() {
 
       <Card
         title={<span className="flex items-center gap-2"><Weight size={15} className="text-slate-400" />ช่องที่ควรย้ายของออก</span>}
-        subtitle="เกิน 80% ของเพดานน้ำหนัก ระบบเสนอช่องปลายทางที่ยังรับไหว"
+        subtitle="เกิน 80% ของเพดานน้ำหนัก ระบบเสนอช่องปลายทางที่ยังรับไหว กดย้ายของได้ทันที"
       >
-        {BINS.filter((b) => b.material && binLoad(b).pct >= 80).length === 0 ? (
+        {heavy.length === 0 ? (
           <p className="py-10 text-center text-[12.5px] text-slate-400">ทุกช่องยังรับน้ำหนักได้ตามปกติ</p>
         ) : (
           <ul className="divide-y divide-slate-100 dark:divide-slate-800">
-            {BINS.filter((b) => b.material && binLoad(b).pct >= 80).map((b) => {
+            {heavy.map((b) => {
               const l = binLoad(b);
-              const targets = freeBins("BLK").filter((x) => x.code !== b.code);
+              const targets = BINS.filter((x) => x.code !== b.code && ["BLK", "PCK"].includes(x.type) && (x.material === null || x.material === b.material) && binLoad(x).pct < 80);
               return (
                 <li key={b.code} className="flex flex-wrap items-center gap-3 px-4 py-2.5">
                   <Dot className={typeSwatch(b.type).dot} />
@@ -787,6 +964,14 @@ function Transfers() {
                   <span className="w-44 shrink-0 text-right text-[11.5px] text-slate-400">
                     {targets.length > 0 ? `ย้ายไป ${targets[0].code} ได้` : "ยังไม่มีช่องปลายทางที่ว่างพอ"}
                   </span>
+                  <Button
+                    variant="secondary"
+                    icon={<ArrowRightLeft size={13} />}
+                    disabled={available(b) === 0}
+                    onClick={() => onAct({ kind: "transfer", from: b.code, to: targets[0]?.code })}
+                  >
+                    ย้ายของ
+                  </Button>
                 </li>
               );
             })}
@@ -799,9 +984,19 @@ function Transfers() {
 
 /* -------------------------------------------------------------- counting */
 
-function Counting({ onOpen }: { onOpen: (c: Count) => void }) {
-  const off = COUNTS.filter((c) => variance(c) !== 0);
-  const net = COUNTS.reduce((n, c) => n + varianceValue(c), 0);
+const COUNT_TONE = { ตรงกัน: "ok", รออนุมัติ: "warn", อนุมัติแล้ว: "info", ปรับยอดแล้ว: "idle" } as const;
+
+function Counting({ onOpen, onAct }: { onOpen: (c: Count) => void; onAct: (d: WmDialog) => void }) {
+  useData();
+  const open = openVariances();
+  const net = open.reduce((n, c) => n + varianceValue(c), 0);
+  const rows = [...COUNTS].reverse();
+  const exportCounts = () =>
+    downloadCsv(
+      "ผลตรวจนับ",
+      ["ใบตรวจนับ", "ช่องเก็บ", "วัสดุ", "ระบบบอก", "นับได้จริง", "ผลต่าง", "คิดเป็นเงิน", "ผู้นับ", "วันที่", "สถานะ", "ผู้อนุมัติ", "สาเหตุ"],
+      rows.map((c) => [c.doc, c.bin, material(c.material).name, c.system, c.counted, variance(c), varianceValue(c), c.by, c.date, c.status, c.approvedBy ?? "", c.reason ?? ""])
+    );
 
   return (
     <div className="space-y-3">
@@ -809,16 +1004,50 @@ function Counting({ onOpen }: { onOpen: (c: Count) => void }) {
         title="ผลการตรวจนับ"
         icon={<ClipboardCheck size={15} />}
         cells={[
-          { icon: <ClipboardCheck size={13} />, label: "ช่องที่ตรวจนับ", value: COUNTS.length + " ช่อง", sub: "รอบล่าสุด" },
-          { icon: <CircleCheck size={13} />, label: "ตรงกับระบบ", value: (COUNTS.length - off.length) + " ช่อง", sub: "ไม่ต้องปรับปรุงยอด", tone: "ok" },
-          { icon: <CircleX size={13} />, label: "พบผลต่าง", value: off.length + " ช่อง", sub: "ต้องหาสาเหตุก่อนปรับยอด", tone: off.length > 0 ? "bad" : "ok" },
-          { icon: <Coins size={13} />, label: "ผลต่างสุทธิ", value: baht(net), sub: net < 0 ? "มูลค่าที่หายไปจากคลัง" : "มูลค่าที่นับได้เกิน", tone: net < 0 ? "bad" : "warn" },
+          { icon: <ClipboardCheck size={13} />, label: "ใบตรวจนับ", value: COUNT_SHEETS.length + " ใบ", sub: `รอนับ ${COUNT_SHEETS.filter((s) => s.status === "รอนับ").length} ใบ` },
+          { icon: <CircleCheck size={13} />, label: "ตรงกับระบบ", value: COUNTS.filter((c) => variance(c) === 0).length + " ช่อง", sub: "ไม่ต้องปรับปรุงยอด", tone: "ok" },
+          { icon: <CircleX size={13} />, label: "ผลต่างที่ค้าง", value: open.length + " ช่อง", sub: "รออนุมัติหรือรอปรับยอด", tone: open.length > 0 ? "bad" : "ok" },
+          { icon: <Coins size={13} />, label: "ผลต่างสุทธิที่ค้าง", value: baht(net), sub: net < 0 ? "มูลค่าที่หายไปจากคลัง" : "มูลค่าที่นับได้เกิน", tone: net < 0 ? "bad" : "warn" },
         ]}
       />
 
       <Card
+        title={<span className="flex items-center gap-2"><ClipboardCheck size={15} className="text-slate-400" />ใบตรวจนับ</span>}
+        subtitle="ออกใบนับก่อนเดินนับ ใบนับไม่แสดงยอดในระบบ แล้วบันทึกผลกลับเข้ามา"
+        action={
+          <Button variant="primary" icon={<Plus size={14} />} onClick={() => onAct({ kind: "countSheet" })}>
+            สร้างใบตรวจนับ
+          </Button>
+        }
+      >
+        <ul className="divide-y divide-slate-100 dark:divide-slate-800">
+          {[...COUNT_SHEETS].reverse().map((s) => (
+            <li key={s.no} className="flex flex-wrap items-center gap-3 px-4 py-2.5">
+              <span className="w-28 shrink-0 font-mono text-[12px] text-slate-500 dark:text-slate-400">{s.no}</span>
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-[13px] text-slate-900 dark:text-slate-50">{s.scope}</span>
+                <span className="block truncate text-[11.5px] text-slate-400">
+                  {s.date} · ผู้นับ {s.counter} · {s.lines.length} ช่อง: {s.lines.map((l) => l.bin).join(" · ")}
+                </span>
+              </span>
+              <Badge tone={s.status === "รอนับ" ? "warn" : "ok"} dot>{s.status}</Badge>
+              <Button variant="ghost" icon={<Printer size={13} />} onClick={() => onAct({ kind: "print", doc: { type: "count", sheet: s } })}>
+                พิมพ์
+              </Button>
+              {s.status === "รอนับ" && (
+                <Button variant="primary" onClick={() => onAct({ kind: "countEntry", sheet: s })}>
+                  บันทึกผลนับ
+                </Button>
+              )}
+            </li>
+          ))}
+        </ul>
+      </Card>
+
+      <Card
         title={<span className="flex items-center gap-2"><Scale size={15} className="text-slate-400" />ผลตรวจนับ</span>}
-        subtitle="เทียบจำนวนที่นับได้จริงกับจำนวนที่ระบบบันทึกไว้ กดที่แถวเพื่อดูวิธีคิดผลต่าง"
+        subtitle="ผลต่างต้องอนุมัติโดยคนที่ไม่ได้นับเองก่อน แล้วจึงปรับยอดเข้าสต็อก กดที่แถวเพื่อดูวิธีคิดผลต่าง"
+        action={<ExportButton onClick={exportCounts} />}
       >
         <table className="w-full text-[13px]">
           <thead className="bg-slate-50/80 text-left text-[11px] uppercase tracking-wide text-slate-500 dark:bg-slate-800/60 dark:text-slate-400">
@@ -830,18 +1059,22 @@ function Counting({ onOpen }: { onOpen: (c: Count) => void }) {
               <th className="px-4 py-3 text-right font-medium">ผลต่าง</th>
               <th className="px-4 py-3 text-right font-medium">คิดเป็นเงิน</th>
               <th className="px-4 py-3 font-medium">ผู้นับ</th>
+              <th className="px-4 py-3 font-medium">สถานะ</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-            {COUNTS.map((c) => {
+            {rows.map((c) => {
               const diff = variance(c);
               return (
                 <tr
-                  key={c.bin}
+                  key={countKey(c)}
                   onClick={() => onOpen(c)}
                   className="cursor-pointer transition hover:bg-slate-50 dark:hover:bg-slate-800/40"
                 >
-                  <td className="px-4 py-2.5 font-mono text-[12px] text-slate-600 dark:text-slate-300">{c.bin}</td>
+                  <td className="px-4 py-2.5 font-mono text-[12px] text-slate-600 dark:text-slate-300">
+                    {c.bin}
+                    <span className="block text-[10.5px] text-slate-400">{c.doc}</span>
+                  </td>
                   <td className="px-4 py-2.5 text-slate-900 dark:text-slate-50">{material(c.material).name}</td>
                   <td className="px-4 py-2.5 text-right tabular-nums text-slate-600 dark:text-slate-300">{c.system}</td>
                   <td className="px-4 py-2.5 text-right tabular-nums text-slate-900 dark:text-slate-50">{c.counted}</td>
@@ -857,6 +1090,19 @@ function Counting({ onOpen }: { onOpen: (c: Count) => void }) {
                       {c.by}
                     </span>
                   </td>
+                  <td className="px-4 py-2.5" onClick={(e) => e.stopPropagation()}>
+                    {c.status === "รออนุมัติ" ? (
+                      <Button variant="secondary" onClick={() => onAct({ kind: "approveCount", count: c })}>
+                        อนุมัติผลต่าง
+                      </Button>
+                    ) : c.status === "อนุมัติแล้ว" ? (
+                      <Button variant="primary" onClick={() => onAct({ kind: "postCount", count: c })}>
+                        ปรับยอด
+                      </Button>
+                    ) : (
+                      <Badge tone={COUNT_TONE[c.status]} dot>{c.status}</Badge>
+                    )}
+                  </td>
                 </tr>
               );
             })}
@@ -864,9 +1110,9 @@ function Counting({ onOpen }: { onOpen: (c: Count) => void }) {
         </table>
       </Card>
 
-      {off.length > 0 && (
+      {open.length > 0 && (
         <Note tone="warn">
-          ผลต่างที่พบยังไม่ถูกปรับเข้าสต็อก การปรับยอดควรทำหลังหาสาเหตุแล้ว เช่น หยิบเกิน บันทึกผิดช่อง
+          ผลต่างที่ค้างอยู่ยังไม่ถูกปรับเข้าสต็อก การอนุมัติควรทำหลังหาสาเหตุแล้ว เช่น หยิบเกิน บันทึกผิดช่อง
           หรือของเสียหายระหว่างจัดเก็บ
         </Note>
       )}
@@ -876,15 +1122,16 @@ function Counting({ onOpen }: { onOpen: (c: Count) => void }) {
 
 /* --------------------------------------------------------------- records */
 
-function BinRecord({ b }: { b: Bin }) {
+function BinRecord({ b, onAct }: { b: Bin; onAct: (d: WmDialog) => void }) {
+  useData();
   const [tab, setTab] = useState(BIN_TABS[0]);
   const l = binLoad(b);
   const t = storageType(b.type);
   const sw = typeSwatch(b.type);
   const picks = PICKS.filter((p) => p.bin === b.code);
   const moves = TRANSFERS.filter((x) => x.from === b.code || x.to === b.code);
-  const count = COUNTS.find((c) => c.bin === b.code);
-  const inbound = INBOUND.filter((i) => i.suggestBin === b.code);
+  const count = COUNTS.filter((c) => c.bin === b.code).at(-1);
+  const inbound = INBOUND.filter((i) => (i.bin ?? i.suggestBin) === b.code);
 
   return (
     <div>
@@ -901,7 +1148,23 @@ function BinRecord({ b }: { b: Bin }) {
               {!b.material ? "ช่องว่าง" : l.full ? "เกินเพดาน" : l.pct >= 80 ? "ใกล้เต็ม" : "รับได้อีก"}
             </Badge>
             <Chip>เพดาน {b.maxKg.toLocaleString("th-TH")} กก.</Chip>
+            {b.since && <Chip>ล็อตเก่าสุด {b.since}</Chip>}
           </div>
+        </div>
+        <div className="flex w-full flex-wrap gap-1.5">
+          <Button variant="secondary" icon={<Pencil size={13} />} onClick={() => onAct({ kind: "bin", bin: b })}>
+            แก้ไขช่อง
+          </Button>
+          {b.material && (
+            <>
+              <Button variant="secondary" icon={<ArrowRightLeft size={13} />} disabled={available(b) === 0} onClick={() => onAct({ kind: "transfer", from: b.code })}>
+                ย้ายของออก
+              </Button>
+              <Button variant="secondary" icon={<ClipboardCheck size={13} />} onClick={() => onAct({ kind: "countSheet", bins: [b.code] })}>
+                ตรวจนับช่องนี้
+              </Button>
+            </>
+          )}
         </div>
       </div>
 
@@ -937,6 +1200,9 @@ function BinRecord({ b }: { b: Bin }) {
                 <IconRow icon={<Boxes size={14} />} label="จำนวน">{b.qty} {material(b.material).unit}</IconRow>
                 <IconRow icon={<Weight size={14} />} label="น้ำหนักต่อหน่วย">{b.kgPerUnit} กก.</IconRow>
                 <IconRow icon={<Coins size={14} />} label="มูลค่าของในช่อง">{baht(b.qty * material(b.material).price)}</IconRow>
+                <IconRow icon={<Package size={14} />} label="จองให้งานหยิบ">
+                  {reservedIn(b)} {material(b.material).unit} · ย้ายหรือหยิบได้อีก {available(b)}
+                </IconRow>
               </div>
               {count && (
                 <Note tone={variance(count) === 0 ? "ok" : "warn"}>
@@ -952,7 +1218,7 @@ function BinRecord({ b }: { b: Bin }) {
           <div className="space-y-4">
             {inbound.length > 0 && (
               <div>
-                <p className="mb-2 text-[11px] font-medium uppercase tracking-wide text-slate-400">ใบสั่งจัดเก็บที่เล็งช่องนี้</p>
+                <p className="mb-2 text-[11px] font-medium uppercase tracking-wide text-slate-400">ใบสั่งจัดเก็บเข้าช่องนี้</p>
                 <ul className="space-y-1.5">
                   {inbound.map((i) => (
                     <li key={i.no} className="flex items-center gap-3 text-[13px]">
@@ -979,7 +1245,7 @@ function BinRecord({ b }: { b: Bin }) {
                         {material(p.material).name} × {p.qty}
                       </span>
                       <span className="shrink-0 font-mono text-[11px] text-slate-400">{p.ref}</span>
-                      <Badge tone={p.status === "หยิบแล้ว" ? "ok" : "warn"}>{p.status}</Badge>
+                      <Badge tone={p.status === "รอหยิบ" ? "warn" : "ok"}>{p.status}</Badge>
                     </li>
                   ))}
                 </ul>
@@ -1010,16 +1276,33 @@ function BinRecord({ b }: { b: Bin }) {
   );
 }
 
-function CountRecord({ c }: { c: Count }) {
+function CountRecord({ c, onAct }: { c: Count; onAct: (d: WmDialog) => void }) {
+  useData();
   const diff = variance(c);
   const m = material(c.material);
   return (
     <div className="space-y-3">
+      <div className="flex flex-wrap items-center gap-1.5">
+        <Badge tone={COUNT_TONE[c.status]} dot>{c.status}</Badge>
+        {c.status === "รออนุมัติ" && (
+          <Button variant="primary" onClick={() => onAct({ kind: "approveCount", count: c })}>
+            อนุมัติผลต่าง
+          </Button>
+        )}
+        {c.status === "อนุมัติแล้ว" && (
+          <Button variant="primary" onClick={() => onAct({ kind: "postCount", count: c })}>
+            ปรับยอดเข้าสต็อก
+          </Button>
+        )}
+      </div>
       <div className="space-y-1">
         <IconRow icon={<MapPin size={14} />} label="ช่องเก็บ">{c.bin}</IconRow>
         <IconRow icon={<Package size={14} />} label="วัสดุ">{m.name}</IconRow>
         <IconRow icon={<ClipboardCheck size={14} />} label="วันที่นับ">{c.date}</IconRow>
         <IconRow icon={<Avatar name={c.by} size="sm" />} label="ผู้นับ">{c.by}</IconRow>
+        <IconRow icon={<ClipboardCheck size={14} />} label="ใบตรวจนับ">{c.doc}</IconRow>
+        {c.approvedBy && <IconRow icon={<CircleCheck size={14} />} label="อนุมัติโดย">{c.approvedBy} · {c.reason}</IconRow>}
+        {c.postedAt && <IconRow icon={<Scale size={14} />} label="ปรับยอดเมื่อ">{c.postedAt}</IconRow>}
       </div>
 
       <div className="grid grid-cols-3 gap-3">

@@ -1,4 +1,4 @@
-import { useSyncExternalStore } from "react";
+import { useId, useSyncExternalStore } from "react";
 import type { ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { motion } from "motion/react";
@@ -494,6 +494,9 @@ export function Segmented({
   onChange: (v: string) => void;
   counts?: Record<string, number>;
 }) {
+  // Its own layout id: two switches on one screen sharing one would pass a
+  // single highlight back and forth between them.
+  const pill = useId();
   return (
     <div className="inline-flex items-center gap-0.5 rounded-xl bg-slate-100 p-1 dark:bg-slate-800">
       {options.map((o) => {
@@ -509,7 +512,7 @@ export function Segmented({
           >
             {on && (
               <motion.span
-                layoutId="segmented-pill"
+                layoutId={`segmented-${pill}`}
                 transition={{ type: "spring", stiffness: 500, damping: 40 }}
                 className="absolute inset-0 rounded-lg bg-white shadow-sm dark:bg-slate-900"
               />
@@ -557,7 +560,7 @@ export function Tabs({
   onPick,
   badges,
   icons,
-  id = "tabs",
+  id,
 }: {
   tabs: readonly string[];
   active: string;
@@ -566,6 +569,9 @@ export function Tabs({
   icons?: Record<string, ReactNode>;
   id?: string;
 }) {
+  // Same reason as Segmented: an underline id per tab row unless one is given.
+  const auto = useId();
+  const line = id ?? auto;
   return (
     <div className="flex gap-1 overflow-x-auto border-b border-slate-200 dark:border-slate-800">
       {tabs.map((t) => {
@@ -590,7 +596,7 @@ export function Tabs({
             ) : null}
             {on && (
               <motion.span
-                layoutId={id + "-underline"}
+                layoutId={line + "-underline"}
                 transition={{ type: "spring", stiffness: 500, damping: 40 }}
                 className="absolute inset-x-2 -bottom-px h-0.5 rounded-full bg-violet-600 dark:bg-violet-400"
               />

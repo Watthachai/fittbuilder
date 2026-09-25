@@ -1,24 +1,25 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import type { ReactNode } from "react";
 import {
   ArrowRight, Award, Banknote, Briefcase, Building, CalendarClock, ChevronRight, CircleCheck,
-  ClipboardList, Contact, GitBranch, Layers, ListChecks, Network, Plus, Scale,
-  Search as SearchIcon, ShieldCheck, Target, TrendingUp, UserPlus, UserRound, Users, UserX,
+  ClipboardList, Contact, Download, GitBranch, Layers, ListChecks, Network, Pencil, Plus, Printer, Scale,
+  Search as SearchIcon, ShieldCheck, Target, TrendingUp, UserCog, UserPlus, UserRound, Users, UserX,
 } from "lucide-react";
-import { EMPLOYEES } from "../pa/data";
-import type { Employee } from "../pa/data";
 import {
-  BANDS, LEVELS, ORG_UNITS, POSITIONS, REQUISITIONS, ROOT_UNIT, TODAY, bandOf, bandStanding,
-  baht, chainAbove, daysSince, directReports, gapsOf, holderOf, positionOf, reportsUnder,
-  skillsOf, unitOf,
+  LEVELS, ORG_UNITS, POSITIONS, REQUISITIONS, ROOT_UNIT, TODAY, bandOf, bandStanding,
+  baht, chainAbove, daysSince, directReports, endActing, grantSkill, openRequisitionFor, positionOf,
+  seats as seatsNow, skillsOf, startRecruiting, unitOf,
 } from "./data";
-import type { Level, OrgUnit, Position, Requisition } from "./data";
+import type { Level, Requisition, Seat } from "./data";
 import {
-  Avatar, Badge, Bar, Button, Card, Chip, ColumnChart, Donut, Dot, FIELD, Gauge, IconRow, Note,
+  Avatar, Badge, Bar, Button, Card, Chip, ColumnChart, Donut, Dot, Gauge, IconRow, Note,
   PageHead, Progress, Reveal, Search, Segmented, Select, StatStrip, Tabs, Tag, TintCard, swatchFor,
 } from "../ui";
-import { ConfirmDialog, DataTable, DetailModal, Field, FormModal, Wizard } from "../kit";
-import type { Column, Step } from "../kit";
+import { DataTable, DetailModal, downloadCsv, notify, useData } from "../kit";
+import type { Column } from "../kit";
+import { RowButton } from "../pa/parts";
+import { OmSheets } from "./actions";
+import type { OmSheet } from "./actions";
 
 const TABS = [
   "โครงสร้างองค์กร",
@@ -39,29 +40,36 @@ const SEAT_TAB_ICONS: Record<string, ReactNode> = {
   สายบังคับบัญชา: <GitBranch size={13} />,
 };
 
-const UNIT_NAMES = ORG_UNITS.map((u) => u.name);
-const DEPARTMENTS = ORG_UNITS.filter((u) => u.parentId !== null).map((u) => u.name);
-const unitSwatch = (name: string) => swatchFor(name, UNIT_NAMES);
+/** Units are added and renamed here, so their colours and lists are read, not frozen at load. */
+const unitSwatch = (name: string) => swatchFor(name, ORG_UNITS.map((u) => u.name));
+const departments = () => ORG_UNITS.filter((u) => u.parentId !== null).map((u) => u.name);
 const levelSwatch = (level: Level) => swatchFor(level, LEVELS);
 
-const REQ_STATUSES = ["รออนุมัติ", "อนุมัติแล้ว", "กำลังสรรหา"] as const;
-const REQ_TONE: Record<Requisition["status"], "warn" | "info" | "accent"> = {
+const REQ_TONE: Record<Requisition["status"], "warn" | "info" | "accent" | "ok" | "idle"> = {
   รออนุมัติ: "warn",
   อนุมัติแล้ว: "info",
   กำลังสรรหา: "accent",
+  ปิดแล้ว: "ok",
+  ไม่อนุมัติ: "idle",
 };
 
-/** A seat with everything the screens ask of it worked out once. */
-type Seat = {
-  position: Position;
-  unit: OrgUnit;
-  holder: Employee | undefined;
-  gaps: string[];
-  direct: number;
-  /** Seats below this one at any depth, and how many of them have somebody in them. */
-  team: number;
-  staff: number;
-};
+const OPEN_REQ = ["รออนุมัติ", "อนุมัติแล้ว", "กำลังสรรหา"];
+const isOpen = (r: Requisition) => OPEN_REQ.includes(r.status);
+
+/** A bar's fill; a unit planned at zero has nothing to fill. */
+const fillPct = (have: number, planned: number) => (planned === 0 ? (have > 0 ? 100 : 0) : (have / planned) * 100);
+
+const holderLabel = (s: Seat) => s.holder?.name ?? (s.acting ? `ว่าง · รักษาการ ${s.acting.employee.name}` : "ว่าง");
+
+/** "ส่งออก Excel": rows as the screen shows them, as a file the accountant opens. */
+function exportCsv(name: string, header: string[], rows: (string | number)[][]) {
+  downloadCsv(`${name}-${TODAY}`, header, rows);
+  notify(`ส่งออก${name} ${rows.length} รายการเป็นไฟล์ Excel แล้ว`);
+}
+
+const ExportButton = ({ onClick }: { onClick: () => void }) => (
+  <Button variant="secondary" icon={<Download size={15} />} onClick={onClick}>ส่งออก Excel</Button>
+);
 
 /* ----------------------------------------------------------------- screen */
 
@@ -72,47 +80,19 @@ export default function OmScreen({
   section?: string;
   onOpenSection?: (index: number) => void;
 }) {
+  // Seats and holders are worked out from the records on every change — here
+  // and in the personnel register a promotion or a leaver changes the chart.
+  useData();
   const tab = section && TABS.includes(section) ? section : undefined;
-
-  // Seats reassigned or emptied in this session; the register answers for the rest.
-  const [assigned, setAssigned] = useState<Record<number, number>>({});
-  const [vacated, setVacated] = useState<number[]>([]);
-  const [reqs, setReqs] = useState<Requisition[]>(REQUISITIONS);
 
   const [q, setQ] = useState("");
   const [unitFilter, setUnitFilter] = useState("ทุกหน่วยงาน");
   const [levelFilter, setLevelFilter] = useState("ทุกระดับ");
-  const [openAt, setOpenAt] = useState<number | null>(null);
-  const [assigning, setAssigning] = useState<Position | null>(null);
-  const [releasing, setReleasing] = useState<Seat | null>(null);
-  const [requesting, setRequesting] = useState(false);
+  const [openId, setOpenId] = useState<number | null>(null);
+  const [sheet, setSheet] = useState<OmSheet | null>(null);
 
-  const holderFor = (p: Position): Employee | undefined => {
-    if (vacated.includes(p.id)) return undefined;
-    const manual = assigned[p.id];
-    if (manual) return EMPLOYEES.find((e) => e.id === manual);
-    return holderOf(p.title);
-  };
-
-  const seats: Seat[] = useMemo(
-    () =>
-      POSITIONS.map((position) => {
-        const holder = holderFor(position);
-        const under = reportsUnder(position.id);
-        return {
-          position,
-          unit: unitOf(position.unitId),
-          holder,
-          gaps: gapsOf(position, holder),
-          direct: directReports(position.id).length,
-          team: under.length,
-          staff: under.filter((p) => holderFor(p) !== undefined).length,
-        };
-      }),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [assigned, vacated]
-  );
-
+  const seats = seatsNow();
+  const reqs = [...REQUISITIONS].sort((a, b) => Number(isOpen(b)) - Number(isOpen(a)) || b.openedAt.localeCompare(a.openedAt));
   const seatOf = (id: number) => seats.find((s) => s.position.id === id)!;
   const filled = seats.filter((s) => s.holder);
   const vacant = seats.filter((s) => !s.holder);
@@ -127,32 +107,78 @@ export default function OmScreen({
           t.toLowerCase().includes(needle)
         ))
   );
-  const picked = openAt === null ? null : (rows[openAt] ?? null);
+  // Held by id, so an assignment that reorders nothing still keeps the same seat open.
+  const picked = openId === null ? null : (seats.find((s) => s.position.id === openId) ?? null);
+  const at = picked ? rows.findIndex((s) => s.position.id === picked.position.id) : -1;
 
-  const assign = (positionId: number, employeeId: number) => {
-    setAssigned((m) => ({ ...m, [positionId]: employeeId }));
-    setVacated((v) => v.filter((id) => id !== positionId));
-    setAssigning(null);
-  };
-
-  const release = (s: Seat) => {
-    setVacated((v) => [...new Set([...v, s.position.id])]);
-    setAssigned((m) => {
-      const next = { ...m };
-      delete next[s.position.id];
-      return next;
-    });
-    setReleasing(null);
-  };
-
-  const openSeat = (s: Seat) => {
-    setQ("");
-    setUnitFilter("ทุกหน่วยงาน");
-    setLevelFilter("ทุกระดับ");
-    setOpenAt(seats.indexOf(s));
-  };
-
+  const openSeat = (s: Seat) => setOpenId(s.position.id);
   const plannedTotal = ORG_UNITS.reduce((n, u) => n + u.plannedHeadcount, 0);
+
+  const panels = (
+    <>
+      <DetailModal
+        open={picked !== null}
+        title="แฟ้มตำแหน่งงาน"
+        onClose={() => setOpenId(null)}
+        index={Math.max(0, at)}
+        total={rows.length}
+        onStep={
+          sheet
+            ? undefined
+            : (d) => {
+                const next = rows[Math.max(0, Math.min(rows.length - 1, at + d))];
+                if (next) setOpenId(next.position.id);
+              }
+        }
+      >
+        {picked && <SeatRecord key={picked.position.id} seat={picked} seatOf={seatOf} onSheet={setSheet} />}
+      </DetailModal>
+      <OmSheets sheet={sheet} onSheet={setSheet} />
+      <div hidden data-fitt-index>
+        <button data-fitt-screen="โครงสร้างองค์กร" />
+        <button data-fitt-screen="แฟ้มตำแหน่งงาน" data-fitt-modal onClick={() => setOpenId(POSITIONS[0].id)} />
+        <button data-fitt-screen="มอบหมายผู้ดำรงตำแหน่ง" data-fitt-modal onClick={() => setSheet({ kind: "assign", positionId: POSITIONS[0].id })} />
+        <button
+          data-fitt-screen="มอบหมายรักษาการ"
+          data-fitt-modal
+          onClick={() => {
+            if (vacant[0]) setSheet({ kind: "acting", positionId: vacant[0].position.id });
+          }}
+        />
+        <button
+          data-fitt-screen="ปลดผู้ดำรงตำแหน่ง"
+          data-fitt-modal
+          onClick={() => {
+            if (filled[0]) setSheet({ kind: "release", positionId: filled[0].position.id });
+          }}
+        />
+        <button data-fitt-screen="เปิดคำขออัตรากำลัง" data-fitt-modal onClick={() => setSheet({ kind: "requisition" })} />
+        <button
+          data-fitt-screen="อนุมัติคำขออัตรากำลัง"
+          data-fitt-modal
+          onClick={() => {
+            const r = REQUISITIONS.find((x) => x.status === "รออนุมัติ");
+            if (r) setSheet({ kind: "decideReq", id: r.id, approve: true });
+          }}
+        />
+        <button
+          data-fitt-screen="ไม่อนุมัติคำขออัตรากำลัง"
+          data-fitt-modal
+          onClick={() => {
+            const r = REQUISITIONS.find((x) => x.status === "รออนุมัติ");
+            if (r) setSheet({ kind: "decideReq", id: r.id, approve: false });
+          }}
+        />
+        <button data-fitt-screen="เพิ่มหน่วยงาน" data-fitt-modal onClick={() => setSheet({ kind: "unit", id: null })} />
+        <button data-fitt-screen="แก้ไขหรือย้ายหน่วยงาน" data-fitt-modal onClick={() => setSheet({ kind: "unit", id: departmentsUnits()[0].id })} />
+        <button data-fitt-screen="สร้างตำแหน่ง" data-fitt-modal onClick={() => setSheet({ kind: "position", id: null })} />
+        <button data-fitt-screen="แก้ไขตำแหน่ง" data-fitt-modal onClick={() => setSheet({ kind: "position", id: POSITIONS[0].id })} />
+        <button data-fitt-screen="แก้อัตรากำลังตามแผน" data-fitt-modal onClick={() => setSheet({ kind: "planned", unitId: ORG_UNITS[0].id })} />
+        <button data-fitt-screen="คุณสมบัติประจำตำแหน่ง" data-fitt-modal onClick={() => setSheet({ kind: "quals", positionId: POSITIONS[0].id })} />
+        <button data-fitt-screen="รายงานโครงสร้างองค์กร" data-fitt-modal onClick={() => setSheet({ kind: "report" })} />
+      </div>
+    </>
+  );
 
   if (!tab) {
     return (
@@ -165,47 +191,121 @@ export default function OmScreen({
           plannedTotal={plannedTotal}
           onOpenSection={onOpenSection}
           onOpenSeat={openSeat}
-          onAssign={setAssigning}
+          onSheet={setSheet}
         />
-        <Panels
-          rows={rows}
-          picked={picked}
-          openAt={openAt}
-          seatOf={seatOf}
-          onClose={() => setOpenAt(null)}
-          onStep={(d) => setOpenAt((i) => Math.min(rows.length - 1, Math.max(0, (i ?? 0) + d)))}
-          assigning={assigning}
-          onCancelAssign={() => setAssigning(null)}
-          onAssign={assign}
-          releasing={releasing}
-          onCancelRelease={() => setReleasing(null)}
-          onRelease={release}
-          requesting={requesting}
-          onCancelRequest={() => setRequesting(false)}
-          onRequest={(r) => {
-            setReqs((list) => [r, ...list]);
-            setRequesting(false);
-          }}
-        />
+        {panels}
       </>
     );
   }
+
+  const right: Record<string, ReactNode> = {
+    โครงสร้างองค์กร: (
+      <div className="flex flex-wrap gap-2">
+        <ExportButton
+          onClick={() =>
+            exportCsv(
+              "หน่วยงาน",
+              ["รหัส", "หน่วยงาน", "ขึ้นตรงต่อ", "ศูนย์ต้นทุน", "ตั้งเมื่อ", "มีอยู่", "ตามแผน"],
+              ORG_UNITS.map((u) => [
+                u.code, u.name, u.parentId === null ? "—" : unitOf(u.parentId).name, u.costCentre, u.openedAt,
+                filled.filter((s) => s.unit.id === u.id).length, u.plannedHeadcount,
+              ])
+            )
+          }
+        />
+        <Button variant="secondary" icon={<Printer size={15} />} onClick={() => setSheet({ kind: "report" })}>พิมพ์ผังองค์กร</Button>
+        <Button variant="primary" icon={<Plus size={15} />} onClick={() => setSheet({ kind: "unit", id: null })}>เพิ่มหน่วยงาน</Button>
+      </div>
+    ),
+    ตำแหน่งและหน้าที่งาน: (
+      <div className="flex flex-wrap gap-2">
+        <ExportButton
+          onClick={() =>
+            exportCsv(
+              "ตำแหน่งงาน",
+              ["รหัส", "ตำแหน่ง", "หน่วยงาน", "ระดับ", "หน้าที่หลัก", "รายงานต่อ", "เงินเดือนต่ำสุด", "เงินเดือนสูงสุด"],
+              rows.map((s) => [
+                s.position.code, s.position.title, s.unit.name, s.position.level, s.position.duties.join(" / "),
+                s.position.reportsTo === null ? "—" : positionOf(s.position.reportsTo).title, bandOf(s.position).min, bandOf(s.position).max,
+              ])
+            )
+          }
+        />
+        <Button variant="primary" icon={<Plus size={15} />} onClick={() => setSheet({ kind: "position", id: null })}>สร้างตำแหน่ง</Button>
+      </div>
+    ),
+    การมอบหมายผู้ดำรงตำแหน่ง: (
+      <ExportButton
+        onClick={() =>
+          exportCsv(
+            "ผู้ดำรงตำแหน่ง",
+            ["รหัสตำแหน่ง", "ตำแหน่ง", "หน่วยงาน", "ผู้ดำรงตำแหน่ง", "รหัสพนักงาน", "เริ่มงาน", "เทียบกรอบค่าตอบแทน"],
+            rows.map((s) => [
+              s.position.code, s.position.title, s.unit.name, holderLabel(s), s.holder?.code ?? "", s.holder?.contract.startedAt ?? "",
+              s.holder ? bandStanding(s.position, s.holder.contract.baseSalary) : "",
+            ])
+          )
+        }
+      />
+    ),
+    การวางแผนอัตรากำลัง: (
+      <div className="flex flex-wrap gap-2">
+        <ExportButton
+          onClick={() =>
+            exportCsv(
+              "คำขออัตรากำลัง",
+              ["เลขที่", "ตำแหน่ง", "หน่วยงาน", "ประเภท", "เปิดเมื่อ", "ต้องการภายใน", "สถานะ", "เหตุผล"],
+              reqs.map((r) => {
+                const p = positionOf(r.positionId);
+                return [r.id, p.title, unitOf(p.unitId).name, r.kind, r.openedAt, r.wantedBy, r.status, r.reason];
+              })
+            )
+          }
+        />
+        <Button variant="primary" icon={<Plus size={15} />} onClick={() => setSheet({ kind: "requisition" })}>
+          เปิดคำขออัตรากำลัง
+        </Button>
+      </div>
+    ),
+    คุณสมบัติประจำตำแหน่ง: (
+      <ExportButton
+        onClick={() =>
+          exportCsv(
+            "คุณสมบัติประจำตำแหน่ง",
+            ["ตำแหน่ง", "ผู้ดำรงตำแหน่ง", "คุณสมบัติที่ต้องการ", "ที่ยังขาด"],
+            seats.map((s) => [s.position.title, holderLabel(s), s.position.qualifications.join(" / "), s.holder ? s.gaps.join(" / ") : "—"])
+          )
+        }
+      />
+    ),
+    รายงานและการวิเคราะห์: (
+      <div className="flex flex-wrap gap-2">
+        <ExportButton
+          onClick={() =>
+            exportCsv(
+              "อัตรากำลังรายหน่วยงาน",
+              ["หน่วยงาน", "ศูนย์ต้นทุน", "มีอยู่", "ตามแผน", "ต้องรับเพิ่ม", "ฐานเงินเดือนรวม"],
+              ORG_UNITS.map((u) => {
+                const own = filled.filter((s) => s.unit.id === u.id);
+                return [u.name, u.costCentre, own.length, u.plannedHeadcount, Math.max(0, u.plannedHeadcount - own.length), own.reduce((n, s) => n + s.holder!.contract.baseSalary, 0)];
+              })
+            )
+          }
+        />
+        <Button variant="primary" icon={<Printer size={15} />} onClick={() => setSheet({ kind: "report" })}>พิมพ์รายงานองค์กร</Button>
+      </div>
+    ),
+  };
 
   return (
     <div>
       <PageHead
         title="โครงสร้างองค์กร"
         meta={`${tab} · ${ORG_UNITS.length - 1} หน่วยงาน · ${POSITIONS.length} ตำแหน่ง · ว่าง ${vacant.length} ตำแหน่ง`}
-        right={
-          tab === "การวางแผนอัตรากำลัง" ? (
-            <Button variant="primary" icon={<Plus size={15} />} onClick={() => setRequesting(true)}>
-              เปิดคำขออัตรากำลัง
-            </Button>
-          ) : undefined
-        }
+        right={right[tab]}
       />
 
-      {tab === "โครงสร้างองค์กร" && <Structure seats={seats} onOpenSeat={openSeat} onAssign={setAssigning} />}
+      {tab === "โครงสร้างองค์กร" && <Structure seats={seats} onOpenSeat={openSeat} onSheet={setSheet} />}
 
       {tab === "ตำแหน่งและหน้าที่งาน" && (
         <SeatRegister
@@ -216,7 +316,7 @@ export default function OmScreen({
           setUnitFilter={setUnitFilter}
           levelFilter={levelFilter}
           setLevelFilter={setLevelFilter}
-          onOpen={(s) => setOpenAt(rows.indexOf(s))}
+          onOpen={openSeat}
         />
       )}
 
@@ -227,124 +327,33 @@ export default function OmScreen({
           setQ={setQ}
           unitFilter={unitFilter}
           setUnitFilter={setUnitFilter}
-          onOpen={(s) => setOpenAt(rows.indexOf(s))}
-          onAssign={setAssigning}
-          onRelease={setReleasing}
+          onOpen={openSeat}
+          onSheet={setSheet}
         />
       )}
 
       {tab === "การวางแผนอัตรากำลัง" && (
-        <Planning seats={seats} reqs={reqs} seatOf={seatOf} onOpenSeat={openSeat} onAssign={setAssigning} />
+        <Planning seats={seats} reqs={reqs} seatOf={seatOf} onOpenSeat={openSeat} onSheet={setSheet} />
       )}
 
-      {tab === "คุณสมบัติประจำตำแหน่ง" && <Qualifications seats={seats} onOpenSeat={openSeat} />}
+      {tab === "คุณสมบัติประจำตำแหน่ง" && <Qualifications seats={seats} onOpenSeat={openSeat} onSheet={setSheet} />}
 
       {tab === "รายงานและการวิเคราะห์" && <Reports seats={seats} plannedTotal={plannedTotal} />}
 
-      <Panels
-        rows={rows}
-        picked={picked}
-        openAt={openAt}
-        seatOf={seatOf}
-        onClose={() => setOpenAt(null)}
-        onStep={(d) => setOpenAt((i) => Math.min(rows.length - 1, Math.max(0, (i ?? 0) + d)))}
-        assigning={assigning}
-        onCancelAssign={() => setAssigning(null)}
-        onAssign={assign}
-        releasing={releasing}
-        onCancelRelease={() => setReleasing(null)}
-        onRelease={release}
-        requesting={requesting}
-        onCancelRequest={() => setRequesting(false)}
-        onRequest={(r) => {
-          setReqs((list) => [r, ...list]);
-          setRequesting(false);
-        }}
-      />
-
-      <div hidden data-fitt-index>
-        <button data-fitt-screen="โครงสร้างองค์กร" />
-        <button data-fitt-screen="แฟ้มตำแหน่งงาน" data-fitt-modal onClick={() => setOpenAt(0)} />
-        <button data-fitt-screen="มอบหมายผู้ดำรงตำแหน่ง" data-fitt-modal onClick={() => setAssigning(POSITIONS[0])} />
-        <button data-fitt-screen="เปิดคำขออัตรากำลัง" data-fitt-modal onClick={() => setRequesting(true)} />
-      </div>
+      {panels}
     </div>
   );
 }
 
-/* -------------------------------------------------------------- overlays */
+const departmentsUnits = () => ORG_UNITS.filter((u) => u.parentId !== null);
 
-/** Every panel the screen can raise, in one place so both branches render them. */
-function Panels({
-  rows,
-  picked,
-  openAt,
-  seatOf,
-  onClose,
-  onStep,
-  assigning,
-  onCancelAssign,
-  onAssign,
-  releasing,
-  onCancelRelease,
-  onRelease,
-  requesting,
-  onCancelRequest,
-  onRequest,
-}: {
-  rows: Seat[];
-  picked: Seat | null;
-  openAt: number | null;
-  seatOf: (id: number) => Seat;
-  onClose: () => void;
-  onStep: (delta: 1 | -1) => void;
-  assigning: Position | null;
-  onCancelAssign: () => void;
-  onAssign: (positionId: number, employeeId: number) => void;
-  releasing: Seat | null;
-  onCancelRelease: () => void;
-  onRelease: (s: Seat) => void;
-  requesting: boolean;
-  onCancelRequest: () => void;
-  onRequest: (r: Requisition) => void;
-}) {
+/** The two buttons a request waiting for a decision carries. */
+function Decide({ r, onSheet }: { r: Requisition; onSheet: (s: OmSheet) => void }) {
   return (
-    <>
-      <DetailModal
-        open={picked !== null}
-        title="แฟ้มตำแหน่งงาน"
-        onClose={onClose}
-        index={openAt ?? 0}
-        total={rows.length}
-        onStep={onStep}
-      >
-        {picked && <SeatRecord key={picked.position.id} seat={picked} seatOf={seatOf} />}
-      </DetailModal>
-
-      <AssignDialog position={assigning} onCancel={onCancelAssign} onPick={onAssign} />
-
-      <ConfirmDialog
-        open={releasing !== null}
-        title="ปลดผู้ดำรงตำแหน่ง"
-        body="ตำแหน่งจะกลายเป็นว่างทันที และจะขึ้นในรายการที่ต้องเปิดคำขออัตรากำลัง ประวัติของพนักงานในทะเบียนไม่ถูกแตะต้อง"
-        subject={
-          releasing && (
-            <span className="flex items-center gap-2.5">
-              <Avatar name={releasing.holder?.name ?? ""} size="sm" />
-              <span>
-                <span className="block text-[13px] font-medium text-slate-900 dark:text-slate-50">{releasing.holder?.name}</span>
-                <span className="block text-[11.5px] text-slate-500 dark:text-slate-400">{releasing.position.title}</span>
-              </span>
-            </span>
-          )
-        }
-        confirmLabel="ปลดออกจากตำแหน่ง"
-        onCancel={onCancelRelease}
-        onConfirm={() => releasing && onRelease(releasing)}
-      />
-
-      <RequisitionForm open={requesting} onCancel={onCancelRequest} onSave={onRequest} />
-    </>
+    <span className="flex gap-1.5">
+      <RowButton tone="go" onClick={() => onSheet({ kind: "decideReq", id: r.id, approve: true })}>อนุมัติ</RowButton>
+      <RowButton tone="stop" onClick={() => onSheet({ kind: "decideReq", id: r.id, approve: false })}>ไม่อนุมัติ</RowButton>
+    </span>
   );
 }
 
@@ -358,7 +367,7 @@ function Overview({
   plannedTotal,
   onOpenSection,
   onOpenSeat,
-  onAssign,
+  onSheet,
 }: {
   seats: Seat[];
   filled: Seat[];
@@ -367,7 +376,7 @@ function Overview({
   plannedTotal: number;
   onOpenSection?: (index: number) => void;
   onOpenSeat: (s: Seat) => void;
-  onAssign: (p: Position) => void;
+  onSheet: (s: OmSheet) => void;
 }) {
   const units = ORG_UNITS;
 
@@ -398,11 +407,19 @@ function Overview({
         title="ภาพรวมโครงสร้างองค์กร"
         meta={`${units.length} หน่วยงาน · ${seats.length} ตำแหน่ง · ข้อมูล ณ ${TODAY}`}
         right={
-          onOpenSection ? (
-            <Button variant="primary" icon={<Network size={15} />} onClick={() => onOpenSection(0)}>
-              เปิดผังองค์กร
+          <div className="flex flex-wrap gap-2">
+            <Button variant="secondary" icon={<Printer size={15} />} onClick={() => onSheet({ kind: "report" })}>
+              พิมพ์ผังองค์กร
             </Button>
-          ) : undefined
+            <Button variant="secondary" icon={<Plus size={15} />} onClick={() => onSheet({ kind: "requisition" })}>
+              เปิดคำขออัตรากำลัง
+            </Button>
+            {onOpenSection && (
+              <Button variant="primary" icon={<Network size={15} />} onClick={() => onOpenSection(0)}>
+                เปิดผังองค์กร
+              </Button>
+            )}
+          </div>
         }
       />
 
@@ -462,7 +479,7 @@ function Overview({
               ) : (
                 vacant.slice(0, 3).map((s) => {
                   const sw = levelSwatch(s.position.level);
-                  const req = reqs.find((r) => r.positionId === s.position.id);
+                  const req = openRequisitionFor(s.position.id);
                   return (
                     <TintCard key={s.position.id} swatch={sw}>
                       <div className="flex items-start justify-between gap-2">
@@ -474,10 +491,10 @@ function Overview({
                       </div>
                       <div className="mt-3 flex items-center justify-between gap-2">
                         <span className="text-[11.5px] opacity-75">
-                          {req ? `${req.id} · ${req.status}` : "ยังไม่มีคำขออัตรากำลัง"}
+                          {s.acting ? `รักษาการ ${s.acting.employee.name}` : req ? `${req.id} · ${req.status}` : "ยังไม่มีคำขออัตรากำลัง"}
                         </span>
                         <button
-                          onClick={() => onAssign(s.position)}
+                          onClick={() => onSheet({ kind: "assign", positionId: s.position.id })}
                           className="rounded-lg bg-white/70 px-2.5 py-1 text-[11.5px] font-medium transition hover:bg-white dark:bg-slate-900/40 dark:hover:bg-slate-900/70"
                         >
                           มอบหมาย
@@ -506,7 +523,7 @@ function Overview({
                 return (
                   <li key={u.id} className="flex items-center gap-3 px-4 py-2">
                     <span className="w-28 shrink-0 truncate text-[12.5px] text-slate-700 dark:text-slate-200">{u.name}</span>
-                    <span className="flex-1"><Bar pct={(have / u.plannedHeadcount) * 100} tone={have < u.plannedHeadcount ? "warn" : "ok"} width="w-full" /></span>
+                    <span className="flex-1"><Bar pct={fillPct(have, u.plannedHeadcount)} tone={have < u.plannedHeadcount ? "warn" : "ok"} width="w-full" /></span>
                     <span className="w-16 shrink-0 text-right text-[11.5px] tabular-nums text-slate-500 dark:text-slate-400">
                       {have}/{u.plannedHeadcount}
                     </span>
@@ -560,7 +577,10 @@ function Overview({
           action={seeAll(3)}
         >
           <ul className="divide-y divide-slate-100 dark:divide-slate-800">
-            {reqs.map((r) => {
+            {reqs.filter(isOpen).length === 0 && (
+              <li className="py-8 text-center text-[12.5px] text-slate-400">ไม่มีคำขอที่เปิดอยู่</li>
+            )}
+            {reqs.filter(isOpen).map((r) => {
               const p = positionOf(r.positionId);
               const sw = levelSwatch(p.level);
               return (
@@ -577,11 +597,15 @@ function Overview({
                     <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
                       <Badge tone={REQ_TONE[r.status]}>{r.status}</Badge>
                       <Chip>{r.id}</Chip>
+                      <Chip>{r.kind}</Chip>
                       <Tag swatch={sw}>{p.level}</Tag>
                     </div>
                   </div>
-                  <span className="flex shrink-0 items-center gap-1 text-[11.5px] tabular-nums text-slate-400">
-                    <CalendarClock size={12} /> ต้องการ {r.wantedBy}
+                  <span className="flex shrink-0 flex-col items-end gap-1.5">
+                    <span className="flex items-center gap-1 text-[11.5px] tabular-nums text-slate-400">
+                      <CalendarClock size={12} /> ต้องการ {r.wantedBy}
+                    </span>
+                    {r.status === "รออนุมัติ" && <Decide r={r} onSheet={onSheet} />}
                   </span>
                 </li>
               );
@@ -598,11 +622,11 @@ function Overview({
 function Structure({
   seats,
   onOpenSeat,
-  onAssign,
+  onSheet,
 }: {
   seats: Seat[];
   onOpenSeat: (s: Seat) => void;
-  onAssign: (p: Position) => void;
+  onSheet: (s: OmSheet) => void;
 }) {
   const [view, setView] = useState("สายบังคับบัญชา");
   const top = seats.filter((s) => s.position.reportsTo === null);
@@ -625,7 +649,7 @@ function Structure({
         <Card title={<span className="flex items-center gap-2"><GitBranch size={15} className="text-slate-400" />{ROOT_UNIT.name}</span>}>
           <ul className="space-y-2 p-4">
             {top.map((s) => (
-              <TreeNode key={s.position.id} seat={s} seats={seats} root onOpenSeat={onOpenSeat} onAssign={onAssign} />
+              <TreeNode key={s.position.id} seat={s} seats={seats} root onOpenSeat={onOpenSeat} onSheet={onSheet} />
             ))}
           </ul>
         </Card>
@@ -644,11 +668,16 @@ function Structure({
                     {u.name}
                   </span>
                 }
-                subtitle={`${u.code} · ศูนย์ต้นทุน ${u.costCentre} · ตั้งเมื่อ ${u.openedAt}`}
+                subtitle={`${u.code} · ศูนย์ต้นทุน ${u.costCentre} · ${u.parentId === null ? "หน่วยงานสูงสุด" : "ขึ้นตรงต่อ" + unitOf(u.parentId).name}`}
                 action={
-                  <Badge tone={here < u.plannedHeadcount ? "warn" : "ok"}>
-                    {here}/{u.plannedHeadcount} อัตรา
-                  </Badge>
+                  <span className="flex items-center gap-1.5">
+                    <Badge tone={here < u.plannedHeadcount ? "warn" : "ok"}>
+                      {here}/{u.plannedHeadcount} อัตรา
+                    </Badge>
+                    {u.parentId !== null && (
+                      <RowButton icon={<Pencil size={12} />} onClick={() => onSheet({ kind: "unit", id: u.id })}>แก้ไข/ย้าย</RowButton>
+                    )}
+                  </span>
                 }
               >
                 <ul className="divide-y divide-slate-100 dark:divide-slate-800">
@@ -664,6 +693,14 @@ function Structure({
                       <Tag swatch={levelSwatch(s.position.level)}>{s.position.level}</Tag>
                     </li>
                   ))}
+                  <li className="px-4 py-2">
+                    <button
+                      onClick={() => onSheet({ kind: "position", id: null, unitId: u.id })}
+                      className="flex items-center gap-1.5 text-[12px] text-violet-700 transition hover:text-violet-900 dark:text-violet-300 dark:hover:text-violet-200"
+                    >
+                      <Plus size={13} /> เพิ่มตำแหน่งใน{u.name}
+                    </button>
+                  </li>
                 </ul>
               </Card>
             );
@@ -679,13 +716,13 @@ function TreeNode({
   seats,
   root,
   onOpenSeat,
-  onAssign,
+  onSheet,
 }: {
   seat: Seat;
   seats: Seat[];
   root?: boolean;
   onOpenSeat: (s: Seat) => void;
-  onAssign: (p: Position) => void;
+  onSheet: (s: OmSheet) => void;
 }) {
   const kids = seats.filter((s) => s.position.reportsTo === seat.position.id);
   const sw = levelSwatch(seat.position.level);
@@ -713,7 +750,7 @@ function TreeNode({
             {seat.position.title}
           </span>
           <span className="block truncate text-[12px] text-slate-500 dark:text-slate-400">
-            {seat.holder ? seat.holder.name : "ยังไม่มีผู้ดำรงตำแหน่ง"}
+            {seat.holder ? seat.holder.name : seat.acting ? `ว่าง · รักษาการ ${seat.acting.employee.name}` : "ยังไม่มีผู้ดำรงตำแหน่ง"}
             {seat.direct > 0 && <span className="text-slate-400"> · ดูแล {seat.staff} คน</span>}
           </span>
         </button>
@@ -724,7 +761,7 @@ function TreeNode({
         <Tag swatch={sw}>{seat.position.level}</Tag>
         {!seat.holder && (
           <button
-            onClick={() => onAssign(seat.position)}
+            onClick={() => onSheet({ kind: "assign", positionId: seat.position.id })}
             className="shrink-0 rounded-lg border border-amber-300 px-2.5 py-1 text-[11.5px] text-amber-700 transition hover:bg-amber-100 dark:border-amber-500/40 dark:text-amber-300 dark:hover:bg-amber-500/20"
           >
             มอบหมาย
@@ -735,7 +772,7 @@ function TreeNode({
       {kids.length > 0 && (
         <ul className="ml-6 mt-2 space-y-2 border-l border-slate-200 pl-5 dark:border-slate-800">
           {kids.map((k) => (
-            <TreeNode key={k.position.id} seat={k} seats={seats} onOpenSeat={onOpenSeat} onAssign={onAssign} />
+            <TreeNode key={k.position.id} seat={k} seats={seats} onOpenSeat={onOpenSeat} onSheet={onSheet} />
           ))}
         </ul>
       )}
@@ -758,7 +795,7 @@ function VacantMark({ size = "sm" }: { size?: "sm" | "md" }) {
 
 /* --------------------------------------------------------------- tables */
 
-const unitOptions = ["ทุกหน่วยงาน", ...DEPARTMENTS];
+const unitOptions = () => ["ทุกหน่วยงาน", ...departments()];
 const levelOptions = ["ทุกระดับ", ...LEVELS];
 
 function SeatRegister({
@@ -852,7 +889,7 @@ function SeatRegister({
       toolbar={
         <div className="flex flex-wrap items-center gap-2">
           <Search value={q} onChange={setQ} placeholder="ค้นหาตำแหน่ง รหัส หรือหน่วยงาน" icon={<SearchIcon size={14} />} />
-          <Select value={unitFilter} onChange={setUnitFilter} options={unitOptions} />
+          <Select value={unitFilter} onChange={setUnitFilter} options={unitOptions()} />
           <Select value={levelFilter} onChange={setLevelFilter} options={levelOptions} />
           <span className="ml-auto text-[12px] text-slate-400">แสดง {rows.length} ตำแหน่ง</span>
         </div>
@@ -868,8 +905,7 @@ function Assignments({
   unitFilter,
   setUnitFilter,
   onOpen,
-  onAssign,
-  onRelease,
+  onSheet,
 }: {
   rows: Seat[];
   q: string;
@@ -877,8 +913,7 @@ function Assignments({
   unitFilter: string;
   setUnitFilter: (v: string) => void;
   onOpen: (s: Seat) => void;
-  onAssign: (p: Position) => void;
-  onRelease: (s: Seat) => void;
+  onSheet: (s: OmSheet) => void;
 }) {
   const columns: Column<Seat>[] = [
     {
@@ -904,6 +939,11 @@ function Assignments({
               <span className="block text-slate-900 dark:text-slate-50">{s.holder.name}</span>
               <span className="block font-mono text-[11px] text-slate-400">{s.holder.code}</span>
             </span>
+          </span>
+        ) : s.acting ? (
+          <span className="flex flex-col items-start gap-1">
+            <Badge tone="warn">ว่าง</Badge>
+            <span className="text-[11.5px] text-slate-500 dark:text-slate-400">รักษาการ {s.acting.employee.name} ถึง {s.acting.until}</span>
           </span>
         ) : (
           <Badge tone="warn">ยังไม่มีผู้ดำรงตำแหน่ง</Badge>
@@ -934,7 +974,7 @@ function Assignments({
       toolbar={
         <div className="flex flex-wrap items-center gap-2">
           <Search value={q} onChange={setQ} placeholder="ค้นหาตำแหน่งหรือชื่อผู้ดำรง" icon={<SearchIcon size={14} />} />
-          <Select value={unitFilter} onChange={setUnitFilter} options={unitOptions} />
+          <Select value={unitFilter} onChange={setUnitFilter} options={unitOptions()} />
           <span className="ml-auto text-[12px] text-slate-400">
             มีผู้ดำรง {rows.filter((s) => s.holder).length} จาก {rows.length} ตำแหน่ง
           </span>
@@ -942,8 +982,18 @@ function Assignments({
       }
       trailing={(s) => (
         <span className="flex items-center justify-end gap-1">
+          {!s.holder && !s.acting && (
+            <button
+              onClick={() => onSheet({ kind: "acting", positionId: s.position.id })}
+              title="มอบหมายรักษาการ"
+              aria-label="มอบหมายรักษาการ"
+              className="grid size-7 place-items-center rounded-lg text-slate-400 transition hover:bg-amber-50 hover:text-amber-600 dark:hover:bg-amber-500/15 dark:hover:text-amber-300"
+            >
+              <UserCog size={16} />
+            </button>
+          )}
           <button
-            onClick={() => onAssign(s.position)}
+            onClick={() => onSheet({ kind: "assign", positionId: s.position.id })}
             title={s.holder ? "เปลี่ยนผู้ดำรงตำแหน่ง" : "มอบหมายผู้ดำรงตำแหน่ง"}
             aria-label={s.holder ? "เปลี่ยนผู้ดำรงตำแหน่ง" : "มอบหมายผู้ดำรงตำแหน่ง"}
             className="grid size-7 place-items-center rounded-lg text-slate-400 transition hover:bg-violet-50 hover:text-violet-600 dark:hover:bg-violet-500/15 dark:hover:text-violet-300"
@@ -952,7 +1002,7 @@ function Assignments({
           </button>
           {s.holder && (
             <button
-              onClick={() => onRelease(s)}
+              onClick={() => onSheet({ kind: "release", positionId: s.position.id })}
               title="ปลดออกจากตำแหน่ง"
               aria-label="ปลดออกจากตำแหน่ง"
               className="grid size-7 place-items-center rounded-lg text-slate-400 transition hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-500/15 dark:hover:text-rose-300"
@@ -973,13 +1023,13 @@ function Planning({
   reqs,
   seatOf,
   onOpenSeat,
-  onAssign,
+  onSheet,
 }: {
   seats: Seat[];
   reqs: Requisition[];
   seatOf: (id: number) => Seat;
   onOpenSeat: (s: Seat) => void;
-  onAssign: (p: Position) => void;
+  onSheet: (s: OmSheet) => void;
 }) {
   const units = ORG_UNITS;
   const filled = seats.filter((s) => s.holder);
@@ -1017,7 +1067,7 @@ function Planning({
           {
             icon: <ClipboardList size={13} />,
             label: "คำขอที่เปิดอยู่",
-            value: reqs.length,
+            value: reqs.filter(isOpen).length,
             sub: `รออนุมัติ ${reqs.filter((r) => r.status === "รออนุมัติ").length} รายการ`,
             tone: "accent",
           },
@@ -1037,6 +1087,7 @@ function Planning({
               <th className="px-4 py-3 text-right font-medium">มีอยู่</th>
               <th className="px-4 py-3 text-right font-medium">ตามแผน</th>
               <th className="px-4 py-3 text-right font-medium">ต้องรับเพิ่ม</th>
+              <th className="px-4 py-3" />
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
@@ -1052,11 +1103,14 @@ function Planning({
                     </span>
                   </td>
                   <td className="px-4 py-3 font-mono text-[11.5px] text-slate-400">{u.costCentre}</td>
-                  <td className="px-4 py-3"><Bar pct={(have / u.plannedHeadcount) * 100} tone={gap > 0 ? "warn" : "ok"} width="w-32" /></td>
+                  <td className="px-4 py-3"><Bar pct={fillPct(have, u.plannedHeadcount)} tone={gap > 0 ? "warn" : "ok"} width="w-32" /></td>
                   <td className="px-4 py-3 text-right tabular-nums text-slate-700 dark:text-slate-200">{have}</td>
                   <td className="px-4 py-3 text-right tabular-nums text-slate-700 dark:text-slate-200">{u.plannedHeadcount}</td>
                   <td className={"px-4 py-3 text-right font-semibold tabular-nums " + (gap > 0 ? "text-amber-700 dark:text-amber-400" : "text-slate-300 dark:text-slate-600")}>
                     {gap > 0 ? "+" + gap : "—"}
+                  </td>
+                  <td className="px-4 py-3 text-right">
+                    <RowButton icon={<Pencil size={12} />} onClick={() => onSheet({ kind: "planned", unitId: u.id })}>แก้แผน</RowButton>
                   </td>
                 </tr>
               );
@@ -1066,8 +1120,8 @@ function Planning({
       </Card>
 
       <Card
-        title={<span className="flex items-center gap-2"><ClipboardList size={15} className="text-slate-400" />คำขออัตรากำลังที่เปิดอยู่</span>}
-        subtitle="แต่ละคำขอผูกกับตำแหน่งที่ว่างอยู่ ปิดคำขอได้เมื่อมอบหมายผู้ดำรงตำแหน่งแล้ว"
+        title={<span className="flex items-center gap-2"><ClipboardList size={15} className="text-slate-400" />คำขออัตรากำลัง</span>}
+        subtitle="อนุมัติ → เริ่มสรรหา → มอบหมายผู้ดำรงตำแหน่ง แล้วคำขอปิดเอง"
       >
         <ul className="divide-y divide-slate-100 dark:divide-slate-800">
           {reqs.map((r) => {
@@ -1080,15 +1134,28 @@ function Planning({
                   <span className="block truncate text-[12px] text-slate-500 dark:text-slate-400">{r.reason}</span>
                 </button>
                 <span className="shrink-0 text-[11.5px] tabular-nums text-slate-400">
-                  เปิดมา {daysSince(r.openedAt)} วัน · ต้องการ {r.wantedBy}
+                  {r.kind} · {isOpen(r) ? `เปิดมา ${daysSince(r.openedAt)} วัน · ` : ""}ต้องการ {r.wantedBy}
                 </span>
                 <Badge tone={REQ_TONE[r.status]}>{r.status}</Badge>
-                {seat.holder ? (
-                  <Badge tone="ok" icon={<CircleCheck size={11} />}>มอบหมายแล้ว</Badge>
-                ) : (
-                  <Button variant="secondary" onClick={() => onAssign(seat.position)}>
-                    มอบหมาย
-                  </Button>
+                {r.status === "รออนุมัติ" && <Decide r={r} onSheet={onSheet} />}
+                {r.status === "อนุมัติแล้ว" && (
+                  <RowButton
+                    onClick={() => {
+                      startRecruiting(r.id);
+                      notify(`เริ่มสรรหา${seat.position.title}ตามคำขอ ${r.id} แล้ว`);
+                    }}
+                  >
+                    เริ่มสรรหา
+                  </RowButton>
+                )}
+                {(r.status === "อนุมัติแล้ว" || r.status === "กำลังสรรหา") && !seat.holder && (
+                  <RowButton tone="go" onClick={() => onSheet({ kind: "assign", positionId: seat.position.id })}>มอบหมาย</RowButton>
+                )}
+                {r.status === "ปิดแล้ว" && (
+                  <Badge tone="ok" icon={<CircleCheck size={11} />}>มอบหมายแล้ว{seat.holder ? ` · ${seat.holder.name}` : ""}</Badge>
+                )}
+                {r.status === "ไม่อนุมัติ" && r.decisionNote && (
+                  <span className="w-full pl-[8.75rem] text-[11.5px] text-slate-400">เหตุผล: {r.decisionNote}</span>
                 )}
               </li>
             );
@@ -1101,7 +1168,15 @@ function Planning({
 
 /* -------------------------------------------------------- qualifications */
 
-function Qualifications({ seats, onOpenSeat }: { seats: Seat[]; onOpenSeat: (s: Seat) => void }) {
+function Qualifications({
+  seats,
+  onOpenSeat,
+  onSheet,
+}: {
+  seats: Seat[];
+  onOpenSeat: (s: Seat) => void;
+  onSheet: (s: OmSheet) => void;
+}) {
   const [only, setOnly] = useState("ทั้งหมด");
   const shown = seats.filter((s) =>
     only === "ทั้งหมด" ? true : only === "ขาดคุณสมบัติ" ? s.gaps.length > 0 && s.holder : !s.holder
@@ -1121,7 +1196,7 @@ function Qualifications({ seats, onOpenSeat }: { seats: Seat[]; onOpenSeat: (s: 
           }}
         />
         <span className="ml-auto text-[12px] text-slate-400">
-          คุณสมบัติที่ขีดฆ่าคือข้อที่ผู้ดำรงตำแหน่งยังไม่มี
+          คุณสมบัติที่ขีดฆ่าคือข้อที่ผู้ดำรงตำแหน่งยังไม่มี คลิกเมื่ออบรมหรือได้ใบรับรองแล้ว
         </span>
       </div>
 
@@ -1139,13 +1214,16 @@ function Qualifications({ seats, onOpenSeat }: { seats: Seat[]; onOpenSeat: (s: 
               }
               subtitle={s.holder ? `${s.holder.name} · ${s.unit.name}` : `ยังไม่มีผู้ดำรงตำแหน่ง · ${s.unit.name}`}
               action={
-                s.holder ? (
-                  <Badge tone={s.gaps.length === 0 ? "ok" : "warn"}>
-                    {s.gaps.length === 0 ? "คุณสมบัติครบ" : `ขาด ${s.gaps.length} ข้อ`}
-                  </Badge>
-                ) : (
-                  <Badge tone="idle">รอมอบหมาย</Badge>
-                )
+                <span className="flex items-center gap-1.5">
+                  {s.holder ? (
+                    <Badge tone={s.gaps.length === 0 ? "ok" : "warn"}>
+                      {s.gaps.length === 0 ? "คุณสมบัติครบ" : `ขาด ${s.gaps.length} ข้อ`}
+                    </Badge>
+                  ) : (
+                    <Badge tone="idle">รอมอบหมาย</Badge>
+                  )}
+                  <RowButton icon={<Pencil size={12} />} onClick={() => onSheet({ kind: "quals", positionId: s.position.id })}>แก้ไข</RowButton>
+                </span>
               }
             >
               <div className="space-y-3 p-4">
@@ -1153,17 +1231,27 @@ function Qualifications({ seats, onOpenSeat }: { seats: Seat[]; onOpenSeat: (s: 
                 <ul className="flex flex-wrap gap-1.5">
                   {s.position.qualifications.map((qual) => {
                     const ok = has.includes(qual);
+                    const skin =
+                      "rounded-full px-2.5 py-1 text-[11.5px] " +
+                      (ok
+                        ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300"
+                        : "bg-slate-100 text-slate-500 line-through dark:bg-slate-800 dark:text-slate-400");
                     return (
-                      <li
-                        key={qual}
-                        className={
-                          "rounded-full px-2.5 py-1 text-[11.5px] " +
-                          (ok
-                            ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300"
-                            : "bg-slate-100 text-slate-500 line-through dark:bg-slate-800 dark:text-slate-400")
-                        }
-                      >
-                        {qual}
+                      <li key={qual}>
+                        {s.holder && !ok ? (
+                          <button
+                            title="บันทึกว่าผู้ดำรงตำแหน่งมีคุณสมบัตินี้แล้ว"
+                            onClick={() => {
+                              grantSkill(s.holder!.id, qual);
+                              notify(`บันทึกว่า ${s.holder!.name} มี “${qual}” แล้ว`);
+                            }}
+                            className={skin + " transition hover:bg-emerald-50 hover:text-emerald-700 hover:no-underline dark:hover:bg-emerald-500/15 dark:hover:text-emerald-300"}
+                          >
+                            {qual}
+                          </button>
+                        ) : (
+                          <span className={skin + " inline-block"}>{qual}</span>
+                        )}
                       </li>
                     );
                   })}
@@ -1279,7 +1367,16 @@ function Reports({ seats, plannedTotal }: { seats: Seat[]; plannedTotal: number 
 
 /* ---------------------------------------------------------------- record */
 
-function SeatRecord({ seat, seatOf }: { seat: Seat; seatOf: (id: number) => Seat }) {
+function SeatRecord({
+  seat,
+  seatOf,
+  onSheet,
+}: {
+  seat: Seat;
+  seatOf: (id: number) => Seat;
+  onSheet: (s: OmSheet) => void;
+}) {
+  const request = openRequisitionFor(seat.position.id);
   const [tab, setTab] = useState(SEAT_TABS[0]);
   const b = bandOf(seat.position);
   const sw = levelSwatch(seat.position.level);
@@ -1300,7 +1397,52 @@ function SeatRecord({ seat, seatOf }: { seat: Seat; seatOf: (id: number) => Seat
             ) : (
               <Badge tone="warn" icon={<UserX size={11} />}>ยังไม่มีผู้ดำรงตำแหน่ง</Badge>
             )}
+            {seat.acting && <Chip>รักษาการ {seat.acting.employee.name} ถึง {seat.acting.until}</Chip>}
+            {request && <Chip>{request.id} · {request.status}</Chip>}
             {seat.direct > 0 && <Chip>ดูแล {seat.staff} คน</Chip>}
+          </div>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <Button variant="primary" icon={<UserPlus size={14} />} onClick={() => onSheet({ kind: "assign", positionId: seat.position.id })}>
+              {seat.holder ? "เปลี่ยนผู้ดำรงตำแหน่ง" : "มอบหมายผู้ดำรงตำแหน่ง"}
+            </Button>
+            <Button variant="secondary" icon={<Pencil size={14} />} onClick={() => onSheet({ kind: "position", id: seat.position.id })}>
+              แก้ไขตำแหน่ง
+            </Button>
+            {!seat.holder && !seat.acting && (
+              <Button variant="secondary" icon={<UserCog size={14} />} onClick={() => onSheet({ kind: "acting", positionId: seat.position.id })}>
+                มอบหมายรักษาการ
+              </Button>
+            )}
+            {seat.acting && (
+              <Button
+                variant="secondary"
+                icon={<UserX size={14} />}
+                onClick={() => {
+                  endActing(seat.position.id);
+                  notify(`สิ้นสุดการรักษาการ${seat.position.title}ของ ${seat.acting!.employee.name} แล้ว`);
+                }}
+              >
+                สิ้นสุดรักษาการ
+              </Button>
+            )}
+            <Button
+              variant="secondary"
+              icon={<ClipboardList size={14} />}
+              onClick={() =>
+                onSheet({
+                  kind: "requisition",
+                  positionId: seat.position.id,
+                  reqKind: seat.holder || request ? "อัตราเพิ่ม" : "ตำแหน่งว่าง",
+                })
+              }
+            >
+              {seat.holder || request ? "ขออัตราเพิ่ม" : "เปิดคำขออัตรากำลัง"}
+            </Button>
+            {seat.holder && (
+              <Button variant="danger" icon={<UserX size={14} />} onClick={() => onSheet({ kind: "release", positionId: seat.position.id })}>
+                ปลดออกจากตำแหน่ง
+              </Button>
+            )}
           </div>
         </div>
       </div>
@@ -1325,6 +1467,9 @@ function SeatRecord({ seat, seatOf }: { seat: Seat; seatOf: (id: number) => Seat
 
         {tab === "คุณสมบัติ" && (
           <div className="space-y-3">
+            <div className="flex justify-end">
+              <RowButton icon={<Pencil size={12} />} onClick={() => onSheet({ kind: "quals", positionId: seat.position.id })}>แก้ไขคุณสมบัติ</RowButton>
+            </div>
             <Progress
               done={seat.position.qualifications.length - seat.gaps.length}
               total={seat.position.qualifications.length}
@@ -1339,6 +1484,16 @@ function SeatRecord({ seat, seatOf }: { seat: Seat; seatOf: (id: number) => Seat
                       {ok ? <CircleCheck size={15} /> : <ShieldCheck size={15} />}
                     </span>
                     <span className={ok ? "text-slate-800 dark:text-slate-100" : "text-slate-400 line-through"}>{qual}</span>
+                    {seat.holder && !ok && (
+                      <RowButton
+                        onClick={() => {
+                          grantSkill(seat.holder!.id, qual);
+                          notify(`บันทึกว่า ${seat.holder!.name} มี “${qual}” แล้ว`);
+                        }}
+                      >
+                        มีแล้ว
+                      </RowButton>
+                    )}
                   </li>
                 );
               })}
@@ -1420,171 +1575,5 @@ function SeatRecord({ seat, seatOf }: { seat: Seat; seatOf: (id: number) => Seat
         )}
       </div>
     </div>
-  );
-}
-
-/* ----------------------------------------------------------------- forms */
-
-function AssignDialog({
-  position,
-  onCancel,
-  onPick,
-}: {
-  position: Position | null;
-  onCancel: () => void;
-  onPick: (positionId: number, employeeId: number) => void;
-}) {
-  const [q, setQ] = useState("");
-  const needle = q.trim().toLowerCase();
-  const candidates = EMPLOYEES.filter(
-    (e) =>
-      e.status !== "ลาออก" &&
-      (needle === "" || [e.name, e.nickname, e.code, e.department].some((t) => t.toLowerCase().includes(needle)))
-  );
-
-  return (
-    <FormModal
-      open={position !== null}
-      title="มอบหมายผู้ดำรงตำแหน่ง"
-      subtitle={position ? `${position.title} · ${unitOf(position.unitId).name}` : undefined}
-      onClose={onCancel}
-    >
-      <div className="space-y-3">
-        <Search
-          value={q}
-          onChange={setQ}
-          placeholder="ค้นหาชื่อ ชื่อเล่น หรือรหัสพนักงาน"
-          icon={<SearchIcon size={14} />}
-          className="w-full"
-        />
-        <ul className="max-h-72 space-y-1 overflow-y-auto">
-          {candidates.map((e) => {
-            const fits = position ? gapsOf(position, e).length === 0 : false;
-            return (
-              <li key={e.id}>
-                <button
-                  onClick={() => position && onPick(position.id, e.id)}
-                  className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition hover:bg-violet-50 dark:hover:bg-violet-500/10"
-                >
-                  <Avatar name={e.name} size="sm" />
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate text-[13px] text-slate-900 dark:text-slate-50">{e.name}</span>
-                    <span className="block truncate text-[11.5px] text-slate-400">
-                      {e.position} · {e.department}
-                    </span>
-                  </span>
-                  <Badge tone={fits ? "ok" : "warn"}>{fits ? "คุณสมบัติครบ" : "คุณสมบัติไม่ครบ"}</Badge>
-                </button>
-              </li>
-            );
-          })}
-          {candidates.length === 0 && (
-            <li className="py-8 text-center text-[12.5px] text-slate-400">ไม่พบพนักงานที่ตรงกับ “{q}”</li>
-          )}
-        </ul>
-        <p className="text-[11.5px] text-slate-400">
-          รายชื่ออ่านจากทะเบียนพนักงาน คนที่ลาออกแล้วจะไม่ขึ้นในรายการนี้
-        </p>
-      </div>
-    </FormModal>
-  );
-}
-
-type ReqDraft = { positionId: string; wantedBy: string; reason: string };
-const EMPTY_REQ: ReqDraft = { positionId: "", wantedBy: "", reason: "" };
-
-function RequisitionForm({
-  open,
-  onCancel,
-  onSave,
-}: {
-  open: boolean;
-  onCancel: () => void;
-  onSave: (r: Requisition) => void;
-}) {
-  const [draft, setDraft] = useState<ReqDraft>(EMPTY_REQ);
-
-  const titles = POSITIONS.map((p) => `${p.title} · ${unitOf(p.unitId).name}`);
-  const chosen = POSITIONS[titles.indexOf(draft.positionId)];
-
-  const steps: Step[] = [
-    {
-      title: "ตำแหน่ง",
-      validate: (): Record<string, string> => (chosen ? {} : { positionId: "เลือกตำแหน่งที่ต้องการเปิดคำขอ" }),
-      render: (errors) => (
-        <div className="space-y-3">
-          <Field label="ตำแหน่งที่ขออัตรากำลัง" error={errors.positionId}>
-            <Select
-              value={draft.positionId || titles[0]}
-              onChange={(v) => setDraft((d) => ({ ...d, positionId: v }))}
-              options={titles}
-              className="w-full"
-            />
-          </Field>
-          {chosen && (
-            <Note tone="idle">
-              ระดับ {chosen.level} · กรอบค่าตอบแทน {bandOf(chosen).min.toLocaleString("th-TH")}–
-              {bandOf(chosen).max.toLocaleString("th-TH")} บาท/เดือน
-            </Note>
-          )}
-        </div>
-      ),
-    },
-    {
-      title: "กำหนดเวลา",
-      validate: (): Record<string, string> =>
-        /^\d{4}-\d{2}-\d{2}$/.test(draft.wantedBy) ? {} : { wantedBy: "กรอกวันที่ในรูปแบบ ปปปป-ดด-วว" },
-      render: (errors) => (
-        <Field label="ต้องการคนภายในวันที่" error={errors.wantedBy} hint="ใช้กำหนดลำดับความเร่งด่วนในการสรรหา">
-          <input
-            value={draft.wantedBy}
-            onChange={(e) => setDraft((d) => ({ ...d, wantedBy: e.target.value }))}
-            placeholder="2026-12-01"
-            className={FIELD + " w-full"}
-          />
-        </Field>
-      ),
-    },
-    {
-      title: "เหตุผล",
-      validate: (): Record<string, string> =>
-        draft.reason.trim().length >= 10 ? {} : { reason: "เขียนเหตุผลอย่างน้อย 10 ตัวอักษร" },
-      render: (errors) => (
-        <Field label="เหตุผลที่ต้องเพิ่มอัตรา" error={errors.reason}>
-          <textarea
-            value={draft.reason}
-            onChange={(e) => setDraft((d) => ({ ...d, reason: e.target.value }))}
-            rows={4}
-            placeholder="เช่น ผู้ดำรงตำแหน่งเดิมลาออก งานค้างอยู่ที่หน่วยงานอื่น"
-            className={FIELD + " w-full resize-none"}
-          />
-        </Field>
-      ),
-    },
-  ];
-
-  return (
-    <FormModal open={open} title="เปิดคำขออัตรากำลัง" subtitle="กรอกสามขั้นตอน ระบบตรวจความถูกต้องให้ก่อนไปขั้นถัดไป" onClose={onCancel}>
-      <Wizard
-        steps={steps}
-        onCancel={() => {
-          setDraft(EMPTY_REQ);
-          onCancel();
-        }}
-        onDone={() => {
-          const p = chosen ?? POSITIONS[0];
-          onSave({
-            id: `REQ-2569-${String(REQUISITIONS.length + 7).padStart(3, "0")}`,
-            positionId: p.id,
-            openedAt: TODAY,
-            wantedBy: draft.wantedBy,
-            status: "รออนุมัติ",
-            reason: draft.reason.trim(),
-          });
-          setDraft(EMPTY_REQ);
-        }}
-        doneLabel="เปิดคำขอ"
-      />
-    </FormModal>
   );
 }

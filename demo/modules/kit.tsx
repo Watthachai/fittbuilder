@@ -21,6 +21,37 @@ import type { Tone } from "./ui";
 
 const EASE = [0.22, 1, 0.36, 1] as const;
 
+/* ----------------------------------------------------------------- layers */
+
+const layers: number[] = [];
+let layerSeq = 0;
+
+/**
+ * Whether this overlay is the one the keyboard belongs to.
+ *
+ * A form opened from a record sits on top of it, and both listen on window.
+ * Without this, Escape in the form closed the record behind it as well, and an
+ * arrow key pressed in a text field paged the record to the next one.
+ */
+function useLayer(open: boolean): () => boolean {
+  const mine = useRef(0);
+  useEffect(() => {
+    if (!open) return;
+    const id = ++layerSeq;
+    mine.current = id;
+    layers.push(id);
+    return () => {
+      const at = layers.indexOf(id);
+      if (at >= 0) layers.splice(at, 1);
+    };
+  }, [open]);
+  return () => layers[layers.length - 1] === mine.current;
+}
+
+/** The key went to a field — it is text being typed, not a command. */
+const typing = (e: KeyboardEvent) =>
+  e.target instanceof HTMLElement && e.target.closest("input, textarea, select, [contenteditable='true']") !== null;
+
 export type Column<T> = {
   key: string;
   header: string;
@@ -283,16 +314,19 @@ export function DetailModal({
   onStep?: (delta: 1 | -1) => void;
   children: ReactNode;
 }) {
+  const isTop = useLayer(open);
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
+      if (!isTop()) return;
       if (e.key === "Escape") onClose();
+      if (typing(e)) return;
       if (onStep && e.key === "ArrowRight") onStep(1);
       if (onStep && e.key === "ArrowLeft") onStep(-1);
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [open, onClose, onStep]);
+  }, [open, onClose, onStep, isTop]);
 
   return (
     <Overlay>
@@ -386,14 +420,15 @@ export function FormModal({
   children: ReactNode;
   size?: "sm" | "md" | "lg";
 }) {
+  const isTop = useLayer(open);
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
+      if (isTop() && e.key === "Escape") onClose();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [open, onClose]);
+  }, [open, onClose, isTop]);
 
   const width = size === "lg" ? "max-w-3xl" : size === "sm" ? "max-w-md" : "max-w-xl";
 
@@ -468,14 +503,15 @@ export function Drawer({
   footer?: ReactNode;
   width?: string;
 }) {
+  const isTop = useLayer(open);
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
+      if (isTop() && e.key === "Escape") onClose();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [open, onClose]);
+  }, [open, onClose, isTop]);
 
   return (
     <Overlay>
@@ -559,6 +595,16 @@ export function ConfirmDialog({
   useEffect(() => {
     if (open) setTyped("");
   }, [open]);
+
+  const isTop = useLayer(open);
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (isTop() && e.key === "Escape") onCancel();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open, onCancel, isTop]);
 
   const armed = (!confirmWord || typed.trim() === confirmWord) && !disabled;
 
@@ -930,16 +976,23 @@ export function LineItems({
   onChange,
   catalog,
   vatRate = 0.07,
+  totals,
   error,
 }: {
   lines: LineItem[];
   onChange: (lines: LineItem[]) => void;
   catalog: CatalogItem[];
   vatRate?: number;
+  /**
+   * The figures the document will be booked at, when the books round
+   * differently from line-by-line satang maths — the same prop DocumentSheet
+   * takes, so the form, the printout and the ledger show one number.
+   */
+  totals?: { subtotal: number; vat: number; total: number };
   /** Shown under the table — "ต้องมีอย่างน้อยหนึ่งรายการ". */
   error?: string;
 }) {
-  const { subtotal, vat, total } = totalsOf(lines, vatRate);
+  const { subtotal, vat, total } = totals ?? totalsOf(lines, vatRate);
   const update = (key: string, patch: Partial<LineItem>) =>
     onChange(lines.map((l) => (l.key === key ? { ...l, ...patch } : l)));
   const pick = (key: string, code: string) => {
@@ -1047,15 +1100,52 @@ export function LineItems({
 
 /* -------------------------------------------------------------- documents */
 
-const PRINT_CSS = `@media print {
-  body * { visibility: hidden !important; }
-  .fitt-print, .fitt-print * { visibility: visible !important; }
-  .fitt-print { position: fixed !important; left: 0; top: 0; width: 100%; margin: 0 !important; box-shadow: none !important; border: 0 !important; }
+const PRINT_CSS = `.fitt-print-holder { display: none; }
+@media print {
+  body > *:not(#fitt-print-root) { display: none !important; }
+  body > #fitt-print-root { display: block !important; }
+  #fitt-print-root .fitt-print { max-width: none !important; margin: 0 !important; padding: 0 !important; box-shadow: none !important; border: 0 !important; break-after: page; }
+  #fitt-print-root .fitt-print:last-child { break-after: auto; }
   @page { size: A4; margin: 12mm; }
 }`;
 
-/** Print the document on screen — and only it, not the page around it. */
-export const printDocument = () => window.print();
+/**
+ * Print the document on screen — and only it, not the page around it.
+ *
+ * The sheets in the open window are copied into a holder directly under
+ * <body>, and printing shows that holder alone. Printing them where they sit
+ * does not work: the window scrolls and clips, so a sheet pinned in place
+ * printed its first page and nothing after, and a batch of payslips came out
+ * as one. As a body child the copy flows across as many pages as it needs,
+ * one sheet per page. It prints light even when the app is dark — it is
+ * paper — and the copy is removed once the print dialog closes.
+ */
+export function printDocument() {
+  const windows = document.querySelectorAll('[role="dialog"], [role="alertdialog"]');
+  const scope: ParentNode = windows.length > 0 ? windows[windows.length - 1] : document;
+  const holder = document.createElement("div");
+  // The id the studio's own print sheets use: its stylesheet hides every other
+  // child of <body> with a rule that outranks any class, so the copy has to be
+  // the element that rule already keeps.
+  holder.id = "fitt-print-root";
+  holder.className = "fitt-print-holder";
+  for (const sheet of scope.querySelectorAll(".fitt-print")) holder.appendChild(sheet.cloneNode(true));
+  document.body.appendChild(holder);
+
+  const root = document.documentElement;
+  const theme = { dark: root.classList.contains("dark"), light: root.classList.contains("light") };
+  root.classList.remove("dark");
+  root.classList.add("light");
+
+  const done = () => {
+    holder.remove();
+    root.classList.toggle("dark", theme.dark);
+    root.classList.toggle("light", theme.light);
+    window.removeEventListener("afterprint", done);
+  };
+  window.addEventListener("afterprint", done);
+  window.print();
+}
 
 /**
  * A sheet of paper: the frame every printable document sits on.
@@ -1095,6 +1185,7 @@ export function DocumentSheet({
   party,
   lines,
   vatRate = 0.07,
+  totals,
   notes,
   signatures = ["ผู้รับเอกสาร", "ผู้มีอำนาจลงนาม"],
 }: {
@@ -1108,11 +1199,18 @@ export function DocumentSheet({
   /** The other side: `label` is "ลูกค้า" on a sale and "ผู้ขาย" on a purchase. */
   party: { label: string; name: string; address?: string; taxId?: string };
   lines: { name: string; qty: number; unit?: string; price: number }[];
+  /** The rate printed on the VAT line. */
   vatRate?: number;
+  /**
+   * The figures as they were booked. Pass them whenever the books round
+   * differently from line-by-line satang maths, so the paper and the ledger say
+   * the same number; left out, they are worked out from the lines.
+   */
+  totals?: { subtotal: number; vat: number; total: number };
   notes?: ReactNode;
   signatures?: string[];
 }) {
-  const { subtotal, vat, total } = totalsOf(lines, vatRate);
+  const { subtotal, vat, total } = totals ?? totalsOf(lines, vatRate);
   return (
     <Paper>
       <div className="flex flex-wrap items-start justify-between gap-6 border-b-2 border-slate-800 pb-4">

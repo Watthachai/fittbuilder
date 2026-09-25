@@ -24,6 +24,7 @@ export function filesFor(id: string, names: string[]): Record<string, string> {
 export const SHARED_SOURCES: Record<string, string> = {
   "src/modules/ui.tsx": MODULE_SOURCES["ui.tsx"],
   "src/modules/kit.tsx": MODULE_SOURCES["kit.tsx"],
+  "src/modules/company.ts": MODULE_SOURCES["company.ts"],
 };
 
 /**

@@ -1,24 +1,28 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import type { ReactNode } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import {
-  ArrowRight, Banknote, Briefcase, Building, Cake, CalendarClock, CalendarDays, CircleCheck, CircleDashed,
-  CircleX, Clock3, Contact, CreditCard, Ellipsis, FileText, Gift, Heart, Hourglass, IdCard, Landmark, Mail,
-  MapPin, MessageSquare, Phone, PiggyBank, Plus, ScanFace, Search as SearchIcon, Send, ShieldCheck, Sparkles,
-  TrendingUp, UserMinus, UserPlus, UserRound, Users, Wallet,
+  ArrowRight, Banknote, Bell, Briefcase, Building, Cake, CalendarClock, CalendarDays, CircleCheck, CircleDashed,
+  CircleX, Clock3, Contact, CreditCard, Download, Ellipsis, FileText, Gift, Heart, Hourglass, IdCard, Landmark, Mail,
+  MapPin, MessageSquare, Pencil, Phone, PiggyBank, Plus, Printer, ScanFace, Search as SearchIcon, Send, ShieldCheck,
+  Stamp, TrendingUp, UserMinus, UserPlus, UserRound, Users, Wallet,
 } from "lucide-react";
 import {
-  ACTIVITY, EMPLOYEES, EVENT_TYPES, GENDER, TODAY, ageOf, baht, daysBetween,
-  documentsOf, headcountTrend, hiredIn, leftIn, tenureYears, upcoming,
+  ACTIVITY, EMPLOYEES, GENDER, PERSONNEL_ACTIONS, PROBATION_DAYS, TODAY, actionsOf, addNote, ageOf, baht, daysBetween,
+  departments, documentsOf, headcountTrend, hiredIn, isFixedTerm, leftIn, pendingActions, remindDocuments,
+  setDocumentReceived, ssoContribution, tenureYears, thaiDate, upcoming,
 } from "./data";
-import type { ActivityEntry, Employee, PersonnelEvent } from "./data";
+import type { ActivityEntry, Employee, PersonnelAction } from "./data";
 import {
-  Avatar, Badge, Button, Card, Chip, ColumnChart, Donut, Dot, FIELD, Gauge, IconButton, IconRow, Note,
+  Avatar, Badge, Button, Card, Chip, ColumnChart, Donut, Dot, Gauge, IconButton, IconRow, Note,
   PageHead, Progress, Reveal, Search, SectionTitle, Segmented, Select, StatStrip, Stepper, SURFACE, Tabs,
   Tag, Timeline, TintCard, ViewToggle, WeekStrip, enter, swatchFor,
 } from "../ui";
-import { ConfirmDialog, DataTable, DetailModal, Field, FormModal, Wizard } from "../kit";
-import type { Column, Step } from "../kit";
+import { DataTable, DetailModal, downloadCsv, money, notify, useData } from "../kit";
+import type { Column } from "../kit";
+import { PaSheets } from "./actions";
+import type { Sheet } from "./actions";
+import { ACTION_TONE, GenderMark, RowButton, StatusBadge, actionSummary, deptSwatch } from "./parts";
 
 const TABS = [
   "ข้อมูลส่วนตัว",
@@ -32,16 +36,6 @@ const TABS = [
 const RECORD_TABS = [...TABS, "กิจกรรม"];
 
 const STATUSES = ["ทั้งหมด", "ทำงานอยู่", "ทดลองงาน", "ลาออก"] as const;
-
-const RESIGN_REASONS = [
-  "เลือกเหตุผล",
-  "ลาออกตามความสมัครใจ",
-  "ได้งานใหม่",
-  "ย้ายภูมิลำเนา",
-  "ปัญหาสุขภาพ",
-  "หมดสัญญาจ้าง",
-  "อื่น ๆ",
-];
 
 const STEP_ICONS = {
   done: <CircleCheck size={15} />,
@@ -59,36 +53,14 @@ const TAB_ICONS: Record<string, ReactNode> = {
   "กิจกรรม": <Clock3 size={14} />,
 };
 
-/* ------------------------------------------------------------------ draft */
-
-type Draft = {
-  name: string; nickname: string; position: string; department: string;
-  birthDate: string; nationalId: string; phone: string; email: string;
-  type: string; startedAt: string; baseSalary: string;
-  ssoNumber: string; bankName: string; bankAccount: string;
-};
-
-const EMPTY: Draft = {
-  name: "", nickname: "", position: "", department: "ฝ่ายขาย",
-  birthDate: "", nationalId: "", phone: "", email: "",
-  type: "พนักงานประจำ", startedAt: TODAY, baseSalary: "",
-  ssoNumber: "", bankName: "กสิกรไทย", bankAccount: "",
-};
-
-const DEPARTMENTS = [...new Set(EMPLOYEES.map((e) => e.department))];
-
 /**
- * Colour keys. Departments take their swatch from catalogue order so ฝ่ายขาย is
- * the same hue on the donut, the chip and the list; event kinds are ordered by
- * hand so the alarming ones land on the alarming colours.
+ * Colour keys. Departments take theirs from catalogue order (parts.tsx); event
+ * kinds are ordered by hand so the alarming ones land on the alarming colours.
  */
-const deptSwatch = (name: string) => swatchFor(name, DEPARTMENTS);
-const EVENT_ORDER = ["ปรับเงินเดือน", "ย้ายแผนก", "รับเข้าทำงาน", "ต่อสัญญา", "ลาออก", "เลื่อนตำแหน่ง"];
+const EVENT_ORDER = ["ปรับเงินเดือน", "ย้ายแผนก", "รับเข้าทำงาน", "ต่อสัญญา", "ลาออก", "เลื่อนตำแหน่ง", "ผ่านทดลองงาน", "ตักเตือน"];
 const eventSwatch = (type: string) => swatchFor(type, EVENT_ORDER);
 const KIND_ORDER = ["ครบรอบการทำงาน", "", "", "ครบกำหนดทดลองงาน", "สัญญาหมดอายุ"];
 const kindSwatch = (kind: string) => swatchFor(kind, KIND_ORDER);
-const CONTRACT_TYPES = ["พนักงานประจำ", "สัญญาจ้าง 1 ปี", "พนักงานรายวัน", "พนักงานชั่วคราว"];
-const BANKS = ["กสิกรไทย", "ไทยพาณิชย์", "กรุงไทย", "กรุงเทพ", "กรุงศรีอยุธยา"];
 
 /* ----------------------------------------------------------------- screen */
 
@@ -100,6 +72,9 @@ export default function PaScreen({
   /** The host's way of moving to a capability, so "ดูทั้งหมด" can point somewhere. */
   onOpenSection?: (index: number) => void;
 }) {
+  // Every screen that reads the register redraws when any record changes.
+  useData();
+
   // The section chosen in the navigation decides which columns the register
   // shows and which part of a record opens first. Without one, the overview.
   const tab = section && TABS.includes(section) ? section : undefined;
@@ -108,89 +83,121 @@ export default function PaScreen({
   const [status, setStatus] = useState<(typeof STATUSES)[number]>("ทั้งหมด");
   const [dept, setDept] = useState("ทุกแผนก");
   const [view, setView] = useState<"list" | "grid">("list");
-  const [openAt, setOpenAt] = useState<number | null>(null);
-  const [adding, setAdding] = useState(false);
-  const [draft, setDraft] = useState<Draft>(EMPTY);
-  const [added, setAdded] = useState<Employee[]>([]);
-  const [events, setEvents] = useState<Record<number, PersonnelEvent[]>>({});
-  const [resigned, setResigned] = useState<number[]>([]);
+  // The open record is held by id, so a change that moves it out of the current
+  // filter (someone leaves while "ทำงานอยู่" is showing) does not swap the person.
+  const [openId, setOpenId] = useState<number | null>(null);
   const [favourites, setFavourites] = useState<number[]>([1]);
-  const [notes, setNotes] = useState<Record<number, ActivityEntry[]>>({});
-  const [resigning, setResigning] = useState<Employee | null>(null);
+  const [sheet, setSheet] = useState<Sheet | null>(null);
 
-  const people = useMemo(() => [...EMPLOYEES, ...added], [added]);
-  const statusOf = (e: Employee) => (resigned.includes(e.id) ? "ลาออก" : e.status);
-  const eventsOf = (e: Employee) => [...e.events, ...(events[e.id] ?? [])];
-  const activityOf = (e: Employee) => [...(ACTIVITY[e.id] ?? []), ...(notes[e.id] ?? [])];
-
+  const people = EMPLOYEES;
   const rows = people.filter(
     (e) =>
-      (status === "ทั้งหมด" || statusOf(e) === status) &&
+      (status === "ทั้งหมด" || e.status === status) &&
       (dept === "ทุกแผนก" || e.department === dept) &&
       (q.trim() === "" ||
         [e.name, e.nickname, e.code, e.position].some((t) => t.toLowerCase().includes(q.trim().toLowerCase())))
   );
-  const picked = openAt === null ? null : (rows[openAt] ?? null);
+  const picked = openId === null ? null : (people.find((e) => e.id === openId) ?? null);
+  const at = picked ? rows.indexOf(picked) : -1;
 
   const counts = Object.fromEntries(
-    STATUSES.map((s) => [s, s === "ทั้งหมด" ? people.length : people.filter((e) => statusOf(e) === s).length])
+    STATUSES.map((s) => [s, s === "ทั้งหมด" ? people.length : people.filter((e) => e.status === s).length])
   );
 
-  const addEvent = (id: number, ev: PersonnelEvent) =>
-    setEvents((m) => ({ ...m, [id]: [...(m[id] ?? []), ev] }));
-  const addNote = (id: number, entry: ActivityEntry) =>
-    setNotes((m) => ({ ...m, [id]: [...(m[id] ?? []), entry] }));
   const toggleFavourite = (id: number) =>
     setFavourites((f) => (f.includes(id) ? f.filter((x) => x !== id) : [...f, id]));
 
-  const commitResignation = (e: Employee, reason: string, message: string) => {
-    setResigned((prev) => [...new Set([...prev, e.id])]);
-    addEvent(e.id, { date: TODAY, type: "ลาออก", detail: reason + (message ? " · แจ้งพนักงานแล้ว" : "") });
-    addNote(e.id, { date: TODAY, time: "ตอนนี้", actor: "คุณ", text: "บันทึกการลาออก", target: reason });
-    setResigning(null);
-  };
+  const sheets = <PaSheets sheet={sheet} onSheet={setSheet} onHired={(e) => setOpenId(e.id)} />;
 
   /* ------------------------------------------------------------ figures */
-  const active = people.filter((e) => statusOf(e) !== "ลาออก");
-  const probation = active.filter((e) => statusOf(e) === "ทดลองงาน");
+  const active = people.filter((e) => e.status !== "ลาออก");
+  const probation = active.filter((e) => e.status === "ทดลองงาน");
   const expiring = active.filter(
     (e) => e.contract.endsAt && daysBetween(TODAY, e.contract.endsAt) <= 90 && daysBetween(TODAY, e.contract.endsAt) >= 0
   );
-  const left = people.filter((e) => statusOf(e) === "ลาออก");
+  const left = people.filter((e) => e.status === "ลาออก");
   const year = TODAY.slice(0, 4);
   const hires = hiredIn(year);
-  const leavers = leftIn(year).length + resigned.length;
+  const leavers = leftIn(year).length;
   const avgTenure = active.length ? active.reduce((n, e) => n + tenureYears(e), 0) / active.length : 0;
   const soonest = expiring.map((e) => daysBetween(TODAY, e.contract.endsAt!)).sort((a, b) => a - b)[0];
 
+  const index = (
+    <div hidden data-fitt-index>
+      <button data-fitt-screen="ทะเบียนพนักงาน" />
+      <button data-fitt-screen="แฟ้มประวัติพนักงาน" data-fitt-modal onClick={() => setOpenId(people[0].id)} />
+      <button data-fitt-screen="เพิ่มพนักงานใหม่" data-fitt-modal onClick={() => setSheet({ kind: "hire" })} />
+      <button data-fitt-screen="แก้ไขข้อมูลส่วนตัว" data-fitt-modal onClick={() => setSheet({ kind: "personal", id: people[0].id })} />
+      <button data-fitt-screen="แก้ไขเงื่อนไขการจ้าง" data-fitt-modal onClick={() => setSheet({ kind: "contract", id: active[0].id })} />
+      <button
+        data-fitt-screen="ต่อสัญญาจ้าง"
+        data-fitt-modal
+        onClick={() => {
+          const e = active.find((x) => x.contract.endsAt && isFixedTerm(x.contract.type));
+          if (e) setSheet({ kind: "renew", id: e.id });
+        }}
+      />
+      <button
+        data-fitt-screen="ผ่านการทดลองงาน"
+        data-fitt-modal
+        onClick={() => {
+          if (probation[0]) setSheet({ kind: "probation", id: probation[0].id });
+        }}
+      />
+      <button data-fitt-screen="แก้ไขข้อมูลทางปกครอง" data-fitt-modal onClick={() => setSheet({ kind: "admin", id: active[0].id })} />
+      <button data-fitt-screen="ลงทะเบียนสวัสดิการ" data-fitt-modal onClick={() => setSheet({ kind: "benefits", id: active[0].id })} />
+      <button data-fitt-screen="ขอเปลี่ยนแปลงทางบุคคล" data-fitt-modal onClick={() => setSheet({ kind: "action", id: null, preset: "ย้ายแผนก" })} />
+      <button data-fitt-screen="ปรับเงินเดือนประจำปี" data-fitt-modal onClick={() => setSheet({ kind: "raise", ids: active.map((e) => e.id) })} />
+      <button
+        data-fitt-screen="อนุมัติคำขอเปลี่ยนแปลงทางบุคคล"
+        data-fitt-modal
+        onClick={() => {
+          const a = pendingActions()[0];
+          if (a) setSheet({ kind: "decide", actionId: a.id, approve: true });
+        }}
+      />
+      <button
+        data-fitt-screen="ไม่อนุมัติคำขอเปลี่ยนแปลงทางบุคคล"
+        data-fitt-modal
+        onClick={() => {
+          const a = pendingActions()[0];
+          if (a) setSheet({ kind: "decide", actionId: a.id, approve: false });
+        }}
+      />
+      <button data-fitt-screen="บันทึกการพ้นสภาพ" data-fitt-modal onClick={() => setSheet({ kind: "separate", id: active[0].id })} />
+      <button data-fitt-screen="หนังสือรับรองการทำงาน" data-fitt-modal onClick={() => setSheet({ kind: "certificate", id: people[0].id, letter: "หนังสือรับรองการทำงาน" })} />
+      <button data-fitt-screen="หนังสือรับรองเงินเดือน" data-fitt-modal onClick={() => setSheet({ kind: "certificate", id: active[0].id, letter: "หนังสือรับรองเงินเดือน" })} />
+      <button data-fitt-screen="สัญญาจ้างแรงงาน" data-fitt-modal onClick={() => setSheet({ kind: "contractDoc", id: people[0].id })} />
+      <button
+        data-fitt-screen="คำสั่งบริษัท"
+        data-fitt-modal
+        onClick={() => {
+          const a = PERSONNEL_ACTIONS.find((x) => x.status === "อนุมัติแล้ว");
+          if (a) setSheet({ kind: "order", actionId: a.id });
+        }}
+      />
+    </div>
+  );
+
   if (!tab) {
     return (
-      <Dashboard
-        people={people}
-        statusOf={statusOf}
-        eventsOf={eventsOf}
-        onOpenSection={onOpenSection}
-        onOpen={(e) => {
-          // The register list is the pager's universe; open the person there.
-          setStatus("ทั้งหมด");
-          setDept("ทุกแผนก");
-          setQ("");
-          setOpenAt(people.indexOf(e));
-        }}
-        openAt={openAt}
-        picked={picked}
-        onClose={() => setOpenAt(null)}
-        activityOf={activityOf}
-        favourites={favourites}
-        toggleFavourite={toggleFavourite}
-        addEvent={addEvent}
-        addNote={addNote}
-        setResigning={setResigning}
-        resigning={resigning}
-        commitResignation={commitResignation}
-      />
+      <>
+        <Dashboard
+          onOpenSection={onOpenSection}
+          onOpen={(e) => setOpenId(e.id)}
+          picked={picked}
+          onClose={() => setOpenId(null)}
+          favourites={favourites}
+          toggleFavourite={toggleFavourite}
+          onSheet={setSheet}
+        />
+        {sheets}
+        {index}
+      </>
     );
   }
+
+  const csv = csvFor(tab);
 
   return (
     <div>
@@ -240,22 +247,47 @@ export default function PaScreen({
         </div>
       </Reveal>
 
+      {tab === "ข้อมูลสัญญาจ้าง" && (
+        <Reveal delay={0.04} className="mt-4">
+          <ContractDue people={active} onOpen={(e) => setOpenId(e.id)} onSheet={setSheet} />
+        </Reveal>
+      )}
+
+      {tab === "เหตุการณ์ทางบุคคล" && (
+        <Reveal delay={0.04} className="mt-4">
+          <ActionQueue onOpen={(e) => setOpenId(e.id)} onSheet={setSheet} />
+        </Reveal>
+      )}
+
       <Reveal delay={0.08} className="mt-4">
         <div className="mb-3 flex flex-wrap items-center gap-2">
           <Search value={q} onChange={setQ} placeholder="ค้นหาชื่อ ชื่อเล่น รหัส ตำแหน่ง" icon={<SearchIcon size={14} />} className="w-56" />
           <span className="mx-1 hidden h-6 w-px bg-slate-200 sm:block dark:bg-slate-700" />
           <ViewToggle value={view} onChange={setView} />
           <Segmented options={STATUSES} value={status} onChange={(v) => setStatus(v as (typeof STATUSES)[number])} counts={counts} />
-          <Select value={dept} onChange={setDept} options={["ทุกแผนก", ...DEPARTMENTS]} className="w-40" />
+          <Select value={dept} onChange={setDept} options={["ทุกแผนก", ...departments()]} className="w-40" />
           <span className="ml-auto" />
           <Button
-            variant="primary"
-            icon={<Plus size={15} />}
+            variant="secondary"
+            icon={<Download size={15} />}
             onClick={() => {
-              setDraft(EMPTY);
-              setAdding(true);
+              downloadCsv(`ทะเบียนพนักงาน-${tab}-${TODAY}`, csv.header, rows.map(csv.row));
+              notify(`ส่งออก${tab} ${rows.length} คนเป็นไฟล์ Excel แล้ว`);
             }}
           >
+            ส่งออก Excel
+          </Button>
+          {tab === "เหตุการณ์ทางบุคคล" && (
+            <Button variant="secondary" icon={<Stamp size={15} />} onClick={() => setSheet({ kind: "action", id: null, preset: "ย้ายแผนก" })}>
+              ขอเปลี่ยนแปลงทางบุคคล
+            </Button>
+          )}
+          {tab === "ค่าตอบแทนและสวัสดิการ" && (
+            <Button variant="secondary" icon={<Banknote size={15} />} onClick={() => setSheet({ kind: "action", id: null, preset: "ปรับเงินเดือน" })}>
+              ขอปรับเงินเดือน
+            </Button>
+          )}
+          <Button variant="primary" icon={<Plus size={15} />} onClick={() => setSheet({ kind: "hire" })}>
             เพิ่มพนักงาน
           </Button>
         </div>
@@ -265,28 +297,56 @@ export default function PaScreen({
               <DataTable
                 rows={rows}
                 getId={(e) => e.id}
-                onOpen={(e) => setOpenAt(rows.indexOf(e))}
+                onOpen={(e) => setOpenId(e.id)}
                 selectable
-                columns={columnsFor(tab, statusOf, eventsOf)}
+                columns={columnsFor(tab)}
                 trailing={(e) => (
                   <span className="inline-flex items-center gap-1">
                     <FavouriteButton on={favourites.includes(e.id)} onToggle={() => toggleFavourite(e.id)} />
-                    <IconButton label="เปิดแฟ้ม" onClick={() => setOpenAt(rows.indexOf(e))} className="border-transparent bg-transparent dark:bg-transparent">
+                    <IconButton label="เปิดแฟ้ม" onClick={() => setOpenId(e.id)} className="border-transparent bg-transparent dark:bg-transparent">
                       <Ellipsis size={15} />
                     </IconButton>
                   </span>
                 )}
-                bulkActions={(selected) => (
-                  <button
-                    onClick={() => {
-                      const first = selected.find((e) => statusOf(e) !== "ลาออก");
-                      if (first) setResigning(first);
-                    }}
-                    disabled={selected.every((e) => statusOf(e) === "ลาออก")}
-                    className="rounded-lg border border-rose-300 px-2.5 py-1 text-[12px] text-rose-700 transition hover:bg-rose-50 disabled:opacity-40 dark:border-rose-500/40 dark:text-rose-300 dark:hover:bg-rose-500/10"
-                  >
-                    บันทึกการลาออก
-                  </button>
+                bulkActions={(selected, clear) => (
+                  <>
+                    {tab === "ข้อมูลทางปกครอง" && (
+                      <RowButton
+                        icon={<Bell size={12} />}
+                        onClick={() => {
+                          const n = remindDocuments(selected.map((e) => e.id));
+                          notify(n ? `ส่งเตือนขอเอกสาร ${n} คนแล้ว` : "ทุกคนที่เลือกยื่นเอกสารครบแล้ว", n ? "ok" : "idle");
+                          clear();
+                        }}
+                      >
+                        ส่งเตือนขอเอกสาร
+                      </RowButton>
+                    )}
+                    {tab === "ค่าตอบแทนและสวัสดิการ" && (
+                      <RowButton icon={<TrendingUp size={12} />} onClick={() => setSheet({ kind: "raise", ids: selected.map((e) => e.id) })}>
+                        ปรับเงินเดือนประจำปี
+                      </RowButton>
+                    )}
+                    <RowButton
+                      icon={<Download size={12} />}
+                      onClick={() => {
+                        downloadCsv(`ทะเบียนพนักงาน-${tab}-ที่เลือก-${TODAY}`, csv.header, selected.map(csv.row));
+                        notify(`ส่งออก ${selected.length} คนที่เลือกเป็นไฟล์ Excel แล้ว`);
+                      }}
+                    >
+                      ส่งออกที่เลือก
+                    </RowButton>
+                    <button
+                      onClick={() => {
+                        const first = selected.find((e) => e.status !== "ลาออก");
+                        if (first) setSheet({ kind: "separate", id: first.id });
+                      }}
+                      disabled={selected.every((e) => e.status === "ลาออก")}
+                      className="rounded-lg border border-rose-300 px-2.5 py-1 text-[12px] text-rose-700 transition hover:bg-rose-50 disabled:opacity-40 dark:border-rose-500/40 dark:text-rose-300 dark:hover:bg-rose-500/10"
+                    >
+                      บันทึกการลาออก
+                    </button>
+                  </>
                 )}
               />
             </motion.div>
@@ -302,11 +362,10 @@ export default function PaScreen({
                 <PersonCard
                   key={e.id}
                   employee={e}
-                  status={statusOf(e)}
                   index={i}
                   favourite={favourites.includes(e.id)}
                   onFavourite={() => toggleFavourite(e.id)}
-                  onOpen={() => setOpenAt(i)}
+                  onOpen={() => setOpenId(e.id)}
                 />
               ))}
               {rows.length === 0 && (
@@ -319,93 +378,186 @@ export default function PaScreen({
       <DetailModal
         open={picked !== null}
         title="แฟ้มพนักงาน"
-        onClose={() => setOpenAt(null)}
-        index={openAt ?? 0}
+        onClose={() => setOpenId(null)}
+        index={Math.max(0, at)}
         total={rows.length}
-        onStep={(d) => setOpenAt((i) => (i === null ? i : Math.max(0, Math.min(rows.length - 1, i + d))))}
+        // The pager listens for arrow keys on the whole window; while a form is
+        // open over the record, those keys belong to the text being typed.
+        onStep={
+          sheet
+            ? undefined
+            : (d) => {
+                const next = rows[Math.max(0, Math.min(rows.length - 1, at + d))];
+                if (next) setOpenId(next.id);
+              }
+        }
       >
         {picked && (
           <Record
             key={picked.id}
             employee={picked}
-            status={statusOf(picked)}
-            events={eventsOf(picked)}
-            activity={activityOf(picked)}
             favourite={favourites.includes(picked.id)}
             openAt={tab ?? TABS[0]}
             onFavourite={() => toggleFavourite(picked.id)}
-            onAddEvent={(ev) => addEvent(picked.id, ev)}
-            onAddNote={(entry) => addNote(picked.id, entry)}
-            onResign={() => setResigning(picked)}
+            onSheet={setSheet}
           />
         )}
       </DetailModal>
 
-      <FormModal
-        open={adding}
-        title="เพิ่มพนักงานใหม่"
-        subtitle="กรอกสามขั้นตอน ระบบตรวจความถูกต้องให้ก่อนไปขั้นถัดไป"
-        onClose={() => setAdding(false)}
-      >
-        <NewEmployee
-          draft={draft}
-          setDraft={setDraft}
-          onCancel={() => setAdding(false)}
-          onDone={() => {
-            setAdded((prev) => [...prev, employeeFrom(draft, people.length + 1)]);
-            setAdding(false);
-          }}
-        />
-      </FormModal>
-
-      <ResignDialog employee={resigning} onCancel={() => setResigning(null)} onConfirm={commitResignation} />
-
-      <div hidden data-fitt-index>
-        <button data-fitt-screen="ทะเบียนพนักงาน" />
-        <button data-fitt-screen="แฟ้มประวัติพนักงาน" data-fitt-modal onClick={() => setOpenAt(0)} />
-      </div>
+      {sheets}
+      {index}
     </div>
+  );
+}
+
+/* ------------------------------------------------------ section helpers */
+
+/** What the contract section is for: the probations to decide and the contracts to renew. */
+function ContractDue({
+  people,
+  onOpen,
+  onSheet,
+}: {
+  people: Employee[];
+  onOpen: (e: Employee) => void;
+  onSheet: (s: Sheet) => void;
+}) {
+  const due = [
+    ...people
+      .filter((e) => e.status === "ทดลองงาน")
+      .map((e) => ({ e, kind: "ครบกำหนดทดลองงาน", date: e.contract.probationUntil })),
+    ...people
+      .filter((e) => e.contract.endsAt && daysBetween(TODAY, e.contract.endsAt) <= 120)
+      .map((e) => ({ e, kind: "สัญญาหมดอายุ", date: e.contract.endsAt! })),
+  ].sort((a, b) => a.date.localeCompare(b.date));
+
+  return (
+    <Card
+      title={<span className="flex items-center gap-2"><CalendarClock size={15} className="text-slate-400" />ต้องดำเนินการเรื่องสัญญา</span>}
+      subtitle={`ทดลองงานไม่เกิน ${PROBATION_DAYS} วัน และสัญญาที่หมดใน 120 วัน`}
+    >
+      {due.length === 0 ? (
+        <p className="py-6 text-center text-[12.5px] text-slate-400">ไม่มีทดลองงานหรือสัญญาที่ต้องตัดสินใจในช่วงนี้</p>
+      ) : (
+        <ul className="divide-y divide-slate-100 dark:divide-slate-800">
+          {due.map(({ e, kind, date }) => {
+            const inDays = daysBetween(TODAY, date);
+            return (
+              <li key={e.id + kind} className="flex flex-wrap items-center gap-3 px-4 py-2.5">
+                <Avatar name={e.name} size="sm" />
+                <button onClick={() => onOpen(e)} className="min-w-0 flex-1 text-left">
+                  <span className="block truncate text-[13px] font-medium text-slate-900 hover:text-violet-700 dark:text-slate-50">{e.name}</span>
+                  <span className="block truncate text-[11.5px] text-slate-400">{e.position} · {e.contract.type}</span>
+                </button>
+                <Tag swatch={kindSwatch(kind)}>{kind}</Tag>
+                <Badge tone={inDays < 0 ? "bad" : inDays <= 30 ? "warn" : "info"}>
+                  {inDays < 0 ? `เลยกำหนด ${-inDays} วัน` : `${date} · อีก ${inDays} วัน`}
+                </Badge>
+                {kind === "ครบกำหนดทดลองงาน" ? (
+                  <RowButton tone="go" onClick={() => onSheet({ kind: "probation", id: e.id })}>ประเมินผ่านทดลองงาน</RowButton>
+                ) : (
+                  <RowButton tone="go" onClick={() => onSheet({ kind: "renew", id: e.id })}>ต่อสัญญา</RowButton>
+                )}
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </Card>
+  );
+}
+
+/** Requests waiting for a decision first, then the latest ones decided. */
+function ActionQueue({ onOpen, onSheet, limit = 6 }: { onOpen: (e: Employee) => void; onSheet: (s: Sheet) => void; limit?: number }) {
+  const pending = pendingActions().sort((a, b) => a.requestedAt.localeCompare(b.requestedAt));
+  const decided = PERSONNEL_ACTIONS.filter((a) => a.status !== "รออนุมัติ")
+    .sort((a, b) => (b.decidedAt ?? "").localeCompare(a.decidedAt ?? ""))
+    .slice(0, Math.max(0, limit - pending.length));
+
+  return (
+    <Card
+      title={<span className="flex items-center gap-2"><Stamp size={15} className="text-slate-400" />คำขอเปลี่ยนแปลงทางบุคคล</span>}
+      subtitle="โยกย้าย เลื่อนตำแหน่ง ปรับเงินเดือน ตักเตือน — แฟ้มเปลี่ยนเมื่ออนุมัติ"
+      action={<Badge tone={pending.length ? "warn" : "ok"}>{pending.length ? `รออนุมัติ ${pending.length}` : "ไม่มีค้าง"}</Badge>}
+    >
+      <ActionList actions={[...pending, ...decided]} onOpen={onOpen} onSheet={onSheet} empty="ยังไม่มีคำขอ" />
+    </Card>
+  );
+}
+
+function ActionList({
+  actions,
+  onOpen,
+  onSheet,
+  empty,
+}: {
+  actions: PersonnelAction[];
+  onOpen?: (e: Employee) => void;
+  onSheet: (s: Sheet) => void;
+  empty: string;
+}) {
+  if (actions.length === 0) return <p className="py-6 text-center text-[12.5px] text-slate-400">{empty}</p>;
+  return (
+    <ul className="divide-y divide-slate-100 dark:divide-slate-800">
+      {actions.map((a) => {
+        const e = EMPLOYEES.find((x) => x.id === a.employeeId)!;
+        return (
+          <li key={a.id} className="flex flex-wrap items-center gap-x-3 gap-y-1.5 px-4 py-2.5">
+            <span className="w-28 shrink-0 font-mono text-[11.5px] text-slate-400">{a.id}</span>
+            <span className="min-w-0 flex-1">
+              {onOpen ? (
+                <button onClick={() => onOpen(e)} className="block truncate text-left text-[13px] font-medium text-slate-900 hover:text-violet-700 dark:text-slate-50">
+                  {e.name}
+                </button>
+              ) : null}
+              <span className="block truncate text-[12px] text-slate-500 dark:text-slate-400">{actionSummary(a)}</span>
+            </span>
+            <Tag swatch={eventSwatch(a.kind)}>{a.kind}</Tag>
+            <span className="shrink-0 text-[11.5px] tabular-nums text-slate-400">มีผล {a.effectiveDate}</span>
+            <Badge tone={ACTION_TONE[a.status]}>{a.status}</Badge>
+            {a.status === "รออนุมัติ" && (
+              <span className="flex gap-1.5">
+                <RowButton tone="go" onClick={() => onSheet({ kind: "decide", actionId: a.id, approve: true })}>อนุมัติ</RowButton>
+                <RowButton tone="stop" onClick={() => onSheet({ kind: "decide", actionId: a.id, approve: false })}>ไม่อนุมัติ</RowButton>
+              </span>
+            )}
+            {a.status === "อนุมัติแล้ว" && (
+              <RowButton icon={<Printer size={12} />} onClick={() => onSheet({ kind: "order", actionId: a.id })}>
+                {a.kind === "ตักเตือน" ? "พิมพ์หนังสือเตือน" : "พิมพ์คำสั่ง"}
+              </RowButton>
+            )}
+            {a.status === "ไม่อนุมัติ" && a.decisionNote && (
+              <span className="w-full pl-[7.75rem] text-[11.5px] text-slate-400">เหตุผล: {a.decisionNote}</span>
+            )}
+          </li>
+        );
+      })}
+    </ul>
   );
 }
 
 /* ------------------------------------------------------------- dashboard */
 
 function Dashboard({
-  people,
-  statusOf,
-  eventsOf,
   onOpenSection,
   onOpen,
-  openAt,
   picked,
   onClose,
-  activityOf,
   favourites,
   toggleFavourite,
-  addEvent,
-  addNote,
-  setResigning,
-  resigning,
-  commitResignation,
+  onSheet,
 }: {
-  people: Employee[];
-  statusOf: (e: Employee) => string;
-  eventsOf: (e: Employee) => PersonnelEvent[];
   onOpenSection?: (index: number) => void;
   onOpen: (e: Employee) => void;
-  openAt: number | null;
   picked: Employee | null;
   onClose: () => void;
-  activityOf: (e: Employee) => ActivityEntry[];
   favourites: number[];
   toggleFavourite: (id: number) => void;
-  addEvent: (id: number, ev: PersonnelEvent) => void;
-  addNote: (id: number, entry: ActivityEntry) => void;
-  setResigning: (e: Employee | null) => void;
-  resigning: Employee | null;
-  commitResignation: (e: Employee, reason: string, message: string) => void;
+  onSheet: (s: Sheet) => void;
 }) {
-  const active = people.filter((e) => statusOf(e) !== "ลาออก");
+  useData();
+  const people = EMPLOYEES;
+  const active = people.filter((e) => e.status !== "ลาออก");
 
   // Documents: one gauge for the whole register, then who is short.
   const docs = active.map((e) => ({ e, list: documentsOf(e) }));
@@ -415,7 +567,7 @@ function Dashboard({
   const complete = docs.filter((x) => x.list.every((d) => d.done));
 
   // Headcount by department, coloured by catalogue order.
-  const byDept = DEPARTMENTS.map((d) => ({
+  const byDept = departments().map((d) => ({
     label: d,
     value: active.filter((e) => e.department === d).length,
     swatch: deptSwatch(d),
@@ -440,12 +592,12 @@ function Dashboard({
   });
   const agenda = todo.filter((t) => t.date >= day).slice(0, 4);
 
-  const probation = active.filter((e) => statusOf(e) === "ทดลองงาน");
+  const probation = active.filter((e) => e.status === "ทดลองงาน");
   const fixedTerm = active.filter((e) => e.contract.endsAt);
-  const gone = people.filter((e) => statusOf(e) === "ลาออก");
+  const gone = people.filter((e) => e.status === "ลาออก");
 
   const recent = people
-    .flatMap((e) => eventsOf(e).map((ev) => ({ ...ev, e })))
+    .flatMap((e) => e.events.map((ev) => ({ ...ev, e })))
     .sort((a, b) => b.date.localeCompare(a.date))
     .slice(0, 6);
 
@@ -467,11 +619,16 @@ function Dashboard({
         title="ภาพรวมทะเบียนพนักงาน"
         meta={`${active.length} คนที่ทำงานอยู่ · ข้อมูล ณ ${TODAY} · ทุกตัวเลขคำนวณจากทะเบียน ไม่ได้พิมพ์ทิ้งไว้`}
         right={
-          onOpenSection ? (
-            <Button variant="primary" icon={<Users size={15} />} onClick={() => onOpenSection(0)}>
-              เปิดรายชื่อพนักงาน
+          <div className="flex flex-wrap gap-2">
+            <Button variant="secondary" icon={<Plus size={15} />} onClick={() => onSheet({ kind: "hire" })}>
+              เพิ่มพนักงาน
             </Button>
-          ) : undefined
+            {onOpenSection && (
+              <Button variant="primary" icon={<Users size={15} />} onClick={() => onOpenSection(0)}>
+                เปิดรายชื่อพนักงาน
+              </Button>
+            )}
+          </div>
         }
       />
 
@@ -531,7 +688,20 @@ function Dashboard({
                         <Avatar name={t.name} size="sm" />
                       </div>
                       <div className="mt-3 flex items-center justify-between gap-2">
-                        <span className="text-[11.5px] opacity-75">{t.kind === "สัญญาหมดอายุ" ? "เริ่มกระบวนการต่อสัญญา" : t.kind === "ครบกำหนดทดลองงาน" ? "ประเมินผลก่อนบรรจุ" : "ทบทวนค่าตอบแทนประจำปี"}</span>
+                        <button
+                          onClick={() =>
+                            onSheet(
+                              t.kind === "สัญญาหมดอายุ"
+                                ? { kind: "renew", id: t.employeeId }
+                                : t.kind === "ครบกำหนดทดลองงาน"
+                                  ? { kind: "probation", id: t.employeeId }
+                                  : { kind: "action", id: t.employeeId, preset: "ปรับเงินเดือน" }
+                            )
+                          }
+                          className="rounded-lg bg-white/70 px-2.5 py-1 text-[11.5px] font-medium transition hover:bg-white dark:bg-slate-900/40 dark:hover:bg-slate-900/70"
+                        >
+                          {t.kind === "สัญญาหมดอายุ" ? "ต่อสัญญา" : t.kind === "ครบกำหนดทดลองงาน" ? "ประเมินผ่านทดลองงาน" : "ทบทวนค่าตอบแทน"}
+                        </button>
                         <Tag swatch={sw}>{t.kind}</Tag>
                       </div>
                     </TintCard>
@@ -580,7 +750,7 @@ function Dashboard({
               </TrackerGroup>
               <TrackerGroup label="ลาออกแล้ว" empty="ยังไม่มีในปีนี้">
                 {gone.map((e) => (
-                  <TrackerRow key={e.id} e={e} onOpen={onOpen} sub={eventsOf(e).find((ev) => ev.type === "ลาออก")?.date ?? ""}>
+                  <TrackerRow key={e.id} e={e} onOpen={onOpen} sub={e.separation ? `${e.separation.kind} · ${e.separation.lastDay}` : ""}>
                     <Badge tone="idle" icon={<UserMinus size={11} />}>ลาออก</Badge>
                   </TrackerRow>
                 ))}
@@ -591,7 +761,8 @@ function Dashboard({
       </Reveal>
 
       <Reveal delay={0.16} className="mt-3">
-        <Card title={<span className="flex items-center gap-2"><CalendarClock size={15} className="text-slate-400" />เหตุการณ์ทางบุคคลล่าสุด</span>} action={seeAll(3)}>
+        <div className="grid gap-3 xl:grid-cols-3">
+        <Card className="xl:col-span-2" title={<span className="flex items-center gap-2"><CalendarClock size={15} className="text-slate-400" />เหตุการณ์ทางบุคคลล่าสุด</span>} action={seeAll(3)}>
           <ul className="divide-y divide-slate-100 dark:divide-slate-800">
             {recent.map((ev, i) => {
               const sw = eventSwatch(ev.type);
@@ -618,27 +789,63 @@ function Dashboard({
             })}
           </ul>
         </Card>
+        <Card
+          title={<span className="flex items-center gap-2"><Stamp size={15} className="text-slate-400" />รออนุมัติ</span>}
+          subtitle="คำขอเปลี่ยนแปลงทางบุคคลที่รอผู้มีอำนาจ"
+          action={seeAll(3)}
+        >
+          <PendingList onOpen={onOpen} onSheet={onSheet} />
+        </Card>
+        </div>
       </Reveal>
 
-      <DetailModal open={picked !== null} title="แฟ้มพนักงาน" onClose={onClose} index={openAt ?? 0} total={people.length}>
+      <DetailModal open={picked !== null} title="แฟ้มพนักงาน" onClose={onClose} index={picked ? people.indexOf(picked) : 0} total={people.length}>
         {picked && (
           <Record
             key={picked.id}
             employee={picked}
-            status={statusOf(picked)}
-            events={eventsOf(picked)}
-            activity={activityOf(picked)}
             favourite={favourites.includes(picked.id)}
             openAt={TABS[0]}
             onFavourite={() => toggleFavourite(picked.id)}
-            onAddEvent={(ev) => addEvent(picked.id, ev)}
-            onAddNote={(entry) => addNote(picked.id, entry)}
-            onResign={() => setResigning(picked)}
+            onSheet={onSheet}
           />
         )}
       </DetailModal>
-      <ResignDialog employee={resigning} onCancel={() => setResigning(null)} onConfirm={commitResignation} />
     </div>
+  );
+}
+
+/** The overview's short form of the approval queue: who, what, and the two buttons. */
+function PendingList({ onOpen, onSheet }: { onOpen: (e: Employee) => void; onSheet: (s: Sheet) => void }) {
+  const pending = pendingActions();
+  if (pending.length === 0) {
+    return <p className="py-10 text-center text-[12.5px] text-slate-400">ไม่มีคำขอค้างอนุมัติ</p>;
+  }
+  return (
+    <ul className="divide-y divide-slate-100 dark:divide-slate-800">
+      {pending.map((a) => {
+        const e = EMPLOYEES.find((x) => x.id === a.employeeId)!;
+        return (
+          <li key={a.id} className="space-y-2 px-4 py-3">
+            <div className="flex items-start gap-2.5">
+              <Avatar name={e.name} size="sm" />
+              <button onClick={() => onOpen(e)} className="min-w-0 flex-1 text-left">
+                <span className="block truncate text-[13px] font-medium text-slate-900 hover:text-violet-700 dark:text-slate-50">{e.name}</span>
+                <span className="block truncate text-[11.5px] text-slate-500 dark:text-slate-400">{actionSummary(a)}</span>
+              </button>
+              <Tag swatch={eventSwatch(a.kind)}>{a.kind}</Tag>
+            </div>
+            <div className="flex items-center justify-between gap-2 pl-8">
+              <span className="text-[11px] tabular-nums text-slate-400">{a.id} · มีผล {a.effectiveDate}</span>
+              <span className="flex gap-1.5">
+                <RowButton tone="go" onClick={() => onSheet({ kind: "decide", actionId: a.id, approve: true })}>อนุมัติ</RowButton>
+                <RowButton tone="stop" onClick={() => onSheet({ kind: "decide", actionId: a.id, approve: false })}>ไม่อนุมัติ</RowButton>
+              </span>
+            </div>
+          </li>
+        );
+      })}
+    </ul>
   );
 }
 
@@ -670,16 +877,6 @@ function TrackerRow({ e, sub, onOpen, children }: { e: Employee; sub: string; on
 
 /* ---------------------------------------------------------------- pieces */
 
-function GenderMark({ id }: { id: number }) {
-  const g = GENDER[id];
-  if (!g) return null;
-  return (
-    <span className={"text-[12px] " + (g === "ชาย" ? "text-sky-500" : "text-pink-500")} title={g}>
-      {g === "ชาย" ? "♂" : "♀"}
-    </span>
-  );
-}
-
 function FavouriteButton({ on, onToggle }: { on: boolean; onToggle: () => void }) {
   return (
     <motion.button
@@ -693,20 +890,8 @@ function FavouriteButton({ on, onToggle }: { on: boolean; onToggle: () => void }
   );
 }
 
-function StatusBadge({ status }: { status: string }) {
-  return (
-    <Badge dot tone={status === "ทำงานอยู่" ? "ok" : status === "ทดลองงาน" ? "warn" : "idle"}>
-      {status}
-    </Badge>
-  );
-}
-
 /** Each capability is a different set of columns over the same register. */
-function columnsFor(
-  tab: string | undefined,
-  statusOf: (e: Employee) => string,
-  eventsOf: (e: Employee) => PersonnelEvent[]
-): Column<Employee>[] {
+function columnsFor(tab: string | undefined): Column<Employee>[] {
   const mono = (v: string) => <span className="font-mono text-[12px] text-slate-500 dark:text-slate-400">{v}</span>;
   const head: Column<Employee>[] = [
     { key: "code", header: "รหัส", width: "7.5rem", sort: (a, b) => a.code.localeCompare(b.code), cell: (e) => mono("#" + e.code.slice(4)) },
@@ -738,7 +923,7 @@ function columnsFor(
       key: "tenure", header: "อายุงาน", sort: (a, b) => tenureYears(a) - tenureYears(b),
       cell: (e) => { const y = tenureYears(e); return y < 1 ? "ไม่ถึงปี" : y.toFixed(1) + " ปี"; },
     },
-    { key: "status", header: "สถานะ", cell: (e) => <StatusBadge status={statusOf(e)} /> },
+    { key: "status", header: "สถานะ", cell: (e) => <StatusBadge status={e.status} /> },
   ];
 
   const bySection: Record<string, Column<Employee>[]> = {
@@ -763,7 +948,7 @@ function columnsFor(
           return e.contract.endsAt;
         },
       },
-      { key: "status", header: "สถานะ", cell: (e) => <StatusBadge status={statusOf(e)} /> },
+      { key: "status", header: "สถานะ", cell: (e) => <StatusBadge status={e.status} /> },
     ],
     "ข้อมูลทางปกครอง": [
       { key: "sso", header: "เลขประกันสังคม", cell: (e) => mono(e.admin.ssoNumber) },
@@ -777,10 +962,11 @@ function columnsFor(
       { key: "pvd", header: "กองทุนสำรองฯ", align: "right", sort: (a, b) => a.admin.pvdRate - b.admin.pvdRate, cell: (e) => e.admin.pvdRate + "%" },
     ],
     "เหตุการณ์ทางบุคคล": [
-      { key: "last", header: "เหตุการณ์ล่าสุด", cell: (e) => { const t = eventsOf(e).at(-1)?.type; return t ? <Tag swatch={eventSwatch(t)}>{t}</Tag> : "—"; } },
-      { key: "when", header: "เมื่อ", sort: (a, b) => (eventsOf(a).at(-1)?.date ?? "").localeCompare(eventsOf(b).at(-1)?.date ?? ""), cell: (e) => eventsOf(e).at(-1)?.date ?? "—" },
-      { key: "detail", header: "รายละเอียด", cell: (e) => <span className="text-slate-500">{eventsOf(e).at(-1)?.detail ?? "—"}</span> },
-      { key: "count", header: "ทั้งหมด", align: "right", sort: (a, b) => eventsOf(a).length - eventsOf(b).length, cell: (e) => eventsOf(e).length + " ครั้ง" },
+      { key: "last", header: "เหตุการณ์ล่าสุด", cell: (e) => { const t = e.events.at(-1)?.type; return t ? <Tag swatch={eventSwatch(t)}>{t}</Tag> : "—"; } },
+      { key: "when", header: "เมื่อ", sort: (a, b) => (a.events.at(-1)?.date ?? "").localeCompare(b.events.at(-1)?.date ?? ""), cell: (e) => e.events.at(-1)?.date ?? "—" },
+      { key: "detail", header: "รายละเอียด", cell: (e) => <span className="text-slate-500">{e.events.at(-1)?.detail ?? "—"}</span> },
+      { key: "pending", header: "รออนุมัติ", cell: (e) => { const n = actionsOf(e.id).filter((a) => a.status === "รออนุมัติ").length; return n ? <Badge tone="warn">{n} คำขอ</Badge> : <span className="text-slate-300 dark:text-slate-600">—</span>; } },
+      { key: "count", header: "ทั้งหมด", align: "right", sort: (a, b) => a.events.length - b.events.length, cell: (e) => e.events.length + " ครั้ง" },
     ],
     "ค่าตอบแทนและสวัสดิการ": [
       { key: "salary", header: "เงินเดือนฐาน", align: "right", sort: (a, b) => a.contract.baseSalary - b.contract.baseSalary, cell: (e) => <span className="font-medium text-slate-900 dark:text-slate-100">{baht(e.contract.baseSalary)} ฿</span> },
@@ -793,16 +979,49 @@ function columnsFor(
   return [...head, ...(tab ? bySection[tab] : base)];
 }
 
+/** "ส่งออก Excel": the same columns the section shows, as plain values. */
+function csvFor(tab: string): { header: string[]; row: (e: Employee) => (string | number)[] } {
+  const head = ["รหัส", "ชื่อ-นามสกุล"];
+  const bySection: Record<string, { header: string[]; row: (e: Employee) => (string | number)[] }> = {
+    "ข้อมูลส่วนตัว": {
+      header: ["วันเกิด", "อายุ", "เลขบัตรประชาชน", "โทรศัพท์", "อีเมล", "แผนก"],
+      row: (e) => [e.personal.birthDate, ageOf(e), e.personal.nationalId, e.personal.phone, e.personal.email, e.department],
+    },
+    "ข้อมูลสัญญาจ้าง": {
+      header: ["ประเภทจ้าง", "วันเริ่มงาน", "สิ้นสุดสัญญา", "สถานะ"],
+      row: (e) => [e.contract.type, e.contract.startedAt, e.contract.endsAt ?? "ไม่กำหนด", e.status],
+    },
+    "ข้อมูลทางปกครอง": {
+      header: ["เลขประกันสังคม", "เลขผู้เสียภาษี", "ธนาคาร", "เลขบัญชี", "เอกสาร", "กองทุนสำรองฯ (%)"],
+      row: (e) => {
+        const d = documentsOf(e);
+        return [e.admin.ssoNumber, e.admin.taxId, e.admin.bankName, e.admin.bankAccount, `${d.filter((x) => x.done).length}/${d.length}`, e.admin.pvdRate];
+      },
+    },
+    "เหตุการณ์ทางบุคคล": {
+      header: ["เหตุการณ์ล่าสุด", "เมื่อ", "รายละเอียด", "รออนุมัติ", "ทั้งหมด"],
+      row: (e) => [
+        e.events.at(-1)?.type ?? "", e.events.at(-1)?.date ?? "", e.events.at(-1)?.detail ?? "",
+        actionsOf(e.id).filter((a) => a.status === "รออนุมัติ").length, e.events.length,
+      ],
+    },
+    "ค่าตอบแทนและสวัสดิการ": {
+      header: ["เงินเดือนฐาน", "ประกันสังคม (พนักงาน)", "สวัสดิการ", "รายการสวัสดิการ", "กองทุนสำรองฯ (%)"],
+      row: (e) => [e.contract.baseSalary, ssoContribution(e.contract.baseSalary), e.benefits.length, e.benefits.join(" · "), e.admin.pvdRate],
+    },
+  };
+  const spec = bySection[tab];
+  return { header: [...head, ...spec.header], row: (e) => [e.code, e.name, ...spec.row(e)] };
+}
+
 function PersonCard({
   employee: e,
-  status,
   index,
   favourite,
   onFavourite,
   onOpen,
 }: {
   employee: Employee;
-  status: string;
   index: number;
   favourite: boolean;
   onFavourite: () => void;
@@ -831,7 +1050,7 @@ function PersonCard({
         <CardRow icon={<Briefcase size={13} />} label="ตำแหน่ง">{e.position}</CardRow>
         <CardRow icon={<Building size={13} />} label="แผนก">{e.department}</CardRow>
         <CardRow icon={<CalendarDays size={13} />} label="เริ่มงาน">{e.contract.startedAt}</CardRow>
-        <CardRow icon={<Clock3 size={13} />} label="สถานะ"><StatusBadge status={status} /></CardRow>
+        <CardRow icon={<Clock3 size={13} />} label="สถานะ"><StatusBadge status={e.status} /></CardRow>
       </dl>
     </motion.article>
   );
@@ -851,36 +1070,30 @@ function CardRow({ icon, label, children }: { icon: ReactNode; label: string; ch
 
 function Record({
   employee: e,
-  status,
-  events,
-  activity,
   favourite,
   openAt,
   onFavourite,
-  onAddEvent,
-  onAddNote,
-  onResign,
+  onSheet,
 }: {
   employee: Employee;
-  status: string;
-  events: PersonnelEvent[];
-  activity: ActivityEntry[];
   favourite: boolean;
   openAt: string;
   onFavourite: () => void;
-  onAddEvent: (ev: PersonnelEvent) => void;
-  onAddNote: (entry: ActivityEntry) => void;
-  onResign: () => void;
+  onSheet: (s: Sheet) => void;
 }) {
+  useData();
   const [tab, setTab] = useState(openAt);
   const [note, setNote] = useState("");
   const [noteType, setNoteType] = useState("บันทึก");
   const docs = documentsOf(e);
   const done = docs.filter((d) => d.done).length;
+  const status = e.status;
+  const leftCo = status === "ลาออก";
 
   const sendNote = () => {
     if (!note.trim()) return;
-    onAddNote({ date: TODAY, time: "ตอนนี้", actor: "คุณ", text: noteType, target: note.trim() });
+    addNote(e.id, noteType, note);
+    notify(`บันทึก${noteType}ในแฟ้มของ ${e.name} แล้ว`);
     setNote("");
     setTab("กิจกรรม");
   };
@@ -977,12 +1190,21 @@ function Record({
             </div>
           </div>
 
-          {status !== "ลาออก" && (
+          <Button
+            variant="secondary"
+            icon={<Printer size={14} />}
+            className="w-full"
+            onClick={() => onSheet({ kind: "certificate", id: e.id, letter: "หนังสือรับรองการทำงาน" })}
+          >
+            ออกหนังสือรับรอง
+          </Button>
+
+          {!leftCo && (
             <button
-              onClick={onResign}
+              onClick={() => onSheet({ kind: "separate", id: e.id })}
               className="w-full rounded-xl border border-rose-200 py-2 text-[12.5px] text-rose-700 transition hover:bg-rose-50 dark:border-rose-500/30 dark:text-rose-300 dark:hover:bg-rose-500/10"
             >
-              บันทึกการลาออก
+              บันทึกการลาออก / เลิกจ้าง
             </button>
           )}
         </div>
@@ -1001,12 +1223,12 @@ function Record({
               exit={{ opacity: 0, y: -4 }}
               transition={{ duration: 0.18 }}
             >
-              {tab === "ข้อมูลส่วนตัว" && <PersonalTab e={e} />}
-              {tab === "ข้อมูลสัญญาจ้าง" && <ContractTab e={e} status={status} events={events} />}
-              {tab === "ข้อมูลทางปกครอง" && <AdminTab e={e} docs={docs} done={done} />}
-              {tab === "เหตุการณ์ทางบุคคล" && <EventsTab events={events} onAdd={onAddEvent} />}
-              {tab === "ค่าตอบแทนและสวัสดิการ" && <PayTab e={e} />}
-              {tab === "กิจกรรม" && <ActivityTab activity={activity} />}
+              {tab === "ข้อมูลส่วนตัว" && <PersonalTab e={e} onSheet={onSheet} />}
+              {tab === "ข้อมูลสัญญาจ้าง" && <ContractTab e={e} onSheet={onSheet} />}
+              {tab === "ข้อมูลทางปกครอง" && <AdminTab e={e} docs={docs} done={done} onSheet={onSheet} />}
+              {tab === "เหตุการณ์ทางบุคคล" && <EventsTab e={e} onSheet={onSheet} />}
+              {tab === "ค่าตอบแทนและสวัสดิการ" && <PayTab e={e} onSheet={onSheet} />}
+              {tab === "กิจกรรม" && <ActivityTab activity={ACTIVITY[e.id] ?? []} />}
             </motion.div>
           </AnimatePresence>
         </div>
@@ -1027,10 +1249,19 @@ function Fact({ icon, label, children, wide }: { icon: ReactNode; label: string;
   );
 }
 
-function PersonalTab({ e }: { e: Employee }) {
+/** A card's "แก้ไข" button: small enough to sit in the card head. */
+function EditButton({ onClick, label = "แก้ไข" }: { onClick: () => void; label?: string }) {
+  return (
+    <RowButton icon={<Pencil size={12} />} onClick={onClick}>
+      {label}
+    </RowButton>
+  );
+}
+
+function PersonalTab({ e, onSheet }: { e: Employee; onSheet: (s: Sheet) => void }) {
   return (
     <div className="space-y-4">
-      <Card title="ข้อมูลส่วนตัว">
+      <Card title="ข้อมูลส่วนตัว" action={<EditButton onClick={() => onSheet({ kind: "personal", id: e.id })} />}>
         <dl className="grid gap-2.5 p-4 sm:grid-cols-2">
           <Fact icon={<UserRound size={12} />} label="ชื่อ-นามสกุล">{e.name} ({e.nickname})</Fact>
           <Fact icon={<Cake size={12} />} label="วันเกิด">{e.personal.birthDate} · อายุ {ageOf(e)} ปี</Fact>
@@ -1045,20 +1276,22 @@ function PersonalTab({ e }: { e: Employee }) {
   );
 }
 
-function ContractTab({ e, status, events }: { e: Employee; status: string; events: PersonnelEvent[] }) {
-  const probationOver = daysBetween(TODAY, e.contract.probationUntil) < 0;
-  const renewed = events.some((ev) => ev.type === "ต่อสัญญา");
-  const expiring = e.contract.endsAt ? daysBetween(TODAY, e.contract.endsAt) : null;
+function ContractTab({ e, onSheet }: { e: Employee; onSheet: (s: Sheet) => void }) {
+  const status = e.status;
   const leftCo = status === "ลาออก";
+  const probationOver = status !== "ทดลองงาน";
+  const renewed = e.events.some((ev) => ev.type === "ต่อสัญญา");
+  const expiring = e.contract.endsAt ? daysBetween(TODAY, e.contract.endsAt) : null;
+  const fixed = isFixedTerm(e.contract.type) && e.contract.endsAt !== null;
 
   const steps = [
     { label: "รับเข้าทำงาน", state: "done" as const },
-    { label: "ทดลองงาน", state: leftCo ? ("done" as const) : probationOver ? ("done" as const) : ("current" as const) },
-    { label: "บรรจุ", state: leftCo ? ("done" as const) : probationOver ? ("done" as const) : ("todo" as const) },
-    ...(e.contract.endsAt
+    { label: "ทดลองงาน", state: probationOver ? ("done" as const) : ("current" as const) },
+    { label: "บรรจุ", state: probationOver ? ("done" as const) : ("todo" as const) },
+    ...(fixed
       ? [{ label: "ต่อสัญญา", state: leftCo ? ("failed" as const) : renewed ? ("done" as const) : expiring !== null && expiring <= 90 ? ("current" as const) : ("todo" as const) }]
       : []),
-    ...(leftCo ? [{ label: "ลาออก", state: "failed" as const }] : []),
+    ...(leftCo ? [{ label: e.separation?.kind ?? "ลาออก", state: "failed" as const }] : []),
   ];
 
   return (
@@ -1079,6 +1312,26 @@ function ContractTab({ e, status, events }: { e: Employee; status: string; event
           <div className="mt-4">
             <Stepper steps={steps} icons={STEP_ICONS} />
           </div>
+          <div className="mt-4 flex flex-wrap gap-2">
+            {status === "ทดลองงาน" && (
+              <Button variant="primary" icon={<CircleCheck size={14} />} onClick={() => onSheet({ kind: "probation", id: e.id })}>
+                ประเมินผ่านทดลองงาน
+              </Button>
+            )}
+            {!leftCo && fixed && (
+              <Button variant={status === "ทดลองงาน" ? "secondary" : "primary"} icon={<CalendarClock size={14} />} onClick={() => onSheet({ kind: "renew", id: e.id })}>
+                ต่อสัญญา
+              </Button>
+            )}
+            {!leftCo && (
+              <Button variant="secondary" icon={<Pencil size={14} />} onClick={() => onSheet({ kind: "contract", id: e.id })}>
+                แก้ไขสัญญาจ้าง
+              </Button>
+            )}
+            <Button variant="secondary" icon={<Printer size={14} />} onClick={() => onSheet({ kind: "contractDoc", id: e.id })}>
+              พิมพ์สัญญาจ้าง
+            </Button>
+          </div>
         </div>
       </div>
 
@@ -1086,6 +1339,22 @@ function ContractTab({ e, status, events }: { e: Employee; status: string; event
         <Note tone="warn">
           สัญญาหมดอายุ {e.contract.endsAt} เหลืออีก {expiring} วัน ควรเริ่มกระบวนการต่อสัญญาหรือแจ้งล่วงหน้าตามกฎหมายแรงงาน
         </Note>
+      )}
+
+      {e.separation && (
+        <Card title={`บันทึกการพ้นสภาพ · ${e.separation.kind}`}>
+          <dl className="grid gap-2.5 p-4 sm:grid-cols-2">
+            <Fact icon={<CalendarDays size={12} />} label="วันที่แจ้ง">{thaiDate(e.separation.noticeDate)}</Fact>
+            <Fact icon={<CalendarClock size={12} />} label="วันทำงานวันสุดท้าย">{thaiDate(e.separation.lastDay)}</Fact>
+            <Fact icon={<FileText size={12} />} label="เหตุผล" wide>{e.separation.reason}</Fact>
+            <Fact icon={<Banknote size={12} />} label="ค่าชดเชย">
+              {e.separation.severanceDays ? `${e.separation.severanceDays} วัน · ${money(e.separation.severance)} บาท` : "ไม่มี"}
+            </Fact>
+            <Fact icon={<Banknote size={12} />} label="ค่าจ้างแทนการบอกกล่าว">
+              {e.separation.noticePay ? `${money(e.separation.noticePay)} บาท` : "ไม่มี"}
+            </Fact>
+          </dl>
+        </Card>
       )}
 
       <Card title="เงื่อนไขการจ้าง">
@@ -1100,10 +1369,36 @@ function ContractTab({ e, status, events }: { e: Employee; status: string; event
   );
 }
 
-function AdminTab({ e, docs, done }: { e: Employee; docs: { name: string; done: boolean }[]; done: number }) {
+function AdminTab({
+  e,
+  docs,
+  done,
+  onSheet,
+}: {
+  e: Employee;
+  docs: { name: string; done: boolean }[];
+  done: number;
+  onSheet: (s: Sheet) => void;
+}) {
+  const missing = docs.length - done;
   return (
     <div className="space-y-4">
-      <Card title="เอกสารประกอบการจ้าง">
+      <Card
+        title="เอกสารประกอบการจ้าง"
+        action={
+          missing > 0 && e.status !== "ลาออก" ? (
+            <RowButton
+              icon={<Bell size={12} />}
+              onClick={() => {
+                remindDocuments([e.id]);
+                notify(`ส่งเตือนขอเอกสาร ${missing} รายการถึง ${e.name} แล้ว`);
+              }}
+            >
+              ส่งเตือนขอเอกสาร
+            </RowButton>
+          ) : undefined
+        }
+      >
         <div className="p-4">
           <Progress done={done} total={docs.length} label={`ครบ ${done} จาก ${docs.length} รายการ`} />
         </div>
@@ -1120,12 +1415,21 @@ function AdminTab({ e, docs, done }: { e: Employee; docs: { name: string; done: 
               <Badge tone={d.done ? "ok" : "warn"} icon={d.done ? <CircleCheck size={11} /> : <Clock3 size={11} />}>
                 {d.done ? "ครบ" : "รอเอกสาร"}
               </Badge>
+              <RowButton
+                tone={d.done ? "plain" : "go"}
+                onClick={() => {
+                  setDocumentReceived(e.id, d.name, !d.done);
+                  notify(d.done ? `ยกเลิกการรับ${d.name}ของ ${e.name}` : `รับ${d.name}ของ ${e.name} เข้าแฟ้มแล้ว`, d.done ? "idle" : "ok");
+                }}
+              >
+                {d.done ? "ยกเลิก" : "รับเอกสารแล้ว"}
+              </RowButton>
             </li>
           ))}
         </ul>
       </Card>
 
-      <Card title="ภาษีและประกันสังคม">
+      <Card title="ภาษีและประกันสังคม" action={<EditButton onClick={() => onSheet({ kind: "admin", id: e.id })} />}>
         <dl className="grid gap-2.5 p-4 sm:grid-cols-2">
           <Fact icon={<Landmark size={12} />} label="เลขประกันสังคม"><span className="font-mono">{e.admin.ssoNumber}</span></Fact>
           <Fact icon={<ShieldCheck size={12} />} label="เลขผู้เสียภาษี"><span className="font-mono">{e.admin.taxId}</span></Fact>
@@ -1137,8 +1441,9 @@ function AdminTab({ e, docs, done }: { e: Employee; docs: { name: string; done: 
   );
 }
 
-function EventsTab({ events, onAdd }: { events: PersonnelEvent[]; onAdd: (ev: PersonnelEvent) => void }) {
-  const [logging, setLogging] = useState(false);
+function EventsTab({ e, onSheet }: { e: Employee; onSheet: (s: Sheet) => void }) {
+  const events = e.events;
+  const actions = actionsOf(e.id).sort((a, b) => b.requestedAt.localeCompare(a.requestedAt));
   const years = [...new Set(events.map((ev) => ev.date.slice(0, 4)))].sort().reverse();
   const groups = years.map((y) => ({
     heading: "ปี " + (Number(y) + 543),
@@ -1146,7 +1451,7 @@ function EventsTab({ events, onAdd }: { events: PersonnelEvent[]; onAdd: (ev: Pe
       time: ev.date.slice(5),
       body: (
         <span className="flex flex-wrap items-center gap-1.5">
-          <Badge tone={ev.type === "ลาออก" ? "bad" : ev.type === "รับเข้าทำงาน" ? "ok" : "accent"}>{ev.type}</Badge>
+          <Badge tone={["ลาออก", "เลิกจ้าง", "ตักเตือน"].includes(ev.type) ? "bad" : ev.type === "รับเข้าทำงาน" ? "ok" : "accent"}>{ev.type}</Badge>
           <span className="text-slate-700 dark:text-slate-200">{ev.detail}</span>
         </span>
       ),
@@ -1157,20 +1462,16 @@ function EventsTab({ events, onAdd }: { events: PersonnelEvent[]; onAdd: (ev: Pe
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <p className="text-[13px] text-slate-500">{events.length} เหตุการณ์ในประวัติ</p>
-        {!logging && (
-          <Button variant="secondary" icon={<Plus size={14} />} onClick={() => setLogging(true)}>
-            บันทึกเหตุการณ์
+        {e.status !== "ลาออก" && (
+          <Button variant="secondary" icon={<Plus size={14} />} onClick={() => onSheet({ kind: "action", id: e.id, preset: "ย้ายแผนก" })}>
+            ขอเปลี่ยนแปลงทางบุคคล
           </Button>
         )}
       </div>
-      {logging && (
-        <AddEvent
-          onCancel={() => setLogging(false)}
-          onSave={(ev) => {
-            onAdd(ev);
-            setLogging(false);
-          }}
-        />
+      {actions.length > 0 && (
+        <Card title="คำขอของพนักงานคนนี้" subtitle="แฟ้มเปลี่ยนเมื่ออนุมัติ คำสั่งที่อนุมัติแล้วพิมพ์ได้">
+          <ActionList actions={actions} onSheet={onSheet} empty="ยังไม่มีคำขอ" />
+        </Card>
       )}
       <Card>
         <div className="p-4">
@@ -1181,10 +1482,13 @@ function EventsTab({ events, onAdd }: { events: PersonnelEvent[]; onAdd: (ev: Pe
   );
 }
 
-function PayTab({ e }: { e: Employee }) {
+function PayTab({ e, onSheet }: { e: Employee; onSheet: (s: Sheet) => void }) {
+  const working = e.status !== "ลาออก";
+  const history = e.events.filter((ev) => ev.type === "ปรับเงินเดือน" || ev.type === "รับเข้าทำงาน").reverse();
+  const sso = ssoContribution(e.contract.baseSalary);
   return (
     <div className="space-y-4">
-      <div className={"flex items-center gap-4 p-4 " + SURFACE}>
+      <div className={"flex flex-wrap items-center gap-4 p-4 " + SURFACE}>
         <span className="grid size-12 place-items-center rounded-xl bg-violet-50 text-violet-600 dark:bg-violet-500/15 dark:text-violet-300">
           <Wallet size={22} />
         </span>
@@ -1195,10 +1499,24 @@ function PayTab({ e }: { e: Employee }) {
         <div className="text-right text-[12px] text-slate-500">
           <p>กองทุนสำรองฯ {e.admin.pvdRate}%</p>
           <p>= {baht(Math.round((e.contract.baseSalary * e.admin.pvdRate) / 100))} ฿/เดือน</p>
+          <p className="mt-1">ประกันสังคม 5% = {baht(sso)} ฿/เดือน</p>
         </div>
+        {working && (
+          <div className="flex w-full flex-wrap gap-2 border-t border-slate-100 pt-3 dark:border-slate-800">
+            <Button variant="primary" icon={<TrendingUp size={14} />} onClick={() => onSheet({ kind: "action", id: e.id, preset: "ปรับเงินเดือน" })}>
+              ขอปรับเงินเดือน
+            </Button>
+            <Button variant="secondary" icon={<Printer size={14} />} onClick={() => onSheet({ kind: "certificate", id: e.id, letter: "หนังสือรับรองเงินเดือน" })}>
+              หนังสือรับรองเงินเดือน
+            </Button>
+          </div>
+        )}
       </div>
 
-      <Card title={`สวัสดิการ ${e.benefits.length} รายการ`}>
+      <Card
+        title={`สวัสดิการ ${e.benefits.length} รายการ`}
+        action={working ? <EditButton label="จัดการสวัสดิการ" onClick={() => onSheet({ kind: "benefits", id: e.id })} /> : undefined}
+      >
         <div className="grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-3">
           {e.benefits.map((b, i) => (
             <motion.div
@@ -1215,6 +1533,18 @@ function PayTab({ e }: { e: Employee }) {
             </motion.div>
           ))}
         </div>
+      </Card>
+
+      <Card title="ประวัติเงินเดือน">
+        <ul className="divide-y divide-slate-100 dark:divide-slate-800">
+          {history.map((ev, i) => (
+            <li key={i} className="flex items-center gap-3 px-4 py-2.5 text-[13px]">
+              <span className="w-24 shrink-0 tabular-nums text-slate-400">{ev.date}</span>
+              <Tag swatch={eventSwatch(ev.type)}>{ev.type}</Tag>
+              <span className="min-w-0 flex-1 truncate text-slate-700 dark:text-slate-200">{ev.detail}</span>
+            </li>
+          ))}
+        </ul>
       </Card>
     </div>
   );
@@ -1248,302 +1578,4 @@ function ActivityTab({ activity }: { activity: ActivityEntry[] }) {
       </div>
     </Card>
   );
-}
-
-function AddEvent({ onSave, onCancel }: { onSave: (ev: PersonnelEvent) => void; onCancel: () => void }) {
-  const [type, setType] = useState(EVENT_TYPES[1]);
-  const [date, setDate] = useState(TODAY);
-  const [detail, setDetail] = useState("");
-  const [tried, setTried] = useState(false);
-  const bad = tried && detail.trim().length < 5;
-
-  return (
-    <div className={"p-4 " + SURFACE}>
-      <div className="grid grid-cols-2 gap-3">
-        <Field label="ประเภทเหตุการณ์">
-          <Select value={type} onChange={setType} options={EVENT_TYPES} className="w-full" />
-        </Field>
-        <Field label="วันที่มีผล">
-          <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className={FIELD + " w-full"} />
-        </Field>
-      </div>
-      <div className="mt-3">
-        <Field
-          label="รายละเอียด"
-          error={bad ? "ใส่รายละเอียดอย่างน้อย 5 ตัวอักษร เพื่อให้คนอ่านประวัติย้อนหลังเข้าใจ" : undefined}
-          hint="เช่น ย้ายจากฝ่ายขายไปฝ่ายการตลาด"
-        >
-          <input
-            value={detail}
-            onChange={(e) => setDetail(e.target.value)}
-            className={FIELD + " w-full " + (bad ? "border-rose-400 dark:border-rose-500" : "")}
-          />
-        </Field>
-      </div>
-      <div className="mt-3 flex gap-2">
-        <Button variant="secondary" onClick={onCancel}>ยกเลิก</Button>
-        <Button
-          variant="primary"
-          className="flex-1"
-          onClick={() => {
-            setTried(true);
-            if (detail.trim().length >= 5) onSave({ date, type, detail: detail.trim() });
-          }}
-        >
-          บันทึกเหตุการณ์
-        </Button>
-      </div>
-    </div>
-  );
-}
-
-/* ---------------------------------------------------------------- resign */
-
-function ResignDialog({
-  employee: e,
-  onCancel,
-  onConfirm,
-}: {
-  employee: Employee | null;
-  onCancel: () => void;
-  onConfirm: (e: Employee, reason: string, message: string) => void;
-}) {
-  const [reason, setReason] = useState(RESIGN_REASONS[0]);
-  const [message, setMessage] = useState("");
-  const ready = reason !== RESIGN_REASONS[0];
-
-  // A courteous note drafted from the reason — a template filled in, not a
-  // model call, and labelled as such so nobody mistakes it for one.
-  const draft = () =>
-    setMessage(
-      `เรียน คุณ${e?.nickname ?? ""}\n\nบริษัทรับทราบการลาออกของท่าน (${reason}) และขอขอบคุณสำหรับการทำงานที่ผ่านมา ฝ่ายบุคคลจะติดต่อเรื่องการส่งมอบงาน ทรัพย์สินของบริษัท และเอกสารสิทธิประโยชน์ภายใน 3 วันทำการ\n\nขอให้ท่านประสบความสำเร็จในเส้นทางต่อไป`
-    );
-
-  const reset = () => {
-    setReason(RESIGN_REASONS[0]);
-    setMessage("");
-  };
-
-  return (
-    <ConfirmDialog
-      open={e !== null}
-      title="บันทึกการลาออก"
-      body="ระบุเหตุผลและข้อความถึงพนักงาน เพื่อให้กระบวนการเป็นระบบและสุภาพ"
-      confirmLabel="บันทึกการลาออก"
-      disabled={!ready}
-      onCancel={() => {
-        reset();
-        onCancel();
-      }}
-      onConfirm={() => {
-        if (e && ready) {
-          onConfirm(e, reason, message);
-          reset();
-        }
-      }}
-      subject={
-        e && (
-          <div className={"flex items-center gap-3 p-3 " + SURFACE}>
-            <Avatar name={e.name} />
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-[13px] font-semibold text-slate-900 dark:text-slate-50">
-                {e.name} <GenderMark id={e.id} />
-              </p>
-              <p className="flex items-center gap-1 text-[11.5px] text-slate-500">
-                <CalendarDays size={11} /> เริ่มงาน {e.contract.startedAt}
-              </p>
-            </div>
-            <div className="text-right text-[11.5px] text-slate-500">
-              <p className="flex items-center justify-end gap-1"><Briefcase size={11} />{e.position}</p>
-              <p className="flex items-center justify-end gap-1"><Building size={11} />{e.department}</p>
-            </div>
-          </div>
-        )
-      }
-      fields={
-        <>
-          <Field label="เหตุผล">
-            <Select value={reason} onChange={setReason} options={RESIGN_REASONS} className="w-full" />
-          </Field>
-          <Field label="ข้อความถึงพนักงาน">
-            <div className={"relative overflow-hidden " + SURFACE}>
-              <textarea
-                value={message}
-                onChange={(ev) => setMessage(ev.target.value)}
-                rows={5}
-                placeholder="พิมพ์ข้อความ…"
-                className="w-full resize-none bg-transparent px-3.5 py-3 pb-12 text-[13px] leading-relaxed text-slate-800 outline-none placeholder:text-slate-400 dark:text-slate-100"
-              />
-              <motion.button
-                whileTap={{ scale: 0.96 }}
-                onClick={draft}
-                disabled={!ready}
-                className="absolute bottom-3 left-3 inline-flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-fuchsia-500 to-orange-400 px-3 py-1.5 text-[12px] font-medium text-white shadow-sm disabled:opacity-40"
-              >
-                <Sparkles size={13} />
-                ร่างข้อความอัตโนมัติ
-              </motion.button>
-            </div>
-          </Field>
-        </>
-      }
-    />
-  );
-}
-
-/* ---------------------------------------------------------------- wizard */
-
-function employeeFrom(d: Draft, n: number): Employee {
-  return {
-    id: 1000 + n,
-    code: "EMP-" + String(1000 + n).slice(1).padStart(4, "0"),
-    name: d.name,
-    nickname: d.nickname || d.name.split(" ")[0],
-    position: d.position,
-    department: d.department,
-    status: "ทดลองงาน",
-    personal: { birthDate: d.birthDate, nationalId: d.nationalId, phone: d.phone, email: d.email, address: "—" },
-    contract: {
-      type: d.type,
-      startedAt: d.startedAt,
-      endsAt: null,
-      probationUntil: d.startedAt,
-      baseSalary: Number(d.baseSalary) || 0,
-      workDays: "จันทร์–ศุกร์",
-    },
-    admin: {
-      ssoNumber: d.ssoNumber,
-      taxId: d.nationalId.replace(/-/g, ""),
-      bankName: d.bankName,
-      bankAccount: d.bankAccount,
-      pvdRate: 3,
-    },
-    benefits: ["ประกันสุขภาพกลุ่ม"],
-    events: [{ date: d.startedAt, type: "รับเข้าทำงาน", detail: `ตำแหน่ง ${d.position} · เงินเดือน ${d.baseSalary}` }],
-  } as Employee;
-}
-
-/**
- * Declared out here, not inside the wizard: a component defined during render
- * is a new type every render, so React remounts the input and takes the caret.
- */
-function DraftText({
-  value,
-  onChange,
-  label,
-  error,
-  hint,
-  placeholder,
-}: {
-  value: string;
-  onChange: (v: string) => void;
-  label: string;
-  error?: string;
-  hint?: string;
-  placeholder?: string;
-}) {
-  return (
-    <Field label={label} hint={hint} error={error}>
-      <input
-        value={value}
-        placeholder={placeholder}
-        onChange={(e) => onChange(e.target.value)}
-        className={FIELD + " w-full " + (error ? "border-rose-400 dark:border-rose-500" : "")}
-      />
-    </Field>
-  );
-}
-
-function NewEmployee({
-  draft,
-  setDraft,
-  onDone,
-  onCancel,
-}: {
-  draft: Draft;
-  setDraft: (d: Draft) => void;
-  onDone: () => void;
-  onCancel: () => void;
-}) {
-  const set = (k: keyof Draft) => (v: string) => setDraft({ ...draft, [k]: v });
-  const text = (k: keyof Draft, label: string, errors: Record<string, string>, extra?: { hint?: string; placeholder?: string }) => (
-    <DraftText value={draft[k]} onChange={set(k)} label={label} error={errors[k]} hint={extra?.hint} placeholder={extra?.placeholder} />
-  );
-
-  const steps: Step[] = [
-    {
-      title: "ข้อมูลส่วนตัว",
-      validate: () => {
-        const e: Record<string, string> = {};
-        if (draft.name.trim().split(" ").length < 2) e.name = "ใส่ทั้งชื่อและนามสกุล";
-        if (!/^\d-\d{4}-\d{5}-\d{2}-\d$/.test(draft.nationalId)) e.nationalId = "รูปแบบต้องเป็น 1-2345-67890-12-3";
-        if (!/^0\d{2}-\d{3}-\d{4}$/.test(draft.phone)) e.phone = "รูปแบบต้องเป็น 08X-XXX-XXXX";
-        if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(draft.email)) e.email = "อีเมลไม่ถูกต้อง";
-        return e;
-      },
-      render: (errors) => (
-        <>
-          <div className="grid grid-cols-2 gap-3">
-            {text("name", "ชื่อ-นามสกุล", errors, { placeholder: "สมชาย รักดี" })}
-            {text("nickname", "ชื่อเล่น", errors, { placeholder: "ชาย" })}
-          </div>
-          {text("nationalId", "เลขบัตรประชาชน", errors, { hint: "ใส่ขีดตามบัตร", placeholder: "1-2345-67890-12-3" })}
-          <div className="grid grid-cols-2 gap-3">
-            {text("phone", "โทรศัพท์", errors, { hint: "รูปแบบ 08X-XXX-XXXX", placeholder: "081-234-5678" })}
-            <Field label="วันเกิด">
-              <input type="date" value={draft.birthDate} onChange={(e) => set("birthDate")(e.target.value)} className={FIELD + " w-full"} />
-            </Field>
-          </div>
-          {text("email", "อีเมล", errors, { placeholder: "somchai@example.co.th" })}
-        </>
-      ),
-    },
-    {
-      title: "ข้อมูลการจ้าง",
-      validate: () => {
-        const e: Record<string, string> = {};
-        if (draft.position.trim().length < 2) e.position = "ระบุตำแหน่ง";
-        if (!draft.baseSalary || Number(draft.baseSalary) < 10000) e.baseSalary = "เงินเดือนต้องไม่ต่ำกว่า 10,000 บาท";
-        return e;
-      },
-      render: (errors) => (
-        <>
-          {text("position", "ตำแหน่ง", errors, { placeholder: "พนักงานขาย" })}
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="แผนก"><Select value={draft.department} onChange={set("department")} options={DEPARTMENTS} className="w-full" /></Field>
-            <Field label="ประเภทการจ้าง"><Select value={draft.type} onChange={set("type")} options={CONTRACT_TYPES} className="w-full" /></Field>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="วันเริ่มงาน">
-              <input type="date" value={draft.startedAt} onChange={(e) => set("startedAt")(e.target.value)} className={FIELD + " w-full"} />
-            </Field>
-            {text("baseSalary", "เงินเดือนฐาน (บาท)", errors, { placeholder: "22000" })}
-          </div>
-        </>
-      ),
-    },
-    {
-      title: "ข้อมูลทางปกครอง",
-      validate: () => {
-        const e: Record<string, string> = {};
-        if (!/^\d{10}$/.test(draft.ssoNumber)) e.ssoNumber = "เลขประกันสังคมต้องมี 10 หลัก";
-        if (draft.bankAccount.trim().length < 6) e.bankAccount = "ใส่เลขบัญชีให้ครบ";
-        return e;
-      },
-      render: (errors) => (
-        <>
-          {text("ssoNumber", "เลขประกันสังคม", errors, { hint: "10 หลัก ไม่ต้องใส่ขีด", placeholder: "1234567890" })}
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="ธนาคาร"><Select value={draft.bankName} onChange={set("bankName")} options={BANKS} className="w-full" /></Field>
-            {text("bankAccount", "เลขบัญชี", errors, { placeholder: "xxx-x-x1234-5" })}
-          </div>
-          <Note tone="accent">
-            เลขผู้เสียภาษีจะใช้เลขบัตรประชาชนที่กรอกไว้ และตั้งกองทุนสำรองเลี้ยงชีพเริ่มต้นที่ 3% แก้ได้ภายหลังในแฟ้มประวัติ
-          </Note>
-        </>
-      ),
-    },
-  ];
-
-  return <Wizard steps={steps} onDone={onDone} onCancel={onCancel} doneLabel="เพิ่มพนักงาน" />;
 }

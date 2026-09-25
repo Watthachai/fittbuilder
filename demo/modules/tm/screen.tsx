@@ -1,63 +1,178 @@
 import { useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import {
-  ArrowRight, CalendarCheck, CalendarDays, CalendarX, CircleCheck, CircleX, Clock3, Coffee,
-  FileText, Hourglass, LogIn, LogOut, MoonStar, Pencil, Plus, Search as SearchIcon, Sun,
-  SunMedium, Timer, TrendingUp, TriangleAlert, UserRound, Users,
+  ArrowLeftRight, ArrowRight, BellRing, CalendarCheck, CalendarDays, CalendarPlus, CalendarX, CircleCheck, CircleX,
+  Clock3, FileSpreadsheet, FileText, Hourglass, Pencil, Plus, Printer, Search as SearchIcon, Timer, Trash2,
+  TrendingUp, TriangleAlert, UserPlus, Users,
 } from "lucide-react";
 import { EMPLOYEES } from "../pa/data";
-import type { Employee } from "../pa/data";
 import {
-  HOLIDAYS, LEAVES, LEAVE_TYPES, PERIOD_DAYS, PERIOD_END, PERIOD_START, PUNCHES, ROSTER,
-  ROSTERED, SHIFTS, TODAY, WEEK_DAYS, addDays, attendanceOf, daysBetween, dowIndex, empName, hhmm,
-  isHoliday, judge, punchesOn, shiftOf, usedLeave,
+  FOLLOW_UPS, HOLIDAYS, LEAVES, LEAVE_TYPES, OT_REQUESTS, PERIOD_DAYS, PERIOD_END, PERIOD_START, PUNCHES,
+  PUNCH_FIXES, SHIFTS, SHIFT_SWAPS, TODAY, WEEK_DAYS, addDays, approveLeave, approveOt, approvePunchFix,
+  approveSwap, approvedOtHours, attendanceOf, canCancelLeave, cancelLeave, dowIndex, empName, followUpsOf, hhmm,
+  isHoliday, judge, leaveBalance, leaveNo, pendingFixOf, plannedMinutes, punchesOn, rejectLeave, rejectOt,
+  rejectPunchFix, rejectSwap, removeHoliday, rosterOf, rostered, shiftOf, unrostered,
 } from "./data";
-import type { Leave, LeaveStatus, Punch } from "./data";
+import type { FollowUp, FollowUpKind, Holiday, Leave, LeaveDraft, OtRequest, Punch, PunchFix, ShiftSwap } from "./data";
 import {
-  Avatar, Badge, Bar, Button, Card, Chip, ColumnChart, Donut, Dot, FIELD, Gauge, Heatmap, IconRow,
-  Note, PageHead, Progress, Reveal, Search, Segmented, Select, StatStrip, Tabs, Tag, TintCard,
-  WeekStrip, swatchFor,
+  Avatar, Badge, Bar, Button, Card, Chip, ColumnChart, Donut, Dot, Gauge, Heatmap, Note, PageHead, Reveal,
+  Search, Select, StatStrip, Tabs, Tag, TintCard, WeekStrip,
 } from "../ui";
-import { ConfirmDialog, DataTable, DetailModal, Field, FormModal, Wizard } from "../kit";
-import type { Column, Step } from "../kit";
+import { ConfirmDialog, DataTable, DetailModal, downloadCsv, notify, useData } from "../kit";
+import type { Column } from "../kit";
+import {
+  FollowUpForm, HolidayForm, LeaveForm, OtForm, PunchForm, RosterForm, ShiftPicker, SwapForm,
+} from "./forms";
+import { DayRecord, LeaveRecord, PersonRecord } from "./records";
+import type { Day } from "./records";
+import { LeavePaper, WarningPaper } from "./documents";
+import {
+  MiniButton, PrintModal, REQUEST_TONE, ReasonDialog, SHIFT_ICON, STATE_TONE, STATUS_TONE, TYPE_ORDER, Who,
+  attempt, shiftSwatch, typeSwatch,
+} from "./shared";
 
 const TABS = ["แผนกะการทำงาน", "บันทึกเวลาทำงาน", "การลาและการขาดงาน", "ติดตามการเข้างาน"];
 
 const LEAVE_TAB_ICONS: Record<string, ReactNode> = {
   ใบลา: <FileText size={13} />,
   สิทธิ์คงเหลือ: <CalendarCheck size={13} />,
+  การขาดงาน: <CircleX size={13} />,
   ประวัติการลา: <Clock3 size={13} />,
 };
-const LEAVE_TABS = ["ใบลา", "สิทธิ์คงเหลือ", "ประวัติการลา"];
+const LEAVE_TABS = ["ใบลา", "สิทธิ์คงเหลือ", "การขาดงาน", "ประวัติการลา"];
 
-const SHIFT_ORDER = SHIFTS.map((s) => s.code);
-const shiftSwatch = (code: string) => swatchFor(code, SHIFT_ORDER);
-
-const TYPE_ORDER = LEAVE_TYPES.map((t) => t.name);
-const typeSwatch = (name: string) => swatchFor(name, TYPE_ORDER);
-
-const SHIFT_ICON: Record<string, ReactNode> = {
-  A: <Sun size={14} />,
-  B: <SunMedium size={14} />,
-  N: <MoonStar size={14} />,
-  O: <Coffee size={14} />,
-  S: <Timer size={14} />,
+const TIME_TABS = ["เวลาเข้าออกรายวัน", "คำขอแก้เวลา", "คำขอล่วงเวลา"];
+const TIME_TAB_ICONS: Record<string, ReactNode> = {
+  เวลาเข้าออกรายวัน: <Clock3 size={13} />,
+  คำขอแก้เวลา: <Pencil size={13} />,
+  คำขอล่วงเวลา: <Timer size={13} />,
 };
 
-const STATUS_TONE: Record<LeaveStatus, "ok" | "warn" | "bad"> = {
-  อนุมัติแล้ว: "ok",
-  รออนุมัติ: "warn",
-  ไม่อนุมัติ: "bad",
+/** The four kinds of request a supervisor can turn down, each with a reason on the record. */
+type Rejection =
+  | { kind: "leave"; item: Leave }
+  | { kind: "fix"; item: PunchFix }
+  | { kind: "ot"; item: OtRequest }
+  | { kind: "swap"; item: ShiftSwap };
+
+const byNewest = <T extends { filedAt: string; id: number }>(list: T[]) =>
+  [...list].sort((a, b) => b.filedAt.localeCompare(a.filedAt) || b.id - a.id);
+
+/* ------------------------------------------------------------ approvals */
+
+const approveLeaveOf = (l: Leave) =>
+  attempt(() => approveLeave(l.id), `อนุมัติใบลา ${leaveNo(l)} ของ${empName(l.employeeId)}แล้ว สิทธิ์คงเหลือขยับแล้ว`);
+const approveFixOf = (f: PunchFix) =>
+  attempt(() => approvePunchFix(f.id), `อนุมัติแก้เวลาของ${empName(f.employeeId)} วันที่ ${f.date} เป็น ${f.in}–${f.out} แล้ว`);
+const approveOtOf = (o: OtRequest) =>
+  attempt(() => approveOt(o.id), `อนุมัติล่วงเวลา ${o.hours} ชม. ของ${empName(o.employeeId)} วันที่ ${o.date} แล้ว`);
+const approveSwapOf = (s: ShiftSwap) =>
+  attempt(() => approveSwap(s.id), `อนุมัติสลับกะของ${empName(s.employeeId)}กับ${empName(s.withEmployeeId)} วันที่ ${s.date} แล้ว`);
+
+function rejectionSubject(r: Rejection): ReactNode {
+  switch (r.kind) {
+    case "leave":
+      return <Who id={r.item.employeeId} sub={`${leaveNo(r.item)} · ${r.item.type} · ${r.item.from} ถึง ${r.item.to}`} />;
+    case "fix":
+      return <Who id={r.item.employeeId} sub={`แก้เวลาวันที่ ${r.item.date} เป็น ${r.item.in}–${r.item.out}`} />;
+    case "ot":
+      return <Who id={r.item.employeeId} sub={`ล่วงเวลา ${r.item.hours} ชม. วันที่ ${r.item.date}`} />;
+    case "swap":
+      return <Who id={r.item.employeeId} sub={`สลับกะกับ${empName(r.item.withEmployeeId)} วันที่ ${r.item.date}`} />;
+  }
+}
+
+const REJECTION_TITLE: Record<Rejection["kind"], string> = {
+  leave: "ไม่อนุมัติใบลา",
+  fix: "ไม่อนุมัติคำขอแก้เวลา",
+  ot: "ไม่อนุมัติคำขอล่วงเวลา",
+  swap: "ไม่อนุมัติคำขอสลับกะ",
 };
 
-const STATE_TONE: Record<string, "ok" | "warn" | "bad"> = {
-  ปกติ: "ok",
-  มาสาย: "warn",
-  ขาดงาน: "bad",
-};
+function reject(r: Rejection, reason: string) {
+  const who = empName(r.item.employeeId);
+  switch (r.kind) {
+    case "leave":
+      return attempt(() => rejectLeave(r.item.id, reason), `ไม่อนุมัติใบลา ${leaveNo(r.item)} ของ${who}แล้ว`);
+    case "fix":
+      return attempt(() => rejectPunchFix(r.item.id, reason), `ไม่อนุมัติคำขอแก้เวลาของ${who}แล้ว เวลาในบันทึกคงเดิม`);
+    case "ot":
+      return attempt(() => rejectOt(r.item.id, reason), `ไม่อนุมัติคำขอล่วงเวลาของ${who}แล้ว`);
+    case "swap":
+      return attempt(() => rejectSwap(r.item.id, reason), `ไม่อนุมัติคำขอสลับกะของ${who}แล้ว`);
+  }
+}
 
-/** A punch with its verdict and the person it belongs to, worked out once. */
-type Day = { punch: Punch; employee: Employee; verdict: ReturnType<typeof judge> };
+/* --------------------------------------------------------------- export */
+
+function exportRoster() {
+  downloadCsv(
+    `ตารางกะ-${TODAY}`,
+    ["รหัส", "พนักงาน", "ตำแหน่ง", ...WEEK_DAYS, "ชั่วโมงตามแผน"],
+    rostered().map((e) => [
+      e.code,
+      e.name,
+      e.position,
+      ...rosterOf(e.id)!.map((c) => shiftOf(c).name),
+      rosterOf(e.id)!.reduce((n, c) => n + plannedMinutes(c), 0) / 60,
+    ])
+  );
+  notify("ส่งออกตารางกะเป็นไฟล์ Excel แล้ว");
+}
+
+function exportDay(rows: Day[], day: string) {
+  downloadCsv(
+    `บันทึกเวลา-${day}`,
+    ["รหัส", "พนักงาน", "กะ", "เข้า", "ออก", "ชั่วโมงทำงาน", "ล่วงเวลา (นาที)", "สถานะ"],
+    rows.map((r) => [
+      r.employee.code,
+      r.employee.name,
+      shiftOf(r.punch.shift).name,
+      r.punch.in ?? "",
+      r.punch.out ?? "",
+      (Math.max(0, r.verdict.workedMin) / 60).toFixed(2),
+      r.verdict.otMin,
+      r.verdict.state,
+    ])
+  );
+  notify(`ส่งออกบันทึกเวลาวันที่ ${day} แล้ว`);
+}
+
+function exportPeriod() {
+  downloadCsv(
+    `บันทึกเวลาทั้งงวด-${PERIOD_START}-${PERIOD_END}`,
+    ["วันที่", "รหัส", "พนักงาน", "กะ", "เข้า", "ออก", "ชั่วโมงทำงาน", "สาย (นาที)", "ล่วงเวลา (นาที)", "สถานะ"],
+    [...PUNCHES]
+      .sort((a, b) => a.date.localeCompare(b.date) || a.employeeId - b.employeeId)
+      .map((p) => {
+        const j = judge(p);
+        const e = EMPLOYEES.find((x) => x.id === p.employeeId);
+        return [p.date, e?.code ?? "", empName(p.employeeId), shiftOf(p.shift).name, p.in ?? "", p.out ?? "", (Math.max(0, j.workedMin) / 60).toFixed(2), j.lateMin, j.otMin, j.state];
+      })
+  );
+  notify("ส่งออกบันทึกเวลาทั้งงวดแล้ว ส่งต่อให้ฝ่ายเงินเดือนได้เลย");
+}
+
+function exportLeaves(rows: Leave[]) {
+  downloadCsv(
+    `ทะเบียนใบลา-${TODAY}`,
+    ["เลขที่", "พนักงาน", "ประเภท", "ตั้งแต่", "ถึง", "จำนวนวัน", "สถานะ", "ผู้พิจารณา", "เหตุผล"],
+    rows.map((l) => [leaveNo(l), empName(l.employeeId), l.type, l.from, l.to, l.days, l.status, l.decidedBy ?? "", l.reason])
+  );
+  notify(`ส่งออกทะเบียนใบลา ${rows.length} ใบแล้ว`);
+}
+
+function exportAttendance() {
+  downloadCsv(
+    `การเข้างาน-${PERIOD_START}-${PERIOD_END}`,
+    ["รหัส", "พนักงาน", "แผนก", "วันตามกะ", "มาทำงาน", "มาสาย", "ขาดงาน", "ลา", "ล่วงเวลาตามเวลาตอก (ชม.)", "ล่วงเวลาอนุมัติ (ชม.)", "อัตราเข้างาน %"],
+    rostered().map((e) => {
+      const a = attendanceOf(e.id);
+      return [e.code, e.name, e.department, a.scheduled, a.worked, a.late, a.absent, a.leaveDays, (a.otMin / 60).toFixed(2), approvedOtHours(e.id), a.rate];
+    })
+  );
+  notify("ส่งออกสรุปการเข้างานรายคนแล้ว");
+}
 
 /* ----------------------------------------------------------------- screen */
 
@@ -69,52 +184,64 @@ export default function TmScreen({
   onOpenSection?: (index: number) => void;
 }) {
   const tab = section && TABS.includes(section) ? section : undefined;
-
-  const [leaves, setLeaves] = useState<Leave[]>(LEAVES);
-  const [roster, setRoster] = useState<Record<number, string[]>>(ROSTER);
-  const [corrections, setCorrections] = useState<Record<number, { in: string; out: string }>>({});
+  const version = useData();
 
   const [day, setDay] = useState(TODAY);
   const [q, setQ] = useState("");
   const [status, setStatus] = useState("ทั้งหมด");
   const [openLeaveAt, setOpenLeaveAt] = useState<number | null>(null);
   const [openDayAt, setOpenDayAt] = useState<number | null>(null);
-  const [rejecting, setRejecting] = useState<Leave | null>(null);
-  const [filing, setFiling] = useState(false);
+  const [openPersonAt, setOpenPersonAt] = useState<number | null>(null);
+  const [rejecting, setRejecting] = useState<Rejection | null>(null);
+  const [cancelling, setCancelling] = useState<Leave | null>(null);
+  const [leaveForm, setLeaveForm] = useState<{ leave?: Leave; preset?: Partial<LeaveDraft> } | null>(null);
+  const [printLeave, setPrintLeave] = useState<Leave | null>(null);
   const [editingShift, setEditingShift] = useState<{ employeeId: number; dow: number } | null>(null);
-  const [editingPunch, setEditingPunch] = useState<Punch | null>(null);
+  const [rosterFor, setRosterFor] = useState<{ employeeId?: number } | null>(null);
+  const [swapping, setSwapping] = useState(false);
+  const [addingHoliday, setAddingHoliday] = useState(false);
+  const [removingHoliday, setRemovingHoliday] = useState<Holiday | null>(null);
+  const [fixing, setFixing] = useState<Punch | null>(null);
+  const [otFor, setOtFor] = useState<{ employeeId?: number; date?: string } | null>(null);
+  const [followUp, setFollowUp] = useState<{ employeeId: number; kind: FollowUpKind } | null>(null);
+  const [printWarning, setPrintWarning] = useState<FollowUp | null>(null);
 
-  const punchOf = (p: Punch): Punch => {
-    const fix = corrections[p.id];
-    return fix ? { ...p, in: fix.in, out: fix.out } : p;
-  };
-
-  const waiting = leaves.filter((l) => l.status === "รออนุมัติ");
-
-  const decide = (id: number, next: LeaveStatus, note?: string) => {
-    setLeaves((all) =>
-      all.map((l) => (l.id === id ? { ...l, status: next, decidedBy: "คุณ", note: note ?? l.note } : l))
-    );
-    setRejecting(null);
-  };
+  const waiting = LEAVES.filter((l) => l.status === "รออนุมัติ");
 
   const needle = q.trim().toLowerCase();
-  const leaveRows = leaves.filter(
+  const leaveRows = byNewest(LEAVES).filter(
     (l) =>
       (status === "ทั้งหมด" || l.status === status) &&
-      (needle === "" || [empName(l.employeeId), l.type, l.reason].some((t) => t.toLowerCase().includes(needle)))
+      (needle === "" || [empName(l.employeeId), l.type, l.reason, leaveNo(l)].some((t) => t.toLowerCase().includes(needle)))
   );
   const pickedLeave = openLeaveAt === null ? null : (leaveRows[openLeaveAt] ?? null);
 
   const dayRows: Day[] = useMemo(
     () =>
-      punchesOn(day)
-        .map(punchOf)
-        .map((p) => ({ punch: p, employee: EMPLOYEES.find((e) => e.id === p.employeeId)!, verdict: judge(p) })),
+      punchesOn(day).flatMap((p) => {
+        const employee = EMPLOYEES.find((e) => e.id === p.employeeId);
+        return employee ? [{ punch: p, employee, verdict: judge(p) }] : [];
+      }),
+    // `version` moves on every commit: the punches are the same array after a correction.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [day, corrections]
+    [day, version]
   );
   const pickedDay = openDayAt === null ? null : (dayRows[openDayAt] ?? null);
+
+  const people = rostered();
+  const pickedPerson = openPersonAt === null ? null : (people[openPersonAt] ?? null);
+
+  /** A day record can be opened from anywhere — the attendance record, an absence list. */
+  const openDay = (p: Punch) => {
+    setOpenPersonAt(null);
+    setDay(p.date);
+    setOpenDayAt(punchesOn(p.date).findIndex((x) => x.id === p.id));
+  };
+  const openLeave = (l: Leave) => {
+    setStatus("ทั้งหมด");
+    setQ("");
+    setOpenLeaveAt(byNewest(LEAVES).indexOf(l));
+  };
 
   const panels = (
     <>
@@ -130,9 +257,11 @@ export default function TmScreen({
           <LeaveRecord
             key={pickedLeave.id}
             leave={pickedLeave}
-            leaves={leaves}
-            onApprove={() => decide(pickedLeave.id, "อนุมัติแล้ว")}
-            onReject={() => setRejecting(pickedLeave)}
+            onApprove={() => approveLeaveOf(pickedLeave)}
+            onReject={() => setRejecting({ kind: "leave", item: pickedLeave })}
+            onEdit={() => setLeaveForm({ leave: pickedLeave })}
+            onCancel={() => setCancelling(pickedLeave)}
+            onPrint={() => setPrintLeave(pickedLeave)}
           />
         )}
       </DetailModal>
@@ -149,64 +278,118 @@ export default function TmScreen({
           <DayRecord
             key={pickedDay.punch.id}
             row={pickedDay}
-            corrected={corrections[pickedDay.punch.id] !== undefined}
-            onEdit={() => setEditingPunch(pickedDay.punch)}
+            onFix={() => setFixing(pickedDay.punch)}
+            onOt={() => setOtFor({ employeeId: pickedDay.employee.id, date: pickedDay.punch.date })}
+            onApproveFix={approveFixOf}
+            onRejectFix={(f) => setRejecting({ kind: "fix", item: f })}
           />
         )}
       </DetailModal>
 
-      <ConfirmDialog
+      <DetailModal
+        open={pickedPerson !== null}
+        title="การเข้างานรายคน"
+        onClose={() => setOpenPersonAt(null)}
+        index={openPersonAt ?? 0}
+        total={people.length}
+        onStep={(d) => setOpenPersonAt((i) => Math.min(people.length - 1, Math.max(0, (i ?? 0) + d)))}
+      >
+        {pickedPerson && (
+          <PersonRecord
+            key={pickedPerson.id}
+            employee={pickedPerson}
+            onFollowUp={(kind) => setFollowUp({ employeeId: pickedPerson.id, kind })}
+            onPrint={setPrintWarning}
+            onOpenDay={openDay}
+          />
+        )}
+      </DetailModal>
+
+      <ReasonDialog
         open={rejecting !== null}
-        title="ไม่อนุมัติใบลา"
-        body="ผู้ยื่นจะเห็นผลทันที และวันดังกล่าวจะกลับไปนับเป็นวันทำงานตามตารางกะ"
+        title={rejecting ? REJECTION_TITLE[rejecting.kind] : ""}
+        body="ผู้ยื่นจะเห็นผลและเหตุผลนี้ทันที รายการจะไม่มีผลกับบันทึกเวลาหรือสิทธิ์ลา"
+        subject={rejecting ? rejectionSubject(rejecting) : undefined}
+        confirmLabel="ไม่อนุมัติ"
+        placeholder="เช่น ตรงกับวันปิดงบเดือน ขอให้เลื่อนเป็นสัปดาห์ถัดไป"
+        onCancel={() => setRejecting(null)}
+        onConfirm={(reason) => {
+          if (rejecting && reject(rejecting, reason)) setRejecting(null);
+        }}
+      />
+
+      <ReasonDialog
+        open={cancelling !== null}
+        title="ยกเลิกใบลา"
+        body={
+          cancelling?.status === "อนุมัติแล้ว"
+            ? "ใบลานี้อนุมัติแล้วแต่ยังไม่ถึงวันลา ยกเลิกแล้ววันลาจะคืนเข้าสิทธิ์ และวันดังกล่าวกลับเป็นวันทำงานตามตารางกะ"
+            : "ใบลาที่รออนุมัติจะถูกถอนออกจากคิว และวันที่จองไว้คืนเข้าสิทธิ์"
+        }
+        subject={cancelling ? <Who id={cancelling.employeeId} sub={`${leaveNo(cancelling)} · ${cancelling.type} · ${cancelling.days} วัน`} /> : undefined}
+        confirmLabel="ยกเลิกใบลา"
+        label="เหตุผลที่ยกเลิก"
+        onCancel={() => setCancelling(null)}
+        onConfirm={(reason) => {
+          if (cancelling && attempt(() => cancelLeave(cancelling.id, reason), `ยกเลิกใบลา ${leaveNo(cancelling)} แล้ว คืนสิทธิ์ ${cancelling.days} วัน`)) {
+            setCancelling(null);
+          }
+        }}
+      />
+
+      <ConfirmDialog
+        open={removingHoliday !== null}
+        title="ลบวันหยุดบริษัท"
+        body="วันนั้นจะกลับเป็นวันทำงานตามตารางกะ ใบลาที่ครอบวันนั้นจะหักสิทธิ์เพิ่มตามจริง"
         subject={
-          rejecting && (
-            <span className="flex items-center gap-2.5">
-              <Avatar name={empName(rejecting.employeeId)} size="sm" />
-              <span>
-                <span className="block text-[13px] font-medium text-slate-900 dark:text-slate-50">
-                  {empName(rejecting.employeeId)}
-                </span>
-                <span className="block text-[11.5px] text-slate-500 dark:text-slate-400">
-                  {rejecting.type} · {rejecting.from} ถึง {rejecting.to}
-                </span>
-              </span>
+          removingHoliday && (
+            <span className="block text-center text-[13px] text-slate-800 dark:text-slate-100">
+              {removingHoliday.name} · {removingHoliday.date}
             </span>
           )
         }
-        confirmLabel="ไม่อนุมัติ"
-        onCancel={() => setRejecting(null)}
-        onConfirm={() => rejecting && decide(rejecting.id, "ไม่อนุมัติ", "ไม่อนุมัติโดยหัวหน้างาน")}
-      />
-
-      <LeaveForm
-        open={filing}
-        leaves={leaves}
-        onCancel={() => setFiling(false)}
-        onSave={(l) => {
-          setLeaves((all) => [l, ...all]);
-          setFiling(false);
+        confirmLabel="ลบวันหยุด"
+        onCancel={() => setRemovingHoliday(null)}
+        onConfirm={() => {
+          if (removingHoliday && attempt(() => removeHoliday(removingHoliday.date), `ลบ${removingHoliday.name}ออกจากวันหยุดบริษัทแล้ว`)) {
+            setRemovingHoliday(null);
+          }
         }}
       />
 
-      <ShiftPicker
-        target={editingShift}
-        roster={roster}
-        onCancel={() => setEditingShift(null)}
-        onPick={(employeeId, dow, code) => {
-          setRoster((r) => ({ ...r, [employeeId]: r[employeeId].map((c, i) => (i === dow ? code : c)) }));
-          setEditingShift(null);
-        }}
-      />
-
-      <PunchForm
-        punch={editingPunch}
-        onCancel={() => setEditingPunch(null)}
-        onSave={(id, times) => {
-          setCorrections((c) => ({ ...c, [id]: times }));
-          setEditingPunch(null);
-        }}
-      />
+      <ShiftPicker target={editingShift} onCancel={() => setEditingShift(null)} />
+      {rosterFor && <RosterForm employeeId={rosterFor.employeeId} onClose={() => setRosterFor(null)} />}
+      {swapping && <SwapForm onClose={() => setSwapping(false)} />}
+      {addingHoliday && <HolidayForm onClose={() => setAddingHoliday(false)} />}
+      {fixing && <PunchForm punch={fixing} onClose={() => setFixing(null)} />}
+      {otFor && <OtForm employeeId={otFor.employeeId} date={otFor.date} onClose={() => setOtFor(null)} />}
+      {leaveForm && <LeaveForm leave={leaveForm.leave} preset={leaveForm.preset} onClose={() => setLeaveForm(null)} />}
+      {followUp && (
+        <FollowUpForm
+          employeeId={followUp.employeeId}
+          kind={followUp.kind}
+          onClose={() => setFollowUp(null)}
+          onSaved={(f) => {
+            setFollowUp(null);
+            if (f.kind === "หนังสือเตือน") setPrintWarning(f);
+          }}
+        />
+      )}
+      {printLeave && (
+        <PrintModal title="พิมพ์ใบลา" subtitle={empName(printLeave.employeeId)} what={`ใบลา ${leaveNo(printLeave)}`} onClose={() => setPrintLeave(null)}>
+          <LeavePaper leave={printLeave} />
+        </PrintModal>
+      )}
+      {printWarning && (
+        <PrintModal
+          title={printWarning.kind === "หนังสือเตือน" ? "พิมพ์หนังสือเตือน" : "พิมพ์บันทึกการตักเตือน"}
+          subtitle={empName(printWarning.employeeId)}
+          what={`${printWarning.kind} ${printWarning.no}`}
+          onClose={() => setPrintWarning(null)}
+        >
+          <WarningPaper item={printWarning} />
+        </PrintModal>
+      )}
     </>
   );
 
@@ -214,64 +397,147 @@ export default function TmScreen({
     return (
       <>
         <Overview
-          leaves={leaves}
+          leaves={LEAVES}
           waiting={waiting}
           onOpenSection={onOpenSection}
-          onOpenLeave={(l) => {
-            setStatus("ทั้งหมด");
-            setQ("");
-            setOpenLeaveAt(leaves.indexOf(l));
-          }}
-          onApprove={(l) => decide(l.id, "อนุมัติแล้ว")}
+          onOpenLeave={openLeave}
+          onApprove={approveLeaveOf}
+          onFile={() => setLeaveForm({})}
         />
         {panels}
       </>
     );
   }
 
+  const exportButton = (onClick: () => void, label = "ส่งออก Excel") => (
+    <Button variant="secondary" icon={<FileSpreadsheet size={15} />} onClick={onClick}>
+      {label}
+    </Button>
+  );
+
+  const actions: Record<string, ReactNode> = {
+    แผนกะการทำงาน: (
+      <>
+        {exportButton(exportRoster)}
+        <Button variant="secondary" icon={<CalendarPlus size={15} />} onClick={() => setAddingHoliday(true)}>
+          เพิ่มวันหยุด
+        </Button>
+        <Button variant="secondary" icon={<ArrowLeftRight size={15} />} onClick={() => setSwapping(true)}>
+          ขอสลับกะ
+        </Button>
+        <Button variant="primary" icon={<UserPlus size={15} />} onClick={() => setRosterFor({})}>
+          จัดตารางกะ
+        </Button>
+      </>
+    ),
+    บันทึกเวลาทำงาน: (
+      <>
+        {exportButton(() => exportDay(dayRows, day), "ส่งออกวันนี้")}
+        {exportButton(exportPeriod, "ส่งออกทั้งงวด")}
+        <Button variant="primary" icon={<Timer size={15} />} onClick={() => setOtFor({})}>
+          ขอทำงานล่วงเวลา
+        </Button>
+      </>
+    ),
+    การลาและการขาดงาน: (
+      <>
+        {exportButton(() => exportLeaves(leaveRows))}
+        <Button variant="primary" icon={<Plus size={15} />} onClick={() => setLeaveForm({})}>
+          ยื่นใบลา
+        </Button>
+      </>
+    ),
+    ติดตามการเข้างาน: (
+      <>
+        {exportButton(exportPeriod, "ส่งออกเวลาทั้งงวด")}
+        {exportButton(exportAttendance)}
+      </>
+    ),
+  };
+
+  const firstFollowUp = FOLLOW_UPS.find((f) => f.kind !== "แจ้งเตือน");
+  const firstCancellable = LEAVES.find(canCancelLeave);
+  const firstFix = PUNCH_FIXES.find((f) => f.status === "รออนุมัติ");
+
   return (
     <div>
       <PageHead
         title="เวลาทำงานและการลา"
         meta={`${tab} · งวด ${PERIOD_START} ถึง ${PERIOD_END} · รออนุมัติ ${waiting.length} ใบ`}
-        right={
-          tab === "การลาและการขาดงาน" ? (
-            <Button variant="primary" icon={<Plus size={15} />} onClick={() => setFiling(true)}>
-              ยื่นใบลา
-            </Button>
-          ) : undefined
-        }
+        right={<div className="flex flex-wrap items-center gap-2">{actions[tab]}</div>}
       />
 
-      {tab === "แผนกะการทำงาน" && <Roster roster={roster} onPick={setEditingShift} />}
+      {tab === "แผนกะการทำงาน" && (
+        <Roster
+          onPick={setEditingShift}
+          onAssign={(employeeId) => setRosterFor({ employeeId })}
+          onRejectSwap={(s) => setRejecting({ kind: "swap", item: s })}
+          onRemoveHoliday={setRemovingHoliday}
+          onAddHoliday={() => setAddingHoliday(true)}
+        />
+      )}
 
       {tab === "บันทึกเวลาทำงาน" && (
-        <TimeSheet rows={dayRows} day={day} setDay={setDay} onOpen={(r) => setOpenDayAt(dayRows.indexOf(r))} />
+        <TimeSheet
+          rows={dayRows}
+          day={day}
+          setDay={setDay}
+          onOpen={(r) => setOpenDayAt(dayRows.indexOf(r))}
+          onRejectFix={(f) => setRejecting({ kind: "fix", item: f })}
+          onRejectOt={(o) => setRejecting({ kind: "ot", item: o })}
+          onOpenPunch={openDay}
+        />
       )}
 
       {tab === "การลาและการขาดงาน" && (
         <Leaves
           rows={leaveRows}
-          leaves={leaves}
+          leaves={LEAVES}
           q={q}
           setQ={setQ}
           status={status}
           setStatus={setStatus}
           onOpen={(l) => setOpenLeaveAt(leaveRows.indexOf(l))}
-          onApprove={(l) => decide(l.id, "อนุมัติแล้ว")}
-          onReject={setRejecting}
+          onApprove={approveLeaveOf}
+          onReject={(l) => setRejecting({ kind: "leave", item: l })}
+          onFile={(preset) => setLeaveForm({ preset })}
+          onFix={setFixing}
+          onOpenDay={openDay}
         />
       )}
 
-      {tab === "ติดตามการเข้างาน" && <AttendanceReport leaves={leaves} />}
+      {tab === "ติดตามการเข้างาน" && (
+        <AttendanceReport
+          leaves={LEAVES}
+          onOpen={(id) => setOpenPersonAt(people.findIndex((e) => e.id === id))}
+          onRemind={(employeeId) => setFollowUp({ employeeId, kind: "แจ้งเตือน" })}
+          onPrint={setPrintWarning}
+        />
+      )}
 
       {panels}
 
       <div hidden data-fitt-index>
         <button data-fitt-screen="แผนกะและเวลาทำงาน" />
         <button data-fitt-screen="อนุมัติการลา" data-fitt-modal onClick={() => setOpenLeaveAt(0)} />
-        <button data-fitt-screen="ยื่นใบลา" data-fitt-modal onClick={() => setFiling(true)} />
-        <button data-fitt-screen="แก้เวลาตอกบัตร" data-fitt-modal onClick={() => setEditingPunch(PUNCHES[0])} />
+        <button data-fitt-screen="ยื่นใบลา" data-fitt-modal onClick={() => setLeaveForm({})} />
+        <button data-fitt-screen="แก้ใบลา" data-fitt-modal onClick={() => waiting[0] && setLeaveForm({ leave: waiting[0] })} />
+        <button data-fitt-screen="ไม่อนุมัติใบลา" data-fitt-modal onClick={() => waiting[0] && setRejecting({ kind: "leave", item: waiting[0] })} />
+        <button data-fitt-screen="ยกเลิกใบลา" data-fitt-modal onClick={() => firstCancellable && setCancelling(firstCancellable)} />
+        <button data-fitt-screen="พิมพ์ใบลา" data-fitt-modal onClick={() => setPrintLeave(LEAVES[0])} />
+        <button data-fitt-screen="บันทึกเวลาทำงานรายวัน" data-fitt-modal onClick={() => setOpenDayAt(0)} />
+        <button data-fitt-screen="แก้เวลาตอกบัตร" data-fitt-modal onClick={() => setFixing(PUNCHES[0])} />
+        <button data-fitt-screen="ไม่อนุมัติคำขอแก้เวลา" data-fitt-modal onClick={() => firstFix && setRejecting({ kind: "fix", item: firstFix })} />
+        <button data-fitt-screen="ขอทำงานล่วงเวลา" data-fitt-modal onClick={() => setOtFor({})} />
+        <button data-fitt-screen="เปลี่ยนกะ" data-fitt-modal onClick={() => people[0] && setEditingShift({ employeeId: people[0].id, dow: 0 })} />
+        <button data-fitt-screen="จัดตารางกะ" data-fitt-modal onClick={() => setRosterFor({})} />
+        <button data-fitt-screen="ขอสลับกะ" data-fitt-modal onClick={() => setSwapping(true)} />
+        <button data-fitt-screen="เพิ่มวันหยุดบริษัท" data-fitt-modal onClick={() => setAddingHoliday(true)} />
+        <button data-fitt-screen="ลบวันหยุดบริษัท" data-fitt-modal onClick={() => { const h = HOLIDAYS.find((x) => x.date > TODAY); if (h) setRemovingHoliday(h); }} />
+        <button data-fitt-screen="การเข้างานรายคน" data-fitt-modal onClick={() => setOpenPersonAt(0)} />
+        <button data-fitt-screen="ส่งข้อความเตือน" data-fitt-modal onClick={() => people[0] && setFollowUp({ employeeId: people[0].id, kind: "แจ้งเตือน" })} />
+        <button data-fitt-screen="ออกหนังสือเตือน" data-fitt-modal onClick={() => people[0] && setFollowUp({ employeeId: people[0].id, kind: "หนังสือเตือน" })} />
+        <button data-fitt-screen="พิมพ์หนังสือเตือน" data-fitt-modal onClick={() => firstFollowUp && setPrintWarning(firstFollowUp)} />
       </div>
     </div>
   );
@@ -285,14 +551,16 @@ function Overview({
   onOpenSection,
   onOpenLeave,
   onApprove,
+  onFile,
 }: {
   leaves: Leave[];
   waiting: Leave[];
   onOpenSection?: (index: number) => void;
   onOpenLeave: (l: Leave) => void;
   onApprove: (l: Leave) => void;
+  onFile: () => void;
 }) {
-  const stats = ROSTERED.map((e) => ({ e, a: attendanceOf(e.id, leaves) }));
+  const stats = rostered().map((e) => ({ e, a: attendanceOf(e.id, leaves) }));
   const scheduled = stats.reduce((n, s) => n + s.a.scheduled, 0);
   const absent = stats.reduce((n, s) => n + s.a.absent, 0);
   const late = stats.reduce((n, s) => n + s.a.late, 0);
@@ -329,7 +597,7 @@ function Overview({
   // Lateness by person across the last fortnight reads better as a grid than a list.
   const heatDays = PERIOD_DAYS.slice(-14);
   const lateOn = (name: string, date: string) => {
-    const e = ROSTERED.find((x) => x.nickname === name);
+    const e = rostered().find((x) => x.nickname === name);
     if (!e) return 0;
     const p = PUNCHES.find((x) => x.employeeId === e.id && x.date === date);
     if (!p) return 0;
@@ -351,13 +619,18 @@ function Overview({
     <div>
       <PageHead
         title="ภาพรวมเวลาทำงานและการลา"
-        meta={`งวด ${PERIOD_START} ถึง ${PERIOD_END} · ${ROSTERED.length} คนในตารางกะ · ข้อมูล ณ ${TODAY}`}
+        meta={`งวด ${PERIOD_START} ถึง ${PERIOD_END} · ${rostered().length} คนในตารางกะ · ข้อมูล ณ ${TODAY}`}
         right={
-          onOpenSection ? (
-            <Button variant="primary" icon={<CalendarDays size={15} />} onClick={() => onOpenSection(1)}>
-              เปิดบันทึกเวลาทำงาน
+          <div className="flex flex-wrap items-center gap-2">
+            <Button variant="secondary" icon={<Plus size={15} />} onClick={onFile}>
+              ยื่นใบลา
             </Button>
-          ) : undefined
+            {onOpenSection && (
+              <Button variant="primary" icon={<CalendarDays size={15} />} onClick={() => onOpenSection(1)}>
+                เปิดบันทึกเวลาทำงาน
+              </Button>
+            )}
+          </div>
         }
       />
 
@@ -451,7 +724,7 @@ function Overview({
             subtitle="ช่องยิ่งเข้มยิ่งสายมาก ช่องเข้มที่สุดคือวันที่ไม่มีการตอกบัตร"
           >
             <Heatmap
-              rows={ROSTERED.map((e) => e.nickname)}
+              rows={rostered().map((e) => e.nickname)}
               cols={heatDays.map((d) => d.slice(8))}
               value={(row, col) => lateOn(row, heatDays.find((d) => d.slice(8) === col)!)}
               format={(n) => (n >= 60 ? "ขาดงาน" : n === 0 ? "ตรงเวลา" : "สาย " + n + " นาที")}
@@ -462,6 +735,7 @@ function Overview({
             title={<span className="flex items-center gap-2"><Hourglass size={15} className="text-slate-400" />ใบลาที่รออนุมัติ</span>}
             action={seeAll(2)}
           >
+            <OtherRequests onOpenSection={onOpenSection} />
             {waiting.length === 0 ? (
               <p className="py-14 text-center text-[12.5px] text-slate-400">ไม่มีใบลาค้างพิจารณา</p>
             ) : (
@@ -542,19 +816,68 @@ function Overview({
   );
 }
 
+/** The other queues a supervisor clears — corrections, overtime, swaps — counted on the overview. */
+function OtherRequests({ onOpenSection }: { onOpenSection?: (index: number) => void }) {
+  const count = (list: { status: string }[]) => list.filter((x) => x.status === "รออนุมัติ").length;
+  const items = [
+    { label: "แก้เวลา", n: count(PUNCH_FIXES), section: 1 },
+    { label: "ล่วงเวลา", n: count(OT_REQUESTS), section: 1 },
+    { label: "สลับกะ", n: count(SHIFT_SWAPS), section: 0 },
+  ].filter((x) => x.n > 0);
+  if (items.length === 0) return null;
+  return (
+    <div className="flex flex-wrap items-center gap-1.5 border-b border-slate-100 px-4 py-2 text-[11.5px] text-slate-500 dark:border-slate-800 dark:text-slate-400">
+      คำขออื่นที่รออนุมัติ
+      {items.map((x) => (
+        <button
+          key={x.label}
+          onClick={() => onOpenSection?.(x.section)}
+          className="rounded-full bg-amber-50 px-2 py-0.5 text-amber-700 transition hover:bg-amber-100 dark:bg-amber-500/15 dark:text-amber-300"
+        >
+          {x.label} {x.n}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 /* --------------------------------------------------------------- roster */
 
 function Roster({
-  roster,
   onPick,
+  onAssign,
+  onRejectSwap,
+  onRemoveHoliday,
+  onAddHoliday,
 }: {
-  roster: Record<number, string[]>;
   onPick: (t: { employeeId: number; dow: number }) => void;
+  onAssign: (employeeId: number) => void;
+  onRejectSwap: (s: ShiftSwap) => void;
+  onRemoveHoliday: (h: Holiday) => void;
+  onAddHoliday: () => void;
 }) {
-  const used = (code: string) => Object.values(roster).flat().filter((c) => c === code).length;
+  const people = rostered();
+  const missing = unrostered();
+  const used = (code: string) => people.flatMap((e) => rosterOf(e.id) ?? []).filter((c) => c === code).length;
+  const swaps = [...SHIFT_SWAPS].sort((a, b) => b.date.localeCompare(a.date));
 
   return (
     <div className="space-y-3">
+      {missing.length > 0 && (
+        <Note tone="warn">
+          <span className="flex flex-wrap items-center gap-2">
+            <span className="min-w-0 flex-1">
+              พนักงาน {missing.length} คนยังใช้กะตั้งต้นตามสัญญาจ้าง (กะเช้าตามวันทำงานในสัญญา) กดที่ชื่อเพื่อจัดกะให้ตรงงานจริง
+            </span>
+            {missing.map((e) => (
+              <MiniButton key={e.id} onClick={() => onAssign(e.id)}>
+                <UserPlus size={12} /> {e.name}
+              </MiniButton>
+            ))}
+          </span>
+        </Note>
+      )}
+
       <div className="grid gap-3 sm:grid-cols-3 xl:grid-cols-5">
         {SHIFTS.map((s) => {
           const sw = shiftSwatch(s.code);
@@ -580,7 +903,7 @@ function Roster({
 
       <Card
         title={<span className="flex items-center gap-2"><CalendarDays size={15} className="text-slate-400" />ตารางกะประจำสัปดาห์</span>}
-        subtitle="กดที่ช่องใดก็ได้เพื่อเปลี่ยนกะของคนนั้นในวันนั้น"
+        subtitle="กดที่ช่องเพื่อเปลี่ยนกะวันนั้น หรือกดดินสอท้ายแถวเพื่อจัดใหม่ทั้งสัปดาห์ · มีผลตั้งแต่สัปดาห์หน้า"
       >
         <div className="overflow-x-auto">
           <table className="w-full min-w-[42rem] text-[13px]">
@@ -593,20 +916,13 @@ function Roster({
                   </th>
                 ))}
                 <th className="px-4 py-3 text-right font-medium">ชั่วโมงตามแผน</th>
+                <th className="w-10 px-2 py-3" />
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-              {ROSTERED.map((e) => {
-                const week = roster[e.id];
-                const plannedMin = week.reduce((n, code) => {
-                  if (code === "O") return n;
-                  const s = shiftOf(code);
-                  const [sh, sm] = s.start.split(":").map(Number);
-                  const [eh, em] = s.end.split(":").map(Number);
-                  let mins = eh * 60 + em - (sh * 60 + sm);
-                  if (mins < 0) mins += 1440;
-                  return n + mins - s.breakMin;
-                }, 0);
+              {people.map((e) => {
+                const week = rosterOf(e.id)!;
+                const plannedMin = week.reduce((n, code) => n + plannedMinutes(code), 0);
                 return (
                   <tr key={e.id} className="transition hover:bg-slate-50 dark:hover:bg-slate-800/40">
                     <td className="px-4 py-2">
@@ -639,8 +955,16 @@ function Roster({
                         </td>
                       );
                     })}
-                    <td className="px-4 py-2 text-right tabular-nums text-slate-600 dark:text-slate-300">
-                      {hhmm(plannedMin)}
+                    <td className="px-4 py-2 text-right tabular-nums text-slate-600 dark:text-slate-300">{hhmm(plannedMin)}</td>
+                    <td className="px-2 py-2">
+                      <button
+                        onClick={() => onAssign(e.id)}
+                        title="จัดตารางกะทั้งสัปดาห์"
+                        aria-label={`จัดตารางกะทั้งสัปดาห์ของ${e.name}`}
+                        className="grid size-7 place-items-center rounded-lg text-slate-400 transition hover:bg-slate-100 hover:text-violet-600 dark:hover:bg-slate-800 dark:hover:text-violet-300"
+                      >
+                        <Pencil size={14} />
+                      </button>
                     </td>
                   </tr>
                 );
@@ -650,23 +974,82 @@ function Roster({
         </div>
       </Card>
 
-      <Card
-        title={<span className="flex items-center gap-2"><CalendarX size={15} className="text-slate-400" />วันหยุดประจำปีที่กระทบตารางกะ</span>}
-        subtitle="วันในรายการนี้จะไม่ถูกนับเป็นวันทำงาน และไม่ต้องตอกบัตร"
-      >
-        <ul className="divide-y divide-slate-100 dark:divide-slate-800">
-          {HOLIDAYS.map((h) => (
-            <li key={h.date} className="flex items-center gap-3 px-4 py-2.5">
-              <span className="grid size-8 shrink-0 place-items-center rounded-full bg-emerald-50 text-emerald-600 dark:bg-emerald-500/15 dark:text-emerald-300">
-                <CalendarX size={14} />
-              </span>
-              <span className="min-w-0 flex-1 truncate text-[13px] text-slate-800 dark:text-slate-100">{h.name}</span>
-              <span className="shrink-0 text-[12px] tabular-nums text-slate-500 dark:text-slate-400">{h.date}</span>
-              <Chip>{WEEK_DAYS[dowIndex(h.date)]}</Chip>
-            </li>
-          ))}
-        </ul>
-      </Card>
+      <div className="grid gap-3 xl:grid-cols-2">
+        <Card
+          title={<span className="flex items-center gap-2"><ArrowLeftRight size={15} className="text-slate-400" />คำขอสลับกะ</span>}
+          subtitle="อนุมัติแล้วกะของสองคนในวันนั้นจึงสลับกัน วันอื่นเป็นไปตามตารางเดิม"
+        >
+          {swaps.length === 0 ? (
+            <p className="py-10 text-center text-[12.5px] text-slate-400">ยังไม่มีคำขอสลับกะ</p>
+          ) : (
+            <ul className="divide-y divide-slate-100 dark:divide-slate-800">
+              {swaps.map((s) => (
+                <li key={s.id} className="px-4 py-3">
+                  <div className="flex flex-wrap items-center gap-2 text-[13px]">
+                    <span className="tabular-nums font-medium text-slate-900 dark:text-slate-50">{s.date}</span>
+                    <span className="text-slate-700 dark:text-slate-200">
+                      {empName(s.employeeId)} ({shiftOf(s.shift).name}) ⇄ {empName(s.withEmployeeId)} ({shiftOf(s.withShift).name})
+                    </span>
+                    <span className="ml-auto">
+                      <Badge tone={REQUEST_TONE[s.status]} dot>
+                        {s.status}
+                      </Badge>
+                    </span>
+                  </div>
+                  <div className="mt-1 flex flex-wrap items-center gap-2">
+                    <span className="min-w-0 flex-1 text-[12px] text-slate-500 dark:text-slate-400">
+                      {s.reason}
+                      {s.note ? ` · ${s.note}` : s.decidedBy ? ` · โดย ${s.decidedBy}` : ""}
+                    </span>
+                    {s.status === "รออนุมัติ" && (
+                      <span className="flex gap-1.5">
+                        <MiniButton tone="ok" onClick={() => approveSwapOf(s)}>
+                          อนุมัติ
+                        </MiniButton>
+                        <MiniButton tone="bad" onClick={() => onRejectSwap(s)}>
+                          ไม่อนุมัติ
+                        </MiniButton>
+                      </span>
+                    )}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Card>
+
+        <Card
+          title={<span className="flex items-center gap-2"><CalendarX size={15} className="text-slate-400" />วันหยุดประจำปีที่กระทบตารางกะ</span>}
+          subtitle="วันในรายการนี้ไม่นับเป็นวันทำงาน ไม่ต้องตอกบัตร และไม่หักสิทธิ์ลา"
+          action={
+            <MiniButton onClick={onAddHoliday}>
+              <Plus size={12} /> เพิ่มวันหยุด
+            </MiniButton>
+          }
+        >
+          <ul className="divide-y divide-slate-100 dark:divide-slate-800">
+            {HOLIDAYS.map((h) => (
+              <li key={h.date} className="flex items-center gap-3 px-4 py-2.5">
+                <span className="grid size-8 shrink-0 place-items-center rounded-full bg-emerald-50 text-emerald-600 dark:bg-emerald-500/15 dark:text-emerald-300">
+                  <CalendarX size={14} />
+                </span>
+                <span className="min-w-0 flex-1 truncate text-[13px] text-slate-800 dark:text-slate-100">{h.name}</span>
+                <span className="shrink-0 text-[12px] tabular-nums text-slate-500 dark:text-slate-400">{h.date}</span>
+                <Chip>{WEEK_DAYS[dowIndex(h.date)]}</Chip>
+                <button
+                  onClick={() => onRemoveHoliday(h)}
+                  disabled={h.date <= TODAY}
+                  title="ลบวันหยุดนี้"
+                  aria-label={`ลบ${h.name}`}
+                  className="grid size-7 place-items-center rounded-lg text-slate-400 transition hover:bg-rose-50 hover:text-rose-600 disabled:opacity-30 dark:hover:bg-rose-500/10"
+                >
+                  <Trash2 size={14} />
+                </button>
+              </li>
+            ))}
+          </ul>
+        </Card>
+      </div>
     </div>
   );
 }
@@ -674,6 +1057,104 @@ function Roster({
 /* ------------------------------------------------------------ timesheet */
 
 function TimeSheet({
+  rows,
+  day,
+  setDay,
+  onOpen,
+  onRejectFix,
+  onRejectOt,
+  onOpenPunch,
+}: {
+  rows: Day[];
+  day: string;
+  setDay: (d: string) => void;
+  onOpen: (r: Day) => void;
+  onRejectFix: (f: PunchFix) => void;
+  onRejectOt: (o: OtRequest) => void;
+  onOpenPunch: (p: Punch) => void;
+}) {
+  const [view, setView] = useState(TIME_TABS[0]);
+  const pending = (list: { status: string }[]) => list.filter((x) => x.status === "รออนุมัติ").length;
+
+  const decision = (item: { status: string; decidedBy?: string }, approve: () => void, reject: () => void) =>
+    item.status === "รออนุมัติ" ? (
+      <span className="flex items-center justify-end gap-1.5">
+        <MiniButton tone="ok" onClick={approve}>
+          อนุมัติ
+        </MiniButton>
+        <MiniButton tone="bad" onClick={reject}>
+          ไม่อนุมัติ
+        </MiniButton>
+      </span>
+    ) : (
+      <span className="block truncate text-right text-[11px] text-slate-400">{item.decidedBy ?? "—"}</span>
+    );
+
+  const fixColumns: Column<PunchFix>[] = [
+    { key: "who", header: "พนักงาน", width: "24%", sort: (a, b) => empName(a.employeeId).localeCompare(empName(b.employeeId), "th"), cell: (f) => <Who id={f.employeeId} sub={`ยื่นเมื่อ ${f.filedAt}`} /> },
+    { key: "date", header: "วันที่", width: "12%", sort: (a, b) => a.date.localeCompare(b.date), cell: (f) => <span className="tabular-nums">{f.date}</span> },
+    { key: "change", header: "เวลาเดิม → ขอแก้เป็น", width: "22%", cell: (f) => <span className="tabular-nums text-slate-700 dark:text-slate-200">{f.before.in ?? "—"}–{f.before.out ?? "—"} → {f.in}–{f.out}</span> },
+    { key: "reason", header: "เหตุผล", cell: (f) => <span className="line-clamp-2 text-[12.5px]">{f.reason}{f.note ? ` · ${f.note}` : ""}</span> },
+    { key: "status", header: "สถานะ", width: "12%", cell: (f) => <Badge tone={REQUEST_TONE[f.status]} dot>{f.status}</Badge> },
+  ];
+
+  const otColumns: Column<OtRequest>[] = [
+    { key: "who", header: "พนักงาน", width: "24%", sort: (a, b) => empName(a.employeeId).localeCompare(empName(b.employeeId), "th"), cell: (o) => <Who id={o.employeeId} sub={`ยื่นเมื่อ ${o.filedAt}`} /> },
+    { key: "date", header: "วันที่", width: "12%", sort: (a, b) => a.date.localeCompare(b.date), cell: (o) => <span className="tabular-nums">{o.date}</span> },
+    { key: "hours", header: "ชั่วโมง", align: "right", width: "9%", sort: (a, b) => a.hours - b.hours, cell: (o) => <span className="tabular-nums">{o.hours}</span> },
+    { key: "rate", header: "อัตรา", width: "11%", cell: (o) => <Chip>{o.rate} เท่า</Chip> },
+    { key: "reason", header: "งานที่ทำ", cell: (o) => <span className="line-clamp-2 text-[12.5px]">{o.reason}{o.note ? ` · ${o.note}` : ""}</span> },
+    { key: "status", header: "สถานะ", width: "12%", cell: (o) => <Badge tone={REQUEST_TONE[o.status]} dot>{o.status}</Badge> },
+  ];
+
+  return (
+    <div className="space-y-3">
+      <Tabs
+        tabs={TIME_TABS}
+        active={view}
+        onPick={setView}
+        icons={TIME_TAB_ICONS}
+        badges={{ คำขอแก้เวลา: pending(PUNCH_FIXES), คำขอล่วงเวลา: pending(OT_REQUESTS) }}
+        id="time"
+      />
+      {view === "เวลาเข้าออกรายวัน" && <DailyTimes rows={rows} day={day} setDay={setDay} onOpen={onOpen} />}
+      {view === "คำขอแก้เวลา" && (
+        <DataTable
+          rows={byNewest(PUNCH_FIXES)}
+          columns={fixColumns}
+          getId={(f) => f.id}
+          onOpen={(f) => {
+            const p = PUNCHES.find((x) => x.id === f.punchId);
+            if (p) onOpenPunch(p);
+          }}
+          empty="ยังไม่มีคำขอแก้เวลา"
+          toolbar={
+            <p className="text-[12.5px] text-slate-500 dark:text-slate-400">
+              เวลาในบันทึกเปลี่ยนเมื่ออนุมัติเท่านั้น เวลาเดิมเก็บไว้ในคำขอให้ตรวจย้อนหลังได้ · กดที่แถวเพื่อเปิดบันทึกของวันนั้น
+            </p>
+          }
+          trailing={(f) => decision(f, () => approveFixOf(f), () => onRejectFix(f))}
+        />
+      )}
+      {view === "คำขอล่วงเวลา" && (
+        <DataTable
+          rows={byNewest(OT_REQUESTS)}
+          columns={otColumns}
+          getId={(o) => o.id}
+          empty="ยังไม่มีคำขอล่วงเวลา"
+          toolbar={
+            <p className="text-[12.5px] text-slate-500 dark:text-slate-400">
+              จ่ายเฉพาะชั่วโมงที่อนุมัติ · วันทำงาน 1.5 เท่า วันหยุด 3 เท่า · รวมไม่เกิน 36 ชั่วโมงต่อสัปดาห์
+            </p>
+          }
+          trailing={(o) => decision(o, () => approveOtOf(o), () => onRejectOt(o))}
+        />
+      )}
+    </div>
+  );
+}
+
+function DailyTimes({
   rows,
   day,
   setDay,
@@ -758,10 +1239,13 @@ function TimeSheet({
       header: "สถานะ",
       width: "15%",
       cell: (r) => (
-        <Badge tone={STATE_TONE[r.verdict.state]} dot>
-          {r.verdict.state}
-          {r.verdict.state === "มาสาย" ? ` ${r.verdict.lateMin} น.` : ""}
-        </Badge>
+        <span className="flex flex-wrap items-center gap-1">
+          <Badge tone={STATE_TONE[r.verdict.state]} dot>
+            {r.verdict.state}
+            {r.verdict.state === "มาสาย" ? ` ${r.verdict.lateMin} น.` : ""}
+          </Badge>
+          {pendingFixOf(r.punch.id) && <Badge tone="warn">รอแก้เวลา</Badge>}
+        </span>
       ),
     },
   ];
@@ -786,7 +1270,7 @@ function TimeSheet({
         <>
           {(late > 0 || absent > 0) && (
             <Note tone={absent > 0 ? "bad" : "warn"}>
-              วันที่ {day} มีมาสาย {late} คน และขาดงาน {absent} คน กดที่แถวเพื่อดูรายละเอียดและแก้เวลาตอกบัตรที่บันทึกผิด
+              วันที่ {day} มีมาสาย {late} คน และขาดงาน {absent} คน กดที่แถวเพื่อดูรายละเอียดและขอแก้เวลาตอกบัตรที่บันทึกผิด
             </Note>
           )}
           <DataTable
@@ -822,6 +1306,9 @@ function Leaves({
   onOpen,
   onApprove,
   onReject,
+  onFile,
+  onFix,
+  onOpenDay,
 }: {
   rows: Leave[];
   leaves: Leave[];
@@ -832,6 +1319,9 @@ function Leaves({
   onOpen: (l: Leave) => void;
   onApprove: (l: Leave) => void;
   onReject: (l: Leave) => void;
+  onFile: (preset: Partial<LeaveDraft>) => void;
+  onFix: (p: Punch) => void;
+  onOpenDay: (p: Punch) => void;
 }) {
   const [view, setView] = useState(LEAVE_TABS[0]);
 
@@ -884,7 +1374,14 @@ function Leaves({
 
   return (
     <div className="space-y-3">
-      <Tabs tabs={LEAVE_TABS} active={view} onPick={setView} icons={LEAVE_TAB_ICONS} id="leave" />
+      <Tabs
+        tabs={LEAVE_TABS}
+        active={view}
+        onPick={setView}
+        icons={LEAVE_TAB_ICONS}
+        badges={{ ใบลา: leaves.filter((l) => l.status === "รออนุมัติ").length }}
+        id="leave"
+      />
 
       {view === "ใบลา" && (
         <DataTable
@@ -907,7 +1404,7 @@ function Leaves({
           toolbar={
             <div className="flex flex-wrap items-center gap-2">
               <Search value={q} onChange={setQ} placeholder="ค้นหาชื่อ ประเภทลา หรือเหตุผล" icon={<SearchIcon size={14} />} />
-              <Select value={status} onChange={setStatus} options={["ทั้งหมด", "รออนุมัติ", "อนุมัติแล้ว", "ไม่อนุมัติ"]} />
+              <Select value={status} onChange={setStatus} options={["ทั้งหมด", "รออนุมัติ", "อนุมัติแล้ว", "ไม่อนุมัติ", "ยกเลิก"]} />
               <span className="ml-auto text-[12px] text-slate-400">แสดง {rows.length} ใบ</span>
             </div>
           }
@@ -938,20 +1435,23 @@ function Leaves({
         />
       )}
 
-      {view === "สิทธิ์คงเหลือ" && <Balances leaves={leaves} />}
+      {view === "สิทธิ์คงเหลือ" && <Balances onFile={onFile} />}
+
+      {view === "การขาดงาน" && <Absences onFile={onFile} onFix={onFix} onOpenDay={onOpenDay} />}
 
       {view === "ประวัติการลา" && <LeaveHistory leaves={leaves} onOpen={onOpen} />}
     </div>
   );
 }
 
-function Balances({ leaves }: { leaves: Leave[] }) {
+function Balances({ onFile }: { onFile: (preset: Partial<LeaveDraft>) => void }) {
   const paid = LEAVE_TYPES.filter((t) => t.paid);
   return (
     <div className="grid gap-3 lg:grid-cols-2">
       {EMPLOYEES.filter((e) => e.status !== "ลาออก").map((e) => {
-        const total = paid.reduce((n, t) => n + t.quota, 0);
-        const spent = paid.reduce((n, t) => n + usedLeave(e.id, t.name, leaves), 0);
+        const rows = paid.map((t) => ({ t, b: leaveBalance(e.id, t.name) }));
+        const total = rows.reduce((n, r) => n + r.b.quota, 0);
+        const spent = rows.reduce((n, r) => n + r.b.used, 0);
         return (
           <Card
             key={e.id}
@@ -962,30 +1462,82 @@ function Balances({ leaves }: { leaves: Leave[] }) {
               </span>
             }
             subtitle={`${e.position} · ${e.department}`}
-            action={<Badge tone={spent > total * 0.7 ? "warn" : "ok"}>ใช้ไป {spent} วัน</Badge>}
+            action={
+              <span className="flex items-center gap-1.5">
+                <Badge tone={spent > total * 0.7 ? "warn" : "ok"}>ใช้ไป {spent} วัน</Badge>
+                <MiniButton onClick={() => onFile({ employeeId: e.id })}>
+                  <Plus size={12} /> ยื่นลา
+                </MiniButton>
+              </span>
+            }
           >
             <div className="space-y-3 p-4">
-              {paid.map((t) => {
-                const used = usedLeave(e.id, t.name, leaves);
-                const left = t.quota - used;
-                return (
-                  <div key={t.name}>
-                    <div className="mb-1 flex items-center gap-2 text-[12.5px]">
-                      <Dot className={typeSwatch(t.name).dot} />
-                      <span className="min-w-0 flex-1 truncate text-slate-700 dark:text-slate-200">{t.name}</span>
-                      <span className={"tabular-nums " + (left <= 0 ? "font-semibold text-rose-600 dark:text-rose-400" : "text-slate-500 dark:text-slate-400")}>
-                        เหลือ {left} จาก {t.quota} วัน
-                      </span>
-                    </div>
-                    <Bar pct={(used / t.quota) * 100} tone={left <= 0 ? "bad" : left <= 1 ? "warn" : "ok"} width="w-full" />
+              {rows.map(({ t, b }) => (
+                <div key={t.name}>
+                  <div className="mb-1 flex items-center gap-2 text-[12.5px]">
+                    <Dot className={typeSwatch(t.name).dot} />
+                    <span className="min-w-0 flex-1 truncate text-slate-700 dark:text-slate-200">{t.name}</span>
+                    <span className={"tabular-nums " + (b.left <= 0 ? "font-semibold text-rose-600 dark:text-rose-400" : "text-slate-500 dark:text-slate-400")}>
+                      เหลือ {b.left} จาก {b.quota} วัน{b.pending > 0 ? ` · รออนุมัติ ${b.pending}` : ""}
+                    </span>
                   </div>
-                );
-              })}
+                  <Bar pct={b.quota === 0 ? 0 : (b.used / b.quota) * 100} tone={b.left <= 0 ? "bad" : b.left <= 1 ? "warn" : "ok"} width="w-full" />
+                </div>
+              ))}
+              {rows.some((r) => r.t.name === "ลาพักร้อน" && r.b.quota === 0) && (
+                <p className="text-[11.5px] text-slate-400">อายุงานยังไม่ครบหนึ่งปี จึงยังไม่มีสิทธิ์ลาพักร้อน</p>
+              )}
             </div>
           </Card>
         );
       })}
     </div>
+  );
+}
+
+/** วันที่ขาดงานในงวด พร้อมทางแก้สองทาง: ป่วยก็ยื่นลาย้อนหลัง ลืมตอกก็ขอแก้เวลา */
+function Absences({
+  onFile,
+  onFix,
+  onOpenDay,
+}: {
+  onFile: (preset: Partial<LeaveDraft>) => void;
+  onFix: (p: Punch) => void;
+  onOpenDay: (p: Punch) => void;
+}) {
+  const rows = PUNCHES.filter((p) => judge(p).state === "ขาดงาน").sort((a, b) => b.date.localeCompare(a.date));
+  return (
+    <Card
+      title={<span className="flex items-center gap-2"><CircleX size={15} className="text-slate-400" />วันที่ขาดงานในงวด</span>}
+      subtitle="วันที่อยู่ในตารางกะแต่ไม่มีการตอกบัตรและไม่มีใบลา ถ้าป่วยให้ยื่นลาย้อนหลัง ถ้าลืมตอกบัตรให้ขอแก้เวลา"
+    >
+      {rows.length === 0 ? (
+        <p className="py-14 text-center text-[12.5px] text-slate-400">ไม่มีวันขาดงานในงวดนี้</p>
+      ) : (
+        <ul className="divide-y divide-slate-100 dark:divide-slate-800">
+          {rows.map((p) => {
+            const s = shiftOf(p.shift);
+            const pending = pendingFixOf(p.id);
+            return (
+              <li key={p.id} className="flex flex-wrap items-center gap-3 px-4 py-2.5">
+                <button onClick={() => onOpenDay(p)} className="min-w-0 flex-1 text-left">
+                  <Who id={p.employeeId} sub={`${p.date} วัน${WEEK_DAYS[dowIndex(p.date)]} · ${s.name} ${s.start}–${s.end}`} />
+                </button>
+                {pending && <Badge tone="warn">มีคำขอแก้เวลารออนุมัติ</Badge>}
+                <span className="flex gap-1.5">
+                  <MiniButton onClick={() => onFile({ employeeId: p.employeeId, type: "ลาป่วย", from: p.date, to: p.date })}>
+                    <FileText size={12} /> ยื่นลาย้อนหลัง
+                  </MiniButton>
+                  <MiniButton onClick={() => onFix(p)} disabled={pending !== undefined}>
+                    <Pencil size={12} /> ขอแก้เวลา
+                  </MiniButton>
+                </span>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </Card>
   );
 }
 
@@ -1029,8 +1581,18 @@ function LeaveHistory({ leaves, onOpen }: { leaves: Leave[]; onOpen: (l: Leave) 
 
 /* ----------------------------------------------------------- attendance */
 
-function AttendanceReport({ leaves }: { leaves: Leave[] }) {
-  const rows = ROSTERED.map((e) => ({ e, a: attendanceOf(e.id, leaves) }));
+function AttendanceReport({
+  leaves,
+  onOpen,
+  onRemind,
+  onPrint,
+}: {
+  leaves: Leave[];
+  onOpen: (employeeId: number) => void;
+  onRemind: (employeeId: number) => void;
+  onPrint: (f: FollowUp) => void;
+}) {
+  const rows = rostered().map((e) => ({ e, a: attendanceOf(e.id, leaves) }));
   const scheduled = rows.reduce((n, r) => n + r.a.scheduled, 0);
   const absent = rows.reduce((n, r) => n + r.a.absent, 0);
   const late = rows.reduce((n, r) => n + r.a.late, 0);
@@ -1051,10 +1613,10 @@ function AttendanceReport({ leaves }: { leaves: Leave[] }) {
 
       <Card
         title={<span className="flex items-center gap-2"><Users size={15} className="text-slate-400" />การเข้างานรายคน</span>}
-        subtitle="วันลาที่อนุมัติแล้วไม่ถูกนับเป็นขาดงาน เพราะวันนั้นไม่ได้อยู่ในหน้าที่ต้องมาทำงาน"
+        subtitle="วันลาที่อนุมัติแล้วไม่ถูกนับเป็นขาดงาน · กดที่แถวเพื่อดูวันที่สายหรือขาด และส่งข้อความเตือนหรือออกหนังสือเตือน"
       >
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[46rem] text-[13px]">
+          <table className="w-full min-w-[52rem] text-[13px]">
             <thead className="bg-slate-50/80 text-left text-[11px] uppercase tracking-wide text-slate-500 dark:bg-slate-800/60 dark:text-slate-400">
               <tr>
                 <th className="px-4 py-3 font-medium">พนักงาน</th>
@@ -1064,12 +1626,14 @@ function AttendanceReport({ leaves }: { leaves: Leave[] }) {
                 <th className="px-4 py-3 text-right font-medium">ขาดงาน</th>
                 <th className="px-4 py-3 text-right font-medium">ลา</th>
                 <th className="px-4 py-3 text-right font-medium">ล่วงเวลา</th>
+                <th className="px-4 py-3 text-right font-medium">OT อนุมัติ</th>
                 <th className="px-4 py-3 font-medium">อัตราเข้างาน</th>
+                <th className="px-4 py-3 text-right font-medium">ติดตาม</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
               {rows.map(({ e, a }) => (
-                <tr key={e.id} className="transition hover:bg-slate-50 dark:hover:bg-slate-800/40">
+                <tr key={e.id} onClick={() => onOpen(e.id)} className="cursor-pointer transition hover:bg-slate-50 dark:hover:bg-slate-800/40">
                   <td className="px-4 py-2.5">
                     <span className="flex items-center gap-2.5">
                       <Avatar name={e.name} size="sm" />
@@ -1089,8 +1653,19 @@ function AttendanceReport({ leaves }: { leaves: Leave[] }) {
                   </td>
                   <td className="px-4 py-2.5 text-right tabular-nums text-slate-600 dark:text-slate-300">{a.leaveDays || "—"}</td>
                   <td className="px-4 py-2.5 text-right tabular-nums text-slate-600 dark:text-slate-300">{a.otMin ? hhmm(a.otMin) : "—"}</td>
+                  <td className="px-4 py-2.5 text-right tabular-nums text-slate-600 dark:text-slate-300">
+                    {approvedOtHours(e.id) ? approvedOtHours(e.id) + " ชม." : "—"}
+                  </td>
                   <td className="px-4 py-2.5">
                     <Bar pct={a.rate} tone={a.rate === 100 ? "ok" : a.rate >= 90 ? "warn" : "bad"} width="w-24" />
+                  </td>
+                  <td className="px-4 py-2.5 text-right" onClick={(ev) => ev.stopPropagation()}>
+                    <span className="inline-flex items-center gap-1.5">
+                      {followUpsOf(e.id).length > 0 && <Chip>{followUpsOf(e.id).length} ครั้ง</Chip>}
+                      <MiniButton tone={a.late + a.absent > 0 ? "bad" : "idle"} onClick={() => onRemind(e.id)}>
+                        <BellRing size={12} /> เตือน
+                      </MiniButton>
+                    </span>
                   </td>
                 </tr>
               ))}
@@ -1134,409 +1709,33 @@ function AttendanceReport({ leaves }: { leaves: Leave[] }) {
           </div>
         </Card>
       </div>
-    </div>
-  );
-}
 
-/* --------------------------------------------------------------- records */
-
-function LeaveRecord({
-  leave,
-  leaves,
-  onApprove,
-  onReject,
-}: {
-  leave: Leave;
-  leaves: Leave[];
-  onApprove: () => void;
-  onReject: () => void;
-}) {
-  const type = LEAVE_TYPES.find((t) => t.name === leave.type)!;
-  const used = usedLeave(leave.employeeId, leave.type, leaves);
-  const sw = typeSwatch(leave.type);
-  const days = daysBetween(leave.from, leave.to);
-
-  return (
-    <div>
-      <div className="flex flex-wrap items-start gap-4 border-b border-slate-100 px-5 pb-5 dark:border-slate-800">
-        <Avatar name={empName(leave.employeeId)} size="xl" />
-        <div className="min-w-0 flex-1">
-          <h2 className="text-[18px] font-semibold text-slate-900 dark:text-slate-50">{empName(leave.employeeId)}</h2>
-          <p className="mt-0.5 text-[13px] text-slate-500 dark:text-slate-400">
-            {leave.from} ถึง {leave.to} · {leave.days} วัน · ยื่นเมื่อ {leave.filedAt}
-          </p>
-          <div className="mt-2 flex flex-wrap items-center gap-1.5">
-            <Tag swatch={sw}>{leave.type}</Tag>
-            <Badge tone={STATUS_TONE[leave.status]} dot>{leave.status}</Badge>
-            {type.paid ? <Chip>ได้รับค่าจ้าง</Chip> : <Chip>ไม่ได้รับค่าจ้าง</Chip>}
-          </div>
-        </div>
-        {leave.status === "รออนุมัติ" && (
-          <div className="flex shrink-0 gap-2">
-            <Button variant="primary" icon={<CircleCheck size={15} />} onClick={onApprove}>
-              อนุมัติ
-            </Button>
-            <Button variant="secondary" icon={<CircleX size={15} />} onClick={onReject}>
-              ไม่อนุมัติ
-            </Button>
-          </div>
-        )}
-      </div>
-
-      <div className="space-y-4 px-5 py-4">
-        <div className="space-y-1">
-          <IconRow icon={<FileText size={14} />} label="เหตุผล">{leave.reason || "ไม่ได้ระบุ"}</IconRow>
-          <IconRow icon={<CalendarDays size={14} />} label="วันที่ลา">
-            {days.map((d) => `${d.slice(8)}/${d.slice(5, 7)}`).join(" · ")}
-          </IconRow>
-          <IconRow icon={<UserRound size={14} />} label="ผู้พิจารณา">{leave.decidedBy ?? "ยังไม่มีการพิจารณา"}</IconRow>
-        </div>
-
-        <div>
-          <p className="mb-2 text-[11px] font-medium uppercase tracking-wide text-slate-400">สิทธิ์ {leave.type}</p>
-          <Progress done={used} total={type.quota} label={`ใช้ไปแล้ว ${used} จาก ${type.quota} วัน`} />
-        </div>
-
-        {leave.note && <Note tone={leave.status === "ไม่อนุมัติ" ? "bad" : "idle"}>{leave.note}</Note>}
-
-        {leave.status === "รออนุมัติ" && used + leave.days > type.quota && (
-          <Note tone="warn">
-            อนุมัติใบนี้แล้วจะใช้สิทธิ์ {leave.type} เกินโควตาไป {used + leave.days - type.quota} วัน
-            ส่วนที่เกินจะกลายเป็นลาไม่รับค่าจ้าง
-          </Note>
-        )}
-
-        <div>
-          <p className="mb-2 text-[11px] font-medium uppercase tracking-wide text-slate-400">ตารางกะในวันที่ลา</p>
-          <ul className="space-y-1.5">
-            {days.map((d) => {
-              const code = ROSTER[leave.employeeId]?.[dowIndex(d)] ?? "O";
-              const s = shiftOf(code);
-              return (
-                <li key={d} className="flex items-center gap-2.5 text-[13px]">
-                  <span className="w-24 shrink-0 tabular-nums text-slate-500 dark:text-slate-400">{d}</span>
-                  <Tag swatch={shiftSwatch(code)}>{s.name}</Tag>
-                  <span className="text-slate-400">{code === "O" ? "เป็นวันหยุดอยู่แล้ว" : `${s.start}–${s.end}`}</span>
+      <Card
+        title={<span className="flex items-center gap-2"><BellRing size={15} className="text-slate-400" />บันทึกการติดตามล่าสุด</span>}
+        subtitle="ข้อความเตือน การตักเตือนด้วยวาจา และหนังสือเตือน เรียงจากล่าสุด"
+      >
+        {FOLLOW_UPS.length === 0 ? (
+          <p className="py-10 text-center text-[12.5px] text-slate-400">ยังไม่มีการติดตาม</p>
+        ) : (
+          <ul className="divide-y divide-slate-100 dark:divide-slate-800">
+            {[...FOLLOW_UPS]
+              .sort((x, y) => y.date.localeCompare(x.date) || y.id - x.id)
+              .slice(0, 8)
+              .map((f) => (
+                <li key={f.id} className="flex flex-wrap items-center gap-3 px-4 py-2.5">
+                  <button onClick={() => onOpen(f.employeeId)} className="min-w-0 flex-1 text-left">
+                    <Who id={f.employeeId} sub={`${f.no} · ${f.date} · ${f.kind}เรื่อง${f.topic} · ${f.detail}`} />
+                  </button>
+                  {f.kind !== "แจ้งเตือน" && (
+                    <MiniButton onClick={() => onPrint(f)}>
+                      <Printer size={12} /> พิมพ์
+                    </MiniButton>
+                  )}
                 </li>
-              );
-            })}
+              ))}
           </ul>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function DayRecord({ row, corrected, onEdit }: { row: Day; corrected: boolean; onEdit: () => void }) {
-  const s = shiftOf(row.punch.shift);
-  const a = attendanceOf(row.employee.id);
-
-  return (
-    <div>
-      <div className="flex flex-wrap items-start gap-4 border-b border-slate-100 px-5 pb-5 dark:border-slate-800">
-        <Avatar name={row.employee.name} size="xl" />
-        <div className="min-w-0 flex-1">
-          <h2 className="text-[18px] font-semibold text-slate-900 dark:text-slate-50">{row.employee.name}</h2>
-          <p className="mt-0.5 text-[13px] text-slate-500 dark:text-slate-400">
-            {row.punch.date} · {s.name} {s.start}–{s.end}
-          </p>
-          <div className="mt-2 flex flex-wrap items-center gap-1.5">
-            <Badge tone={STATE_TONE[row.verdict.state]} dot>{row.verdict.state}</Badge>
-            <Tag swatch={shiftSwatch(row.punch.shift)}>{s.name}</Tag>
-            {corrected && <Chip>แก้ไขแล้ว</Chip>}
-          </div>
-        </div>
-        <Button variant="secondary" icon={<Pencil size={15} />} onClick={onEdit}>
-          แก้เวลาตอกบัตร
-        </Button>
-      </div>
-
-      <div className="space-y-4 px-5 py-4">
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          {[
-            { icon: <LogIn size={15} />, label: "เวลาเข้า", value: row.punch.in ?? "ไม่ได้ตอก" },
-            { icon: <LogOut size={15} />, label: "เวลาออก", value: row.punch.out ?? "ไม่ได้ตอก" },
-            { icon: <Clock3 size={15} />, label: "ชั่วโมงทำงาน", value: row.verdict.workedMin > 0 ? hhmm(row.verdict.workedMin) : "—" },
-            { icon: <Timer size={15} />, label: "ล่วงเวลา", value: row.verdict.otMin ? hhmm(row.verdict.otMin) : "—" },
-          ].map((c) => (
-            <div key={c.label} className="rounded-xl bg-slate-50 p-3 dark:bg-slate-800/50">
-              <div className="flex items-center gap-1.5 text-[11.5px] text-slate-500 dark:text-slate-400">
-                <span className="text-slate-400">{c.icon}</span>
-                {c.label}
-              </div>
-              <div className="mt-1 text-[16px] font-semibold tabular-nums text-slate-900 dark:text-slate-50">{c.value}</div>
-            </div>
-          ))}
-        </div>
-
-        {row.verdict.state === "มาสาย" && (
-          <Note tone="warn">
-            เข้างานช้ากว่าเวลาเริ่มกะ {row.verdict.lateMin} นาที เกินเกณฑ์ 15 นาทีจึงนับเป็นมาสาย
-          </Note>
         )}
-        {row.verdict.state === "ขาดงาน" && (
-          <Note tone="bad">
-            วันนี้อยู่ในตารางกะแต่ไม่มีการตอกบัตรทั้งเข้าและออก ถ้าลืมตอกให้แก้เวลาแทนการปล่อยเป็นขาดงาน
-          </Note>
-        )}
-
-        <div>
-          <p className="mb-2 text-[11px] font-medium uppercase tracking-wide text-slate-400">สถิติทั้งงวดของคนนี้</p>
-          <div className="space-y-1">
-            <IconRow icon={<CalendarCheck size={14} />} label="วันตามกะ">{a.scheduled} วัน</IconRow>
-            <IconRow icon={<Clock3 size={14} />} label="มาสาย">{a.late} ครั้ง</IconRow>
-            <IconRow icon={<CircleX size={14} />} label="ขาดงาน">{a.absent} วัน</IconRow>
-            <IconRow icon={<Timer size={14} />} label="ล่วงเวลาสะสม">{hhmm(a.otMin)}</IconRow>
-          </div>
-          <div className="mt-2">
-            <Bar pct={a.rate} tone={a.rate === 100 ? "ok" : a.rate >= 90 ? "warn" : "bad"} width="w-full" />
-          </div>
-        </div>
-      </div>
+      </Card>
     </div>
-  );
-}
-
-/* ----------------------------------------------------------------- forms */
-
-function ShiftPicker({
-  target,
-  roster,
-  onCancel,
-  onPick,
-}: {
-  target: { employeeId: number; dow: number } | null;
-  roster: Record<number, string[]>;
-  onCancel: () => void;
-  onPick: (employeeId: number, dow: number, code: string) => void;
-}) {
-  const current = target ? roster[target.employeeId][target.dow] : "";
-  return (
-    <FormModal
-      open={target !== null}
-      title="เปลี่ยนกะ"
-      subtitle={target ? `${empName(target.employeeId)} · วัน${WEEK_DAYS[target.dow]}` : undefined}
-      onClose={onCancel}
-      size="sm"
-    >
-      <ul className="space-y-1.5">
-        {SHIFTS.map((s) => {
-          const sw = shiftSwatch(s.code);
-          const on = s.code === current;
-          return (
-            <li key={s.code}>
-              <button
-                onClick={() => target && onPick(target.employeeId, target.dow, s.code)}
-                className={
-                  "flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left ring-1 transition " +
-                  (on ? sw.tint + " " + sw.ring : "ring-transparent hover:bg-slate-50 dark:hover:bg-slate-800/60")
-                }
-              >
-                <span className={"grid size-8 shrink-0 place-items-center rounded-full " + sw.tint}>
-                  {SHIFT_ICON[s.code]}
-                </span>
-                <span className="min-w-0 flex-1">
-                  <span className="block text-[13px] font-medium text-slate-900 dark:text-slate-50">{s.name}</span>
-                  <span className="block text-[11.5px] text-slate-400">
-                    {s.start} – {s.end}
-                    {s.breakMin > 0 ? ` · พัก ${s.breakMin} นาที` : ""}
-                  </span>
-                </span>
-                {on && <CircleCheck size={16} className="shrink-0 text-violet-600 dark:text-violet-300" />}
-              </button>
-            </li>
-          );
-        })}
-      </ul>
-    </FormModal>
-  );
-}
-
-function PunchForm({
-  punch,
-  onCancel,
-  onSave,
-}: {
-  punch: Punch | null;
-  onCancel: () => void;
-  onSave: (id: number, times: { in: string; out: string }) => void;
-}) {
-  const [inAt, setInAt] = useState("");
-  const [outAt, setOutAt] = useState("");
-  const [error, setError] = useState<string>();
-
-  const open = punch !== null;
-  const start = punch ? shiftOf(punch.shift) : null;
-
-  return (
-    <FormModal
-      open={open}
-      title="แก้เวลาตอกบัตร"
-      subtitle={punch ? `${empName(punch.employeeId)} · ${punch.date}` : undefined}
-      onClose={onCancel}
-      size="sm"
-    >
-      <div className="space-y-3">
-        <Note tone="idle">
-          การแก้เวลาไม่ลบของเดิม ระบบจะทำเครื่องหมายว่าแถวนี้ถูกแก้ไขไว้ให้ตรวจสอบย้อนหลังได้
-          {start ? ` กะนี้เริ่ม ${start.start} เลิก ${start.end}` : ""}
-        </Note>
-        <div className="grid grid-cols-2 gap-3">
-          <Field label="เวลาเข้า" error={error} hint="รูปแบบ ชช:นน">
-            <input
-              value={inAt}
-              onChange={(e) => setInAt(e.target.value)}
-              placeholder={punch?.in ?? start?.start ?? "08:00"}
-              className={FIELD + " w-full tabular-nums"}
-            />
-          </Field>
-          <Field label="เวลาออก" hint="รูปแบบ ชช:นน">
-            <input
-              value={outAt}
-              onChange={(e) => setOutAt(e.target.value)}
-              placeholder={punch?.out ?? start?.end ?? "17:00"}
-              className={FIELD + " w-full tabular-nums"}
-            />
-          </Field>
-        </div>
-        <div className="flex justify-end gap-2 pt-1">
-          <Button variant="secondary" onClick={onCancel}>
-            ยกเลิก
-          </Button>
-          <Button
-            variant="primary"
-            onClick={() => {
-              const ok = (t: string) => /^\d{2}:\d{2}$/.test(t);
-              if (!ok(inAt) || !ok(outAt)) {
-                setError("กรอกเวลาทั้งสองช่องในรูปแบบ ชช:นน");
-                return;
-              }
-              setError(undefined);
-              if (punch) onSave(punch.id, { in: inAt, out: outAt });
-              setInAt("");
-              setOutAt("");
-            }}
-          >
-            บันทึกเวลาใหม่
-          </Button>
-        </div>
-      </div>
-    </FormModal>
-  );
-}
-
-type LeaveDraft = { employee: string; type: string; from: string; to: string; reason: string };
-const EMPTY_LEAVE: LeaveDraft = { employee: "", type: "", from: "", to: "", reason: "" };
-
-function LeaveForm({
-  open,
-  leaves,
-  onCancel,
-  onSave,
-}: {
-  open: boolean;
-  leaves: Leave[];
-  onCancel: () => void;
-  onSave: (l: Leave) => void;
-}) {
-  const [draft, setDraft] = useState<LeaveDraft>(EMPTY_LEAVE);
-
-  const staff = EMPLOYEES.filter((e) => e.status !== "ลาออก");
-  const names = staff.map((e) => e.name);
-  const chosen = staff.find((e) => e.name === (draft.employee || names[0]))!;
-  const type = draft.type || LEAVE_TYPES[0].name;
-  const quota = LEAVE_TYPES.find((t) => t.name === type)!;
-  const used = usedLeave(chosen.id, type, leaves);
-  const span = /^\d{4}-\d{2}-\d{2}$/.test(draft.from) && /^\d{4}-\d{2}-\d{2}$/.test(draft.to) && draft.to >= draft.from
-    ? daysBetween(draft.from, draft.to).length
-    : 0;
-
-  const steps: Step[] = [
-    {
-      title: "ผู้ลาและประเภท",
-      render: () => (
-        <div className="space-y-3">
-          <Field label="พนักงาน">
-            <Select value={draft.employee || names[0]} onChange={(v) => setDraft((d) => ({ ...d, employee: v }))} options={names} className="w-full" />
-          </Field>
-          <Field label="ประเภทการลา" hint={`เหลือ ${quota.quota - used} จาก ${quota.quota} วัน`}>
-            <Select value={type} onChange={(v) => setDraft((d) => ({ ...d, type: v }))} options={LEAVE_TYPES.map((t) => t.name)} className="w-full" />
-          </Field>
-          <Progress done={used} total={quota.quota} label={`ใช้ไปแล้ว ${used} วัน`} />
-        </div>
-      ),
-    },
-    {
-      title: "ช่วงวัน",
-      validate: (): Record<string, string> => {
-        if (!/^\d{4}-\d{2}-\d{2}$/.test(draft.from)) return { from: "กรอกวันที่เริ่มในรูปแบบ ปปปป-ดด-วว" };
-        if (!/^\d{4}-\d{2}-\d{2}$/.test(draft.to)) return { to: "กรอกวันที่สิ้นสุดในรูปแบบ ปปปป-ดด-วว" };
-        if (draft.to < draft.from) return { to: "วันสิ้นสุดต้องไม่อยู่ก่อนวันเริ่ม" };
-        return {};
-      },
-      render: (errors) => (
-        <div className="space-y-3">
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="ตั้งแต่วันที่" error={errors.from}>
-              <input value={draft.from} onChange={(e) => setDraft((d) => ({ ...d, from: e.target.value }))} placeholder="2026-10-01" className={FIELD + " w-full"} />
-            </Field>
-            <Field label="ถึงวันที่" error={errors.to}>
-              <input value={draft.to} onChange={(e) => setDraft((d) => ({ ...d, to: e.target.value }))} placeholder="2026-10-03" className={FIELD + " w-full"} />
-            </Field>
-          </div>
-          {span > 0 && (
-            <Note tone={used + span > quota.quota ? "warn" : "idle"}>
-              ลาทั้งหมด {span} วัน
-              {used + span > quota.quota
-                ? ` เกินสิทธิ์ ${type} ไป ${used + span - quota.quota} วัน ส่วนที่เกินจะเป็นลาไม่รับค่าจ้าง`
-                : ` เหลือสิทธิ์อีก ${quota.quota - used - span} วันหลังจากใบนี้`}
-            </Note>
-          )}
-        </div>
-      ),
-    },
-    {
-      title: "เหตุผล",
-      validate: (): Record<string, string> =>
-        draft.reason.trim().length >= 5 ? {} : { reason: "เขียนเหตุผลอย่างน้อย 5 ตัวอักษร" },
-      render: (errors) => (
-        <Field label="เหตุผลการลา" error={errors.reason} hint="หัวหน้างานจะเห็นข้อความนี้ตอนพิจารณา">
-          <textarea
-            value={draft.reason}
-            onChange={(e) => setDraft((d) => ({ ...d, reason: e.target.value }))}
-            rows={4}
-            placeholder="เช่น ไข้หวัด มีใบรับรองแพทย์"
-            className={FIELD + " w-full resize-none"}
-          />
-        </Field>
-      ),
-    },
-  ];
-
-  return (
-    <FormModal open={open} title="ยื่นใบลา" subtitle="กรอกสามขั้นตอน ระบบตรวจสิทธิ์คงเหลือให้ระหว่างกรอก" onClose={onCancel}>
-      <Wizard
-        steps={steps}
-        onCancel={() => {
-          setDraft(EMPTY_LEAVE);
-          onCancel();
-        }}
-        onDone={() => {
-          onSave({
-            id: Math.max(0, ...leaves.map((l) => l.id)) + 1,
-            employeeId: chosen.id,
-            type,
-            from: draft.from,
-            to: draft.to,
-            days: span,
-            status: "รออนุมัติ",
-            reason: draft.reason.trim(),
-            filedAt: TODAY,
-          });
-          setDraft(EMPTY_LEAVE);
-        }}
-        doneLabel="ยื่นใบลา"
-      />
-    </FormModal>
   );
 }

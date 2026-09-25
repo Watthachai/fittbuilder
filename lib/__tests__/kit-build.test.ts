@@ -61,7 +61,8 @@ describe("the kit a back-office build starts with", () => {
     // skipped it would be clipped to the first card that lifts on hover.
     expect(kitSource).toContain("createPortal(children, document.body)");
     const components = kitSource.split(/\nexport function /).slice(1);
-    const dialogs = components.filter((c) => /role="(alert)?dialog"/.test(c));
+    // The JSX attribute, not a selector string that looks for one (printDocument does).
+    const dialogs = components.filter((c) => /\srole="(alert)?dialog"/.test(c));
     expect(dialogs.map((c) => c.slice(0, c.indexOf("("))).sort()).toEqual([
       "ConfirmDialog",
       "DetailModal",

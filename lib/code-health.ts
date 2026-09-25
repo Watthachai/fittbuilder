@@ -31,6 +31,7 @@ const CODE_FILE = /\.(tsx?|jsx?|css|html)$/;
 export const SHIPPED_KIT_PATHS: ReadonlySet<string> = new Set([
   "src/modules/ui.tsx",
   "src/modules/kit.tsx",
+  "src/modules/company.ts",
   "src/components/ui/ui.tsx",
   "src/components/ui/kit.tsx",
   "src/components/ui/shell.tsx",

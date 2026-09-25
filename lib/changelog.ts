@@ -23,6 +23,17 @@ export const CHANGE_BADGE: Record<ChangeType, { label: string; className: string
 // Newest first. SemVer: fix → PATCH, feature → MINOR, breaking → MAJOR.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.89.1",
+    date: "2026-09-25",
+    title: "มาร์เก็ตเพลสตรึงแถบบนและขอบเขตที่เลือกไว้ขณะเลื่อน",
+    items: [
+      {
+        type: "fix",
+        text: "แถบบนของมาร์เก็ตเพลสและหน้ารายละเอียดระบบค้างอยู่ด้านบนเมื่อเลื่อน และแผงขอบเขตที่เลือกพร้อมปุ่มสร้างโปรเจกต์อยู่ในจอตลอด เดิมแผงนี้ถูกยืดสูงเท่าแถวของตาราง จึงเลื่อนหายไปพร้อมรายการ",
+      },
+    ],
+  },
+  {
     version: "0.89.0",
     date: "2026-09-25",
     title: "ทุกหน้าของระบบตัวอย่างคีย์เอกสารได้จริง",

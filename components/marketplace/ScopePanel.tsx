@@ -37,7 +37,10 @@ export default function ScopePanel({
   };
 
   return (
-    <aside className="lg:sticky lg:top-6">
+    // self-start: a grid item stretches to the height of its row, and a sticky
+    // box as tall as its row has nowhere to move — the panel scrolled away with
+    // the list. top-20 clears the sticky header above it.
+    <aside className="lg:sticky lg:top-20 lg:self-start">
       <div className="rounded-2xl border border-chalk/12 bg-night-panel p-4">
         <h2 className="font-display text-[14px] font-semibold text-chalk">ขอบเขตที่เลือก</h2>
 

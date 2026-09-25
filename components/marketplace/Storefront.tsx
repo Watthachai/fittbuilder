@@ -47,7 +47,7 @@ export default function Storefront() {
 
   return (
     <div className="min-h-screen bg-night">
-      <header className="border-b border-chalk/10">
+      <header className="sticky top-0 z-30 border-b border-chalk/10 bg-night/85 backdrop-blur-md">
         <div className="mx-auto flex max-w-6xl items-center gap-3 px-5 py-4">
           <Link
             href="/"

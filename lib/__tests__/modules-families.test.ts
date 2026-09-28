@@ -59,6 +59,22 @@ describe("the catalogue across families", () => {
     }
   });
 
+  it("imports another module's files only when that module is among its dependencies", () => {
+    // A project is built from a module and what its needs pull in, nothing else.
+    // Purchasing once took today's date from the personnel module, so a project
+    // with purchasing and no HR could not even start.
+    const ids = new Set(MODULES.map((m) => m.id));
+    for (const m of MODULES) {
+      const allowed = new Set([m.id, ...closureOf(m).map((x) => x.id)]);
+      for (const [path, source] of Object.entries(m.files)) {
+        for (const [, other] of source.matchAll(/from "\.\.\/([a-z]+)\//g)) {
+          if (!ids.has(other)) continue;
+          expect(allowed.has(other), `${path} imports ../${other}/ but ${m.id} does not depend on ${other}`).toBe(true);
+        }
+      }
+    }
+  });
+
   it("puts the ledger after the documents it posts from", () => {
     const co = getModule("co")!;
     const shell = composeModules([co, ...closureOf(co)]).files["src/App.tsx"];

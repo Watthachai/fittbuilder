@@ -1,5 +1,5 @@
 import { commit } from "../kit";
-import { COMPANY } from "../company";
+import { COMPANY, TODAY } from "../company";
 
 /**
  * ทะเบียนพนักงาน — แหล่งเดียวที่ทุกโมดูล HR อ่านชื่อ แผนก และเงินเดือน
@@ -167,8 +167,7 @@ export const EVENT_TYPES = [
 export const SEPARATION_EVENTS = ["ลาออก", "เลิกจ้าง", "สิ้นสุดสัญญาจ้าง"];
 const isSeparationEvent = (ev: PersonnelEvent) => SEPARATION_EVENTS.includes(ev.type);
 
-/** งวดที่หน้าจอถือว่าเป็น "วันนี้" — ตรึงไว้เพื่อให้เดโมอ่านเหมือนกันทุกครั้ง */
-export const TODAY = "2026-09-22";
+export { TODAY };
 
 export const baht = (n: number) => n.toLocaleString("th-TH");
 

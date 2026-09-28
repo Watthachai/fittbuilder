@@ -3091,6 +3091,16 @@ function CostSheet({ code, onAct }: { code: string; onAct: (a: Act) => void }) {
  * once each wrote their own, and the receipt carried a different tax id from
  * the invoice it paid.
  */
+/**
+ * The day the demo is set on — fixed, so it reads the same every time.
+ *
+ * It lives here rather than in one module because every module dates things
+ * against it, and a project is built from whichever modules were picked:
+ * purchasing once read it from the personnel module, and a project with
+ * purchasing but no HR could not start.
+ */
+export const TODAY = "2026-09-22";
+
 export const COMPANY = {
   name: "บริษัท ตัวอย่างอุตสาหกรรม จำกัด",
   address: "99/9 อาคารตัวอย่างทาวเวอร์ ชั้น 12 ถนนรัชดาภิเษก แขวงดินแดง เขตดินแดง กรุงเทพมหานคร 10400",
@@ -8852,8 +8862,7 @@ export function downloadCsv(filename: string, header: string[], rows: (string | 
 `,
 
   "mm/data.ts": `import { commit } from "../kit";
-import { TODAY } from "../pa/data";
-import { COMPANY } from "../company";
+import { COMPANY, TODAY } from "../company";
 
 export { TODAY };
 
@@ -17446,7 +17455,7 @@ function PayRow({ label, value, sub, strong }: { label: string; value: ReactNode
 `,
 
   "pa/data.ts": `import { commit } from "../kit";
-import { COMPANY } from "../company";
+import { COMPANY, TODAY } from "../company";
 
 /**
  * ทะเบียนพนักงาน — แหล่งเดียวที่ทุกโมดูล HR อ่านชื่อ แผนก และเงินเดือน
@@ -17614,8 +17623,7 @@ export const EVENT_TYPES = [
 export const SEPARATION_EVENTS = ["ลาออก", "เลิกจ้าง", "สิ้นสุดสัญญาจ้าง"];
 const isSeparationEvent = (ev: PersonnelEvent) => SEPARATION_EVENTS.includes(ev.type);
 
-/** งวดที่หน้าจอถือว่าเป็น "วันนี้" — ตรึงไว้เพื่อให้เดโมอ่านเหมือนกันทุกครั้ง */
-export const TODAY = "2026-09-22";
+export { TODAY };
 
 export const baht = (n: number) => n.toLocaleString("th-TH");
 

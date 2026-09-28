@@ -1,6 +1,5 @@
 import { commit } from "../kit";
-import { TODAY } from "../pa/data";
-import { COMPANY } from "../company";
+import { COMPANY, TODAY } from "../company";
 
 export { TODAY };
 

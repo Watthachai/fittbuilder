@@ -7,6 +7,16 @@
  * once each wrote their own, and the receipt carried a different tax id from
  * the invoice it paid.
  */
+/**
+ * The day the demo is set on — fixed, so it reads the same every time.
+ *
+ * It lives here rather than in one module because every module dates things
+ * against it, and a project is built from whichever modules were picked:
+ * purchasing once read it from the personnel module, and a project with
+ * purchasing but no HR could not start.
+ */
+export const TODAY = "2026-09-22";
+
 export const COMPANY = {
   name: "บริษัท ตัวอย่างอุตสาหกรรม จำกัด",
   address: "99/9 อาคารตัวอย่างทาวเวอร์ ชั้น 12 ถนนรัชดาภิเษก แขวงดินแดง เขตดินแดง กรุงเทพมหานคร 10400",

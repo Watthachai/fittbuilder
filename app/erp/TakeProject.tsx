@@ -8,7 +8,6 @@ import { createProject, saveProject } from "@/lib/storage";
 import { mayOpen } from "./session";
 import type { Role } from "./session";
 import type { ModuleFamily } from "@/lib/modules/types";
-import { FAMILIES } from "@/lib/modules/registry";
 
 /**
  * Take what you just used and keep it.
@@ -55,7 +54,7 @@ export default function TakeProject({ role, only }: { role: Role; only?: ModuleF
         disabled={busy}
         className="shrink-0 rounded-lg bg-sky-600 px-3 py-1.5 text-[12px] font-medium text-white transition hover:bg-sky-700 disabled:opacity-50"
       >
-        {busy ? "กำลังสร้าง…" : only ? `สร้างโปรเจกต์จากระบบ${FAMILIES.find((f) => f.id === only)?.name}` : `สร้างโปรเจกต์จาก ${selected.length} ส่วนนี้`}
+        {busy ? "กำลังสร้าง…" : only ? "สร้างโปรเจกต์จากระบบนี้" : `สร้างโปรเจกต์จาก ${selected.length} ส่วนนี้`}
       </button>
     </div>
   );

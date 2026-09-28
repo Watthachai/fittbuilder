@@ -28306,6 +28306,3126 @@ export function PrintModal({
 }
 `,
 
+  "qm/data.ts": `import { commit } from "../kit";
+import { COMPANY, TODAY } from "../company";
+import { GOODS_RECEIPTS, MATERIALS, PURCHASE_ORDERS, VENDORS, postStockMove } from "../mm/data";
+import { ORDERS, PP_MOVEMENTS } from "../pp/data";
+import { CUSTOMERS, DELIVERIES, SALES_ORDERS } from "../sd/data";
+
+export { COMPANY, TODAY };
+
+/**
+ * บริหารคุณภาพตาม ISO 9001:2015 — ข้อกำหนดแต่ละข้อเป็นงานที่ทำได้จริงในระบบ
+ * ไม่ใช่แฟ้มเอกสารที่ทำแยกไว้ตอนรอผู้ตรวจ
+ *
+ * ของที่ตรวจมาจากเอกสารจริงของระบบอื่น: ล็อตตรวจรับมาจากใบรับของของจัดซื้อ
+ * ล็อตตรวจก่อนส่งมาจากการรับสินค้าผลิตเสร็จ ข้อร้องเรียนอ้างใบส่งของของฝ่ายขาย
+ * และของที่ตัดสินให้ทำลายหรือส่งคืนผู้ขายตัดสต็อกผ่านฟังก์ชันของคลังวัสดุ
+ * โมดูลนี้ไม่เขียนข้อมูลของโมดูลอื่นตรง ๆ
+ */
+
+const YEAR = Number(TODAY.slice(0, 4)) + 543;
+
+export type Errors = Record<string, string>;
+
+function assertValid(e: Errors) {
+  const first = Object.values(e)[0];
+  if (first) throw new Error(first);
+}
+
+const isDate = (s: string) => /^\\d{4}-\\d{2}-\\d{2}$/.test(s);
+
+export function addDays(iso: string, n: number) {
+  const [y, m, d] = iso.split("-").map(Number);
+  const t = new Date(y, m - 1, d + n);
+  return \`\${t.getFullYear()}-\${String(t.getMonth() + 1).padStart(2, "0")}-\${String(t.getDate()).padStart(2, "0")}\`;
+}
+
+export function addMonths(iso: string, n: number) {
+  const [y, m, d] = iso.split("-").map(Number);
+  const t = new Date(y, m - 1 + n, d);
+  return \`\${t.getFullYear()}-\${String(t.getMonth() + 1).padStart(2, "0")}-\${String(t.getDate()).padStart(2, "0")}\`;
+}
+
+/** เลขถัดไปของชุดเอกสาร — ต่อจากเลขที่สูงสุดที่มีอยู่ ไม่ใช่จากจำนวนใบ */
+function nextNo(existing: string[], prefix: string, width: number) {
+  const max = existing
+    .filter((n) => n.startsWith(prefix))
+    .map((n) => Number(n.slice(prefix.length)))
+    .filter((n) => Number.isFinite(n))
+    .reduce((a, b) => Math.max(a, b), 0);
+  return prefix + String(max + 1).padStart(width, "0");
+}
+
+export const materialName = (code: string) => MATERIALS.find((m) => m.code === code)?.name ?? code;
+export const materialUnit = (code: string) => MATERIALS.find((m) => m.code === code)?.unit ?? "";
+export const vendorName = (code?: string) => (code ? VENDORS.find((v) => v.code === code)?.name ?? code : "—");
+export const customerName = (code?: string) => (code ? CUSTOMERS.find((c) => c.code === code)?.name ?? code : "—");
+
+/* ================================================================ people */
+
+/** ทีมที่รับผิดชอบระบบคุณภาพ — ผู้ตรวจติดตามต้องไม่ตรวจงานของฝ่ายตัวเอง (ข้อ 9.2.2 ค) */
+export const QM_TEAM = [
+  { name: "นพดล ศรีวงศ์", role: "ผู้จัดการฝ่ายประกันคุณภาพ (QMR)", dept: "ฝ่ายประกันคุณภาพ", auditor: true },
+  { name: "สุภาพร แก้วมณี", role: "หัวหน้าตรวจสอบคุณภาพ (QC)", dept: "ฝ่ายประกันคุณภาพ", auditor: true },
+  { name: "อนุชา ทองดี", role: "หัวหน้าฝ่ายผลิต", dept: "ฝ่ายผลิต", auditor: true },
+  { name: "ปิยะนุช ใจดี", role: "หัวหน้าฝ่ายจัดซื้อ", dept: "ฝ่ายจัดซื้อ", auditor: true },
+  { name: "วรวุฒิ พึ่งบุญ", role: "หัวหน้าคลังสินค้า", dept: "ฝ่ายคลังสินค้า", auditor: false },
+  { name: "ชลธิชา มั่นคง", role: "หัวหน้าฝ่ายขาย", dept: "ฝ่ายขาย", auditor: true },
+];
+
+export const QMR = QM_TEAM[0].name;
+export const DEPARTMENTS = [...new Set(QM_TEAM.map((p) => p.dept))];
+export const PEOPLE = QM_TEAM.map((p) => p.name);
+export const deptOf = (name: string) => QM_TEAM.find((p) => p.name === name)?.dept ?? "";
+
+/** ข้อกำหนดของ ISO 9001:2015 ที่ระบบนี้ครอบคลุม ใช้อ้างในเอกสาร ผลตรวจติดตาม และรายงาน */
+export const CLAUSES = [
+  { code: "4.4", name: "ระบบบริหารคุณภาพและกระบวนการ" },
+  { code: "5.2", name: "นโยบายคุณภาพ" },
+  { code: "6.2", name: "วัตถุประสงค์คุณภาพ" },
+  { code: "7.1.5", name: "ทรัพยากรสำหรับการเฝ้าติดตามและการวัด" },
+  { code: "7.2", name: "ความสามารถ" },
+  { code: "7.5", name: "เอกสารสารสนเทศ" },
+  { code: "8.4", name: "การควบคุมผู้ให้บริการภายนอก" },
+  { code: "8.5", name: "การผลิตและการให้บริการ" },
+  { code: "8.6", name: "การตรวจปล่อยผลิตภัณฑ์" },
+  { code: "8.7", name: "การควบคุมผลลัพธ์ที่ไม่เป็นไปตามข้อกำหนด" },
+  { code: "9.1.2", name: "ความพึงพอใจของลูกค้า" },
+  { code: "9.2", name: "การตรวจติดตามภายใน" },
+  { code: "9.3", name: "การทบทวนโดยฝ่ายบริหาร" },
+  { code: "10.2", name: "สิ่งที่ไม่เป็นไปตามข้อกำหนดและการแก้ไข" },
+];
+
+export const clauseName = (code: string) => CLAUSES.find((c) => c.code === code)?.name ?? "";
+
+/* ============================================================= documents */
+
+export const DOC_TYPES = ["คู่มือคุณภาพ", "ขั้นตอนการปฏิบัติงาน", "วิธีการทำงาน", "แบบฟอร์ม"] as const;
+export type DocType = (typeof DOC_TYPES)[number];
+
+const DOC_PREFIX: Record<DocType, string> = {
+  "คู่มือคุณภาพ": "QM-",
+  "ขั้นตอนการปฏิบัติงาน": "QP-",
+  "วิธีการทำงาน": "WI-",
+  "แบบฟอร์ม": "FM-",
+};
+
+export type DocStatus = "ร่าง" | "รออนุมัติ" | "ใช้งาน" | "ยกเลิก";
+
+export type DocRevision = { rev: number; date: string; change: string; by: string; approvedBy: string };
+
+/** ฉบับที่กำลังเขียนหรือรออนุมัติ — ฉบับที่ใช้อยู่ยังใช้ต่อจนกว่าฉบับนี้จะอนุมัติ */
+export type DocDraft = { rev: number; change: string; by: string; date: string; submitted: boolean };
+
+export type QmDocument = {
+  code: string;
+  title: string;
+  type: DocType;
+  clause: string;
+  owner: string;
+  /** ฉบับที่ใช้อยู่ — -1 คือยังไม่เคยอนุมัติฉบับไหน */
+  rev: number;
+  status: DocStatus;
+  effective?: string;
+  /** ทบทวนความเหมาะสมทุกปี (ข้อ 7.5.2) */
+  reviewDue?: string;
+  draft?: DocDraft;
+  history: DocRevision[];
+  obsoleteReason?: string;
+};
+
+/** ทุกฉบับถูกทบทวนในการประชุมทบทวนโดยฝ่ายบริหารเมื่อ 2026-01-20 ยกเว้นที่ออกฉบับใหม่หลังจากนั้น */
+const MANAGEMENT_REVIEW = "2026-01-20";
+
+const issued = (code: string, title: string, type: DocType, clause: string, owner: string, revs: [string, string][], reviewed = MANAGEMENT_REVIEW): QmDocument => {
+  const history = revs.map(([date, change], i) => ({ rev: i, date, change, by: owner === "ฝ่ายผลิต" ? "อนุชา ทองดี" : "สุภาพร แก้วมณี", approvedBy: QMR }));
+  const last = history[history.length - 1];
+  const since = last.date > reviewed ? last.date : reviewed;
+  return { code, title, type, clause, owner, rev: last.rev, status: "ใช้งาน", effective: last.date, reviewDue: addMonths(since, 12), history };
+};
+
+export const DOCUMENTS: QmDocument[] = [
+  issued("QM-01", "คู่มือคุณภาพ", "คู่มือคุณภาพ", "4.4", "ฝ่ายประกันคุณภาพ", [["2025-01-15", "ออกใช้ครั้งแรก"], ["2025-11-03", "ปรับขอบเขตให้รวมงานพ่นสี"]]),
+  issued("QP-01", "การควบคุมเอกสารและบันทึก", "ขั้นตอนการปฏิบัติงาน", "7.5", "ฝ่ายประกันคุณภาพ", [["2025-01-15", "ออกใช้ครั้งแรก"]]),
+  issued("QP-02", "การตรวจติดตามภายใน", "ขั้นตอนการปฏิบัติงาน", "9.2", "ฝ่ายประกันคุณภาพ", [["2025-01-15", "ออกใช้ครั้งแรก"], ["2026-02-10", "เพิ่มเกณฑ์ความเป็นอิสระของผู้ตรวจ"]]),
+  issued("QP-03", "การควบคุมผลิตภัณฑ์ที่ไม่เป็นไปตามข้อกำหนด", "ขั้นตอนการปฏิบัติงาน", "8.7", "ฝ่ายประกันคุณภาพ", [["2025-01-15", "ออกใช้ครั้งแรก"]]),
+  issued("QP-04", "การแก้ไขและการป้องกัน", "ขั้นตอนการปฏิบัติงาน", "10.2", "ฝ่ายประกันคุณภาพ", [["2025-01-15", "ออกใช้ครั้งแรก"]]),
+  issued("QP-05", "การตรวจรับวัตถุดิบ", "ขั้นตอนการปฏิบัติงาน", "8.4", "ฝ่ายประกันคุณภาพ", [["2025-02-01", "ออกใช้ครั้งแรก"], ["2025-10-07", "เพิ่มแผนสุ่มตัวอย่างตามขนาดล็อต"]], "2025-10-07"),
+  issued("QP-06", "การสอบเทียบเครื่องมือวัด", "ขั้นตอนการปฏิบัติงาน", "7.1.5", "ฝ่ายประกันคุณภาพ", [["2025-02-01", "ออกใช้ครั้งแรก"]]),
+  issued("WI-01", "วิธีการเชื่อมโครงชั้นวาง", "วิธีการทำงาน", "8.5", "ฝ่ายผลิต", [["2025-03-12", "ออกใช้ครั้งแรก"], ["2026-06-20", "เปลี่ยนลวดเชื่อมเป็น ER70S-6"]]),
+  issued("WI-02", "การวัดความหนาเหล็กแผ่นและเหล็กเส้น", "วิธีการทำงาน", "8.6", "ฝ่ายประกันคุณภาพ", [["2025-03-12", "ออกใช้ครั้งแรก"]]),
+  // แบบฟอร์มที่ระบบพิมพ์ออกมา — เลขที่มุมกระดาษอ่านฉบับจากบัญชีนี้ แก้ฟอร์มแล้วใบที่พิมพ์เปลี่ยนตาม
+  issued("FM-01", "บัญชีรายชื่อเอกสารควบคุม", "แบบฟอร์ม", "7.5", "ฝ่ายประกันคุณภาพ", [["2025-01-15", "ออกใช้ครั้งแรก"]]),
+  issued("FM-02", "ใบรายงานผลการตรวจสอบ", "แบบฟอร์ม", "8.6", "ฝ่ายประกันคุณภาพ", [["2025-02-01", "ออกใช้ครั้งแรก"], ["2025-10-07", "เพิ่มช่องจำนวนตัวอย่างตามขนาดล็อต"]], "2025-10-07"),
+  issued("FM-03", "ใบรับรองคุณภาพสินค้า", "แบบฟอร์ม", "8.6", "ฝ่ายประกันคุณภาพ", [["2025-02-01", "ออกใช้ครั้งแรก"]], "2025-10-07"),
+  issued("FM-04", "ใบรายงานสิ่งที่ไม่เป็นไปตามข้อกำหนด", "แบบฟอร์ม", "8.7", "ฝ่ายประกันคุณภาพ", [["2025-01-15", "ออกใช้ครั้งแรก"]]),
+  issued("FM-05", "ใบขอให้ดำเนินการแก้ไขและป้องกัน", "แบบฟอร์ม", "10.2", "ฝ่ายประกันคุณภาพ", [["2025-01-15", "ออกใช้ครั้งแรก"]]),
+  issued("FM-06", "รายงานการตรวจติดตามภายใน", "แบบฟอร์ม", "9.2", "ฝ่ายประกันคุณภาพ", [["2025-01-15", "ออกใช้ครั้งแรก"], ["2026-02-10", "เพิ่มช่องระดับของสิ่งที่พบ"]]),
+  issued("FM-07", "บันทึกประวัติการสอบเทียบเครื่องมือวัด", "แบบฟอร์ม", "7.1.5", "ฝ่ายประกันคุณภาพ", [["2025-02-01", "ออกใช้ครั้งแรก"]]),
+  {
+    code: "WI-03", title: "วิธีการพ่นสีฝุ่นและอบ", type: "วิธีการทำงาน", clause: "8.5", owner: "ฝ่ายผลิต",
+    rev: -1, status: "รออนุมัติ", history: [],
+    draft: { rev: 0, change: "ออกใช้ครั้งแรก — กำหนดอุณหภูมิอบ 200°C 15 นาที", by: "อนุชา ทองดี", date: "2026-09-18", submitted: true },
+  },
+];
+
+export const docByCode = (code: string) => {
+  const d = DOCUMENTS.find((x) => x.code === code);
+  if (!d) throw new Error(\`ไม่พบเอกสาร \${code}\`);
+  return d;
+};
+
+/** เอกสารที่ถึงรอบทบทวนภายใน 30 วัน หรือเลยรอบมาแล้ว */
+export const reviewDue = () =>
+  DOCUMENTS.filter((d) => d.status === "ใช้งาน" && d.reviewDue && d.reviewDue <= addDays(TODAY, 30));
+
+export const awaitingApproval = () => DOCUMENTS.filter((d) => d.draft?.submitted);
+
+export type DocInput = { type: DocType; title: string; clause: string; owner: string; by: string; change: string };
+
+export function docErrors(input: DocInput): Errors {
+  const e: Errors = {};
+  if (input.title.trim().length < 4) e.title = "ใส่ชื่อเอกสาร";
+  else if (DOCUMENTS.some((d) => d.status !== "ยกเลิก" && d.title === input.title.trim())) e.title = "มีเอกสารชื่อนี้ใช้อยู่แล้ว";
+  if (!CLAUSES.some((c) => c.code === input.clause)) e.clause = "เลือกข้อกำหนดที่เอกสารนี้รองรับ";
+  if (!DEPARTMENTS.includes(input.owner)) e.owner = "เลือกฝ่ายเจ้าของเอกสาร";
+  if (!PEOPLE.includes(input.by)) e.by = "เลือกผู้จัดทำ";
+  return e;
+}
+
+export const nextDocCode = (type: DocType) => {
+  const prefix = DOC_PREFIX[type];
+  const nums = DOCUMENTS.filter((d) => d.code.startsWith(prefix)).map((d) => Number(d.code.slice(prefix.length)));
+  return \`\${prefix}\${String(Math.max(0, ...nums) + 1).padStart(2, "0")}\`;
+};
+
+export function createDocument(input: DocInput): QmDocument {
+  assertValid(docErrors(input));
+  return commit(() => {
+    const d: QmDocument = {
+      code: nextDocCode(input.type),
+      title: input.title.trim(),
+      type: input.type,
+      clause: input.clause,
+      owner: input.owner,
+      rev: -1,
+      status: "ร่าง",
+      history: [],
+      draft: { rev: 0, change: input.change.trim() || "ออกใช้ครั้งแรก", by: input.by, date: TODAY, submitted: false },
+    };
+    DOCUMENTS.push(d);
+    return d;
+  });
+}
+
+export function submitDocument(code: string) {
+  const d = docByCode(code);
+  if (!d.draft || d.draft.submitted) throw new Error(\`\${code} ไม่มีฉบับร่างที่รอส่ง\`);
+  return commit(() => {
+    d.draft!.submitted = true;
+    if (d.rev < 0) d.status = "รออนุมัติ";
+    return d;
+  });
+}
+
+/** อนุมัติก่อนออกใช้ (ข้อ 7.5.2) — ผู้อนุมัติต้องไม่ใช่คนเขียน */
+export function approveDocument(code: string, approver: string, date = TODAY) {
+  const d = docByCode(code);
+  if (!d.draft?.submitted) throw new Error(\`\${code} ไม่มีฉบับที่รออนุมัติ\`);
+  if (approver === d.draft.by) throw new Error("ผู้อนุมัติต้องไม่ใช่ผู้จัดทำเอกสาร");
+  if (!PEOPLE.includes(approver)) throw new Error("เลือกผู้อนุมัติ");
+  const draft = d.draft;
+  return commit(() => {
+    d.history.push({ rev: draft.rev, date, change: draft.change, by: draft.by, approvedBy: approver });
+    d.rev = draft.rev;
+    d.status = "ใช้งาน";
+    d.effective = date;
+    d.reviewDue = addMonths(date, 12);
+    d.draft = undefined;
+    return d;
+  });
+}
+
+/** ส่งฉบับกลับไปแก้ — ฉบับที่ใช้อยู่ไม่เปลี่ยน */
+export function returnDocument(code: string) {
+  const d = docByCode(code);
+  if (!d.draft?.submitted) throw new Error(\`\${code} ไม่มีฉบับที่รออนุมัติ\`);
+  return commit(() => {
+    d.draft!.submitted = false;
+    if (d.rev < 0) d.status = "ร่าง";
+    return d;
+  });
+}
+
+export function reviseDocument(code: string, change: string, by: string) {
+  const d = docByCode(code);
+  if (d.status !== "ใช้งาน") throw new Error(\`\${code} \${d.status} แก้ไขฉบับใหม่ไม่ได้\`);
+  if (d.draft) throw new Error(\`\${code} มีฉบับแก้ไข Rev.\${String(d.draft.rev).padStart(2, "0")} ค้างอยู่แล้ว\`);
+  if (change.trim().length < 5) throw new Error("บอกว่าแก้อะไร อย่างน้อยหนึ่งประโยค");
+  if (!PEOPLE.includes(by)) throw new Error("เลือกผู้จัดทำ");
+  return commit(() => {
+    d.draft = { rev: d.rev + 1, change: change.trim(), by, date: TODAY, submitted: false };
+    return d;
+  });
+}
+
+/** ทบทวนแล้วยังเหมาะสม — ต่อรอบทบทวนอีกหนึ่งปี ไม่ออกฉบับใหม่ */
+export function confirmReview(code: string, date = TODAY) {
+  const d = docByCode(code);
+  if (d.status !== "ใช้งาน") throw new Error(\`\${code} ไม่ได้ใช้งานอยู่\`);
+  return commit(() => {
+    d.reviewDue = addMonths(date, 12);
+    return d;
+  });
+}
+
+export function obsoleteDocument(code: string, reason: string) {
+  const d = docByCode(code);
+  if (d.status === "ยกเลิก") throw new Error(\`\${code} ยกเลิกไปแล้ว\`);
+  if (reason.trim().length < 5) throw new Error("ใส่เหตุผลที่ยกเลิก");
+  return commit(() => {
+    d.status = "ยกเลิก";
+    d.obsoleteReason = reason.trim();
+    d.draft = undefined;
+    return d;
+  });
+}
+
+export const revLabel = (rev: number) => (rev < 0 ? "—" : \`Rev.\${String(rev).padStart(2, "0")}\`);
+
+/* ============================================================ inspection */
+
+export type Characteristic = {
+  name: string;
+  method: string;
+  kind: "วัดค่า" | "ตรวจพินิจ";
+  unit?: string;
+  lsl?: number;
+  usl?: number;
+};
+
+/** แผนการตรวจต่อวัสดุ — วัดค่าต้องอยู่ในช่วง LSL–USL ตรวจพินิจต้องไม่พบจุดบกพร่อง */
+export const PLANS: Record<string, Characteristic[]> = {
+  "MAT-1001": [
+    { name: "ความหนา", method: "ไมโครมิเตอร์ QC-MC-01", kind: "วัดค่า", unit: "มม.", lsl: 2.85, usl: 3.15 },
+    { name: "ความกว้าง", method: "ตลับเมตร QC-TM-01", kind: "วัดค่า", unit: "มม.", lsl: 1218, usl: 1222 },
+    { name: "สนิมและรอยบุบ", method: "ตรวจด้วยสายตา", kind: "ตรวจพินิจ" },
+  ],
+  "MAT-1002": [
+    { name: "เส้นผ่านศูนย์กลาง", method: "เวอร์เนียร์ QC-VC-01", kind: "วัดค่า", unit: "มม.", lsl: 11.8, usl: 12.2 },
+    { name: "ความตรงของเส้น", method: "ตรวจด้วยสายตา", kind: "ตรวจพินิจ" },
+  ],
+  "MAT-1003": [
+    { name: "ความหนืด", method: "ถ้วยวัดความหนืด Ford #4", kind: "วัดค่า", unit: "วินาที", lsl: 18, usl: 24 },
+    { name: "สีตรงตามแผ่นเทียบ RAL 7035", method: "เทียบแผ่นสี", kind: "ตรวจพินิจ" },
+  ],
+  "MAT-2002": [{ name: "เสียงและการหมุน", method: "หมุนด้วยมือ", kind: "ตรวจพินิจ" }],
+  "FG-5001": [
+    { name: "ความสูงรวม", method: "ตลับเมตร QC-TM-01", kind: "วัดค่า", unit: "มม.", lsl: 1795, usl: 1805 },
+    { name: "ความหนาสีเคลือบ", method: "เครื่องวัดความหนาสี QC-CT-01", kind: "วัดค่า", unit: "ไมครอน", lsl: 60, usl: 120 },
+    { name: "รับน้ำหนัก 150 กก. ต่อชั้น 10 นาที", method: "วางน้ำหนักทดสอบ", kind: "ตรวจพินิจ" },
+  ],
+  "FG-5002": [
+    { name: "ความยาวหน้าโต๊ะ", method: "ตลับเมตร QC-TM-01", kind: "วัดค่า", unit: "มม.", lsl: 1198, usl: 1202 },
+    { name: "ความหนาสีเคลือบ", method: "เครื่องวัดความหนาสี QC-CT-01", kind: "วัดค่า", unit: "ไมครอน", lsl: 60, usl: 120 },
+    { name: "ความเรียบหน้าโต๊ะ", method: "ไม้บรรทัดเหล็กและฟิลเลอร์เกจ", kind: "ตรวจพินิจ" },
+  ],
+  "FG-5003": [
+    { name: "ความสูงมือจับ", method: "ตลับเมตร QC-TM-01", kind: "วัดค่า", unit: "มม.", lsl: 895, usl: 905 },
+    { name: "ล้อหมุนคล่องและเบรกล็อก", method: "ทดสอบด้วยมือ", kind: "ตรวจพินิจ" },
+    { name: "รอยเชื่อม", method: "ตรวจด้วยสายตา", kind: "ตรวจพินิจ" },
+  ],
+};
+
+export const planOf = (material: string) => PLANS[material] ?? [];
+
+/** ขนาดตัวอย่างตามขนาดล็อต — ล็อตเล็กตรวจทุกชิ้น */
+export function sampleSize(lot: number) {
+  if (lot <= 8) return lot;
+  if (lot <= 50) return 8;
+  if (lot <= 150) return 13;
+  if (lot <= 500) return 20;
+  return 32;
+}
+
+export type LotOrigin = "ตรวจรับ" | "ตรวจก่อนส่ง";
+export type Decision = "ผ่าน" | "ไม่ผ่าน" | "ยอมรับแบบมีเงื่อนไข";
+export const DECISIONS: Decision[] = ["ผ่าน", "ยอมรับแบบมีเงื่อนไข", "ไม่ผ่าน"];
+
+export type Result = { characteristic: string; min?: number; max?: number; defects?: number; ok: boolean };
+
+export type InspectionLot = {
+  no: string;
+  origin: LotOrigin;
+  /** ใบรับของ (GR-…) หรือใบรับสินค้าผลิตเสร็จ / ใบสั่งผลิต */
+  source: string;
+  /** ใบสั่งซื้อหรือใบสั่งผลิตที่ของนี้มาจาก */
+  ref: string;
+  material: string;
+  qty: number;
+  sample: number;
+  date: string;
+  vendor?: string;
+  status: "รอตรวจ" | "รอตัดสิน" | "ตัดสินแล้ว";
+  results: Result[];
+  inspector?: string;
+  inspectedOn?: string;
+  decision?: Decision;
+  decidedBy?: string;
+  decidedOn?: string;
+  note?: string;
+  ncr?: string;
+};
+
+const lot = (l: Omit<InspectionLot, "sample" | "results"> & { results?: Result[] }): InspectionLot => ({
+  sample: sampleSize(l.qty),
+  results: [],
+  ...l,
+});
+
+const measured = (characteristic: string, min: number, max: number, c: Characteristic): Result => ({
+  characteristic, min, max, ok: min >= (c.lsl ?? -Infinity) && max <= (c.usl ?? Infinity),
+});
+const visual = (characteristic: string, defects: number): Result => ({ characteristic, defects, ok: defects === 0 });
+const P = (m: string, i: number) => PLANS[m][i];
+
+export const LOTS: InspectionLot[] = [
+  lot({
+    no: "IL-2569-0041", origin: "ตรวจรับ", source: "GR-2569-201", ref: "PO-2569-115", material: "MAT-1001", qty: 90, date: "2026-09-03", vendor: "V-001",
+    status: "ตัดสินแล้ว", inspector: "สุภาพร แก้วมณี", inspectedOn: "2026-09-03", decision: "ผ่าน", decidedBy: "สุภาพร แก้วมณี", decidedOn: "2026-09-03",
+    results: [measured("ความหนา", 2.93, 3.06, P("MAT-1001", 0)), measured("ความกว้าง", 1219, 1221, P("MAT-1001", 1)), visual("สนิมและรอยบุบ", 0)],
+  }),
+  lot({
+    no: "IL-2569-0042", origin: "ตรวจรับ", source: "GR-2569-201", ref: "PO-2569-115", material: "MAT-1002", qty: 150, date: "2026-09-03", vendor: "V-001",
+    status: "ตัดสินแล้ว", inspector: "สุภาพร แก้วมณี", inspectedOn: "2026-09-04", decision: "ผ่าน", decidedBy: "สุภาพร แก้วมณี", decidedOn: "2026-09-04",
+    results: [measured("เส้นผ่านศูนย์กลาง", 11.86, 12.12, P("MAT-1002", 0)), visual("ความตรงของเส้น", 0)],
+  }),
+  lot({
+    no: "IL-2569-0043", origin: "ตรวจรับ", source: "GR-2569-206", ref: "PO-2569-118", material: "MAT-1002", qty: 200, date: "2026-09-19", vendor: "V-002",
+    status: "ตัดสินแล้ว", inspector: "สุภาพร แก้วมณี", inspectedOn: "2026-09-19", decision: "ไม่ผ่าน", decidedBy: QMR, decidedOn: "2026-09-19",
+    results: [measured("เส้นผ่านศูนย์กลาง", 11.62, 12.05, P("MAT-1002", 0)), visual("ความตรงของเส้น", 3)],
+    note: "เส้นผ่านศูนย์กลางต่ำกว่าเกณฑ์ 6 จาก 20 ตัวอย่าง คัดแยกทั้งล็อตแล้วพบไม่ผ่าน 60 เส้น", ncr: "NCR-2569-014",
+  }),
+  lot({ no: "IL-2569-0044", origin: "ตรวจรับ", source: "GR-2569-207", ref: "PO-2569-119", material: "MAT-1003", qty: 14, date: "2026-09-20", vendor: "V-003", status: "รอตรวจ" }),
+  lot({
+    no: "IL-2569-0039", origin: "ตรวจก่อนส่ง", source: "PO-P-3298", ref: "PO-P-3298", material: "FG-5001", qty: 30, date: "2026-09-19",
+    status: "ตัดสินแล้ว", inspector: "สุภาพร แก้วมณี", inspectedOn: "2026-09-19", decision: "ผ่าน", decidedBy: "สุภาพร แก้วมณี", decidedOn: "2026-09-19",
+    results: [measured("ความสูงรวม", 1797, 1803, P("FG-5001", 0)), measured("ความหนาสีเคลือบ", 72, 104, P("FG-5001", 1)), visual("รับน้ำหนัก 150 กก. ต่อชั้น 10 นาที", 0)],
+  }),
+  lot({
+    no: "IL-2569-0040", origin: "ตรวจก่อนส่ง", source: "PO-P-3299", ref: "PO-P-3299", material: "FG-5002", qty: 16, date: "2026-09-21",
+    status: "ตัดสินแล้ว", inspector: "สุภาพร แก้วมณี", inspectedOn: "2026-09-21", decision: "ยอมรับแบบมีเงื่อนไข", decidedBy: QMR, decidedOn: "2026-09-21",
+    results: [measured("ความยาวหน้าโต๊ะ", 1199, 1201, P("FG-5002", 0)), measured("ความหนาสีเคลือบ", 55, 98, P("FG-5002", 1)), visual("ความเรียบหน้าโต๊ะ", 0)],
+    note: "สีเคลือบบางกว่าเกณฑ์ที่ขาโต๊ะด้านใน ไม่กระทบการใช้งาน ลูกค้า C-103 ยอมรับทางอีเมล 21/09",
+  }),
+];
+
+export const lotByNo = (no: string) => {
+  const l = LOTS.find((x) => x.no === no);
+  if (!l) throw new Error(\`ไม่พบล็อตตรวจ \${no}\`);
+  return l;
+};
+
+export const vendorOfPo = (po: string) => PURCHASE_ORDERS.find((p) => p.no === po)?.vendor;
+
+export type Pending = { origin: LotOrigin; source: string; ref: string; material: string; qty: number; date: string; vendor?: string };
+
+/** ใบรับตั้งแต่วันนี้ย้อนหลังหนึ่งเดือนที่มีแผนตรวจแต่ยังไม่เปิดล็อต */
+const PENDING_SINCE = addDays(TODAY, -30);
+
+/**
+ * ของที่เข้ามาแล้วแต่ยังไม่ได้ตรวจ — อ่านจากใบรับของของจัดซื้อและใบรับสินค้าผลิตเสร็จ
+ * ทุกครั้งที่หน้าจอวาด ใบรับที่เพิ่งบันทึกในระบบอื่นจึงขึ้นที่นี่ทันที
+ */
+export function pendingInspections(): Pending[] {
+  const has = (source: string, material: string) => LOTS.some((l) => l.source === source && l.material === material);
+  const out: Pending[] = [];
+  for (const gr of GOODS_RECEIPTS) {
+    if (gr.date < PENDING_SINCE) continue;
+    for (const line of gr.lines) {
+      if (!PLANS[line.material] || has(gr.no, line.material)) continue;
+      out.push({ origin: "ตรวจรับ", source: gr.no, ref: gr.po, material: line.material, qty: line.qty, date: gr.date, vendor: vendorOfPo(gr.po) });
+    }
+  }
+  for (const mv of PP_MOVEMENTS) {
+    if (mv.kind !== "รับเข้าคลัง") continue;
+    for (const line of mv.lines) {
+      if (!PLANS[line.material] || has(mv.no, line.material)) continue;
+      out.push({ origin: "ตรวจก่อนส่ง", source: mv.no, ref: mv.order, material: line.material, qty: line.qty, date: mv.date });
+    }
+  }
+  return out;
+}
+
+export const nextLotNo = () => nextNo(LOTS.map((l) => l.no), \`IL-\${YEAR}-\`, 4);
+
+export function createLot(p: Pending): InspectionLot {
+  if (!PLANS[p.material]) throw new Error(\`\${materialName(p.material)} ยังไม่มีแผนการตรวจ\`);
+  if (LOTS.some((l) => l.source === p.source && l.material === p.material)) throw new Error(\`\${p.source} เปิดล็อตตรวจไปแล้ว\`);
+  return commit(() => {
+    const l = lot({ no: nextLotNo(), origin: p.origin, source: p.source, ref: p.ref, material: p.material, qty: p.qty, date: TODAY, vendor: p.vendor, status: "รอตรวจ" });
+    LOTS.push(l);
+    return l;
+  });
+}
+
+export type ResultInput = { characteristic: string; min?: number; max?: number; defects?: number };
+
+export function resultErrors(no: string, results: ResultInput[]): Errors {
+  const l = lotByNo(no);
+  const e: Errors = {};
+  for (const c of planOf(l.material)) {
+    const r = results.find((x) => x.characteristic === c.name);
+    if (c.kind === "วัดค่า") {
+      if (r?.min === undefined || r?.max === undefined || !Number.isFinite(r.min) || !Number.isFinite(r.max)) e[c.name] = "ใส่ค่าต่ำสุดและสูงสุดที่วัดได้";
+      else if (r.min > r.max) e[c.name] = "ค่าต่ำสุดต้องไม่เกินค่าสูงสุด";
+    } else if (r?.defects === undefined || !Number.isInteger(r.defects) || r.defects < 0) e[c.name] = "ใส่จำนวนชิ้นที่พบข้อบกพร่อง (0 ถ้าไม่พบ)";
+    else if (r.defects > l.sample) e[c.name] = \`พบได้ไม่เกินจำนวนตัวอย่าง \${l.sample} ชิ้น\`;
+  }
+  return e;
+}
+
+/** ผลของแต่ละคุณลักษณะตัดสินจากเกณฑ์ในแผน ไม่ใช่จากผู้ตรวจ */
+export function judge(material: string, results: ResultInput[]): Result[] {
+  return planOf(material).map((c) => {
+    const r = results.find((x) => x.characteristic === c.name) ?? { characteristic: c.name };
+    return c.kind === "วัดค่า"
+      ? measured(c.name, r.min ?? NaN, r.max ?? NaN, c)
+      : visual(c.name, r.defects ?? 0);
+  });
+}
+
+export function recordResults(no: string, results: ResultInput[], inspector: string, date = TODAY) {
+  const l = lotByNo(no);
+  if (l.status === "ตัดสินแล้ว") throw new Error(\`\${no} ตัดสินผลไปแล้ว\`);
+  assertValid(resultErrors(no, results));
+  if (!PEOPLE.includes(inspector)) throw new Error("เลือกผู้ตรวจ");
+  return commit(() => {
+    l.results = judge(l.material, results);
+    l.inspector = inspector;
+    l.inspectedOn = date;
+    l.status = "รอตัดสิน";
+    return l;
+  });
+}
+
+export const allOk = (l: InspectionLot) => l.results.length > 0 && l.results.every((r) => r.ok);
+
+export function decisionErrors(no: string, decision: Decision, by: string, note: string): Errors {
+  const l = lotByNo(no);
+  const e: Errors = {};
+  if (l.status !== "รอตัดสิน") e.decision = l.status === "รอตรวจ" ? "บันทึกผลตรวจก่อนตัดสิน" : \`\${no} ตัดสินไปแล้ว\`;
+  else if (decision === "ผ่าน" && !allOk(l)) e.decision = "มีคุณลักษณะที่ไม่ผ่านเกณฑ์ ตัดสินผ่านไม่ได้ — เลือกไม่ผ่านหรือยอมรับแบบมีเงื่อนไข";
+  if (!PEOPLE.includes(by)) e.by = "เลือกผู้ตัดสิน";
+  // ยอมรับของที่ไม่ตรงข้อกำหนดเป็นการผ่อนผัน (ข้อ 8.7.1 ง) ต้องมีผู้มีอำนาจและเหตุผล
+  if (decision === "ยอมรับแบบมีเงื่อนไข" && by !== QMR) e.by = \`การยอมรับแบบมีเงื่อนไขต้องอนุมัติโดย \${QMR} (QMR)\`;
+  if (decision !== "ผ่าน" && note.trim().length < 10) e.note = "บอกสิ่งที่พบและเหตุผลของการตัดสิน";
+  return e;
+}
+
+/** ตัดสินผลการตรวจ — ไม่ผ่านเปิด NCR ให้เองทันที */
+export function decideLot(no: string, decision: Decision, by: string, note = "", date = TODAY) {
+  assertValid(decisionErrors(no, decision, by, note));
+  const l = lotByNo(no);
+  return commit(() => {
+    l.decision = decision;
+    l.decidedBy = by;
+    l.decidedOn = date;
+    l.status = "ตัดสินแล้ว";
+    l.note = note.trim() || undefined;
+    let ncr: Ncr | undefined;
+    if (decision === "ไม่ผ่าน") {
+      const failed = l.results.filter((r) => !r.ok).map((r) => r.characteristic).join(", ");
+      ncr = pushNcr({
+        date, source: l.origin, ref: l.no, material: l.material, qty: l.qty, vendor: l.vendor,
+        description: \`\${materialName(l.material)} ไม่ผ่านการ\${l.origin} (\${failed}) — \${note.trim()}\`,
+        severity: l.origin === "ตรวจก่อนส่ง" ? "รุนแรง" : "ปานกลาง", reportedBy: by,
+      });
+      l.ncr = ncr.no;
+    }
+    return { lot: l, ncr };
+  });
+}
+
+/* =================================================================== ncr */
+
+export const NCR_SOURCES = ["ตรวจรับ", "ระหว่างผลิต", "ตรวจก่อนส่ง", "ข้อร้องเรียนลูกค้า", "ตรวจติดตามภายใน", "สอบเทียบเครื่องมือ"] as const;
+export type NcrSource = (typeof NCR_SOURCES)[number];
+export const SEVERITIES = ["รุนแรง", "ปานกลาง", "เล็กน้อย"] as const;
+export type Severity = (typeof SEVERITIES)[number];
+export const DISPOSITIONS = ["ซ่อมหรือทำใหม่", "คัดแยก", "ส่งคืนผู้ขาย", "ใช้ตามสภาพ (ผ่อนผัน)", "ทำลาย"] as const;
+export type Disposition = (typeof DISPOSITIONS)[number];
+
+export type Ncr = {
+  no: string;
+  date: string;
+  source: NcrSource;
+  /** ล็อตตรวจ ใบส่งของ ใบสั่งผลิต ผลตรวจติดตาม หรือเครื่องมือวัด ที่เป็นต้นเรื่อง */
+  ref: string;
+  material?: string;
+  qty: number;
+  vendor?: string;
+  customer?: string;
+  description: string;
+  severity: Severity;
+  reportedBy: string;
+  status: "รอสั่งการ" | "ดำเนินการ" | "ปิดแล้ว";
+  disposition?: Disposition;
+  dispositionBy?: string;
+  dispositionNote?: string;
+  /** เลขที่เอกสารเคลื่อนไหวสต็อกของคลังวัสดุ เมื่อสั่งทำลายหรือส่งคืน */
+  stockDoc?: string;
+  capa?: string;
+  closedOn?: string;
+  closedBy?: string;
+};
+
+export const NCRS: Ncr[] = [
+  {
+    no: "NCR-2569-012", date: "2026-08-22", source: "ระหว่างผลิต", ref: "PO-P-3296", material: "FG-5002", qty: 3,
+    description: "โต๊ะ 3 ตัวรอยเชื่อมขาไม่เต็มแนว พบที่สถานีประกอบ", severity: "ปานกลาง", reportedBy: "อนุชา ทองดี",
+    status: "ปิดแล้ว", disposition: "ซ่อมหรือทำใหม่", dispositionBy: QMR, dispositionNote: "เชื่อมซ่อมและตรวจซ้ำผ่านทั้ง 3 ตัว",
+    closedOn: "2026-08-25", closedBy: QMR,
+  },
+  {
+    no: "NCR-2569-013", date: "2026-09-10", source: "ข้อร้องเรียนลูกค้า", ref: "DO-2569-0299", material: "FG-5001", qty: 2, customer: "C-102",
+    description: "ลูกค้าแจ้งชั้นวาง 2 ชุดสีถลอกที่มุม เกิดระหว่างขนส่ง", severity: "เล็กน้อย", reportedBy: "ชลธิชา มั่นคง",
+    status: "ดำเนินการ", disposition: "ซ่อมหรือทำใหม่", dispositionBy: QMR, dispositionNote: "ส่งช่างเข้าไปพ่นซ่อมที่หน้างานลูกค้า 26/09", capa: "CAR-2569-008",
+  },
+  {
+    no: "NCR-2569-014", date: "2026-09-19", source: "ตรวจรับ", ref: "IL-2569-0043", material: "MAT-1002", qty: 60, vendor: "V-002",
+    description: "เหล็กเส้นกลม 12 มม. ไม่ผ่านการตรวจรับ (เส้นผ่านศูนย์กลาง, ความตรงของเส้น) — คัดแยกทั้งล็อต 200 เส้น พบไม่ผ่าน 60 เส้น",
+    severity: "ปานกลาง", reportedBy: QMR, status: "รอสั่งการ",
+  },
+];
+
+export const ncrByNo = (no: string) => {
+  const n = NCRS.find((x) => x.no === no);
+  if (!n) throw new Error(\`ไม่พบ \${no}\`);
+  return n;
+};
+
+export const nextNcrNo = () => nextNo(NCRS.map((n) => n.no), \`NCR-\${YEAR}-\`, 3);
+
+function pushNcr(input: Omit<Ncr, "no" | "status">): Ncr {
+  const n: Ncr = { ...input, no: nextNcrNo(), status: "รอสั่งการ" };
+  NCRS.push(n);
+  return n;
+}
+
+export type NcrInput = { source: NcrSource; ref: string; material: string; qty: number; description: string; severity: Severity; reportedBy: string };
+
+export function ncrErrors(input: NcrInput): Errors {
+  const e: Errors = {};
+  if (input.ref.trim().length < 3) e.ref = "ใส่เอกสารต้นเรื่อง เช่น เลขใบสั่งผลิตหรือล็อต";
+  else if (input.source === "ระหว่างผลิต" && !productionOrderExists(input.ref.trim())) e.ref = "ไม่พบใบสั่งผลิตเลขนี้ในระบบวางแผนการผลิต";
+  if (input.material && !MATERIALS.some((m) => m.code === input.material)) e.material = "เลือกวัสดุหรือสินค้า";
+  if (!(input.qty > 0) || !Number.isInteger(input.qty)) e.qty = "จำนวนที่พบเป็นจำนวนเต็มมากกว่าศูนย์";
+  if (input.description.trim().length < 10) e.description = "อธิบายสิ่งที่พบให้คนอื่นอ่านแล้วเข้าใจ";
+  if (!PEOPLE.includes(input.reportedBy)) e.reportedBy = "เลือกผู้รายงาน";
+  return e;
+}
+
+export function createNcr(input: NcrInput): Ncr {
+  assertValid(ncrErrors(input));
+  return commit(() =>
+    pushNcr({ date: TODAY, source: input.source, ref: input.ref.trim(), material: input.material || undefined, qty: input.qty, description: input.description.trim(), severity: input.severity, reportedBy: input.reportedBy }),
+  );
+}
+
+export type ComplaintInput = { delivery: string; material: string; qty: number; description: string; severity: Severity; reportedBy: string };
+
+export const customerOfDelivery = (no: string) => {
+  const d = DELIVERIES.find((x) => x.no === no);
+  return d ? SALES_ORDERS.find((s) => s.no === d.so)?.customer : undefined;
+};
+
+/** ใบส่งของที่ถึงมือลูกค้าแล้ว — ข้อร้องเรียนอ้างได้เฉพาะของที่ลูกค้าได้รับจริง */
+export const DELIVERY_OPTIONS = () =>
+  DELIVERIES.filter((d) => d.status === "ส่งถึงแล้ว").map((d) => ({
+    value: d.no,
+    label: \`\${d.no} · \${customerName(customerOfDelivery(d.no))} · \${d.deliveredOn ?? d.date}\`,
+  }));
+
+/** ข้อร้องเรียนลูกค้า (ข้อ 9.1.2) — อ้างใบส่งของจริงของฝ่ายขาย ส่งเกินที่ส่งไปไม่ได้ */
+export function complaintErrors(input: ComplaintInput): Errors {
+  const e: Errors = {};
+  const d = DELIVERIES.find((x) => x.no === input.delivery);
+  if (!d) e.delivery = "เลือกใบส่งของที่ลูกค้าร้องเรียน";
+  else {
+    const line = d.lines.find((l) => l.material === input.material);
+    if (!line) e.material = "เลือกสินค้าที่อยู่ในใบส่งของนี้";
+    else if (!(input.qty > 0) || !Number.isInteger(input.qty) || input.qty > line.qty) e.qty = \`จำนวน 1–\${line.qty} ตามที่ส่งไป\`;
+  }
+  if (input.description.trim().length < 10) e.description = "เล่าสิ่งที่ลูกค้าแจ้งตามจริง";
+  if (!PEOPLE.includes(input.reportedBy)) e.reportedBy = "เลือกผู้รับเรื่อง";
+  return e;
+}
+
+export function createComplaint(input: ComplaintInput): Ncr {
+  assertValid(complaintErrors(input));
+  return commit(() =>
+    pushNcr({
+      date: TODAY, source: "ข้อร้องเรียนลูกค้า", ref: input.delivery, material: input.material, qty: input.qty,
+      customer: customerOfDelivery(input.delivery), description: input.description.trim(), severity: input.severity, reportedBy: input.reportedBy,
+    }),
+  );
+}
+
+/** ของอยู่ในคลังเรา — สั่งทำลายหรือส่งคืนแล้วต้องตัดสต็อกจริง */
+const inOurStock = (n: Ncr) => ["ตรวจรับ", "ระหว่างผลิต", "ตรวจก่อนส่ง"].includes(n.source) && !!n.material;
+
+export type DispositionInput = { disposition: Disposition; by: string; note: string };
+
+export function dispositionErrors(no: string, input: DispositionInput): Errors {
+  const n = ncrByNo(no);
+  const e: Errors = {};
+  if (n.status !== "รอสั่งการ") e.disposition = \`\${no} \${n.status === "ปิดแล้ว" ? "ปิดไปแล้ว" : "สั่งการไปแล้ว"}\`;
+  if (input.disposition === "ส่งคืนผู้ขาย" && !n.vendor) e.disposition = "ส่งคืนผู้ขายได้เฉพาะของที่มาจากการตรวจรับ";
+  if (!PEOPLE.includes(input.by)) e.by = "เลือกผู้สั่งการ";
+  if (input.disposition === "ใช้ตามสภาพ (ผ่อนผัน)" && input.by !== QMR) e.by = \`การผ่อนผันต้องอนุมัติโดย \${QMR} (QMR)\`;
+  if (input.note.trim().length < 5) e.note = "บอกสิ่งที่ต้องทำ";
+  if (!e.disposition && inOurStock(n) && (input.disposition === "ทำลาย" || input.disposition === "ส่งคืนผู้ขาย")) {
+    const m = MATERIALS.find((x) => x.code === n.material);
+    if (m && m.stock < n.qty) e.disposition = \`สต็อก \${m.name} เหลือ \${m.stock} \${m.unit} น้อยกว่า \${n.qty} ที่จะตัดออก\`;
+  }
+  return e;
+}
+
+/** สั่งการ (ข้อ 8.7.1) — ทำลายหรือส่งคืนตัดสต็อกผ่านคลังวัสดุ ใต้เลข NCR เดียวกัน */
+export function disposeNcr(no: string, input: DispositionInput) {
+  assertValid(dispositionErrors(no, input));
+  const n = ncrByNo(no);
+  return commit(() => {
+    if (inOurStock(n) && (input.disposition === "ทำลาย" || input.disposition === "ส่งคืนผู้ขาย")) {
+      const move = postStockMove({
+        kind: input.disposition === "ทำลาย" ? "ตัดของเสีย" : "ปรับยอดลด",
+        material: n.material!, qty: n.qty, department: "ฝ่ายประกันคุณภาพ", date: TODAY,
+        reason: \`\${input.disposition === "ทำลาย" ? "ทำลาย" : "ส่งคืนผู้ขาย"}ตาม \${n.no}\`,
+      });
+      n.stockDoc = move.doc;
+    }
+    n.disposition = input.disposition;
+    n.dispositionBy = input.by;
+    n.dispositionNote = input.note.trim();
+    n.status = "ดำเนินการ";
+    return n;
+  });
+}
+
+export function closeNcrErrors(no: string): Errors {
+  const n = ncrByNo(no);
+  const e: Errors = {};
+  if (n.status === "ปิดแล้ว") e.close = \`\${no} ปิดไปแล้ว\`;
+  else if (!n.disposition) e.close = "สั่งการก่อนปิด";
+  else if (n.severity === "รุนแรง" && !n.capa) e.close = "NCR รุนแรงต้องเปิดใบขอให้แก้ไข (CAR) หาสาเหตุก่อนปิด";
+  return e;
+}
+
+export function closeNcr(no: string, by: string, date = TODAY) {
+  assertValid(closeNcrErrors(no));
+  if (!PEOPLE.includes(by)) throw new Error("เลือกผู้ปิดเรื่อง");
+  const n = ncrByNo(no);
+  return commit(() => {
+    n.status = "ปิดแล้ว";
+    n.closedOn = date;
+    n.closedBy = by;
+    return n;
+  });
+}
+
+/* ================================================================== capa */
+
+export const CAUSE_CATEGORIES = ["คน", "เครื่องจักร", "วัสดุ", "วิธีการ", "การวัด", "สภาพแวดล้อม"] as const;
+export type CauseCategory = (typeof CAUSE_CATEGORIES)[number];
+
+export type CapaAction = { what: string; owner: string; due: string; doneOn?: string };
+
+export type Capa = {
+  no: string;
+  date: string;
+  kind: "แก้ไข" | "ป้องกัน";
+  /** NCR หรือผลตรวจติดตามที่เป็นต้นเรื่อง */
+  ref: string;
+  problem: string;
+  owner: string;
+  rootCause?: { category: CauseCategory; whys: string[] };
+  actions: CapaAction[];
+  status: "วิเคราะห์สาเหตุ" | "ดำเนินการ" | "ติดตามผล" | "ปิดแล้ว";
+  verification?: { date: string; effective: boolean; note: string; by: string };
+};
+
+export const CAPAS: Capa[] = [
+  {
+    no: "CAR-2569-007", date: "2026-07-30", kind: "แก้ไข", ref: "IA-2569-02 #1", owner: "ปิยะนุช ใจดี",
+    problem: "ไม่มีหลักฐานการประเมินผู้ขายรายใหม่ก่อนออกใบสั่งซื้อครั้งแรก",
+    rootCause: { category: "วิธีการ", whys: ["ออกใบสั่งซื้อให้ผู้ขายใหม่ก่อนประเมิน", "ขั้นตอนไม่ได้กำหนดว่าต้องประเมินก่อนสั่งครั้งแรก", "QP-05 เขียนเฉพาะการตรวจรับ ไม่ครอบคลุมการคัดเลือกผู้ขาย"] },
+    actions: [
+      { what: "เพิ่มขั้นตอนประเมินผู้ขายใหม่ใน QP-05", owner: "ปิยะนุช ใจดี", due: "2026-08-15", doneOn: "2026-08-12" },
+      { what: "ประเมินผู้ขายที่ใช้อยู่ย้อนหลังให้ครบ", owner: "ปิยะนุช ใจดี", due: "2026-08-31", doneOn: "2026-08-29" },
+    ],
+    status: "ปิดแล้ว",
+    verification: { date: "2026-09-15", effective: true, note: "สุ่มใบสั่งซื้อผู้ขายใหม่ 3 ใบ มีผลประเมินก่อนสั่งครบ", by: QMR },
+  },
+  {
+    no: "CAR-2569-008", date: "2026-09-11", kind: "แก้ไข", ref: "NCR-2569-013", owner: "วรวุฒิ พึ่งบุญ",
+    problem: "สินค้าสีถลอกระหว่างขนส่งถึงลูกค้า",
+    rootCause: { category: "วิธีการ", whys: ["มุมชั้นวางเสียดสีกันในรถ", "บรรจุโดยไม่มีมุมกันกระแทก", "ไม่มีวิธีการทำงานเรื่องการบรรจุสินค้าสำเร็จรูป"] },
+    actions: [
+      { what: "จัดทำ WI การบรรจุสินค้าสำเร็จรูปพร้อมมุมกันกระแทก", owner: "วรวุฒิ พึ่งบุญ", due: "2026-09-20" },
+      { what: "อบรมพนักงานคลังเรื่องการบรรจุ", owner: "วรวุฒิ พึ่งบุญ", due: "2026-09-30" },
+    ],
+    status: "ดำเนินการ",
+  },
+];
+
+export const capaByNo = (no: string) => {
+  const c = CAPAS.find((x) => x.no === no);
+  if (!c) throw new Error(\`ไม่พบ \${no}\`);
+  return c;
+};
+
+export const nextCapaNo = () => nextNo(CAPAS.map((c) => c.no), \`CAR-\${YEAR}-\`, 3);
+export const overdueActions = (c: Capa) => c.actions.filter((a) => !a.doneOn && a.due < TODAY);
+export const openCapas = () => CAPAS.filter((c) => c.status !== "ปิดแล้ว");
+
+export type CapaInput = { kind: Capa["kind"]; ref: string; problem: string; owner: string };
+
+export function capaErrors(input: CapaInput): Errors {
+  const e: Errors = {};
+  if (input.ref.trim().length < 3) e.ref = "ใส่ต้นเรื่อง เช่น เลข NCR หรือผลตรวจติดตาม";
+  if (input.problem.trim().length < 10) e.problem = "บอกปัญหาที่ต้องแก้";
+  if (!PEOPLE.includes(input.owner)) e.owner = "เลือกผู้รับผิดชอบ";
+  return e;
+}
+
+/** เปิด CAR — ถ้าต้นเรื่องเป็น NCR หรือผลตรวจติดตาม จะผูกกลับไปที่ต้นเรื่องด้วย */
+export function openCapa(input: CapaInput): Capa {
+  assertValid(capaErrors(input));
+  return commit(() => {
+    const c: Capa = { no: nextCapaNo(), date: TODAY, kind: input.kind, ref: input.ref.trim(), problem: input.problem.trim(), owner: input.owner, actions: [], status: "วิเคราะห์สาเหตุ" };
+    CAPAS.push(c);
+    const ncr = NCRS.find((n) => n.no === c.ref);
+    if (ncr) ncr.capa = c.no;
+    for (const a of AUDITS) for (const f of a.findings) if (\`\${a.no} #\${f.id}\` === c.ref) f.capa = c.no;
+    return c;
+  });
+}
+
+/** หาสาเหตุราก (ข้อ 10.2.1 ข) — ถามทำไมอย่างน้อยสามชั้นก่อนสรุป */
+export function rootCauseErrors(input: { category: CauseCategory; whys: string[] }): Errors {
+  const e: Errors = {};
+  if (!CAUSE_CATEGORIES.includes(input.category)) e.category = "เลือกกลุ่มสาเหตุ";
+  if (input.whys.filter((w) => w.trim().length >= 5).length < 3) e.whys = "ถามทำไมให้ได้อย่างน้อยสามชั้น";
+  return e;
+}
+
+export function recordRootCause(no: string, input: { category: CauseCategory; whys: string[] }) {
+  const c = capaByNo(no);
+  if (c.status === "ปิดแล้ว") throw new Error(\`\${no} ปิดไปแล้ว\`);
+  assertValid(rootCauseErrors(input));
+  return commit(() => {
+    c.rootCause = { category: input.category, whys: input.whys.map((w) => w.trim()).filter(Boolean) };
+    if (c.status === "วิเคราะห์สาเหตุ" && c.actions.length > 0) c.status = "ดำเนินการ";
+    return c;
+  });
+}
+
+export function actionErrors(input: CapaAction): Errors {
+  const e: Errors = {};
+  if (input.what.trim().length < 5) e.what = "บอกสิ่งที่ต้องทำ";
+  if (!PEOPLE.includes(input.owner)) e.owner = "เลือกผู้รับผิดชอบ";
+  if (!isDate(input.due)) e.due = "ใส่กำหนดเสร็จ";
+  else if (input.due < TODAY) e.due = "กำหนดเสร็จต้องไม่ย้อนหลัง";
+  return e;
+}
+
+export function addCapaAction(no: string, input: CapaAction) {
+  const c = capaByNo(no);
+  if (c.status === "ปิดแล้ว" || c.status === "ติดตามผล") throw new Error(\`\${no} \${c.status} เพิ่มมาตรการไม่ได้\`);
+  assertValid(actionErrors(input));
+  return commit(() => {
+    c.actions.push({ what: input.what.trim(), owner: input.owner, due: input.due });
+    if (c.status === "วิเคราะห์สาเหตุ" && c.rootCause) c.status = "ดำเนินการ";
+    return c;
+  });
+}
+
+export function completeCapaAction(no: string, index: number, date = TODAY) {
+  const c = capaByNo(no);
+  const a = c.actions[index];
+  if (!a) throw new Error("ไม่พบมาตรการนี้");
+  if (a.doneOn) throw new Error("มาตรการนี้ทำเสร็จแล้ว");
+  if (!c.rootCause) throw new Error("บันทึกสาเหตุรากก่อน");
+  return commit(() => {
+    a.doneOn = date;
+    if (c.actions.every((x) => x.doneOn)) c.status = "ติดตามผล";
+    return c;
+  });
+}
+
+/** ติดตามประสิทธิผล (ข้อ 10.2.1 ง) — ไม่ได้ผลคือกลับไปหาสาเหตุใหม่ ไม่ใช่ปิดทิ้ง */
+export function verifyCapa(no: string, input: { effective: boolean; note: string; by: string }, date = TODAY) {
+  const c = capaByNo(no);
+  if (c.status !== "ติดตามผล") throw new Error("ทำมาตรการให้ครบก่อนติดตามผล");
+  if (input.note.trim().length < 10) throw new Error("บอกหลักฐานที่ใช้ตัดสินว่าได้ผลหรือไม่");
+  if (!PEOPLE.includes(input.by)) throw new Error("เลือกผู้ติดตามผล");
+  if (input.by === c.owner) throw new Error("ผู้ติดตามผลต้องไม่ใช่ผู้รับผิดชอบ CAR");
+  return commit(() => {
+    c.verification = { date, effective: input.effective, note: input.note.trim(), by: input.by };
+    c.status = input.effective ? "ปิดแล้ว" : "วิเคราะห์สาเหตุ";
+    return c;
+  });
+}
+
+/* ================================================================= audit */
+
+export const FINDING_TYPES = ["ข้อบกพร่องหลัก", "ข้อบกพร่องย่อย", "ข้อสังเกต"] as const;
+export type FindingType = (typeof FINDING_TYPES)[number];
+export type Finding = { id: number; clause: string; type: FindingType; detail: string; capa?: string };
+
+export type Audit = {
+  no: string;
+  /** ฝ่ายที่ถูกตรวจ */
+  area: string;
+  clauses: string[];
+  auditor: string;
+  planned: string;
+  status: "ตามแผน" | "กำลังตรวจ" | "ปิดแล้ว";
+  findings: Finding[];
+  performedOn?: string;
+  closedOn?: string;
+};
+
+export const AUDITS: Audit[] = [
+  { no: "IA-2569-01", area: "ฝ่ายผลิต", clauses: ["8.5", "7.1.5"], auditor: "ปิยะนุช ใจดี", planned: "2026-03-18", status: "ปิดแล้ว", performedOn: "2026-03-18", closedOn: "2026-04-02", findings: [{ id: 1, clause: "8.5", type: "ข้อสังเกต", detail: "ป้ายชี้บ่งสถานะงานระหว่างผลิตบางจุดซีดจางอ่านยาก" }] },
+  { no: "IA-2569-02", area: "ฝ่ายจัดซื้อ", clauses: ["8.4"], auditor: "อนุชา ทองดี", planned: "2026-07-24", status: "ปิดแล้ว", performedOn: "2026-07-24", closedOn: "2026-09-15", findings: [{ id: 1, clause: "8.4", type: "ข้อบกพร่องย่อย", detail: "ไม่มีหลักฐานการประเมินผู้ขายรายใหม่ก่อนสั่งซื้อครั้งแรก", capa: "CAR-2569-007" }] },
+  { no: "IA-2569-03", area: "ฝ่ายคลังสินค้า", clauses: ["8.5", "7.5"], auditor: "สุภาพร แก้วมณี", planned: "2026-10-08", status: "ตามแผน", findings: [] },
+  { no: "IA-2569-04", area: "ฝ่ายประกันคุณภาพ", clauses: ["7.5", "9.1.2", "10.2"], auditor: "ชลธิชา มั่นคง", planned: "2026-11-12", status: "ตามแผน", findings: [] },
+];
+
+export const auditByNo = (no: string) => {
+  const a = AUDITS.find((x) => x.no === no);
+  if (!a) throw new Error(\`ไม่พบ \${no}\`);
+  return a;
+};
+
+export const nextAuditNo = () => nextNo(AUDITS.map((a) => a.no), \`IA-\${YEAR}-\`, 2);
+
+export type AuditInput = { area: string; clauses: string[]; auditor: string; planned: string };
+
+/** ผู้ตรวจต้องไม่ตรวจงานของตัวเอง (ข้อ 9.2.2 ค) — ระบบตรวจให้ ไม่ต้องจำ */
+export function auditErrors(input: AuditInput): Errors {
+  const e: Errors = {};
+  if (!DEPARTMENTS.includes(input.area)) e.area = "เลือกฝ่ายที่จะตรวจ";
+  if (input.clauses.length === 0) e.clauses = "เลือกข้อกำหนดที่จะตรวจอย่างน้อยหนึ่งข้อ";
+  const who = QM_TEAM.find((p) => p.name === input.auditor);
+  if (!who) e.auditor = "เลือกผู้ตรวจ";
+  else if (!who.auditor) e.auditor = \`\${who.name} ยังไม่ผ่านการอบรมผู้ตรวจติดตามภายใน\`;
+  else if (who.dept === input.area) e.auditor = "ผู้ตรวจต้องไม่ตรวจฝ่ายของตัวเอง";
+  if (!isDate(input.planned)) e.planned = "ใส่วันที่ตรวจ";
+  else if (input.planned < TODAY) e.planned = "วันที่ตรวจต้องไม่ย้อนหลัง";
+  return e;
+}
+
+export function planAudit(input: AuditInput): Audit {
+  assertValid(auditErrors(input));
+  return commit(() => {
+    const a: Audit = { no: nextAuditNo(), area: input.area, clauses: [...input.clauses], auditor: input.auditor, planned: input.planned, status: "ตามแผน", findings: [] };
+    AUDITS.push(a);
+    return a;
+  });
+}
+
+export function startAudit(no: string, date = TODAY) {
+  const a = auditByNo(no);
+  if (a.status !== "ตามแผน") throw new Error(\`\${no} \${a.status}\`);
+  return commit(() => {
+    a.status = "กำลังตรวจ";
+    a.performedOn = date;
+    return a;
+  });
+}
+
+export function findingErrors(no: string, input: { clause: string; type: FindingType; detail: string }): Errors {
+  const a = auditByNo(no);
+  const e: Errors = {};
+  if (a.status !== "กำลังตรวจ") e.detail = "เริ่มการตรวจก่อนบันทึกสิ่งที่พบ";
+  if (!CLAUSES.some((c) => c.code === input.clause)) e.clause = "เลือกข้อกำหนด";
+  if (input.detail.trim().length < 10) e.detail = "เขียนสิ่งที่พบพร้อมหลักฐาน";
+  return e;
+}
+
+export function addFinding(no: string, input: { clause: string; type: FindingType; detail: string }) {
+  assertValid(findingErrors(no, input));
+  const a = auditByNo(no);
+  return commit(() => {
+    const f: Finding = { id: a.findings.length + 1, clause: input.clause, type: input.type, detail: input.detail.trim() };
+    a.findings.push(f);
+    return f;
+  });
+}
+
+/** ข้อบกพร่องต้องมี CAR ก่อนปิดการตรวจ ข้อสังเกตไม่ต้อง */
+export const findingsWithoutCapa = (a: Audit) => a.findings.filter((f) => f.type !== "ข้อสังเกต" && !f.capa);
+
+export function closeAudit(no: string, date = TODAY) {
+  const a = auditByNo(no);
+  if (a.status !== "กำลังตรวจ") throw new Error(\`\${no} \${a.status} ปิดไม่ได้\`);
+  const open = findingsWithoutCapa(a);
+  if (open.length > 0) throw new Error(\`เปิด CAR ให้ข้อบกพร่องอีก \${open.length} ข้อก่อนปิดการตรวจ\`);
+  return commit(() => {
+    a.status = "ปิดแล้ว";
+    a.closedOn = date;
+    return a;
+  });
+}
+
+/* =========================================================== calibration */
+
+export type CalRecord = { date: string; by: string; certNo: string; result: "ผ่าน" | "ไม่ผ่าน"; error: string; note?: string };
+
+export type Gauge = {
+  code: string;
+  name: string;
+  range: string;
+  resolution: string;
+  location: string;
+  intervalMonths: number;
+  lastCal: string;
+  status: "ใช้งาน" | "พักใช้";
+  records: CalRecord[];
+};
+
+export const GAUGES: Gauge[] = [
+  { code: "QC-VC-01", name: "เวอร์เนียร์คาลิปเปอร์", range: "0–150 มม.", resolution: "0.02 มม.", location: "ห้อง QC", intervalMonths: 12, lastCal: "2026-01-20", status: "ใช้งาน", records: [{ date: "2026-01-20", by: "บจก. ไทยแคลิเบรชั่น (ISO/IEC 17025)", certNo: "TC-26-00418", result: "ผ่าน", error: "+0.01 มม." }] },
+  { code: "QC-MC-01", name: "ไมโครมิเตอร์", range: "0–25 มม.", resolution: "0.001 มม.", location: "ห้อง QC", intervalMonths: 12, lastCal: "2025-09-10", status: "ใช้งาน", records: [{ date: "2025-09-10", by: "บจก. ไทยแคลิเบรชั่น (ISO/IEC 17025)", certNo: "TC-25-03177", result: "ผ่าน", error: "+0.002 มม." }] },
+  { code: "QC-CT-01", name: "เครื่องวัดความหนาสีเคลือบ", range: "0–1,500 ไมครอน", resolution: "1 ไมครอน", location: "สายพ่นสี", intervalMonths: 6, lastCal: "2026-04-05", status: "ใช้งาน", records: [{ date: "2026-04-05", by: "ภายใน (แผ่นมาตรฐาน)", certNo: "IC-2569-011", result: "ผ่าน", error: "−2 ไมครอน" }] },
+  { code: "QC-TM-01", name: "ตลับเมตร", range: "0–5 ม.", resolution: "1 มม.", location: "สายประกอบ", intervalMonths: 12, lastCal: "2026-06-02", status: "ใช้งาน", records: [{ date: "2026-06-02", by: "ภายใน (เทียบบรรทัดมาตรฐาน)", certNo: "IC-2569-024", result: "ผ่าน", error: "0 มม." }] },
+  { code: "QC-SC-01", name: "ตาชั่งตั้งพื้น", range: "0–300 กก.", resolution: "0.1 กก.", location: "คลังสินค้า", intervalMonths: 12, lastCal: "2025-12-15", status: "ใช้งาน", records: [{ date: "2025-12-15", by: "สำนักงานกลางชั่งตวงวัด", certNo: "CBW-68-2210", result: "ผ่าน", error: "+0.1 กก." }] },
+];
+
+export const gaugeByCode = (code: string) => {
+  const g = GAUGES.find((x) => x.code === code);
+  if (!g) throw new Error(\`ไม่พบเครื่องมือ \${code}\`);
+  return g;
+};
+
+export const nextDue = (g: Gauge) => addMonths(g.lastCal, g.intervalMonths);
+
+export type CalState = "พักใช้" | "เกินกำหนด" | "ใกล้ครบ" | "ปกติ";
+
+export function calState(g: Gauge): CalState {
+  if (g.status === "พักใช้") return "พักใช้";
+  const due = nextDue(g);
+  if (due < TODAY) return "เกินกำหนด";
+  if (due <= addDays(TODAY, 30)) return "ใกล้ครบ";
+  return "ปกติ";
+}
+
+export type GaugeInput = { code: string; name: string; range: string; resolution: string; location: string; intervalMonths: number; lastCal: string };
+
+export function gaugeErrors(input: GaugeInput): Errors {
+  const e: Errors = {};
+  if (!/^[A-Z]{2}-[A-Z]{2}-\\d{2}$/.test(input.code.trim())) e.code = "รหัสรูปแบบ QC-XX-00";
+  else if (GAUGES.some((g) => g.code === input.code.trim())) e.code = "รหัสนี้มีอยู่แล้ว";
+  if (input.name.trim().length < 3) e.name = "ใส่ชื่อเครื่องมือ";
+  if (input.range.trim().length < 2) e.range = "ใส่ช่วงการวัด";
+  if (input.location.trim().length < 2) e.location = "ใส่ที่ใช้งาน";
+  if (![3, 6, 12, 24].includes(input.intervalMonths)) e.intervalMonths = "เลือกรอบสอบเทียบ";
+  if (!isDate(input.lastCal) || input.lastCal > TODAY) e.lastCal = "วันที่สอบเทียบล่าสุดต้องไม่เกินวันนี้";
+  return e;
+}
+
+export function addGauge(input: GaugeInput): Gauge {
+  assertValid(gaugeErrors(input));
+  return commit(() => {
+    const g: Gauge = { ...input, code: input.code.trim(), name: input.name.trim(), status: "ใช้งาน", records: [] };
+    GAUGES.push(g);
+    return g;
+  });
+}
+
+export type CalInput = { date: string; by: string; certNo: string; result: "ผ่าน" | "ไม่ผ่าน"; error: string; note: string };
+
+export function calErrors(code: string, input: CalInput): Errors {
+  const g = gaugeByCode(code);
+  const e: Errors = {};
+  if (!isDate(input.date) || input.date > TODAY) e.date = "วันที่สอบเทียบต้องไม่เกินวันนี้";
+  else if (input.date < g.lastCal) e.date = "วันที่ต้องไม่ก่อนการสอบเทียบครั้งล่าสุด";
+  if (input.by.trim().length < 3) e.by = "ผู้สอบเทียบหรือห้องปฏิบัติการ";
+  if (input.certNo.trim().length < 3) e.certNo = "เลขที่ใบรับรองผล";
+  if (input.error.trim().length < 1) e.error = "ค่าความคลาดเคลื่อนที่วัดได้";
+  if (input.result === "ไม่ผ่าน" && input.note.trim().length < 10) e.note = "บอกสิ่งที่พบ — ใช้ประเมินผลการวัดที่ผ่านมา";
+  return e;
+}
+
+/**
+ * บันทึกผลสอบเทียบ — ไม่ผ่านคือพักใช้เครื่องมือ แล้วเปิด NCR ให้ทบทวนผลการวัด
+ * ตั้งแต่สอบเทียบครั้งก่อน (ข้อ 7.1.5.2) เพราะของที่วัดด้วยเครื่องนี้อาจผ่านมาโดยไม่ควรผ่าน
+ */
+export function recordCalibration(code: string, input: CalInput) {
+  assertValid(calErrors(code, input));
+  const g = gaugeByCode(code);
+  return commit(() => {
+    const previous = g.lastCal;
+    g.records.push({ date: input.date, by: input.by.trim(), certNo: input.certNo.trim(), result: input.result, error: input.error.trim(), note: input.note.trim() || undefined });
+    let ncr: Ncr | undefined;
+    if (input.result === "ผ่าน") {
+      g.lastCal = input.date;
+      g.status = "ใช้งาน";
+    } else {
+      g.status = "พักใช้";
+      const used = LOTS.filter((l) => l.inspectedOn && l.inspectedOn >= previous && planOf(l.material).some((c) => c.method.includes(code)));
+      ncr = pushNcr({
+        date: input.date, source: "สอบเทียบเครื่องมือ", ref: code, qty: Math.max(1, used.length),
+        description: \`\${g.name} \${code} สอบเทียบไม่ผ่าน (\${input.error.trim()}) — \${input.note.trim()} ทบทวนผลตรวจ \${used.length} ล็อตที่วัดด้วยเครื่องนี้ตั้งแต่ \${previous}\${used.length ? \`: \${used.map((l) => l.no).join(", ")}\` : ""}\`,
+        severity: "ปานกลาง", reportedBy: QMR,
+      });
+    }
+    return { gauge: g, ncr };
+  });
+}
+
+/* ============================================================ objectives */
+
+const rate = (hit: number, of: number) => (of === 0 ? 100 : Math.round((hit / of) * 1000) / 10);
+
+/**
+ * วัตถุประสงค์คุณภาพ (ข้อ 6.2) — วัดจากงานจริงในระบบ ไม่ใช่ตัวเลขที่กรอกตอนทบทวน
+ * ฝ่ายบริหารจึงเห็นค่าเดียวกับที่หน้าจออื่นใช้ทำงาน
+ */
+export function objectives() {
+  const decided = (o: LotOrigin) => LOTS.filter((l) => l.origin === o && l.status === "ตัดสินแล้ว");
+  const passed = (o: LotOrigin) => decided(o).filter((l) => l.decision === "ผ่าน").length;
+  const complaints = NCRS.filter((n) => n.source === "ข้อร้องเรียนลูกค้า" && n.date.slice(0, 7) === TODAY.slice(0, 7)).length;
+  const actions = CAPAS.flatMap((c) => c.actions);
+  const dueActions = actions.filter((a) => a.due <= TODAY);
+  const onTime = dueActions.filter((a) => a.doneOn && a.doneOn <= a.due).length;
+  const active = GAUGES.filter((g) => g.status === "ใช้งาน");
+  const current = active.filter((g) => nextDue(g) >= TODAY).length;
+  return [
+    { name: "ของเข้าผ่านการตรวจรับ", clause: "8.4", target: 95, actual: rate(passed("ตรวจรับ"), decided("ตรวจรับ").length), unit: "%", better: "higher" as const },
+    { name: "สินค้าผ่านการตรวจก่อนส่งครั้งแรก", clause: "8.6", target: 98, actual: rate(passed("ตรวจก่อนส่ง"), decided("ตรวจก่อนส่ง").length), unit: "%", better: "higher" as const },
+    { name: "ข้อร้องเรียนลูกค้าเดือนนี้", clause: "9.1.2", target: 2, actual: complaints, unit: "เรื่อง", better: "lower" as const },
+    { name: "มาตรการแก้ไขเสร็จตามกำหนด", clause: "10.2", target: 90, actual: rate(onTime, dueActions.length), unit: "%", better: "higher" as const },
+    { name: "เครื่องมือวัดอยู่ในรอบสอบเทียบ", clause: "7.1.5", target: 100, actual: rate(current, active.length), unit: "%", better: "higher" as const },
+  ].map((o) => ({ ...o, met: o.better === "higher" ? o.actual >= o.target : o.actual <= o.target }));
+}
+
+/** ผู้ขายตามอัตราล็อตที่ไม่ผ่าน — ข้อมูลตั้งต้นของการประเมินผู้ขาย (ข้อ 8.4.1) */
+export function vendorQuality() {
+  return VENDORS.map((v) => {
+    const lots = LOTS.filter((l) => l.vendor === v.code && l.status === "ตัดสินแล้ว");
+    const rejected = lots.filter((l) => l.decision === "ไม่ผ่าน").length;
+    return { code: v.code, name: v.name, lots: lots.length, rejected, rate: rate(rejected, lots.length) };
+  }).filter((v) => v.lots > 0);
+}
+
+/** NCR ระหว่างผลิตอ้างใบสั่งผลิตของระบบวางแผนการผลิต — เลขที่พิมพ์ต้องมีอยู่จริง */
+export function productionOrderExists(no: string) {
+  return ORDERS.some((o) => o.no === no);
+}
+`,
+
+  "qm/documents.tsx": `import type { ReactNode } from "react";
+import { Paper } from "../kit";
+import {
+  COMPANY, DOCUMENTS, QMR, TODAY, auditByNo, docByCode, capaByNo, clauseName, customerName, gaugeByCode, lotByNo, materialName,
+  materialUnit, ncrByNo, nextDue, planOf, revLabel, vendorName,
+} from "./data";
+
+/** เอกสารที่พิมพ์ได้จากระบบคุณภาพ — ทุกใบมีเลขแบบฟอร์มควบคุมที่มุมขวาเหมือนเอกสารจริง */
+export type QmDoc =
+  | { doc: "master-list" }
+  | { doc: "lot"; no: string }
+  | { doc: "ncr"; no: string }
+  | { doc: "car"; no: string }
+  | { doc: "audit"; no: string }
+  | { doc: "gauge"; code: string };
+
+/** เลขแบบฟอร์มที่มุมกระดาษ อ่านฉบับจากบัญชีรายชื่อเอกสาร จึงตรงกับที่ผู้ตรวจประเมินเทียบเสมอ */
+const formNo = (code: string) => \`\${code} \${revLabel(docByCode(code).rev)}\`;
+
+function Head({ title, form, number }: { title: string; form: string; number?: string }) {
+  return (
+    <div className="flex items-start justify-between gap-6 border-b-2 border-slate-800 pb-3">
+      <div>
+        <p className="text-[15px] font-bold text-slate-900">{COMPANY.name}</p>
+        <p className="max-w-sm leading-relaxed text-slate-600">{COMPANY.address}</p>
+      </div>
+      <div className="text-right">
+        <p className="text-[16px] font-bold text-slate-900">{title}</p>
+        {number && <p className="mt-0.5 font-semibold tabular-nums text-slate-900">{number}</p>}
+        <p className="mt-1 text-[10.5px] text-slate-500">{form}</p>
+      </div>
+    </div>
+  );
+}
+
+function Facts({ rows }: { rows: [string, ReactNode][] }) {
+  return (
+    <dl className="mt-4 grid grid-cols-[auto_1fr_auto_1fr] gap-x-4 gap-y-1.5 rounded-md border border-slate-300 p-3">
+      {rows.map(([k, v]) => (
+        <div key={k} className="contents">
+          <dt className="text-slate-500">{k}</dt>
+          <dd className="text-slate-900">{v}</dd>
+        </div>
+      ))}
+    </dl>
+  );
+}
+
+function Table({ head, rows }: { head: string[]; rows: ReactNode[][] }) {
+  return (
+    <table className="mt-4 w-full border-collapse">
+      <thead>
+        <tr className="bg-slate-100 text-[11.5px] text-slate-600">
+          {head.map((h) => (
+            <th key={h} className="border border-slate-300 px-2 py-1.5 text-left font-medium">{h}</th>
+          ))}
+        </tr>
+      </thead>
+      <tbody>
+        {rows.length === 0 && (
+          <tr>
+            <td colSpan={head.length} className="border border-slate-300 px-2 py-3 text-center text-slate-400">ไม่มีรายการ</td>
+          </tr>
+        )}
+        {rows.map((r, i) => (
+          <tr key={i}>
+            {r.map((c, j) => (
+              <td key={j} className="border border-slate-300 px-2 py-1.5 align-top">{c}</td>
+            ))}
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+}
+
+function Block({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <div className="mt-4">
+      <p className="font-semibold text-slate-900">{title}</p>
+      <div className="mt-1 rounded-md border border-slate-300 p-3 leading-relaxed text-slate-700">{children}</div>
+    </div>
+  );
+}
+
+function Signatures({ names }: { names: [string, string?][] }) {
+  return (
+    <div className="mt-10 grid gap-8" style={{ gridTemplateColumns: \`repeat(\${names.length}, minmax(0, 1fr))\` }}>
+      {names.map(([role, name]) => (
+        <div key={role} className="text-center">
+          <div className="mx-auto h-9 w-40 border-b border-dotted border-slate-500" />
+          <p className="mt-1.5 text-slate-700">{name ? \`( \${name} )\` : "(............................)"}</p>
+          <p className="text-slate-500">{role}</p>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+const Foot = () => (
+  <p className="mt-8 border-t border-slate-200 pt-2 text-[10.5px] text-slate-400">
+    เอกสารควบคุมตามระบบบริหารคุณภาพ ISO 9001:2015 · พิมพ์จากระบบเมื่อ {TODAY}
+  </p>
+);
+
+function MasterList() {
+  const live = DOCUMENTS.filter((d) => d.status !== "ยกเลิก");
+  const dead = DOCUMENTS.filter((d) => d.status === "ยกเลิก");
+  return (
+    <>
+      <Head title="บัญชีรายชื่อเอกสารควบคุม" form={formNo("FM-01")} />
+      <p className="mt-3 text-slate-600">เอกสารที่ใช้งานและฉบับที่มีผลบังคับ ณ วันที่ {TODAY} — ฉบับที่ไม่อยู่ในบัญชีนี้ห้ามใช้ที่หน้างาน</p>
+      <Table
+        head={["รหัส", "ชื่อเอกสาร", "ประเภท", "ฉบับ", "วันที่มีผล", "ฝ่ายเจ้าของ", "ทบทวนครั้งถัดไป"]}
+        rows={live.map((d) => [d.code, d.title, d.type, revLabel(d.rev), d.effective ?? "รออนุมัติ", d.owner, d.reviewDue ?? "—"])}
+      />
+      {dead.length > 0 && (
+        <>
+          <p className="mt-5 font-semibold text-slate-900">เอกสารที่ยกเลิก</p>
+          <Table head={["รหัส", "ชื่อเอกสาร", "ฉบับสุดท้าย", "เหตุผล"]} rows={dead.map((d) => [d.code, d.title, revLabel(d.rev), d.obsoleteReason ?? ""])} />
+        </>
+      )}
+      <Signatures names={[["ผู้จัดทำ", "สุภาพร แก้วมณี"], ["ผู้อนุมัติ (QMR)", QMR]]} />
+      <Foot />
+    </>
+  );
+}
+
+function LotReport({ no }: { no: string }) {
+  const l = lotByNo(no);
+  const plan = planOf(l.material);
+  const certificate = l.origin === "ตรวจก่อนส่ง" && l.decision && l.decision !== "ไม่ผ่าน";
+  return (
+    <>
+      <Head
+        title={certificate ? "ใบรับรองคุณภาพสินค้า" : "ใบรายงานผลการตรวจสอบ"}
+        number={l.no}
+        form={certificate ? \`\${formNo("FM-03")} · Certificate of Conformance\` : formNo("FM-02")}
+      />
+      <Facts
+        rows={[
+          ["ประเภทการตรวจ", l.origin],
+          ["วันที่ตรวจ", l.inspectedOn ?? "ยังไม่ตรวจ"],
+          ["รายการ", \`\${l.material} · \${materialName(l.material)}\`],
+          ["จำนวนล็อต", \`\${l.qty.toLocaleString("th-TH")} \${materialUnit(l.material)}\`],
+          ["เอกสารต้นทาง", \`\${l.source} · \${l.ref}\`],
+          ["จำนวนตัวอย่าง", \`\${l.sample} \${materialUnit(l.material)}\`],
+          [l.vendor ? "ผู้ขาย" : "หน่วยผลิต", l.vendor ? vendorName(l.vendor) : "ฝ่ายผลิต"],
+          ["ผลการตัดสิน", l.decision ?? "รอตัดสิน"],
+        ]}
+      />
+      <Table
+        head={["คุณลักษณะ", "วิธีตรวจ", "เกณฑ์", "ผลที่ได้", "ผล"]}
+        rows={plan.map((c) => {
+          const r = l.results.find((x) => x.characteristic === c.name);
+          const spec = c.kind === "วัดค่า" ? \`\${c.lsl} – \${c.usl} \${c.unit ?? ""}\` : "ไม่พบจุดบกพร่อง";
+          const got = !r ? "—" : c.kind === "วัดค่า" ? \`\${r.min} – \${r.max} \${c.unit ?? ""}\` : r.defects === 0 ? "ไม่พบ" : \`พบ \${r.defects} ชิ้น\`;
+          return [c.name, c.method, spec, got, !r ? "—" : r.ok ? "ผ่าน" : "ไม่ผ่าน"];
+        })}
+      />
+      {l.note && <Block title="หมายเหตุ">{l.note}</Block>}
+      {certificate && (
+        <p className="mt-4 leading-relaxed text-slate-700">
+          ขอรับรองว่าสินค้าในล็อตนี้ได้รับการตรวจสอบตามแผนการตรวจ และเป็นไปตามข้อกำหนด{l.decision === "ยอมรับแบบมีเงื่อนไข" ? " ภายใต้เงื่อนไขที่ระบุในหมายเหตุ" : ""}
+        </p>
+      )}
+      {l.ncr && <p className="mt-3 text-slate-700">อ้างอิงใบรายงานสิ่งที่ไม่เป็นไปตามข้อกำหนด {l.ncr}</p>}
+      <Signatures names={[["ผู้ตรวจ", l.inspector], ["ผู้ตัดสินผล", l.decidedBy]]} />
+      <Foot />
+    </>
+  );
+}
+
+function NcrReport({ no }: { no: string }) {
+  const n = ncrByNo(no);
+  return (
+    <>
+      <Head title="ใบรายงานสิ่งที่ไม่เป็นไปตามข้อกำหนด" number={n.no} form={\`\${formNo("FM-04")} · NCR\`} />
+      <Facts
+        rows={[
+          ["วันที่พบ", n.date],
+          ["แหล่งที่พบ", n.source],
+          ["เอกสารอ้างอิง", n.ref],
+          ["ความรุนแรง", n.severity],
+          ["รายการ", n.material ? \`\${n.material} · \${materialName(n.material)}\` : "—"],
+          ["จำนวน", n.material ? \`\${n.qty.toLocaleString("th-TH")} \${materialUnit(n.material)}\` : n.qty.toLocaleString("th-TH")],
+          [n.customer ? "ลูกค้า" : "ผู้ขาย", n.customer ? customerName(n.customer) : vendorName(n.vendor)],
+          ["ผู้รายงาน", n.reportedBy],
+        ]}
+      />
+      <Block title="สิ่งที่พบ">{n.description}</Block>
+      <Block title="การสั่งการ">
+        {n.disposition ? (
+          <>
+            <p className="font-medium text-slate-900">{n.disposition}</p>
+            <p>{n.dispositionNote}</p>
+            {n.stockDoc && <p className="mt-1 text-slate-500">ตัดสต็อกตามเอกสาร {n.stockDoc}</p>}
+            <p className="mt-1 text-slate-500">สั่งการโดย {n.dispositionBy}</p>
+          </>
+        ) : (
+          "ยังไม่สั่งการ"
+        )}
+      </Block>
+      <Block title="การแก้ไขที่สาเหตุ">{n.capa ? \`ออกใบขอให้แก้ไข \${n.capa}\` : "ไม่ต้องออก CAR"}</Block>
+      <Signatures names={[["ผู้รายงาน", n.reportedBy], ["ผู้สั่งการ", n.dispositionBy], ["ผู้ปิดเรื่อง", n.closedBy]]} />
+      <Foot />
+    </>
+  );
+}
+
+function CarReport({ no }: { no: string }) {
+  const c = capaByNo(no);
+  return (
+    <>
+      <Head title="ใบขอให้ดำเนินการแก้ไขและป้องกัน" number={c.no} form={\`\${formNo("FM-05")} · CAR\`} />
+      <Facts
+        rows={[
+          ["วันที่ออก", c.date],
+          ["ประเภท", \`การ\${c.kind}\`],
+          ["ต้นเรื่อง", c.ref],
+          ["ผู้รับผิดชอบ", c.owner],
+        ]}
+      />
+      <Block title="1. ปัญหา">{c.problem}</Block>
+      <Block title="2. สาเหตุราก">
+        {c.rootCause ? (
+          <>
+            <p className="text-slate-500">กลุ่มสาเหตุ: {c.rootCause.category}</p>
+            <ol className="mt-1 list-decimal pl-5">
+              {c.rootCause.whys.map((w, i) => (
+                <li key={i}>ทำไม — {w}</li>
+              ))}
+            </ol>
+          </>
+        ) : (
+          "ยังไม่วิเคราะห์"
+        )}
+      </Block>
+      <p className="mt-4 font-semibold text-slate-900">3. มาตรการแก้ไข</p>
+      <Table
+        head={["มาตรการ", "ผู้รับผิดชอบ", "กำหนดเสร็จ", "เสร็จเมื่อ"]}
+        rows={c.actions.map((a) => [a.what, a.owner, a.due, a.doneOn ?? "—"])}
+      />
+      <Block title="4. ติดตามประสิทธิผล">
+        {c.verification ? \`\${c.verification.effective ? "ได้ผล" : "ไม่ได้ผล"} — \${c.verification.note} (\${c.verification.by}, \${c.verification.date})\` : "ยังไม่ติดตามผล"}
+      </Block>
+      <Signatures names={[["ผู้รับผิดชอบ", c.owner], ["ผู้ติดตามผล", c.verification?.by], ["ผู้อนุมัติ (QMR)", QMR]]} />
+      <Foot />
+    </>
+  );
+}
+
+function AuditReport({ no }: { no: string }) {
+  const a = auditByNo(no);
+  const count = (t: string) => a.findings.filter((f) => f.type === t).length;
+  return (
+    <>
+      <Head title="รายงานการตรวจติดตามภายใน" number={a.no} form={formNo("FM-06")} />
+      <Facts
+        rows={[
+          ["ฝ่ายที่ตรวจ", a.area],
+          ["วันที่ตรวจ", a.performedOn ?? \`ตามแผน \${a.planned}\`],
+          ["ผู้ตรวจ", a.auditor],
+          ["สถานะ", a.status],
+        ]}
+      />
+      <Block title="ขอบเขตการตรวจ">
+        {a.clauses.map((c) => \`ข้อ \${c} \${clauseName(c)}\`).join(" · ")}
+      </Block>
+      <Table
+        head={["#", "ข้อกำหนด", "ประเภท", "สิ่งที่พบ", "CAR"]}
+        rows={a.findings.map((f) => [String(f.id), f.clause, f.type, f.detail, f.capa ?? (f.type === "ข้อสังเกต" ? "—" : "ยังไม่ออก")])}
+      />
+      <p className="mt-3 text-slate-700">
+        สรุป: ข้อบกพร่องหลัก {count("ข้อบกพร่องหลัก")} · ข้อบกพร่องย่อย {count("ข้อบกพร่องย่อย")} · ข้อสังเกต {count("ข้อสังเกต")}
+      </p>
+      <Signatures names={[["ผู้ตรวจ", a.auditor], ["ผู้รับการตรวจ"], ["ผู้อนุมัติ (QMR)", QMR]]} />
+      <Foot />
+    </>
+  );
+}
+
+function GaugeReport({ code }: { code: string }) {
+  const g = gaugeByCode(code);
+  return (
+    <>
+      <Head title="บันทึกประวัติการสอบเทียบเครื่องมือวัด" number={g.code} form={formNo("FM-07")} />
+      <Facts
+        rows={[
+          ["เครื่องมือ", g.name],
+          ["ช่วงการวัด", g.range],
+          ["ความละเอียด", g.resolution],
+          ["ที่ใช้งาน", g.location],
+          ["รอบสอบเทียบ", \`ทุก \${g.intervalMonths} เดือน\`],
+          ["ครบกำหนดครั้งถัดไป", g.status === "พักใช้" ? "พักใช้" : nextDue(g)],
+        ]}
+      />
+      <Table
+        head={["วันที่", "ผู้สอบเทียบ", "เลขที่ใบรับรอง", "ค่าคลาดเคลื่อน", "ผล"]}
+        rows={g.records.map((r) => [r.date, r.by, r.certNo, r.error, r.result])}
+      />
+      <Signatures names={[["ผู้บันทึก", "สุภาพร แก้วมณี"], ["ผู้อนุมัติ (QMR)", QMR]]} />
+      <Foot />
+    </>
+  );
+}
+
+export function QmPaper({ d }: { d: QmDoc }) {
+  return (
+    <Paper>
+      {d.doc === "master-list" && <MasterList />}
+      {d.doc === "lot" && <LotReport no={d.no} />}
+      {d.doc === "ncr" && <NcrReport no={d.no} />}
+      {d.doc === "car" && <CarReport no={d.no} />}
+      {d.doc === "audit" && <AuditReport no={d.no} />}
+      {d.doc === "gauge" && <GaugeReport code={d.code} />}
+    </Paper>
+  );
+}
+`,
+
+  "qm/forms.tsx": `import { useState } from "react";
+import type { ReactNode } from "react";
+import { Printer } from "lucide-react";
+import {
+  CAUSE_CATEGORIES, CLAUSES, DECISIONS, DELIVERY_OPTIONS, DEPARTMENTS, DISPOSITIONS, DOC_TYPES, FINDING_TYPES,
+  NCR_SOURCES, QMR, QM_TEAM, SEVERITIES, TODAY, actionErrors, addCapaAction, addFinding, addGauge, approveDocument,
+  auditByNo, auditErrors, calErrors, capaByNo, capaErrors, closeNcr, closeNcrErrors, complaintErrors, createComplaint,
+  createDocument, createLot, createNcr, decideLot, decisionErrors, disposeNcr, dispositionErrors, docByCode, docErrors,
+  findingErrors, gaugeByCode, gaugeErrors, lotByNo, materialName, ncrByNo, ncrErrors, nextDocCode, obsoleteDocument,
+  openCapa, pendingInspections, planAudit, planOf, recordCalibration, recordResults, recordRootCause, resultErrors,
+  returnDocument, reviseDocument, revLabel, rootCauseErrors, verifyCapa,
+} from "./data";
+import type {
+  CalInput, CapaInput, CauseCategory, Decision, Disposition, DocType, FindingType, NcrSource, Pending, Severity,
+} from "./data";
+import { MATERIALS } from "../mm/data";
+import { DELIVERIES } from "../sd/data";
+import { QmPaper } from "./documents";
+import type { QmDoc } from "./documents";
+import { Badge, Button, FIELD, Note, Segmented } from "../ui";
+import { ConfirmDialog, Field, FormModal, notify, printDocument, useData } from "../kit";
+
+/** ทุกการกระทำของฝ่ายคุณภาพ ยกขึ้นแบบเดียวกันจากทุกหน้า */
+export type Act =
+  | { kind: "doc-new" }
+  | { kind: "doc-revise"; code: string }
+  | { kind: "doc-approve"; code: string }
+  | { kind: "doc-obsolete"; code: string }
+  | { kind: "lot-new"; source?: string; material?: string }
+  | { kind: "lot-results"; no: string }
+  | { kind: "lot-decide"; no: string }
+  | { kind: "ncr-new" }
+  | { kind: "complaint-new" }
+  | { kind: "ncr-dispose"; no: string }
+  | { kind: "ncr-close"; no: string }
+  | { kind: "car-new"; ref?: string; problem?: string }
+  | { kind: "car-cause"; no: string }
+  | { kind: "car-action"; no: string }
+  | { kind: "car-verify"; no: string }
+  | { kind: "audit-new" }
+  | { kind: "audit-finding"; no: string }
+  | { kind: "gauge-new" }
+  | { kind: "gauge-cal"; code: string }
+  | { kind: "print"; d: QmDoc; title: string };
+
+type Of<K extends Act["kind"]> = Extract<Act, { kind: K }>;
+
+/* ---------------------------------------------------------------- pieces */
+
+const bad = (error?: string) => (error ? " border-rose-400 dark:border-rose-500" : "");
+
+function Input({ value, onChange, error, type = "text", placeholder }: { value: string; onChange: (v: string) => void; error?: string; type?: string; placeholder?: string }) {
+  return <input type={type} value={value} placeholder={placeholder} onChange={(e) => onChange(e.target.value)} className={FIELD + " w-full tabular-nums" + bad(error)} />;
+}
+
+function Area({ value, onChange, error, placeholder, rows = 3 }: { value: string; onChange: (v: string) => void; error?: string; placeholder?: string; rows?: number }) {
+  return <textarea value={value} rows={rows} placeholder={placeholder} onChange={(e) => onChange(e.target.value)} className={FIELD + " w-full resize-none" + bad(error)} />;
+}
+
+function Choice({ value, onChange, options, error, placeholder }: { value: string; onChange: (v: string) => void; options: readonly (string | { value: string; label: string })[]; error?: string; placeholder?: string }) {
+  return (
+    <select value={value} onChange={(e) => onChange(e.target.value)} className={FIELD + " w-full" + bad(error)}>
+      {placeholder && <option value="">{placeholder}</option>}
+      {options.map((o) => {
+        const opt = typeof o === "string" ? { value: o, label: o } : o;
+        return <option key={opt.value} value={opt.value}>{opt.label}</option>;
+      })}
+    </select>
+  );
+}
+
+function Actions({ onCancel, label, disabled }: { onCancel: () => void; label: string; disabled?: boolean }) {
+  return (
+    <div className="flex justify-end gap-2 border-t border-slate-100 pt-4 dark:border-slate-800">
+      <Button variant="secondary" onClick={onCancel}>ยกเลิก</Button>
+      <Button type="submit" disabled={disabled}>{label}</Button>
+    </div>
+  );
+}
+
+/** ฟอร์มที่ส่งแล้วเรียกฟังก์ชันของ data.ts — ข้อผิดพลาดจากกฎธุรกิจขึ้นใต้ฟอร์ม ไม่ใช่หน้าจอพัง */
+function Form({ children, onSubmit, error }: { children: ReactNode; onSubmit: () => void; error?: string }) {
+  return (
+    <form
+      className="space-y-4"
+      onSubmit={(e) => {
+        e.preventDefault();
+        onSubmit();
+      }}
+    >
+      {children}
+      {error && <Note tone="bad">{error}</Note>}
+    </form>
+  );
+}
+
+const people = (filter?: (p: (typeof QM_TEAM)[number]) => boolean) => QM_TEAM.filter(filter ?? (() => true)).map((p) => ({ value: p.name, label: \`\${p.name} · \${p.role}\` }));
+const tryRun = (fn: () => void, setError: (e: string) => void) => {
+  try {
+    fn();
+  } catch (e) {
+    setError(e instanceof Error ? e.message : String(e));
+  }
+};
+
+/* ------------------------------------------------------------- documents */
+
+function DocForm({ onCancel, onDone }: { onCancel: () => void; onDone: (code: string) => void }) {
+  const [type, setType] = useState<DocType>("ขั้นตอนการปฏิบัติงาน");
+  const [title, setTitle] = useState("");
+  const [clause, setClause] = useState("");
+  const [owner, setOwner] = useState("ฝ่ายประกันคุณภาพ");
+  const [by, setBy] = useState("สุภาพร แก้วมณี");
+  const [change, setChange] = useState("");
+  const [tried, setTried] = useState(false);
+  const input = { type, title, clause, owner, by, change };
+  const errors = tried ? docErrors(input) : {};
+  return (
+    <Form
+      onSubmit={() => {
+        setTried(true);
+        if (Object.keys(docErrors(input)).length) return;
+        const d = createDocument(input);
+        notify(\`สร้างร่างเอกสาร \${d.code} แล้ว · ส่งอนุมัติเมื่อเขียนเสร็จ\`);
+        onDone(d.code);
+      }}
+    >
+      <div className="grid gap-3 sm:grid-cols-2">
+        <Field label="ประเภท" hint={\`รหัสที่จะได้ \${nextDocCode(type)}\`}>
+          <Choice value={type} onChange={(v) => setType(v as DocType)} options={DOC_TYPES} />
+        </Field>
+        <Field label="รองรับข้อกำหนด" error={errors.clause}>
+          <Choice value={clause} onChange={setClause} placeholder="เลือกข้อกำหนด…" error={errors.clause} options={CLAUSES.map((c) => ({ value: c.code, label: \`\${c.code} \${c.name}\` }))} />
+        </Field>
+      </div>
+      <Field label="ชื่อเอกสาร" error={errors.title}>
+        <Input value={title} onChange={setTitle} error={errors.title} placeholder="เช่น การจัดการข้อร้องเรียนลูกค้า" />
+      </Field>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <Field label="ฝ่ายเจ้าของ" error={errors.owner}>
+          <Choice value={owner} onChange={setOwner} options={DEPARTMENTS} />
+        </Field>
+        <Field label="ผู้จัดทำ" error={errors.by}>
+          <Choice value={by} onChange={setBy} options={people()} />
+        </Field>
+      </div>
+      <Field label="รายละเอียดการออกใช้" hint="ว่างไว้จะบันทึกเป็น “ออกใช้ครั้งแรก”">
+        <Input value={change} onChange={setChange} placeholder="ออกใช้ครั้งแรก" />
+      </Field>
+      <Actions onCancel={onCancel} label="สร้างร่างเอกสาร" />
+    </Form>
+  );
+}
+
+function ReviseForm({ code, onCancel, onDone }: { code: string; onCancel: () => void; onDone: () => void }) {
+  const d = docByCode(code);
+  const [change, setChange] = useState("");
+  const [by, setBy] = useState("สุภาพร แก้วมณี");
+  const [error, setError] = useState("");
+  return (
+    <Form error={error} onSubmit={() => tryRun(() => { reviseDocument(code, change, by); notify(\`เปิดฉบับแก้ไข \${code} \${revLabel(d.rev + 1)} แล้ว · ฉบับ \${revLabel(d.rev)} ยังใช้อยู่จนกว่าจะอนุมัติ\`); onDone(); }, setError)}>
+      <Note tone="info">ฉบับที่ใช้อยู่ ({revLabel(d.rev)}) ใช้ต่อที่หน้างานจนกว่าฉบับใหม่จะได้รับอนุมัติ</Note>
+      <Field label="แก้อะไร">
+        <Area value={change} onChange={setChange} placeholder="เช่น เพิ่มขั้นตอนประเมินผู้ขายใหม่" />
+      </Field>
+      <Field label="ผู้จัดทำ">
+        <Choice value={by} onChange={setBy} options={people()} />
+      </Field>
+      <Actions onCancel={onCancel} label={\`เปิดฉบับ \${revLabel(d.rev + 1)}\`} />
+    </Form>
+  );
+}
+
+function ApproveForm({ code, onCancel, onDone }: { code: string; onCancel: () => void; onDone: () => void }) {
+  const d = docByCode(code);
+  const [approver, setApprover] = useState(QMR);
+  const [error, setError] = useState("");
+  if (!d.draft) return <Note tone="idle">ไม่มีฉบับที่รออนุมัติ</Note>;
+  return (
+    <Form error={error} onSubmit={() => tryRun(() => { approveDocument(code, approver); notify(\`อนุมัติ \${code} \${revLabel(d.rev)} แล้ว · มีผลวันนี้\`); onDone(); }, setError)}>
+      <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5 text-[13px]">
+        <dt className="text-slate-500">ฉบับ</dt>
+        <dd>{revLabel(d.draft.rev)}</dd>
+        <dt className="text-slate-500">รายละเอียด</dt>
+        <dd>{d.draft.change}</dd>
+        <dt className="text-slate-500">ผู้จัดทำ</dt>
+        <dd>{d.draft.by} · {d.draft.date}</dd>
+      </dl>
+      <Field label="ผู้อนุมัติ" hint="ต้องไม่ใช่ผู้จัดทำ">
+        <Choice value={approver} onChange={setApprover} options={people()} />
+      </Field>
+      <div className="flex justify-between gap-2 border-t border-slate-100 pt-4 dark:border-slate-800">
+        <Button variant="ghost" onClick={() => tryRun(() => { returnDocument(code); notify(\`ส่ง \${code} กลับไปแก้แล้ว\`, "info"); onDone(); }, setError)}>
+          ส่งกลับไปแก้
+        </Button>
+        <div className="flex gap-2">
+          <Button variant="secondary" onClick={onCancel}>ยกเลิก</Button>
+          <Button type="submit">อนุมัติและออกใช้</Button>
+        </div>
+      </div>
+    </Form>
+  );
+}
+
+/* ------------------------------------------------------------ inspection */
+
+function LotNewForm({ source, material, onCancel, onDone }: { source?: string; material?: string; onCancel: () => void; onDone: (no: string) => void }) {
+  const pending = pendingInspections();
+  const keyOf = (p: Pending) => \`\${p.source}|\${p.material}\`;
+  const [pick, setPick] = useState(source && material ? \`\${source}|\${material}\` : pending[0] ? keyOf(pending[0]) : "");
+  const [error, setError] = useState("");
+  const chosen = pending.find((p) => keyOf(p) === pick);
+  if (pending.length === 0) return <Note tone="ok">ทุกใบรับของและทุกการรับสินค้าผลิตเสร็จเปิดล็อตตรวจแล้ว</Note>;
+  return (
+    <Form error={error} onSubmit={() => tryRun(() => { const l = createLot(chosen!); notify(\`เปิดล็อตตรวจ \${l.no} แล้ว · สุ่ม \${l.sample} ตัวอย่าง\`); onDone(l.no); }, setError)}>
+      <Field label="ของที่รอตรวจ">
+        <Choice value={pick} onChange={setPick} options={pending.map((p) => ({ value: keyOf(p), label: \`\${p.origin} · \${p.source} · \${materialName(p.material)} \${p.qty.toLocaleString("th-TH")}\` }))} />
+      </Field>
+      {chosen && (
+        <div className="rounded-xl bg-slate-50 p-3 text-[12.5px] text-slate-600 dark:bg-slate-800/50 dark:text-slate-300">
+          ตรวจตามแผน {planOf(chosen.material).length} คุณลักษณะ: {planOf(chosen.material).map((c) => c.name).join(" · ")}
+        </div>
+      )}
+      <Actions onCancel={onCancel} label="เปิดล็อตตรวจ" disabled={!chosen} />
+    </Form>
+  );
+}
+
+function ResultsForm({ no, onCancel, onDone }: { no: string; onCancel: () => void; onDone: () => void }) {
+  const l = lotByNo(no);
+  const plan = planOf(l.material);
+  const [values, setValues] = useState<Record<string, { min: string; max: string; defects: string }>>(() =>
+    Object.fromEntries(plan.map((c) => {
+      const r = l.results.find((x) => x.characteristic === c.name);
+      return [c.name, { min: r?.min?.toString() ?? "", max: r?.max?.toString() ?? "", defects: r?.defects?.toString() ?? "" }];
+    })),
+  );
+  const [inspector, setInspector] = useState("สุภาพร แก้วมณี");
+  const [tried, setTried] = useState(false);
+  const input = plan.map((c) => {
+    const v = values[c.name];
+    return c.kind === "วัดค่า"
+      ? { characteristic: c.name, min: v.min === "" ? undefined : Number(v.min), max: v.max === "" ? undefined : Number(v.max) }
+      : { characteristic: c.name, defects: v.defects === "" ? undefined : Number(v.defects) };
+  });
+  const errors = tried ? resultErrors(no, input) : {};
+  const set = (name: string, key: "min" | "max" | "defects", v: string) => setValues((s) => ({ ...s, [name]: { ...s[name], [key]: v } }));
+  return (
+    <Form
+      onSubmit={() => {
+        setTried(true);
+        if (Object.keys(resultErrors(no, input)).length) return;
+        const saved = recordResults(no, input, inspector);
+        const failed = saved.results.filter((r) => !r.ok).length;
+        notify(failed ? \`บันทึกผล \${no} แล้ว · ไม่ผ่านเกณฑ์ \${failed} คุณลักษณะ\` : \`บันทึกผล \${no} แล้ว · ผ่านทุกคุณลักษณะ\`, failed ? "warn" : "ok");
+        onDone();
+      }}
+    >
+      <p className="text-[12.5px] text-slate-500 dark:text-slate-400">สุ่ม {l.sample} จาก {l.qty.toLocaleString("th-TH")} · วัดค่าให้ใส่ค่าต่ำสุดและสูงสุดที่วัดได้ ตรวจพินิจให้ใส่จำนวนชิ้นที่พบข้อบกพร่อง</p>
+      {plan.map((c) => (
+        <Field key={c.name} label={\`\${c.name} · \${c.kind === "วัดค่า" ? \`เกณฑ์ \${c.lsl}–\${c.usl} \${c.unit ?? ""}\` : "ต้องไม่พบข้อบกพร่อง"}\`} hint={c.method} error={errors[c.name]}>
+          {c.kind === "วัดค่า" ? (
+            <div className="grid grid-cols-2 gap-2">
+              <Input type="number" value={values[c.name].min} onChange={(v) => set(c.name, "min", v)} placeholder="ต่ำสุด" error={errors[c.name]} />
+              <Input type="number" value={values[c.name].max} onChange={(v) => set(c.name, "max", v)} placeholder="สูงสุด" error={errors[c.name]} />
+            </div>
+          ) : (
+            <Input type="number" value={values[c.name].defects} onChange={(v) => set(c.name, "defects", v)} placeholder="0" error={errors[c.name]} />
+          )}
+        </Field>
+      ))}
+      <Field label="ผู้ตรวจ">
+        <Choice value={inspector} onChange={setInspector} options={people()} />
+      </Field>
+      <Actions onCancel={onCancel} label="บันทึกผลตรวจ" />
+    </Form>
+  );
+}
+
+function DecideForm({ no, onCancel, onDone }: { no: string; onCancel: () => void; onDone: (ncr?: string) => void }) {
+  const l = lotByNo(no);
+  const failing = l.results.filter((r) => !r.ok);
+  const [decision, setDecision] = useState<Decision>(failing.length ? "ไม่ผ่าน" : "ผ่าน");
+  const [by, setBy] = useState(failing.length ? QMR : "สุภาพร แก้วมณี");
+  const [note, setNote] = useState("");
+  const [tried, setTried] = useState(false);
+  const errors = tried ? decisionErrors(no, decision, by, note) : {};
+  return (
+    <Form
+      onSubmit={() => {
+        setTried(true);
+        if (Object.keys(decisionErrors(no, decision, by, note)).length) return;
+        const { ncr } = decideLot(no, decision, by, note);
+        notify(ncr ? \`\${no} ไม่ผ่าน · เปิด \${ncr.no} ให้สั่งการแล้ว\` : \`ตัดสิน \${no} แล้ว · \${decision}\`, ncr ? "warn" : "ok");
+        onDone(ncr?.no);
+      }}
+    >
+      {failing.length > 0 ? (
+        <Note tone="warn">ไม่ผ่านเกณฑ์: {failing.map((r) => r.characteristic).join(", ")}</Note>
+      ) : (
+        <Note tone="ok">ผ่านเกณฑ์ทุกคุณลักษณะ</Note>
+      )}
+      <Field label="ผลการตัดสิน" error={errors.decision}>
+        <Segmented options={DECISIONS} value={decision} onChange={(v) => setDecision(v as Decision)} />
+      </Field>
+      <Field label="ผู้ตัดสิน" error={errors.by} hint={decision === "ยอมรับแบบมีเงื่อนไข" ? "การผ่อนผันต้องอนุมัติโดย QMR" : undefined}>
+        <Choice value={by} onChange={setBy} options={people()} error={errors.by} />
+      </Field>
+      <Field label={decision === "ผ่าน" ? "หมายเหตุ (ถ้ามี)" : "สิ่งที่พบและเหตุผล"} error={errors.note}>
+        <Area value={note} onChange={setNote} error={errors.note} placeholder={decision === "ไม่ผ่าน" ? "ไม่ผ่านจะเปิด NCR ให้อัตโนมัติ" : ""} />
+      </Field>
+      <Actions onCancel={onCancel} label="บันทึกผลการตัดสิน" />
+    </Form>
+  );
+}
+
+/* ------------------------------------------------------------------- ncr */
+
+function NcrForm({ onCancel, onDone }: { onCancel: () => void; onDone: (no: string) => void }) {
+  const [source, setSource] = useState<NcrSource>("ระหว่างผลิต");
+  const [ref, setRef] = useState("");
+  const [material, setMaterial] = useState("");
+  const [qty, setQty] = useState("1");
+  const [severity, setSeverity] = useState<Severity>("ปานกลาง");
+  const [description, setDescription] = useState("");
+  const [reportedBy, setReportedBy] = useState("อนุชา ทองดี");
+  const [tried, setTried] = useState(false);
+  const input = { source, ref, material, qty: Number(qty), description, severity, reportedBy };
+  const errors = tried ? ncrErrors(input) : {};
+  return (
+    <Form
+      onSubmit={() => {
+        setTried(true);
+        if (Object.keys(ncrErrors(input)).length) return;
+        const n = createNcr(input);
+        notify(\`เปิด \${n.no} แล้ว · รอสั่งการ\`, "warn");
+        onDone(n.no);
+      }}
+    >
+      <div className="grid gap-3 sm:grid-cols-2">
+        <Field label="พบที่">
+          <Choice value={source} onChange={(v) => setSource(v as NcrSource)} options={NCR_SOURCES.filter((s) => s !== "ข้อร้องเรียนลูกค้า" && s !== "สอบเทียบเครื่องมือ")} />
+        </Field>
+        <Field label="เอกสารอ้างอิง" error={errors.ref} hint={source === "ระหว่างผลิต" ? "เลขใบสั่งผลิต เช่น PO-P-3301" : undefined}>
+          <Input value={ref} onChange={setRef} error={errors.ref} placeholder={source === "ระหว่างผลิต" ? "PO-P-3301" : ""} />
+        </Field>
+      </div>
+      <div className="grid gap-3 sm:grid-cols-[1fr_120px]">
+        <Field label="วัสดุหรือสินค้า" error={errors.material}>
+          <Choice value={material} onChange={setMaterial} placeholder="เลือก…" options={MATERIALS.map((m) => ({ value: m.code, label: \`\${m.code} · \${m.name}\` }))} />
+        </Field>
+        <Field label="จำนวน" error={errors.qty}>
+          <Input type="number" value={qty} onChange={setQty} error={errors.qty} />
+        </Field>
+      </div>
+      <Field label="ความรุนแรง">
+        <Segmented options={SEVERITIES} value={severity} onChange={(v) => setSeverity(v as Severity)} />
+      </Field>
+      <Field label="สิ่งที่พบ" error={errors.description}>
+        <Area value={description} onChange={setDescription} error={errors.description} />
+      </Field>
+      <Field label="ผู้รายงาน" error={errors.reportedBy}>
+        <Choice value={reportedBy} onChange={setReportedBy} options={people()} />
+      </Field>
+      <Actions onCancel={onCancel} label="เปิด NCR" />
+    </Form>
+  );
+}
+
+function ComplaintForm({ onCancel, onDone }: { onCancel: () => void; onDone: (no: string) => void }) {
+  const [delivery, setDelivery] = useState("");
+  const d = DELIVERIES.find((x) => x.no === delivery);
+  const [material, setMaterial] = useState("");
+  const [qty, setQty] = useState("1");
+  const [severity, setSeverity] = useState<Severity>("ปานกลาง");
+  const [description, setDescription] = useState("");
+  const [reportedBy, setReportedBy] = useState("ชลธิชา มั่นคง");
+  const [tried, setTried] = useState(false);
+  const input = { delivery, material, qty: Number(qty), description, severity, reportedBy };
+  const errors = tried ? complaintErrors(input) : {};
+  return (
+    <Form
+      onSubmit={() => {
+        setTried(true);
+        if (Object.keys(complaintErrors(input)).length) return;
+        const n = createComplaint(input);
+        notify(\`รับเรื่องร้องเรียนเป็น \${n.no} แล้ว\`, "warn");
+        onDone(n.no);
+      }}
+    >
+      <Field label="ใบส่งของที่ลูกค้าร้องเรียน" error={errors.delivery}>
+        <Choice value={delivery} onChange={(v) => { setDelivery(v); setMaterial(""); }} placeholder="เลือกใบส่งของ…" error={errors.delivery} options={DELIVERY_OPTIONS()} />
+      </Field>
+      <div className="grid gap-3 sm:grid-cols-[1fr_120px]">
+        <Field label="สินค้า" error={errors.material}>
+          <Choice value={material} onChange={setMaterial} placeholder="เลือก…" error={errors.material} options={(d?.lines ?? []).map((l) => ({ value: l.material, label: \`\${materialName(l.material)} · ส่ง \${l.qty}\` }))} />
+        </Field>
+        <Field label="จำนวน" error={errors.qty}>
+          <Input type="number" value={qty} onChange={setQty} error={errors.qty} />
+        </Field>
+      </div>
+      <Field label="ความรุนแรง">
+        <Segmented options={SEVERITIES} value={severity} onChange={(v) => setSeverity(v as Severity)} />
+      </Field>
+      <Field label="สิ่งที่ลูกค้าแจ้ง" error={errors.description}>
+        <Area value={description} onChange={setDescription} error={errors.description} />
+      </Field>
+      <Field label="ผู้รับเรื่อง">
+        <Choice value={reportedBy} onChange={setReportedBy} options={people()} />
+      </Field>
+      <Actions onCancel={onCancel} label="รับเรื่องร้องเรียน" />
+    </Form>
+  );
+}
+
+function DisposeForm({ no, onCancel, onDone }: { no: string; onCancel: () => void; onDone: () => void }) {
+  const n = ncrByNo(no);
+  const [disposition, setDisposition] = useState<Disposition>(n.vendor ? "ส่งคืนผู้ขาย" : "ซ่อมหรือทำใหม่");
+  const [by, setBy] = useState(QMR);
+  const [note, setNote] = useState("");
+  const [tried, setTried] = useState(false);
+  const input = { disposition, by, note };
+  const errors = tried ? dispositionErrors(no, input) : {};
+  const cutsStock = (disposition === "ทำลาย" || disposition === "ส่งคืนผู้ขาย") && ["ตรวจรับ", "ระหว่างผลิต", "ตรวจก่อนส่ง"].includes(n.source) && n.material;
+  return (
+    <Form
+      onSubmit={() => {
+        setTried(true);
+        if (Object.keys(dispositionErrors(no, input)).length) return;
+        const saved = disposeNcr(no, input);
+        notify(saved.stockDoc ? \`สั่งการ \${no} แล้ว · ตัดสต็อกตาม \${saved.stockDoc}\` : \`สั่งการ \${no} แล้ว\`);
+        onDone();
+      }}
+    >
+      <p className="text-[13px] text-slate-600 dark:text-slate-300">{n.description}</p>
+      <Field label="การสั่งการ" error={errors.disposition}>
+        <Choice value={disposition} onChange={(v) => setDisposition(v as Disposition)} options={DISPOSITIONS} error={errors.disposition} />
+      </Field>
+      {cutsStock && <Note tone="info">ตัดสต็อก {materialName(n.material!)} ออก {n.qty.toLocaleString("th-TH")} ในคลังวัสดุ ใต้เลข {no}</Note>}
+      <Field label="ผู้สั่งการ" error={errors.by}>
+        <Choice value={by} onChange={setBy} options={people()} error={errors.by} />
+      </Field>
+      <Field label="สิ่งที่ต้องทำ" error={errors.note}>
+        <Area value={note} onChange={setNote} error={errors.note} />
+      </Field>
+      <Actions onCancel={onCancel} label="บันทึกการสั่งการ" />
+    </Form>
+  );
+}
+
+/* ------------------------------------------------------------------ capa */
+
+function CarForm({ refNo, problem: initial, onCancel, onDone }: { refNo?: string; problem?: string; onCancel: () => void; onDone: (no: string) => void }) {
+  const [kind, setKind] = useState<CapaInput["kind"]>("แก้ไข");
+  const [ref, setRef] = useState(refNo ?? "");
+  const [problem, setProblem] = useState(initial ?? "");
+  const [owner, setOwner] = useState("อนุชา ทองดี");
+  const [tried, setTried] = useState(false);
+  const input = { kind, ref, problem, owner };
+  const errors = tried ? capaErrors(input) : {};
+  return (
+    <Form
+      onSubmit={() => {
+        setTried(true);
+        if (Object.keys(capaErrors(input)).length) return;
+        const c = openCapa(input);
+        notify(\`ออก \${c.no} ให้ \${owner} แล้ว · เริ่มจากหาสาเหตุราก\`);
+        onDone(c.no);
+      }}
+    >
+      <Field label="ประเภท">
+        <Segmented options={["แก้ไข", "ป้องกัน"]} value={kind} onChange={(v) => setKind(v as CapaInput["kind"])} />
+      </Field>
+      <Field label="ต้นเรื่อง" error={errors.ref} hint="เลข NCR หรือผลตรวจติดตาม เช่น IA-2569-03 #1">
+        <Input value={ref} onChange={setRef} error={errors.ref} />
+      </Field>
+      <Field label="ปัญหาที่ต้องแก้" error={errors.problem}>
+        <Area value={problem} onChange={setProblem} error={errors.problem} />
+      </Field>
+      <Field label="ผู้รับผิดชอบ" error={errors.owner}>
+        <Choice value={owner} onChange={setOwner} options={people()} />
+      </Field>
+      <Actions onCancel={onCancel} label="ออกใบขอให้แก้ไข" />
+    </Form>
+  );
+}
+
+function CauseForm({ no, onCancel, onDone }: { no: string; onCancel: () => void; onDone: () => void }) {
+  const c = capaByNo(no);
+  const [category, setCategory] = useState<CauseCategory>(c.rootCause?.category ?? "วิธีการ");
+  const [whys, setWhys] = useState<string[]>(() => [...(c.rootCause?.whys ?? []), "", "", "", "", ""].slice(0, 5));
+  const [tried, setTried] = useState(false);
+  const errors = tried ? rootCauseErrors({ category, whys }) : {};
+  return (
+    <Form
+      onSubmit={() => {
+        setTried(true);
+        if (Object.keys(rootCauseErrors({ category, whys })).length) return;
+        recordRootCause(no, { category, whys });
+        notify(\`บันทึกสาเหตุรากของ \${no} แล้ว\`);
+        onDone();
+      }}
+    >
+      <p className="text-[13px] text-slate-600 dark:text-slate-300">{c.problem}</p>
+      <Field label="กลุ่มสาเหตุ (ผังก้างปลา)">
+        <Segmented options={CAUSE_CATEGORIES} value={category} onChange={(v) => setCategory(v as CauseCategory)} />
+      </Field>
+      <Field label="ถามทำไม 5 ชั้น" error={errors.whys} hint="ชั้นสุดท้ายที่ตอบได้คือสาเหตุราก อย่างน้อยสามชั้น">
+        <div className="space-y-2">
+          {whys.map((w, i) => (
+            <Input key={i} value={w} onChange={(v) => setWhys((s) => s.map((x, j) => (j === i ? v : x)))} placeholder={\`ทำไมครั้งที่ \${i + 1}\`} error={i < 3 ? errors.whys : undefined} />
+          ))}
+        </div>
+      </Field>
+      <Actions onCancel={onCancel} label="บันทึกสาเหตุราก" />
+    </Form>
+  );
+}
+
+function ActionForm({ no, onCancel, onDone }: { no: string; onCancel: () => void; onDone: () => void }) {
+  const c = capaByNo(no);
+  const [what, setWhat] = useState("");
+  const [owner, setOwner] = useState(c.owner);
+  const [due, setDue] = useState("");
+  const [tried, setTried] = useState(false);
+  const input = { what, owner, due };
+  const errors = tried ? actionErrors(input) : {};
+  return (
+    <Form
+      onSubmit={() => {
+        setTried(true);
+        if (Object.keys(actionErrors(input)).length) return;
+        addCapaAction(no, input);
+        notify(\`เพิ่มมาตรการใน \${no} แล้ว · กำหนดเสร็จ \${due}\`);
+        onDone();
+      }}
+    >
+      <Field label="มาตรการ" error={errors.what}>
+        <Area value={what} onChange={setWhat} error={errors.what} rows={2} />
+      </Field>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <Field label="ผู้รับผิดชอบ" error={errors.owner}>
+          <Choice value={owner} onChange={setOwner} options={people()} />
+        </Field>
+        <Field label="กำหนดเสร็จ" error={errors.due}>
+          <Input type="date" value={due} onChange={setDue} error={errors.due} />
+        </Field>
+      </div>
+      <Actions onCancel={onCancel} label="เพิ่มมาตรการ" />
+    </Form>
+  );
+}
+
+function VerifyForm({ no, onCancel, onDone }: { no: string; onCancel: () => void; onDone: () => void }) {
+  const c = capaByNo(no);
+  const [effective, setEffective] = useState("ได้ผล");
+  const [note, setNote] = useState("");
+  const [by, setBy] = useState(c.owner === QMR ? "สุภาพร แก้วมณี" : QMR);
+  const [error, setError] = useState("");
+  return (
+    <Form
+      error={error}
+      onSubmit={() => tryRun(() => {
+        const ok = effective === "ได้ผล";
+        verifyCapa(no, { effective: ok, note, by });
+        notify(ok ? \`ปิด \${no} แล้ว · มาตรการได้ผล\` : \`\${no} ยังไม่ได้ผล · กลับไปหาสาเหตุใหม่\`, ok ? "ok" : "warn");
+        onDone();
+      }, setError)}
+    >
+      <Field label="ผลการติดตาม">
+        <Segmented options={["ได้ผล", "ไม่ได้ผล"]} value={effective} onChange={setEffective} />
+      </Field>
+      <Field label="หลักฐาน" hint="เช่น สุ่มตรวจ 20 ชุดหลังแก้ ไม่พบปัญหาซ้ำ">
+        <Area value={note} onChange={setNote} />
+      </Field>
+      <Field label="ผู้ติดตามผล" hint="ต้องไม่ใช่ผู้รับผิดชอบ CAR">
+        <Choice value={by} onChange={setBy} options={people()} />
+      </Field>
+      <Actions onCancel={onCancel} label="บันทึกผลการติดตาม" />
+    </Form>
+  );
+}
+
+/* ----------------------------------------------------------------- audit */
+
+function AuditForm({ onCancel, onDone }: { onCancel: () => void; onDone: (no: string) => void }) {
+  const [area, setArea] = useState("ฝ่ายผลิต");
+  const [clauses, setClauses] = useState<string[]>(["8.5"]);
+  const [auditor, setAuditor] = useState("สุภาพร แก้วมณี");
+  const [planned, setPlanned] = useState("");
+  const [tried, setTried] = useState(false);
+  const input = { area, clauses, auditor, planned };
+  const errors = tried ? auditErrors(input) : {};
+  const toggle = (c: string) => setClauses((s) => (s.includes(c) ? s.filter((x) => x !== c) : [...s, c]));
+  return (
+    <Form
+      onSubmit={() => {
+        setTried(true);
+        if (Object.keys(auditErrors(input)).length) return;
+        const a = planAudit(input);
+        notify(\`วางแผนตรวจ \${a.no} \${area} วันที่ \${planned} แล้ว\`);
+        onDone(a.no);
+      }}
+    >
+      <div className="grid gap-3 sm:grid-cols-2">
+        <Field label="ฝ่ายที่จะตรวจ" error={errors.area}>
+          <Choice value={area} onChange={setArea} options={DEPARTMENTS} />
+        </Field>
+        <Field label="วันที่ตรวจ" error={errors.planned}>
+          <Input type="date" value={planned} onChange={setPlanned} error={errors.planned} />
+        </Field>
+      </div>
+      <Field label="ผู้ตรวจ" error={errors.auditor} hint="ต้องผ่านการอบรม และไม่ตรวจฝ่ายของตัวเอง">
+        <Choice value={auditor} onChange={setAuditor} options={people()} error={errors.auditor} />
+      </Field>
+      <Field label="ข้อกำหนดที่จะตรวจ" error={errors.clauses}>
+        <div className="grid gap-1.5 sm:grid-cols-2">
+          {CLAUSES.map((c) => (
+            <label key={c.code} className="flex items-center gap-2 text-[12.5px] text-slate-700 dark:text-slate-200">
+              <input type="checkbox" checked={clauses.includes(c.code)} onChange={() => toggle(c.code)} className="size-4 accent-violet-600" />
+              <span className="tabular-nums text-slate-400">{c.code}</span> {c.name}
+            </label>
+          ))}
+        </div>
+      </Field>
+      <Actions onCancel={onCancel} label="วางแผนการตรวจ" />
+    </Form>
+  );
+}
+
+function FindingForm({ no, onCancel, onDone }: { no: string; onCancel: () => void; onDone: () => void }) {
+  const a = auditByNo(no);
+  const [clause, setClause] = useState(a.clauses[0] ?? "");
+  const [type, setType] = useState<FindingType>("ข้อบกพร่องย่อย");
+  const [detail, setDetail] = useState("");
+  const [tried, setTried] = useState(false);
+  const input = { clause, type, detail };
+  const errors = tried ? findingErrors(no, input) : {};
+  return (
+    <Form
+      onSubmit={() => {
+        setTried(true);
+        if (Object.keys(findingErrors(no, input)).length) return;
+        addFinding(no, input);
+        notify(\`บันทึก\${type}ใน \${no} แล้ว\`, type === "ข้อสังเกต" ? "info" : "warn");
+        onDone();
+      }}
+    >
+      <div className="grid gap-3 sm:grid-cols-2">
+        <Field label="ข้อกำหนด" error={errors.clause}>
+          <Choice value={clause} onChange={setClause} options={CLAUSES.map((c) => ({ value: c.code, label: \`\${c.code} \${c.name}\` }))} />
+        </Field>
+        <Field label="ประเภท">
+          <Choice value={type} onChange={(v) => setType(v as FindingType)} options={FINDING_TYPES} />
+        </Field>
+      </div>
+      <Field label="สิ่งที่พบและหลักฐาน" error={errors.detail}>
+        <Area value={detail} onChange={setDetail} error={errors.detail} />
+      </Field>
+      <Actions onCancel={onCancel} label="บันทึกสิ่งที่พบ" />
+    </Form>
+  );
+}
+
+/* ----------------------------------------------------------- calibration */
+
+function GaugeForm({ onCancel, onDone }: { onCancel: () => void; onDone: (code: string) => void }) {
+  const [v, setV] = useState({ code: "QC-", name: "", range: "", resolution: "", location: "ห้อง QC", intervalMonths: 12, lastCal: TODAY });
+  const [tried, setTried] = useState(false);
+  const errors = tried ? gaugeErrors(v) : {};
+  const set = (k: keyof typeof v) => (x: string) => setV((s) => ({ ...s, [k]: k === "intervalMonths" ? Number(x) : x }));
+  return (
+    <Form
+      onSubmit={() => {
+        setTried(true);
+        if (Object.keys(gaugeErrors(v)).length) return;
+        const g = addGauge(v);
+        notify(\`ขึ้นทะเบียนเครื่องมือ \${g.code} แล้ว\`);
+        onDone(g.code);
+      }}
+    >
+      <div className="grid gap-3 sm:grid-cols-[140px_1fr]">
+        <Field label="รหัส" error={errors.code}><Input value={v.code} onChange={set("code")} error={errors.code} placeholder="QC-XX-00" /></Field>
+        <Field label="ชื่อเครื่องมือ" error={errors.name}><Input value={v.name} onChange={set("name")} error={errors.name} /></Field>
+      </div>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <Field label="ช่วงการวัด" error={errors.range}><Input value={v.range} onChange={set("range")} error={errors.range} placeholder="0–150 มม." /></Field>
+        <Field label="ความละเอียด"><Input value={v.resolution} onChange={set("resolution")} placeholder="0.01 มม." /></Field>
+        <Field label="ที่ใช้งาน" error={errors.location}><Input value={v.location} onChange={set("location")} error={errors.location} /></Field>
+        <Field label="รอบสอบเทียบ" error={errors.intervalMonths}>
+          <Choice value={String(v.intervalMonths)} onChange={set("intervalMonths")} options={[3, 6, 12, 24].map((n) => ({ value: String(n), label: \`ทุก \${n} เดือน\` }))} />
+        </Field>
+      </div>
+      <Field label="สอบเทียบล่าสุด" error={errors.lastCal}><Input type="date" value={v.lastCal} onChange={set("lastCal")} error={errors.lastCal} /></Field>
+      <Actions onCancel={onCancel} label="ขึ้นทะเบียน" />
+    </Form>
+  );
+}
+
+function CalForm({ code, onCancel, onDone }: { code: string; onCancel: () => void; onDone: (ncr?: string) => void }) {
+  const g = gaugeByCode(code);
+  const [v, setV] = useState<CalInput>({ date: TODAY, by: g.records[g.records.length - 1]?.by ?? "", certNo: "", result: "ผ่าน", error: "", note: "" });
+  const [tried, setTried] = useState(false);
+  const errors = tried ? calErrors(code, v) : {};
+  const set = (k: keyof CalInput) => (x: string) => setV((s) => ({ ...s, [k]: x }));
+  return (
+    <Form
+      onSubmit={() => {
+        setTried(true);
+        if (Object.keys(calErrors(code, v)).length) return;
+        const { ncr } = recordCalibration(code, v);
+        notify(ncr ? \`\${code} ไม่ผ่าน · พักใช้และเปิด \${ncr.no} ให้ทบทวนผลการวัดแล้ว\` : \`บันทึกผลสอบเทียบ \${code} แล้ว · เริ่มรอบใหม่\`, ncr ? "warn" : "ok");
+        onDone(ncr?.no);
+      }}
+    >
+      <div className="grid gap-3 sm:grid-cols-2">
+        <Field label="วันที่สอบเทียบ" error={errors.date}><Input type="date" value={v.date} onChange={set("date")} error={errors.date} /></Field>
+        <Field label="ผล">
+          <Segmented options={["ผ่าน", "ไม่ผ่าน"]} value={v.result} onChange={(x) => setV((s) => ({ ...s, result: x as CalInput["result"] }))} />
+        </Field>
+        <Field label="ผู้สอบเทียบ / ห้องปฏิบัติการ" error={errors.by}><Input value={v.by} onChange={set("by")} error={errors.by} /></Field>
+        <Field label="เลขที่ใบรับรองผล" error={errors.certNo}><Input value={v.certNo} onChange={set("certNo")} error={errors.certNo} /></Field>
+      </div>
+      <Field label="ค่าคลาดเคลื่อนที่วัดได้" error={errors.error}><Input value={v.error} onChange={set("error")} error={errors.error} placeholder="+0.01 มม." /></Field>
+      <Field label={v.result === "ไม่ผ่าน" ? "สิ่งที่พบ" : "หมายเหตุ (ถ้ามี)"} error={errors.note} hint={v.result === "ไม่ผ่าน" ? "ไม่ผ่านจะพักใช้เครื่องมือ และเปิด NCR ให้ทบทวนล็อตที่วัดด้วยเครื่องนี้" : undefined}>
+        <Area value={v.note} onChange={set("note")} error={errors.note} rows={2} />
+      </Field>
+      <Actions onCancel={onCancel} label="บันทึกผลสอบเทียบ" />
+    </Form>
+  );
+}
+
+/* --------------------------------------------------------------- actions */
+
+export function QmActions({ act, onAct, onOpen }: {
+  act: Act | null;
+  onAct: (a: Act | null) => void;
+  /** เปิดแฟ้มของสิ่งที่เพิ่งสร้าง — ล็อต NCR หรือ CAR */
+  onOpen: (kind: "lot" | "ncr" | "car" | "audit" | "doc" | "gauge", key: string) => void;
+}) {
+  useData();
+  const close = () => onAct(null);
+  const pick = <K extends Act["kind"]>(kind: K) => (act?.kind === kind ? (act as Of<K>) : null);
+  const [obsReason, setObsReason] = useState("");
+  const [closeBy, setCloseBy] = useState(QMR);
+
+  const revise = pick("doc-revise");
+  const approve = pick("doc-approve");
+  const obsolete = pick("doc-obsolete");
+  const lotNew = pick("lot-new");
+  const results = pick("lot-results");
+  const decide = pick("lot-decide");
+  const dispose = pick("ncr-dispose");
+  const ncrClose = pick("ncr-close");
+  const carNew = pick("car-new");
+  const cause = pick("car-cause");
+  const action = pick("car-action");
+  const verify = pick("car-verify");
+  const finding = pick("audit-finding");
+  const cal = pick("gauge-cal");
+  const print = pick("print");
+  const closeProblem = ncrClose ? closeNcrErrors(ncrClose.no).close : undefined;
+
+  return (
+    <>
+      <FormModal open={act?.kind === "doc-new"} title="สร้างเอกสารควบคุม" subtitle="เริ่มเป็นร่าง ส่งอนุมัติเมื่อเขียนเสร็จ ออกใช้เมื่อได้รับอนุมัติ" onClose={close}>
+        {act?.kind === "doc-new" && <DocForm onCancel={close} onDone={(code) => { close(); onOpen("doc", code); }} />}
+      </FormModal>
+      <FormModal open={revise !== null} title="แก้ไขเอกสาร" subtitle={revise ? \`\${revise.code} · \${docByCode(revise.code).title}\` : undefined} onClose={close} size="sm">
+        {revise && <ReviseForm key={revise.code} code={revise.code} onCancel={close} onDone={close} />}
+      </FormModal>
+      <FormModal open={approve !== null} title="อนุมัติเอกสาร" subtitle={approve ? \`\${approve.code} · \${docByCode(approve.code).title}\` : undefined} onClose={close} size="sm">
+        {approve && <ApproveForm key={approve.code} code={approve.code} onCancel={close} onDone={close} />}
+      </FormModal>
+      <ConfirmDialog
+        open={obsolete !== null}
+        title="ยกเลิกเอกสาร"
+        body="เอกสารที่ยกเลิกต้องเก็บออกจากหน้างานทั้งหมด และจะแสดงในบัญชีรายชื่อว่ายกเลิกแล้ว"
+        subject={obsolete ? <Badge tone="bad">{obsolete.code} · {docByCode(obsolete.code).title}</Badge> : undefined}
+        fields={<Field label="เหตุผล"><Input value={obsReason} onChange={setObsReason} /></Field>}
+        confirmLabel="ยกเลิกเอกสาร"
+        disabled={obsReason.trim().length < 5}
+        onCancel={() => { setObsReason(""); close(); }}
+        onConfirm={() => {
+          if (!obsolete) return;
+          obsoleteDocument(obsolete.code, obsReason);
+          notify(\`ยกเลิก \${obsolete.code} แล้ว\`, "info");
+          setObsReason("");
+          close();
+        }}
+      />
+
+      <FormModal open={lotNew !== null} title="เปิดล็อตตรวจ" subtitle="ของที่รับเข้ามาแล้วแต่ยังไม่ได้ตรวจ จากใบรับของและการรับสินค้าผลิตเสร็จ" onClose={close} size="sm">
+        {lotNew && <LotNewForm source={lotNew.source} material={lotNew.material} onCancel={close} onDone={(no) => { close(); onOpen("lot", no); }} />}
+      </FormModal>
+      <FormModal open={results !== null} title="บันทึกผลตรวจ" subtitle={results ? \`\${results.no} · \${materialName(lotByNo(results.no).material)}\` : undefined} onClose={close}>
+        {results && <ResultsForm key={results.no} no={results.no} onCancel={close} onDone={close} />}
+      </FormModal>
+      <FormModal open={decide !== null} title="ตัดสินผลการตรวจ" subtitle={decide ? \`\${decide.no} · \${materialName(lotByNo(decide.no).material)}\` : undefined} onClose={close} size="sm">
+        {decide && <DecideForm key={decide.no} no={decide.no} onCancel={close} onDone={(ncr) => { close(); if (ncr) onOpen("ncr", ncr); }} />}
+      </FormModal>
+
+      <FormModal open={act?.kind === "ncr-new"} title="เปิดรายงานสิ่งที่ไม่เป็นไปตามข้อกำหนด" subtitle="พบของเสียระหว่างผลิตหรือจากการตรวจติดตาม" onClose={close}>
+        {act?.kind === "ncr-new" && <NcrForm onCancel={close} onDone={(no) => { close(); onOpen("ncr", no); }} />}
+      </FormModal>
+      <FormModal open={act?.kind === "complaint-new"} title="รับเรื่องร้องเรียนจากลูกค้า" subtitle="อ้างใบส่งของจริงของฝ่ายขาย แล้วดำเนินการเป็น NCR" onClose={close}>
+        {act?.kind === "complaint-new" && <ComplaintForm onCancel={close} onDone={(no) => { close(); onOpen("ncr", no); }} />}
+      </FormModal>
+      <FormModal open={dispose !== null} title="สั่งการ" subtitle={dispose?.no} onClose={close} size="sm">
+        {dispose && <DisposeForm key={dispose.no} no={dispose.no} onCancel={close} onDone={close} />}
+      </FormModal>
+      <ConfirmDialog
+        open={ncrClose !== null}
+        title="ปิด NCR"
+        body={closeProblem ?? "ยืนยันว่าดำเนินการตามที่สั่งการครบแล้ว"}
+        subject={ncrClose ? <Badge tone="warn">{ncrClose.no}</Badge> : undefined}
+        fields={<Field label="ผู้ปิดเรื่อง"><Choice value={closeBy} onChange={setCloseBy} options={people()} /></Field>}
+        confirmLabel="ปิด NCR"
+        disabled={!!closeProblem}
+        onCancel={close}
+        onConfirm={() => {
+          if (!ncrClose) return;
+          closeNcr(ncrClose.no, closeBy);
+          notify(\`ปิด \${ncrClose.no} แล้ว\`);
+          close();
+        }}
+      />
+
+      <FormModal open={carNew !== null} title="ออกใบขอให้แก้ไขและป้องกัน (CAR)" subtitle="หาสาเหตุราก วางมาตรการ แล้วติดตามว่าได้ผลจริง" onClose={close}>
+        {carNew && <CarForm refNo={carNew.ref} problem={carNew.problem} onCancel={close} onDone={(no) => { close(); onOpen("car", no); }} />}
+      </FormModal>
+      <FormModal open={cause !== null} title="หาสาเหตุราก" subtitle={cause?.no} onClose={close}>
+        {cause && <CauseForm key={cause.no} no={cause.no} onCancel={close} onDone={close} />}
+      </FormModal>
+      <FormModal open={action !== null} title="เพิ่มมาตรการ" subtitle={action?.no} onClose={close} size="sm">
+        {action && <ActionForm key={action.no} no={action.no} onCancel={close} onDone={close} />}
+      </FormModal>
+      <FormModal open={verify !== null} title="ติดตามประสิทธิผล" subtitle={verify?.no} onClose={close} size="sm">
+        {verify && <VerifyForm key={verify.no} no={verify.no} onCancel={close} onDone={close} />}
+      </FormModal>
+
+      <FormModal open={act?.kind === "audit-new"} title="วางแผนการตรวจติดตามภายใน" subtitle="ระบบตรวจความเป็นอิสระของผู้ตรวจให้" onClose={close}>
+        {act?.kind === "audit-new" && <AuditForm onCancel={close} onDone={(no) => { close(); onOpen("audit", no); }} />}
+      </FormModal>
+      <FormModal open={finding !== null} title="บันทึกสิ่งที่พบ" subtitle={finding ? \`\${finding.no} · \${auditByNo(finding.no).area}\` : undefined} onClose={close}>
+        {finding && <FindingForm key={finding.no} no={finding.no} onCancel={close} onDone={close} />}
+      </FormModal>
+
+      <FormModal open={act?.kind === "gauge-new"} title="ขึ้นทะเบียนเครื่องมือวัด" onClose={close}>
+        {act?.kind === "gauge-new" && <GaugeForm onCancel={close} onDone={(code) => { close(); onOpen("gauge", code); }} />}
+      </FormModal>
+      <FormModal open={cal !== null} title="บันทึกผลสอบเทียบ" subtitle={cal ? \`\${cal.code} · \${gaugeByCode(cal.code).name}\` : undefined} onClose={close}>
+        {cal && <CalForm key={cal.code} code={cal.code} onCancel={close} onDone={(ncr) => { close(); if (ncr) onOpen("ncr", ncr); }} />}
+      </FormModal>
+
+      <FormModal open={print !== null} title={print?.title ?? ""} subtitle="ตัวอย่างก่อนพิมพ์ — กระดาษ A4 พิมพ์เฉพาะเอกสาร" onClose={close} size="lg">
+        {print && (
+          <div className="space-y-3">
+            <div className="flex justify-end gap-2">
+              <Button variant="secondary" onClick={close}>ปิด</Button>
+              <Button icon={<Printer size={14} />} onClick={printDocument}>พิมพ์</Button>
+            </div>
+            <QmPaper d={print.d} />
+          </div>
+        )}
+      </FormModal>
+    </>
+  );
+}
+
+`,
+
+  "qm/screen.tsx": `import { useState } from "react";
+import type { ReactNode } from "react";
+import {
+  CalendarClock, CircleCheck, ClipboardCheck, FilePlus2, FileSpreadsheet, FileText, FileWarning, Gauge as GaugeIcon,
+  ListChecks, MessageSquareWarning, Microscope, Pencil, Play, Plus, Printer, Search as SearchIcon, ShieldCheck, Target,
+  TriangleAlert, Users,
+} from "lucide-react";
+import {
+  AUDITS, CAPAS, CLAUSES, DOCUMENTS, DOC_TYPES, GAUGES, LOTS, NCRS, NCR_SOURCES, TODAY, addDays, awaitingApproval,
+  calState, clauseName, completeCapaAction, confirmReview, customerName, findingsWithoutCapa, materialName, materialUnit,
+  nextDue, objectives, openCapas, overdueActions, pendingInspections, planOf, reviewDue, revLabel, startAudit,
+  submitDocument, vendorName, vendorQuality, closeAudit,
+} from "./data";
+import type { Audit, Capa, Gauge, InspectionLot, Ncr, QmDocument } from "./data";
+import { QmActions } from "./forms";
+import type { Act } from "./forms";
+import {
+  Badge, Bar, Button, Card, Chip, Donut, IconRow, Metric, Note, PageHead, Progress, Reveal, Search, Segmented, swatchFor,
+} from "../ui";
+import type { Tone } from "../ui";
+import { DataTable, DetailModal, downloadCsv, notify, useData } from "../kit";
+import type { Column } from "../kit";
+
+const TABS = ["ควบคุมเอกสาร", "ตรวจสอบคุณภาพ", "สิ่งที่ไม่เป็นไปตามข้อกำหนด", "การแก้ไขและป้องกัน", "ตรวจติดตามภายใน", "สอบเทียบเครื่องมือวัด"];
+
+type Kind = "doc" | "lot" | "ncr" | "car" | "audit" | "gauge";
+
+const exportIcon = <FileSpreadsheet size={14} />;
+
+/** ตัดสินใจจุดเดียวว่าอะไรเป็นสีอะไร ทุกหน้าจอจึงอ่านสถานะด้วยสีเดียวกัน */
+const TONE: Record<string, Tone> = {
+  "ร่าง": "idle", "รออนุมัติ": "warn", "ใช้งาน": "ok", "ยกเลิก": "bad",
+  "รอตรวจ": "idle", "รอตัดสิน": "warn", "ผ่าน": "ok", "ไม่ผ่าน": "bad", "ยอมรับแบบมีเงื่อนไข": "warn",
+  "รอสั่งการ": "bad", "ดำเนินการ": "warn", "ปิดแล้ว": "ok",
+  "วิเคราะห์สาเหตุ": "bad", "ติดตามผล": "info",
+  "ตามแผน": "idle", "กำลังตรวจ": "info",
+  "ปกติ": "ok", "ใกล้ครบ": "warn", "เกินกำหนด": "bad", "พักใช้": "bad",
+  "รุนแรง": "bad", "ปานกลาง": "warn", "เล็กน้อย": "idle",
+};
+
+const tone = (s: string) => TONE[s] ?? "idle";
+/** ทะเบียนเรียงตามเลขที่ล่าสุดก่อน — ลำดับในอาร์เรย์คือลำดับที่บันทึก ไม่ใช่ลำดับเลขที่ */
+const newest = <T extends { no: string }>(xs: T[]) => [...xs].sort((a, b) => b.no.localeCompare(a.no));
+const lotState = (l: InspectionLot) => (l.status === "ตัดสินแล้ว" ? l.decision! : l.status);
+const sourceSwatch = (s: string) => swatchFor(s, NCR_SOURCES);
+
+/* ----------------------------------------------------------------- screen */
+
+export default function QmScreen({ section, onOpenSection }: { section?: string; onOpenSection?: (index: number) => void }) {
+  useData();
+  const tab = section && TABS.includes(section) ? section : undefined;
+  const [act, setAct] = useState<Act | null>(null);
+  const [record, setRecord] = useState<{ kind: Kind; key: string } | null>(null);
+  const open = (kind: Kind, key: string) => setRecord({ kind, key });
+
+  const keys: Record<Kind, string[]> = {
+    doc: DOCUMENTS.map((d) => d.code),
+    lot: newest(LOTS).map((l) => l.no),
+    ncr: newest(NCRS).map((n) => n.no),
+    car: newest(CAPAS).map((c) => c.no),
+    audit: AUDITS.map((a) => a.no),
+    gauge: GAUGES.map((g) => g.code),
+  };
+  const list = record ? keys[record.kind] : [];
+  const at = record ? list.indexOf(record.key) : -1;
+  const TITLES: Record<Kind, string> = { doc: "เอกสารควบคุม", lot: "ล็อตตรวจ", ncr: "สิ่งที่ไม่เป็นไปตามข้อกำหนด", car: "ใบขอให้แก้ไขและป้องกัน", audit: "การตรวจติดตามภายใน", gauge: "เครื่องมือวัด" };
+
+  const panels = (
+    <>
+      <DetailModal
+        open={record !== null && at >= 0}
+        title={record ? TITLES[record.kind] : ""}
+        onClose={() => setRecord(null)}
+        index={at}
+        total={list.length}
+        onStep={(d) => record && setRecord({ kind: record.kind, key: list[Math.min(list.length - 1, Math.max(0, at + d))] })}
+      >
+        {record && at >= 0 && <RecordView kind={record.kind} id={record.key} onAct={setAct} onOpen={open} />}
+      </DetailModal>
+      <QmActions act={act} onAct={setAct} onOpen={open} />
+    </>
+  );
+
+  const index = (
+    <div hidden data-fitt-index>
+      <button data-fitt-screen="บริหารคุณภาพ" />
+      <button data-fitt-screen="เอกสารควบคุม" data-fitt-modal onClick={() => open("doc", DOCUMENTS[0].code)} />
+      <button data-fitt-screen="สร้างเอกสารควบคุม" data-fitt-modal onClick={() => setAct({ kind: "doc-new" })} />
+      <button data-fitt-screen="แก้ไขเอกสาร" data-fitt-modal onClick={() => setAct({ kind: "doc-revise", code: "QP-01" })} />
+      <button data-fitt-screen="อนุมัติเอกสาร" data-fitt-modal onClick={() => setAct({ kind: "doc-approve", code: awaitingApproval()[0]?.code ?? "WI-03" })} />
+      <button data-fitt-screen="ยกเลิกเอกสาร" data-fitt-modal onClick={() => setAct({ kind: "doc-obsolete", code: "WI-02" })} />
+      <button data-fitt-screen="ล็อตตรวจ" data-fitt-modal onClick={() => open("lot", LOTS[0].no)} />
+      <button data-fitt-screen="เปิดล็อตตรวจ" data-fitt-modal onClick={() => setAct({ kind: "lot-new" })} />
+      <button data-fitt-screen="บันทึกผลตรวจ" data-fitt-modal onClick={() => setAct({ kind: "lot-results", no: LOTS.find((l) => l.status !== "ตัดสินแล้ว")?.no ?? LOTS[0].no })} />
+      <button data-fitt-screen="ตัดสินผลการตรวจ" data-fitt-modal onClick={() => setAct({ kind: "lot-decide", no: LOTS.find((l) => l.status === "รอตัดสิน")?.no ?? LOTS[0].no })} />
+      <button data-fitt-screen="สิ่งที่ไม่เป็นไปตามข้อกำหนด" data-fitt-modal onClick={() => open("ncr", NCRS[NCRS.length - 1].no)} />
+      <button data-fitt-screen="เปิด NCR" data-fitt-modal onClick={() => setAct({ kind: "ncr-new" })} />
+      <button data-fitt-screen="รับเรื่องร้องเรียนจากลูกค้า" data-fitt-modal onClick={() => setAct({ kind: "complaint-new" })} />
+      <button data-fitt-screen="สั่งการ NCR" data-fitt-modal onClick={() => setAct({ kind: "ncr-dispose", no: NCRS.find((n) => n.status === "รอสั่งการ")?.no ?? NCRS[0].no })} />
+      <button data-fitt-screen="ปิด NCR" data-fitt-modal onClick={() => setAct({ kind: "ncr-close", no: NCRS.find((n) => n.status === "ดำเนินการ")?.no ?? NCRS[0].no })} />
+      <button data-fitt-screen="ใบขอให้แก้ไขและป้องกัน" data-fitt-modal onClick={() => open("car", CAPAS[CAPAS.length - 1].no)} />
+      <button data-fitt-screen="ออก CAR" data-fitt-modal onClick={() => setAct({ kind: "car-new" })} />
+      <button data-fitt-screen="หาสาเหตุราก" data-fitt-modal onClick={() => setAct({ kind: "car-cause", no: CAPAS[CAPAS.length - 1].no })} />
+      <button data-fitt-screen="เพิ่มมาตรการ" data-fitt-modal onClick={() => setAct({ kind: "car-action", no: CAPAS[CAPAS.length - 1].no })} />
+      <button data-fitt-screen="ติดตามประสิทธิผล" data-fitt-modal onClick={() => setAct({ kind: "car-verify", no: CAPAS[CAPAS.length - 1].no })} />
+      <button data-fitt-screen="การตรวจติดตามภายใน" data-fitt-modal onClick={() => open("audit", AUDITS[0].no)} />
+      <button data-fitt-screen="วางแผนการตรวจติดตาม" data-fitt-modal onClick={() => setAct({ kind: "audit-new" })} />
+      <button data-fitt-screen="บันทึกสิ่งที่พบ" data-fitt-modal onClick={() => setAct({ kind: "audit-finding", no: AUDITS[AUDITS.length - 1].no })} />
+      <button data-fitt-screen="เครื่องมือวัด" data-fitt-modal onClick={() => open("gauge", GAUGES[0].code)} />
+      <button data-fitt-screen="ขึ้นทะเบียนเครื่องมือวัด" data-fitt-modal onClick={() => setAct({ kind: "gauge-new" })} />
+      <button data-fitt-screen="บันทึกผลสอบเทียบ" data-fitt-modal onClick={() => setAct({ kind: "gauge-cal", code: GAUGES[0].code })} />
+      <button data-fitt-screen="พิมพ์บัญชีรายชื่อเอกสารควบคุม" data-fitt-modal onClick={() => setAct({ kind: "print", d: { doc: "master-list" }, title: "บัญชีรายชื่อเอกสารควบคุม" })} />
+      <button data-fitt-screen="พิมพ์ใบรับรองคุณภาพ" data-fitt-modal onClick={() => setAct({ kind: "print", d: { doc: "lot", no: LOTS.find((l) => l.origin === "ตรวจก่อนส่ง")!.no }, title: "ใบรับรองคุณภาพสินค้า" })} />
+      <button data-fitt-screen="พิมพ์ NCR" data-fitt-modal onClick={() => setAct({ kind: "print", d: { doc: "ncr", no: NCRS[0].no }, title: "ใบรายงานสิ่งที่ไม่เป็นไปตามข้อกำหนด" })} />
+      <button data-fitt-screen="พิมพ์ CAR" data-fitt-modal onClick={() => setAct({ kind: "print", d: { doc: "car", no: CAPAS[0].no }, title: "ใบขอให้ดำเนินการแก้ไขและป้องกัน" })} />
+      <button data-fitt-screen="พิมพ์รายงานการตรวจติดตาม" data-fitt-modal onClick={() => setAct({ kind: "print", d: { doc: "audit", no: AUDITS[1].no }, title: "รายงานการตรวจติดตามภายใน" })} />
+      <button data-fitt-screen="พิมพ์ประวัติการสอบเทียบ" data-fitt-modal onClick={() => setAct({ kind: "print", d: { doc: "gauge", code: GAUGES[0].code }, title: "บันทึกประวัติการสอบเทียบ" })} />
+    </div>
+  );
+
+  if (!tab) {
+    return (
+      <>
+        <Overview onOpenSection={onOpenSection} onAct={setAct} onOpen={open} />
+        {panels}
+        {index}
+      </>
+    );
+  }
+
+  return (
+    <div>
+      <PageHead title="บริหารคุณภาพ" meta={\`\${tab} · ISO 9001:2015 · ข้อมูล ณ \${TODAY}\`} />
+      {tab === "ควบคุมเอกสาร" && <Documents onAct={setAct} onOpen={open} />}
+      {tab === "ตรวจสอบคุณภาพ" && <Inspection onAct={setAct} onOpen={open} />}
+      {tab === "สิ่งที่ไม่เป็นไปตามข้อกำหนด" && <Nonconformance onAct={setAct} onOpen={open} />}
+      {tab === "การแก้ไขและป้องกัน" && <Corrective onAct={setAct} onOpen={open} />}
+      {tab === "ตรวจติดตามภายใน" && <Audits onAct={setAct} onOpen={open} />}
+      {tab === "สอบเทียบเครื่องมือวัด" && <Calibration onAct={setAct} onOpen={open} />}
+      {panels}
+      {index}
+    </div>
+  );
+}
+
+type Handlers = { onAct: (a: Act) => void; onOpen: (kind: Kind, key: string) => void };
+
+/* -------------------------------------------------------------- overview */
+
+function Overview({ onOpenSection, onAct, onOpen }: Handlers & { onOpenSection?: (i: number) => void }) {
+  const pending = pendingInspections();
+  const waiting = LOTS.filter((l) => l.status !== "ตัดสินแล้ว");
+  const openNcrs = NCRS.filter((n) => n.status !== "ปิดแล้ว");
+  const cars = openCapas();
+  const late = cars.flatMap((c) => overdueActions(c).map((a) => ({ c, a })));
+  const gauges = GAUGES.filter((g) => ["เกินกำหนด", "ใกล้ครบ", "พักใช้"].includes(calState(g)));
+  const objs = objectives();
+  const bySource = NCR_SOURCES.map((s) => ({ label: s, value: NCRS.filter((n) => n.source === s).length, swatch: sourceSwatch(s) })).filter((x) => x.value > 0);
+  const vendors = vendorQuality();
+  const nextAudit = AUDITS.filter((a) => a.status === "ตามแผน").sort((a, b) => a.planned.localeCompare(b.planned))[0];
+
+  const todo: { icon: ReactNode; text: string; sub: string; go: () => void; tone: Tone }[] = [
+    ...pending.map((p) => ({ icon: <Microscope size={15} />, text: \`\${p.origin} \${materialName(p.material)} \${p.qty.toLocaleString("th-TH")} \${materialUnit(p.material)}\`, sub: \`\${p.source} · ยังไม่เปิดล็อตตรวจ\`, go: () => onAct({ kind: "lot-new", source: p.source, material: p.material }), tone: "warn" as Tone })),
+    ...waiting.map((l) => ({ icon: <ClipboardCheck size={15} />, text: \`\${l.no} \${materialName(l.material)}\`, sub: l.status === "รอตรวจ" ? "รอบันทึกผลตรวจ" : "รอตัดสินผล", go: () => onOpen("lot", l.no), tone: "warn" as Tone })),
+    ...openNcrs.filter((n) => n.status === "รอสั่งการ").map((n) => ({ icon: <FileWarning size={15} />, text: \`\${n.no} \${n.material ? materialName(n.material) : n.ref}\`, sub: \`\${n.source} · รอสั่งการ\`, go: () => onOpen("ncr", n.no), tone: "bad" as Tone })),
+    ...late.map(({ c, a }) => ({ icon: <CalendarClock size={15} />, text: \`\${c.no} \${a.what}\`, sub: \`\${a.owner} · เลยกำหนด \${a.due}\`, go: () => onOpen("car", c.no), tone: "bad" as Tone })),
+    ...gauges.map((g) => ({ icon: <GaugeIcon size={15} />, text: \`\${g.code} \${g.name}\`, sub: calState(g) === "พักใช้" ? "พักใช้ รอซ่อมหรือสอบเทียบใหม่" : \`\${calState(g)} · ครบกำหนด \${nextDue(g)}\`, go: () => onOpen("gauge", g.code), tone: (calState(g) === "ใกล้ครบ" ? "warn" : "bad") as Tone })),
+    ...awaitingApproval().map((d) => ({ icon: <FileText size={15} />, text: \`\${d.code} \${d.title}\`, sub: \`รออนุมัติ \${revLabel(d.draft!.rev)}\`, go: () => onOpen("doc", d.code), tone: "info" as Tone })),
+    ...reviewDue().map((d) => ({ icon: <FileText size={15} />, text: \`\${d.code} \${d.title}\`, sub: \`ถึงรอบทบทวน \${d.reviewDue}\`, go: () => onOpen("doc", d.code), tone: "info" as Tone })),
+  ];
+
+  return (
+    <div>
+      <PageHead
+        title="บริหารคุณภาพ"
+        meta={\`ISO 9001:2015 · ข้อมูล ณ \${TODAY}\`}
+        right={
+          <div className="flex flex-wrap gap-2">
+            <Button variant="secondary" icon={<MessageSquareWarning size={14} />} onClick={() => onAct({ kind: "complaint-new" })}>รับเรื่องร้องเรียน</Button>
+            <Button icon={<FileWarning size={14} />} onClick={() => onAct({ kind: "ncr-new" })}>เปิด NCR</Button>
+          </div>
+        }
+      />
+      <Reveal>
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <Metric icon={<Microscope size={17} />} label="ของรอตรวจ" value={\`\${pending.length + waiting.length} รายการ\`} deltaLabel={\`เปิดล็อตแล้ว \${waiting.length} · ยังไม่เปิด \${pending.length}\`} />
+          <Metric icon={<FileWarning size={17} />} label="NCR เปิดอยู่" value={\`\${openNcrs.length} เรื่อง\`} deltaLabel={\`รอสั่งการ \${openNcrs.filter((n) => n.status === "รอสั่งการ").length}\`} />
+          <Metric icon={<ListChecks size={17} />} label="CAR เปิดอยู่" value={\`\${cars.length} ใบ\`} deltaLabel={late.length ? \`มาตรการเลยกำหนด \${late.length} ข้อ\` : "ไม่มีมาตรการเลยกำหนด"} />
+          <Metric icon={<GaugeIcon size={17} />} label="เครื่องมือต้องดูแล" value={\`\${gauges.length} ชิ้น\`} deltaLabel={nextAudit ? \`ตรวจติดตามถัดไป \${nextAudit.planned} \${nextAudit.area}\` : "ไม่มีการตรวจตามแผน"} />
+        </div>
+      </Reveal>
+
+      <Reveal delay={0.06} className="mt-4 grid gap-4 lg:grid-cols-3">
+        <Card title="วัตถุประสงค์คุณภาพ" subtitle="วัดจากงานจริงในระบบ ใช้เป็นข้อมูลทบทวนโดยฝ่ายบริหาร (ข้อ 6.2 และ 9.3)" className="lg:col-span-2">
+          <ul className="divide-y divide-slate-100 dark:divide-slate-800">
+            {objs.map((o) => (
+              <li key={o.name} className="flex items-center gap-3 px-4 py-3">
+                <Target size={15} className={o.met ? "shrink-0 text-emerald-500" : "shrink-0 text-rose-500"} />
+                <div className="min-w-0 flex-1">
+                  <p className="text-[13px] text-slate-800 dark:text-slate-100">{o.name}</p>
+                  <p className="text-[11.5px] text-slate-500 dark:text-slate-400">ข้อ {o.clause} · เป้า {o.better === "higher" ? "≥" : "≤"} {o.target}{o.unit === "%" ? "%" : \` \${o.unit}\`}</p>
+                </div>
+                <span className="w-20 text-right text-[14px] font-semibold tabular-nums text-slate-900 dark:text-slate-50">{o.actual}{o.unit === "%" ? "%" : \` \${o.unit}\`}</span>
+                <Badge tone={o.met ? "ok" : "bad"}>{o.met ? "ถึงเป้า" : "ต่ำกว่าเป้า"}</Badge>
+              </li>
+            ))}
+          </ul>
+        </Card>
+        <Card title="NCR ตามแหล่งที่พบ" subtitle="พบเองก่อนถึงลูกค้าดีกว่าลูกค้าเป็นคนพบ">
+          <div className="p-4">
+            <Donut segments={bySource} center={<span className="text-[20px] font-semibold tabular-nums">{NCRS.length}</span>} format={(n) => \`\${n} เรื่อง\`} />
+          </div>
+        </Card>
+      </Reveal>
+
+      <Reveal delay={0.12} className="mt-4 grid gap-4 lg:grid-cols-3">
+        <Card title="ต้องจัดการ" subtitle="กดรายการเพื่อเปิดงานนั้น" className="lg:col-span-2">
+          {todo.length === 0 ? (
+            <p className="px-4 py-8 text-center text-[13px] text-slate-400">ไม่มีงานค้าง</p>
+          ) : (
+            <ul className="divide-y divide-slate-100 dark:divide-slate-800">
+              {todo.slice(0, 10).map((t, i) => (
+                <li key={i}>
+                  <button onClick={t.go} className="flex w-full items-center gap-3 px-4 py-2.5 text-left transition hover:bg-slate-50 dark:hover:bg-slate-800/60">
+                    <span className={t.tone === "bad" ? "text-rose-500" : t.tone === "warn" ? "text-amber-500" : "text-sky-500"}>{t.icon}</span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-[13px] text-slate-800 dark:text-slate-100">{t.text}</span>
+                      <span className="block text-[11.5px] text-slate-500 dark:text-slate-400">{t.sub}</span>
+                    </span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Card>
+        <Card
+          title="คุณภาพผู้ขาย"
+          subtitle="สัดส่วนล็อตที่ไม่ผ่านการตรวจรับ ใช้ประเมินผู้ขาย (ข้อ 8.4)"
+          action={<Button variant="ghost" className="whitespace-nowrap" onClick={() => onOpenSection?.(1)}>ดูล็อตตรวจ</Button>}
+        >
+          <ul className="space-y-3 p-4">
+            {vendors.map((v) => (
+              <li key={v.code}>
+                <div className="flex items-baseline justify-between gap-2 text-[12.5px]">
+                  <span className="truncate text-slate-700 dark:text-slate-200">{v.name}</span>
+                  <span className="shrink-0 tabular-nums text-slate-500">ไม่ผ่าน {v.rejected}/{v.lots}</span>
+                </div>
+                <div className="mt-1"><Bar pct={v.rate} tone={v.rate === 0 ? "ok" : v.rate < 20 ? "warn" : "bad"} width="w-full" /></div>
+              </li>
+            ))}
+          </ul>
+        </Card>
+      </Reveal>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------- documents */
+
+function Documents({ onAct, onOpen }: Handlers) {
+  const [type, setType] = useState("ทั้งหมด");
+  const [q, setQ] = useState("");
+  const needle = q.trim().toLowerCase();
+  const rows = DOCUMENTS.filter((d) => (type === "ทั้งหมด" || d.type === type) && (!needle || \`\${d.code} \${d.title}\`.toLowerCase().includes(needle)));
+  const due = new Set(reviewDue().map((d) => d.code));
+  const columns: Column<QmDocument>[] = [
+    { key: "code", header: "รหัส", cell: (d) => <span className="font-medium tabular-nums text-slate-800 dark:text-slate-100">{d.code}</span>, sort: (a, b) => a.code.localeCompare(b.code) },
+    { key: "title", header: "ชื่อเอกสาร", cell: (d) => d.title, sort: (a, b) => a.title.localeCompare(b.title, "th") },
+    { key: "type", header: "ประเภท", cell: (d) => <Chip>{d.type}</Chip> },
+    { key: "rev", header: "ฉบับ", cell: (d) => <span className="tabular-nums">{revLabel(d.rev)}</span> },
+    { key: "status", header: "สถานะ", cell: (d) => <span className="flex flex-wrap items-center gap-1.5"><Badge dot tone={tone(d.status)}>{d.status}</Badge>{d.draft && d.rev >= 0 && <Badge tone="info">มีฉบับแก้ไข</Badge>}</span> },
+    { key: "effective", header: "มีผลเมื่อ", cell: (d) => d.effective ?? "—", sort: (a, b) => (a.effective ?? "").localeCompare(b.effective ?? "") },
+    { key: "review", header: "ทบทวนครั้งถัดไป", cell: (d) => <span className={due.has(d.code) ? "font-medium text-rose-600 dark:text-rose-400" : ""}>{d.reviewDue ?? "—"}</span> },
+  ];
+  return (
+    <div className="space-y-4">
+      {(awaitingApproval().length > 0 || due.size > 0) && (
+        <Note tone="warn">
+          {awaitingApproval().length > 0 && \`รออนุมัติ \${awaitingApproval().length} ฉบับ\`}
+          {awaitingApproval().length > 0 && due.size > 0 && " · "}
+          {due.size > 0 && \`ถึงรอบทบทวนภายใน 30 วัน \${due.size} ฉบับ\`}
+        </Note>
+      )}
+      <DataTable
+        rows={rows}
+        columns={columns}
+        getId={(d) => d.code}
+        onOpen={(d) => onOpen("doc", d.code)}
+        toolbar={
+          <div className="flex flex-wrap items-center gap-2">
+            <Segmented options={["ทั้งหมด", ...DOC_TYPES]} value={type} onChange={setType} />
+            <Search value={q} onChange={setQ} placeholder="ค้นหารหัสหรือชื่อเอกสาร" icon={<SearchIcon size={14} />} />
+            <div className="ml-auto flex gap-2">
+              <Button variant="secondary" icon={exportIcon} onClick={() => { downloadCsv("เอกสารควบคุม", ["รหัส", "ชื่อเอกสาร", "ประเภท", "ฉบับ", "สถานะ", "มีผลเมื่อ", "ทบทวนครั้งถัดไป", "ฝ่ายเจ้าของ"], rows.map((d) => [d.code, d.title, d.type, revLabel(d.rev), d.status, d.effective ?? "", d.reviewDue ?? "", d.owner])); notify(\`ส่งออกเอกสาร \${rows.length} รายการแล้ว\`); }}>ส่งออก Excel</Button>
+              <Button variant="secondary" icon={<Printer size={14} />} onClick={() => onAct({ kind: "print", d: { doc: "master-list" }, title: "บัญชีรายชื่อเอกสารควบคุม" })}>พิมพ์บัญชีรายชื่อ</Button>
+              <Button icon={<FilePlus2 size={14} />} onClick={() => onAct({ kind: "doc-new" })}>สร้างเอกสาร</Button>
+            </div>
+          </div>
+        }
+      />
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------ inspection */
+
+function Inspection({ onAct, onOpen }: Handlers) {
+  const [origin, setOrigin] = useState("ทั้งหมด");
+  const pending = pendingInspections();
+  const rows = newest(LOTS).filter((l) => origin === "ทั้งหมด" || l.origin === origin);
+  const columns: Column<InspectionLot>[] = [
+    { key: "no", header: "เลขที่", cell: (l) => <span className="font-medium tabular-nums text-slate-800 dark:text-slate-100">{l.no}</span>, sort: (a, b) => a.no.localeCompare(b.no) },
+    { key: "origin", header: "ประเภท", cell: (l) => <Chip>{l.origin}</Chip> },
+    { key: "item", header: "รายการ", cell: (l) => materialName(l.material) },
+    { key: "qty", header: "จำนวน / ตัวอย่าง", align: "right", cell: (l) => <span className="tabular-nums">{l.qty.toLocaleString("th-TH")} / {l.sample}</span> },
+    { key: "source", header: "ต้นทาง", cell: (l) => <span className="tabular-nums text-slate-500">{l.source}</span> },
+    { key: "vendor", header: "ผู้ขาย", cell: (l) => (l.vendor ? vendorName(l.vendor) : "ฝ่ายผลิต") },
+    { key: "state", header: "ผล", cell: (l) => <Badge dot tone={tone(lotState(l))}>{lotState(l)}</Badge> },
+  ];
+  return (
+    <div className="space-y-4">
+      <Card title="ของที่รับเข้ามาแต่ยังไม่ได้ตรวจ" subtitle="อ่านจากใบรับของของจัดซื้อและการรับสินค้าผลิตเสร็จ บันทึกที่ระบบอื่นแล้วขึ้นที่นี่ทันที">
+        {pending.length === 0 ? (
+          <p className="px-4 py-5 text-center text-[13px] text-slate-400">เปิดล็อตตรวจครบทุกใบแล้ว</p>
+        ) : (
+          <ul className="divide-y divide-slate-100 dark:divide-slate-800">
+            {pending.map((p) => (
+              <li key={\`\${p.source}-\${p.material}\`} className="flex flex-wrap items-center gap-3 px-4 py-2.5">
+                <Chip>{p.origin}</Chip>
+                <span className="min-w-0 flex-1 text-[13px] text-slate-700 dark:text-slate-200">
+                  {materialName(p.material)} {p.qty.toLocaleString("th-TH")} {materialUnit(p.material)}
+                  <span className="ml-2 text-[11.5px] text-slate-400">{p.source} · {p.date}{p.vendor ? \` · \${vendorName(p.vendor)}\` : ""}</span>
+                </span>
+                <Button variant="secondary" icon={<Plus size={14} />} onClick={() => onAct({ kind: "lot-new", source: p.source, material: p.material })}>เปิดล็อตตรวจ</Button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Card>
+      <DataTable
+        rows={rows}
+        columns={columns}
+        getId={(l) => l.no}
+        onOpen={(l) => onOpen("lot", l.no)}
+        toolbar={
+          <div className="flex flex-wrap items-center gap-2">
+            <Segmented options={["ทั้งหมด", "ตรวจรับ", "ตรวจก่อนส่ง"]} value={origin} onChange={setOrigin} />
+            <Button className="ml-auto" variant="secondary" icon={exportIcon} onClick={() => { downloadCsv("ล็อตตรวจ", ["เลขที่", "ประเภท", "รายการ", "จำนวน", "ตัวอย่าง", "ต้นทาง", "ผู้ขาย", "ผล", "ผู้ตรวจ", "วันที่ตัดสิน"], rows.map((l) => [l.no, l.origin, materialName(l.material), l.qty, l.sample, l.source, l.vendor ? vendorName(l.vendor) : "ฝ่ายผลิต", lotState(l), l.inspector ?? "", l.decidedOn ?? ""])); notify(\`ส่งออกล็อตตรวจ \${rows.length} รายการแล้ว\`); }}>ส่งออก Excel</Button>
+          </div>
+        }
+      />
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------- ncr */
+
+function Nonconformance({ onAct, onOpen }: Handlers) {
+  const [status, setStatus] = useState("ยังไม่ปิด");
+  const rows = newest(NCRS).filter((n) => status === "ทั้งหมด" || (status === "ยังไม่ปิด" ? n.status !== "ปิดแล้ว" : n.status === "ปิดแล้ว"));
+  const columns: Column<Ncr>[] = [
+    { key: "no", header: "เลขที่", cell: (n) => <span className="font-medium tabular-nums text-slate-800 dark:text-slate-100">{n.no}</span>, sort: (a, b) => a.no.localeCompare(b.no) },
+    { key: "date", header: "วันที่", cell: (n) => n.date, sort: (a, b) => a.date.localeCompare(b.date) },
+    { key: "source", header: "พบที่", cell: (n) => <span className="flex items-center gap-1.5"><span className={"size-2 rounded-full " + sourceSwatch(n.source).dot} />{n.source}</span> },
+    { key: "item", header: "รายการ", cell: (n) => (n.material ? materialName(n.material) : n.ref) },
+    { key: "party", header: "ผู้ขาย / ลูกค้า", cell: (n) => (n.customer ? customerName(n.customer) : n.vendor ? vendorName(n.vendor) : "—") },
+    { key: "severity", header: "ความรุนแรง", cell: (n) => <Badge tone={tone(n.severity)}>{n.severity}</Badge> },
+    { key: "status", header: "สถานะ", cell: (n) => <Badge dot tone={tone(n.status)}>{n.status}</Badge> },
+    { key: "car", header: "CAR", cell: (n) => <span className="tabular-nums text-slate-500">{n.capa ?? "—"}</span> },
+  ];
+  return (
+    <DataTable
+      rows={rows}
+      columns={columns}
+      getId={(n) => n.no}
+      onOpen={(n) => onOpen("ncr", n.no)}
+      toolbar={
+        <div className="flex flex-wrap items-center gap-2">
+          <Segmented options={["ยังไม่ปิด", "ปิดแล้ว", "ทั้งหมด"]} value={status} onChange={setStatus} counts={{ "ยังไม่ปิด": NCRS.filter((n) => n.status !== "ปิดแล้ว").length }} />
+          <div className="ml-auto flex flex-wrap gap-2">
+            <Button variant="secondary" icon={exportIcon} onClick={() => { downloadCsv("NCR", ["เลขที่", "วันที่", "พบที่", "อ้างอิง", "รายการ", "จำนวน", "ความรุนแรง", "สถานะ", "การสั่งการ", "CAR"], rows.map((n) => [n.no, n.date, n.source, n.ref, n.material ? materialName(n.material) : "", n.qty, n.severity, n.status, n.disposition ?? "", n.capa ?? ""])); notify(\`ส่งออก NCR \${rows.length} รายการแล้ว\`); }}>ส่งออก Excel</Button>
+            <Button variant="secondary" icon={<MessageSquareWarning size={14} />} onClick={() => onAct({ kind: "complaint-new" })}>รับเรื่องร้องเรียน</Button>
+            <Button icon={<FileWarning size={14} />} onClick={() => onAct({ kind: "ncr-new" })}>เปิด NCR</Button>
+          </div>
+        </div>
+      }
+    />
+  );
+}
+
+/* ------------------------------------------------------------------ capa */
+
+function Corrective({ onAct, onOpen }: Handlers) {
+  const rows = newest(CAPAS);
+  const columns: Column<Capa>[] = [
+    { key: "no", header: "เลขที่", cell: (c) => <span className="font-medium tabular-nums text-slate-800 dark:text-slate-100">{c.no}</span>, sort: (a, b) => a.no.localeCompare(b.no) },
+    { key: "ref", header: "ต้นเรื่อง", cell: (c) => <span className="tabular-nums text-slate-500">{c.ref}</span> },
+    { key: "problem", header: "ปัญหา", cell: (c) => <span className="line-clamp-2">{c.problem}</span> },
+    { key: "owner", header: "ผู้รับผิดชอบ", cell: (c) => c.owner },
+    { key: "progress", header: "มาตรการ", cell: (c) => <Progress done={c.actions.filter((a) => a.doneOn).length} total={Math.max(1, c.actions.length)} label={c.actions.length ? undefined : "ยังไม่มี"} /> },
+    { key: "status", header: "สถานะ", cell: (c) => <span className="flex flex-wrap gap-1.5"><Badge dot tone={tone(c.status)}>{c.status}</Badge>{overdueActions(c).length > 0 && <Badge tone="bad">เลยกำหนด {overdueActions(c).length}</Badge>}</span> },
+  ];
+  return (
+    <DataTable
+      rows={rows}
+      columns={columns}
+      getId={(c) => c.no}
+      onOpen={(c) => onOpen("car", c.no)}
+      toolbar={
+        <div className="flex flex-wrap items-center gap-2">
+          <p className="text-[12.5px] text-slate-500 dark:text-slate-400">หาสาเหตุราก วางมาตรการ แล้วให้คนอื่นติดตามว่าได้ผลจริงก่อนปิด (ข้อ 10.2)</p>
+          <div className="ml-auto flex gap-2">
+            <Button variant="secondary" icon={exportIcon} onClick={() => { downloadCsv("CAR", ["เลขที่", "วันที่", "ประเภท", "ต้นเรื่อง", "ปัญหา", "ผู้รับผิดชอบ", "สาเหตุราก", "มาตรการเสร็จ", "สถานะ"], rows.map((c) => [c.no, c.date, c.kind, c.ref, c.problem, c.owner, c.rootCause?.whys.at(-1) ?? "", \`\${c.actions.filter((a) => a.doneOn).length}/\${c.actions.length}\`, c.status])); notify(\`ส่งออก CAR \${rows.length} รายการแล้ว\`); }}>ส่งออก Excel</Button>
+            <Button icon={<Plus size={14} />} onClick={() => onAct({ kind: "car-new" })}>ออก CAR</Button>
+          </div>
+        </div>
+      }
+    />
+  );
+}
+
+/* ----------------------------------------------------------------- audit */
+
+function Audits({ onAct, onOpen }: Handlers) {
+  const count = (a: Audit, t: string) => a.findings.filter((f) => f.type === t).length;
+  const columns: Column<Audit>[] = [
+    { key: "no", header: "เลขที่", cell: (a) => <span className="font-medium tabular-nums text-slate-800 dark:text-slate-100">{a.no}</span>, sort: (a, b) => a.no.localeCompare(b.no) },
+    { key: "area", header: "ฝ่ายที่ตรวจ", cell: (a) => a.area },
+    { key: "clauses", header: "ข้อกำหนด", cell: (a) => <span className="flex flex-wrap gap-1">{a.clauses.map((c) => <Chip key={c}>{c}</Chip>)}</span> },
+    { key: "auditor", header: "ผู้ตรวจ", cell: (a) => a.auditor },
+    { key: "planned", header: "วันที่", cell: (a) => a.performedOn ?? a.planned, sort: (a, b) => a.planned.localeCompare(b.planned) },
+    { key: "findings", header: "ข้อบกพร่อง / ข้อสังเกต", align: "right", cell: (a) => <span className="tabular-nums">{count(a, "ข้อบกพร่องหลัก") + count(a, "ข้อบกพร่องย่อย")} / {count(a, "ข้อสังเกต")}</span> },
+    { key: "status", header: "สถานะ", cell: (a) => <Badge dot tone={tone(a.status)}>{a.status}</Badge> },
+  ];
+  return (
+    <DataTable
+      rows={AUDITS}
+      columns={columns}
+      getId={(a) => a.no}
+      onOpen={(a) => onOpen("audit", a.no)}
+      toolbar={
+        <div className="flex flex-wrap items-center gap-2">
+          <p className="text-[12.5px] text-slate-500 dark:text-slate-400">แผนการตรวจปี {Number(TODAY.slice(0, 4)) + 543} · ผู้ตรวจไม่ตรวจฝ่ายของตัวเอง (ข้อ 9.2)</p>
+          <div className="ml-auto flex gap-2">
+            <Button variant="secondary" icon={exportIcon} onClick={() => { downloadCsv("แผนตรวจติดตามภายใน", ["เลขที่", "ฝ่าย", "ข้อกำหนด", "ผู้ตรวจ", "วันที่ตามแผน", "วันที่ตรวจ", "ข้อบกพร่อง", "ข้อสังเกต", "สถานะ"], AUDITS.map((a) => [a.no, a.area, a.clauses.join(" "), a.auditor, a.planned, a.performedOn ?? "", count(a, "ข้อบกพร่องหลัก") + count(a, "ข้อบกพร่องย่อย"), count(a, "ข้อสังเกต"), a.status])); notify(\`ส่งออกแผนตรวจ \${AUDITS.length} รายการแล้ว\`); }}>ส่งออก Excel</Button>
+            <Button icon={<Users size={14} />} onClick={() => onAct({ kind: "audit-new" })}>วางแผนการตรวจ</Button>
+          </div>
+        </div>
+      }
+    />
+  );
+}
+
+/* ----------------------------------------------------------- calibration */
+
+function Calibration({ onAct, onOpen }: Handlers) {
+  const columns: Column<Gauge>[] = [
+    { key: "code", header: "รหัส", cell: (g) => <span className="font-medium tabular-nums text-slate-800 dark:text-slate-100">{g.code}</span>, sort: (a, b) => a.code.localeCompare(b.code) },
+    { key: "name", header: "เครื่องมือ", cell: (g) => g.name },
+    { key: "range", header: "ช่วงการวัด", cell: (g) => g.range },
+    { key: "location", header: "ที่ใช้งาน", cell: (g) => g.location },
+    { key: "interval", header: "รอบ", cell: (g) => \`\${g.intervalMonths} เดือน\` },
+    { key: "last", header: "สอบเทียบล่าสุด", cell: (g) => g.lastCal, sort: (a, b) => a.lastCal.localeCompare(b.lastCal) },
+    { key: "due", header: "ครบกำหนด", cell: (g) => nextDue(g), sort: (a, b) => nextDue(a).localeCompare(nextDue(b)) },
+    { key: "state", header: "สถานะ", cell: (g) => <Badge dot tone={tone(calState(g))}>{calState(g)}</Badge> },
+  ];
+  const states = ["ปกติ", "ใกล้ครบ", "เกินกำหนด", "พักใช้"] as const;
+  return (
+    <div className="space-y-4">
+      <div className="grid gap-3 sm:grid-cols-4">
+        {states.map((s) => (
+          <div key={s} className="rounded-2xl border border-slate-200/80 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
+            <Badge dot tone={tone(s)}>{s}</Badge>
+            <p className="mt-2 text-[22px] font-semibold tabular-nums text-slate-900 dark:text-slate-50">{GAUGES.filter((g) => calState(g) === s).length}</p>
+          </div>
+        ))}
+      </div>
+      <DataTable
+        rows={GAUGES}
+        columns={columns}
+        getId={(g) => g.code}
+        onOpen={(g) => onOpen("gauge", g.code)}
+        toolbar={
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="text-[12.5px] text-slate-500 dark:text-slate-400">เครื่องมือที่ไม่ผ่านถูกพักใช้ และเปิด NCR ให้ทบทวนผลการวัดที่ผ่านมา (ข้อ 7.1.5)</p>
+            <div className="ml-auto flex gap-2">
+              <Button variant="secondary" icon={exportIcon} onClick={() => { downloadCsv("ทะเบียนเครื่องมือวัด", ["รหัส", "เครื่องมือ", "ช่วงการวัด", "ความละเอียด", "ที่ใช้งาน", "รอบ (เดือน)", "สอบเทียบล่าสุด", "ครบกำหนด", "สถานะ"], GAUGES.map((g) => [g.code, g.name, g.range, g.resolution, g.location, g.intervalMonths, g.lastCal, nextDue(g), calState(g)])); notify(\`ส่งออกเครื่องมือวัด \${GAUGES.length} รายการแล้ว\`); }}>ส่งออก Excel</Button>
+              <Button icon={<Plus size={14} />} onClick={() => onAct({ kind: "gauge-new" })}>ขึ้นทะเบียนเครื่องมือ</Button>
+            </div>
+          </div>
+        }
+      />
+    </div>
+  );
+}
+
+/* --------------------------------------------------------------- records */
+
+function Header({ title, meta, badges, actions }: { title: string; meta: string; badges: ReactNode; actions: ReactNode }) {
+  return (
+    <div className="border-b border-slate-100 px-5 py-4 dark:border-slate-800">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-[17px] font-semibold text-slate-900 dark:text-slate-50">{title}</p>
+          <p className="mt-0.5 text-[12.5px] text-slate-500 dark:text-slate-400">{meta}</p>
+          <div className="mt-2 flex flex-wrap gap-1.5">{badges}</div>
+        </div>
+      </div>
+      <div className="mt-3 flex flex-wrap gap-2">{actions}</div>
+    </div>
+  );
+}
+
+const run = (fn: () => void, ok: string) => {
+  try {
+    fn();
+    notify(ok);
+  } catch (e) {
+    notify(e instanceof Error ? e.message : String(e), "bad");
+  }
+};
+
+function RecordView({ kind, id, onAct, onOpen }: { kind: Kind; id: string } & Handlers) {
+  if (kind === "doc") return <DocRecord d={DOCUMENTS.find((x) => x.code === id)!} onAct={onAct} onOpen={onOpen} />;
+  if (kind === "lot") return <LotRecord l={LOTS.find((x) => x.no === id)!} onAct={onAct} onOpen={onOpen} />;
+  if (kind === "ncr") return <NcrRecord n={NCRS.find((x) => x.no === id)!} onAct={onAct} onOpen={onOpen} />;
+  if (kind === "car") return <CarRecord c={CAPAS.find((x) => x.no === id)!} onAct={onAct} onOpen={onOpen} />;
+  if (kind === "audit") return <AuditRecord a={AUDITS.find((x) => x.no === id)!} onAct={onAct} onOpen={onOpen} />;
+  return <GaugeRecord g={GAUGES.find((x) => x.code === id)!} onAct={onAct} onOpen={onOpen} />;
+}
+
+function Body({ children }: { children: ReactNode }) {
+  return <div className="space-y-5 overflow-y-auto px-5 py-4">{children}</div>;
+}
+
+function DocRecord({ d, onAct }: { d: QmDocument } & Handlers) {
+  const due = d.reviewDue && d.reviewDue <= addDays(TODAY, 30);
+  return (
+    <div className="flex h-full flex-col">
+      <Header
+        title={\`\${d.code} · \${d.title}\`}
+        meta={\`\${d.type} · ข้อ \${d.clause} \${clauseName(d.clause)} · \${d.owner}\`}
+        badges={<><Badge dot tone={tone(d.status)}>{d.status}</Badge><Badge tone="idle">{revLabel(d.rev)}</Badge>{d.draft && <Badge tone={d.draft.submitted ? "warn" : "info"}>{revLabel(d.draft.rev)} {d.draft.submitted ? "รออนุมัติ" : "กำลังแก้ไข"}</Badge>}</>}
+        actions={
+          <>
+            {d.draft && !d.draft.submitted && <Button icon={<CircleCheck size={14} />} onClick={() => run(() => submitDocument(d.code), \`ส่ง \${d.code} \${revLabel(d.draft!.rev)} ขออนุมัติแล้ว\`)}>ส่งอนุมัติ</Button>}
+            {d.draft?.submitted && <Button icon={<ShieldCheck size={14} />} onClick={() => onAct({ kind: "doc-approve", code: d.code })}>อนุมัติ</Button>}
+            {d.status === "ใช้งาน" && !d.draft && <Button variant="secondary" icon={<Pencil size={14} />} onClick={() => onAct({ kind: "doc-revise", code: d.code })}>แก้ไขฉบับใหม่</Button>}
+            {d.status === "ใช้งาน" && due && !d.draft && <Button variant="secondary" icon={<CircleCheck size={14} />} onClick={() => run(() => confirmReview(d.code), \`ทบทวน \${d.code} แล้ว · ใช้ต่ออีกหนึ่งปี\`)}>ทบทวนแล้วยังเหมาะสม</Button>}
+            {d.status !== "ยกเลิก" && <Button variant="ghost" onClick={() => onAct({ kind: "doc-obsolete", code: d.code })}>ยกเลิกเอกสาร</Button>}
+          </>
+        }
+      />
+      <Body>
+        <div className="grid gap-x-8 sm:grid-cols-2">
+          <IconRow icon={<FileText size={14} />} label="ฉบับที่ใช้">{revLabel(d.rev)}{d.effective ? \` · มีผล \${d.effective}\` : ""}</IconRow>
+          <IconRow icon={<CalendarClock size={14} />} label="ทบทวนครั้งถัดไป"><span className={due ? "text-rose-600 dark:text-rose-400" : ""}>{d.reviewDue ?? "—"}</span></IconRow>
+          {d.obsoleteReason && <IconRow icon={<TriangleAlert size={14} />} label="เหตุผลที่ยกเลิก">{d.obsoleteReason}</IconRow>}
+        </div>
+        {d.draft && <Note tone="info">{revLabel(d.draft.rev)} โดย {d.draft.by} ({d.draft.date}): {d.draft.change}</Note>}
+        <Card title="ประวัติการแก้ไข" subtitle="ทุกฉบับที่เคยออกใช้ พร้อมผู้อนุมัติ">
+          {d.history.length === 0 ? (
+            <p className="px-4 py-5 text-center text-[13px] text-slate-400">ยังไม่เคยออกใช้</p>
+          ) : (
+            <ul className="divide-y divide-slate-100 dark:divide-slate-800">
+              {[...d.history].reverse().map((h) => (
+                <li key={h.rev} className="flex gap-3 px-4 py-2.5 text-[13px]">
+                  <span className="w-14 shrink-0 font-medium tabular-nums text-slate-800 dark:text-slate-100">{revLabel(h.rev)}</span>
+                  <span className="min-w-0 flex-1 text-slate-700 dark:text-slate-200">{h.change}<span className="block text-[11.5px] text-slate-400">{h.date} · จัดทำ {h.by} · อนุมัติ {h.approvedBy}</span></span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Card>
+      </Body>
+    </div>
+  );
+}
+
+function LotRecord({ l, onAct, onOpen }: { l: InspectionLot } & Handlers) {
+  const plan = planOf(l.material);
+  const certificate = l.origin === "ตรวจก่อนส่ง" && l.decision && l.decision !== "ไม่ผ่าน";
+  return (
+    <div className="flex h-full flex-col">
+      <Header
+        title={\`\${l.no} · \${materialName(l.material)}\`}
+        meta={\`\${l.origin} · \${l.source} · \${l.ref}\${l.vendor ? \` · \${vendorName(l.vendor)}\` : ""}\`}
+        badges={<><Badge dot tone={tone(lotState(l))}>{lotState(l)}</Badge><Badge tone="idle">ล็อต {l.qty.toLocaleString("th-TH")} · ตัวอย่าง {l.sample}</Badge></>}
+        actions={
+          <>
+            {l.status !== "ตัดสินแล้ว" && <Button icon={<ClipboardCheck size={14} />} variant={l.status === "รอตรวจ" ? "primary" : "secondary"} onClick={() => onAct({ kind: "lot-results", no: l.no })}>{l.status === "รอตรวจ" ? "บันทึกผลตรวจ" : "แก้ผลตรวจ"}</Button>}
+            {l.status === "รอตัดสิน" && <Button icon={<ShieldCheck size={14} />} onClick={() => onAct({ kind: "lot-decide", no: l.no })}>ตัดสินผล</Button>}
+            {l.ncr && <Button variant="secondary" icon={<FileWarning size={14} />} onClick={() => onOpen("ncr", l.ncr!)}>ดู {l.ncr}</Button>}
+            <Button variant="secondary" icon={<Printer size={14} />} onClick={() => onAct({ kind: "print", d: { doc: "lot", no: l.no }, title: certificate ? "ใบรับรองคุณภาพสินค้า" : "ใบรายงานผลการตรวจสอบ" })}>{certificate ? "พิมพ์ใบรับรองคุณภาพ" : "พิมพ์รายงาน"}</Button>
+          </>
+        }
+      />
+      <Body>
+        <Card title="ผลตรวจตามแผน" subtitle={l.inspector ? \`ตรวจโดย \${l.inspector} · \${l.inspectedOn}\` : "ยังไม่ได้บันทึกผล"}>
+          <ul className="divide-y divide-slate-100 dark:divide-slate-800">
+            {plan.map((c) => {
+              const r = l.results.find((x) => x.characteristic === c.name);
+              const got = !r ? "—" : c.kind === "วัดค่า" ? \`\${r.min} – \${r.max} \${c.unit ?? ""}\` : r.defects === 0 ? "ไม่พบข้อบกพร่อง" : \`พบ \${r.defects} ชิ้น\`;
+              return (
+                <li key={c.name} className="flex flex-wrap items-center gap-3 px-4 py-2.5 text-[13px]">
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-slate-800 dark:text-slate-100">{c.name}</span>
+                    <span className="block text-[11.5px] text-slate-400">{c.method} · เกณฑ์ {c.kind === "วัดค่า" ? \`\${c.lsl}–\${c.usl} \${c.unit ?? ""}\` : "ไม่พบข้อบกพร่อง"}</span>
+                  </span>
+                  <span className="tabular-nums text-slate-700 dark:text-slate-200">{got}</span>
+                  {r && <Badge tone={r.ok ? "ok" : "bad"}>{r.ok ? "ผ่าน" : "ไม่ผ่าน"}</Badge>}
+                </li>
+              );
+            })}
+          </ul>
+        </Card>
+        {l.decision && <Note tone={tone(l.decision)}>ตัดสิน{l.decision} โดย {l.decidedBy} · {l.decidedOn}{l.note ? \` — \${l.note}\` : ""}</Note>}
+      </Body>
+    </div>
+  );
+}
+
+function NcrRecord({ n, onAct, onOpen }: { n: Ncr } & Handlers) {
+  return (
+    <div className="flex h-full flex-col">
+      <Header
+        title={\`\${n.no} · \${n.material ? materialName(n.material) : n.ref}\`}
+        meta={\`\${n.source} · \${n.date} · อ้างอิง \${n.ref}\`}
+        badges={<><Badge dot tone={tone(n.status)}>{n.status}</Badge><Badge tone={tone(n.severity)}>{n.severity}</Badge>{n.capa && <Badge tone="info">{n.capa}</Badge>}</>}
+        actions={
+          <>
+            {n.status === "รอสั่งการ" && <Button icon={<ShieldCheck size={14} />} onClick={() => onAct({ kind: "ncr-dispose", no: n.no })}>สั่งการ</Button>}
+            {!n.capa && n.status !== "ปิดแล้ว" && <Button variant="secondary" icon={<ListChecks size={14} />} onClick={() => onAct({ kind: "car-new", ref: n.no, problem: n.description })}>ออก CAR</Button>}
+            {n.capa && <Button variant="secondary" icon={<ListChecks size={14} />} onClick={() => onOpen("car", n.capa!)}>ดู {n.capa}</Button>}
+            {n.status === "ดำเนินการ" && <Button variant="secondary" icon={<CircleCheck size={14} />} onClick={() => onAct({ kind: "ncr-close", no: n.no })}>ปิด NCR</Button>}
+            <Button variant="secondary" icon={<Printer size={14} />} onClick={() => onAct({ kind: "print", d: { doc: "ncr", no: n.no }, title: "ใบรายงานสิ่งที่ไม่เป็นไปตามข้อกำหนด" })}>พิมพ์</Button>
+          </>
+        }
+      />
+      <Body>
+        <div className="grid gap-x-8 sm:grid-cols-2">
+          <IconRow icon={<FileWarning size={14} />} label="จำนวน">{n.qty.toLocaleString("th-TH")} {n.material ? materialUnit(n.material) : ""}</IconRow>
+          <IconRow icon={<Users size={14} />} label={n.customer ? "ลูกค้า" : "ผู้ขาย"}>{n.customer ? customerName(n.customer) : vendorName(n.vendor)}</IconRow>
+          <IconRow icon={<Pencil size={14} />} label="ผู้รายงาน">{n.reportedBy}</IconRow>
+          {n.closedOn && <IconRow icon={<CircleCheck size={14} />} label="ปิดเมื่อ">{n.closedOn} · {n.closedBy}</IconRow>}
+        </div>
+        <Card title="สิ่งที่พบ"><p className="px-4 py-3 text-[13px] leading-relaxed text-slate-700 dark:text-slate-200">{n.description}</p></Card>
+        <Card title="การสั่งการ" subtitle="ข้อ 8.7 — ทำอะไรกับของที่ไม่เป็นไปตามข้อกำหนด">
+          {n.disposition ? (
+            <div className="px-4 py-3 text-[13px] text-slate-700 dark:text-slate-200">
+              <p className="font-medium text-slate-900 dark:text-slate-50">{n.disposition}</p>
+              <p>{n.dispositionNote}</p>
+              {n.stockDoc && <p className="mt-1 text-[12px] text-slate-500">ตัดสต็อกในคลังวัสดุแล้ว เอกสาร {n.stockDoc}</p>}
+              <p className="mt-1 text-[12px] text-slate-400">สั่งการโดย {n.dispositionBy}</p>
+            </div>
+          ) : (
+            <p className="px-4 py-5 text-center text-[13px] text-slate-400">ยังไม่สั่งการ</p>
+          )}
+        </Card>
+      </Body>
+    </div>
+  );
+}
+
+function CarRecord({ c, onAct }: { c: Capa } & Handlers) {
+  return (
+    <div className="flex h-full flex-col">
+      <Header
+        title={\`\${c.no} · การ\${c.kind}\`}
+        meta={\`ต้นเรื่อง \${c.ref} · ออกเมื่อ \${c.date} · \${c.owner}\`}
+        badges={<><Badge dot tone={tone(c.status)}>{c.status}</Badge>{overdueActions(c).length > 0 && <Badge tone="bad">มาตรการเลยกำหนด {overdueActions(c).length}</Badge>}</>}
+        actions={
+          <>
+            {c.status !== "ปิดแล้ว" && c.status !== "ติดตามผล" && <Button variant={c.rootCause ? "secondary" : "primary"} icon={<SearchIcon size={14} />} onClick={() => onAct({ kind: "car-cause", no: c.no })}>{c.rootCause ? "แก้สาเหตุราก" : "หาสาเหตุราก"}</Button>}
+            {c.status !== "ปิดแล้ว" && c.status !== "ติดตามผล" && <Button variant="secondary" icon={<Plus size={14} />} onClick={() => onAct({ kind: "car-action", no: c.no })}>เพิ่มมาตรการ</Button>}
+            {c.status === "ติดตามผล" && <Button icon={<ShieldCheck size={14} />} onClick={() => onAct({ kind: "car-verify", no: c.no })}>ติดตามประสิทธิผล</Button>}
+            <Button variant="secondary" icon={<Printer size={14} />} onClick={() => onAct({ kind: "print", d: { doc: "car", no: c.no }, title: "ใบขอให้ดำเนินการแก้ไขและป้องกัน" })}>พิมพ์</Button>
+          </>
+        }
+      />
+      <Body>
+        <Card title="ปัญหา"><p className="px-4 py-3 text-[13px] text-slate-700 dark:text-slate-200">{c.problem}</p></Card>
+        <Card title="สาเหตุราก" subtitle={c.rootCause ? \`กลุ่ม\${c.rootCause.category} · ถามทำไม \${c.rootCause.whys.length} ชั้น\` : "ยังไม่วิเคราะห์"}>
+          {c.rootCause && (
+            <ol className="space-y-1.5 px-4 py-3 text-[13px] text-slate-700 dark:text-slate-200">
+              {c.rootCause.whys.map((w, i) => (
+                <li key={i} className="flex gap-2"><span className="w-16 shrink-0 text-slate-400">ทำไม {i + 1}</span><span className={i === c.rootCause!.whys.length - 1 ? "font-medium text-slate-900 dark:text-slate-50" : ""}>{w}</span></li>
+              ))}
+            </ol>
+          )}
+        </Card>
+        <Card title="มาตรการ" subtitle="ทำเสร็จครบแล้วจึงติดตามผลได้">
+          {c.actions.length === 0 ? (
+            <p className="px-4 py-5 text-center text-[13px] text-slate-400">ยังไม่มีมาตรการ</p>
+          ) : (
+            <ul className="divide-y divide-slate-100 dark:divide-slate-800">
+              {c.actions.map((a, i) => {
+                const late = !a.doneOn && a.due < TODAY;
+                return (
+                  <li key={i} className="flex flex-wrap items-center gap-3 px-4 py-2.5 text-[13px]">
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-slate-800 dark:text-slate-100">{a.what}</span>
+                      <span className={"block text-[11.5px] " + (late ? "text-rose-600 dark:text-rose-400" : "text-slate-400")}>{a.owner} · กำหนด {a.due}{late ? " · เลยกำหนด" : ""}</span>
+                    </span>
+                    {a.doneOn ? (
+                      <Badge tone="ok">เสร็จ {a.doneOn}</Badge>
+                    ) : (
+                      c.status !== "ปิดแล้ว" && <Button variant="secondary" icon={<CircleCheck size={14} />} onClick={() => run(() => completeCapaAction(c.no, i), \`บันทึกว่ามาตรการเสร็จแล้ว · \${c.no}\`)}>ทำเสร็จแล้ว</Button>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </Card>
+        {c.verification && <Note tone={c.verification.effective ? "ok" : "bad"}>ติดตามผล {c.verification.date} โดย {c.verification.by}: {c.verification.effective ? "ได้ผล" : "ไม่ได้ผล"} — {c.verification.note}</Note>}
+      </Body>
+    </div>
+  );
+}
+
+function AuditRecord({ a, onAct }: { a: Audit } & Handlers) {
+  const missing = findingsWithoutCapa(a);
+  return (
+    <div className="flex h-full flex-col">
+      <Header
+        title={\`\${a.no} · \${a.area}\`}
+        meta={\`ผู้ตรวจ \${a.auditor} · \${a.performedOn ? \`ตรวจเมื่อ \${a.performedOn}\` : \`ตามแผน \${a.planned}\`}\`}
+        badges={<><Badge dot tone={tone(a.status)}>{a.status}</Badge>{a.clauses.map((c) => <Chip key={c}>ข้อ {c}</Chip>)}</>}
+        actions={
+          <>
+            {a.status === "ตามแผน" && <Button icon={<Play size={14} />} onClick={() => run(() => startAudit(a.no), \`เริ่มตรวจ \${a.no} \${a.area} แล้ว\`)}>เริ่มตรวจ</Button>}
+            {a.status === "กำลังตรวจ" && <Button icon={<Plus size={14} />} onClick={() => onAct({ kind: "audit-finding", no: a.no })}>บันทึกสิ่งที่พบ</Button>}
+            {a.status === "กำลังตรวจ" && <Button variant="secondary" icon={<CircleCheck size={14} />} onClick={() => run(() => closeAudit(a.no), \`ปิดการตรวจ \${a.no} แล้ว\`)}>ปิดการตรวจ</Button>}
+            <Button variant="secondary" icon={<Printer size={14} />} onClick={() => onAct({ kind: "print", d: { doc: "audit", no: a.no }, title: "รายงานการตรวจติดตามภายใน" })}>พิมพ์รายงาน</Button>
+          </>
+        }
+      />
+      <Body>
+        {a.status === "กำลังตรวจ" && missing.length > 0 && <Note tone="warn">ข้อบกพร่อง {missing.length} ข้อยังไม่มี CAR — ต้องออกก่อนปิดการตรวจ</Note>}
+        <Card title="ขอบเขต">
+          <ul className="space-y-1 px-4 py-3 text-[13px] text-slate-700 dark:text-slate-200">
+            {a.clauses.map((c) => <li key={c}><span className="tabular-nums text-slate-400">ข้อ {c}</span> {CLAUSES.find((x) => x.code === c)?.name}</li>)}
+          </ul>
+        </Card>
+        <Card title="สิ่งที่พบ" subtitle="ข้อบกพร่องต้องมี CAR · ข้อสังเกตไม่ต้อง">
+          {a.findings.length === 0 ? (
+            <p className="px-4 py-5 text-center text-[13px] text-slate-400">{a.status === "ตามแผน" ? "ยังไม่ได้ตรวจ" : "ยังไม่พบสิ่งที่ต้องบันทึก"}</p>
+          ) : (
+            <ul className="divide-y divide-slate-100 dark:divide-slate-800">
+              {a.findings.map((f) => (
+                <li key={f.id} className="flex flex-wrap items-center gap-3 px-4 py-2.5 text-[13px]">
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-slate-800 dark:text-slate-100">#{f.id} {f.detail}</span>
+                    <span className="block text-[11.5px] text-slate-400">ข้อ {f.clause} {clauseName(f.clause)}</span>
+                  </span>
+                  <Badge tone={f.type === "ข้อสังเกต" ? "info" : f.type === "ข้อบกพร่องหลัก" ? "bad" : "warn"}>{f.type}</Badge>
+                  {f.capa ? <Badge tone="ok">{f.capa}</Badge> : f.type !== "ข้อสังเกต" && <Button variant="secondary" onClick={() => onAct({ kind: "car-new", ref: \`\${a.no} #\${f.id}\`, problem: f.detail })}>ออก CAR</Button>}
+                </li>
+              ))}
+            </ul>
+          )}
+        </Card>
+      </Body>
+    </div>
+  );
+}
+
+function GaugeRecord({ g, onAct }: { g: Gauge } & Handlers) {
+  return (
+    <div className="flex h-full flex-col">
+      <Header
+        title={\`\${g.code} · \${g.name}\`}
+        meta={\`\${g.range} · ความละเอียด \${g.resolution} · \${g.location}\`}
+        badges={<><Badge dot tone={tone(calState(g))}>{calState(g)}</Badge><Badge tone="idle">ทุก {g.intervalMonths} เดือน</Badge></>}
+        actions={
+          <>
+            <Button icon={<GaugeIcon size={14} />} onClick={() => onAct({ kind: "gauge-cal", code: g.code })}>บันทึกผลสอบเทียบ</Button>
+            <Button variant="secondary" icon={<Printer size={14} />} onClick={() => onAct({ kind: "print", d: { doc: "gauge", code: g.code }, title: "บันทึกประวัติการสอบเทียบ" })}>พิมพ์ประวัติ</Button>
+          </>
+        }
+      />
+      <Body>
+        <div className="grid gap-x-8 sm:grid-cols-2">
+          <IconRow icon={<CalendarClock size={14} />} label="สอบเทียบล่าสุด">{g.lastCal}</IconRow>
+          <IconRow icon={<CalendarClock size={14} />} label="ครบกำหนด">{g.status === "พักใช้" ? "พักใช้" : nextDue(g)}</IconRow>
+        </div>
+        <Card title="ประวัติการสอบเทียบ">
+          <ul className="divide-y divide-slate-100 dark:divide-slate-800">
+            {[...g.records].reverse().map((r, i) => (
+              <li key={i} className="flex flex-wrap items-center gap-3 px-4 py-2.5 text-[13px]">
+                <span className="w-24 shrink-0 tabular-nums text-slate-500">{r.date}</span>
+                <span className="min-w-0 flex-1 text-slate-700 dark:text-slate-200">{r.by}<span className="block text-[11.5px] text-slate-400">ใบรับรอง {r.certNo} · คลาดเคลื่อน {r.error}{r.note ? \` · \${r.note}\` : ""}</span></span>
+                <Badge tone={r.result === "ผ่าน" ? "ok" : "bad"}>{r.result}</Badge>
+              </li>
+            ))}
+          </ul>
+        </Card>
+      </Body>
+    </div>
+  );
+}
+`,
+
   "sd/data.ts": `import { FINISHED_GOODS, TODAY, issueForDelivery } from "../mm/data";
 import { commit } from "../kit";
 import { COMPANY } from "../company";

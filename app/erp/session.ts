@@ -11,7 +11,7 @@ import type { ModuleFamily } from "@/lib/modules/types";
  * payroll live in the same HR system; the HR officer opens the first and not the
  * second, and typing the URL by hand does not get them there either.
  */
-export type RoleId = "admin" | "hr" | "payroll" | "ops" | "acct";
+export type RoleId = "admin" | "hr" | "payroll" | "ops" | "acct" | "qa";
 
 export interface Role {
   id: RoleId;
@@ -28,7 +28,7 @@ export const ROLES: Role[] = [
     name: "สมชาย รักดี",
     title: "ผู้ดูแลระบบ",
     email: "admin@demo.co.th",
-    modules: ["pa", "om", "tm", "py", "mm", "pp", "sd", "wm", "fi", "co"],
+    modules: ["pa", "om", "tm", "py", "mm", "pp", "sd", "wm", "fi", "co", "qm"],
   },
   {
     id: "hr",
@@ -59,6 +59,15 @@ export const ROLES: Role[] = [
     title: "ฝ่ายบัญชี",
     email: "acct@demo.co.th",
     modules: ["fi", "co", "mm", "sd"],
+  },
+  {
+    id: "qa",
+    name: "นพดล ศรีวงศ์",
+    title: "ฝ่ายประกันคุณภาพ",
+    email: "qa@demo.co.th",
+    // Quality inspects what purchasing received, production finished and sales
+    // shipped, so it opens those to trace a lot — and nothing in HR or accounts.
+    modules: ["qm", "mm", "pp", "sd"],
   },
 ];
 

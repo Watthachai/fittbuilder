@@ -28,7 +28,7 @@ export const ROLES: Role[] = [
     name: "สมชาย รักดี",
     title: "ผู้ดูแลระบบ",
     email: "admin@demo.co.th",
-    modules: ["pa", "om", "tm", "py", "mm", "pp", "sd", "wm", "fi", "co", "ims", "qm"],
+    modules: ["pa", "om", "tm", "py", "mm", "pp", "sd", "wm", "fi", "co", "ims", "qm", "em"],
   },
   {
     id: "hr",
@@ -67,7 +67,7 @@ export const ROLES: Role[] = [
     email: "qa@demo.co.th",
     // Quality inspects what purchasing received, production finished and sales
     // shipped, so it opens those to trace a lot — and nothing in HR or accounts.
-    modules: ["ims", "qm", "mm", "pp", "sd"],
+    modules: ["ims", "qm", "em", "mm", "pp", "sd"],
   },
 ];
 

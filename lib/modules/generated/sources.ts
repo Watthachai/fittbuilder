@@ -3111,6 +3111,1700 @@ export const COMPANY = {
 };
 `,
 
+  "em/data.ts": `import { commit } from "../kit";
+import {
+  EMR, PEOPLE, TODAY, YEAR, addDays, addMonths, assertValid, carOf, contributeReviewInput, docByCode, isDate, nextNo, openCapa,
+} from "../ims/data";
+import type { Errors } from "../ims/data";
+import { MATERIALS, STOCK_MOVES } from "../mm/data";
+
+export { TODAY };
+export type { Errors };
+
+/**
+ * การจัดการสิ่งแวดล้อมตาม ISO 14001:2015 บนระบบบริหารบูรณาการ
+ *
+ * ประเด็นสิ่งแวดล้อมที่มีนัยสำคัญต้องชี้ไปที่เอกสารควบคุมที่ใช้งานอยู่จริงในทะเบียนกลาง
+ * ของเสียจากการตัดสต็อกในคลังวัสดุขึ้นมารอชั่งเข้าบัญชีของเสีย ส่งกำจัดได้ไม่เกินที่มีอยู่
+ * และต้องใช้ผู้รับกำจัดที่ใบอนุญาตยังไม่หมดอายุ ผลตรวจวัดที่เกินค่ามาตรฐาน กฎหมายที่ประเมิน
+ * แล้วไม่สอดคล้อง และอุบัติการณ์ เปิด CAR ในระบบบริหารบูรณาการให้เอง
+ */
+
+/* ================================================================ aspects */
+
+export const CONDITIONS = ["ปกติ", "ไม่ปกติ", "ฉุกเฉิน"] as const;
+export type Condition = (typeof CONDITIONS)[number];
+/** มุมมองวัฏจักรชีวิต (ข้อ 6.1.2) — ไม่ได้มองแค่ในรั้วโรงงาน */
+export const STAGES = ["วัตถุดิบ", "ผลิต", "ขนส่ง", "ใช้งาน", "หมดอายุการใช้งาน"] as const;
+export type Stage = (typeof STAGES)[number];
+
+export type Aspect = {
+  no: string;
+  activity: string;
+  aspect: string;
+  impact: string;
+  condition: Condition;
+  stage: Stage;
+  severity: number;
+  frequency: number;
+  /** มีกฎหมายหรือพันธะที่เกี่ยวข้อง — มีแล้วมีนัยสำคัญเสมอ */
+  legal: boolean;
+  /** เอกสารควบคุมการปฏิบัติงานในทะเบียนกลาง */
+  control?: string;
+  owner: string;
+};
+
+export const aspectScore = (a: Pick<Aspect, "severity" | "frequency">) => a.severity * a.frequency;
+/** มีนัยสำคัญเมื่อมีกฎหมายเกี่ยวข้อง หรือคะแนนความรุนแรงคูณความถี่ตั้งแต่ 12 */
+export const significant = (a: Pick<Aspect, "severity" | "frequency" | "legal">) => a.legal || aspectScore(a) >= 12;
+
+export const ASPECTS: Aspect[] = [
+  { no: "ASP-001", activity: "พ่นสีฝุ่นและอบ", aspect: "ไอระเหยสารอินทรีย์จากปล่องเตาอบ", impact: "มลพิษทางอากาศ กลิ่นรบกวนชุมชน", condition: "ปกติ", stage: "ผลิต", severity: 4, frequency: 5, legal: true, control: "SP-15", owner: "มานพ รุ่งเรือง" },
+  { no: "ASP-002", activity: "ถ่ายทินเนอร์ลงถังผสม", aspect: "ทินเนอร์หกรั่วไหล", impact: "ปนเปื้อนดินและรางระบายน้ำฝน", condition: "ฉุกเฉิน", stage: "ผลิต", severity: 5, frequency: 2, legal: true, control: "WI-04", owner: EMR },
+  { no: "ASP-003", activity: "ล้างชิ้นงานก่อนพ่นสี", aspect: "น้ำเสียจากบ่อฟอสเฟต", impact: "คุณภาพน้ำผิวดิน", condition: "ปกติ", stage: "ผลิต", severity: 4, frequency: 4, legal: true, control: "SP-15", owner: EMR },
+  { no: "ASP-004", activity: "เตาอบสี", aspect: "ใช้ไฟฟ้าและก๊าซหุงต้ม", impact: "ใช้ทรัพยากรพลังงาน ก๊าซเรือนกระจก", condition: "ปกติ", stage: "ผลิต", severity: 3, frequency: 5, legal: false, control: "SP-15", owner: "อนุชา ทองดี" },
+  { no: "ASP-005", activity: "พ่นสีและทำความสะอาดปืนพ่น", aspect: "กากสีและภาชนะปนเปื้อน", impact: "ของเสียอันตรายต้องกำจัดถูกวิธี", condition: "ปกติ", stage: "ผลิต", severity: 4, frequency: 4, legal: true, control: "SP-15", owner: EMR },
+  { no: "ASP-006", activity: "ปั๊มขึ้นรูปเหล็ก", aspect: "เสียงดังจากเครื่องปั๊ม", impact: "เสียงรบกวนชุมชนหลังโรงงาน", condition: "ปกติ", stage: "ผลิต", severity: 3, frequency: 4, legal: true, control: "SP-14", owner: "ประสิทธิ์ ขยันยิ่ง" },
+  { no: "ASP-007", activity: "เชื่อมประกอบ", aspect: "ฟูมเชื่อม", impact: "คุณภาพอากาศในพื้นที่ทำงาน", condition: "ปกติ", stage: "ผลิต", severity: 2, frequency: 5, legal: false, owner: "อนุชา ทองดี" },
+  { no: "ASP-008", activity: "คลังเก็บสีและทินเนอร์", aspect: "ไฟไหม้จากสารไวไฟ", impact: "มลพิษอากาศ น้ำดับเพลิงปนเปื้อน", condition: "ฉุกเฉิน", stage: "ผลิต", severity: 5, frequency: 1, legal: true, control: "SP-16", owner: EMR },
+  { no: "ASP-009", activity: "ส่งสินค้าด้วยรถบริษัท", aspect: "ไอเสียรถบรรทุก", impact: "ฝุ่นละอองและก๊าซเรือนกระจก", condition: "ปกติ", stage: "ขนส่ง", severity: 2, frequency: 4, legal: false, owner: "วรวุฒิ พึ่งบุญ" },
+  { no: "ASP-010", activity: "สินค้าหมดอายุการใช้งานที่ลูกค้า", aspect: "เศษเหล็กเคลือบสี", impact: "ของเสียที่ลูกค้าต้องกำจัด", condition: "ปกติ", stage: "หมดอายุการใช้งาน", severity: 2, frequency: 2, legal: false, owner: "ศักดิ์ชัย วงศ์ไทย" },
+  { no: "ASP-011", activity: "ซื้อเหล็กแผ่นรีดร้อน", aspect: "พลังงานที่ใช้ผลิตวัตถุดิบ", impact: "ก๊าซเรือนกระจกต้นน้ำ", condition: "ปกติ", stage: "วัตถุดิบ", severity: 3, frequency: 3, legal: false, owner: "ปิยะนุช ใจดี" },
+];
+
+export const aspectByNo = (no: string) => {
+  const a = ASPECTS.find((x) => x.no === no);
+  if (!a) throw new Error(\`ไม่พบ \${no}\`);
+  return a;
+};
+
+/** ประเด็นที่มีนัยสำคัญแต่ยังไม่มีเอกสารควบคุมที่ใช้งานอยู่ — ผู้ตรวจประเมินถามข้อนี้ก่อน */
+export const uncontrolled = () =>
+  ASPECTS.filter((a) => significant(a) && (!a.control || docByCode(a.control).status !== "ใช้งาน"));
+
+export type AspectInput = Omit<Aspect, "no">;
+
+const in1to5 = (n: number) => Number.isInteger(n) && n >= 1 && n <= 5;
+
+export function aspectErrors(input: AspectInput): Errors {
+  const e: Errors = {};
+  if (input.activity.trim().length < 3) e.activity = "ใส่กิจกรรม";
+  if (input.aspect.trim().length < 3) e.aspect = "ใส่ประเด็นสิ่งแวดล้อม";
+  if (input.impact.trim().length < 3) e.impact = "ใส่ผลกระทบ";
+  if (!in1to5(input.severity)) e.severity = "ความรุนแรง 1–5";
+  if (!in1to5(input.frequency)) e.frequency = "ความถี่ 1–5";
+  if (!PEOPLE.includes(input.owner)) e.owner = "เลือกผู้รับผิดชอบ";
+  if (significant(input)) {
+    if (!input.control) e.control = "ประเด็นที่มีนัยสำคัญต้องมีเอกสารควบคุมการปฏิบัติงาน (ข้อ 8.1)";
+    else {
+      try {
+        if (docByCode(input.control).status !== "ใช้งาน") e.control = \`\${input.control} ยังไม่ได้ใช้งาน\`;
+      } catch {
+        e.control = \`ไม่พบ \${input.control} ในทะเบียนเอกสาร\`;
+      }
+    }
+  }
+  return e;
+}
+
+export function addAspect(input: AspectInput): Aspect {
+  assertValid(aspectErrors(input));
+  return commit(() => {
+    const a: Aspect = { ...input, no: nextNo(ASPECTS.map((x) => x.no), "ASP-", 3), activity: input.activity.trim(), aspect: input.aspect.trim(), impact: input.impact.trim(), control: input.control || undefined };
+    ASPECTS.push(a);
+    return a;
+  });
+}
+
+/* =========================================================== obligations */
+
+export type Evaluation = { date: string; result: "สอดคล้อง" | "ไม่สอดคล้อง"; evidence: string; by: string };
+
+export type Obligation = {
+  no: string;
+  title: string;
+  authority: string;
+  requirement: string;
+  appliesTo: string;
+  evaluations: Evaluation[];
+};
+
+export const OBLIGATIONS: Obligation[] = [
+  {
+    no: "LAW-001", title: "พ.ร.บ.โรงงาน พ.ศ. 2535 และประกาศกระทรวงอุตสาหกรรม เรื่องการจัดการสิ่งปฏิกูลหรือวัสดุที่ไม่ใช้แล้ว พ.ศ. 2566", authority: "กรมโรงงานอุตสาหกรรม",
+    requirement: "แจ้งประเภทและปริมาณของเสีย ส่งกำจัดกับผู้รับที่ได้รับอนุญาตพร้อมใบกำกับการขนส่ง เก็บของเสียอันตรายไม่เกิน 90 วัน", appliesTo: "ของเสียทุกประเภท",
+    evaluations: [{ date: "2026-03-15", result: "สอดคล้อง", evidence: "ใบกำกับการขนส่งครบทุกรอบ ไม่มีของเสียค้างเกิน 90 วัน", by: EMR }],
+  },
+  {
+    no: "LAW-002", title: "ประกาศกระทรวงอุตสาหกรรม เรื่องกำหนดมาตรฐานควบคุมการระบายน้ำทิ้งจากโรงงาน", authority: "กรมโรงงานอุตสาหกรรม",
+    requirement: "น้ำทิ้ง BOD ไม่เกิน 20 mg/L, COD ไม่เกิน 120 mg/L, สารแขวนลอยไม่เกิน 50 mg/L, pH 5.5–9.0 ตรวจทุกไตรมาส", appliesTo: "บ่อพักน้ำทิ้งจากการล้างชิ้นงาน",
+    evaluations: [{ date: "2026-03-15", result: "สอดคล้อง", evidence: "ผลตรวจไตรมาส 4/68 และ 1/69 อยู่ในเกณฑ์", by: EMR }],
+  },
+  {
+    no: "LAW-003", title: "ประกาศกระทรวงอุตสาหกรรม เรื่องกำหนดค่าปริมาณสารเจือปนในอากาศที่ระบายออกจากโรงงาน", authority: "กรมโรงงานอุตสาหกรรม",
+    requirement: "ปล่องเตาอบสี ฝุ่นละอองไม่เกิน 320 mg/Nm³ ไซลีนไม่เกิน 200 ppm ตรวจปีละครั้ง", appliesTo: "ปล่องเตาอบสี",
+    evaluations: [{ date: "2025-09-10", result: "สอดคล้อง", evidence: "ผลตรวจปล่อง 06/2568 อยู่ในเกณฑ์", by: EMR }],
+  },
+  {
+    no: "LAW-004", title: "ประกาศกระทรวงทรัพยากรธรรมชาติฯ เรื่องกำหนดมาตรฐานระดับเสียงโดยทั่วไป", authority: "กรมควบคุมมลพิษ",
+    requirement: "ระดับเสียงเฉลี่ย 24 ชั่วโมงที่แนวเขตโรงงานไม่เกิน 70 dBA", appliesTo: "แนวรั้วด้านชุมชน",
+    evaluations: [{ date: "2026-03-15", result: "สอดคล้อง", evidence: "ผลตรวจวัดเสียง 01/2569 ค่าเฉลี่ย 64 dBA", by: EMR }],
+  },
+  {
+    no: "LAW-005", title: "พ.ร.บ.วัตถุอันตราย พ.ศ. 2535 และระบบข้อมูลความปลอดภัยสารเคมี (SDS)", authority: "กรมโรงงานอุตสาหกรรม",
+    requirement: "มี SDS ภาษาไทยฉบับปัจจุบันทุกสาร เก็บแยกตามความเข้ากันได้ ปริมาณไม่เกินที่ขออนุญาต", appliesTo: "สี ทินเนอร์ น้ำยาฟอสเฟต",
+    evaluations: [{ date: "2025-08-20", result: "สอดคล้อง", evidence: "SDS ครบทุกสาร ณ วันตรวจ", by: EMR }],
+  },
+  {
+    no: "LAW-006", title: "กฎกระทรวงกำหนดมาตรฐานในการบริหาร จัดการ และดำเนินการด้านความปลอดภัยฯ เกี่ยวกับการป้องกันและระงับอัคคีภัย", authority: "กรมสวัสดิการและคุ้มครองแรงงาน",
+    requirement: "ฝึกซ้อมดับเพลิงและอพยพหนีไฟปีละครั้ง อบรมดับเพลิงขั้นต้นไม่น้อยกว่าร้อยละ 40 ของลูกจ้างแต่ละหน่วยงาน", appliesTo: "ทุกพื้นที่",
+    evaluations: [{ date: "2026-03-15", result: "สอดคล้อง", evidence: "ซ้อมอพยพ 11/2568 อบรมดับเพลิงครบ", by: EMR }],
+  },
+];
+
+export const obligationByNo = (no: string) => {
+  const o = OBLIGATIONS.find((x) => x.no === no);
+  if (!o) throw new Error(\`ไม่พบ \${no}\`);
+  return o;
+};
+
+export const lastEvaluation = (o: Obligation) => o.evaluations[o.evaluations.length - 1];
+/** ประเมินความสอดคล้องอย่างน้อยปีละครั้ง (ข้อ 9.1.2) */
+export const nextEvaluation = (o: Obligation) => (lastEvaluation(o) ? addMonths(lastEvaluation(o).date, 12) : TODAY);
+export const evaluationDue = () => OBLIGATIONS.filter((o) => nextEvaluation(o) <= addDays(TODAY, 30));
+
+export type ObligationInput = Omit<Obligation, "no" | "evaluations">;
+
+export function obligationErrors(input: ObligationInput): Errors {
+  const e: Errors = {};
+  if (input.title.trim().length < 10) e.title = "ใส่ชื่อกฎหมายหรือพันธะ";
+  else if (OBLIGATIONS.some((o) => o.title === input.title.trim())) e.title = "มีในทะเบียนแล้ว";
+  if (input.authority.trim().length < 3) e.authority = "ใส่หน่วยงานกำกับ";
+  if (input.requirement.trim().length < 10) e.requirement = "สรุปสิ่งที่ต้องทำให้สอดคล้อง";
+  if (input.appliesTo.trim().length < 3) e.appliesTo = "ใช้กับพื้นที่หรือกิจกรรมใด";
+  return e;
+}
+
+export function addObligation(input: ObligationInput) {
+  assertValid(obligationErrors(input));
+  return commit(() => {
+    const o: Obligation = { no: nextNo(OBLIGATIONS.map((x) => x.no), "LAW-", 3), title: input.title.trim(), authority: input.authority.trim(), requirement: input.requirement.trim(), appliesTo: input.appliesTo.trim(), evaluations: [] };
+    OBLIGATIONS.push(o);
+    return o;
+  });
+}
+
+export function evaluationErrors(no: string, input: Omit<Evaluation, "date">): Errors {
+  obligationByNo(no);
+  const e: Errors = {};
+  if (input.evidence.trim().length < 10) e.evidence = "บอกหลักฐานที่ใช้ประเมิน เช่น ผลตรวจวัด ใบกำกับ";
+  if (!PEOPLE.includes(input.by)) e.by = "เลือกผู้ประเมิน";
+  return e;
+}
+
+/** ประเมินความสอดคล้อง — ไม่สอดคล้องเปิด CAR ในระบบบริหารบูรณาการทันที */
+export function evaluateObligation(no: string, input: Omit<Evaluation, "date">, date = TODAY) {
+  assertValid(evaluationErrors(no, input));
+  const o = obligationByNo(no);
+  return commit(() => {
+    const ev: Evaluation = { date, result: input.result, evidence: input.evidence.trim(), by: input.by };
+    o.evaluations.push(ev);
+    const ref = \`\${o.no} \${date}\`;
+    const car = input.result === "ไม่สอดคล้อง" && !carOf(ref)
+      ? openCapa({ method: "5 Why", std: "ISO 14001", ref, problem: \`ไม่สอดคล้องกับ \${o.title}: \${input.evidence.trim()}\`, owner: EMR, team: [] })
+      : undefined;
+    return { obligation: o, car };
+  });
+}
+
+/* =================================================== waste and chemicals */
+
+export type WasteType = { code: string; name: string; hazardous: boolean; wasteCode: string; storage: string; method: string };
+
+export const WASTE_TYPES: WasteType[] = [
+  { code: "W-01", name: "กากสีและตะกอนสี", hazardous: true, wasteCode: "080113", storage: "โรงเก็บของเสียอันตราย ช่อง A", method: "049 เผาร่วมในเตาเผาปูนซีเมนต์" },
+  { code: "W-02", name: "ภาชนะบรรจุปนเปื้อนสีและทินเนอร์", hazardous: true, wasteCode: "150110", storage: "โรงเก็บของเสียอันตราย ช่อง B", method: "049 เผาร่วมในเตาเผาปูนซีเมนต์" },
+  { code: "W-03", name: "ทินเนอร์ใช้แล้ว", hazardous: true, wasteCode: "140603", storage: "โรงเก็บของเสียอันตราย ช่อง C", method: "021 นำกลับมาใช้ใหม่ (กลั่น)" },
+  { code: "W-04", name: "เศษเหล็กและชิ้นงานเสีย", hazardous: false, wasteCode: "120101", storage: "ลานเศษเหล็ก", method: "041 นำกลับมาใช้ใหม่ (หลอม)" },
+  { code: "W-05", name: "กระดาษและกล่องลูกฟูก", hazardous: false, wasteCode: "150101", storage: "ลานคัดแยกขยะรีไซเคิล", method: "041 นำกลับมาใช้ใหม่" },
+];
+
+export const wasteType = (code: string) => {
+  const w = WASTE_TYPES.find((x) => x.code === code);
+  if (!w) throw new Error(\`ไม่พบประเภทของเสีย \${code}\`);
+  return w;
+};
+
+export type Generation = { date: string; type: string; kg: number; source: string };
+
+export const GENERATIONS: Generation[] = [
+  { date: "2026-06-30", type: "W-01", kg: 210, source: "รวมเดือนมิถุนายน" },
+  { date: "2026-06-30", type: "W-02", kg: 85, source: "รวมเดือนมิถุนายน" },
+  { date: "2026-06-30", type: "W-03", kg: 160, source: "รวมเดือนมิถุนายน" },
+  { date: "2026-07-31", type: "W-01", kg: 195, source: "รวมเดือนกรกฎาคม" },
+  { date: "2026-07-31", type: "W-02", kg: 80, source: "รวมเดือนกรกฎาคม" },
+  { date: "2026-07-31", type: "W-03", kg: 155, source: "รวมเดือนกรกฎาคม" },
+  { date: "2026-08-31", type: "W-01", kg: 180, source: "รวมเดือนสิงหาคม" },
+  { date: "2026-08-31", type: "W-02", kg: 70, source: "รวมเดือนสิงหาคม" },
+  { date: "2026-08-31", type: "W-03", kg: 150, source: "รวมเดือนสิงหาคม" },
+  { date: "2026-08-31", type: "W-04", kg: 1240, source: "รวมเดือนสิงหาคม" },
+  { date: "2026-08-31", type: "W-05", kg: 320, source: "รวมเดือนสิงหาคม" },
+];
+
+export type Receiver = { name: string; license: string; validUntil: string; methods: string[] };
+
+/** ผู้รับกำจัดที่ได้รับอนุญาต — ใบอนุญาตหมดอายุแล้วส่งของเสียให้ไม่ได้ */
+export const RECEIVERS: Receiver[] = [
+  { name: "บจก. ปูนซีเมนต์ไทยอุตสาหกรรม (โรงงานแก่งคอย)", license: "3-60(1)-1/40สบ", validUntil: "2027-12-31", methods: ["049 เผาร่วมในเตาเผาปูนซีเมนต์"] },
+  { name: "บจก. รีไซเคิลโซลเว้นท์", license: "3-106-12/58ชบ", validUntil: "2026-09-30", methods: ["021 นำกลับมาใช้ใหม่ (กลั่น)"] },
+  { name: "หจก. ค้าเหล็กเก่าบางปู", license: "3-105-44/61สป", validUntil: "2028-06-30", methods: ["041 นำกลับมาใช้ใหม่ (หลอม)", "041 นำกลับมาใช้ใหม่"] },
+];
+
+export type Disposal = { no: string; date: string; type: string; kg: number; receiver: string; manifest: string; certificate?: string };
+
+export const DISPOSALS: Disposal[] = [
+  { no: "WD-2569-011", date: "2026-07-20", type: "W-01", kg: 210, receiver: RECEIVERS[0].name, manifest: "สก.3-69-00418", certificate: "COD-69-1187" },
+  { no: "WD-2569-012", date: "2026-07-20", type: "W-02", kg: 85, receiver: RECEIVERS[0].name, manifest: "สก.3-69-00419", certificate: "COD-69-1188" },
+  { no: "WD-2569-013", date: "2026-08-12", type: "W-03", kg: 315, receiver: RECEIVERS[1].name, manifest: "สก.3-69-00502", certificate: "RS-69-0331" },
+  { no: "WD-2569-014", date: "2026-09-05", type: "W-04", kg: 1240, receiver: RECEIVERS[2].name, manifest: "ขายเศษเหล็ก 09/69" },
+  { no: "WD-2569-015", date: "2026-09-10", type: "W-01", kg: 195, receiver: RECEIVERS[0].name, manifest: "สก.3-69-00561" },
+];
+
+export const disposalByNo = (no: string) => {
+  const d = DISPOSALS.find((x) => x.no === no);
+  if (!d) throw new Error(\`ไม่พบ \${no}\`);
+  return d;
+};
+
+/** ของเสียที่ยังเก็บอยู่ และวันที่เกิดของล็อตที่เก่าที่สุดที่ยังไม่ส่งกำจัด (เข้าก่อนออกก่อน) */
+export function onHand(type: string) {
+  const gen = GENERATIONS.filter((g) => g.type === type).sort((a, b) => a.date.localeCompare(b.date));
+  let out = DISPOSALS.filter((d) => d.type === type).reduce((n, d) => n + d.kg, 0);
+  const kg = gen.reduce((n, g) => n + g.kg, 0) - out;
+  let oldest: string | undefined;
+  for (const g of gen) {
+    if (out >= g.kg) {
+      out -= g.kg;
+      continue;
+    }
+    oldest = g.date;
+    break;
+  }
+  return { kg, oldest, days: oldest ? Math.round((Date.parse(TODAY) - Date.parse(oldest)) / 86_400_000) : 0 };
+}
+
+/** ของเสียอันตรายที่เก็บนานเกิน 60 วัน — เตือนก่อนถึงกำหนด 90 วันตามกฎหมาย */
+export const storedTooLong = () => WASTE_TYPES.filter((w) => w.hazardous && onHand(w.code).days > 60);
+
+/** ของที่คลังวัสดุตัดเป็นของเสียแล้ว แต่ยังไม่ได้ชั่งเข้าบัญชีของเสีย */
+export const pendingScrap = () =>
+  STOCK_MOVES.filter((m) => m.kind === "ตัดของเสีย" && m.doc && !GENERATIONS.some((g) => g.source === m.doc));
+
+export type GenerationInput = { type: string; kg: number; source: string; date: string };
+
+export function generationErrors(input: GenerationInput): Errors {
+  const e: Errors = {};
+  if (!WASTE_TYPES.some((w) => w.code === input.type)) e.type = "เลือกประเภทของเสีย";
+  if (!(input.kg > 0)) e.kg = "น้ำหนักเป็นกิโลกรัม มากกว่าศูนย์";
+  if (input.source.trim().length < 3) e.source = "ใส่ที่มา เช่น เอกสารตัดสต็อก";
+  else if (GENERATIONS.some((g) => g.source === input.source.trim() && g.source.startsWith("AJ-"))) e.source = \`\${input.source} ชั่งเข้าบัญชีแล้ว\`;
+  if (!isDate(input.date) || input.date > TODAY) e.date = "วันที่ต้องไม่เกินวันนี้";
+  return e;
+}
+
+export function recordGeneration(input: GenerationInput) {
+  assertValid(generationErrors(input));
+  return commit(() => {
+    const g: Generation = { date: input.date, type: input.type, kg: input.kg, source: input.source.trim() };
+    GENERATIONS.push(g);
+    return g;
+  });
+}
+
+export type DisposalInput = { type: string; kg: number; receiver: string; manifest: string; date: string };
+
+export function disposalErrors(input: DisposalInput): Errors {
+  const e: Errors = {};
+  const w = WASTE_TYPES.find((x) => x.code === input.type);
+  if (!w) e.type = "เลือกประเภทของเสีย";
+  else if (!(input.kg > 0)) e.kg = "น้ำหนักมากกว่าศูนย์";
+  else if (input.kg > onHand(w.code).kg) e.kg = \`ส่งได้ไม่เกินที่เก็บอยู่ \${onHand(w.code).kg.toLocaleString("th-TH")} กก.\`;
+  const r = RECEIVERS.find((x) => x.name === input.receiver);
+  if (!r) e.receiver = "เลือกผู้รับกำจัดที่ได้รับอนุญาต";
+  else if (r.validUntil < (input.date || TODAY)) e.receiver = \`ใบอนุญาต \${r.license} หมดอายุ \${r.validUntil} — ส่งของเสียให้ไม่ได้\`;
+  else if (w && !r.methods.includes(w.method)) e.receiver = \`\${r.name} ไม่ได้รับอนุญาตวิธี \${w.method}\`;
+  if (w?.hazardous && input.manifest.trim().length < 5) e.manifest = "ของเสียอันตรายต้องมีเลขใบกำกับการขนส่ง";
+  if (!isDate(input.date) || input.date > TODAY) e.date = "วันที่ต้องไม่เกินวันนี้";
+  return e;
+}
+
+export function recordDisposal(input: DisposalInput) {
+  assertValid(disposalErrors(input));
+  return commit(() => {
+    const d: Disposal = { no: nextNo(DISPOSALS.map((x) => x.no), \`WD-\${YEAR}-\`, 3), date: input.date, type: input.type, kg: input.kg, receiver: input.receiver, manifest: input.manifest.trim() };
+    DISPOSALS.push(d);
+    return d;
+  });
+}
+
+/** ใบรับรองการกำจัดจากผู้รับ — ปิดวงจรว่าของเสียถูกกำจัดจริง */
+export function recordCertificate(no: string, certificate: string) {
+  const d = disposalByNo(no);
+  if (d.certificate) throw new Error(\`\${no} ได้รับใบรับรองแล้ว\`);
+  if (certificate.trim().length < 3) throw new Error("ใส่เลขใบรับรองการกำจัด");
+  return commit(() => {
+    d.certificate = certificate.trim();
+    return d;
+  });
+}
+
+export type Chemical = {
+  code: string;
+  name: string;
+  hazard: string;
+  sdsDate: string;
+  location: string;
+  maxQty: number;
+  unit: string;
+  /** รหัสวัสดุในระบบจัดซื้อ — ปริมาณคงเหลืออ่านจากคลังวัสดุ */
+  material?: string;
+  qty?: number;
+};
+
+export const CHEMICALS: Chemical[] = [
+  { code: "CH-01", name: "สีพ่นอุตสาหกรรม สีเทา", hazard: "ไวไฟ ระคายเคือง", sdsDate: "2024-05-10", location: "คลังสารไวไฟ", maxQty: 60, unit: "ถัง", material: "MAT-1003" },
+  { code: "CH-02", name: "ทินเนอร์ผสมสี", hazard: "ไวไฟมาก เป็นพิษต่อระบบประสาท", sdsDate: "2020-11-02", location: "คลังสารไวไฟ", maxQty: 40, unit: "ถัง", qty: 18 },
+  { code: "CH-03", name: "น้ำยาฟอสเฟตปรับสภาพผิว", hazard: "กัดกร่อน", sdsDate: "2023-02-14", location: "ห้องเตรียมผิวชิ้นงาน", maxQty: 20, unit: "แกลลอน", qty: 12 },
+  { code: "CH-04", name: "ก๊าซหุงต้ม (LPG) เตาอบ", hazard: "ก๊าซไวไฟ", sdsDate: "2025-01-08", location: "ลานถังก๊าซ", maxQty: 8, unit: "ถัง 48 กก.", qty: 6 },
+];
+
+export const chemicalByCode = (code: string) => {
+  const c = CHEMICALS.find((x) => x.code === code);
+  if (!c) throw new Error(\`ไม่พบ \${code}\`);
+  return c;
+};
+
+/** ปริมาณคงเหลือ — สารที่ซื้อผ่านระบบจัดซื้ออ่านจากคลังวัสดุ ไม่นับซ้ำ */
+export const qtyOf = (c: Chemical) => (c.material ? MATERIALS.find((m) => m.code === c.material)?.stock ?? 0 : c.qty ?? 0);
+/** SDS ต้องทบทวนทุก 5 ปี (LAW-005) */
+export const sdsExpired = (c: Chemical) => addMonths(c.sdsDate, 60) < TODAY;
+export const overStored = (c: Chemical) => qtyOf(c) > c.maxQty;
+export const chemicalIssues = () => CHEMICALS.filter((c) => sdsExpired(c) || overStored(c));
+
+export function updateSds(code: string, date: string) {
+  const c = chemicalByCode(code);
+  if (!isDate(date) || date > TODAY) throw new Error("วันที่ SDS ต้องไม่เกินวันนี้");
+  if (date <= c.sdsDate) throw new Error("SDS ฉบับใหม่ต้องใหม่กว่าฉบับเดิม");
+  return commit(() => {
+    c.sdsDate = date;
+    return c;
+  });
+}
+
+/* ============================================================ monitoring */
+
+export type Parameter = { code: string; group: string; point: string; name: string; unit: string; min?: number; max?: number; law: string; everyMonths: number };
+
+export const PARAMETERS: Parameter[] = [
+  { code: "WW-BOD", group: "น้ำทิ้ง", point: "บ่อพักก่อนระบาย", name: "BOD", unit: "mg/L", max: 20, law: "LAW-002", everyMonths: 3 },
+  { code: "WW-COD", group: "น้ำทิ้ง", point: "บ่อพักก่อนระบาย", name: "COD", unit: "mg/L", max: 120, law: "LAW-002", everyMonths: 3 },
+  { code: "WW-SS", group: "น้ำทิ้ง", point: "บ่อพักก่อนระบาย", name: "สารแขวนลอย", unit: "mg/L", max: 50, law: "LAW-002", everyMonths: 3 },
+  { code: "WW-PH", group: "น้ำทิ้ง", point: "บ่อพักก่อนระบาย", name: "pH", unit: "", min: 5.5, max: 9, law: "LAW-002", everyMonths: 3 },
+  { code: "ST-TSP", group: "อากาศจากปล่อง", point: "ปล่องเตาอบสี", name: "ฝุ่นละออง", unit: "mg/Nm³", max: 320, law: "LAW-003", everyMonths: 12 },
+  { code: "ST-XYL", group: "อากาศจากปล่อง", point: "ปล่องเตาอบสี", name: "ไซลีน", unit: "ppm", max: 200, law: "LAW-003", everyMonths: 12 },
+  { code: "NS-LEQ", group: "เสียง", point: "แนวรั้วด้านชุมชน", name: "ระดับเสียงเฉลี่ย 24 ชม.", unit: "dBA", max: 70, law: "LAW-004", everyMonths: 6 },
+];
+
+export const parameterByCode = (code: string) => {
+  const p = PARAMETERS.find((x) => x.code === code);
+  if (!p) throw new Error(\`ไม่พบ \${code}\`);
+  return p;
+};
+
+export const exceeds = (p: Parameter, v: number) => (p.max !== undefined && v > p.max) || (p.min !== undefined && v < p.min);
+export const limitText = (p: Parameter) => (p.min !== undefined ? \`\${p.min}–\${p.max}\` : \`≤ \${p.max}\`) + (p.unit ? \` \${p.unit}\` : "");
+
+export type Monitoring = { no: string; date: string; group: string; lab: string; values: Record<string, number>; car?: string };
+
+export const MONITORINGS: Monitoring[] = [
+  { no: "MON-2569-01", date: "2026-01-14", group: "เสียง", lab: "บจก. เอ็นไวรอนเมนทัลแล็บ", values: { "NS-LEQ": 64 } },
+  { no: "MON-2569-02", date: "2026-03-10", group: "น้ำทิ้ง", lab: "บจก. เอ็นไวรอนเมนทัลแล็บ", values: { "WW-BOD": 14, "WW-COD": 88, "WW-SS": 31, "WW-PH": 7.2 } },
+  { no: "MON-2569-03", date: "2026-06-09", group: "น้ำทิ้ง", lab: "บจก. เอ็นไวรอนเมนทัลแล็บ", values: { "WW-BOD": 18, "WW-COD": 104, "WW-SS": 42, "WW-PH": 6.8 } },
+  { no: "MON-2569-04", date: "2026-06-18", group: "อากาศจากปล่อง", lab: "บจก. เอ็นไวรอนเมนทัลแล็บ", values: { "ST-TSP": 95, "ST-XYL": 132 } },
+  { no: "MON-2569-05", date: "2026-07-15", group: "เสียง", lab: "บจก. เอ็นไวรอนเมนทัลแล็บ", values: { "NS-LEQ": 67 } },
+];
+
+export const GROUPS = [...new Set(PARAMETERS.map((p) => p.group))];
+
+/** รอบตรวจวัดถัดไปของแต่ละกลุ่ม — จากผลครั้งล่าสุดบวกรอบที่กฎหมายกำหนด */
+export function monitoringDue() {
+  return GROUPS.map((group) => {
+    const every = Math.min(...PARAMETERS.filter((p) => p.group === group).map((p) => p.everyMonths));
+    const last = MONITORINGS.filter((m) => m.group === group).sort((a, b) => a.date.localeCompare(b.date)).at(-1);
+    const due = last ? addMonths(last.date, every) : TODAY;
+    return { group, last: last?.date, due, late: due < TODAY, soon: due <= addDays(TODAY, 30) };
+  });
+}
+
+export const exceedancesOf = (m: Monitoring) => Object.entries(m.values).filter(([code, v]) => exceeds(parameterByCode(code), v)).map(([code, v]) => ({ parameter: parameterByCode(code), value: v }));
+
+export type MonitoringInput = { group: string; date: string; lab: string; values: Record<string, number | undefined> };
+
+export function monitoringErrors(input: MonitoringInput): Errors {
+  const e: Errors = {};
+  if (!GROUPS.includes(input.group)) e.group = "เลือกกลุ่มการตรวจวัด";
+  if (!isDate(input.date) || input.date > TODAY) e.date = "วันที่เก็บตัวอย่างต้องไม่เกินวันนี้";
+  if (input.lab.trim().length < 3) e.lab = "ใส่ห้องปฏิบัติการที่ตรวจ";
+  const missing = PARAMETERS.filter((p) => p.group === input.group && !Number.isFinite(input.values[p.code]));
+  if (missing.length) e.values = \`ใส่ผล \${missing.map((p) => p.name).join(", ")}\`;
+  return e;
+}
+
+/** บันทึกผลตรวจวัด — เกินค่ามาตรฐานข้อใดก็ตามเปิด CAR ในระบบบริหารบูรณาการทันที */
+export function recordMonitoring(input: MonitoringInput) {
+  assertValid(monitoringErrors(input));
+  return commit(() => {
+    const values = Object.fromEntries(PARAMETERS.filter((p) => p.group === input.group).map((p) => [p.code, input.values[p.code]!]));
+    const m: Monitoring = { no: nextNo(MONITORINGS.map((x) => x.no), \`MON-\${YEAR}-\`, 2), date: input.date, group: input.group, lab: input.lab.trim(), values };
+    MONITORINGS.push(m);
+    const over = exceedancesOf(m);
+    if (over.length) {
+      const car = openCapa({
+        method: "5 Why", std: "ISO 14001", ref: m.no, owner: EMR, team: [],
+        problem: \`\${input.group}เกินค่ามาตรฐาน: \${over.map((x) => \`\${x.parameter.name} \${x.value}\${x.parameter.unit ? \` \${x.parameter.unit}\` : ""} (เกณฑ์ \${limitText(x.parameter)})\`).join(", ")}\`,
+      });
+      m.car = car.no;
+    }
+    return m;
+  });
+}
+
+/* ============================================================= emergency */
+
+export type Plan = { code: string; scenario: string; area: string; response: string[]; equipment: string; everyMonths: number };
+
+export const PLANS: Plan[] = [
+  { code: "EP-01", scenario: "สารเคมีหกรั่วไหล", area: "พื้นที่ผสมสีและคลังสารไวไฟ", response: ["หยุดการรั่วไหลและกั้นพื้นที่", "ใช้ชุดดูดซับปิดรางระบายน้ำฝน", "เก็บวัสดุดูดซับเป็นของเสียอันตราย W-02", "รายงานผู้แทนฝ่ายบริหารด้านสิ่งแวดล้อม"], equipment: "ชุดดูดซับสารเคมี 2 ชุด ถาดรอง แผ่นปิดท่อระบาย", everyMonths: 12 },
+  { code: "EP-02", scenario: "อัคคีภัย", area: "ทั้งโรงงาน", response: ["กดสัญญาณเตือนภัย", "ทีมดับเพลิงขั้นต้นระงับเหตุ", "อพยพไปจุดรวมพล นับจำนวน", "กั้นน้ำดับเพลิงไม่ให้ลงรางน้ำฝน"], equipment: "ถังดับเพลิง 24 ถัง ตู้สายฉีดน้ำ 4 ตู้ ประตูกั้นน้ำ", everyMonths: 12 },
+  { code: "EP-03", scenario: "ก๊าซ LPG รั่วที่เตาอบ", area: "ลานถังก๊าซและเตาอบสี", response: ["ปิดวาล์วหลัก ตัดไฟเตาอบ", "ห้ามก่อประกายไฟ เปิดระบายอากาศ", "อพยพรัศมี 50 เมตร", "แจ้งผู้จำหน่ายก๊าซตรวจสอบก่อนเปิดใช้"], equipment: "เครื่องตรวจจับก๊าซ วาล์วตัดฉุกเฉิน", everyMonths: 12 },
+];
+
+export type Drill = { no: string; plan: string; date: string; participants: number; minutes: number; result: "ผ่าน" | "ต้องปรับปรุง"; findings: string; improvement?: string; by: string };
+
+export const DRILLS: Drill[] = [
+  { no: "DR-2568-02", plan: "EP-02", date: "2025-11-20", participants: 86, minutes: 7, result: "ผ่าน", findings: "อพยพครบใน 7 นาที ตามเป้าไม่เกิน 8 นาที", by: EMR },
+  { no: "DR-2569-01", plan: "EP-01", date: "2026-07-29", participants: 12, minutes: 9, result: "ต้องปรับปรุง", findings: "ชุดดูดซับอยู่ไกลจุดถ่ายถัง ใช้เวลาเดินไปหยิบ 3 นาที", improvement: "ย้ายชุดดูดซับไว้ติดจุดถ่ายถังและเพิ่มหนึ่งชุด", by: EMR },
+  { no: "DR-2568-01", plan: "EP-03", date: "2025-06-12", participants: 8, minutes: 5, result: "ผ่าน", findings: "ปิดวาล์วและอพยพได้ตามขั้นตอน", by: EMR },
+];
+
+export const planByCode = (code: string) => {
+  const p = PLANS.find((x) => x.code === code);
+  if (!p) throw new Error(\`ไม่พบแผน \${code}\`);
+  return p;
+};
+
+export const lastDrill = (code: string) => DRILLS.filter((d) => d.plan === code).sort((a, b) => a.date.localeCompare(b.date)).at(-1);
+export const drillDue = (p: Plan) => (lastDrill(p.code) ? addMonths(lastDrill(p.code)!.date, p.everyMonths) : TODAY);
+export const drillsOverdue = () => PLANS.filter((p) => drillDue(p) < TODAY);
+
+export type DrillInput = Omit<Drill, "no">;
+
+export function drillErrors(input: DrillInput): Errors {
+  const e: Errors = {};
+  if (!PLANS.some((p) => p.code === input.plan)) e.plan = "เลือกแผนที่ซ้อม";
+  if (!isDate(input.date) || input.date > TODAY) e.date = "วันที่ซ้อมต้องไม่เกินวันนี้";
+  if (!(input.participants > 0)) e.participants = "จำนวนผู้เข้าร่วม";
+  if (!(input.minutes > 0)) e.minutes = "เวลาที่ใช้ (นาที)";
+  if (input.findings.trim().length < 10) e.findings = "บอกสิ่งที่พบจากการซ้อม";
+  if (input.result === "ต้องปรับปรุง" && (input.improvement ?? "").trim().length < 10) e.improvement = "ซ้อมแล้วต้องปรับปรุง ต้องบอกว่าจะปรับอะไร";
+  if (!PEOPLE.includes(input.by)) e.by = "เลือกผู้บันทึก";
+  return e;
+}
+
+export function recordDrill(input: DrillInput) {
+  assertValid(drillErrors(input));
+  return commit(() => {
+    const d: Drill = { ...input, no: nextNo(DRILLS.map((x) => x.no), \`DR-\${YEAR}-\`, 2), findings: input.findings.trim(), improvement: input.improvement?.trim() || undefined };
+    DRILLS.push(d);
+    return d;
+  });
+}
+
+export type Incident = {
+  no: string;
+  date: string;
+  plan?: string;
+  description: string;
+  impact: string;
+  containment: string;
+  severity: "รุนแรง" | "ปานกลาง" | "เล็กน้อย";
+  /** รายงานหน่วยงานรัฐแล้ว — เหตุรุนแรงต้องรายงาน */
+  reported?: string;
+  status: "เปิด" | "ปิดแล้ว";
+};
+
+export const INCIDENTS: Incident[] = [
+  {
+    no: "INC-2569-01", date: "2026-05-02", plan: "EP-01", description: "ทินเนอร์หกจากถังขณะถ่ายประมาณ 5 ลิตร", impact: "ไหลลงรางระบายน้ำฝนบางส่วน ไม่ออกนอกโรงงาน",
+    containment: "ปิดรางด้วยแผ่นปิด ใช้วัสดุดูดซับ เก็บเป็นของเสีย W-02", severity: "ปานกลาง", status: "ปิดแล้ว",
+  },
+];
+
+export const incidentByNo = (no: string) => {
+  const i = INCIDENTS.find((x) => x.no === no);
+  if (!i) throw new Error(\`ไม่พบ \${no}\`);
+  return i;
+};
+
+export type IncidentInput = Omit<Incident, "no" | "status" | "reported">;
+
+export function incidentErrors(input: IncidentInput): Errors {
+  const e: Errors = {};
+  if (!isDate(input.date) || input.date > TODAY) e.date = "วันที่เกิดเหตุต้องไม่เกินวันนี้";
+  if (input.description.trim().length < 10) e.description = "เล่าสิ่งที่เกิดขึ้น";
+  if (input.impact.trim().length < 5) e.impact = "ผลกระทบต่อสิ่งแวดล้อม";
+  if (input.containment.trim().length < 10) e.containment = "ทำอะไรไปแล้วเพื่อควบคุมเหตุ";
+  return e;
+}
+
+/** รายงานอุบัติการณ์ (ข้อ 10.2) — เปิด CAR ให้หาสาเหตุทุกครั้ง */
+export function reportIncident(input: IncidentInput) {
+  assertValid(incidentErrors(input));
+  return commit(() => {
+    const i: Incident = { ...input, no: nextNo(INCIDENTS.map((x) => x.no), \`INC-\${YEAR}-\`, 2), description: input.description.trim(), impact: input.impact.trim(), containment: input.containment.trim(), status: "เปิด" };
+    INCIDENTS.push(i);
+    const car = openCapa({ method: "5 Why", std: "ISO 14001", ref: i.no, problem: \`\${i.description} — \${i.impact}\`, owner: EMR, team: [] });
+    return { incident: i, car };
+  });
+}
+
+export function markReported(no: string, text: string) {
+  const i = incidentByNo(no);
+  if (text.trim().length < 5) throw new Error("บอกหน่วยงานและวันที่รายงาน");
+  return commit(() => {
+    i.reported = text.trim();
+    return i;
+  });
+}
+
+export function closeIncidentErrors(no: string): Errors {
+  const i = incidentByNo(no);
+  const e: Errors = {};
+  if (i.status === "ปิดแล้ว") e.close = \`\${no} ปิดแล้ว\`;
+  else if (i.severity === "รุนแรง" && !i.reported) e.close = "เหตุรุนแรงต้องรายงานหน่วยงานรัฐก่อนปิด";
+  else if (carOf(i.no)?.status !== "ปิดแล้ว") e.close = \`ปิด \${carOf(i.no)?.no ?? "CAR"} ในระบบบริหารบูรณาการก่อน\`;
+  return e;
+}
+
+export function closeIncident(no: string) {
+  assertValid(closeIncidentErrors(no));
+  const i = incidentByNo(no);
+  return commit(() => {
+    i.status = "ปิดแล้ว";
+    return i;
+  });
+}
+
+/* ======================================================== review inputs */
+
+const toneOf = (bad: boolean, warn = false) => (bad ? "bad" : warn ? "warn" : "ok") as "bad" | "warn" | "ok";
+
+contributeReviewInput({
+  key: "em-compliance", std: ["ISO 14001"], input: "ค 6", title: "การประเมินความสอดคล้องกับกฎหมาย",
+  facts: () => {
+    const failing = OBLIGATIONS.filter((o) => lastEvaluation(o)?.result === "ไม่สอดคล้อง").length;
+    return [
+      { label: "ไม่สอดคล้องครั้งล่าสุด", value: \`\${failing} ฉบับ\`, tone: toneOf(failing > 0) },
+      { label: "ถึงรอบประเมิน", value: \`\${evaluationDue().length} ฉบับ\`, tone: toneOf(false, evaluationDue().length > 0) },
+    ];
+  },
+});
+
+contributeReviewInput({
+  key: "em-aspects", std: ["ISO 14001"], input: "ข 2", title: "ประเด็นสิ่งแวดล้อมที่มีนัยสำคัญ",
+  facts: () => [
+    { label: "มีนัยสำคัญ", value: \`\${ASPECTS.filter(significant).length} จาก \${ASPECTS.length} ประเด็น\`, tone: "idle" },
+    { label: "ไม่มีเอกสารควบคุมที่ใช้งาน", value: \`\${uncontrolled().length} ประเด็น\`, tone: toneOf(uncontrolled().length > 0) },
+  ],
+});
+
+contributeReviewInput({
+  key: "em-monitoring", std: ["ISO 14001"], input: "ค 5", title: "ผลการตรวจวัดสิ่งแวดล้อม",
+  facts: () => {
+    const year = MONITORINGS.filter((m) => m.date.slice(0, 4) === TODAY.slice(0, 4));
+    const over = year.filter((m) => exceedancesOf(m).length > 0).length;
+    const late = monitoringDue().filter((d) => d.late).length;
+    return [
+      { label: "เกินค่ามาตรฐานปีนี้", value: \`\${over} จาก \${year.length} ครั้ง\`, tone: toneOf(over > 0) },
+      { label: "เลยรอบตรวจวัด", value: \`\${late} กลุ่ม\`, tone: toneOf(late > 0) },
+    ];
+  },
+});
+
+contributeReviewInput({
+  key: "em-waste", std: ["ISO 14001"], input: "ค 5", title: "ของเสียและสารเคมี",
+  facts: () => {
+    const haz = WASTE_TYPES.filter((w) => w.hazardous).reduce((n, w) => n + onHand(w.code).kg, 0);
+    return [
+      { label: "ของเสียอันตรายที่เก็บอยู่", value: \`\${haz.toLocaleString("th-TH")} กก.\`, tone: toneOf(false, storedTooLong().length > 0) },
+      { label: "สารเคมีที่ SDS หมดอายุหรือเก็บเกิน", value: \`\${chemicalIssues().length} รายการ\`, tone: toneOf(chemicalIssues().length > 0) },
+    ];
+  },
+});
+
+contributeReviewInput({
+  key: "em-emergency", std: ["ISO 14001"], input: "ค 2", title: "การเตรียมพร้อมและอุบัติการณ์",
+  facts: () => [
+    { label: "แผนที่เลยรอบซ้อม", value: \`\${drillsOverdue().length} แผน\`, tone: toneOf(drillsOverdue().length > 0) },
+    { label: "อุบัติการณ์ปีนี้", value: \`\${INCIDENTS.filter((i) => i.date.slice(0, 4) === TODAY.slice(0, 4)).length} ครั้ง\`, tone: toneOf(false, INCIDENTS.some((i) => i.status === "เปิด")) },
+  ],
+});
+`,
+
+  "em/documents.tsx": `import { Paper } from "../kit";
+import { EMR, TOP, formNo } from "../ims/data";
+import { Block, Facts, Foot, PaperHead, PaperTable, Signatures } from "../ims/parts";
+import {
+  ASPECTS, DISPOSALS, DRILLS, GENERATIONS, MONITORINGS, OBLIGATIONS, PARAMETERS, WASTE_TYPES, aspectScore, exceeds, lastEvaluation,
+  limitText, nextEvaluation, onHand, planByCode, significant, wasteType,
+} from "./data";
+
+/** เอกสารที่พิมพ์ได้จากระบบสิ่งแวดล้อม — ทุกใบมีเลขแบบฟอร์มจากบัญชีรายชื่อเอกสาร */
+export type EmDoc =
+  | { doc: "aspects" }
+  | { doc: "obligations" }
+  | { doc: "waste" }
+  | { doc: "monitoring"; no: string }
+  | { doc: "drill"; no: string };
+
+const Foot_ = () => <Foot system="ระบบการจัดการสิ่งแวดล้อม ISO 14001:2015" />;
+
+function AspectRegister() {
+  return (
+    <>
+      <PaperHead title="ทะเบียนประเด็นสิ่งแวดล้อม" form={formNo("FM-16")} />
+      <PaperTable
+        head={["เลขที่", "กิจกรรม", "ประเด็น", "ผลกระทบ", "สภาวะ", "วัฏจักร", "ร×ถ", "กฎหมาย", "นัยสำคัญ", "การควบคุม"]}
+        rows={ASPECTS.map((a) => [a.no, a.activity, a.aspect, a.impact, a.condition, a.stage, String(aspectScore(a)), a.legal ? "มี" : "—", significant(a) ? "มี" : "—", a.control ?? "—"])}
+      />
+      <p className="mt-3 text-slate-600">มีนัยสำคัญเมื่อมีกฎหมายเกี่ยวข้อง หรือความรุนแรง × ความถี่ตั้งแต่ 12 · ประเด็นที่มีนัยสำคัญต้องมีเอกสารควบคุมการปฏิบัติงาน</p>
+      <Signatures names={[["ผู้จัดทำ (EMR)", EMR], ["ผู้อนุมัติ", TOP]]} />
+      <Foot_ />
+    </>
+  );
+}
+
+function ObligationRegister() {
+  return (
+    <>
+      <PaperHead title="ทะเบียนกฎหมายและผลการประเมินความสอดคล้อง" form={formNo("FM-17")} />
+      <PaperTable
+        head={["เลขที่", "กฎหมาย / พันธะ", "หน่วยงาน", "สิ่งที่ต้องทำ", "ประเมินล่าสุด", "ผล", "ประเมินครั้งถัดไป"]}
+        rows={OBLIGATIONS.map((o) => [o.no, o.title, o.authority, o.requirement, lastEvaluation(o)?.date ?? "—", lastEvaluation(o)?.result ?? "ยังไม่ประเมิน", nextEvaluation(o)])}
+      />
+      <Signatures names={[["ผู้ประเมิน (EMR)", EMR], ["ผู้อนุมัติ", TOP]]} />
+      <Foot_ />
+    </>
+  );
+}
+
+function WasteBook() {
+  return (
+    <>
+      <PaperHead title="บัญชีของเสียและการส่งกำจัด" form={formNo("FM-18")} />
+      <PaperTable
+        head={["รหัส", "ของเสีย", "รหัสของเสีย", "อันตราย", "เกิดรวม (กก.)", "ส่งกำจัดรวม (กก.)", "คงเก็บ (กก.)", "เก็บนานสุด (วัน)", "วิธีกำจัด"]}
+        rows={WASTE_TYPES.map((w) => {
+          const gen = GENERATIONS.filter((g) => g.type === w.code).reduce((n, g) => n + g.kg, 0);
+          const out = DISPOSALS.filter((d) => d.type === w.code).reduce((n, d) => n + d.kg, 0);
+          const h = onHand(w.code);
+          return [w.code, w.name, w.wasteCode, w.hazardous ? "ใช่" : "—", gen.toLocaleString("th-TH"), out.toLocaleString("th-TH"), h.kg.toLocaleString("th-TH"), h.kg > 0 ? String(h.days) : "—", w.method];
+        })}
+      />
+      <p className="mt-4 font-semibold text-slate-900">การส่งกำจัด</p>
+      <PaperTable
+        head={["เลขที่", "วันที่", "ของเสีย", "น้ำหนัก (กก.)", "ผู้รับกำจัด", "ใบกำกับ", "ใบรับรองการกำจัด"]}
+        rows={DISPOSALS.map((d) => [d.no, d.date, wasteType(d.type).name, d.kg.toLocaleString("th-TH"), d.receiver, d.manifest, d.certificate ?? "รอ"])}
+      />
+      <Signatures names={[["ผู้บันทึก (EMR)", EMR], ["ผู้ตรวจสอบ", "วรวุฒิ พึ่งบุญ"]]} />
+      <Foot_ />
+    </>
+  );
+}
+
+function MonitoringReport({ no }: { no: string }) {
+  const m = MONITORINGS.find((x) => x.no === no)!;
+  const params = PARAMETERS.filter((p) => p.group === m.group);
+  return (
+    <>
+      <PaperHead title="รายงานผลการตรวจวัดสิ่งแวดล้อม" number={m.no} form={formNo("FM-19")} />
+      <Facts rows={[["กลุ่ม", m.group], ["วันที่เก็บตัวอย่าง", m.date], ["ห้องปฏิบัติการ", m.lab], ["จุดตรวจ", params[0]?.point ?? "—"]]} />
+      <PaperTable
+        head={["พารามิเตอร์", "ผลตรวจ", "ค่ามาตรฐาน", "ผล", "อ้างอิงกฎหมาย"]}
+        rows={params.map((p) => [p.name, \`\${m.values[p.code]}\${p.unit ? \` \${p.unit}\` : ""}\`, limitText(p), exceeds(p, m.values[p.code]) ? "เกินค่ามาตรฐาน" : "ผ่าน", p.law])}
+      />
+      {m.car && <Block title="การแก้ไข">เปิด {m.car} ในระบบบริหารบูรณาการ</Block>}
+      <Signatures names={[["ผู้บันทึก (EMR)", EMR], ["ผู้อนุมัติ", TOP]]} />
+      <Foot_ />
+    </>
+  );
+}
+
+function DrillReport({ no }: { no: string }) {
+  const d = DRILLS.find((x) => x.no === no)!;
+  const p = planByCode(d.plan);
+  return (
+    <>
+      <PaperHead title="รายงานการฝึกซ้อมแผนฉุกเฉิน" number={d.no} form={formNo("FM-20")} />
+      <Facts rows={[["แผน", \`\${p.code} \${p.scenario}\`], ["พื้นที่", p.area], ["วันที่ซ้อม", d.date], ["ผู้เข้าร่วม", \`\${d.participants} คน · \${d.minutes} นาที\`]]} />
+      <Block title="ขั้นตอนตามแผน">
+        <ol className="list-decimal pl-5">{p.response.map((r) => <li key={r}>{r}</li>)}</ol>
+      </Block>
+      <Block title="สิ่งที่พบ">{d.findings}</Block>
+      <Block title="ผลการซ้อม">{d.result}{d.improvement ? \` — ปรับปรุง: \${d.improvement}\` : ""}</Block>
+      <Signatures names={[["ผู้บันทึก", d.by], ["ผู้อนุมัติ", TOP]]} />
+      <Foot_ />
+    </>
+  );
+}
+
+export function EmPaper({ d }: { d: EmDoc }) {
+  return (
+    <Paper>
+      {d.doc === "aspects" && <AspectRegister />}
+      {d.doc === "obligations" && <ObligationRegister />}
+      {d.doc === "waste" && <WasteBook />}
+      {d.doc === "monitoring" && <MonitoringReport no={d.no} />}
+      {d.doc === "drill" && <DrillReport no={d.no} />}
+    </Paper>
+  );
+}
+`,
+
+  "em/forms.tsx": `import { useState } from "react";
+import { Printer } from "lucide-react";
+import { DOCUMENTS, EMR, TODAY } from "../ims/data";
+import { Actions, Area, Choice, Form, Input, people, tryRun } from "../ims/parts";
+import {
+  CONDITIONS, GROUPS, PARAMETERS, PLANS, RECEIVERS, STAGES, WASTE_TYPES, addAspect, addObligation, aspectErrors, aspectScore,
+  chemicalByCode, closeIncident, closeIncidentErrors, disposalErrors, drillErrors, evaluateObligation, evaluationErrors,
+  generationErrors, incidentErrors, limitText, markReported, monitoringErrors, obligationByNo, obligationErrors, onHand,
+  recordCertificate, recordDisposal, recordDrill, recordGeneration, recordMonitoring, reportIncident, significant, updateSds,
+  wasteType, disposalByNo,
+} from "./data";
+import type { Condition, Drill, Incident, Stage } from "./data";
+import { EmPaper } from "./documents";
+import type { EmDoc } from "./documents";
+import { Badge, Button, Note, Segmented } from "../ui";
+import { ConfirmDialog, Field, FormModal, notify, printDocument, useData } from "../kit";
+
+/** ทุกการกระทำของระบบสิ่งแวดล้อม ยกขึ้นแบบเดียวกันจากทุกหน้า */
+export type Act =
+  | { kind: "aspect-new" }
+  | { kind: "obligation-new" }
+  | { kind: "obligation-evaluate"; no: string }
+  | { kind: "waste-generate"; source?: string }
+  | { kind: "waste-dispose"; type?: string }
+  | { kind: "waste-certificate"; no: string }
+  | { kind: "sds-update"; code: string }
+  | { kind: "monitoring-new"; group?: string }
+  | { kind: "drill-new"; plan?: string }
+  | { kind: "incident-new"; plan?: string }
+  | { kind: "incident-report"; no: string }
+  | { kind: "incident-close"; no: string }
+  | { kind: "print"; d: EmDoc; title: string };
+
+type Of<K extends Act["kind"]> = Extract<Act, { kind: K }>;
+export type RecordKind = "aspect" | "obligation" | "waste" | "monitoring" | "plan" | "incident";
+
+const n1to5 = [1, 2, 3, 4, 5].map((n) => ({ value: String(n), label: String(n) }));
+
+function AspectForm({ onCancel, onDone }: { onCancel: () => void; onDone: (no: string) => void }) {
+  const [v, setV] = useState({ activity: "", aspect: "", impact: "", condition: "ปกติ" as Condition, stage: "ผลิต" as Stage, severity: 3, frequency: 3, legal: false, control: "", owner: EMR });
+  const [tried, setTried] = useState(false);
+  const input = { ...v, control: v.control || undefined };
+  const errors = tried ? aspectErrors(input) : {};
+  const set = <K extends keyof typeof v>(k: K) => (x: (typeof v)[K]) => setV((s) => ({ ...s, [k]: x }));
+  const sig = significant(v);
+  return (
+    <Form onSubmit={() => { setTried(true); if (Object.keys(aspectErrors(input)).length) return; const a = addAspect(input); notify(\`เพิ่ม \${a.no} แล้ว\${sig ? " · มีนัยสำคัญ" : ""}\`); onDone(a.no); }}>
+      <Field label="กิจกรรม" error={errors.activity}><Input value={v.activity} onChange={set("activity")} error={errors.activity} placeholder="เช่น ล้างถังผสมสี" /></Field>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <Field label="ประเด็นสิ่งแวดล้อม" error={errors.aspect}><Input value={v.aspect} onChange={set("aspect")} error={errors.aspect} /></Field>
+        <Field label="ผลกระทบ" error={errors.impact}><Input value={v.impact} onChange={set("impact")} error={errors.impact} /></Field>
+        <Field label="สภาวะ"><Segmented options={CONDITIONS} value={v.condition} onChange={(x) => set("condition")(x as Condition)} /></Field>
+        <Field label="ช่วงวัฏจักรชีวิต"><Choice value={v.stage} onChange={(x) => set("stage")(x as Stage)} options={STAGES} /></Field>
+        <Field label="ความรุนแรง (1–5)"><Choice value={String(v.severity)} onChange={(x) => set("severity")(Number(x))} options={n1to5} /></Field>
+        <Field label="ความถี่ (1–5)"><Choice value={String(v.frequency)} onChange={(x) => set("frequency")(Number(x))} options={n1to5} /></Field>
+      </div>
+      <label className="flex items-center gap-2 text-[12.5px] text-slate-700 dark:text-slate-200">
+        <input type="checkbox" checked={v.legal} onChange={() => set("legal")(!v.legal)} className="size-4 accent-violet-600" />
+        มีกฎหมายหรือพันธะที่เกี่ยวข้อง
+      </label>
+      <Note tone={sig ? "warn" : "idle"}>คะแนน {aspectScore(v)} · {sig ? "มีนัยสำคัญ ต้องมีเอกสารควบคุม" : "ไม่มีนัยสำคัญ"}</Note>
+      <Field label="เอกสารควบคุมการปฏิบัติงาน" error={errors.control}>
+        <Choice value={v.control} onChange={set("control")} placeholder="ไม่มี" error={errors.control} options={DOCUMENTS.filter((d) => d.standards.includes("ISO 14001") && d.level !== "แบบฟอร์ม").map((d) => ({ value: d.code, label: \`\${d.code} · \${d.title} (\${d.status})\` }))} />
+      </Field>
+      <Field label="ผู้รับผิดชอบ" error={errors.owner}><Choice value={v.owner} onChange={set("owner")} options={people()} /></Field>
+      <Actions onCancel={onCancel} label="เพิ่มในทะเบียน" />
+    </Form>
+  );
+}
+
+function ObligationForm({ onCancel, onDone }: { onCancel: () => void; onDone: (no: string) => void }) {
+  const [v, setV] = useState({ title: "", authority: "", requirement: "", appliesTo: "" });
+  const [tried, setTried] = useState(false);
+  const errors = tried ? obligationErrors(v) : {};
+  const set = (k: keyof typeof v) => (x: string) => setV((s) => ({ ...s, [k]: x }));
+  return (
+    <Form onSubmit={() => { setTried(true); if (Object.keys(obligationErrors(v)).length) return; const o = addObligation(v); notify(\`เพิ่ม \${o.no} ในทะเบียนกฎหมายแล้ว · ประเมินความสอดคล้องได้เลย\`); onDone(o.no); }}>
+      <Field label="กฎหมายหรือพันธะ" error={errors.title}><Area value={v.title} onChange={set("title")} error={errors.title} rows={2} /></Field>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <Field label="หน่วยงานกำกับ" error={errors.authority}><Input value={v.authority} onChange={set("authority")} error={errors.authority} /></Field>
+        <Field label="ใช้กับ" error={errors.appliesTo}><Input value={v.appliesTo} onChange={set("appliesTo")} error={errors.appliesTo} /></Field>
+      </div>
+      <Field label="สิ่งที่ต้องทำให้สอดคล้อง" error={errors.requirement}><Area value={v.requirement} onChange={set("requirement")} error={errors.requirement} /></Field>
+      <Actions onCancel={onCancel} label="เพิ่มในทะเบียน" />
+    </Form>
+  );
+}
+
+function EvaluateForm({ no, onCancel, onDone }: { no: string; onCancel: () => void; onDone: () => void }) {
+  const o = obligationByNo(no);
+  const [result, setResult] = useState<"สอดคล้อง" | "ไม่สอดคล้อง">("สอดคล้อง");
+  const [evidence, setEvidence] = useState("");
+  const [by, setBy] = useState(EMR);
+  const [tried, setTried] = useState(false);
+  const input = { result, evidence, by };
+  const errors = tried ? evaluationErrors(no, input) : {};
+  return (
+    <Form onSubmit={() => { setTried(true); if (Object.keys(evaluationErrors(no, input)).length) return; const { car } = evaluateObligation(no, input); notify(car ? \`\${no} ไม่สอดคล้อง · เปิด \${car.no} แล้ว\` : \`ประเมิน \${no} แล้ว · สอดคล้อง\`, car ? "warn" : "ok"); onDone(); }}>
+      <p className="text-[13px] text-slate-600 dark:text-slate-300">{o.requirement}</p>
+      <Field label="ผลการประเมิน"><Segmented options={["สอดคล้อง", "ไม่สอดคล้อง"]} value={result} onChange={(v) => setResult(v as "สอดคล้อง" | "ไม่สอดคล้อง")} /></Field>
+      {result === "ไม่สอดคล้อง" && <Note tone="warn">จะเปิด CAR ในระบบบริหารบูรณาการให้ผู้แทนฝ่ายบริหารด้านสิ่งแวดล้อม</Note>}
+      <Field label="หลักฐาน" error={errors.evidence}><Area value={evidence} onChange={setEvidence} error={errors.evidence} /></Field>
+      <Field label="ผู้ประเมิน" error={errors.by}><Choice value={by} onChange={setBy} options={people()} /></Field>
+      <Actions onCancel={onCancel} label="บันทึกผลประเมิน" />
+    </Form>
+  );
+}
+
+function GenerationForm({ source: initial, onCancel, onDone }: { source?: string; onCancel: () => void; onDone: () => void }) {
+  const [v, setV] = useState({ type: initial ? "W-04" : "W-01", kg: "", source: initial ?? "", date: TODAY });
+  const [tried, setTried] = useState(false);
+  const input = { ...v, kg: Number(v.kg) };
+  const errors = tried ? generationErrors(input) : {};
+  const set = (k: keyof typeof v) => (x: string) => setV((s) => ({ ...s, [k]: x }));
+  return (
+    <Form onSubmit={() => { setTried(true); if (Object.keys(generationErrors(input)).length) return; recordGeneration(input); notify(\`บันทึก\${wasteType(v.type).name} \${Number(v.kg).toLocaleString("th-TH")} กก. เข้าบัญชีของเสียแล้ว\`); onDone(); }}>
+      <Field label="ประเภทของเสีย" error={errors.type}><Choice value={v.type} onChange={set("type")} options={WASTE_TYPES.map((w) => ({ value: w.code, label: \`\${w.code} · \${w.name}\${w.hazardous ? " (อันตราย)" : ""}\` }))} /></Field>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <Field label="น้ำหนัก (กก.)" error={errors.kg}><Input type="number" value={v.kg} onChange={set("kg")} error={errors.kg} /></Field>
+        <Field label="วันที่" error={errors.date}><Input type="date" value={v.date} onChange={set("date")} error={errors.date} /></Field>
+      </div>
+      <Field label="ที่มา" error={errors.source} hint="เอกสารตัดสต็อกจากคลังวัสดุ หรือรอบการเก็บรวบรวม"><Input value={v.source} onChange={set("source")} error={errors.source} /></Field>
+      <Actions onCancel={onCancel} label="บันทึกเข้าบัญชี" />
+    </Form>
+  );
+}
+
+function DisposalForm({ type: initial, onCancel, onDone }: { type?: string; onCancel: () => void; onDone: () => void }) {
+  const [v, setV] = useState({ type: initial ?? "W-01", kg: "", receiver: RECEIVERS[0].name, manifest: "", date: TODAY });
+  const [tried, setTried] = useState(false);
+  const input = { ...v, kg: Number(v.kg) };
+  const errors = tried ? disposalErrors(input) : {};
+  const set = (k: keyof typeof v) => (x: string) => setV((s) => ({ ...s, [k]: x }));
+  const w = wasteType(v.type);
+  return (
+    <Form onSubmit={() => { setTried(true); if (Object.keys(disposalErrors(input)).length) return; const d = recordDisposal(input); notify(\`บันทึกส่งกำจัด \${d.no} แล้ว · รอใบรับรองการกำจัด\`); onDone(); }}>
+      <Field label="ประเภทของเสีย" error={errors.type}><Choice value={v.type} onChange={set("type")} options={WASTE_TYPES.map((x) => ({ value: x.code, label: \`\${x.code} · \${x.name} · เก็บอยู่ \${onHand(x.code).kg.toLocaleString("th-TH")} กก.\` }))} /></Field>
+      <Note tone="info">วิธีกำจัด {w.method} · รหัสของเสีย {w.wasteCode}</Note>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <Field label="น้ำหนัก (กก.)" error={errors.kg}><Input type="number" value={v.kg} onChange={set("kg")} error={errors.kg} /></Field>
+        <Field label="วันที่ส่ง" error={errors.date}><Input type="date" value={v.date} onChange={set("date")} error={errors.date} /></Field>
+      </div>
+      <Field label="ผู้รับกำจัด" error={errors.receiver}><Choice value={v.receiver} onChange={set("receiver")} options={RECEIVERS.map((r) => ({ value: r.name, label: \`\${r.name} · ใบอนุญาต \${r.license} ถึง \${r.validUntil}\` }))} error={errors.receiver} /></Field>
+      <Field label="เลขใบกำกับการขนส่ง" error={errors.manifest} hint={w.hazardous ? "ของเสียอันตรายต้องมี" : undefined}><Input value={v.manifest} onChange={set("manifest")} error={errors.manifest} /></Field>
+      <Actions onCancel={onCancel} label="บันทึกการส่งกำจัด" />
+    </Form>
+  );
+}
+
+function MonitoringForm({ group: initial, onCancel, onDone }: { group?: string; onCancel: () => void; onDone: (no: string) => void }) {
+  const [group, setGroup] = useState(initial ?? GROUPS[0]);
+  const [date, setDate] = useState(TODAY);
+  const [lab, setLab] = useState("บจก. เอ็นไวรอนเมนทัลแล็บ");
+  const [values, setValues] = useState<Record<string, string>>({});
+  const [tried, setTried] = useState(false);
+  const input = { group, date, lab, values: Object.fromEntries(Object.entries(values).filter(([, x]) => x !== "").map(([k, x]) => [k, Number(x)])) };
+  const errors = tried ? monitoringErrors(input) : {};
+  return (
+    <Form onSubmit={() => { setTried(true); if (Object.keys(monitoringErrors(input)).length) return; const m = recordMonitoring(input); notify(m.car ? \`\${m.no} เกินค่ามาตรฐาน · เปิด \${m.car} แล้ว\` : \`บันทึกผลตรวจวัด \${m.no} แล้ว · อยู่ในเกณฑ์\`, m.car ? "warn" : "ok"); onDone(m.no); }}>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <Field label="กลุ่ม"><Choice value={group} onChange={(g) => { setGroup(g); setValues({}); }} options={GROUPS} /></Field>
+        <Field label="วันที่เก็บตัวอย่าง" error={errors.date}><Input type="date" value={date} onChange={setDate} error={errors.date} /></Field>
+      </div>
+      <Field label="ห้องปฏิบัติการ" error={errors.lab}><Input value={lab} onChange={setLab} error={errors.lab} /></Field>
+      <Field label="ผลตรวจ" error={errors.values}>
+        <div className="grid gap-2 sm:grid-cols-2">
+          {PARAMETERS.filter((p) => p.group === group).map((p) => (
+            <label key={p.code} className="block text-[12px] text-slate-500">
+              {p.name} · เกณฑ์ {limitText(p)}
+              <Input type="number" value={values[p.code] ?? ""} onChange={(x) => setValues((s) => ({ ...s, [p.code]: x }))} />
+            </label>
+          ))}
+        </div>
+      </Field>
+      <Actions onCancel={onCancel} label="บันทึกผลตรวจวัด" />
+    </Form>
+  );
+}
+
+function DrillForm({ plan: initial, onCancel, onDone }: { plan?: string; onCancel: () => void; onDone: () => void }) {
+  const [v, setV] = useState({ plan: initial ?? PLANS[0].code, date: TODAY, participants: "", minutes: "", result: "ผ่าน" as Drill["result"], findings: "", improvement: "", by: EMR });
+  const [tried, setTried] = useState(false);
+  const input = { ...v, participants: Number(v.participants), minutes: Number(v.minutes) };
+  const errors = tried ? drillErrors(input) : {};
+  const set = (k: keyof typeof v) => (x: string) => setV((s) => ({ ...s, [k]: x }));
+  return (
+    <Form onSubmit={() => { setTried(true); if (Object.keys(drillErrors(input)).length) return; const d = recordDrill(input); notify(\`บันทึกการซ้อม \${d.no} แล้ว\`); onDone(); }}>
+      <Field label="แผนที่ซ้อม" error={errors.plan}><Choice value={v.plan} onChange={set("plan")} options={PLANS.map((p) => ({ value: p.code, label: \`\${p.code} · \${p.scenario}\` }))} /></Field>
+      <div className="grid gap-3 sm:grid-cols-3">
+        <Field label="วันที่" error={errors.date}><Input type="date" value={v.date} onChange={set("date")} error={errors.date} /></Field>
+        <Field label="ผู้เข้าร่วม (คน)" error={errors.participants}><Input type="number" value={v.participants} onChange={set("participants")} error={errors.participants} /></Field>
+        <Field label="เวลาที่ใช้ (นาที)" error={errors.minutes}><Input type="number" value={v.minutes} onChange={set("minutes")} error={errors.minutes} /></Field>
+      </div>
+      <Field label="สิ่งที่พบ" error={errors.findings}><Area value={v.findings} onChange={set("findings")} error={errors.findings} /></Field>
+      <Field label="ผลการซ้อม"><Segmented options={["ผ่าน", "ต้องปรับปรุง"]} value={v.result} onChange={set("result")} /></Field>
+      {v.result === "ต้องปรับปรุง" && <Field label="สิ่งที่จะปรับปรุง" error={errors.improvement}><Area value={v.improvement} onChange={set("improvement")} error={errors.improvement} rows={2} /></Field>}
+      <Field label="ผู้บันทึก" error={errors.by}><Choice value={v.by} onChange={set("by")} options={people()} /></Field>
+      <Actions onCancel={onCancel} label="บันทึกการซ้อม" />
+    </Form>
+  );
+}
+
+function IncidentForm({ plan, onCancel, onDone }: { plan?: string; onCancel: () => void; onDone: (no: string) => void }) {
+  const [v, setV] = useState({ date: TODAY, plan: plan ?? "", description: "", impact: "", containment: "", severity: "ปานกลาง" as Incident["severity"] });
+  const [tried, setTried] = useState(false);
+  const input = { ...v, plan: v.plan || undefined };
+  const errors = tried ? incidentErrors(input) : {};
+  const set = (k: keyof typeof v) => (x: string) => setV((s) => ({ ...s, [k]: x }));
+  return (
+    <Form onSubmit={() => { setTried(true); if (Object.keys(incidentErrors(input)).length) return; const { incident, car } = reportIncident(input); notify(\`บันทึกอุบัติการณ์ \${incident.no} แล้ว · เปิด \${car.no} ให้หาสาเหตุ\`, "warn"); onDone(incident.no); }}>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <Field label="วันที่เกิดเหตุ" error={errors.date}><Input type="date" value={v.date} onChange={set("date")} error={errors.date} /></Field>
+        <Field label="ตามแผนฉุกเฉิน"><Choice value={v.plan} onChange={set("plan")} placeholder="ไม่อยู่ในแผน" options={PLANS.map((p) => ({ value: p.code, label: \`\${p.code} · \${p.scenario}\` }))} /></Field>
+      </div>
+      <Field label="เกิดอะไรขึ้น" error={errors.description}><Area value={v.description} onChange={set("description")} error={errors.description} rows={2} /></Field>
+      <Field label="ผลกระทบต่อสิ่งแวดล้อม" error={errors.impact}><Input value={v.impact} onChange={set("impact")} error={errors.impact} /></Field>
+      <Field label="การควบคุมเหตุที่ทำไปแล้ว" error={errors.containment}><Area value={v.containment} onChange={set("containment")} error={errors.containment} rows={2} /></Field>
+      <Field label="ความรุนแรง" hint={v.severity === "รุนแรง" ? "เหตุรุนแรงต้องรายงานหน่วยงานรัฐก่อนปิด" : undefined}><Segmented options={["รุนแรง", "ปานกลาง", "เล็กน้อย"]} value={v.severity} onChange={set("severity")} /></Field>
+      <Actions onCancel={onCancel} label="บันทึกอุบัติการณ์" />
+    </Form>
+  );
+}
+
+function TextForm({ label, hint, button, submit, onCancel, onDone, type = "text" }: { label: string; hint?: string; button: string; submit: (text: string) => void; onCancel: () => void; onDone: () => void; type?: string }) {
+  const [text, setText] = useState("");
+  const [error, setError] = useState("");
+  return (
+    <Form error={error} onSubmit={() => tryRun(() => { submit(text); onDone(); }, setError)}>
+      <Field label={label} hint={hint}><Input type={type} value={text} onChange={setText} /></Field>
+      <Actions onCancel={onCancel} label={button} />
+    </Form>
+  );
+}
+
+export function EmActions({ act, onAct, onOpen }: { act: Act | null; onAct: (a: Act | null) => void; onOpen: (kind: RecordKind, key: string) => void }) {
+  useData();
+  const close = () => onAct(null);
+  const pick = <K extends Act["kind"]>(kind: K) => (act?.kind === kind ? (act as Of<K>) : null);
+  const evaluate = pick("obligation-evaluate");
+  const generate = pick("waste-generate");
+  const dispose = pick("waste-dispose");
+  const cert = pick("waste-certificate");
+  const sds = pick("sds-update");
+  const monitoring = pick("monitoring-new");
+  const drill = pick("drill-new");
+  const incident = pick("incident-new");
+  const reported = pick("incident-report");
+  const incClose = pick("incident-close");
+  const print = pick("print");
+  const closeProblem = incClose ? closeIncidentErrors(incClose.no).close : undefined;
+
+  return (
+    <>
+      <FormModal open={act?.kind === "aspect-new"} title="เพิ่มประเด็นสิ่งแวดล้อม" subtitle="ประเมินทั้งสภาวะปกติ ไม่ปกติ ฉุกเฉิน และมุมมองวัฏจักรชีวิต (ข้อ 6.1.2)" onClose={close}>
+        {act?.kind === "aspect-new" && <AspectForm onCancel={close} onDone={(no) => { close(); onOpen("aspect", no); }} />}
+      </FormModal>
+      <FormModal open={act?.kind === "obligation-new"} title="เพิ่มกฎหมายหรือพันธะ" subtitle="ข้อ 6.1.3" onClose={close}>
+        {act?.kind === "obligation-new" && <ObligationForm onCancel={close} onDone={(no) => { close(); onOpen("obligation", no); }} />}
+      </FormModal>
+      <FormModal open={evaluate !== null} title="ประเมินความสอดคล้อง" subtitle={evaluate ? \`\${evaluate.no} · ข้อ 9.1.2\` : undefined} onClose={close}>
+        {evaluate && <EvaluateForm key={evaluate.no} no={evaluate.no} onCancel={close} onDone={close} />}
+      </FormModal>
+      <FormModal open={generate !== null} title="บันทึกของเสียเข้าบัญชี" subtitle="ชั่งน้ำหนักจริง ทั้งรอบเก็บรวบรวมและของที่คลังวัสดุตัดเป็นของเสีย" onClose={close} size="sm">
+        {generate && <GenerationForm source={generate.source} onCancel={close} onDone={close} />}
+      </FormModal>
+      <FormModal open={dispose !== null} title="ส่งของเสียกำจัด" subtitle="ผู้รับกำจัดต้องได้รับอนุญาตและใบอนุญาตยังไม่หมดอายุ" onClose={close}>
+        {dispose && <DisposalForm type={dispose.type} onCancel={close} onDone={close} />}
+      </FormModal>
+      <FormModal open={cert !== null} title="บันทึกใบรับรองการกำจัด" subtitle={cert?.no} onClose={close} size="sm">
+        {cert && <TextForm key={cert.no} label={\`เลขใบรับรองการกำจัด · \${disposalByNo(cert.no).receiver}\`} button="บันทึก" onCancel={close} onDone={close} submit={(t) => { recordCertificate(cert.no, t); notify(\`บันทึกใบรับรองของ \${cert.no} แล้ว\`); }} />}
+      </FormModal>
+      <FormModal open={sds !== null} title="ปรับปรุง SDS" subtitle={sds ? chemicalByCode(sds.code).name : undefined} onClose={close} size="sm">
+        {sds && <TextForm key={sds.code} type="date" label="วันที่ของ SDS ฉบับใหม่" hint="ต้องใหม่กว่าฉบับเดิม" button="บันทึก SDS ฉบับใหม่" onCancel={close} onDone={close} submit={(t) => { updateSds(sds.code, t); notify(\`ปรับปรุง SDS \${sds.code} แล้ว\`); }} />}
+      </FormModal>
+      <FormModal open={monitoring !== null} title="บันทึกผลตรวจวัดสิ่งแวดล้อม" subtitle="เกินค่ามาตรฐานข้อใดจะเปิด CAR ให้เอง (ข้อ 9.1.1)" onClose={close}>
+        {monitoring && <MonitoringForm group={monitoring.group} onCancel={close} onDone={(no) => { close(); onOpen("monitoring", no); }} />}
+      </FormModal>
+      <FormModal open={drill !== null} title="บันทึกการฝึกซ้อมแผนฉุกเฉิน" subtitle="ข้อ 8.2" onClose={close}>
+        {drill && <DrillForm plan={drill.plan} onCancel={close} onDone={close} />}
+      </FormModal>
+      <FormModal open={incident !== null} title="บันทึกอุบัติการณ์สิ่งแวดล้อม" subtitle="ระบบเปิด CAR ให้หาสาเหตุทุกครั้ง (ข้อ 10.2)" onClose={close}>
+        {incident && <IncidentForm plan={incident.plan} onCancel={close} onDone={(no) => { close(); onOpen("incident", no); }} />}
+      </FormModal>
+      <FormModal open={reported !== null} title="บันทึกการรายงานหน่วยงานรัฐ" subtitle={reported?.no} onClose={close} size="sm">
+        {reported && <TextForm key={reported.no} label="รายงานหน่วยงานไหน เมื่อไร อย่างไร" button="บันทึก" onCancel={close} onDone={close} submit={(t) => { markReported(reported.no, t); notify(\`บันทึกการรายงานของ \${reported.no} แล้ว\`); }} />}
+      </FormModal>
+      <ConfirmDialog
+        open={incClose !== null}
+        title="ปิดอุบัติการณ์"
+        body={closeProblem ?? "รายงานครบและ CAR ปิดแล้ว"}
+        subject={incClose ? <Badge tone="warn">{incClose.no}</Badge> : undefined}
+        confirmLabel="ปิดอุบัติการณ์"
+        disabled={!!closeProblem}
+        onCancel={close}
+        onConfirm={() => { if (!incClose) return; closeIncident(incClose.no); notify(\`ปิด \${incClose.no} แล้ว\`); close(); }}
+      />
+      <FormModal open={print !== null} title={print?.title ?? ""} subtitle="ตัวอย่างก่อนพิมพ์ — กระดาษ A4 พิมพ์เฉพาะเอกสาร" onClose={close} size="lg">
+        {print && (
+          <div className="space-y-3">
+            <div className="flex justify-end gap-2">
+              <Button variant="secondary" onClick={close}>ปิด</Button>
+              <Button icon={<Printer size={14} />} onClick={printDocument}>พิมพ์</Button>
+            </div>
+            <EmPaper d={print.d} />
+          </div>
+        )}
+      </FormModal>
+    </>
+  );
+}
+`,
+
+  "em/screen.tsx": `import { useState } from "react";
+import type { ReactNode } from "react";
+import {
+  AlarmSmoke, CircleCheck, Droplets, FileSpreadsheet, FlaskConical, Leaf, Plus, Printer, Recycle, Scale,
+  Scroll, ShieldAlert, Siren, Trash2, Truck,
+} from "lucide-react";
+import { TODAY, addDays, capaByNo, carOf, docByCode, revLabel } from "../ims/data";
+import { Body, Empty, Header, Line, Lines, newest, tone } from "../ims/parts";
+import {
+  ASPECTS, CHEMICALS, DISPOSALS, DRILLS, GENERATIONS, INCIDENTS, MONITORINGS, OBLIGATIONS, PARAMETERS, PLANS, RECEIVERS,
+  WASTE_TYPES, aspectScore, chemicalIssues, drillDue, drillsOverdue, evaluationDue, exceedancesOf, exceeds, incidentByNo,
+  lastDrill, lastEvaluation, limitText, monitoringDue, nextEvaluation, obligationByNo, onHand, overStored, pendingScrap,
+  planByCode, qtyOf, sdsExpired, significant, storedTooLong, uncontrolled, wasteType, aspectByNo,
+} from "./data";
+import type { Aspect, Monitoring, Obligation } from "./data";
+import { EmActions } from "./forms";
+import type { Act, RecordKind } from "./forms";
+import { Badge, Button, Card, Chip, ColumnChart, Metric, Note, PageHead, Reveal } from "../ui";
+import type { Tone } from "../ui";
+import { DataTable, DetailModal, downloadCsv, notify, useData } from "../kit";
+import type { Column } from "../kit";
+
+const TABS = ["ประเด็นสิ่งแวดล้อม", "กฎหมายสิ่งแวดล้อม", "ของเสียและสารเคมี", "การตรวจวัดสิ่งแวดล้อม", "เหตุฉุกเฉินและการซ้อม"];
+
+const exportIcon = <FileSpreadsheet size={14} />;
+const csv = (name: string, head: string[], rows: (string | number)[][]) => {
+  downloadCsv(name, head, rows);
+  notify(\`ส่งออก\${name} \${rows.length} รายการแล้ว\`);
+};
+const kg = (n: number) => \`\${n.toLocaleString("th-TH")} กก.\`;
+
+type Handlers = { onAct: (a: Act) => void; onOpen: (kind: RecordKind, key: string) => void };
+
+export default function EmScreen({ section, onOpenSection }: { section?: string; onOpenSection?: (index: number) => void }) {
+  useData();
+  const tab = section && TABS.includes(section) ? section : undefined;
+  const [act, setAct] = useState<Act | null>(null);
+  const [record, setRecord] = useState<{ kind: RecordKind; key: string } | null>(null);
+  const open = (kind: RecordKind, key: string) => setRecord({ kind, key });
+
+  const keys: Record<RecordKind, string[]> = {
+    aspect: ASPECTS.map((a) => a.no),
+    obligation: OBLIGATIONS.map((o) => o.no),
+    waste: WASTE_TYPES.map((w) => w.code),
+    monitoring: newest(MONITORINGS).map((m) => m.no),
+    plan: PLANS.map((p) => p.code),
+    incident: newest(INCIDENTS).map((i) => i.no),
+  };
+  const list = record ? keys[record.kind] : [];
+  const at = record ? list.indexOf(record.key) : -1;
+  const TITLES: Record<RecordKind, string> = { aspect: "ประเด็นสิ่งแวดล้อม", obligation: "กฎหมายและพันธะ", waste: "ของเสีย", monitoring: "ผลตรวจวัด", plan: "แผนฉุกเฉิน", incident: "อุบัติการณ์" };
+  const h: Handlers = { onAct: setAct, onOpen: open };
+
+  const panels = (
+    <>
+      <DetailModal
+        open={record !== null && at >= 0}
+        title={record ? TITLES[record.kind] : ""}
+        onClose={() => setRecord(null)}
+        index={at}
+        total={list.length}
+        onStep={(d) => record && setRecord({ kind: record.kind, key: list[Math.min(list.length - 1, Math.max(0, at + d))] })}
+      >
+        {record && at >= 0 && <RecordView kind={record.kind} id={record.key} {...h} />}
+      </DetailModal>
+      <EmActions act={act} onAct={setAct} onOpen={open} />
+    </>
+  );
+
+  const index = (
+    <div hidden data-fitt-index>
+      <button data-fitt-screen="การจัดการสิ่งแวดล้อม" />
+      <button data-fitt-screen="ประเด็นสิ่งแวดล้อม" data-fitt-modal onClick={() => open("aspect", ASPECTS[0].no)} />
+      <button data-fitt-screen="เพิ่มประเด็นสิ่งแวดล้อม" data-fitt-modal onClick={() => setAct({ kind: "aspect-new" })} />
+      <button data-fitt-screen="กฎหมายและพันธะ" data-fitt-modal onClick={() => open("obligation", OBLIGATIONS[0].no)} />
+      <button data-fitt-screen="เพิ่มกฎหมายหรือพันธะ" data-fitt-modal onClick={() => setAct({ kind: "obligation-new" })} />
+      <button data-fitt-screen="ประเมินความสอดคล้อง" data-fitt-modal onClick={() => setAct({ kind: "obligation-evaluate", no: OBLIGATIONS[0].no })} />
+      <button data-fitt-screen="ของเสีย" data-fitt-modal onClick={() => open("waste", WASTE_TYPES[0].code)} />
+      <button data-fitt-screen="บันทึกของเสียเข้าบัญชี" data-fitt-modal onClick={() => setAct({ kind: "waste-generate" })} />
+      <button data-fitt-screen="ส่งของเสียกำจัด" data-fitt-modal onClick={() => setAct({ kind: "waste-dispose" })} />
+      <button data-fitt-screen="บันทึกใบรับรองการกำจัด" data-fitt-modal onClick={() => setAct({ kind: "waste-certificate", no: DISPOSALS.find((d) => !d.certificate)?.no ?? DISPOSALS[0].no })} />
+      <button data-fitt-screen="ปรับปรุง SDS" data-fitt-modal onClick={() => setAct({ kind: "sds-update", code: CHEMICALS[1].code })} />
+      <button data-fitt-screen="ผลตรวจวัด" data-fitt-modal onClick={() => open("monitoring", MONITORINGS[0].no)} />
+      <button data-fitt-screen="บันทึกผลตรวจวัดสิ่งแวดล้อม" data-fitt-modal onClick={() => setAct({ kind: "monitoring-new" })} />
+      <button data-fitt-screen="แผนฉุกเฉิน" data-fitt-modal onClick={() => open("plan", PLANS[0].code)} />
+      <button data-fitt-screen="บันทึกการฝึกซ้อม" data-fitt-modal onClick={() => setAct({ kind: "drill-new" })} />
+      <button data-fitt-screen="อุบัติการณ์" data-fitt-modal onClick={() => open("incident", INCIDENTS[0].no)} />
+      <button data-fitt-screen="บันทึกอุบัติการณ์สิ่งแวดล้อม" data-fitt-modal onClick={() => setAct({ kind: "incident-new" })} />
+      <button data-fitt-screen="บันทึกการรายงานหน่วยงานรัฐ" data-fitt-modal onClick={() => setAct({ kind: "incident-report", no: INCIDENTS[INCIDENTS.length - 1].no })} />
+      <button data-fitt-screen="ปิดอุบัติการณ์" data-fitt-modal onClick={() => setAct({ kind: "incident-close", no: INCIDENTS[INCIDENTS.length - 1].no })} />
+      <button data-fitt-screen="พิมพ์ทะเบียนประเด็นสิ่งแวดล้อม" data-fitt-modal onClick={() => setAct({ kind: "print", d: { doc: "aspects" }, title: "ทะเบียนประเด็นสิ่งแวดล้อม" })} />
+      <button data-fitt-screen="พิมพ์ทะเบียนกฎหมาย" data-fitt-modal onClick={() => setAct({ kind: "print", d: { doc: "obligations" }, title: "ทะเบียนกฎหมายและผลการประเมินความสอดคล้อง" })} />
+      <button data-fitt-screen="พิมพ์บัญชีของเสีย" data-fitt-modal onClick={() => setAct({ kind: "print", d: { doc: "waste" }, title: "บัญชีของเสียและการส่งกำจัด" })} />
+      <button data-fitt-screen="พิมพ์ผลตรวจวัด" data-fitt-modal onClick={() => setAct({ kind: "print", d: { doc: "monitoring", no: MONITORINGS[0].no }, title: "รายงานผลการตรวจวัดสิ่งแวดล้อม" })} />
+      <button data-fitt-screen="พิมพ์รายงานการซ้อม" data-fitt-modal onClick={() => setAct({ kind: "print", d: { doc: "drill", no: DRILLS[0].no }, title: "รายงานการฝึกซ้อมแผนฉุกเฉิน" })} />
+    </div>
+  );
+
+  if (!tab) {
+    return (
+      <>
+        <Overview onOpenSection={onOpenSection} {...h} />
+        {panels}
+        {index}
+      </>
+    );
+  }
+
+  return (
+    <div>
+      <PageHead title="การจัดการสิ่งแวดล้อม" meta={\`\${tab} · ISO 14001:2015 · ข้อมูล ณ \${TODAY}\`} />
+      {tab === "ประเด็นสิ่งแวดล้อม" && <Aspects {...h} />}
+      {tab === "กฎหมายสิ่งแวดล้อม" && <Obligations {...h} />}
+      {tab === "ของเสียและสารเคมี" && <Waste {...h} />}
+      {tab === "การตรวจวัดสิ่งแวดล้อม" && <Measurements {...h} />}
+      {tab === "เหตุฉุกเฉินและการซ้อม" && <Emergency {...h} />}
+      {panels}
+      {index}
+    </div>
+  );
+}
+
+/* -------------------------------------------------------------- overview */
+
+function Overview({ onOpenSection, onAct, onOpen }: Handlers & { onOpenSection?: (i: number) => void }) {
+  const sig = ASPECTS.filter(significant);
+  const hazOnHand = WASTE_TYPES.filter((w) => w.hazardous).reduce((n, w) => n + onHand(w.code).kg, 0);
+  const oldest = Math.max(0, ...WASTE_TYPES.filter((w) => w.hazardous).map((w) => onHand(w.code).days));
+  const late = monitoringDue().filter((d) => d.late);
+  const months = [...new Set(GENERATIONS.map((g) => g.date.slice(0, 7)))].sort();
+  const cod = MONITORINGS.filter((m) => m.values["WW-COD"] !== undefined);
+  const expiring = RECEIVERS.filter((r) => r.validUntil <= addDays(TODAY, 30));
+
+  const todo: { icon: ReactNode; text: string; sub: string; go: () => void; tone: Tone }[] = [
+    ...late.map((d) => ({ icon: <Droplets size={15} />, text: \`ตรวจวัด\${d.group}\`, sub: \`เลยรอบ \${d.due}\`, go: () => onAct({ kind: "monitoring-new", group: d.group }), tone: "bad" as Tone })),
+    ...uncontrolled().map((a) => ({ icon: <Leaf size={15} />, text: \`\${a.no} \${a.aspect}\`, sub: "มีนัยสำคัญแต่ไม่มีเอกสารควบคุมที่ใช้งาน", go: () => onOpen("aspect", a.no), tone: "bad" as Tone })),
+    ...evaluationDue().map((o) => ({ icon: <Scroll size={15} />, text: \`\${o.no} \${o.title.slice(0, 60)}\`, sub: \`ถึงรอบประเมินความสอดคล้อง \${nextEvaluation(o)}\`, go: () => onAct({ kind: "obligation-evaluate", no: o.no }), tone: "warn" as Tone })),
+    ...pendingScrap().map((m) => ({ icon: <Scale size={15} />, text: \`\${m.doc} \${m.reason}\`, sub: "คลังวัสดุตัดเป็นของเสียแล้ว รอชั่งเข้าบัญชี", go: () => onAct({ kind: "waste-generate", source: m.doc }), tone: "warn" as Tone })),
+    ...storedTooLong().map((w) => ({ icon: <Trash2 size={15} />, text: w.name, sub: \`เก็บมาแล้ว \${onHand(w.code).days} วัน (กฎหมายไม่เกิน 90 วัน)\`, go: () => onAct({ kind: "waste-dispose", type: w.code }), tone: "bad" as Tone })),
+    ...chemicalIssues().map((c) => ({ icon: <FlaskConical size={15} />, text: c.name, sub: sdsExpired(c) ? \`SDS ฉบับ \${c.sdsDate} เกิน 5 ปี\` : \`เก็บเกินที่ขออนุญาต \${c.maxQty} \${c.unit}\`, go: () => onAct({ kind: "sds-update", code: c.code }), tone: "warn" as Tone })),
+    ...drillsOverdue().map((p) => ({ icon: <Siren size={15} />, text: \`\${p.code} \${p.scenario}\`, sub: \`เลยรอบซ้อม \${drillDue(p)}\`, go: () => onAct({ kind: "drill-new", plan: p.code }), tone: "bad" as Tone })),
+    ...expiring.map((r) => ({ icon: <Truck size={15} />, text: r.name, sub: \`ใบอนุญาต \${r.license} หมดอายุ \${r.validUntil}\`, go: () => onOpenSection?.(2), tone: "warn" as Tone })),
+  ];
+
+  return (
+    <div>
+      <PageHead
+        title="การจัดการสิ่งแวดล้อม"
+        meta={\`ISO 14001:2015 · ข้อมูล ณ \${TODAY}\`}
+        right={
+          <div className="flex flex-wrap gap-2">
+            <Button variant="secondary" icon={<AlarmSmoke size={14} />} onClick={() => onAct({ kind: "incident-new" })}>บันทึกอุบัติการณ์</Button>
+            <Button icon={<Droplets size={14} />} onClick={() => onAct({ kind: "monitoring-new" })}>บันทึกผลตรวจวัด</Button>
+          </div>
+        }
+      />
+      <Reveal>
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <Metric icon={<Leaf size={17} />} label="ประเด็นที่มีนัยสำคัญ" value={\`\${sig.length} จาก \${ASPECTS.length}\`} deltaLabel={uncontrolled().length ? \`ไม่มีเอกสารควบคุม \${uncontrolled().length}\` : "มีเอกสารควบคุมครบ"} />
+          <Metric icon={<Scroll size={17} />} label="กฎหมายที่ถึงรอบประเมิน" value={\`\${evaluationDue().length} ฉบับ\`} deltaLabel={\`ในทะเบียน \${OBLIGATIONS.length} ฉบับ\`} />
+          <Metric icon={<Trash2 size={17} />} label="ของเสียอันตรายที่เก็บอยู่" value={kg(hazOnHand)} deltaLabel={\`เก็บนานสุด \${oldest} วัน · กฎหมาย 90 วัน\`} />
+          <Metric icon={<Droplets size={17} />} label="ตรวจวัดเลยรอบ" value={\`\${late.length} กลุ่ม\`} deltaLabel={\`เกินมาตรฐานปีนี้ \${MONITORINGS.filter((m) => m.date.slice(0, 4) === TODAY.slice(0, 4) && exceedancesOf(m).length).length} ครั้ง\`} />
+        </div>
+      </Reveal>
+      <Reveal delay={0.06} className="mt-4 grid gap-4 lg:grid-cols-3">
+        <Card title="ต้องจัดการ" subtitle="กดรายการเพื่อเปิดงานนั้น" className="lg:col-span-2">
+          {todo.length === 0 ? (
+            <Empty>ไม่มีงานค้าง</Empty>
+          ) : (
+            <ul className="divide-y divide-slate-100 dark:divide-slate-800">
+              {todo.slice(0, 9).map((t, i) => (
+                <li key={i}>
+                  <button onClick={t.go} className="flex w-full items-center gap-3 px-4 py-2.5 text-left transition hover:bg-slate-50 dark:hover:bg-slate-800/60">
+                    <span className={t.tone === "bad" ? "text-rose-500" : t.tone === "warn" ? "text-amber-500" : "text-sky-500"}>{t.icon}</span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-[13px] text-slate-800 dark:text-slate-100">{t.text}</span>
+                      <span className="block text-[11.5px] text-slate-500 dark:text-slate-400">{t.sub}</span>
+                    </span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Card>
+        <Card title="COD น้ำทิ้ง" subtitle="เกณฑ์ไม่เกิน 120 mg/L · แท่งเหลืองคือเกินเกณฑ์" action={<Button variant="ghost" className="whitespace-nowrap" onClick={() => onOpenSection?.(3)}>ผลทั้งหมด</Button>}>
+          <ColumnChart data={cod.map((m) => ({ label: m.date.slice(5), value: m.values["WW-COD"], tone: m.values["WW-COD"] > 120 ? "warn" : undefined }))} format={(n) => \`\${n} mg/L\`} />
+        </Card>
+      </Reveal>
+      <Reveal delay={0.12} className="mt-4">
+        <Card title="ของเสียอันตรายที่เกิดรายเดือน" subtitle="ใช้ติดตามวัตถุประสงค์ลดของเสียอันตราย">
+          <ColumnChart data={months.map((m) => ({ label: m.slice(5), value: GENERATIONS.filter((g) => g.date.slice(0, 7) === m && wasteType(g.type).hazardous).reduce((n, g) => n + g.kg, 0) }))} format={kg} />
+        </Card>
+      </Reveal>
+    </div>
+  );
+}
+
+/* --------------------------------------------------------------- aspects */
+
+function Aspects({ onAct, onOpen }: Handlers) {
+  const columns: Column<Aspect>[] = [
+    { key: "no", header: "เลขที่", cell: (a) => <span className="whitespace-nowrap font-medium tabular-nums text-slate-800 dark:text-slate-100">{a.no}</span>, sort: (a, b) => a.no.localeCompare(b.no) },
+    { key: "activity", header: "กิจกรรม", cell: (a) => a.activity },
+    { key: "aspect", header: "ประเด็น → ผลกระทบ", cell: (a) => <span><span className="text-slate-800 dark:text-slate-100">{a.aspect}</span><span className="block text-[11.5px] text-slate-400">{a.impact}</span></span> },
+    { key: "condition", header: "สภาวะ", cell: (a) => <span className="whitespace-nowrap"><Chip>{a.condition}</Chip></span> },
+    { key: "stage", header: "วัฏจักร", cell: (a) => a.stage },
+    { key: "score", header: "ร×ถ", align: "right", cell: (a) => <span className="tabular-nums">{aspectScore(a)}</span>, sort: (a, b) => aspectScore(a) - aspectScore(b) },
+    { key: "sig", header: "นัยสำคัญ", cell: (a) => (significant(a) ? <Badge tone="warn">{a.legal ? "มี · กฎหมาย" : "มี"}</Badge> : <Badge tone="idle">ไม่มี</Badge>) },
+    { key: "control", header: "การควบคุม", cell: (a) => (a.control ? <Badge tone={tone(docByCode(a.control).status)}>{a.control}</Badge> : "—") },
+  ];
+  return (
+    <div className="space-y-4">
+      {uncontrolled().length > 0 && <Note tone="bad">ประเด็นที่มีนัยสำคัญ {uncontrolled().length} ข้อยังไม่มีเอกสารควบคุมที่ใช้งาน</Note>}
+      <DataTable
+        rows={ASPECTS}
+        columns={columns}
+        getId={(a) => a.no}
+        onOpen={(a) => onOpen("aspect", a.no)}
+        toolbar={
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="text-[12.5px] text-slate-500 dark:text-slate-400">มีนัยสำคัญเมื่อมีกฎหมายเกี่ยวข้อง หรือความรุนแรง × ความถี่ตั้งแต่ 12 — ต้องชี้ไปที่เอกสารควบคุมในทะเบียนกลาง</p>
+            <div className="ml-auto flex gap-2">
+              <Button variant="secondary" icon={exportIcon} onClick={() => csv("ทะเบียนประเด็นสิ่งแวดล้อม", ["เลขที่", "กิจกรรม", "ประเด็น", "ผลกระทบ", "สภาวะ", "วัฏจักร", "ความรุนแรง", "ความถี่", "กฎหมาย", "นัยสำคัญ", "การควบคุม"], ASPECTS.map((a) => [a.no, a.activity, a.aspect, a.impact, a.condition, a.stage, a.severity, a.frequency, a.legal ? "มี" : "", significant(a) ? "มี" : "", a.control ?? ""]))}>ส่งออก Excel</Button>
+              <Button variant="secondary" icon={<Printer size={14} />} onClick={() => onAct({ kind: "print", d: { doc: "aspects" }, title: "ทะเบียนประเด็นสิ่งแวดล้อม" })}>พิมพ์ทะเบียน</Button>
+              <Button icon={<Plus size={14} />} onClick={() => onAct({ kind: "aspect-new" })}>เพิ่มประเด็น</Button>
+            </div>
+          </div>
+        }
+      />
+    </div>
+  );
+}
+
+/* ----------------------------------------------------------- obligations */
+
+function Obligations({ onAct, onOpen }: Handlers) {
+  const due = new Set(evaluationDue().map((o) => o.no));
+  const columns: Column<Obligation>[] = [
+    { key: "no", header: "เลขที่", cell: (o) => <span className="whitespace-nowrap font-medium tabular-nums text-slate-800 dark:text-slate-100">{o.no}</span> },
+    { key: "title", header: "กฎหมาย / พันธะ", cell: (o) => <span className="line-clamp-2">{o.title}</span> },
+    { key: "authority", header: "หน่วยงาน", cell: (o) => o.authority },
+    { key: "last", header: "ประเมินล่าสุด", cell: (o) => lastEvaluation(o)?.date ?? "—" },
+    { key: "result", header: "ผล", cell: (o) => (lastEvaluation(o) ? <Badge dot tone={lastEvaluation(o)!.result === "สอดคล้อง" ? "ok" : "bad"}>{lastEvaluation(o)!.result}</Badge> : <Badge tone="idle">ยังไม่ประเมิน</Badge>) },
+    { key: "next", header: "ประเมินครั้งถัดไป", cell: (o) => <span className={due.has(o.no) ? "font-medium text-rose-600 dark:text-rose-400" : ""}>{nextEvaluation(o)}</span> },
+  ];
+  return (
+    <div className="space-y-4">
+      {due.size > 0 && <Note tone="warn">ถึงรอบประเมินความสอดคล้องภายใน 30 วัน {due.size} ฉบับ</Note>}
+      <DataTable
+        rows={OBLIGATIONS}
+        columns={columns}
+        getId={(o) => o.no}
+        onOpen={(o) => onOpen("obligation", o.no)}
+        toolbar={
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="text-[12.5px] text-slate-500 dark:text-slate-400">ประเมินความสอดคล้องอย่างน้อยปีละครั้ง ไม่สอดคล้องเปิด CAR ให้เอง (ข้อ 9.1.2)</p>
+            <div className="ml-auto flex gap-2">
+              <Button variant="secondary" icon={exportIcon} onClick={() => csv("ทะเบียนกฎหมาย", ["เลขที่", "กฎหมาย", "หน่วยงาน", "สิ่งที่ต้องทำ", "ใช้กับ", "ประเมินล่าสุด", "ผล", "ครั้งถัดไป"], OBLIGATIONS.map((o) => [o.no, o.title, o.authority, o.requirement, o.appliesTo, lastEvaluation(o)?.date ?? "", lastEvaluation(o)?.result ?? "", nextEvaluation(o)]))}>ส่งออก Excel</Button>
+              <Button variant="secondary" icon={<Printer size={14} />} onClick={() => onAct({ kind: "print", d: { doc: "obligations" }, title: "ทะเบียนกฎหมายและผลการประเมินความสอดคล้อง" })}>พิมพ์ทะเบียน</Button>
+              <Button icon={<Plus size={14} />} onClick={() => onAct({ kind: "obligation-new" })}>เพิ่มกฎหมาย</Button>
+            </div>
+          </div>
+        }
+      />
+    </div>
+  );
+}
+
+/* ----------------------------------------------------------------- waste */
+
+function Waste({ onAct, onOpen }: Handlers) {
+  const scrap = pendingScrap();
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center gap-2">
+        <p className="text-[12.5px] text-slate-500 dark:text-slate-400">ส่งกำจัดได้ไม่เกินที่เก็บอยู่ ให้ผู้รับที่ใบอนุญาตยังไม่หมดอายุ ของเสียอันตรายเก็บไม่เกิน 90 วัน</p>
+        <div className="ml-auto flex flex-wrap gap-2">
+          <Button variant="secondary" icon={exportIcon} onClick={() => csv("การส่งกำจัดของเสีย", ["เลขที่", "วันที่", "ของเสีย", "กก.", "ผู้รับ", "ใบกำกับ", "ใบรับรอง"], DISPOSALS.map((d) => [d.no, d.date, wasteType(d.type).name, d.kg, d.receiver, d.manifest, d.certificate ?? ""]))}>ส่งออก Excel</Button>
+          <Button variant="secondary" icon={<Printer size={14} />} onClick={() => onAct({ kind: "print", d: { doc: "waste" }, title: "บัญชีของเสียและการส่งกำจัด" })}>พิมพ์บัญชีของเสีย</Button>
+          <Button variant="secondary" icon={<Scale size={14} />} onClick={() => onAct({ kind: "waste-generate" })}>บันทึกของเสีย</Button>
+          <Button icon={<Truck size={14} />} onClick={() => onAct({ kind: "waste-dispose" })}>ส่งกำจัด</Button>
+        </div>
+      </div>
+      {scrap.length > 0 && (
+        <Card title="ของที่คลังวัสดุตัดเป็นของเสีย รอชั่งเข้าบัญชี" subtitle="อ่านจากความเคลื่อนไหวสต็อกของระบบจัดซื้อ">
+          <Lines>
+            {scrap.map((m) => <Line key={m.doc} title={\`\${m.doc} · \${m.reason}\`} sub={\`\${m.date} · \${Math.abs(m.qty)} หน่วย\`} right={<Button variant="secondary" icon={<Scale size={14} />} onClick={() => onAct({ kind: "waste-generate", source: m.doc })}>ชั่งเข้าบัญชี</Button>} />)}
+          </Lines>
+        </Card>
+      )}
+      <Card title="ของเสียที่เก็บอยู่" subtitle="กดเพื่อดูประวัติเกิดและส่งกำจัด">
+        <Lines>
+          {WASTE_TYPES.map((w) => {
+            const h = onHand(w.code);
+            const t: Tone = !w.hazardous || h.kg === 0 ? "idle" : h.days > 90 ? "bad" : h.days > 60 ? "warn" : "ok";
+            return (
+              <li key={w.code}>
+                <div className="flex flex-wrap items-center gap-3 px-4 py-2.5 text-[13px]">
+                  <button onClick={() => onOpen("waste", w.code)} className="min-w-0 flex-1 text-left">
+                    <span className="block text-slate-800 dark:text-slate-100">{w.code} · {w.name} {w.hazardous && <Badge tone="bad">อันตราย</Badge>}</span>
+                    <span className="block text-[11.5px] text-slate-400">{w.storage} · {w.method}</span>
+                  </button>
+                  <span className="tabular-nums text-slate-700 dark:text-slate-200">{kg(h.kg)}</span>
+                  {h.kg > 0 && <Badge tone={t}>{h.days} วัน</Badge>}
+                  <Button variant="secondary" icon={<Truck size={14} />} onClick={() => onAct({ kind: "waste-dispose", type: w.code })}>ส่งกำจัด</Button>
+                </div>
+              </li>
+            );
+          })}
+        </Lines>
+      </Card>
+      <div className="grid gap-4 lg:grid-cols-2">
+        <Card title="การส่งกำจัด" subtitle="ใบรับรองการกำจัดปิดวงจรว่ากำจัดจริง">
+          <Lines>
+            {newest(DISPOSALS).map((d) => <Line key={d.no} title={\`\${d.no} · \${wasteType(d.type).name} \${kg(d.kg)}\`} sub={\`\${d.date} · \${d.receiver} · \${d.manifest}\`} right={d.certificate ? <Badge tone="ok">{d.certificate}</Badge> : <Button variant="secondary" onClick={() => onAct({ kind: "waste-certificate", no: d.no })}>รับใบรับรอง</Button>} />)}
+          </Lines>
+        </Card>
+        <Card title="สารเคมี" subtitle="ปริมาณของสารที่ซื้อผ่านระบบจัดซื้ออ่านจากคลังวัสดุ · SDS ทบทวนทุก 5 ปี">
+          <Lines>
+            {CHEMICALS.map((c) => (
+              <Line
+                key={c.code}
+                title={\`\${c.code} · \${c.name}\`}
+                sub={\`\${c.hazard} · \${c.location} · คงเหลือ \${qtyOf(c)} / \${c.maxQty} \${c.unit}\${c.material ? \` (\${c.material})\` : ""}\`}
+                right={
+                  <span className="flex items-center gap-2">
+                    {overStored(c) && <Badge tone="bad">เก็บเกิน</Badge>}
+                    <Badge tone={sdsExpired(c) ? "bad" : "ok"}>SDS {c.sdsDate}</Badge>
+                    {sdsExpired(c) && <Button variant="secondary" onClick={() => onAct({ kind: "sds-update", code: c.code })}>ปรับปรุง SDS</Button>}
+                  </span>
+                }
+              />
+            ))}
+          </Lines>
+        </Card>
+      </div>
+      <Card title="ผู้รับกำจัดที่ได้รับอนุญาต">
+        <Lines>
+          {RECEIVERS.map((r) => <Line key={r.name} title={r.name} sub={\`ใบอนุญาต \${r.license} · \${r.methods.join(", ")}\`} right={<Badge tone={r.validUntil < TODAY ? "bad" : r.validUntil <= addDays(TODAY, 30) ? "warn" : "ok"}>ถึง {r.validUntil}</Badge>} />)}
+        </Lines>
+      </Card>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------ monitoring */
+
+function Measurements({ onAct, onOpen }: Handlers) {
+  const columns: Column<Monitoring>[] = [
+    { key: "no", header: "เลขที่", cell: (m) => <span className="whitespace-nowrap font-medium tabular-nums text-slate-800 dark:text-slate-100">{m.no}</span>, sort: (a, b) => a.no.localeCompare(b.no) },
+    { key: "date", header: "วันที่", cell: (m) => m.date, sort: (a, b) => a.date.localeCompare(b.date) },
+    { key: "group", header: "กลุ่ม", cell: (m) => <Chip>{m.group}</Chip> },
+    { key: "values", header: "ผล", cell: (m) => <span className="text-slate-600 dark:text-slate-300">{Object.entries(m.values).map(([code, v]) => \`\${PARAMETERS.find((p) => p.code === code)!.name} \${v}\`).join(" · ")}</span> },
+    { key: "state", header: "ผลเทียบเกณฑ์", cell: (m) => (exceedancesOf(m).length ? <Badge tone="bad">เกิน {exceedancesOf(m).length} ค่า</Badge> : <Badge tone="ok">ผ่านทุกค่า</Badge>) },
+    { key: "car", header: "CAR", cell: (m) => <span className="tabular-nums text-slate-500">{m.car ?? "—"}</span> },
+  ];
+  return (
+    <div className="space-y-4">
+      <div className="grid gap-3 md:grid-cols-3">
+        {monitoringDue().map((d) => (
+          <div key={d.group} className="rounded-2xl border border-slate-200/80 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-[14px] font-semibold text-slate-900 dark:text-slate-50">{d.group}</p>
+              <Badge dot tone={d.late ? "bad" : d.soon ? "warn" : "ok"}>{d.late ? "เลยรอบ" : d.soon ? "ใกล้ถึงรอบ" : "ตามรอบ"}</Badge>
+            </div>
+            <p className="mt-1 text-[12.5px] text-slate-500">ล่าสุด {d.last ?? "—"} · ครั้งถัดไป {d.due}</p>
+            <p className="mt-1 text-[11.5px] text-slate-400">{PARAMETERS.filter((p) => p.group === d.group).map((p) => \`\${p.name} \${limitText(p)}\`).join(" · ")}</p>
+            <Button className="mt-3" variant={d.late ? "primary" : "secondary"} icon={<Droplets size={14} />} onClick={() => onAct({ kind: "monitoring-new", group: d.group })}>บันทึกผล</Button>
+          </div>
+        ))}
+      </div>
+      <DataTable
+        rows={newest(MONITORINGS)}
+        columns={columns}
+        getId={(m) => m.no}
+        onOpen={(m) => onOpen("monitoring", m.no)}
+        toolbar={
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="text-[12.5px] text-slate-500 dark:text-slate-400">ผลที่เกินค่ามาตรฐานเปิด CAR ในระบบบริหารบูรณาการให้เอง (ข้อ 9.1.1)</p>
+            <Button className="ml-auto" variant="secondary" icon={exportIcon} onClick={() => csv("ผลตรวจวัดสิ่งแวดล้อม", ["เลขที่", "วันที่", "กลุ่ม", "พารามิเตอร์", "ผล", "เกณฑ์", "เกิน"], MONITORINGS.flatMap((m) => Object.entries(m.values).map(([code, v]) => { const p = PARAMETERS.find((x) => x.code === code)!; return [m.no, m.date, m.group, p.name, v, limitText(p), exceeds(p, v) ? "เกิน" : ""]; })))}>ส่งออก Excel</Button>
+          </div>
+        }
+      />
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------- emergency */
+
+function Emergency({ onAct, onOpen }: Handlers) {
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center gap-2">
+        <p className="text-[12.5px] text-slate-500 dark:text-slate-400">ซ้อมทุกแผนตามรอบ ซ้อมแล้วต้องปรับปรุงต้องบอกสิ่งที่จะปรับ อุบัติการณ์เปิด CAR ทุกครั้ง</p>
+        <div className="ml-auto flex gap-2">
+          <Button variant="secondary" icon={exportIcon} onClick={() => csv("การฝึกซ้อมแผนฉุกเฉิน", ["เลขที่", "แผน", "วันที่", "ผู้เข้าร่วม", "นาที", "ผล", "สิ่งที่พบ", "ปรับปรุง"], DRILLS.map((d) => [d.no, d.plan, d.date, d.participants, d.minutes, d.result, d.findings, d.improvement ?? ""]))}>ส่งออก Excel</Button>
+          <Button variant="secondary" icon={<AlarmSmoke size={14} />} onClick={() => onAct({ kind: "incident-new" })}>บันทึกอุบัติการณ์</Button>
+          <Button icon={<Siren size={14} />} onClick={() => onAct({ kind: "drill-new" })}>บันทึกการซ้อม</Button>
+        </div>
+      </div>
+      <div className="grid gap-4 md:grid-cols-3">
+        {PLANS.map((p) => {
+          const last = lastDrill(p.code);
+          const late = drillDue(p) < TODAY;
+          return (
+            <Card key={p.code} title={\`\${p.code} · \${p.scenario}\`} subtitle={p.area} action={<Button variant="ghost" onClick={() => onOpen("plan", p.code)}>เปิด</Button>}>
+              <div className="space-y-2 px-4 py-3 text-[12.5px]">
+                <p className="text-slate-600 dark:text-slate-300">ซ้อมล่าสุด {last?.date ?? "ยังไม่เคย"}{last ? \` · \${last.result}\` : ""}</p>
+                <Badge dot tone={late ? "bad" : "ok"}>{late ? \`เลยรอบซ้อม \${drillDue(p)}\` : \`ซ้อมครั้งถัดไป \${drillDue(p)}\`}</Badge>
+                <div><Button variant={late ? "primary" : "secondary"} icon={<Siren size={14} />} onClick={() => onAct({ kind: "drill-new", plan: p.code })}>บันทึกการซ้อม</Button></div>
+              </div>
+            </Card>
+          );
+        })}
+      </div>
+      <Card title="อุบัติการณ์สิ่งแวดล้อม" subtitle="ข้อ 10.2">
+        {INCIDENTS.length === 0 ? <Empty>ไม่มีอุบัติการณ์</Empty> : (
+          <Lines>
+            {newest(INCIDENTS).map((i) => (
+              <li key={i.no}>
+                <button onClick={() => onOpen("incident", i.no)} className="flex w-full flex-wrap items-center gap-3 px-4 py-2.5 text-left text-[13px] hover:bg-slate-50 dark:hover:bg-slate-800/60">
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-slate-800 dark:text-slate-100">{i.no} · {i.description}</span>
+                    <span className="block text-[11.5px] text-slate-400">{i.date} · {i.impact}</span>
+                  </span>
+                  <Badge tone={tone(i.severity)}>{i.severity}</Badge>
+                  <Badge dot tone={i.status === "ปิดแล้ว" ? "ok" : "warn"}>{i.status}</Badge>
+                </button>
+              </li>
+            ))}
+          </Lines>
+        )}
+      </Card>
+    </div>
+  );
+}
+
+/* --------------------------------------------------------------- records */
+
+function RecordView({ kind, id, ...h }: { kind: RecordKind; id: string } & Handlers) {
+  if (kind === "aspect") return <AspectRecord a={aspectByNo(id)} {...h} />;
+  if (kind === "obligation") return <ObligationRecord o={obligationByNo(id)} {...h} />;
+  if (kind === "waste") return <WasteRecord code={id} {...h} />;
+  if (kind === "monitoring") return <MonitoringRecord m={MONITORINGS.find((x) => x.no === id)!} {...h} />;
+  if (kind === "plan") return <PlanRecord code={id} {...h} />;
+  return <IncidentRecord no={id} {...h} />;
+}
+
+function AspectRecord({ a, onAct }: { a: Aspect } & Handlers) {
+  const doc = a.control ? docByCode(a.control) : undefined;
+  return (
+    <div className="flex h-full flex-col">
+      <Header
+        title={\`\${a.no} · \${a.aspect}\`}
+        meta={\`\${a.activity} · \${a.condition} · \${a.stage} · \${a.owner}\`}
+        badges={<>{significant(a) ? <Badge tone="warn">มีนัยสำคัญ</Badge> : <Badge tone="idle">ไม่มีนัยสำคัญ</Badge>}{a.legal && <Badge tone="info">มีกฎหมายเกี่ยวข้อง</Badge>}<Badge tone="idle">{a.severity} × {a.frequency} = {aspectScore(a)}</Badge></>}
+        actions={<Button variant="secondary" icon={<Printer size={14} />} onClick={() => onAct({ kind: "print", d: { doc: "aspects" }, title: "ทะเบียนประเด็นสิ่งแวดล้อม" })}>พิมพ์ทะเบียน</Button>}
+      />
+      <Body>
+        <Card title="ผลกระทบ"><p className="px-4 py-3 text-[13px] text-slate-700 dark:text-slate-200">{a.impact}</p></Card>
+        <Card title="การควบคุมการปฏิบัติงาน" subtitle="ข้อ 8.1 — เอกสารในทะเบียนกลาง">
+          {doc ? <Lines><Line title={\`\${doc.code} · \${doc.title}\`} sub={\`\${revLabel(doc.rev)} · \${doc.owner}\`} right={<Badge dot tone={tone(doc.status)}>{doc.status}</Badge>} /></Lines> : <Empty>{significant(a) ? "ยังไม่มี — ต้องมีเพราะมีนัยสำคัญ" : "ไม่ต้องมีเพราะไม่มีนัยสำคัญ"}</Empty>}
+        </Card>
+      </Body>
+    </div>
+  );
+}
+
+function ObligationRecord({ o, onAct }: { o: Obligation } & Handlers) {
+  return (
+    <div className="flex h-full flex-col">
+      <Header
+        title={\`\${o.no} · \${o.authority}\`}
+        meta={o.title}
+        badges={<>{lastEvaluation(o) ? <Badge dot tone={lastEvaluation(o)!.result === "สอดคล้อง" ? "ok" : "bad"}>{lastEvaluation(o)!.result}</Badge> : <Badge tone="idle">ยังไม่ประเมิน</Badge>}<Badge tone="idle">ครั้งถัดไป {nextEvaluation(o)}</Badge></>}
+        actions={<Button icon={<CircleCheck size={14} />} onClick={() => onAct({ kind: "obligation-evaluate", no: o.no })}>ประเมินความสอดคล้อง</Button>}
+      />
+      <Body>
+        <Card title="สิ่งที่ต้องทำให้สอดคล้อง" subtitle={\`ใช้กับ \${o.appliesTo}\`}><p className="px-4 py-3 text-[13px] text-slate-700 dark:text-slate-200">{o.requirement}</p></Card>
+        <Card title="ประวัติการประเมิน">
+          {o.evaluations.length === 0 ? <Empty>ยังไม่เคยประเมิน</Empty> : (
+            <Lines>
+              {[...o.evaluations].reverse().map((e) => {
+                const car = carOf(\`\${o.no} \${e.date}\`);
+                return <Line key={e.date} title={\`\${e.date} · \${e.result}\`} sub={\`\${e.evidence} · \${e.by}\`} right={car ? <Badge tone={tone(car.status)}>{car.no} · {car.status}</Badge> : undefined} />;
+              })}
+            </Lines>
+          )}
+        </Card>
+      </Body>
+    </div>
+  );
+}
+
+function WasteRecord({ code, onAct }: { code: string } & Handlers) {
+  const w = wasteType(code);
+  const h = onHand(code);
+  const history = [
+    ...GENERATIONS.filter((g) => g.type === code).map((g) => ({ date: g.date, text: \`เกิด \${kg(g.kg)}\`, sub: g.source, tone: "idle" as Tone })),
+    ...DISPOSALS.filter((d) => d.type === code).map((d) => ({ date: d.date, text: \`ส่งกำจัด \${kg(d.kg)} · \${d.no}\`, sub: \`\${d.receiver} · \${d.manifest}\`, tone: (d.certificate ? "ok" : "warn") as Tone })),
+  ].sort((a, b) => b.date.localeCompare(a.date));
+  return (
+    <div className="flex h-full flex-col">
+      <Header
+        title={\`\${w.code} · \${w.name}\`}
+        meta={\`รหัสของเสีย \${w.wasteCode} · \${w.storage} · \${w.method}\`}
+        badges={<>{w.hazardous && <Badge tone="bad">ของเสียอันตราย</Badge>}<Badge tone="idle">เก็บอยู่ {kg(h.kg)}</Badge>{h.kg > 0 && <Badge tone={h.days > 90 ? "bad" : h.days > 60 ? "warn" : "ok"}>เก็บนานสุด {h.days} วัน</Badge>}</>}
+        actions={
+          <>
+            <Button icon={<Truck size={14} />} onClick={() => onAct({ kind: "waste-dispose", type: code })}>ส่งกำจัด</Button>
+            <Button variant="secondary" icon={<Recycle size={14} />} onClick={() => onAct({ kind: "waste-generate" })}>บันทึกของเสีย</Button>
+          </>
+        }
+      />
+      <Body>
+        <Card title="ประวัติ">
+          <Lines>{history.map((x, i) => <Line key={i} title={\`\${x.date} · \${x.text}\`} sub={x.sub} right={<Badge tone={x.tone}>{x.tone === "warn" ? "รอใบรับรอง" : x.tone === "ok" ? "กำจัดแล้ว" : "เข้าบัญชี"}</Badge>} />)}</Lines>
+        </Card>
+      </Body>
+    </div>
+  );
+}
+
+function MonitoringRecord({ m, onAct }: { m: Monitoring } & Handlers) {
+  const car = m.car ? capaByNo(m.car) : undefined;
+  return (
+    <div className="flex h-full flex-col">
+      <Header
+        title={\`\${m.no} · \${m.group}\`}
+        meta={\`\${m.date} · \${m.lab}\`}
+        badges={<>{exceedancesOf(m).length ? <Badge tone="bad">เกินค่ามาตรฐาน {exceedancesOf(m).length} ค่า</Badge> : <Badge tone="ok">ผ่านทุกค่า</Badge>}{car && <Badge tone={tone(car.status)}>{car.no} · {car.status}</Badge>}</>}
+        actions={<Button variant="secondary" icon={<Printer size={14} />} onClick={() => onAct({ kind: "print", d: { doc: "monitoring", no: m.no }, title: "รายงานผลการตรวจวัดสิ่งแวดล้อม" })}>พิมพ์รายงาน</Button>}
+      />
+      <Body>
+        <Card title="ผลเทียบค่ามาตรฐาน">
+          <Lines>
+            {Object.entries(m.values).map(([code, v]) => {
+              const p = PARAMETERS.find((x) => x.code === code)!;
+              return <Line key={code} title={p.name} sub={\`\${p.point} · เกณฑ์ \${limitText(p)} · \${p.law}\`} right={<span className="flex items-center gap-2"><span className="tabular-nums">{v}{p.unit ? \` \${p.unit}\` : ""}</span><Badge tone={exceeds(p, v) ? "bad" : "ok"}>{exceeds(p, v) ? "เกิน" : "ผ่าน"}</Badge></span>} />;
+            })}
+          </Lines>
+        </Card>
+      </Body>
+    </div>
+  );
+}
+
+function PlanRecord({ code, onAct }: { code: string } & Handlers) {
+  const p = planByCode(code);
+  const drills = DRILLS.filter((d) => d.plan === code).sort((a, b) => b.date.localeCompare(a.date));
+  return (
+    <div className="flex h-full flex-col">
+      <Header
+        title={\`\${p.code} · \${p.scenario}\`}
+        meta={\`\${p.area} · ซ้อมทุก \${p.everyMonths} เดือน\`}
+        badges={<Badge dot tone={drillDue(p) < TODAY ? "bad" : "ok"}>{drillDue(p) < TODAY ? \`เลยรอบซ้อม \${drillDue(p)}\` : \`ซ้อมครั้งถัดไป \${drillDue(p)}\`}</Badge>}
+        actions={
+          <>
+            <Button icon={<Siren size={14} />} onClick={() => onAct({ kind: "drill-new", plan: code })}>บันทึกการซ้อม</Button>
+            <Button variant="secondary" icon={<AlarmSmoke size={14} />} onClick={() => onAct({ kind: "incident-new", plan: code })}>บันทึกอุบัติการณ์</Button>
+          </>
+        }
+      />
+      <Body>
+        <Card title="ขั้นตอนตอบสนอง"><ol className="list-decimal space-y-1 py-3 pl-9 pr-4 text-[13px] text-slate-700 dark:text-slate-200">{p.response.map((r) => <li key={r}>{r}</li>)}</ol></Card>
+        <Card title="อุปกรณ์"><p className="px-4 py-3 text-[13px] text-slate-700 dark:text-slate-200">{p.equipment}</p></Card>
+        <Card title="ประวัติการซ้อม">
+          {drills.length === 0 ? <Empty>ยังไม่เคยซ้อม</Empty> : (
+            <Lines>
+              {drills.map((d) => <Line key={d.no} title={\`\${d.no} · \${d.date} · \${d.participants} คน · \${d.minutes} นาที\`} sub={\`\${d.findings}\${d.improvement ? \` · ปรับปรุง: \${d.improvement}\` : ""}\`} right={<span className="flex items-center gap-2"><Badge tone={d.result === "ผ่าน" ? "ok" : "warn"}>{d.result}</Badge><Button variant="ghost" icon={<Printer size={13} />} onClick={() => onAct({ kind: "print", d: { doc: "drill", no: d.no }, title: "รายงานการฝึกซ้อมแผนฉุกเฉิน" })}>พิมพ์</Button></span>} />)}
+            </Lines>
+          )}
+        </Card>
+      </Body>
+    </div>
+  );
+}
+
+function IncidentRecord({ no, onAct }: { no: string } & Handlers) {
+  const i = incidentByNo(no);
+  const car = carOf(i.no);
+  return (
+    <div className="flex h-full flex-col">
+      <Header
+        title={\`\${i.no} · \${i.description}\`}
+        meta={\`\${i.date}\${i.plan ? \` · \${i.plan} \${planByCode(i.plan).scenario}\` : ""}\`}
+        badges={<><Badge tone={tone(i.severity)}>{i.severity}</Badge><Badge dot tone={i.status === "ปิดแล้ว" ? "ok" : "warn"}>{i.status}</Badge>{car && <Badge tone={tone(car.status)}>{car.no} · {car.status}</Badge>}</>}
+        actions={
+          i.status === "เปิด" ? (
+            <>
+              {!i.reported && <Button variant={i.severity === "รุนแรง" ? "primary" : "secondary"} icon={<ShieldAlert size={14} />} onClick={() => onAct({ kind: "incident-report", no: i.no })}>บันทึกการรายงานหน่วยงานรัฐ</Button>}
+              <Button variant="secondary" icon={<CircleCheck size={14} />} onClick={() => onAct({ kind: "incident-close", no: i.no })}>ปิดอุบัติการณ์</Button>
+            </>
+          ) : null
+        }
+      />
+      <Body>
+        <Card title="ผลกระทบ"><p className="px-4 py-3 text-[13px] text-slate-700 dark:text-slate-200">{i.impact}</p></Card>
+        <Card title="การควบคุมเหตุ"><p className="px-4 py-3 text-[13px] text-slate-700 dark:text-slate-200">{i.containment}</p></Card>
+        {i.reported && <Note tone="info">รายงานแล้ว: {i.reported}</Note>}
+        {car && (
+          <Card title="การแก้ไขที่สาเหตุ" subtitle="ติดตามต่อที่ระบบบริหารบูรณาการ">
+            <Lines><Line title={\`\${car.no} · \${car.owner}\`} sub={car.rootCause?.whys.at(-1) ?? "ยังไม่หาสาเหตุราก"} right={<Badge dot tone={tone(car.status)}>{car.status}</Badge>} /></Lines>
+          </Card>
+        )}
+        {!car && <Note tone="idle">บันทึกไว้ก่อนระบบเปิด CAR ให้อุบัติการณ์อัตโนมัติ</Note>}
+      </Body>
+    </div>
+  );
+}
+`,
+
   "fi/data.ts": `import { VENDORS, INVOICES as PURCHASE_INVOICES, TODAY, vendor } from "../mm/data";
 import {
   CUSTOMERS, BILLINGS, CREDIT_NOTES, VOIDED_RECEIPTS, amountDue, customer, invoice as salesInvoice, invoiceLines,
@@ -8261,6 +9955,11 @@ export const DOCUMENTS: ControlledDoc[] = [
   issued("FM-13", "บันทึกการออกแบบและพัฒนา", "แบบฟอร์ม", ["ISO 9001"], "ฝ่ายวิศวกรรม", [["2025-02-01", FIRST]]),
   issued("FM-14", "ใบประเมินผู้ส่งมอบประจำปี", "แบบฟอร์ม", QA, "ฝ่ายจัดซื้อ", [["2025-01-15", FIRST]]),
   issued("FM-15", "สรุปผลสำรวจความพึงพอใจลูกค้า", "แบบฟอร์ม", QA, "ฝ่ายขาย", [["2025-01-15", FIRST]]),
+  issued("FM-16", "ทะเบียนประเด็นสิ่งแวดล้อม", "แบบฟอร์ม", ENV, "ฝ่ายความปลอดภัยและสิ่งแวดล้อม", [["2025-03-02", FIRST]]),
+  issued("FM-17", "ทะเบียนกฎหมายและผลการประเมินความสอดคล้อง", "แบบฟอร์ม", ENV, "ฝ่ายความปลอดภัยและสิ่งแวดล้อม", [["2025-03-02", FIRST]]),
+  issued("FM-18", "บัญชีของเสียและการส่งกำจัด", "แบบฟอร์ม", ENV, "ฝ่ายความปลอดภัยและสิ่งแวดล้อม", [["2025-03-02", FIRST]]),
+  issued("FM-19", "รายงานผลการตรวจวัดสิ่งแวดล้อม", "แบบฟอร์ม", ENV, "ฝ่ายความปลอดภัยและสิ่งแวดล้อม", [["2025-03-02", FIRST]]),
+  issued("FM-20", "รายงานการฝึกซ้อมแผนฉุกเฉิน", "แบบฟอร์ม", ["ISO 14001", "IATF 16949"], "ฝ่ายความปลอดภัยและสิ่งแวดล้อม", [["2025-03-02", FIRST]]),
   {
     code: "WI-03", title: "วิธีการพ่นสีฝุ่นและอบ", level: "วิธีการทำงาน", standards: ["ISO 9001", "ISO 14001"], owner: "ฝ่ายผลิต",
     rev: -1, status: "รออนุมัติ", history: [],

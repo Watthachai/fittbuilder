@@ -11,6 +11,7 @@ import FiScreen from "@/demo/modules/fi/screen";
 import CoScreen from "@/demo/modules/co/screen";
 import ImsScreen from "@/demo/modules/ims/screen";
 import QmScreen from "@/demo/modules/qm/screen";
+import EmScreen from "@/demo/modules/em/screen";
 
 /** The same components the WebContainer build gets as text. */
 /** What a screen may be handed: which capability to show, and a way to move to another. */
@@ -29,4 +30,5 @@ export const SCREENS: Record<string, ComponentType<ScreenProps>> = {
   co: CoScreen,
   ims: ImsScreen,
   qm: QmScreen,
+  em: EmScreen,
 };

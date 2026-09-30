@@ -12,6 +12,7 @@ import { FI } from "./finance/fi";
 import { CO } from "./finance/co";
 import { IMS } from "./quality/ims";
 import { QM } from "./quality/qm";
+import { EM } from "./quality/em";
 
 /**
  * Every module, in catalogue order. Mirrors `lib/skills/registry.ts` — modules are
@@ -24,7 +25,7 @@ import { QM } from "./quality/qm";
  */
 // Catalogue order follows how an HR team grows into the system: records first,
 // then the structure around them, then what people do with their time, then pay.
-export const MODULES: Module[] = [PA, OM, TM, PY, MM, PP, SD, WM, FI, CO, IMS, QM];
+export const MODULES: Module[] = [PA, OM, TM, PY, MM, PP, SD, WM, FI, CO, IMS, QM, EM];
 
 /** Buyer-facing name for each family, in catalogue order. */
 export const FAMILIES: { id: Module["family"]; name: string; blurb: string }[] = [

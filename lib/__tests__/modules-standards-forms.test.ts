@@ -7,6 +7,9 @@ import type { ImsDoc } from "../../demo/modules/ims/documents";
 import { APPROVALS, DESIGNS, GAUGES, LOTS, NCRS, commitments } from "../../demo/modules/qm/data";
 import { QmPaper } from "../../demo/modules/qm/documents";
 import type { QmDoc } from "../../demo/modules/qm/documents";
+import { DRILLS, MONITORINGS } from "../../demo/modules/em/data";
+import { EmPaper } from "../../demo/modules/em/documents";
+import type { EmDoc } from "../../demo/modules/em/documents";
 
 /**
  * ทุกใบที่ระบบมาตรฐานพิมพ์คือแบบฟอร์มควบคุม (ข้อ 7.5.3) ผู้ตรวจประเมินจะหยิบใบจริงมาเทียบกับ
@@ -32,6 +35,13 @@ const papers: [string, () => string][] = [
     { doc: "supplier", code: APPROVALS[0].vendor },
     { doc: "satisfaction" },
   ] as QmDoc[]).map((d) => [`บริหารคุณภาพ ${d.doc}`, () => renderToStaticMarkup(createElement(QmPaper, { d }))] as [string, () => string]),
+  ...([
+    { doc: "aspects" },
+    { doc: "obligations" },
+    { doc: "waste" },
+    { doc: "monitoring", no: MONITORINGS[0].no },
+    { doc: "drill", no: DRILLS[0].no },
+  ] as EmDoc[]).map((d) => [`สิ่งแวดล้อม ${d.doc}`, () => renderToStaticMarkup(createElement(EmPaper, { d }))] as [string, () => string]),
 ];
 
 const formOn = (html: string) => {

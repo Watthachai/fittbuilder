@@ -2879,6 +2879,7 @@ export default function Studio({ projectId }: { projectId: string }) {
       {previewPhase && (
         <DocPreviewModal
           title={`${phaseDef(previewPhase).user} — ${phaseDef(previewPhase).name}`}
+          projectName={project.name}
           docs={previewDocs}
           hint={
             previewPhase === "define"

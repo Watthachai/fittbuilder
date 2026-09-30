@@ -1,8 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { Sparkles, X } from "lucide-react";
+import { createPortal } from "react-dom";
+import { FileDown, Loader2, Sparkles, X } from "lucide-react";
 import Markdown from "./Markdown";
+import DocPrint from "./DocPrint";
+import { docFileName } from "@/lib/doc-number";
+import { printSheet } from "@/lib/print-sheet";
 import Overlay from "@/components/ui/Overlay";
 import GlassSurface from "@/components/ui/GlassSurface";
 
@@ -20,6 +24,7 @@ interface DocTab {
  */
 export default function DocPreviewModal({
   title,
+  projectName,
   docs,
   hint,
   busy,
@@ -27,6 +32,8 @@ export default function DocPreviewModal({
   onClose,
 }: {
   title: string;
+  /** Printed on every page of the PDF and in its file name. */
+  projectName: string;
   docs: DocTab[];
   /** Extra line under the revise box, e.g. "แก้ BRD แล้วจะ gen PRD ใหม่ให้ด้วย". */
   hint?: string;
@@ -37,6 +44,21 @@ export default function DocPreviewModal({
   const [comment, setComment] = useState("");
   const [active, setActive] = useState(0);
   const doc = docs[active] ?? null;
+  const [sheet, setSheet] = useState<DocTab | null>(null);
+  const [printing, setPrinting] = useState(false);
+
+  // Same route as the quotation: the browser's print dialog, "Save as PDF".
+  const savePdf = async () => {
+    if (!doc || printing) return;
+    setPrinting(true);
+    try {
+      await printSheet(() => setSheet(doc), () => setSheet(null), {
+        fileName: docFileName(doc.label, projectName),
+      });
+    } finally {
+      setPrinting(false);
+    }
+  };
 
   const submit = () => {
     if (!comment.trim() || busy) return;
@@ -71,13 +93,26 @@ export default function DocPreviewModal({
               <span className="truncate font-mono text-[11px] text-chalk-dim">{doc.path}</span>
             )}
           </div>
-          <button
-            onClick={onClose}
-            aria-label="ปิด"
-            className="shrink-0 text-chalk-dim transition hover:text-chalk"
-          >
-            <X size={18} />
-          </button>
+          <div className="flex shrink-0 items-center gap-3">
+            {doc && (
+              <button
+                onClick={() => void savePdf()}
+                disabled={printing}
+                title="เปิดหน้าต่างพิมพ์ แล้วเลือกปลายทางเป็น “Save as PDF”"
+                className="inline-flex items-center gap-1.5 rounded-lg border border-night-edge px-3 py-1.5 text-xs font-medium text-chalk transition hover:border-shine/60 hover:text-shine disabled:opacity-60"
+              >
+                {printing ? <Loader2 size={13} className="animate-spin" /> : <FileDown size={13} />}
+                บันทึก {doc.label} เป็น PDF
+              </button>
+            )}
+            <button
+              onClick={onClose}
+              aria-label="ปิด"
+              className="text-chalk-dim transition hover:text-chalk"
+            >
+              <X size={18} />
+            </button>
+          </div>
         </div>
 
         <div className="scroll-thin min-h-0 flex-1 overflow-y-auto px-6 py-5">
@@ -117,6 +152,16 @@ export default function DocPreviewModal({
           </p>
         </div>
       </GlassSurface>
+      {sheet &&
+        createPortal(
+          <DocPrint
+            label={sheet.label}
+            projectName={projectName}
+            printedAt={new Date().toISOString().slice(0, 10)}
+            content={sheet.content}
+          />,
+          document.body
+        )}
     </Overlay>
   );
 }

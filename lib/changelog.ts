@@ -23,6 +23,17 @@ export const CHANGE_BADGE: Record<ChangeType, { label: string; className: string
 // Newest first. SemVer: fix → PATCH, feature → MINOR, breaking → MAJOR.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.92.0",
+    date: "2026-09-30",
+    title: "บันทึก BRD และ PRD เป็น PDF",
+    items: [
+      {
+        type: "feature",
+        text: "หน้าต่างเอกสารของแต่ละเฟสมีปุ่มบันทึกเป็น PDF ได้ทั้ง BRD PRD และเอกสารเฟสอื่น พิมพ์บนกระดาษ A4 พื้นขาว มีชื่อโปรเจกต์และวันที่พิมพ์ทุกหน้า ตาราง หัวข้อ และรายการคงรูปแบบเดิม ชื่อไฟล์ขึ้นต้นด้วยชนิดเอกสารตามด้วยชื่อโปรเจกต์",
+      },
+    ],
+  },
+  {
     version: "0.91.0",
     date: "2026-09-30",
     title: "ระบบมาตรฐาน ISO ครบสามมาตรฐาน และระบบยานยนต์ IATF 16949",

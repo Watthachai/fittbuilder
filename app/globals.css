@@ -1285,6 +1285,110 @@ body {
   line-height: 1.55;
 }
 
+/* ---- phase documents (BRD, PRD, …): markdown on paper ---- */
+.fitt-paper .d-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  padding-bottom: 5px;
+  margin-bottom: 12px;
+  border-bottom: 1px solid var(--rule);
+  font-size: 10.5px;
+  color: var(--ink-dim);
+}
+.fitt-paper .d-doc h1 {
+  font-size: 20px;
+  margin: 0 0 10px;
+}
+.fitt-paper .d-doc h2 {
+  font-size: 15px;
+  font-weight: 700;
+  margin: 18px 0 6px;
+  padding-bottom: 3px;
+  border-bottom: 1px dashed var(--accent);
+}
+.fitt-paper .d-doc h3 {
+  font-size: 13px;
+  font-weight: 700;
+  margin: 12px 0 4px;
+}
+.fitt-paper .d-doc h4 {
+  font-weight: 700;
+  margin: 10px 0 3px;
+}
+.fitt-paper .d-doc p {
+  margin: 5px 0;
+}
+.fitt-paper .d-doc ul,
+.fitt-paper .d-doc ol {
+  margin: 5px 0;
+  padding-left: 22px;
+}
+.fitt-paper .d-doc ul {
+  list-style: disc outside;
+}
+.fitt-paper .d-doc ol {
+  list-style: decimal outside;
+}
+.fitt-paper .d-doc li {
+  margin-top: 2px;
+}
+.fitt-paper .d-doc li > ul,
+.fitt-paper .d-doc li > ol {
+  margin: 2px 0;
+}
+.fitt-paper .d-doc table {
+  width: 100%;
+  margin: 8px 0;
+  border-collapse: collapse;
+  font-size: 11.5px;
+}
+.fitt-paper .d-doc th,
+.fitt-paper .d-doc td {
+  border: 1px solid var(--rule);
+  padding: 4px 6px;
+  text-align: left;
+  vertical-align: top;
+}
+.fitt-paper .d-doc th {
+  background: #f3f4f6;
+  font-weight: 600;
+}
+.fitt-paper .d-doc blockquote {
+  margin: 8px 0;
+  padding-left: 10px;
+  border-left: 3px solid var(--rule);
+  color: var(--ink-dim);
+}
+.fitt-paper .d-doc code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+  background: #f3f4f6;
+  border-radius: 3px;
+  padding: 0 3px;
+}
+.fitt-paper .d-doc pre {
+  margin: 8px 0;
+  padding: 8px 10px;
+  background: #f3f4f6;
+  border-radius: 4px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.fitt-paper .d-doc pre code {
+  background: none;
+  padding: 0;
+}
+.fitt-paper .d-doc hr {
+  margin: 14px 0;
+  border: 0;
+  border-top: 1px solid var(--rule);
+}
+.fitt-paper .d-doc a {
+  color: inherit;
+  text-decoration: underline;
+}
+
 @page {
   size: A4;
   margin: 0;
@@ -1341,5 +1445,22 @@ body {
   .fitt-paper .q-block h2,
   .fitt-paper .q-shots h2 {
     break-after: avoid;
+  }
+  /* A heading stranded at the foot of a page, or a table row torn in two,
+     reads as a broken document. */
+  .fitt-paper .d-doc h1,
+  .fitt-paper .d-doc h2,
+  .fitt-paper .d-doc h3,
+  .fitt-paper .d-doc h4 {
+    break-after: avoid;
+  }
+  .fitt-paper .d-doc tr,
+  .fitt-paper .d-doc li,
+  .fitt-paper .d-doc pre,
+  .fitt-paper .d-doc blockquote {
+    break-inside: avoid;
+  }
+  .fitt-paper .d-doc thead {
+    display: table-header-group;
   }
 }

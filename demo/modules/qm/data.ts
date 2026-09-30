@@ -1,290 +1,32 @@
 import { commit } from "../kit";
-import { COMPANY, TODAY } from "../company";
-import { GOODS_RECEIPTS, MATERIALS, PURCHASE_ORDERS, VENDORS, postStockMove } from "../mm/data";
+import {
+  COMPANY, PEOPLE, QMR, TODAY, YEAR, addDays, addMonths, assertValid, carOf, contributeReviewInput, isDate, nextNo, rate,
+} from "../ims/data";
+import type { Errors } from "../ims/data";
+import {
+  GOODS_RECEIPTS, INFO_RECORDS, MATERIALS, PURCHASE_ORDERS, VENDORS, blockVendor, gradeOf, latestReview, postStockMove,
+  reviewScore, unblockVendor, vendorScore,
+} from "../mm/data";
 import { ORDERS, PP_MOVEMENTS } from "../pp/data";
-import { CUSTOMERS, DELIVERIES, SALES_ORDERS } from "../sd/data";
+import { CUSTOMERS, DELIVERIES, QUOTATIONS, SALES_ORDERS, isCancelled, salesOrder } from "../sd/data";
 
 export { COMPANY, TODAY };
+export type { Errors };
 
 /**
- * บริหารคุณภาพตาม ISO 9001:2015 — ข้อกำหนดแต่ละข้อเป็นงานที่ทำได้จริงในระบบ
- * ไม่ใช่แฟ้มเอกสารที่ทำแยกไว้ตอนรอผู้ตรวจ
+ * บริหารคุณภาพตาม ISO 9001:2015 — ส่วนที่เป็นงานคุณภาพหน้างาน ส่วนที่ใช้ร่วมกับมาตรฐานอื่น
+ * (เอกสาร ตรวจติดตาม CAR บุคลากร) อยู่ในระบบบริหารบูรณาการ
  *
  * ของที่ตรวจมาจากเอกสารจริงของระบบอื่น: ล็อตตรวจรับมาจากใบรับของของจัดซื้อ
  * ล็อตตรวจก่อนส่งมาจากการรับสินค้าผลิตเสร็จ ข้อร้องเรียนอ้างใบส่งของของฝ่ายขาย
- * และของที่ตัดสินให้ทำลายหรือส่งคืนผู้ขายตัดสต็อกผ่านฟังก์ชันของคลังวัสดุ
- * โมดูลนี้ไม่เขียนข้อมูลของโมดูลอื่นตรง ๆ
+ * ของที่ตัดสินให้ทำลายหรือส่งคืนผู้ขายตัดสต็อกผ่านฟังก์ชันของคลังวัสดุ และผู้ส่งมอบที่ถูก
+ * ระงับจะสั่งซื้อไม่ได้เพราะระงับผ่านระบบจัดซื้อ — โมดูลนี้ไม่เขียนข้อมูลของโมดูลอื่นตรง ๆ
  */
-
-const YEAR = Number(TODAY.slice(0, 4)) + 543;
-
-export type Errors = Record<string, string>;
-
-function assertValid(e: Errors) {
-  const first = Object.values(e)[0];
-  if (first) throw new Error(first);
-}
-
-const isDate = (s: string) => /^\d{4}-\d{2}-\d{2}$/.test(s);
-
-export function addDays(iso: string, n: number) {
-  const [y, m, d] = iso.split("-").map(Number);
-  const t = new Date(y, m - 1, d + n);
-  return `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, "0")}-${String(t.getDate()).padStart(2, "0")}`;
-}
-
-export function addMonths(iso: string, n: number) {
-  const [y, m, d] = iso.split("-").map(Number);
-  const t = new Date(y, m - 1 + n, d);
-  return `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, "0")}-${String(t.getDate()).padStart(2, "0")}`;
-}
-
-/** เลขถัดไปของชุดเอกสาร — ต่อจากเลขที่สูงสุดที่มีอยู่ ไม่ใช่จากจำนวนใบ */
-function nextNo(existing: string[], prefix: string, width: number) {
-  const max = existing
-    .filter((n) => n.startsWith(prefix))
-    .map((n) => Number(n.slice(prefix.length)))
-    .filter((n) => Number.isFinite(n))
-    .reduce((a, b) => Math.max(a, b), 0);
-  return prefix + String(max + 1).padStart(width, "0");
-}
 
 export const materialName = (code: string) => MATERIALS.find((m) => m.code === code)?.name ?? code;
 export const materialUnit = (code: string) => MATERIALS.find((m) => m.code === code)?.unit ?? "";
 export const vendorName = (code?: string) => (code ? VENDORS.find((v) => v.code === code)?.name ?? code : "—");
 export const customerName = (code?: string) => (code ? CUSTOMERS.find((c) => c.code === code)?.name ?? code : "—");
-
-/* ================================================================ people */
-
-/** ทีมที่รับผิดชอบระบบคุณภาพ — ผู้ตรวจติดตามต้องไม่ตรวจงานของฝ่ายตัวเอง (ข้อ 9.2.2 ค) */
-export const QM_TEAM = [
-  { name: "นพดล ศรีวงศ์", role: "ผู้จัดการฝ่ายประกันคุณภาพ (QMR)", dept: "ฝ่ายประกันคุณภาพ", auditor: true },
-  { name: "สุภาพร แก้วมณี", role: "หัวหน้าตรวจสอบคุณภาพ (QC)", dept: "ฝ่ายประกันคุณภาพ", auditor: true },
-  { name: "อนุชา ทองดี", role: "หัวหน้าฝ่ายผลิต", dept: "ฝ่ายผลิต", auditor: true },
-  { name: "ปิยะนุช ใจดี", role: "หัวหน้าฝ่ายจัดซื้อ", dept: "ฝ่ายจัดซื้อ", auditor: true },
-  { name: "วรวุฒิ พึ่งบุญ", role: "หัวหน้าคลังสินค้า", dept: "ฝ่ายคลังสินค้า", auditor: false },
-  { name: "ชลธิชา มั่นคง", role: "หัวหน้าฝ่ายขาย", dept: "ฝ่ายขาย", auditor: true },
-];
-
-export const QMR = QM_TEAM[0].name;
-export const DEPARTMENTS = [...new Set(QM_TEAM.map((p) => p.dept))];
-export const PEOPLE = QM_TEAM.map((p) => p.name);
-export const deptOf = (name: string) => QM_TEAM.find((p) => p.name === name)?.dept ?? "";
-
-/** ข้อกำหนดของ ISO 9001:2015 ที่ระบบนี้ครอบคลุม ใช้อ้างในเอกสาร ผลตรวจติดตาม และรายงาน */
-export const CLAUSES = [
-  { code: "4.4", name: "ระบบบริหารคุณภาพและกระบวนการ" },
-  { code: "5.2", name: "นโยบายคุณภาพ" },
-  { code: "6.2", name: "วัตถุประสงค์คุณภาพ" },
-  { code: "7.1.5", name: "ทรัพยากรสำหรับการเฝ้าติดตามและการวัด" },
-  { code: "7.2", name: "ความสามารถ" },
-  { code: "7.5", name: "เอกสารสารสนเทศ" },
-  { code: "8.4", name: "การควบคุมผู้ให้บริการภายนอก" },
-  { code: "8.5", name: "การผลิตและการให้บริการ" },
-  { code: "8.6", name: "การตรวจปล่อยผลิตภัณฑ์" },
-  { code: "8.7", name: "การควบคุมผลลัพธ์ที่ไม่เป็นไปตามข้อกำหนด" },
-  { code: "9.1.2", name: "ความพึงพอใจของลูกค้า" },
-  { code: "9.2", name: "การตรวจติดตามภายใน" },
-  { code: "9.3", name: "การทบทวนโดยฝ่ายบริหาร" },
-  { code: "10.2", name: "สิ่งที่ไม่เป็นไปตามข้อกำหนดและการแก้ไข" },
-];
-
-export const clauseName = (code: string) => CLAUSES.find((c) => c.code === code)?.name ?? "";
-
-/* ============================================================= documents */
-
-export const DOC_TYPES = ["คู่มือคุณภาพ", "ขั้นตอนการปฏิบัติงาน", "วิธีการทำงาน", "แบบฟอร์ม"] as const;
-export type DocType = (typeof DOC_TYPES)[number];
-
-const DOC_PREFIX: Record<DocType, string> = {
-  "คู่มือคุณภาพ": "QM-",
-  "ขั้นตอนการปฏิบัติงาน": "QP-",
-  "วิธีการทำงาน": "WI-",
-  "แบบฟอร์ม": "FM-",
-};
-
-export type DocStatus = "ร่าง" | "รออนุมัติ" | "ใช้งาน" | "ยกเลิก";
-
-export type DocRevision = { rev: number; date: string; change: string; by: string; approvedBy: string };
-
-/** ฉบับที่กำลังเขียนหรือรออนุมัติ — ฉบับที่ใช้อยู่ยังใช้ต่อจนกว่าฉบับนี้จะอนุมัติ */
-export type DocDraft = { rev: number; change: string; by: string; date: string; submitted: boolean };
-
-export type QmDocument = {
-  code: string;
-  title: string;
-  type: DocType;
-  clause: string;
-  owner: string;
-  /** ฉบับที่ใช้อยู่ — -1 คือยังไม่เคยอนุมัติฉบับไหน */
-  rev: number;
-  status: DocStatus;
-  effective?: string;
-  /** ทบทวนความเหมาะสมทุกปี (ข้อ 7.5.2) */
-  reviewDue?: string;
-  draft?: DocDraft;
-  history: DocRevision[];
-  obsoleteReason?: string;
-};
-
-/** ทุกฉบับถูกทบทวนในการประชุมทบทวนโดยฝ่ายบริหารเมื่อ 2026-01-20 ยกเว้นที่ออกฉบับใหม่หลังจากนั้น */
-const MANAGEMENT_REVIEW = "2026-01-20";
-
-const issued = (code: string, title: string, type: DocType, clause: string, owner: string, revs: [string, string][], reviewed = MANAGEMENT_REVIEW): QmDocument => {
-  const history = revs.map(([date, change], i) => ({ rev: i, date, change, by: owner === "ฝ่ายผลิต" ? "อนุชา ทองดี" : "สุภาพร แก้วมณี", approvedBy: QMR }));
-  const last = history[history.length - 1];
-  const since = last.date > reviewed ? last.date : reviewed;
-  return { code, title, type, clause, owner, rev: last.rev, status: "ใช้งาน", effective: last.date, reviewDue: addMonths(since, 12), history };
-};
-
-export const DOCUMENTS: QmDocument[] = [
-  issued("QM-01", "คู่มือคุณภาพ", "คู่มือคุณภาพ", "4.4", "ฝ่ายประกันคุณภาพ", [["2025-01-15", "ออกใช้ครั้งแรก"], ["2025-11-03", "ปรับขอบเขตให้รวมงานพ่นสี"]]),
-  issued("QP-01", "การควบคุมเอกสารและบันทึก", "ขั้นตอนการปฏิบัติงาน", "7.5", "ฝ่ายประกันคุณภาพ", [["2025-01-15", "ออกใช้ครั้งแรก"]]),
-  issued("QP-02", "การตรวจติดตามภายใน", "ขั้นตอนการปฏิบัติงาน", "9.2", "ฝ่ายประกันคุณภาพ", [["2025-01-15", "ออกใช้ครั้งแรก"], ["2026-02-10", "เพิ่มเกณฑ์ความเป็นอิสระของผู้ตรวจ"]]),
-  issued("QP-03", "การควบคุมผลิตภัณฑ์ที่ไม่เป็นไปตามข้อกำหนด", "ขั้นตอนการปฏิบัติงาน", "8.7", "ฝ่ายประกันคุณภาพ", [["2025-01-15", "ออกใช้ครั้งแรก"]]),
-  issued("QP-04", "การแก้ไขและการป้องกัน", "ขั้นตอนการปฏิบัติงาน", "10.2", "ฝ่ายประกันคุณภาพ", [["2025-01-15", "ออกใช้ครั้งแรก"]]),
-  issued("QP-05", "การตรวจรับวัตถุดิบ", "ขั้นตอนการปฏิบัติงาน", "8.4", "ฝ่ายประกันคุณภาพ", [["2025-02-01", "ออกใช้ครั้งแรก"], ["2025-10-07", "เพิ่มแผนสุ่มตัวอย่างตามขนาดล็อต"]], "2025-10-07"),
-  issued("QP-06", "การสอบเทียบเครื่องมือวัด", "ขั้นตอนการปฏิบัติงาน", "7.1.5", "ฝ่ายประกันคุณภาพ", [["2025-02-01", "ออกใช้ครั้งแรก"]]),
-  issued("WI-01", "วิธีการเชื่อมโครงชั้นวาง", "วิธีการทำงาน", "8.5", "ฝ่ายผลิต", [["2025-03-12", "ออกใช้ครั้งแรก"], ["2026-06-20", "เปลี่ยนลวดเชื่อมเป็น ER70S-6"]]),
-  issued("WI-02", "การวัดความหนาเหล็กแผ่นและเหล็กเส้น", "วิธีการทำงาน", "8.6", "ฝ่ายประกันคุณภาพ", [["2025-03-12", "ออกใช้ครั้งแรก"]]),
-  // แบบฟอร์มที่ระบบพิมพ์ออกมา — เลขที่มุมกระดาษอ่านฉบับจากบัญชีนี้ แก้ฟอร์มแล้วใบที่พิมพ์เปลี่ยนตาม
-  issued("FM-01", "บัญชีรายชื่อเอกสารควบคุม", "แบบฟอร์ม", "7.5", "ฝ่ายประกันคุณภาพ", [["2025-01-15", "ออกใช้ครั้งแรก"]]),
-  issued("FM-02", "ใบรายงานผลการตรวจสอบ", "แบบฟอร์ม", "8.6", "ฝ่ายประกันคุณภาพ", [["2025-02-01", "ออกใช้ครั้งแรก"], ["2025-10-07", "เพิ่มช่องจำนวนตัวอย่างตามขนาดล็อต"]], "2025-10-07"),
-  issued("FM-03", "ใบรับรองคุณภาพสินค้า", "แบบฟอร์ม", "8.6", "ฝ่ายประกันคุณภาพ", [["2025-02-01", "ออกใช้ครั้งแรก"]], "2025-10-07"),
-  issued("FM-04", "ใบรายงานสิ่งที่ไม่เป็นไปตามข้อกำหนด", "แบบฟอร์ม", "8.7", "ฝ่ายประกันคุณภาพ", [["2025-01-15", "ออกใช้ครั้งแรก"]]),
-  issued("FM-05", "ใบขอให้ดำเนินการแก้ไขและป้องกัน", "แบบฟอร์ม", "10.2", "ฝ่ายประกันคุณภาพ", [["2025-01-15", "ออกใช้ครั้งแรก"]]),
-  issued("FM-06", "รายงานการตรวจติดตามภายใน", "แบบฟอร์ม", "9.2", "ฝ่ายประกันคุณภาพ", [["2025-01-15", "ออกใช้ครั้งแรก"], ["2026-02-10", "เพิ่มช่องระดับของสิ่งที่พบ"]]),
-  issued("FM-07", "บันทึกประวัติการสอบเทียบเครื่องมือวัด", "แบบฟอร์ม", "7.1.5", "ฝ่ายประกันคุณภาพ", [["2025-02-01", "ออกใช้ครั้งแรก"]]),
-  {
-    code: "WI-03", title: "วิธีการพ่นสีฝุ่นและอบ", type: "วิธีการทำงาน", clause: "8.5", owner: "ฝ่ายผลิต",
-    rev: -1, status: "รออนุมัติ", history: [],
-    draft: { rev: 0, change: "ออกใช้ครั้งแรก — กำหนดอุณหภูมิอบ 200°C 15 นาที", by: "อนุชา ทองดี", date: "2026-09-18", submitted: true },
-  },
-];
-
-export const docByCode = (code: string) => {
-  const d = DOCUMENTS.find((x) => x.code === code);
-  if (!d) throw new Error(`ไม่พบเอกสาร ${code}`);
-  return d;
-};
-
-/** เอกสารที่ถึงรอบทบทวนภายใน 30 วัน หรือเลยรอบมาแล้ว */
-export const reviewDue = () =>
-  DOCUMENTS.filter((d) => d.status === "ใช้งาน" && d.reviewDue && d.reviewDue <= addDays(TODAY, 30));
-
-export const awaitingApproval = () => DOCUMENTS.filter((d) => d.draft?.submitted);
-
-export type DocInput = { type: DocType; title: string; clause: string; owner: string; by: string; change: string };
-
-export function docErrors(input: DocInput): Errors {
-  const e: Errors = {};
-  if (input.title.trim().length < 4) e.title = "ใส่ชื่อเอกสาร";
-  else if (DOCUMENTS.some((d) => d.status !== "ยกเลิก" && d.title === input.title.trim())) e.title = "มีเอกสารชื่อนี้ใช้อยู่แล้ว";
-  if (!CLAUSES.some((c) => c.code === input.clause)) e.clause = "เลือกข้อกำหนดที่เอกสารนี้รองรับ";
-  if (!DEPARTMENTS.includes(input.owner)) e.owner = "เลือกฝ่ายเจ้าของเอกสาร";
-  if (!PEOPLE.includes(input.by)) e.by = "เลือกผู้จัดทำ";
-  return e;
-}
-
-export const nextDocCode = (type: DocType) => {
-  const prefix = DOC_PREFIX[type];
-  const nums = DOCUMENTS.filter((d) => d.code.startsWith(prefix)).map((d) => Number(d.code.slice(prefix.length)));
-  return `${prefix}${String(Math.max(0, ...nums) + 1).padStart(2, "0")}`;
-};
-
-export function createDocument(input: DocInput): QmDocument {
-  assertValid(docErrors(input));
-  return commit(() => {
-    const d: QmDocument = {
-      code: nextDocCode(input.type),
-      title: input.title.trim(),
-      type: input.type,
-      clause: input.clause,
-      owner: input.owner,
-      rev: -1,
-      status: "ร่าง",
-      history: [],
-      draft: { rev: 0, change: input.change.trim() || "ออกใช้ครั้งแรก", by: input.by, date: TODAY, submitted: false },
-    };
-    DOCUMENTS.push(d);
-    return d;
-  });
-}
-
-export function submitDocument(code: string) {
-  const d = docByCode(code);
-  if (!d.draft || d.draft.submitted) throw new Error(`${code} ไม่มีฉบับร่างที่รอส่ง`);
-  return commit(() => {
-    d.draft!.submitted = true;
-    if (d.rev < 0) d.status = "รออนุมัติ";
-    return d;
-  });
-}
-
-/** อนุมัติก่อนออกใช้ (ข้อ 7.5.2) — ผู้อนุมัติต้องไม่ใช่คนเขียน */
-export function approveDocument(code: string, approver: string, date = TODAY) {
-  const d = docByCode(code);
-  if (!d.draft?.submitted) throw new Error(`${code} ไม่มีฉบับที่รออนุมัติ`);
-  if (approver === d.draft.by) throw new Error("ผู้อนุมัติต้องไม่ใช่ผู้จัดทำเอกสาร");
-  if (!PEOPLE.includes(approver)) throw new Error("เลือกผู้อนุมัติ");
-  const draft = d.draft;
-  return commit(() => {
-    d.history.push({ rev: draft.rev, date, change: draft.change, by: draft.by, approvedBy: approver });
-    d.rev = draft.rev;
-    d.status = "ใช้งาน";
-    d.effective = date;
-    d.reviewDue = addMonths(date, 12);
-    d.draft = undefined;
-    return d;
-  });
-}
-
-/** ส่งฉบับกลับไปแก้ — ฉบับที่ใช้อยู่ไม่เปลี่ยน */
-export function returnDocument(code: string) {
-  const d = docByCode(code);
-  if (!d.draft?.submitted) throw new Error(`${code} ไม่มีฉบับที่รออนุมัติ`);
-  return commit(() => {
-    d.draft!.submitted = false;
-    if (d.rev < 0) d.status = "ร่าง";
-    return d;
-  });
-}
-
-export function reviseDocument(code: string, change: string, by: string) {
-  const d = docByCode(code);
-  if (d.status !== "ใช้งาน") throw new Error(`${code} ${d.status} แก้ไขฉบับใหม่ไม่ได้`);
-  if (d.draft) throw new Error(`${code} มีฉบับแก้ไข Rev.${String(d.draft.rev).padStart(2, "0")} ค้างอยู่แล้ว`);
-  if (change.trim().length < 5) throw new Error("บอกว่าแก้อะไร อย่างน้อยหนึ่งประโยค");
-  if (!PEOPLE.includes(by)) throw new Error("เลือกผู้จัดทำ");
-  return commit(() => {
-    d.draft = { rev: d.rev + 1, change: change.trim(), by, date: TODAY, submitted: false };
-    return d;
-  });
-}
-
-/** ทบทวนแล้วยังเหมาะสม — ต่อรอบทบทวนอีกหนึ่งปี ไม่ออกฉบับใหม่ */
-export function confirmReview(code: string, date = TODAY) {
-  const d = docByCode(code);
-  if (d.status !== "ใช้งาน") throw new Error(`${code} ไม่ได้ใช้งานอยู่`);
-  return commit(() => {
-    d.reviewDue = addMonths(date, 12);
-    return d;
-  });
-}
-
-export function obsoleteDocument(code: string, reason: string) {
-  const d = docByCode(code);
-  if (d.status === "ยกเลิก") throw new Error(`${code} ยกเลิกไปแล้ว`);
-  if (reason.trim().length < 5) throw new Error("ใส่เหตุผลที่ยกเลิก");
-  return commit(() => {
-    d.status = "ยกเลิก";
-    d.obsoleteReason = reason.trim();
-    d.draft = undefined;
-    return d;
-  });
-}
-
-export const revLabel = (rev: number) => (rev < 0 ? "—" : `Rev.${String(rev).padStart(2, "0")}`);
 
 /* ============================================================ inspection */
 
@@ -482,9 +224,7 @@ export function resultErrors(no: string, results: ResultInput[]): Errors {
 export function judge(material: string, results: ResultInput[]): Result[] {
   return planOf(material).map((c) => {
     const r = results.find((x) => x.characteristic === c.name) ?? { characteristic: c.name };
-    return c.kind === "วัดค่า"
-      ? measured(c.name, r.min ?? NaN, r.max ?? NaN, c)
-      : visual(c.name, r.defects ?? 0);
+    return c.kind === "วัดค่า" ? measured(c.name, r.min ?? NaN, r.max ?? NaN, c) : visual(c.name, r.defects ?? 0);
   });
 }
 
@@ -568,7 +308,6 @@ export type Ncr = {
   dispositionNote?: string;
   /** เลขที่เอกสารเคลื่อนไหวสต็อกของคลังวัสดุ เมื่อสั่งทำลายหรือส่งคืน */
   stockDoc?: string;
-  capa?: string;
   closedOn?: string;
   closedBy?: string;
 };
@@ -583,7 +322,7 @@ export const NCRS: Ncr[] = [
   {
     no: "NCR-2569-013", date: "2026-09-10", source: "ข้อร้องเรียนลูกค้า", ref: "DO-2569-0299", material: "FG-5001", qty: 2, customer: "C-102",
     description: "ลูกค้าแจ้งชั้นวาง 2 ชุดสีถลอกที่มุม เกิดระหว่างขนส่ง", severity: "เล็กน้อย", reportedBy: "ชลธิชา มั่นคง",
-    status: "ดำเนินการ", disposition: "ซ่อมหรือทำใหม่", dispositionBy: QMR, dispositionNote: "ส่งช่างเข้าไปพ่นซ่อมที่หน้างานลูกค้า 26/09", capa: "CAR-2569-008",
+    status: "ดำเนินการ", disposition: "ซ่อมหรือทำใหม่", dispositionBy: QMR, dispositionNote: "ส่งช่างเข้าไปพ่นซ่อมที่หน้างานลูกค้า 26/09",
   },
   {
     no: "NCR-2569-014", date: "2026-09-19", source: "ตรวจรับ", ref: "IL-2569-0043", material: "MAT-1002", qty: 60, vendor: "V-002",
@@ -598,6 +337,9 @@ export const ncrByNo = (no: string) => {
   return n;
 };
 
+/** CAR ของ NCR ใบนี้ — หาจากเลขต้นเรื่องของ CAR ในระบบบริหารบูรณาการ ไม่เก็บซ้ำสองที่ */
+export const carOfNcr = (n: Ncr) => carOf(n.no);
+
 export const nextNcrNo = () => nextNo(NCRS.map((n) => n.no), `NCR-${YEAR}-`, 3);
 
 function pushNcr(input: Omit<Ncr, "no" | "status">): Ncr {
@@ -607,6 +349,9 @@ function pushNcr(input: Omit<Ncr, "no" | "status">): Ncr {
 }
 
 export type NcrInput = { source: NcrSource; ref: string; material: string; qty: number; description: string; severity: Severity; reportedBy: string };
+
+/** NCR ระหว่างผลิตอ้างใบสั่งผลิตของระบบวางแผนการผลิต — เลขที่พิมพ์ต้องมีอยู่จริง */
+export const productionOrderExists = (no: string) => ORDERS.some((o) => o.no === no);
 
 export function ncrErrors(input: NcrInput): Errors {
   const e: Errors = {};
@@ -711,7 +456,7 @@ export function closeNcrErrors(no: string): Errors {
   const e: Errors = {};
   if (n.status === "ปิดแล้ว") e.close = `${no} ปิดไปแล้ว`;
   else if (!n.disposition) e.close = "สั่งการก่อนปิด";
-  else if (n.severity === "รุนแรง" && !n.capa) e.close = "NCR รุนแรงต้องเปิดใบขอให้แก้ไข (CAR) หาสาเหตุก่อนปิด";
+  else if (n.severity === "รุนแรง" && !carOfNcr(n)) e.close = "NCR รุนแรงต้องเปิดใบขอให้แก้ไข (CAR) หาสาเหตุก่อนปิด";
   return e;
 }
 
@@ -724,253 +469,6 @@ export function closeNcr(no: string, by: string, date = TODAY) {
     n.closedOn = date;
     n.closedBy = by;
     return n;
-  });
-}
-
-/* ================================================================== capa */
-
-export const CAUSE_CATEGORIES = ["คน", "เครื่องจักร", "วัสดุ", "วิธีการ", "การวัด", "สภาพแวดล้อม"] as const;
-export type CauseCategory = (typeof CAUSE_CATEGORIES)[number];
-
-export type CapaAction = { what: string; owner: string; due: string; doneOn?: string };
-
-export type Capa = {
-  no: string;
-  date: string;
-  kind: "แก้ไข" | "ป้องกัน";
-  /** NCR หรือผลตรวจติดตามที่เป็นต้นเรื่อง */
-  ref: string;
-  problem: string;
-  owner: string;
-  rootCause?: { category: CauseCategory; whys: string[] };
-  actions: CapaAction[];
-  status: "วิเคราะห์สาเหตุ" | "ดำเนินการ" | "ติดตามผล" | "ปิดแล้ว";
-  verification?: { date: string; effective: boolean; note: string; by: string };
-};
-
-export const CAPAS: Capa[] = [
-  {
-    no: "CAR-2569-007", date: "2026-07-30", kind: "แก้ไข", ref: "IA-2569-02 #1", owner: "ปิยะนุช ใจดี",
-    problem: "ไม่มีหลักฐานการประเมินผู้ขายรายใหม่ก่อนออกใบสั่งซื้อครั้งแรก",
-    rootCause: { category: "วิธีการ", whys: ["ออกใบสั่งซื้อให้ผู้ขายใหม่ก่อนประเมิน", "ขั้นตอนไม่ได้กำหนดว่าต้องประเมินก่อนสั่งครั้งแรก", "QP-05 เขียนเฉพาะการตรวจรับ ไม่ครอบคลุมการคัดเลือกผู้ขาย"] },
-    actions: [
-      { what: "เพิ่มขั้นตอนประเมินผู้ขายใหม่ใน QP-05", owner: "ปิยะนุช ใจดี", due: "2026-08-15", doneOn: "2026-08-12" },
-      { what: "ประเมินผู้ขายที่ใช้อยู่ย้อนหลังให้ครบ", owner: "ปิยะนุช ใจดี", due: "2026-08-31", doneOn: "2026-08-29" },
-    ],
-    status: "ปิดแล้ว",
-    verification: { date: "2026-09-15", effective: true, note: "สุ่มใบสั่งซื้อผู้ขายใหม่ 3 ใบ มีผลประเมินก่อนสั่งครบ", by: QMR },
-  },
-  {
-    no: "CAR-2569-008", date: "2026-09-11", kind: "แก้ไข", ref: "NCR-2569-013", owner: "วรวุฒิ พึ่งบุญ",
-    problem: "สินค้าสีถลอกระหว่างขนส่งถึงลูกค้า",
-    rootCause: { category: "วิธีการ", whys: ["มุมชั้นวางเสียดสีกันในรถ", "บรรจุโดยไม่มีมุมกันกระแทก", "ไม่มีวิธีการทำงานเรื่องการบรรจุสินค้าสำเร็จรูป"] },
-    actions: [
-      { what: "จัดทำ WI การบรรจุสินค้าสำเร็จรูปพร้อมมุมกันกระแทก", owner: "วรวุฒิ พึ่งบุญ", due: "2026-09-20" },
-      { what: "อบรมพนักงานคลังเรื่องการบรรจุ", owner: "วรวุฒิ พึ่งบุญ", due: "2026-09-30" },
-    ],
-    status: "ดำเนินการ",
-  },
-];
-
-export const capaByNo = (no: string) => {
-  const c = CAPAS.find((x) => x.no === no);
-  if (!c) throw new Error(`ไม่พบ ${no}`);
-  return c;
-};
-
-export const nextCapaNo = () => nextNo(CAPAS.map((c) => c.no), `CAR-${YEAR}-`, 3);
-export const overdueActions = (c: Capa) => c.actions.filter((a) => !a.doneOn && a.due < TODAY);
-export const openCapas = () => CAPAS.filter((c) => c.status !== "ปิดแล้ว");
-
-export type CapaInput = { kind: Capa["kind"]; ref: string; problem: string; owner: string };
-
-export function capaErrors(input: CapaInput): Errors {
-  const e: Errors = {};
-  if (input.ref.trim().length < 3) e.ref = "ใส่ต้นเรื่อง เช่น เลข NCR หรือผลตรวจติดตาม";
-  if (input.problem.trim().length < 10) e.problem = "บอกปัญหาที่ต้องแก้";
-  if (!PEOPLE.includes(input.owner)) e.owner = "เลือกผู้รับผิดชอบ";
-  return e;
-}
-
-/** เปิด CAR — ถ้าต้นเรื่องเป็น NCR หรือผลตรวจติดตาม จะผูกกลับไปที่ต้นเรื่องด้วย */
-export function openCapa(input: CapaInput): Capa {
-  assertValid(capaErrors(input));
-  return commit(() => {
-    const c: Capa = { no: nextCapaNo(), date: TODAY, kind: input.kind, ref: input.ref.trim(), problem: input.problem.trim(), owner: input.owner, actions: [], status: "วิเคราะห์สาเหตุ" };
-    CAPAS.push(c);
-    const ncr = NCRS.find((n) => n.no === c.ref);
-    if (ncr) ncr.capa = c.no;
-    for (const a of AUDITS) for (const f of a.findings) if (`${a.no} #${f.id}` === c.ref) f.capa = c.no;
-    return c;
-  });
-}
-
-/** หาสาเหตุราก (ข้อ 10.2.1 ข) — ถามทำไมอย่างน้อยสามชั้นก่อนสรุป */
-export function rootCauseErrors(input: { category: CauseCategory; whys: string[] }): Errors {
-  const e: Errors = {};
-  if (!CAUSE_CATEGORIES.includes(input.category)) e.category = "เลือกกลุ่มสาเหตุ";
-  if (input.whys.filter((w) => w.trim().length >= 5).length < 3) e.whys = "ถามทำไมให้ได้อย่างน้อยสามชั้น";
-  return e;
-}
-
-export function recordRootCause(no: string, input: { category: CauseCategory; whys: string[] }) {
-  const c = capaByNo(no);
-  if (c.status === "ปิดแล้ว") throw new Error(`${no} ปิดไปแล้ว`);
-  assertValid(rootCauseErrors(input));
-  return commit(() => {
-    c.rootCause = { category: input.category, whys: input.whys.map((w) => w.trim()).filter(Boolean) };
-    if (c.status === "วิเคราะห์สาเหตุ" && c.actions.length > 0) c.status = "ดำเนินการ";
-    return c;
-  });
-}
-
-export function actionErrors(input: CapaAction): Errors {
-  const e: Errors = {};
-  if (input.what.trim().length < 5) e.what = "บอกสิ่งที่ต้องทำ";
-  if (!PEOPLE.includes(input.owner)) e.owner = "เลือกผู้รับผิดชอบ";
-  if (!isDate(input.due)) e.due = "ใส่กำหนดเสร็จ";
-  else if (input.due < TODAY) e.due = "กำหนดเสร็จต้องไม่ย้อนหลัง";
-  return e;
-}
-
-export function addCapaAction(no: string, input: CapaAction) {
-  const c = capaByNo(no);
-  if (c.status === "ปิดแล้ว" || c.status === "ติดตามผล") throw new Error(`${no} ${c.status} เพิ่มมาตรการไม่ได้`);
-  assertValid(actionErrors(input));
-  return commit(() => {
-    c.actions.push({ what: input.what.trim(), owner: input.owner, due: input.due });
-    if (c.status === "วิเคราะห์สาเหตุ" && c.rootCause) c.status = "ดำเนินการ";
-    return c;
-  });
-}
-
-export function completeCapaAction(no: string, index: number, date = TODAY) {
-  const c = capaByNo(no);
-  const a = c.actions[index];
-  if (!a) throw new Error("ไม่พบมาตรการนี้");
-  if (a.doneOn) throw new Error("มาตรการนี้ทำเสร็จแล้ว");
-  if (!c.rootCause) throw new Error("บันทึกสาเหตุรากก่อน");
-  return commit(() => {
-    a.doneOn = date;
-    if (c.actions.every((x) => x.doneOn)) c.status = "ติดตามผล";
-    return c;
-  });
-}
-
-/** ติดตามประสิทธิผล (ข้อ 10.2.1 ง) — ไม่ได้ผลคือกลับไปหาสาเหตุใหม่ ไม่ใช่ปิดทิ้ง */
-export function verifyCapa(no: string, input: { effective: boolean; note: string; by: string }, date = TODAY) {
-  const c = capaByNo(no);
-  if (c.status !== "ติดตามผล") throw new Error("ทำมาตรการให้ครบก่อนติดตามผล");
-  if (input.note.trim().length < 10) throw new Error("บอกหลักฐานที่ใช้ตัดสินว่าได้ผลหรือไม่");
-  if (!PEOPLE.includes(input.by)) throw new Error("เลือกผู้ติดตามผล");
-  if (input.by === c.owner) throw new Error("ผู้ติดตามผลต้องไม่ใช่ผู้รับผิดชอบ CAR");
-  return commit(() => {
-    c.verification = { date, effective: input.effective, note: input.note.trim(), by: input.by };
-    c.status = input.effective ? "ปิดแล้ว" : "วิเคราะห์สาเหตุ";
-    return c;
-  });
-}
-
-/* ================================================================= audit */
-
-export const FINDING_TYPES = ["ข้อบกพร่องหลัก", "ข้อบกพร่องย่อย", "ข้อสังเกต"] as const;
-export type FindingType = (typeof FINDING_TYPES)[number];
-export type Finding = { id: number; clause: string; type: FindingType; detail: string; capa?: string };
-
-export type Audit = {
-  no: string;
-  /** ฝ่ายที่ถูกตรวจ */
-  area: string;
-  clauses: string[];
-  auditor: string;
-  planned: string;
-  status: "ตามแผน" | "กำลังตรวจ" | "ปิดแล้ว";
-  findings: Finding[];
-  performedOn?: string;
-  closedOn?: string;
-};
-
-export const AUDITS: Audit[] = [
-  { no: "IA-2569-01", area: "ฝ่ายผลิต", clauses: ["8.5", "7.1.5"], auditor: "ปิยะนุช ใจดี", planned: "2026-03-18", status: "ปิดแล้ว", performedOn: "2026-03-18", closedOn: "2026-04-02", findings: [{ id: 1, clause: "8.5", type: "ข้อสังเกต", detail: "ป้ายชี้บ่งสถานะงานระหว่างผลิตบางจุดซีดจางอ่านยาก" }] },
-  { no: "IA-2569-02", area: "ฝ่ายจัดซื้อ", clauses: ["8.4"], auditor: "อนุชา ทองดี", planned: "2026-07-24", status: "ปิดแล้ว", performedOn: "2026-07-24", closedOn: "2026-09-15", findings: [{ id: 1, clause: "8.4", type: "ข้อบกพร่องย่อย", detail: "ไม่มีหลักฐานการประเมินผู้ขายรายใหม่ก่อนสั่งซื้อครั้งแรก", capa: "CAR-2569-007" }] },
-  { no: "IA-2569-03", area: "ฝ่ายคลังสินค้า", clauses: ["8.5", "7.5"], auditor: "สุภาพร แก้วมณี", planned: "2026-10-08", status: "ตามแผน", findings: [] },
-  { no: "IA-2569-04", area: "ฝ่ายประกันคุณภาพ", clauses: ["7.5", "9.1.2", "10.2"], auditor: "ชลธิชา มั่นคง", planned: "2026-11-12", status: "ตามแผน", findings: [] },
-];
-
-export const auditByNo = (no: string) => {
-  const a = AUDITS.find((x) => x.no === no);
-  if (!a) throw new Error(`ไม่พบ ${no}`);
-  return a;
-};
-
-export const nextAuditNo = () => nextNo(AUDITS.map((a) => a.no), `IA-${YEAR}-`, 2);
-
-export type AuditInput = { area: string; clauses: string[]; auditor: string; planned: string };
-
-/** ผู้ตรวจต้องไม่ตรวจงานของตัวเอง (ข้อ 9.2.2 ค) — ระบบตรวจให้ ไม่ต้องจำ */
-export function auditErrors(input: AuditInput): Errors {
-  const e: Errors = {};
-  if (!DEPARTMENTS.includes(input.area)) e.area = "เลือกฝ่ายที่จะตรวจ";
-  if (input.clauses.length === 0) e.clauses = "เลือกข้อกำหนดที่จะตรวจอย่างน้อยหนึ่งข้อ";
-  const who = QM_TEAM.find((p) => p.name === input.auditor);
-  if (!who) e.auditor = "เลือกผู้ตรวจ";
-  else if (!who.auditor) e.auditor = `${who.name} ยังไม่ผ่านการอบรมผู้ตรวจติดตามภายใน`;
-  else if (who.dept === input.area) e.auditor = "ผู้ตรวจต้องไม่ตรวจฝ่ายของตัวเอง";
-  if (!isDate(input.planned)) e.planned = "ใส่วันที่ตรวจ";
-  else if (input.planned < TODAY) e.planned = "วันที่ตรวจต้องไม่ย้อนหลัง";
-  return e;
-}
-
-export function planAudit(input: AuditInput): Audit {
-  assertValid(auditErrors(input));
-  return commit(() => {
-    const a: Audit = { no: nextAuditNo(), area: input.area, clauses: [...input.clauses], auditor: input.auditor, planned: input.planned, status: "ตามแผน", findings: [] };
-    AUDITS.push(a);
-    return a;
-  });
-}
-
-export function startAudit(no: string, date = TODAY) {
-  const a = auditByNo(no);
-  if (a.status !== "ตามแผน") throw new Error(`${no} ${a.status}`);
-  return commit(() => {
-    a.status = "กำลังตรวจ";
-    a.performedOn = date;
-    return a;
-  });
-}
-
-export function findingErrors(no: string, input: { clause: string; type: FindingType; detail: string }): Errors {
-  const a = auditByNo(no);
-  const e: Errors = {};
-  if (a.status !== "กำลังตรวจ") e.detail = "เริ่มการตรวจก่อนบันทึกสิ่งที่พบ";
-  if (!CLAUSES.some((c) => c.code === input.clause)) e.clause = "เลือกข้อกำหนด";
-  if (input.detail.trim().length < 10) e.detail = "เขียนสิ่งที่พบพร้อมหลักฐาน";
-  return e;
-}
-
-export function addFinding(no: string, input: { clause: string; type: FindingType; detail: string }) {
-  assertValid(findingErrors(no, input));
-  const a = auditByNo(no);
-  return commit(() => {
-    const f: Finding = { id: a.findings.length + 1, clause: input.clause, type: input.type, detail: input.detail.trim() };
-    a.findings.push(f);
-    return f;
-  });
-}
-
-/** ข้อบกพร่องต้องมี CAR ก่อนปิดการตรวจ ข้อสังเกตไม่ต้อง */
-export const findingsWithoutCapa = (a: Audit) => a.findings.filter((f) => f.type !== "ข้อสังเกต" && !f.capa);
-
-export function closeAudit(no: string, date = TODAY) {
-  const a = auditByNo(no);
-  if (a.status !== "กำลังตรวจ") throw new Error(`${no} ${a.status} ปิดไม่ได้`);
-  const open = findingsWithoutCapa(a);
-  if (open.length > 0) throw new Error(`เปิด CAR ให้ข้อบกพร่องอีก ${open.length} ข้อก่อนปิดการตรวจ`);
-  return commit(() => {
-    a.status = "ปิดแล้ว";
-    a.closedOn = date;
-    return a;
   });
 }
 
@@ -1080,42 +578,428 @@ export function recordCalibration(code: string, input: CalInput) {
   });
 }
 
-/* ============================================================ objectives */
+/* ================================================ customer requirements */
 
-const rate = (hit: number, of: number) => (of === 0 ? 100 : Math.round((hit / of) * 1000) / 10);
+export const REVIEW_CHECKS = [
+  { key: "spec", label: "ข้อกำหนดสินค้าชัดเจนและทำได้ตามแบบ" },
+  { key: "capacity", label: "กำลังการผลิตและวัตถุดิบเพียงพอ" },
+  { key: "delivery", label: "ส่งทันวันที่ลูกค้าต้องการ" },
+  { key: "legal", label: "เป็นไปตามกฎหมายและมาตรฐานที่เกี่ยวข้อง" },
+] as const;
+export type CheckKey = (typeof REVIEW_CHECKS)[number]["key"];
+
+export type RequirementReview = {
+  /** ใบเสนอราคาหรือใบสั่งขายที่ทบทวน */
+  doc: string;
+  date: string;
+  by: string;
+  checks: Record<CheckKey, boolean>;
+  special: string;
+  result: "รับได้" | "รับได้แบบมีเงื่อนไข" | "รับไม่ได้";
+  note: string;
+};
+
+const allYes: Record<CheckKey, boolean> = { spec: true, capacity: true, delivery: true, legal: true };
+
+export const REQUIREMENT_REVIEWS: RequirementReview[] = [
+  { doc: "SO-2569-0412", date: "2026-09-14", by: "ชลธิชา มั่นคง", checks: allYes, special: "", result: "รับได้", note: "" },
+  { doc: "SO-2569-0413", date: "2026-09-17", by: "ชลธิชา มั่นคง", checks: allYes, special: "ส่งพร้อมใบรับรองคุณภาพ", result: "รับได้", note: "" },
+  { doc: "QT-2569-0231", date: "2026-09-16", by: "ชลธิชา มั่นคง", checks: { ...allYes, delivery: false }, special: "", result: "รับได้แบบมีเงื่อนไข", note: "ลูกค้าขอรับใน 5 วัน ทำได้ 10 วัน ลูกค้ายอมรับทางอีเมล" },
+  { doc: "SO-2569-0414", date: "2026-09-19", by: "ชลธิชา มั่นคง", checks: allYes, special: "", result: "รับได้", note: "ทบทวนแล้วตอนเสนอราคา QT-2569-0231" },
+];
+
+/** ข้อตกลงกับลูกค้าที่ต้องทบทวนก่อนผูกพัน (ข้อ 8.2.3) — ใบเสนอราคาที่ยังรอลูกค้าและใบสั่งขายที่ยังไม่ยกเลิก */
+export function commitments() {
+  const quotes = QUOTATIONS.filter((q) => q.status !== "ยกเลิก").map((q) => ({ doc: q.no, kind: "ใบเสนอราคา" as const, customer: q.customer, date: q.date, lines: q.lines, shipBy: undefined as string | undefined }));
+  const orders = SALES_ORDERS.filter((so) => !isCancelled(so)).map((so) => ({ doc: so.no, kind: "ใบสั่งขาย" as const, customer: so.customer, date: so.date, lines: so.lines, shipBy: so.shipBy }));
+  return [...quotes, ...orders].sort((a, b) => b.date.localeCompare(a.date));
+}
+
+export const reviewOf = (doc: string) => REQUIREMENT_REVIEWS.find((r) => r.doc === doc);
+export const unreviewed = () => commitments().filter((c) => !reviewOf(c.doc));
+
+/** ใบสั่งขายที่ยืนยันกับลูกค้าไปก่อนทบทวน — ผู้ตรวจประเมินจะถามทุกใบ */
+export const confirmedBeforeReview = () =>
+  unreviewed().filter((c) => c.kind === "ใบสั่งขาย" && salesOrder(c.doc).status === "ยืนยันแล้ว");
+
+/** สต็อกที่พร้อมส่งต่อรายการ — ข้อมูลช่วยตัดสินเรื่องกำลังการผลิต */
+export const stockCover = (lines: { material: string; qty: number }[]) =>
+  lines.map((l) => ({ material: l.material, qty: l.qty, stock: MATERIALS.find((m) => m.code === l.material)?.stock ?? 0 }));
+
+export type RequirementInput = Omit<RequirementReview, "date">;
+
+export function requirementErrors(input: RequirementInput): Errors {
+  const e: Errors = {};
+  if (!commitments().some((c) => c.doc === input.doc)) e.doc = "เลือกใบเสนอราคาหรือใบสั่งขาย";
+  else if (reviewOf(input.doc)) e.doc = `${input.doc} ทบทวนแล้ว`;
+  if (!PEOPLE.includes(input.by)) e.by = "เลือกผู้ทบทวน";
+  const failed = REVIEW_CHECKS.filter((c) => !input.checks[c.key]);
+  if (input.result === "รับได้" && failed.length > 0) e.result = `ยังมีข้อที่ไม่ผ่าน (${failed.map((c) => c.label).join(", ")}) — รับได้แบบมีเงื่อนไขหรือรับไม่ได้`;
+  if (input.result !== "รับได้" && input.note.trim().length < 10) e.note = "บอกเงื่อนไขหรือเหตุผล และลูกค้ารับทราบอย่างไร";
+  return e;
+}
+
+export function reviewRequirement(input: RequirementInput, date = TODAY) {
+  assertValid(requirementErrors(input));
+  return commit(() => {
+    const r: RequirementReview = { ...input, date, special: input.special.trim(), note: input.note.trim(), checks: { ...input.checks } };
+    REQUIREMENT_REVIEWS.push(r);
+    return r;
+  });
+}
+
+/* ================================================== design and development */
+
+export const DESIGN_STAGES = ["ข้อมูลเข้า", "ผลการออกแบบ", "ทบทวนการออกแบบ", "ทวนสอบ", "รับรองความใช้ได้", "ส่งมอบสู่การผลิต"] as const;
+export type DesignStage = (typeof DESIGN_STAGES)[number];
+
+export type StageRecord = { stage: DesignStage; date: string; by: string; evidence: string; participants?: string[] };
+export type DesignChange = { date: string; change: string; reason: string; approvedBy: string; reverified: boolean };
+
+export type DesignProject = {
+  no: string;
+  product: string;
+  customer?: string;
+  owner: string;
+  started: string;
+  target: string;
+  records: StageRecord[];
+  changes: DesignChange[];
+};
+
+export const DESIGNS: DesignProject[] = [
+  {
+    no: "DP-2569-01", product: "ชั้นวางเหล็กรับน้ำหนักสูง 5 ชั้น (HD-500)", owner: "ศักดิ์ชัย วงศ์ไทย", started: "2026-03-02", target: "2026-08-31",
+    records: [
+      { stage: "ข้อมูลเข้า", date: "2026-03-05", by: "ศักดิ์ชัย วงศ์ไทย", evidence: "รับน้ำหนัก 250 กก./ชั้น สูง 2,000 มม. ถอดประกอบได้ ตาม มอก. 1167 และคำขอของลูกค้าคลังสินค้า 3 ราย" },
+      { stage: "ผลการออกแบบ", date: "2026-04-10", by: "ศักดิ์ชัย วงศ์ไทย", evidence: "แบบ HD-500 Rev.A รายการวัสดุ และข้อกำหนดการเชื่อม" },
+      { stage: "ทบทวนการออกแบบ", date: "2026-04-18", by: "ศักดิ์ชัย วงศ์ไทย", evidence: "ปรับเสาเป็น 2.0 มม. ตามข้อเสนอฝ่ายผลิต ลดรอยเชื่อม 4 จุด", participants: ["ศักดิ์ชัย วงศ์ไทย", "อนุชา ทองดี", "สุภาพร แก้วมณี"] },
+      { stage: "ทวนสอบ", date: "2026-06-02", by: "สุภาพร แก้วมณี", evidence: "ทดสอบรับน้ำหนัก 375 กก./ชั้น (1.5 เท่า) 24 ชั่วโมง ไม่เสียรูปถาวร รายงาน TR-26-014" },
+      { stage: "รับรองความใช้ได้", date: "2026-07-20", by: "ชลธิชา มั่นคง", evidence: "ลูกค้า C-101 ทดลองใช้ 20 ชุดในคลังจริง 6 สัปดาห์ ไม่มีข้อร้องเรียน" },
+      { stage: "ส่งมอบสู่การผลิต", date: "2026-08-15", by: "ศักดิ์ชัย วงศ์ไทย", evidence: "ส่งแบบ รายการวัสดุ และ WI การเชื่อมให้ฝ่ายผลิต" },
+    ],
+    changes: [{ date: "2026-09-05", change: "เปลี่ยนแผ่นรองชั้นเป็นเหล็ก 1.2 มม.", reason: "ลดน้ำหนักขนส่งตามคำขอลูกค้า", approvedBy: QMR, reverified: true }],
+  },
+  {
+    no: "DP-2569-02", product: "รถเข็นอุตสาหกรรมพื้นยกได้ (TR-LIFT)", owner: "ศักดิ์ชัย วงศ์ไทย", started: "2026-07-01", target: "2026-12-15",
+    records: [
+      { stage: "ข้อมูลเข้า", date: "2026-07-06", by: "ศักดิ์ชัย วงศ์ไทย", evidence: "ยกพื้นได้ 300–800 มม. รับ 200 กก. เบรกล็อกล้อหน้า ใช้มือเดียวปรับระดับ" },
+      { stage: "ผลการออกแบบ", date: "2026-08-28", by: "ศักดิ์ชัย วงศ์ไทย", evidence: "แบบ TR-LIFT Rev.A และการคำนวณแรงไฮดรอลิก" },
+    ],
+    changes: [],
+  },
+];
+
+export const designByNo = (no: string) => {
+  const d = DESIGNS.find((x) => x.no === no);
+  if (!d) throw new Error(`ไม่พบ ${no}`);
+  return d;
+};
+
+/** ขั้นถัดไปที่ต้องทำ — ออกแบบข้ามขั้นไม่ได้ (ข้อ 8.3.4) */
+export const nextStage = (d: DesignProject): DesignStage | undefined => DESIGN_STAGES[d.records.length];
+export const released = (d: DesignProject) => d.records.some((r) => r.stage === "ส่งมอบสู่การผลิต");
+
+export const nextDesignNo = () => nextNo(DESIGNS.map((d) => d.no), `DP-${YEAR}-`, 2);
+
+export type DesignInput = { product: string; owner: string; target: string; inputs: string };
+
+export function designErrors(input: DesignInput): Errors {
+  const e: Errors = {};
+  if (input.product.trim().length < 5) e.product = "ใส่ชื่อผลิตภัณฑ์ที่ออกแบบ";
+  if (!PEOPLE.includes(input.owner)) e.owner = "เลือกผู้รับผิดชอบการออกแบบ";
+  if (!isDate(input.target) || input.target <= TODAY) e.target = "ใส่กำหนดเสร็จในอนาคต";
+  if (input.inputs.trim().length < 20) e.inputs = "ข้อมูลเข้าต้องครบ: หน้าที่ใช้งาน สมรรถนะ กฎหมายและมาตรฐานที่เกี่ยวข้อง (ข้อ 8.3.3)";
+  return e;
+}
+
+/** เปิดโครงการออกแบบ — ข้อมูลเข้าคือขั้นแรกเสมอ */
+export function startDesign(input: DesignInput): DesignProject {
+  assertValid(designErrors(input));
+  return commit(() => {
+    const d: DesignProject = {
+      no: nextDesignNo(), product: input.product.trim(), owner: input.owner, started: TODAY, target: input.target,
+      records: [{ stage: "ข้อมูลเข้า", date: TODAY, by: input.owner, evidence: input.inputs.trim() }], changes: [],
+    };
+    DESIGNS.push(d);
+    return d;
+  });
+}
+
+export type StageInput = { by: string; evidence: string; participants: string[] };
+
+export function stageErrors(no: string, input: StageInput): Errors {
+  const d = designByNo(no);
+  const stage = nextStage(d);
+  const e: Errors = {};
+  if (!stage) e.evidence = `${no} ส่งมอบสู่การผลิตแล้ว — แก้ไขแบบผ่านการควบคุมการเปลี่ยนแปลง`;
+  if (!PEOPLE.includes(input.by)) e.by = "เลือกผู้บันทึก";
+  if (input.evidence.trim().length < 15) e.evidence = e.evidence ?? "บอกหลักฐาน เช่น เลขรายงานทดสอบ ผลที่ได้";
+  // ทบทวนต้องมีคนจากหน้าที่อื่น ทวนสอบและรับรองต้องไม่ใช่คนออกแบบตรวจงานตัวเอง (ข้อ 8.3.4)
+  if (stage === "ทบทวนการออกแบบ" && new Set(input.participants).size < 2) e.participants = "การทบทวนต้องมีผู้เข้าร่วมจากหน้าที่อื่นอย่างน้อยหนึ่งคน";
+  if ((stage === "ทวนสอบ" || stage === "รับรองความใช้ได้") && input.by === d.owner) e.by = "ผู้ทวนสอบหรือรับรองต้องไม่ใช่ผู้ออกแบบ";
+  return e;
+}
+
+export function recordStage(no: string, input: StageInput, date = TODAY) {
+  assertValid(stageErrors(no, input));
+  const d = designByNo(no);
+  const stage = nextStage(d)!;
+  return commit(() => {
+    d.records.push({ stage, date, by: input.by, evidence: input.evidence.trim(), participants: stage === "ทบทวนการออกแบบ" ? [...new Set(input.participants)] : undefined });
+    return d;
+  });
+}
+
+export function changeErrors(no: string, input: Omit<DesignChange, "date">): Errors {
+  const d = designByNo(no);
+  const e: Errors = {};
+  if (!released(d)) e.change = "ยังไม่ส่งมอบสู่การผลิต — แก้ในขั้นผลการออกแบบได้เลย";
+  if (input.change.trim().length < 5) e.change = e.change ?? "บอกสิ่งที่เปลี่ยน";
+  if (input.reason.trim().length < 5) e.reason = "บอกเหตุผล";
+  if (input.approvedBy !== QMR) e.approvedBy = `การเปลี่ยนแปลงแบบหลังส่งมอบต้องอนุมัติโดย ${QMR}`;
+  return e;
+}
+
+/** ควบคุมการเปลี่ยนแปลงแบบ (ข้อ 8.3.6) — บันทึกเหตุผล ผู้อนุมัติ และการทวนสอบซ้ำ */
+export function changeDesign(no: string, input: Omit<DesignChange, "date">, date = TODAY) {
+  assertValid(changeErrors(no, input));
+  const d = designByNo(no);
+  return commit(() => {
+    d.changes.push({ date, change: input.change.trim(), reason: input.reason.trim(), approvedBy: input.approvedBy, reverified: input.reverified });
+    return d;
+  });
+}
+
+/* ================================================== approved suppliers */
+
+export type SupplierStatus = "อนุมัติ" | "อนุมัติแบบมีเงื่อนไข" | "ระงับ";
+
+export type SupplierApproval = {
+  vendor: string;
+  status: SupplierStatus;
+  /** วัสดุที่อนุมัติให้ส่ง — นอกขอบเขตนี้ต้องประเมินเพิ่ม */
+  scope: string[];
+  since: string;
+  nextReview: string;
+  history: { date: string; status: SupplierStatus; quality: number; grade?: string; note: string; by: string }[];
+};
+
+export const APPROVALS: SupplierApproval[] = [
+  { vendor: "V-001", status: "อนุมัติ", scope: ["MAT-1001", "MAT-1002"], since: "2025-01-20", nextReview: "2027-01-20", history: [{ date: "2026-01-20", status: "อนุมัติ", quality: 100, grade: "A", note: "ประเมินประจำปี ไม่มีล็อตไม่ผ่าน", by: QMR }] },
+  { vendor: "V-002", status: "อนุมัติแบบมีเงื่อนไข", scope: ["MAT-1002"], since: "2025-06-02", nextReview: "2026-10-15", history: [{ date: "2026-04-15", status: "อนุมัติแบบมีเงื่อนไข", quality: 80, grade: "B", note: "ส่งของเลยกำหนดบ่อย ให้ส่งใบรับรองผลทดสอบทุกล็อต", by: QMR }] },
+  { vendor: "V-003", status: "อนุมัติ", scope: ["MAT-1003"], since: "2025-02-01", nextReview: "2027-02-01", history: [{ date: "2026-02-01", status: "อนุมัติ", quality: 100, grade: "A", note: "ประเมินประจำปี", by: QMR }] },
+  { vendor: "V-004", status: "อนุมัติ", scope: ["MAT-2002", "MAT-4001"], since: "2025-03-10", nextReview: "2027-03-10", history: [{ date: "2026-03-10", status: "อนุมัติ", quality: 100, grade: "B", note: "ประเมินประจำปี", by: "ปิยะนุช ใจดี" }] },
+];
+
+export const approvalOf = (vendor: string) => APPROVALS.find((a) => a.vendor === vendor);
+
+/** คุณภาพของผู้ขายจากงานตรวจรับจริง — ล็อตผ่านครั้งแรก และ NCR ที่เปิดกับผู้ขาย */
+export function supplierQuality(vendor: string) {
+  const lots = LOTS.filter((l) => l.vendor === vendor && l.status === "ตัดสินแล้ว");
+  const accepted = lots.filter((l) => l.decision === "ผ่าน").length;
+  const ncrs = NCRS.filter((n) => n.vendor === vendor);
+  return { lots: lots.length, accepted, rejected: lots.filter((l) => l.decision === "ไม่ผ่าน").length, ncrs: ncrs.length, score: rate(accepted, lots.length) };
+}
+
+/** เกรดล่าสุดจากการประเมินของฝ่ายจัดซื้อ — อ่านจากระบบจัดซื้อ ไม่ให้คะแนนซ้ำ */
+export const purchasingGrade = (vendor: string) => {
+  const r = latestReview(vendor);
+  return r ? gradeOf(reviewScore(r)) : undefined;
+};
+
+/** ทะเบียนผู้ส่งมอบ: ผู้ขายทุกรายในระบบจัดซื้อ รายที่ยังไม่มีผลอนุมัติคือรอประเมิน */
+export const supplierRegister = () =>
+  VENDORS.map((v) => ({
+    vendor: v,
+    approval: approvalOf(v.code),
+    quality: supplierQuality(v.code),
+    grade: purchasingGrade(v.code),
+    delivery: vendorScore(v.code).onTime,
+    supplies: [...new Set(INFO_RECORDS.filter((r) => r.vendor === v.code).map((r) => r.material))],
+  }));
+
+export const awaitingApproval = () => supplierRegister().filter((s) => !s.approval);
+export const approvalDue = () => APPROVALS.filter((a) => a.status !== "ระงับ" && a.nextReview <= addDays(TODAY, 30));
+
+export type ApprovalInput = { vendor: string; status: SupplierStatus; scope: string[]; note: string; by: string };
+
+export function approvalErrors(input: ApprovalInput): Errors {
+  const e: Errors = {};
+  const q = supplierQuality(input.vendor);
+  if (!VENDORS.some((v) => v.code === input.vendor)) e.vendor = "เลือกผู้ขาย";
+  if (input.status !== "ระงับ" && input.scope.length === 0) e.scope = "เลือกวัสดุที่อนุมัติให้ส่ง";
+  if (input.status === "อนุมัติ" && q.lots > 0 && q.score < 90) e.status = `ล็อตผ่านครั้งแรก ${q.score}% ต่ำกว่า 90% — อนุมัติแบบมีเงื่อนไขหรือระงับ`;
+  if (input.status === "อนุมัติ" && purchasingGrade(input.vendor) === "C") e.status = "ฝ่ายจัดซื้อประเมินเกรด C — อนุมัติเต็มไม่ได้";
+  if (![QMR, "ปิยะนุช ใจดี"].includes(input.by)) e.by = `ผู้อนุมัติผู้ส่งมอบคือ ${QMR} หรือหัวหน้าฝ่ายจัดซื้อ`;
+  if (input.note.trim().length < 5) e.note = "บอกเหตุผลของการตัดสิน";
+  return e;
+}
 
 /**
- * วัตถุประสงค์คุณภาพ (ข้อ 6.2) — วัดจากงานจริงในระบบ ไม่ใช่ตัวเลขที่กรอกตอนทบทวน
- * ฝ่ายบริหารจึงเห็นค่าเดียวกับที่หน้าจออื่นใช้ทำงาน
+ * ตัดสินสถานะผู้ส่งมอบ (ข้อ 8.4.1) — ระงับคือระงับการสั่งซื้อในระบบจัดซื้อด้วย
+ * ปล่อยจากระงับคือยกเลิกการระงับที่นั่นด้วย สองระบบจึงไม่ขัดกัน
  */
-export function objectives() {
+export function evaluateSupplier(input: ApprovalInput, date = TODAY) {
+  assertValid(approvalErrors(input));
+  const v = VENDORS.find((x) => x.code === input.vendor)!;
+  const q = supplierQuality(input.vendor);
+  return commit(() => {
+    let a = approvalOf(input.vendor);
+    const entry = { date, status: input.status, quality: q.score, grade: purchasingGrade(input.vendor), note: input.note.trim(), by: input.by };
+    if (!a) {
+      a = { vendor: input.vendor, status: input.status, scope: [...input.scope], since: date, nextReview: addMonths(date, 12), history: [entry] };
+      APPROVALS.push(a);
+    } else {
+      a.status = input.status;
+      a.scope = input.status === "ระงับ" ? a.scope : [...input.scope];
+      a.nextReview = addMonths(date, input.status === "อนุมัติ" ? 12 : 6);
+      a.history.push(entry);
+    }
+    if (input.status === "ระงับ" && !v.blocked) blockVendor(v.code, `ระงับโดยฝ่ายคุณภาพ: ${input.note.trim()}`);
+    if (input.status !== "ระงับ" && v.blocked) unblockVendor(v.code);
+    return a;
+  });
+}
+
+/* =================================================== customer satisfaction */
+
+export const SATISFACTION_CRITERIA = [
+  { key: "quality", label: "คุณภาพสินค้า" },
+  { key: "delivery", label: "ส่งตรงเวลา" },
+  { key: "price", label: "ราคา" },
+  { key: "service", label: "บริการและการประสานงาน" },
+  { key: "complaint", label: "การแก้ไขข้อร้องเรียน" },
+] as const;
+export type CriterionKey = (typeof SATISFACTION_CRITERIA)[number]["key"];
+
+export type Survey = {
+  no: string;
+  customer: string;
+  period: string;
+  date: string;
+  scores: Record<CriterionKey, number>;
+  comment: string;
+  followUp?: string;
+  by: string;
+};
+
+const s = (quality: number, delivery: number, price: number, service: number, complaint: number) => ({ quality, delivery, price, service, complaint });
+
+export const SURVEYS: Survey[] = [
+  { no: "CS-2569-01", customer: "C-101", period: "ครึ่งปีแรก 2569", date: "2026-07-10", scores: s(5, 4, 4, 5, 4), comment: "ชั้นวาง HD-500 ใช้งานดี อยากให้มีสีอื่น", by: "ชลธิชา มั่นคง" },
+  { no: "CS-2569-02", customer: "C-102", period: "ครึ่งปีแรก 2569", date: "2026-07-12", scores: s(4, 3, 4, 4, 3), comment: "ส่งช้า 2 ครั้งในไตรมาสที่สอง", by: "ชลธิชา มั่นคง" },
+  { no: "CS-2569-03", customer: "C-103", period: "ครึ่งปีแรก 2569", date: "2026-07-15", scores: s(4, 4, 3, 4, 4), comment: "", by: "ชลธิชา มั่นคง" },
+  { no: "CS-2569-04", customer: "C-105", period: "ครึ่งปีแรก 2569", date: "2026-07-18", scores: s(3, 3, 3, 3, 2), comment: "สีถลอกหลายครั้ง ตอบเรื่องช้า", followUp: "เปิด CAR เรื่องการบรรจุ และตั้งผู้ประสานงานลูกค้ารายนี้โดยตรง", by: "ชลธิชา มั่นคง" },
+];
+
+export const surveyByNo = (no: string) => {
+  const v = SURVEYS.find((x) => x.no === no);
+  if (!v) throw new Error(`ไม่พบ ${no}`);
+  return v;
+};
+
+export const average = (sc: Record<CriterionKey, number>) =>
+  Math.round((SATISFACTION_CRITERIA.reduce((n, c) => n + sc[c.key], 0) / SATISFACTION_CRITERIA.length) * 100) / 100;
+
+/** ภาพรวมรายลูกค้า — คะแนนที่ลูกค้าให้ วางคู่ข้อร้องเรียนที่ระบบนับได้เอง */
+export const satisfactionByCustomer = () =>
+  CUSTOMERS.map((c) => {
+    const mine = SURVEYS.filter((v) => v.customer === c.code).sort((a, b) => a.date.localeCompare(b.date));
+    const last = mine[mine.length - 1];
+    return { customer: c, last, score: last ? average(last.scores) : undefined, complaints: NCRS.filter((n) => n.customer === c.code).length };
+  });
+
+export const overallSatisfaction = () => {
+  const latest = satisfactionByCustomer().filter((x) => x.score !== undefined);
+  return latest.length ? Math.round((latest.reduce((n, x) => n + x.score!, 0) / latest.length) * 100) / 100 : undefined;
+};
+
+export const nextSurveyNo = () => nextNo(SURVEYS.map((v) => v.no), `CS-${YEAR}-`, 2);
+export const currentHalf = () => `${Number(TODAY.slice(5, 7)) <= 6 ? "ครึ่งปีแรก" : "ครึ่งปีหลัง"} ${YEAR}`;
+
+export type SurveyInput = Omit<Survey, "no" | "date">;
+
+export function surveyErrors(input: SurveyInput): Errors {
+  const e: Errors = {};
+  if (!CUSTOMERS.some((c) => c.code === input.customer)) e.customer = "เลือกลูกค้า";
+  else if (SURVEYS.some((v) => v.customer === input.customer && v.period === input.period)) e.customer = `ลูกค้ารายนี้ตอบแบบสำรวจ${input.period}แล้ว`;
+  if (SATISFACTION_CRITERIA.some((c) => !(Number.isInteger(input.scores[c.key]) && input.scores[c.key] >= 1 && input.scores[c.key] <= 5))) e.scores = "ให้คะแนน 1–5 ทุกข้อ";
+  else if (average(input.scores) < 3.5 && (input.followUp ?? "").trim().length < 10) e.followUp = "คะแนนเฉลี่ยต่ำกว่า 3.5 ต้องบอกสิ่งที่จะทำต่อ";
+  if (!PEOPLE.includes(input.by)) e.by = "เลือกผู้บันทึก";
+  return e;
+}
+
+export function recordSurvey(input: SurveyInput, date = TODAY) {
+  assertValid(surveyErrors(input));
+  return commit(() => {
+    const v: Survey = { ...input, no: nextSurveyNo(), date, comment: input.comment.trim(), followUp: input.followUp?.trim() || undefined, scores: { ...input.scores } };
+    SURVEYS.push(v);
+    return v;
+  });
+}
+
+/* ============================================================ indicators */
+
+/**
+ * ตัวชี้วัดคุณภาพที่ระบบวัดเองจากงานจริง — ภาพรวมของระบบนี้และวาระทบทวนโดยฝ่ายบริหาร
+ * ใช้ค่าเดียวกับที่หน้าจออื่นใช้ทำงาน
+ */
+export function indicators() {
   const decided = (o: LotOrigin) => LOTS.filter((l) => l.origin === o && l.status === "ตัดสินแล้ว");
   const passed = (o: LotOrigin) => decided(o).filter((l) => l.decision === "ผ่าน").length;
   const complaints = NCRS.filter((n) => n.source === "ข้อร้องเรียนลูกค้า" && n.date.slice(0, 7) === TODAY.slice(0, 7)).length;
-  const actions = CAPAS.flatMap((c) => c.actions);
-  const dueActions = actions.filter((a) => a.due <= TODAY);
-  const onTime = dueActions.filter((a) => a.doneOn && a.doneOn <= a.due).length;
   const active = GAUGES.filter((g) => g.status === "ใช้งาน");
   const current = active.filter((g) => nextDue(g) >= TODAY).length;
+  const reviewed = commitments().filter((c) => reviewOf(c.doc)).length;
   return [
-    { name: "ของเข้าผ่านการตรวจรับ", clause: "8.4", target: 95, actual: rate(passed("ตรวจรับ"), decided("ตรวจรับ").length), unit: "%", better: "higher" as const },
-    { name: "สินค้าผ่านการตรวจก่อนส่งครั้งแรก", clause: "8.6", target: 98, actual: rate(passed("ตรวจก่อนส่ง"), decided("ตรวจก่อนส่ง").length), unit: "%", better: "higher" as const },
-    { name: "ข้อร้องเรียนลูกค้าเดือนนี้", clause: "9.1.2", target: 2, actual: complaints, unit: "เรื่อง", better: "lower" as const },
-    { name: "มาตรการแก้ไขเสร็จตามกำหนด", clause: "10.2", target: 90, actual: rate(onTime, dueActions.length), unit: "%", better: "higher" as const },
-    { name: "เครื่องมือวัดอยู่ในรอบสอบเทียบ", clause: "7.1.5", target: 100, actual: rate(current, active.length), unit: "%", better: "higher" as const },
+    { name: "ของเข้าผ่านการตรวจรับ", clause: "9001:8.4", target: 95, actual: rate(passed("ตรวจรับ"), decided("ตรวจรับ").length), unit: "%", better: "higher" as const },
+    { name: "สินค้าผ่านการตรวจก่อนส่งครั้งแรก", clause: "9001:8.6", target: 98, actual: rate(passed("ตรวจก่อนส่ง"), decided("ตรวจก่อนส่ง").length), unit: "%", better: "higher" as const },
+    { name: "ข้อร้องเรียนลูกค้าเดือนนี้", clause: "9001:9.1.2", target: 2, actual: complaints, unit: "เรื่อง", better: "lower" as const },
+    { name: "ข้อตกลงกับลูกค้าที่ทบทวนแล้ว", clause: "9001:8.2", target: 100, actual: rate(reviewed, commitments().length), unit: "%", better: "higher" as const },
+    { name: "เครื่องมือวัดอยู่ในรอบสอบเทียบ", clause: "9001:7.1.5", target: 100, actual: rate(current, active.length), unit: "%", better: "higher" as const },
   ].map((o) => ({ ...o, met: o.better === "higher" ? o.actual >= o.target : o.actual <= o.target }));
 }
 
-/** ผู้ขายตามอัตราล็อตที่ไม่ผ่าน — ข้อมูลตั้งต้นของการประเมินผู้ขาย (ข้อ 8.4.1) */
-export function vendorQuality() {
-  return VENDORS.map((v) => {
-    const lots = LOTS.filter((l) => l.vendor === v.code && l.status === "ตัดสินแล้ว");
-    const rejected = lots.filter((l) => l.decision === "ไม่ผ่าน").length;
-    return { code: v.code, name: v.name, lots: lots.length, rejected, rate: rate(rejected, lots.length) };
-  }).filter((v) => v.lots > 0);
-}
+/* ======================================================== review inputs */
 
-/** NCR ระหว่างผลิตอ้างใบสั่งผลิตของระบบวางแผนการผลิต — เลขที่พิมพ์ต้องมีอยู่จริง */
-export function productionOrderExists(no: string) {
-  return ORDERS.some((o) => o.no === no);
-}
+const toneOf = (bad: boolean, warn = false) => (bad ? "bad" : warn ? "warn" : "ok") as "bad" | "warn" | "ok";
+
+contributeReviewInput({
+  key: "qm-customers", std: ["ISO 9001", "IATF 16949"], input: "ค 1", title: "ความพึงพอใจและข้อร้องเรียนของลูกค้า",
+  facts: () => {
+    const avg = overallSatisfaction();
+    const complaints = NCRS.filter((n) => n.source === "ข้อร้องเรียนลูกค้า" && n.date.slice(0, 4) === TODAY.slice(0, 4)).length;
+    return [
+      { label: "คะแนนความพึงพอใจเฉลี่ย", value: avg === undefined ? "ยังไม่มีผลสำรวจ" : `${avg} / 5`, tone: avg === undefined ? "idle" : toneOf(avg < 3.5, avg < 4) },
+      { label: "ข้อร้องเรียนปีนี้", value: `${complaints} เรื่อง`, tone: toneOf(false, complaints > 0) },
+    ];
+  },
+});
+
+contributeReviewInput({
+  key: "qm-conformity", std: ["ISO 9001", "IATF 16949"], input: "ค 3", title: "ผลการตรวจสอบและสิ่งที่ไม่เป็นไปตามข้อกำหนด",
+  facts: () =>
+    indicators()
+      .filter((i) => i.unit === "%")
+      .slice(0, 2)
+      .map((i) => ({ label: i.name, value: `${i.actual}% (เป้า ${i.target}%)`, tone: toneOf(!i.met) }))
+      .concat([{ label: "NCR ยังไม่ปิด", value: `${NCRS.filter((n) => n.status !== "ปิดแล้ว").length} เรื่อง`, tone: toneOf(false, NCRS.some((n) => n.status === "รอสั่งการ")) }]),
+});
+
+contributeReviewInput({
+  key: "qm-suppliers", std: ["ISO 9001", "IATF 16949"], input: "ค 7", title: "ผลงานของผู้ส่งมอบภายนอก",
+  facts: () => [
+    { label: "ผู้ส่งมอบที่อนุมัติ", value: `${APPROVALS.filter((a) => a.status === "อนุมัติ").length} ราย`, tone: "ok" },
+    { label: "มีเงื่อนไขหรือระงับ", value: `${APPROVALS.filter((a) => a.status !== "อนุมัติ").length} ราย`, tone: toneOf(false, APPROVALS.some((a) => a.status !== "อนุมัติ")) },
+    { label: "ผู้ขายที่ยังไม่ผ่านการประเมิน", value: `${awaitingApproval().length} ราย`, tone: toneOf(awaitingApproval().length > 0) },
+  ],
+});
+
+contributeReviewInput({
+  key: "qm-resources", std: ["ISO 9001", "IATF 16949"], input: "ง", title: "ความพร้อมของเครื่องมือวัด",
+  facts: () => {
+    const late = GAUGES.filter((g) => calState(g) === "เกินกำหนด" || calState(g) === "พักใช้").length;
+    return [{ label: "เครื่องมือเกินกำหนดหรือพักใช้", value: `${late} จาก ${GAUGES.length} ชิ้น`, tone: toneOf(late > 0) }];
+  },
+});

@@ -7533,6 +7533,3834 @@ function AssetRecord({ code, open }: { code: string; open: Open }) {
 }
 `,
 
+  "ims/data.ts": `import { commit } from "../kit";
+import { COMPANY, TODAY } from "../company";
+
+export { COMPANY, TODAY };
+
+/**
+ * ระบบบริหารบูรณาการ (IMS) — ส่วนที่ ISO 9001, ISO 14001 และ IATF 16949 ใช้ร่วมกัน
+ *
+ * บริษัทที่ถือหลายมาตรฐานไม่ควรมีทะเบียนเอกสารสามชุด ผู้ตรวจติดตามสามทีม หรือ CAR
+ * สามแบบ ระบบนี้จึงถือของกลางไว้ที่เดียว: บริบทองค์กร ความเสี่ยง นโยบายและวัตถุประสงค์
+ * เอกสารควบคุม ความสามารถของบุคลากร การตรวจติดตาม การแก้ไข และการทบทวนโดยฝ่ายบริหาร
+ * ระบบเฉพาะมาตรฐาน (คุณภาพ สิ่งแวดล้อม ยานยนต์) อ่านและเขียนผ่านฟังก์ชันของที่นี่
+ * และส่งข้อมูลเข้าวาระทบทวนโดยฝ่ายบริหารผ่าน contributeReviewInput — ระบบนี้จึงไม่ต้อง
+ * รู้ว่าลูกค้าซื้อระบบไหนไปบ้าง
+ */
+
+export const YEAR = Number(TODAY.slice(0, 4)) + 543;
+
+export type Errors = Record<string, string>;
+
+export function assertValid(e: Errors) {
+  const first = Object.values(e)[0];
+  if (first) throw new Error(first);
+}
+
+export const isDate = (s: string) => /^\\d{4}-\\d{2}-\\d{2}$/.test(s);
+
+export function addDays(iso: string, n: number) {
+  const [y, m, d] = iso.split("-").map(Number);
+  const t = new Date(y, m - 1, d + n);
+  return \`\${t.getFullYear()}-\${String(t.getMonth() + 1).padStart(2, "0")}-\${String(t.getDate()).padStart(2, "0")}\`;
+}
+
+export function addMonths(iso: string, n: number) {
+  const [y, m, d] = iso.split("-").map(Number);
+  const t = new Date(y, m - 1 + n, d);
+  return \`\${t.getFullYear()}-\${String(t.getMonth() + 1).padStart(2, "0")}-\${String(t.getDate()).padStart(2, "0")}\`;
+}
+
+/** เลขถัดไปของชุดเอกสาร — ต่อจากเลขที่สูงสุดที่มีอยู่ ไม่ใช่จากจำนวนใบ */
+export function nextNo(existing: string[], prefix: string, width: number) {
+  const max = existing
+    .filter((n) => n.startsWith(prefix))
+    .map((n) => Number(n.slice(prefix.length)))
+    .filter((n) => Number.isFinite(n))
+    .reduce((a, b) => Math.max(a, b), 0);
+  return prefix + String(max + 1).padStart(width, "0");
+}
+
+export const rate = (hit: number, of: number) => (of === 0 ? 100 : Math.round((hit / of) * 1000) / 10);
+
+/* ============================================================= standards */
+
+export const STANDARDS = ["ISO 9001", "ISO 14001", "IATF 16949"] as const;
+export type Standard = (typeof STANDARDS)[number];
+
+const SHORT: Record<Standard, string> = { "ISO 9001": "9001", "ISO 14001": "14001", "IATF 16949": "IATF" };
+
+export type Clause = { id: string; std: Standard; code: string; name: string };
+
+const clause = (std: Standard, code: string, name: string): Clause => ({ id: \`\${SHORT[std]}:\${code}\`, std, code, name });
+
+/** ข้อกำหนดที่ระบบอ้างถึง — IATF 16949 อ่านคู่กับ ISO 9001 จึงมีเฉพาะข้อที่เพิ่มขึ้นมา */
+export const CLAUSES: Clause[] = [
+  clause("ISO 9001", "4.1", "บริบทขององค์กร"),
+  clause("ISO 9001", "4.2", "ความต้องการของผู้มีส่วนได้ส่วนเสีย"),
+  clause("ISO 9001", "4.3", "ขอบเขตระบบบริหารคุณภาพ"),
+  clause("ISO 9001", "4.4", "ระบบบริหารคุณภาพและกระบวนการ"),
+  clause("ISO 9001", "5.1", "ความเป็นผู้นำ"),
+  clause("ISO 9001", "5.2", "นโยบายคุณภาพ"),
+  clause("ISO 9001", "6.1", "การดำเนินการกับความเสี่ยงและโอกาส"),
+  clause("ISO 9001", "6.2", "วัตถุประสงค์คุณภาพ"),
+  clause("ISO 9001", "7.1.5", "ทรัพยากรสำหรับการเฝ้าติดตามและการวัด"),
+  clause("ISO 9001", "7.2", "ความสามารถ"),
+  clause("ISO 9001", "7.3", "การตระหนักรู้"),
+  clause("ISO 9001", "7.5", "เอกสารสารสนเทศ"),
+  clause("ISO 9001", "8.2", "ข้อกำหนดสำหรับผลิตภัณฑ์และบริการ"),
+  clause("ISO 9001", "8.3", "การออกแบบและการพัฒนา"),
+  clause("ISO 9001", "8.4", "การควบคุมผู้ให้บริการภายนอก"),
+  clause("ISO 9001", "8.5", "การผลิตและการให้บริการ"),
+  clause("ISO 9001", "8.6", "การตรวจปล่อยผลิตภัณฑ์"),
+  clause("ISO 9001", "8.7", "การควบคุมผลลัพธ์ที่ไม่เป็นไปตามข้อกำหนด"),
+  clause("ISO 9001", "9.1.2", "ความพึงพอใจของลูกค้า"),
+  clause("ISO 9001", "9.1.3", "การวิเคราะห์และการประเมินผล"),
+  clause("ISO 9001", "9.2", "การตรวจติดตามภายใน"),
+  clause("ISO 9001", "9.3", "การทบทวนโดยฝ่ายบริหาร"),
+  clause("ISO 9001", "10.2", "สิ่งที่ไม่เป็นไปตามข้อกำหนดและการแก้ไข"),
+  clause("ISO 9001", "10.3", "การปรับปรุงอย่างต่อเนื่อง"),
+  clause("ISO 14001", "4.1", "บริบทขององค์กร"),
+  clause("ISO 14001", "4.3", "ขอบเขตระบบการจัดการสิ่งแวดล้อม"),
+  clause("ISO 14001", "5.2", "นโยบายสิ่งแวดล้อม"),
+  clause("ISO 14001", "6.1.2", "ประเด็นปัญหาด้านสิ่งแวดล้อม"),
+  clause("ISO 14001", "6.1.3", "พันธะความสอดคล้อง"),
+  clause("ISO 14001", "6.2", "วัตถุประสงค์ด้านสิ่งแวดล้อม"),
+  clause("ISO 14001", "7.2", "ความสามารถ"),
+  clause("ISO 14001", "7.4", "การสื่อสาร"),
+  clause("ISO 14001", "7.5", "เอกสารสารสนเทศ"),
+  clause("ISO 14001", "8.1", "การวางแผนและการควบคุมการปฏิบัติงาน"),
+  clause("ISO 14001", "8.2", "การเตรียมพร้อมและการตอบสนองต่อสภาวะฉุกเฉิน"),
+  clause("ISO 14001", "9.1.1", "การเฝ้าติดตามและการวัด"),
+  clause("ISO 14001", "9.1.2", "การประเมินความสอดคล้อง"),
+  clause("ISO 14001", "9.2", "การตรวจติดตามภายใน"),
+  clause("ISO 14001", "9.3", "การทบทวนโดยฝ่ายบริหาร"),
+  clause("ISO 14001", "10.2", "อุบัติการณ์และการแก้ไข"),
+  clause("IATF 16949", "4.3.2", "ข้อกำหนดเฉพาะของลูกค้า"),
+  clause("IATF 16949", "4.4.1.2", "ความปลอดภัยของผลิตภัณฑ์"),
+  clause("IATF 16949", "5.1.1.1", "ความรับผิดชอบขององค์กร"),
+  clause("IATF 16949", "6.1.2.3", "แผนฉุกเฉิน"),
+  clause("IATF 16949", "7.1.5.1.1", "การวิเคราะห์ระบบการวัด"),
+  clause("IATF 16949", "7.2.3", "ความสามารถของผู้ตรวจติดตามภายใน"),
+  clause("IATF 16949", "7.2.4", "ความสามารถของผู้ตรวจติดตามผู้ส่งมอบ"),
+  clause("IATF 16949", "8.3.2.1", "การวางแผนการออกแบบและพัฒนา (APQP)"),
+  clause("IATF 16949", "8.3.4.4", "กระบวนการอนุมัติผลิตภัณฑ์ (PPAP)"),
+  clause("IATF 16949", "8.4.2.4.1", "การตรวจติดตามผู้ส่งมอบแบบ second-party"),
+  clause("IATF 16949", "8.5.1.1", "แผนควบคุม"),
+  clause("IATF 16949", "8.5.1.5", "การบำรุงรักษาเชิงป้องกันแบบทั่วถึง (TPM)"),
+  clause("IATF 16949", "9.1.1.1", "การเฝ้าติดตามกระบวนการผลิต (SPC)"),
+  clause("IATF 16949", "9.1.2.1", "ความพึงพอใจของลูกค้า — scorecard"),
+  clause("IATF 16949", "9.2.2.2", "การตรวจติดตามระบบ"),
+  clause("IATF 16949", "9.2.2.3", "การตรวจติดตามกระบวนการผลิต"),
+  clause("IATF 16949", "9.2.2.4", "การตรวจติดตามผลิตภัณฑ์"),
+  clause("IATF 16949", "10.2.3", "การแก้ปัญหา (8D)"),
+  clause("IATF 16949", "10.2.4", "การป้องกันความผิดพลาด (Poka-Yoke)"),
+];
+
+export const clauseById = (id: string) => CLAUSES.find((c) => c.id === id);
+export const clauseName = (id: string) => clauseById(id)?.name ?? "";
+/** "9001 ข้อ 8.5" — สั้นพอสำหรับตาราง ยังบอกว่ามาตรฐานไหน */
+export const clauseLabel = (id: string) => {
+  const c = clauseById(id);
+  return c ? \`\${SHORT[c.std]} ข้อ \${c.code}\` : id;
+};
+export const clausesOf = (std: Standard) => CLAUSES.filter((c) => c.std === std);
+
+/* ================================================================ people */
+
+export const DEPARTMENTS = [
+  "ฝ่ายบริหาร", "ฝ่ายประกันคุณภาพ", "ฝ่ายวิศวกรรม", "ฝ่ายผลิต", "ฝ่ายซ่อมบำรุง",
+  "ฝ่ายจัดซื้อ", "ฝ่ายคลังสินค้า", "ฝ่ายขาย", "ฝ่ายความปลอดภัยและสิ่งแวดล้อม",
+] as const;
+export type Department = (typeof DEPARTMENTS)[number];
+
+/** หลักสูตรที่ระบบใช้ตัดสินความสามารถ — มีอายุเมื่อใบรับรองหมดอายุจริง */
+export const COURSES = [
+  { code: "TR-01", name: "ความเข้าใจข้อกำหนด ISO 9001:2015" },
+  { code: "TR-02", name: "ผู้ตรวจติดตามภายใน ISO 9001:2015" },
+  { code: "TR-03", name: "ผู้ตรวจติดตามภายใน ISO 14001:2015" },
+  { code: "TR-04", name: "ผู้ตรวจกระบวนการ VDA 6.3" },
+  { code: "TR-05", name: "Core Tools: APQP PPAP FMEA SPC MSA" },
+  { code: "TR-06", name: "ข้อกำหนดเฉพาะลูกค้ายานยนต์ (CSR)" },
+  { code: "TR-07", name: "การจัดการสารเคมีและของเสียอันตราย" },
+  { code: "TR-08", name: "ทดสอบฝีมือช่างเชื่อมตาม WPS", validYears: 2 },
+  { code: "TR-09", name: "การใช้และอ่านค่าเครื่องมือวัด" },
+  { code: "TR-10", name: "การตอบสนองเหตุฉุกเฉินและดับเพลิงขั้นต้น", validYears: 1 },
+  { code: "TR-11", name: "TPM และการบำรุงรักษาด้วยตนเอง" },
+  { code: "TR-12", name: "จรรยาบรรณและการต่อต้านการให้สินบน" },
+] as const;
+export type CourseCode = (typeof COURSES)[number]["code"];
+
+export const courseName = (code: string) => COURSES.find((c) => c.code === code)?.name ?? code;
+const validYears = (code: string) => (COURSES.find((c) => c.code === code) as { validYears?: number } | undefined)?.validYears;
+
+export type Person = { name: string; role: string; dept: Department; requires: CourseCode[] };
+
+/** ทุกคนต้องรู้ข้อกำหนดและจรรยาบรรณ คนหน้างานต้องซ้อมรับเหตุฉุกเฉิน (IATF 5.1.1.1, ISO 14001 7.2) */
+const BASIC: CourseCode[] = ["TR-01", "TR-12"];
+const FLOOR: CourseCode[] = [...BASIC, "TR-10"];
+
+/**
+ * บุคลากรที่ทำงานซึ่งมีผลต่อคุณภาพและสิ่งแวดล้อม — ทะเบียนของระบบนี้เอง ไม่อ่านจาก
+ * ระบบบุคคล เพื่อให้ซื้อระบบมาตรฐานได้โดยไม่ต้องซื้อระบบเงินเดือน
+ */
+export const STAFF: Person[] = [
+  { name: "วีระ ตั้งมั่น", role: "กรรมการผู้จัดการ", dept: "ฝ่ายบริหาร", requires: BASIC },
+  { name: "นพดล ศรีวงศ์", role: "ผู้จัดการฝ่ายประกันคุณภาพ (QMR)", dept: "ฝ่ายประกันคุณภาพ", requires: [...BASIC, "TR-02", "TR-04", "TR-05", "TR-06"] },
+  { name: "สุภาพร แก้วมณี", role: "หัวหน้าตรวจสอบคุณภาพ (QC)", dept: "ฝ่ายประกันคุณภาพ", requires: [...BASIC, "TR-02", "TR-09"] },
+  { name: "ธนพล เจริญผล", role: "วิศวกรคุณภาพลูกค้ายานยนต์ (CQE)", dept: "ฝ่ายประกันคุณภาพ", requires: [...BASIC, "TR-02", "TR-04", "TR-05", "TR-06"] },
+  { name: "ศักดิ์ชัย วงศ์ไทย", role: "วิศวกรกระบวนการ", dept: "ฝ่ายวิศวกรรม", requires: [...BASIC, "TR-05"] },
+  { name: "อนุชา ทองดี", role: "หัวหน้าฝ่ายผลิต", dept: "ฝ่ายผลิต", requires: [...FLOOR, "TR-02"] },
+  { name: "สมปอง ใจกล้า", role: "ช่างเชื่อม", dept: "ฝ่ายผลิต", requires: [...FLOOR, "TR-08"] },
+  { name: "มานพ รุ่งเรือง", role: "ช่างพ่นสี", dept: "ฝ่ายผลิต", requires: [...FLOOR, "TR-07"] },
+  { name: "ประสิทธิ์ ขยันยิ่ง", role: "หัวหน้าซ่อมบำรุง", dept: "ฝ่ายซ่อมบำรุง", requires: [...FLOOR, "TR-11"] },
+  { name: "ปิยะนุช ใจดี", role: "หัวหน้าฝ่ายจัดซื้อ", dept: "ฝ่ายจัดซื้อ", requires: [...BASIC, "TR-02"] },
+  { name: "วรวุฒิ พึ่งบุญ", role: "หัวหน้าคลังสินค้า", dept: "ฝ่ายคลังสินค้า", requires: [...FLOOR, "TR-07"] },
+  { name: "ชลธิชา มั่นคง", role: "หัวหน้าฝ่ายขาย", dept: "ฝ่ายขาย", requires: [...BASIC, "TR-02"] },
+  { name: "กาญจนา บุญมา", role: "เจ้าหน้าที่สิ่งแวดล้อม (EMR)", dept: "ฝ่ายความปลอดภัยและสิ่งแวดล้อม", requires: [...FLOOR, "TR-03", "TR-07"] },
+];
+
+export const TOP = "วีระ ตั้งมั่น";
+export const QMR = "นพดล ศรีวงศ์";
+export const EMR = "กาญจนา บุญมา";
+export const PEOPLE = STAFF.map((p) => p.name);
+export const personOf = (name: string) => STAFF.find((p) => p.name === name);
+export const deptOf = (name: string) => personOf(name)?.dept ?? "";
+export const roleOf = (name: string) => personOf(name)?.role ?? "";
+
+/* =============================================================== context */
+
+export const SWOT = ["จุดแข็ง", "จุดอ่อน", "โอกาส", "อุปสรรค"] as const;
+export type SwotKind = (typeof SWOT)[number];
+/** มุมมองของประเด็นภายนอก (PESTEL) — ประเด็นภายในไม่ต้องมี */
+export const PESTEL = ["การเมือง", "เศรษฐกิจ", "สังคม", "เทคโนโลยี", "สิ่งแวดล้อม", "กฎหมาย"] as const;
+export type Lens = (typeof PESTEL)[number];
+
+export type Issue = { id: number; kind: SwotKind; lens?: Lens; text: string; standards: Standard[] };
+
+export const ISSUES: Issue[] = [
+  { id: 1, kind: "จุดแข็ง", text: "ขึ้นรูปและเชื่อมเหล็กได้ครบในโรงงานเดียว ส่งงานเร็วกว่าคู่แข่งที่จ้างช่วง", standards: ["ISO 9001"] },
+  { id: 2, kind: "จุดแข็ง", text: "ทีมคุณภาพมีผู้ผ่านอบรม Core Tools และ VDA 6.3 แล้ว", standards: ["IATF 16949"] },
+  { id: 3, kind: "จุดอ่อน", text: "เครื่องปั๊มหลักมีเครื่องเดียว หยุดแล้วไม่มีเครื่องสำรอง", standards: ["ISO 9001", "IATF 16949"] },
+  { id: 4, kind: "จุดอ่อน", text: "ช่างพ่นสีหมุนเวียนบ่อย ความรู้เรื่องสารเคมียังไม่ทั่วถึง", standards: ["ISO 9001", "ISO 14001"] },
+  { id: 5, kind: "โอกาส", lens: "เศรษฐกิจ", text: "ผู้ผลิตรถยนต์ย้ายฐานการผลิตรถไฟฟ้ามาไทย ต้องการผู้ส่งมอบชิ้นส่วนปั๊มขึ้นรูปในประเทศ", standards: ["IATF 16949"] },
+  { id: 6, kind: "โอกาส", lens: "เทคโนโลยี", text: "สีฝุ่นสูตรอบอุณหภูมิต่ำลดพลังงานเตาอบได้ราว 20%", standards: ["ISO 14001"] },
+  { id: 7, kind: "อุปสรรค", lens: "กฎหมาย", text: "กรมโรงงานฯ เข้มงวดการรายงานของเสียอันตรายผ่านระบบออนไลน์ (สก.2)", standards: ["ISO 14001"] },
+  { id: 8, kind: "อุปสรรค", lens: "เศรษฐกิจ", text: "ราคาเหล็กแผ่นผันผวนตามตลาดโลก กระทบต้นทุนสัญญาราคาคงที่", standards: ["ISO 9001"] },
+  { id: 9, kind: "อุปสรรค", lens: "สังคม", text: "ชุมชนหลังโรงงานเคยร้องเรียนกลิ่นสีช่วงอบกลางคืน", standards: ["ISO 14001"] },
+];
+
+export type Party = { id: number; name: string; needs: string; how: string; standards: Standard[] };
+
+export const PARTIES: Party[] = [
+  { id: 1, name: "ลูกค้าทั่วไป (ร้านค้าและตัวแทนจำหน่าย)", needs: "สินค้าตรงสเปก ส่งตรงเวลา รับเรื่องร้องเรียนเร็ว", how: "ตรวจก่อนส่งทุกล็อต สำรวจความพึงพอใจทุกครึ่งปี", standards: ["ISO 9001"] },
+  { id: 2, name: "ลูกค้ายานยนต์ Tier-1", needs: "PPAP ระดับ 3 ข้อกำหนดเฉพาะลูกค้า ของเสียไม่เกิน 50 PPM", how: "APQP ทุกชิ้นส่วนใหม่ ติดตาม scorecard รายเดือน", standards: ["IATF 16949"] },
+  { id: 3, name: "พนักงาน", needs: "สภาพงานปลอดภัย อบรมตามหน้าที่", how: "แผนฝึกอบรมประจำปี คณะกรรมการความปลอดภัย", standards: ["ISO 9001", "ISO 14001"] },
+  { id: 4, name: "ชุมชนรอบโรงงาน", needs: "ไม่มีกลิ่น เสียง และน้ำทิ้งรบกวน", how: "ตรวจวัดตามกฎหมาย ช่องทางรับเรื่องร้องเรียนชุมชน", standards: ["ISO 14001"] },
+  { id: 5, name: "กรมโรงงานอุตสาหกรรม", needs: "รายงานของเสีย ผลตรวจวัดน้ำทิ้งและอากาศตามรอบ", how: "ทะเบียนกฎหมาย ประเมินความสอดคล้องปีละครั้ง", standards: ["ISO 14001"] },
+  { id: 6, name: "ผู้ขายวัตถุดิบ", needs: "คำสั่งซื้อชัดเจน ชำระเงินตรงเวลา", how: "ประเมินผู้ส่งมอบประจำปี", standards: ["ISO 9001", "IATF 16949"] },
+  { id: 7, name: "หน่วยรับรองระบบ", needs: "หลักฐานว่าระบบทำงานจริงตามข้อกำหนด", how: "ตรวจติดตามภายในครบทุกข้อกำหนดทุกปี", standards: ["ISO 9001", "ISO 14001", "IATF 16949"] },
+];
+
+export type Scope = {
+  std: Standard;
+  text: string;
+  sites: string;
+  exclusions: { clause: string; reason: string }[];
+  status: "ได้รับการรับรอง" | "กำลังขอรับรอง";
+  certifiedBy: string;
+  certNo?: string;
+  validUntil?: string;
+  nextAudit: string;
+};
+
+export const SCOPES: Scope[] = [
+  {
+    std: "ISO 9001", status: "ได้รับการรับรอง", certifiedBy: "บจก. ไทยเซอร์ติฟิเคชั่น", certNo: "TH-QMS-24-0187", validUntil: "2027-11-14", nextAudit: "2026-11-10",
+    text: "ออกแบบ ผลิต และจำหน่ายเฟอร์นิเจอร์เหล็กสำนักงาน ชั้นวาง และรถเข็นอุตสาหกรรม", sites: "โรงงานและสำนักงานใหญ่", exclusions: [],
+  },
+  {
+    std: "ISO 14001", status: "ได้รับการรับรอง", certifiedBy: "บจก. ไทยเซอร์ติฟิเคชั่น", certNo: "TH-EMS-25-0042", validUntil: "2028-03-02", nextAudit: "2027-02-22",
+    text: "กิจกรรมการผลิตเหล็กขึ้นรูป เชื่อม พ่นสีฝุ่น และคลังสินค้า ภายในพื้นที่โรงงาน", sites: "โรงงาน", exclusions: [],
+  },
+  {
+    std: "IATF 16949", status: "กำลังขอรับรอง", certifiedBy: "บจก. ไทยเซอร์ติฟิเคชั่น", nextAudit: "2026-12-07",
+    text: "ผลิตชิ้นส่วนเหล็กปั๊มขึ้นรูปสำหรับยานยนต์ตามแบบของลูกค้า", sites: "โรงงาน · สำนักงานขายกรุงเทพฯ (support site)",
+    exclusions: [{ clause: "9001:8.3", reason: "ลูกค้าเป็นผู้ออกแบบผลิตภัณฑ์ ยกเว้นเฉพาะการออกแบบผลิตภัณฑ์ ยังออกแบบกระบวนการผลิตเอง" }],
+  },
+];
+
+export const CONTEXT = { reviewedOn: "2026-01-20", reviewedBy: TOP };
+
+export function issueErrors(input: Omit<Issue, "id">): Errors {
+  const e: Errors = {};
+  if (!SWOT.includes(input.kind)) e.kind = "เลือกประเภท";
+  if ((input.kind === "โอกาส" || input.kind === "อุปสรรค") && !input.lens) e.lens = "ประเด็นภายนอกต้องบอกมุมมอง (PESTEL)";
+  if (input.text.trim().length < 10) e.text = "อธิบายประเด็นให้คนอ่านเข้าใจ";
+  if (input.standards.length === 0) e.standards = "เลือกมาตรฐานที่เกี่ยวข้อง";
+  return e;
+}
+
+export function addIssue(input: Omit<Issue, "id">) {
+  assertValid(issueErrors(input));
+  return commit(() => {
+    const i: Issue = { ...input, id: Math.max(0, ...ISSUES.map((x) => x.id)) + 1, text: input.text.trim(), lens: input.kind === "จุดแข็ง" || input.kind === "จุดอ่อน" ? undefined : input.lens };
+    ISSUES.push(i);
+    return i;
+  });
+}
+
+export function partyErrors(input: Omit<Party, "id">): Errors {
+  const e: Errors = {};
+  if (input.name.trim().length < 3) e.name = "ใส่ชื่อผู้มีส่วนได้ส่วนเสีย";
+  else if (PARTIES.some((p) => p.name === input.name.trim())) e.name = "มีในทะเบียนแล้ว";
+  if (input.needs.trim().length < 5) e.needs = "เขาต้องการอะไรจากเรา";
+  if (input.how.trim().length < 5) e.how = "เราตอบสนองและติดตามอย่างไร";
+  if (input.standards.length === 0) e.standards = "เลือกมาตรฐานที่เกี่ยวข้อง";
+  return e;
+}
+
+export function addParty(input: Omit<Party, "id">) {
+  assertValid(partyErrors(input));
+  return commit(() => {
+    const p: Party = { ...input, id: Math.max(0, ...PARTIES.map((x) => x.id)) + 1, name: input.name.trim(), needs: input.needs.trim(), how: input.how.trim() };
+    PARTIES.push(p);
+    return p;
+  });
+}
+
+/** ทบทวนบริบททั้งชุด — ฝ่ายบริหารสูงสุดเป็นผู้ยืนยัน (ข้อ 4.1 และ 5.1) */
+export function confirmContext(by: string, date = TODAY) {
+  if (by !== TOP) throw new Error(\`การทบทวนบริบทองค์กรต้องยืนยันโดย \${TOP} (ผู้บริหารสูงสุด)\`);
+  return commit(() => {
+    CONTEXT.reviewedOn = date;
+    CONTEXT.reviewedBy = by;
+    return CONTEXT;
+  });
+}
+
+/* ================================================================== risk */
+
+export type RiskKind = "ความเสี่ยง" | "โอกาส";
+export const TREATMENTS = ["ลดความเสี่ยง", "ยอมรับ", "หลีกเลี่ยง", "ถ่ายโอน", "ใช้โอกาส"] as const;
+export type Treatment = (typeof TREATMENTS)[number];
+
+export type Task = { what: string; owner: string; due: string; doneOn?: string };
+
+export type Risk = {
+  no: string;
+  kind: RiskKind;
+  standards: Standard[];
+  process: string;
+  description: string;
+  likelihood: number;
+  impact: number;
+  treatment: Treatment;
+  owner: string;
+  tasks: Task[];
+  reviewedOn: string;
+  /** ผลประเมินซ้ำหลังทำมาตรการครบ — ค่าที่ยังเหลืออยู่ */
+  residual?: { likelihood: number; impact: number; date: string };
+};
+
+export const score = (r: { likelihood: number; impact: number }) => r.likelihood * r.impact;
+export type Level = "สูง" | "กลาง" | "ต่ำ";
+export const levelOf = (s: number): Level => (s >= 15 ? "สูง" : s >= 8 ? "กลาง" : "ต่ำ");
+/** ค่าที่ใช้ตัดสินตอนนี้ — หลังประเมินซ้ำใช้ค่าคงเหลือ */
+export const currentScore = (r: Risk) => score(r.residual ?? r);
+
+export const RISKS: Risk[] = [
+  {
+    no: "RSK-001", kind: "ความเสี่ยง", standards: ["ISO 9001", "IATF 16949"], process: "การผลิต", owner: "ประสิทธิ์ ขยันยิ่ง",
+    description: "เครื่องปั๊ม 200 ตันเสียนาน ส่งชิ้นส่วนยานยนต์ไม่ทันตามกำหนดของลูกค้า", likelihood: 3, impact: 5, treatment: "ลดความเสี่ยง", reviewedOn: "2026-06-15",
+    tasks: [
+      { what: "ทำสัญญาจ้างปั๊มสำรองกับโรงงานพันธมิตรที่ผ่านการประเมินแล้ว", owner: "ปิยะนุช ใจดี", due: "2026-08-31", doneOn: "2026-08-25" },
+      { what: "สำรองอะไหล่วิกฤตของเครื่องปั๊มไว้ในคลัง", owner: "ประสิทธิ์ ขยันยิ่ง", due: "2026-10-15" },
+    ],
+  },
+  {
+    no: "RSK-002", kind: "ความเสี่ยง", standards: ["ISO 9001"], process: "การจัดซื้อ", owner: "ปิยะนุช ใจดี",
+    description: "ผู้ขายเหล็กเส้นส่งของไม่ได้ขนาด ทำให้สายเชื่อมหยุดรอ", likelihood: 3, impact: 3, treatment: "ลดความเสี่ยง", reviewedOn: "2026-09-20",
+    tasks: [{ what: "เพิ่มผู้ขายเหล็กเส้นรายที่สองในทะเบียนผู้ส่งมอบที่อนุมัติ", owner: "ปิยะนุช ใจดี", due: "2026-11-30" }],
+  },
+  {
+    no: "RSK-003", kind: "ความเสี่ยง", standards: ["ISO 14001"], process: "พ่นสี", owner: "กาญจนา บุญมา",
+    description: "ทินเนอร์หกรั่วไหลลงท่อระบายน้ำฝนระหว่างถ่ายถัง", likelihood: 2, impact: 4, treatment: "ลดความเสี่ยง", reviewedOn: "2026-05-10",
+    tasks: [
+      { what: "ติดตั้งถาดรองและชุดดูดซับสารเคมีที่จุดถ่ายถัง", owner: "กาญจนา บุญมา", due: "2026-06-30", doneOn: "2026-06-22" },
+      { what: "ซ้อมแผนสารเคมีรั่วไหลกับทีมพ่นสี", owner: "กาญจนา บุญมา", due: "2026-07-31", doneOn: "2026-07-29" },
+    ],
+    residual: { likelihood: 1, impact: 4, date: "2026-08-05" },
+  },
+  {
+    no: "RSK-004", kind: "โอกาส", standards: ["IATF 16949"], process: "การขาย", owner: "ชลธิชา มั่นคง",
+    description: "รับงานชิ้นส่วนปั๊มขึ้นรูปให้ผู้ผลิตรถไฟฟ้าที่ย้ายฐานมาไทย", likelihood: 4, impact: 4, treatment: "ใช้โอกาส", reviewedOn: "2026-07-01",
+    tasks: [
+      { what: "ขอการรับรอง IATF 16949 ให้ทันรอบประมูลงานปีหน้า", owner: "นพดล ศรีวงศ์", due: "2026-12-31" },
+      { what: "อบรม Core Tools ให้วิศวกรกระบวนการ", owner: "ธนพล เจริญผล", due: "2026-08-31", doneOn: "2026-08-14" },
+    ],
+  },
+  {
+    no: "RSK-005", kind: "ความเสี่ยง", standards: ["ISO 9001"], process: "การขาย", owner: "ชลธิชา มั่นคง",
+    description: "ราคาเหล็กขึ้นระหว่างสัญญาราคาคงที่ กำไรขั้นต้นติดลบ", likelihood: 3, impact: 3, treatment: "ถ่ายโอน", reviewedOn: "2026-04-18",
+    tasks: [{ what: "ใส่เงื่อนไขปรับราคาตามดัชนีเหล็กในสัญญาใหม่ทุกฉบับ", owner: "ชลธิชา มั่นคง", due: "2026-05-31", doneOn: "2026-05-20" }],
+    residual: { likelihood: 2, impact: 2, date: "2026-06-10" },
+  },
+  {
+    no: "RSK-006", kind: "โอกาส", standards: ["ISO 14001"], process: "พ่นสี", owner: "อนุชา ทองดี",
+    description: "เปลี่ยนเป็นสีฝุ่นอบอุณหภูมิต่ำ ลดพลังงานเตาอบและกลิ่นรบกวนชุมชน", likelihood: 3, impact: 3, treatment: "ใช้โอกาส", reviewedOn: "2026-09-01",
+    tasks: [],
+  },
+];
+
+export const riskByNo = (no: string) => {
+  const r = RISKS.find((x) => x.no === no);
+  if (!r) throw new Error(\`ไม่พบ \${no}\`);
+  return r;
+};
+
+export const nextRiskNo = () => nextNo(RISKS.map((r) => r.no), "RSK-", 3);
+export const overdueTasks = (tasks: Task[]) => tasks.filter((t) => !t.doneOn && t.due < TODAY);
+
+/** ความเสี่ยงสูงที่ยังไม่มีมาตรการค้างอยู่ — ผู้ตรวจประเมินถามข้อนี้ก่อนข้ออื่น */
+export const unmanaged = () =>
+  RISKS.filter((r) => r.kind === "ความเสี่ยง" && levelOf(currentScore(r)) === "สูง" && !r.tasks.some((t) => !t.doneOn));
+
+export type RiskInput = Omit<Risk, "no" | "tasks" | "reviewedOn" | "residual">;
+
+const in1to5 = (n: number) => Number.isInteger(n) && n >= 1 && n <= 5;
+
+export function riskErrors(input: RiskInput): Errors {
+  const e: Errors = {};
+  if (input.standards.length === 0) e.standards = "เลือกมาตรฐานที่เกี่ยวข้อง";
+  if (input.process.trim().length < 2) e.process = "ใส่กระบวนการ";
+  if (input.description.trim().length < 10) e.description = "อธิบายว่าเกิดอะไรและกระทบอะไร";
+  if (!in1to5(input.likelihood)) e.likelihood = "โอกาสเกิด 1–5";
+  if (!in1to5(input.impact)) e.impact = "ผลกระทบ 1–5";
+  if (!PEOPLE.includes(input.owner)) e.owner = "เลือกเจ้าของความเสี่ยง";
+  if (input.kind === "โอกาส" && input.treatment !== "ใช้โอกาส") e.treatment = "โอกาสใช้การตอบสนองแบบใช้โอกาส";
+  if (input.kind === "ความเสี่ยง" && input.treatment === "ใช้โอกาส") e.treatment = "เลือกวิธีจัดการความเสี่ยง";
+  if (input.kind === "ความเสี่ยง" && input.treatment === "ยอมรับ" && levelOf(score(input)) === "สูง") e.treatment = "ความเสี่ยงระดับสูงยอมรับไม่ได้ ต้องลด หลีกเลี่ยง หรือถ่ายโอน";
+  return e;
+}
+
+export function addRisk(input: RiskInput): Risk {
+  assertValid(riskErrors(input));
+  return commit(() => {
+    const r: Risk = { ...input, no: nextRiskNo(), process: input.process.trim(), description: input.description.trim(), tasks: [], reviewedOn: TODAY };
+    RISKS.push(r);
+    return r;
+  });
+}
+
+export function taskErrors(input: Task): Errors {
+  const e: Errors = {};
+  if (input.what.trim().length < 5) e.what = "บอกสิ่งที่ต้องทำ";
+  if (!PEOPLE.includes(input.owner)) e.owner = "เลือกผู้รับผิดชอบ";
+  if (!isDate(input.due)) e.due = "ใส่กำหนดเสร็จ";
+  else if (input.due < TODAY) e.due = "กำหนดเสร็จต้องไม่ย้อนหลัง";
+  return e;
+}
+
+export function addRiskTask(no: string, input: Task) {
+  const r = riskByNo(no);
+  assertValid(taskErrors(input));
+  return commit(() => {
+    r.tasks.push({ what: input.what.trim(), owner: input.owner, due: input.due });
+    r.residual = undefined;
+    return r;
+  });
+}
+
+export function completeRiskTask(no: string, index: number, date = TODAY) {
+  const r = riskByNo(no);
+  const t = r.tasks[index];
+  if (!t) throw new Error("ไม่พบมาตรการนี้");
+  if (t.doneOn) throw new Error("มาตรการนี้ทำเสร็จแล้ว");
+  return commit(() => {
+    t.doneOn = date;
+    return r;
+  });
+}
+
+/** ประเมินซ้ำ (ข้อ 6.1.2) — ทำได้เมื่อมาตรการเสร็จครบ ค่าคงเหลือต้องไม่แย่กว่าเดิม */
+export function reassessErrors(no: string, input: { likelihood: number; impact: number }): Errors {
+  const r = riskByNo(no);
+  const e: Errors = {};
+  if (r.tasks.length === 0 || r.tasks.some((t) => !t.doneOn)) e.likelihood = "ทำมาตรการให้เสร็จครบก่อนประเมินซ้ำ";
+  if (!in1to5(input.likelihood)) e.likelihood = "โอกาสเกิด 1–5";
+  if (!in1to5(input.impact)) e.impact = "ผลกระทบ 1–5";
+  return e;
+}
+
+export function reassessRisk(no: string, input: { likelihood: number; impact: number }, date = TODAY) {
+  assertValid(reassessErrors(no, input));
+  const r = riskByNo(no);
+  return commit(() => {
+    r.residual = { likelihood: input.likelihood, impact: input.impact, date };
+    r.reviewedOn = date;
+    return r;
+  });
+}
+
+/* ================================================ policies and objectives */
+
+export type Policy = {
+  code: string;
+  title: string;
+  standards: Standard[];
+  text: string[];
+  rev: number;
+  approvedOn: string;
+  /** ผู้ที่รับทราบฉบับปัจจุบันแล้ว — ฉบับใหม่เริ่มนับใหม่ (ข้อ 7.3) */
+  acknowledged: string[];
+};
+
+export const POLICIES: Policy[] = [
+  {
+    code: "POL-Q", title: "นโยบายคุณภาพ", standards: ["ISO 9001", "IATF 16949"], rev: 1, approvedOn: "2026-01-20",
+    text: ["ส่งมอบสินค้าที่ตรงตามข้อกำหนดของลูกค้าและกฎหมาย ตรงเวลาทุกครั้ง", "ป้องกันของเสียที่ต้นเหตุด้วยข้อมูล ไม่ใช่ตรวจคัดที่ปลายทาง", "พัฒนาความสามารถของพนักงานและปรับปรุงระบบอย่างต่อเนื่อง"],
+    acknowledged: ["วีระ ตั้งมั่น", "นพดล ศรีวงศ์", "สุภาพร แก้วมณี", "ธนพล เจริญผล", "ศักดิ์ชัย วงศ์ไทย", "อนุชา ทองดี", "ปิยะนุช ใจดี", "ชลธิชา มั่นคง", "วรวุฒิ พึ่งบุญ", "กาญจนา บุญมา"],
+  },
+  {
+    code: "POL-E", title: "นโยบายสิ่งแวดล้อม", standards: ["ISO 14001"], rev: 0, approvedOn: "2025-03-02",
+    text: ["ป้องกันมลพิษจากการพ่นสี เชื่อม และของเสียอันตรายทุกประเภท", "ปฏิบัติตามกฎหมายสิ่งแวดล้อมและพันธะที่รับไว้กับชุมชน", "ลดการใช้พลังงานและของเสียต่อหน่วยผลิตทุกปี"],
+    acknowledged: ["วีระ ตั้งมั่น", "นพดล ศรีวงศ์", "อนุชา ทองดี", "มานพ รุ่งเรือง", "วรวุฒิ พึ่งบุญ", "กาญจนา บุญมา", "ประสิทธิ์ ขยันยิ่ง"],
+  },
+  {
+    code: "POL-C", title: "นโยบายความรับผิดชอบองค์กรและต่อต้านการให้สินบน", standards: ["IATF 16949"], rev: 0, approvedOn: "2026-07-01",
+    text: ["ไม่ให้ ไม่รับ และไม่เรียกสินบนหรือประโยชน์ใด ๆ เพื่อแลกกับการตัดสินใจทางธุรกิจ", "พนักงานแจ้งเบาะแสได้โดยไม่ถูกลงโทษ ผ่านช่องทางที่ไม่ต้องผ่านหัวหน้าโดยตรง", "ผู้บริหารทุกระดับเป็นแบบอย่างตามจรรยาบรรณของบริษัท"],
+    acknowledged: ["วีระ ตั้งมั่น", "นพดล ศรีวงศ์", "ธนพล เจริญผล", "ปิยะนุช ใจดี", "ชลธิชา มั่นคง"],
+  },
+];
+
+export const policyByCode = (code: string) => {
+  const p = POLICIES.find((x) => x.code === code);
+  if (!p) throw new Error(\`ไม่พบนโยบาย \${code}\`);
+  return p;
+};
+
+/** ทุกคนในทะเบียนต้องรับทราบนโยบายของมาตรฐานที่ตัวเองเกี่ยวข้อง — ในเดโมคือทุกคน */
+export const awareness = (p: Policy) => rate(p.acknowledged.length, STAFF.length);
+
+export function acknowledgePolicy(code: string, name: string) {
+  const p = policyByCode(code);
+  if (!PEOPLE.includes(name)) throw new Error("เลือกผู้รับทราบ");
+  if (p.acknowledged.includes(name)) throw new Error(\`\${name} รับทราบ \${p.title} ฉบับนี้แล้ว\`);
+  return commit(() => {
+    p.acknowledged.push(name);
+    return p;
+  });
+}
+
+/** ออกนโยบายฉบับใหม่ — อนุมัติได้เฉพาะผู้บริหารสูงสุด และทุกคนต้องรับทราบใหม่ */
+export function revisePolicy(code: string, text: string[], by: string, date = TODAY) {
+  const p = policyByCode(code);
+  if (by !== TOP) throw new Error(\`นโยบายต้องอนุมัติโดย \${TOP} (ผู้บริหารสูงสุด)\`);
+  const lines = text.map((t) => t.trim()).filter((t) => t.length > 0);
+  if (lines.length < 2) throw new Error("นโยบายต้องมีอย่างน้อยสองข้อ");
+  return commit(() => {
+    p.text = lines;
+    p.rev += 1;
+    p.approvedOn = date;
+    p.acknowledged = [by];
+    return p;
+  });
+}
+
+export type ObjectiveResult = { month: string; value: number };
+
+export type Objective = {
+  id: number;
+  std: Standard;
+  dept: Department;
+  name: string;
+  target: number;
+  unit: string;
+  better: "higher" | "lower";
+  /** แผนบรรลุ (ข้อ 6.2.2) — ทำอะไร ใช้อะไร ใครรับผิดชอบ */
+  plan: string;
+  owner: string;
+  results: ObjectiveResult[];
+};
+
+const months = (values: number[]) => values.map((value, i) => ({ month: addMonths("2026-04-01", i).slice(0, 7), value }));
+
+export const OBJECTIVES: Objective[] = [
+  { id: 1, std: "ISO 9001", dept: "ฝ่ายผลิต", name: "ของเสียในกระบวนการผลิต", target: 1.5, unit: "%", better: "lower", owner: "อนุชา ทองดี", plan: "ตรวจงานชิ้นแรกทุกกะ และทบทวน NCR ระหว่างผลิตทุกสัปดาห์", results: months([2.1, 1.9, 1.7, 1.6, 1.4]) },
+  { id: 2, std: "ISO 9001", dept: "ฝ่ายขาย", name: "ส่งมอบตรงเวลา", target: 95, unit: "%", better: "higher", owner: "ชลธิชา มั่นคง", plan: "ยืนยันวันส่งจากแผนผลิตก่อนรับคำสั่งซื้อ", results: months([93, 94, 96, 95, 97]) },
+  { id: 3, std: "ISO 9001", dept: "ฝ่ายจัดซื้อ", name: "ล็อตวัตถุดิบผ่านการตรวจรับ", target: 95, unit: "%", better: "higher", owner: "ปิยะนุช ใจดี", plan: "ประเมินผู้ส่งมอบรายไตรมาสและแจ้งผลให้ผู้ขาย", results: months([96, 97, 94, 92, 90]) },
+  { id: 4, std: "ISO 14001", dept: "ฝ่ายผลิต", name: "ไฟฟ้าต่อชิ้นงานพ่นสี", target: 1.8, unit: "kWh/ชิ้น", better: "lower", owner: "มานพ รุ่งเรือง", plan: "ปิดเตาอบช่วงพัก ตั้งอุณหภูมิตาม WI-03", results: months([2.2, 2.1, 2.0, 1.9, 1.9]) },
+  { id: 5, std: "ISO 14001", dept: "ฝ่ายความปลอดภัยและสิ่งแวดล้อม", name: "ของเสียอันตรายต่อเดือน", target: 450, unit: "กก.", better: "lower", owner: "กาญจนา บุญมา", plan: "กรองทินเนอร์ใช้ซ้ำ แยกกากสีก่อนส่งกำจัด", results: months([520, 505, 470, 455, 430]) },
+  { id: 6, std: "IATF 16949", dept: "ฝ่ายประกันคุณภาพ", name: "ของเสียที่ลูกค้ายานยนต์พบ", target: 50, unit: "PPM", better: "lower", owner: "ธนพล เจริญผล", plan: "ตรวจ 100% ช่วงเปิดตัวสินค้าใหม่จนกว่า Cpk ≥ 1.67", results: [] },
+  { id: 7, std: "IATF 16949", dept: "ฝ่ายซ่อมบำรุง", name: "ประสิทธิผลโดยรวมของเครื่องจักรหลัก (OEE)", target: 75, unit: "%", better: "higher", owner: "ประสิทธิ์ ขยันยิ่ง", plan: "PM ตามแผนและบำรุงรักษาด้วยตนเองทุกกะ", results: months([68, 70, 71, 73, 74]) },
+];
+
+export const objectiveById = (id: number) => {
+  const o = OBJECTIVES.find((x) => x.id === id);
+  if (!o) throw new Error("ไม่พบวัตถุประสงค์นี้");
+  return o;
+};
+
+export const latestOf = (o: Objective) => o.results[o.results.length - 1];
+export const metNow = (o: Objective) => {
+  const l = latestOf(o);
+  if (!l) return undefined;
+  return o.better === "higher" ? l.value >= o.target : l.value <= o.target;
+};
+
+export function resultErrors(id: number, input: ObjectiveResult): Errors {
+  const o = objectiveById(id);
+  const e: Errors = {};
+  if (!/^\\d{4}-\\d{2}$/.test(input.month)) e.month = "เลือกเดือน";
+  else if (input.month > TODAY.slice(0, 7)) e.month = "บันทึกผลล่วงหน้าไม่ได้";
+  else if (o.results.some((r) => r.month === input.month)) e.month = "เดือนนี้บันทึกผลแล้ว";
+  if (!Number.isFinite(input.value) || input.value < 0) e.value = "ใส่ผลที่วัดได้";
+  return e;
+}
+
+export function recordObjectiveResult(id: number, input: ObjectiveResult) {
+  assertValid(resultErrors(id, input));
+  const o = objectiveById(id);
+  return commit(() => {
+    o.results.push({ month: input.month, value: input.value });
+    o.results.sort((a, b) => a.month.localeCompare(b.month));
+    return o;
+  });
+}
+
+export type ObjectiveInput = Omit<Objective, "id" | "results">;
+
+export function objectiveErrors(input: ObjectiveInput): Errors {
+  const e: Errors = {};
+  if (input.name.trim().length < 5) e.name = "ใส่สิ่งที่วัด";
+  if (!Number.isFinite(input.target) || input.target <= 0) e.target = "ใส่เป้าหมายที่วัดได้";
+  if (input.unit.trim().length < 1) e.unit = "ใส่หน่วย";
+  if (input.plan.trim().length < 10) e.plan = "บอกว่าจะทำอะไรเพื่อให้ถึงเป้า (ข้อ 6.2.2)";
+  if (!PEOPLE.includes(input.owner)) e.owner = "เลือกผู้รับผิดชอบ";
+  return e;
+}
+
+export function addObjective(input: ObjectiveInput) {
+  assertValid(objectiveErrors(input));
+  return commit(() => {
+    const o: Objective = { ...input, id: Math.max(0, ...OBJECTIVES.map((x) => x.id)) + 1, name: input.name.trim(), plan: input.plan.trim(), unit: input.unit.trim(), results: [] };
+    OBJECTIVES.push(o);
+    return o;
+  });
+}
+
+/* ============================================================= documents */
+
+/** โครงสร้างเอกสารสี่ระดับของระบบบูรณาการ — ระเบียบกลางใช้ร่วมกันทุกมาตรฐาน */
+export const DOC_LEVELS = ["คู่มือระบบ", "ระเบียบปฏิบัติ", "วิธีการทำงาน", "แบบฟอร์ม"] as const;
+export type DocLevel = (typeof DOC_LEVELS)[number];
+
+const DOC_PREFIX: Record<DocLevel, string> = {
+  "คู่มือระบบ": "IM-",
+  "ระเบียบปฏิบัติ": "SP-",
+  "วิธีการทำงาน": "WI-",
+  "แบบฟอร์ม": "FM-",
+};
+
+export const levelNo = (l: DocLevel) => DOC_LEVELS.indexOf(l) + 1;
+
+export type DocStatus = "ร่าง" | "รออนุมัติ" | "ใช้งาน" | "ยกเลิก";
+export type DocRevision = { rev: number; date: string; change: string; by: string; approvedBy: string };
+/** ฉบับที่กำลังเขียนหรือรออนุมัติ — ฉบับที่ใช้อยู่ยังใช้ต่อจนกว่าฉบับนี้จะอนุมัติ */
+export type DocDraft = { rev: number; change: string; by: string; date: string; submitted: boolean };
+
+export type ControlledDoc = {
+  code: string;
+  title: string;
+  level: DocLevel;
+  standards: Standard[];
+  owner: Department;
+  /** ฉบับที่ใช้อยู่ — -1 คือยังไม่เคยอนุมัติฉบับไหน */
+  rev: number;
+  status: DocStatus;
+  effective?: string;
+  /** ทบทวนความเหมาะสมทุกปี (ข้อ 7.5.2) */
+  reviewDue?: string;
+  draft?: DocDraft;
+  history: DocRevision[];
+  obsoleteReason?: string;
+};
+
+/** ทุกฉบับถูกทบทวนในการประชุมทบทวนโดยฝ่ายบริหารเมื่อ 2026-01-20 ยกเว้นที่ออกฉบับใหม่หลังจากนั้น */
+const LAST_REVIEW = "2026-01-20";
+
+const AUTHOR: Record<string, string> = {
+  "ฝ่ายผลิต": "อนุชา ทองดี",
+  "ฝ่ายวิศวกรรม": "ศักดิ์ชัย วงศ์ไทย",
+  "ฝ่ายซ่อมบำรุง": "ประสิทธิ์ ขยันยิ่ง",
+  "ฝ่ายความปลอดภัยและสิ่งแวดล้อม": "กาญจนา บุญมา",
+  "ฝ่ายจัดซื้อ": "ปิยะนุช ใจดี",
+  "ฝ่ายคลังสินค้า": "วรวุฒิ พึ่งบุญ",
+  "ฝ่ายขาย": "ชลธิชา มั่นคง",
+};
+
+const issued = (
+  code: string, title: string, level: DocLevel, standards: Standard[], owner: Department, revs: [string, string][], reviewed = LAST_REVIEW,
+): ControlledDoc => {
+  const by = AUTHOR[owner] ?? "สุภาพร แก้วมณี";
+  // เอกสารระดับหนึ่งและนโยบายอนุมัติโดยผู้บริหารสูงสุด ที่เหลืออนุมัติโดยผู้แทนฝ่ายบริหาร
+  const approver = level === "คู่มือระบบ" ? TOP : standards.length === 1 && standards[0] === "ISO 14001" ? EMR : QMR;
+  const history = revs.map(([date, change], i) => ({ rev: i, date, change, by, approvedBy: approver }));
+  const last = history[history.length - 1];
+  const since = last.date > reviewed ? last.date : reviewed;
+  return { code, title, level, standards, owner, rev: last.rev, status: "ใช้งาน", effective: last.date, reviewDue: addMonths(since, 12), history };
+};
+
+const ALL: Standard[] = ["ISO 9001", "ISO 14001", "IATF 16949"];
+const QA: Standard[] = ["ISO 9001", "IATF 16949"];
+const ENV: Standard[] = ["ISO 14001"];
+const AUTO: Standard[] = ["IATF 16949"];
+const FIRST = "ออกใช้ครั้งแรก";
+
+export const DOCUMENTS: ControlledDoc[] = [
+  issued("IM-01", "คู่มือระบบบริหารบูรณาการ", "คู่มือระบบ", ALL, "ฝ่ายประกันคุณภาพ", [["2025-01-15", FIRST], ["2025-11-03", "รวมระบบสิ่งแวดล้อมเข้าคู่มือเดียว"], ["2026-07-01", "เพิ่มขอบเขต IATF 16949 และ support site"]]),
+  issued("SP-01", "การควบคุมเอกสารสารสนเทศ", "ระเบียบปฏิบัติ", ALL, "ฝ่ายประกันคุณภาพ", [["2025-01-15", FIRST]]),
+  issued("SP-02", "การประเมินความเสี่ยงและโอกาส", "ระเบียบปฏิบัติ", ALL, "ฝ่ายประกันคุณภาพ", [["2025-01-15", FIRST]]),
+  issued("SP-03", "การตรวจติดตามภายใน", "ระเบียบปฏิบัติ", ALL, "ฝ่ายประกันคุณภาพ", [["2025-01-15", FIRST], ["2026-02-10", "เพิ่มการตรวจกระบวนการและผลิตภัณฑ์ตาม IATF"]]),
+  issued("SP-04", "การแก้ไขและการแก้ปัญหา (CAR และ 8D)", "ระเบียบปฏิบัติ", ALL, "ฝ่ายประกันคุณภาพ", [["2025-01-15", FIRST], ["2026-07-01", "เพิ่มรูปแบบ 8D สำหรับลูกค้ายานยนต์"]]),
+  issued("SP-05", "การทบทวนโดยฝ่ายบริหาร", "ระเบียบปฏิบัติ", ALL, "ฝ่ายบริหาร", [["2025-01-15", FIRST]]),
+  issued("SP-06", "การฝึกอบรมและความสามารถ", "ระเบียบปฏิบัติ", ALL, "ฝ่ายประกันคุณภาพ", [["2025-01-15", FIRST], ["2026-02-10", "เพิ่มเกณฑ์ผู้ตรวจติดตามตาม IATF 7.2.3"]]),
+  issued("SP-07", "การจัดซื้อและการประเมินผู้ส่งมอบ", "ระเบียบปฏิบัติ", QA, "ฝ่ายจัดซื้อ", [["2025-01-15", FIRST], ["2026-08-12", "ต้องประเมินผู้ขายใหม่ก่อนสั่งซื้อครั้งแรก"]]),
+  issued("SP-08", "การควบคุมผลลัพธ์ที่ไม่เป็นไปตามข้อกำหนด", "ระเบียบปฏิบัติ", QA, "ฝ่ายประกันคุณภาพ", [["2025-01-15", FIRST]]),
+  issued("SP-09", "การตรวจรับและตรวจปล่อยผลิตภัณฑ์", "ระเบียบปฏิบัติ", QA, "ฝ่ายประกันคุณภาพ", [["2025-02-01", FIRST], ["2025-10-07", "เพิ่มแผนสุ่มตัวอย่างตามขนาดล็อต"]], "2025-10-07"),
+  issued("SP-10", "การสอบเทียบและการวิเคราะห์ระบบการวัด", "ระเบียบปฏิบัติ", QA, "ฝ่ายประกันคุณภาพ", [["2025-02-01", FIRST]]),
+  issued("SP-11", "การทบทวนข้อกำหนดและความพึงพอใจของลูกค้า", "ระเบียบปฏิบัติ", QA, "ฝ่ายขาย", [["2025-02-01", FIRST]]),
+  issued("SP-12", "การออกแบบและพัฒนาผลิตภัณฑ์", "ระเบียบปฏิบัติ", ["ISO 9001"], "ฝ่ายวิศวกรรม", [["2025-02-01", FIRST]]),
+  issued("SP-13", "การประเมินประเด็นสิ่งแวดล้อม", "ระเบียบปฏิบัติ", ENV, "ฝ่ายความปลอดภัยและสิ่งแวดล้อม", [["2025-03-02", FIRST]]),
+  issued("SP-14", "การติดตามและประเมินความสอดคล้องกับกฎหมาย", "ระเบียบปฏิบัติ", ENV, "ฝ่ายความปลอดภัยและสิ่งแวดล้อม", [["2025-03-02", FIRST]]),
+  issued("SP-15", "การจัดการของเสียและสารเคมี", "ระเบียบปฏิบัติ", ENV, "ฝ่ายความปลอดภัยและสิ่งแวดล้อม", [["2025-03-02", FIRST]]),
+  issued("SP-16", "การเตรียมพร้อมและตอบสนองเหตุฉุกเฉิน", "ระเบียบปฏิบัติ", ["ISO 14001", "IATF 16949"], "ฝ่ายความปลอดภัยและสิ่งแวดล้อม", [["2025-03-02", FIRST], ["2026-07-01", "รวมแผนฉุกเฉินทางธุรกิจตาม IATF 6.1.2.3"]]),
+  issued("SP-17", "การวางแผนคุณภาพผลิตภัณฑ์ (APQP) และ PPAP", "ระเบียบปฏิบัติ", AUTO, "ฝ่ายวิศวกรรม", [["2026-07-01", FIRST]]),
+  issued("SP-18", "FMEA และแผนควบคุม", "ระเบียบปฏิบัติ", AUTO, "ฝ่ายวิศวกรรม", [["2026-07-01", FIRST]]),
+  issued("SP-19", "การควบคุมกระบวนการเชิงสถิติ (SPC)", "ระเบียบปฏิบัติ", AUTO, "ฝ่ายประกันคุณภาพ", [["2026-07-01", FIRST]]),
+  issued("SP-20", "การบำรุงรักษาเชิงป้องกันแบบทั่วถึง (TPM)", "ระเบียบปฏิบัติ", AUTO, "ฝ่ายซ่อมบำรุง", [["2026-07-01", FIRST]]),
+  issued("SP-21", "ความปลอดภัยของผลิตภัณฑ์และข้อกำหนดเฉพาะลูกค้า", "ระเบียบปฏิบัติ", AUTO, "ฝ่ายประกันคุณภาพ", [["2026-07-01", FIRST]]),
+  issued("WI-01", "วิธีการเชื่อมโครงชั้นวาง", "วิธีการทำงาน", ["ISO 9001"], "ฝ่ายผลิต", [["2025-03-12", FIRST], ["2026-06-20", "เปลี่ยนลวดเชื่อมเป็น ER70S-6"]]),
+  issued("WI-02", "การวัดความหนาเหล็กแผ่นและเหล็กเส้น", "วิธีการทำงาน", QA, "ฝ่ายประกันคุณภาพ", [["2025-03-12", FIRST]]),
+  issued("WI-04", "การถ่ายและจัดเก็บทินเนอร์และกากสี", "วิธีการทำงาน", ENV, "ฝ่ายความปลอดภัยและสิ่งแวดล้อม", [["2025-03-02", FIRST], ["2026-06-22", "เพิ่มถาดรองและชุดดูดซับที่จุดถ่ายถัง"]]),
+  // แบบฟอร์มที่ระบบพิมพ์ออกมา — เลขที่มุมกระดาษอ่านฉบับจากบัญชีนี้ แก้ฟอร์มแล้วใบที่พิมพ์เปลี่ยนตาม
+  issued("FM-01", "บัญชีรายชื่อเอกสารควบคุม", "แบบฟอร์ม", ALL, "ฝ่ายประกันคุณภาพ", [["2025-01-15", FIRST]]),
+  issued("FM-02", "ใบรายงานผลการตรวจสอบ", "แบบฟอร์ม", QA, "ฝ่ายประกันคุณภาพ", [["2025-02-01", FIRST], ["2025-10-07", "เพิ่มช่องจำนวนตัวอย่างตามขนาดล็อต"]], "2025-10-07"),
+  issued("FM-03", "ใบรับรองคุณภาพสินค้า", "แบบฟอร์ม", QA, "ฝ่ายประกันคุณภาพ", [["2025-02-01", FIRST]], "2025-10-07"),
+  issued("FM-04", "ใบรายงานสิ่งที่ไม่เป็นไปตามข้อกำหนด", "แบบฟอร์ม", QA, "ฝ่ายประกันคุณภาพ", [["2025-01-15", FIRST]]),
+  issued("FM-05", "ใบขอให้ดำเนินการแก้ไขและป้องกัน", "แบบฟอร์ม", ALL, "ฝ่ายประกันคุณภาพ", [["2025-01-15", FIRST]]),
+  issued("FM-06", "รายงานการตรวจติดตามภายใน", "แบบฟอร์ม", ALL, "ฝ่ายประกันคุณภาพ", [["2025-01-15", FIRST], ["2026-02-10", "เพิ่มช่องระดับของสิ่งที่พบ"]]),
+  issued("FM-07", "บันทึกประวัติการสอบเทียบเครื่องมือวัด", "แบบฟอร์ม", QA, "ฝ่ายประกันคุณภาพ", [["2025-02-01", FIRST]]),
+  issued("FM-08", "ทะเบียนความเสี่ยงและโอกาส", "แบบฟอร์ม", ALL, "ฝ่ายประกันคุณภาพ", [["2025-01-15", FIRST]]),
+  issued("FM-09", "บันทึกประวัติการฝึกอบรมรายบุคคล", "แบบฟอร์ม", ALL, "ฝ่ายประกันคุณภาพ", [["2025-01-15", FIRST]]),
+  issued("FM-10", "รายงานการประชุมทบทวนโดยฝ่ายบริหาร", "แบบฟอร์ม", ALL, "ฝ่ายบริหาร", [["2025-01-15", FIRST]]),
+  issued("FM-11", "รายงานการแก้ปัญหา 8D", "แบบฟอร์ม", AUTO, "ฝ่ายประกันคุณภาพ", [["2026-07-01", FIRST]]),
+  issued("FM-12", "ใบทบทวนข้อกำหนดลูกค้า", "แบบฟอร์ม", QA, "ฝ่ายขาย", [["2025-02-01", FIRST]]),
+  issued("FM-13", "บันทึกการออกแบบและพัฒนา", "แบบฟอร์ม", ["ISO 9001"], "ฝ่ายวิศวกรรม", [["2025-02-01", FIRST]]),
+  issued("FM-14", "ใบประเมินผู้ส่งมอบประจำปี", "แบบฟอร์ม", QA, "ฝ่ายจัดซื้อ", [["2025-01-15", FIRST]]),
+  issued("FM-15", "สรุปผลสำรวจความพึงพอใจลูกค้า", "แบบฟอร์ม", QA, "ฝ่ายขาย", [["2025-01-15", FIRST]]),
+  {
+    code: "WI-03", title: "วิธีการพ่นสีฝุ่นและอบ", level: "วิธีการทำงาน", standards: ["ISO 9001", "ISO 14001"], owner: "ฝ่ายผลิต",
+    rev: -1, status: "รออนุมัติ", history: [],
+    draft: { rev: 0, change: "ออกใช้ครั้งแรก — กำหนดอุณหภูมิอบ 200°C 15 นาที", by: "อนุชา ทองดี", date: "2026-09-18", submitted: true },
+  },
+];
+
+export const docByCode = (code: string) => {
+  const d = DOCUMENTS.find((x) => x.code === code);
+  if (!d) throw new Error(\`ไม่พบเอกสาร \${code}\`);
+  return d;
+};
+
+export const revLabel = (rev: number) => (rev < 0 ? "—" : \`Rev.\${String(rev).padStart(2, "0")}\`);
+
+/** เลขแบบฟอร์มที่มุมกระดาษ อ่านฉบับจากบัญชีรายชื่อเอกสาร จึงตรงกับที่ผู้ตรวจประเมินเทียบเสมอ */
+export const formNo = (code: string) => \`\${code} \${revLabel(docByCode(code).rev)}\`;
+
+/** เอกสารที่ถึงรอบทบทวนภายใน 30 วัน หรือเลยรอบมาแล้ว */
+export const reviewDue = () => DOCUMENTS.filter((d) => d.status === "ใช้งาน" && d.reviewDue && d.reviewDue <= addDays(TODAY, 30));
+export const awaitingApproval = () => DOCUMENTS.filter((d) => d.draft?.submitted);
+
+export type DocInput = { level: DocLevel; title: string; standards: Standard[]; owner: Department; by: string; change: string };
+
+export function docErrors(input: DocInput): Errors {
+  const e: Errors = {};
+  if (input.title.trim().length < 4) e.title = "ใส่ชื่อเอกสาร";
+  else if (DOCUMENTS.some((d) => d.status !== "ยกเลิก" && d.title === input.title.trim())) e.title = "มีเอกสารชื่อนี้ใช้อยู่แล้ว";
+  if (input.standards.length === 0) e.standards = "เลือกมาตรฐานที่เอกสารนี้รองรับ";
+  if (!DEPARTMENTS.includes(input.owner)) e.owner = "เลือกฝ่ายเจ้าของเอกสาร";
+  if (!PEOPLE.includes(input.by)) e.by = "เลือกผู้จัดทำ";
+  return e;
+}
+
+export const nextDocCode = (level: DocLevel) => {
+  const prefix = DOC_PREFIX[level];
+  const nums = DOCUMENTS.filter((d) => d.code.startsWith(prefix)).map((d) => Number(d.code.slice(prefix.length)));
+  return \`\${prefix}\${String(Math.max(0, ...nums) + 1).padStart(2, "0")}\`;
+};
+
+export function createDocument(input: DocInput): ControlledDoc {
+  assertValid(docErrors(input));
+  return commit(() => {
+    const d: ControlledDoc = {
+      code: nextDocCode(input.level), title: input.title.trim(), level: input.level, standards: [...input.standards], owner: input.owner,
+      rev: -1, status: "ร่าง", history: [],
+      draft: { rev: 0, change: input.change.trim() || FIRST, by: input.by, date: TODAY, submitted: false },
+    };
+    DOCUMENTS.push(d);
+    return d;
+  });
+}
+
+export function submitDocument(code: string) {
+  const d = docByCode(code);
+  if (!d.draft || d.draft.submitted) throw new Error(\`\${code} ไม่มีฉบับร่างที่รอส่ง\`);
+  return commit(() => {
+    d.draft!.submitted = true;
+    if (d.rev < 0) d.status = "รออนุมัติ";
+    return d;
+  });
+}
+
+/** อนุมัติก่อนออกใช้ (ข้อ 7.5.2) — ผู้อนุมัติต้องไม่ใช่คนเขียน คู่มือระดับหนึ่งอนุมัติโดยผู้บริหารสูงสุด */
+export function approveDocument(code: string, approver: string, date = TODAY) {
+  const d = docByCode(code);
+  if (!d.draft?.submitted) throw new Error(\`\${code} ไม่มีฉบับที่รออนุมัติ\`);
+  if (approver === d.draft.by) throw new Error("ผู้อนุมัติต้องไม่ใช่ผู้จัดทำเอกสาร");
+  if (!PEOPLE.includes(approver)) throw new Error("เลือกผู้อนุมัติ");
+  if (d.level === "คู่มือระบบ" && approver !== TOP) throw new Error(\`คู่มือระบบต้องอนุมัติโดย \${TOP}\`);
+  const draft = d.draft;
+  return commit(() => {
+    d.history.push({ rev: draft.rev, date, change: draft.change, by: draft.by, approvedBy: approver });
+    d.rev = draft.rev;
+    d.status = "ใช้งาน";
+    d.effective = date;
+    d.reviewDue = addMonths(date, 12);
+    d.draft = undefined;
+    return d;
+  });
+}
+
+/** ส่งฉบับกลับไปแก้ — ฉบับที่ใช้อยู่ไม่เปลี่ยน */
+export function returnDocument(code: string) {
+  const d = docByCode(code);
+  if (!d.draft?.submitted) throw new Error(\`\${code} ไม่มีฉบับที่รออนุมัติ\`);
+  return commit(() => {
+    d.draft!.submitted = false;
+    if (d.rev < 0) d.status = "ร่าง";
+    return d;
+  });
+}
+
+export function reviseDocument(code: string, change: string, by: string) {
+  const d = docByCode(code);
+  if (d.status !== "ใช้งาน") throw new Error(\`\${code} \${d.status} แก้ไขฉบับใหม่ไม่ได้\`);
+  if (d.draft) throw new Error(\`\${code} มีฉบับแก้ไข \${revLabel(d.draft.rev)} ค้างอยู่แล้ว\`);
+  if (change.trim().length < 5) throw new Error("บอกว่าแก้อะไร อย่างน้อยหนึ่งประโยค");
+  if (!PEOPLE.includes(by)) throw new Error("เลือกผู้จัดทำ");
+  return commit(() => {
+    d.draft = { rev: d.rev + 1, change: change.trim(), by, date: TODAY, submitted: false };
+    return d;
+  });
+}
+
+/** ทบทวนแล้วยังเหมาะสม — ต่อรอบทบทวนอีกหนึ่งปี ไม่ออกฉบับใหม่ */
+export function confirmReview(code: string, date = TODAY) {
+  const d = docByCode(code);
+  if (d.status !== "ใช้งาน") throw new Error(\`\${code} ไม่ได้ใช้งานอยู่\`);
+  return commit(() => {
+    d.reviewDue = addMonths(date, 12);
+    return d;
+  });
+}
+
+export function obsoleteDocument(code: string, reason: string) {
+  const d = docByCode(code);
+  if (d.status === "ยกเลิก") throw new Error(\`\${code} ยกเลิกไปแล้ว\`);
+  if (reason.trim().length < 5) throw new Error("ใส่เหตุผลที่ยกเลิก");
+  return commit(() => {
+    d.status = "ยกเลิก";
+    d.obsoleteReason = reason.trim();
+    d.draft = undefined;
+    return d;
+  });
+}
+
+/* ============================================================== training */
+
+export type Attendee = { name: string; result?: "ผ่าน" | "ไม่ผ่าน" };
+
+export type Training = {
+  no: string;
+  course: CourseCode;
+  date: string;
+  hours: number;
+  trainer: string;
+  attendees: Attendee[];
+  status: "ตามแผน" | "บันทึกผลแล้ว";
+  /** ประเมินประสิทธิผล (ข้อ 7.2 ค) — โดยหัวหน้างาน ไม่ใช่วิทยากร */
+  evaluation?: { date: string; effective: boolean; note: string; by: string };
+};
+
+const done = (names: string[], failed: string[] = []): Attendee[] => [
+  ...names.map((name) => ({ name, result: "ผ่าน" as const })),
+  ...failed.map((name) => ({ name, result: "ไม่ผ่าน" as const })),
+];
+
+export const TRAININGS: Training[] = [
+  { no: "TRN-2568-004", course: "TR-01", date: "2025-02-11", hours: 6, trainer: "สถาบันพัฒนาคุณภาพ", status: "บันทึกผลแล้ว", attendees: done(["วีระ ตั้งมั่น", "นพดล ศรีวงศ์", "สุภาพร แก้วมณี", "อนุชา ทองดี", "ปิยะนุช ใจดี", "วรวุฒิ พึ่งบุญ", "ชลธิชา มั่นคง", "สมปอง ใจกล้า", "มานพ รุ่งเรือง", "ประสิทธิ์ ขยันยิ่ง"]), evaluation: { date: "2025-05-12", effective: true, note: "สุ่มถามพนักงานเรื่องนโยบายและวัตถุประสงค์ ตอบได้ 9 ใน 10", by: QMR } },
+  { no: "TRN-2568-005", course: "TR-02", date: "2025-03-04", hours: 12, trainer: "สถาบันพัฒนาคุณภาพ", status: "บันทึกผลแล้ว", attendees: done(["นพดล ศรีวงศ์", "สุภาพร แก้วมณี", "อนุชา ทองดี", "ปิยะนุช ใจดี", "ชลธิชา มั่นคง"]), evaluation: { date: "2025-07-10", effective: true, note: "ผู้ผ่านอบรมตรวจติดตามรอบแรกได้ครบตามแผน รายงานเขียนตามข้อกำหนด", by: QMR } },
+  { no: "TRN-2568-009", course: "TR-03", date: "2025-04-22", hours: 12, trainer: "สมาคมสิ่งแวดล้อมอุตสาหกรรม", status: "บันทึกผลแล้ว", attendees: done(["กาญจนา บุญมา", "นพดล ศรีวงศ์"]) },
+  { no: "TRN-2568-012", course: "TR-07", date: "2025-06-17", hours: 3, trainer: "กาญจนา บุญมา", status: "บันทึกผลแล้ว", attendees: done(["วรวุฒิ พึ่งบุญ", "กาญจนา บุญมา"], ["มานพ รุ่งเรือง"]) },
+  { no: "TRN-2568-015", course: "TR-10", date: "2025-08-20", hours: 3, trainer: "สถานีดับเพลิงในพื้นที่", status: "บันทึกผลแล้ว", attendees: done(["อนุชา ทองดี", "สมปอง ใจกล้า", "มานพ รุ่งเรือง", "ประสิทธิ์ ขยันยิ่ง", "วรวุฒิ พึ่งบุญ", "กาญจนา บุญมา"]) },
+  { no: "TRN-2568-018", course: "TR-08", date: "2024-10-30", hours: 8, trainer: "สถาบันเชื่อมแห่งประเทศไทย", status: "บันทึกผลแล้ว", attendees: done(["สมปอง ใจกล้า"]) },
+  { no: "TRN-2568-021", course: "TR-01", date: "2025-11-20", hours: 6, trainer: "นพดล ศรีวงศ์", status: "บันทึกผลแล้ว", attendees: done(["ศักดิ์ชัย วงศ์ไทย", "กาญจนา บุญมา", "ธนพล เจริญผล"]) },
+  { no: "TRN-2569-001", course: "TR-10", date: "2026-02-18", hours: 3, trainer: "สถานีดับเพลิงในพื้นที่", status: "บันทึกผลแล้ว", attendees: done(["อนุชา ทองดี", "สมปอง ใจกล้า", "ประสิทธิ์ ขยันยิ่ง", "วรวุฒิ พึ่งบุญ", "กาญจนา บุญมา"]) },
+  { no: "TRN-2569-002", course: "TR-12", date: "2026-07-08", hours: 2, trainer: "วีระ ตั้งมั่น", status: "บันทึกผลแล้ว", attendees: done(["วีระ ตั้งมั่น", "นพดล ศรีวงศ์", "สุภาพร แก้วมณี", "ธนพล เจริญผล", "ศักดิ์ชัย วงศ์ไทย", "อนุชา ทองดี", "ปิยะนุช ใจดี", "ชลธิชา มั่นคง", "กาญจนา บุญมา"]) },
+  { no: "TRN-2569-003", course: "TR-05", date: "2026-08-14", hours: 18, trainer: "สถาบันยานยนต์", status: "บันทึกผลแล้ว", attendees: done(["ธนพล เจริญผล", "ศักดิ์ชัย วงศ์ไทย", "นพดล ศรีวงศ์"]), evaluation: { date: "2026-09-15", effective: true, note: "จัดทำ PFMEA และแผนควบคุมชิ้นส่วนแรกได้เองโดยไม่ต้องจ้างที่ปรึกษา", by: QMR } },
+  { no: "TRN-2569-004", course: "TR-04", date: "2026-08-26", hours: 16, trainer: "สถาบันยานยนต์", status: "บันทึกผลแล้ว", attendees: done(["ธนพล เจริญผล"]) },
+  { no: "TRN-2569-005", course: "TR-06", date: "2026-09-02", hours: 4, trainer: "ธนพล เจริญผล", status: "บันทึกผลแล้ว", attendees: done(["ธนพล เจริญผล", "นพดล ศรีวงศ์"]) },
+  { no: "TRN-2569-006", course: "TR-02", date: "2026-09-09", hours: 12, trainer: "สถาบันพัฒนาคุณภาพ", status: "บันทึกผลแล้ว", attendees: done(["ธนพล เจริญผล"]) },
+  { no: "TRN-2569-007", course: "TR-09", date: "2026-03-18", hours: 4, trainer: "สุภาพร แก้วมณี", status: "บันทึกผลแล้ว", attendees: done(["สุภาพร แก้วมณี"]) },
+  { no: "TRN-2569-008", course: "TR-11", date: "2026-10-14", hours: 6, trainer: "ที่ปรึกษา TPM", status: "ตามแผน", attendees: [{ name: "ประสิทธิ์ ขยันยิ่ง" }, { name: "อนุชา ทองดี" }] },
+  { no: "TRN-2569-009", course: "TR-07", date: "2026-09-22", hours: 3, trainer: "กาญจนา บุญมา", status: "ตามแผน", attendees: [{ name: "มานพ รุ่งเรือง" }] },
+];
+
+export const trainingByNo = (no: string) => {
+  const t = TRAININGS.find((x) => x.no === no);
+  if (!t) throw new Error(\`ไม่พบ \${no}\`);
+  return t;
+};
+
+/** วันหมดอายุของความสามารถที่ได้จากการอบรมครั้งนั้น — ไม่มีคือไม่หมดอายุ */
+const expiryOf = (t: Training) => {
+  const years = validYears(t.course);
+  return years ? addMonths(t.date, years * 12) : undefined;
+};
+
+export type Qualification = { course: CourseCode; since: string; until?: string; training: string };
+
+/** ความสามารถที่ยังใช้ได้ของคนหนึ่งคน — จากผลอบรมที่ผ่าน และยังไม่หมดอายุ */
+export function qualificationsOf(name: string, on = TODAY): Qualification[] {
+  const best = new Map<CourseCode, Qualification>();
+  for (const t of TRAININGS) {
+    if (t.status !== "บันทึกผลแล้ว" || t.date > on) continue;
+    if (!t.attendees.some((a) => a.name === name && a.result === "ผ่าน")) continue;
+    const until = expiryOf(t);
+    if (until && until < on) continue;
+    const prev = best.get(t.course);
+    if (!prev || prev.since < t.date) best.set(t.course, { course: t.course, since: t.date, until, training: t.no });
+  }
+  return [...best.values()];
+}
+
+export const isQualified = (name: string, course: CourseCode, on = TODAY) => qualificationsOf(name, on).some((q) => q.course === course);
+
+/** หลักสูตรที่ตำแหน่งต้องมีแต่ยังไม่มี หรือหมดอายุแล้ว — ความต้องการฝึกอบรม */
+export const gapsOf = (name: string) => (personOf(name)?.requires ?? []).filter((c) => !isQualified(name, c));
+
+/** ใบรับรองที่จะหมดอายุใน 60 วัน — ต้องจัดอบรมซ้ำก่อนคนนั้นทำงานไม่ได้ */
+export function expiringSoon(): { name: string; course: CourseCode; until: string }[] {
+  const limit = addDays(TODAY, 60);
+  return STAFF.flatMap((p) =>
+    qualificationsOf(p.name)
+      .filter((q) => q.until && q.until <= limit)
+      .map((q) => ({ name: p.name, course: q.course, until: q.until! })),
+  );
+}
+
+export const trainingNeeds = () =>
+  COURSES.map((c) => ({ course: c.code, people: STAFF.filter((p) => gapsOf(p.name).includes(c.code)).map((p) => p.name) })).filter((x) => x.people.length > 0);
+
+export const nextTrainingNo = () => nextNo(TRAININGS.map((t) => t.no), \`TRN-\${YEAR}-\`, 3);
+
+export type TrainingInput = { course: CourseCode; date: string; hours: number; trainer: string; attendees: string[] };
+
+export function trainingErrors(input: TrainingInput): Errors {
+  const e: Errors = {};
+  if (!COURSES.some((c) => c.code === input.course)) e.course = "เลือกหลักสูตร";
+  if (!isDate(input.date)) e.date = "ใส่วันที่อบรม";
+  if (!(input.hours > 0) || input.hours > 40) e.hours = "ชั่วโมงอบรม 1–40";
+  if (input.trainer.trim().length < 3) e.trainer = "ใส่วิทยากรหรือสถาบัน";
+  if (input.attendees.length === 0) e.attendees = "เลือกผู้เข้าอบรมอย่างน้อยหนึ่งคน";
+  else if (input.attendees.some((a) => !PEOPLE.includes(a))) e.attendees = "ผู้เข้าอบรมต้องอยู่ในทะเบียนบุคลากร";
+  return e;
+}
+
+export function planTraining(input: TrainingInput): Training {
+  assertValid(trainingErrors(input));
+  return commit(() => {
+    const t: Training = { no: nextTrainingNo(), course: input.course, date: input.date, hours: input.hours, trainer: input.trainer.trim(), attendees: input.attendees.map((name) => ({ name })), status: "ตามแผน" };
+    TRAININGS.push(t);
+    return t;
+  });
+}
+
+export function recordTrainingErrors(no: string, results: Record<string, "ผ่าน" | "ไม่ผ่าน" | undefined>): Errors {
+  const t = trainingByNo(no);
+  const e: Errors = {};
+  if (t.status !== "ตามแผน") e.results = \`\${no} บันทึกผลไปแล้ว\`;
+  else if (t.date > TODAY) e.results = \`ยังไม่ถึงวันอบรม (\${t.date})\`;
+  else if (t.attendees.some((a) => !results[a.name])) e.results = "ใส่ผลให้ผู้เข้าอบรมทุกคน";
+  return e;
+}
+
+export function recordTraining(no: string, results: Record<string, "ผ่าน" | "ไม่ผ่าน" | undefined>) {
+  assertValid(recordTrainingErrors(no, results));
+  const t = trainingByNo(no);
+  return commit(() => {
+    for (const a of t.attendees) a.result = results[a.name];
+    t.status = "บันทึกผลแล้ว";
+    return t;
+  });
+}
+
+export function evaluateTraining(no: string, input: { effective: boolean; note: string; by: string }, date = TODAY) {
+  const t = trainingByNo(no);
+  if (t.status !== "บันทึกผลแล้ว") throw new Error("บันทึกผลอบรมก่อนประเมินประสิทธิผล");
+  if (t.evaluation) throw new Error(\`\${no} ประเมินประสิทธิผลแล้ว\`);
+  if (!PEOPLE.includes(input.by)) throw new Error("เลือกผู้ประเมิน");
+  if (input.by === t.trainer) throw new Error("ผู้ประเมินต้องไม่ใช่วิทยากร — ให้หัวหน้างานดูผลจากงานจริง");
+  if (input.note.trim().length < 10) throw new Error("บอกหลักฐานจากงานจริงที่ใช้ประเมิน");
+  return commit(() => {
+    t.evaluation = { date, effective: input.effective, note: input.note.trim(), by: input.by };
+    return t;
+  });
+}
+
+/* ================================================================= audit */
+
+export const AUDIT_TYPES = ["ตรวจระบบ", "ตรวจกระบวนการ", "ตรวจผลิตภัณฑ์"] as const;
+export type AuditType = (typeof AUDIT_TYPES)[number];
+
+/**
+ * ผู้ตรวจต้องมีหลักสูตรตามชนิดการตรวจ (ISO 9001 7.2, IATF 7.2.3) — ระบบตัดสินจากผลอบรม
+ * ไม่ใช่จากช่องติ๊กว่าเป็นผู้ตรวจ ใครอบรมผ่านแล้วตรวจได้ทันที ใบรับรองหมดอายุแล้วตรวจไม่ได้
+ */
+export function auditorNeeds(type: AuditType, std: Standard): CourseCode[] {
+  if (type === "ตรวจกระบวนการ") return ["TR-04", "TR-05"];
+  if (type === "ตรวจผลิตภัณฑ์") return ["TR-09", "TR-06"];
+  if (std === "ISO 14001") return ["TR-03"];
+  if (std === "IATF 16949") return ["TR-02", "TR-05", "TR-06"];
+  return ["TR-02"];
+}
+
+export const FINDING_TYPES = ["ข้อบกพร่องหลัก", "ข้อบกพร่องย่อย", "ข้อสังเกต"] as const;
+export type FindingType = (typeof FINDING_TYPES)[number];
+export type Finding = { id: number; clause: string; type: FindingType; detail: string };
+
+export type Audit = {
+  no: string;
+  type: AuditType;
+  std: Standard;
+  /** ฝ่ายที่ถูกตรวจ */
+  area: Department;
+  /** กระบวนการหรือชิ้นส่วนที่ตรวจ สำหรับการตรวจกระบวนการและผลิตภัณฑ์ */
+  subject?: string;
+  clauses: string[];
+  auditor: string;
+  planned: string;
+  status: "ตามแผน" | "กำลังตรวจ" | "ปิดแล้ว";
+  findings: Finding[];
+  performedOn?: string;
+  closedOn?: string;
+  /** คะแนนการตรวจกระบวนการแบบ VDA 6.3 (ร้อยละ) */
+  score?: number;
+};
+
+export const AUDITS: Audit[] = [
+  { no: "IA-2569-01", type: "ตรวจระบบ", std: "ISO 9001", area: "ฝ่ายผลิต", clauses: ["9001:8.5", "9001:7.1.5"], auditor: "ปิยะนุช ใจดี", planned: "2026-03-18", status: "ปิดแล้ว", performedOn: "2026-03-18", closedOn: "2026-04-02", findings: [{ id: 1, clause: "9001:8.5", type: "ข้อสังเกต", detail: "ป้ายชี้บ่งสถานะงานระหว่างผลิตบางจุดซีดจางอ่านยาก" }] },
+  { no: "IA-2569-02", type: "ตรวจระบบ", std: "ISO 9001", area: "ฝ่ายจัดซื้อ", clauses: ["9001:8.4"], auditor: "อนุชา ทองดี", planned: "2026-07-24", status: "ปิดแล้ว", performedOn: "2026-07-24", closedOn: "2026-09-15", findings: [{ id: 1, clause: "9001:8.4", type: "ข้อบกพร่องย่อย", detail: "ไม่มีหลักฐานการประเมินผู้ขายรายใหม่ก่อนสั่งซื้อครั้งแรก" }] },
+  { no: "IA-2569-03", type: "ตรวจระบบ", std: "ISO 14001", area: "ฝ่ายผลิต", clauses: ["14001:8.1", "14001:6.1.2"], auditor: "กาญจนา บุญมา", planned: "2026-06-10", status: "ปิดแล้ว", performedOn: "2026-06-10", closedOn: "2026-06-24", findings: [{ id: 1, clause: "14001:8.1", type: "ข้อสังเกต", detail: "ถังทินเนอร์ใช้แล้วบางถังไม่มีป้ายระบุ" }] },
+  { no: "IA-2569-04", type: "ตรวจระบบ", std: "ISO 9001", area: "ฝ่ายคลังสินค้า", clauses: ["9001:8.5", "9001:7.5"], auditor: "สุภาพร แก้วมณี", planned: "2026-10-08", status: "ตามแผน", findings: [] },
+  { no: "IA-2569-05", type: "ตรวจกระบวนการ", std: "IATF 16949", area: "ฝ่ายผลิต", subject: "ปั๊มขึ้นรูปขายึดแบตเตอรี่", clauses: ["IATF:9.2.2.3", "IATF:8.5.1.1"], auditor: "ธนพล เจริญผล", planned: "2026-10-21", status: "ตามแผน", findings: [] },
+  { no: "IA-2569-06", type: "ตรวจระบบ", std: "ISO 9001", area: "ฝ่ายประกันคุณภาพ", clauses: ["9001:7.5", "9001:9.1.2", "9001:10.2"], auditor: "ชลธิชา มั่นคง", planned: "2026-11-12", status: "ตามแผน", findings: [] },
+];
+
+export const auditByNo = (no: string) => {
+  const a = AUDITS.find((x) => x.no === no);
+  if (!a) throw new Error(\`ไม่พบ \${no}\`);
+  return a;
+};
+
+export const nextAuditNo = () => nextNo(AUDITS.map((a) => a.no), \`IA-\${YEAR}-\`, 2);
+export const findingRef = (a: Audit, f: Finding) => \`\${a.no} #\${f.id}\`;
+
+export type AuditInput = { type: AuditType; std: Standard; area: Department; subject: string; clauses: string[]; auditor: string; planned: string };
+
+/** ผู้ตรวจต้องผ่านหลักสูตรตามชนิดการตรวจ และไม่ตรวจฝ่ายของตัวเอง (ข้อ 9.2.2 ค) */
+export function auditErrors(input: AuditInput): Errors {
+  const e: Errors = {};
+  if (!DEPARTMENTS.includes(input.area)) e.area = "เลือกฝ่ายที่จะตรวจ";
+  if (input.clauses.length === 0) e.clauses = "เลือกข้อกำหนดที่จะตรวจอย่างน้อยหนึ่งข้อ";
+  else if (input.clauses.some((c) => clauseById(c)?.std !== input.std && !(input.std === "IATF 16949" && clauseById(c)?.std === "ISO 9001")))
+    e.clauses = \`เลือกข้อกำหนดของ \${input.std}\`;
+  if (input.type !== "ตรวจระบบ" && input.subject.trim().length < 3) e.subject = input.type === "ตรวจกระบวนการ" ? "ระบุกระบวนการที่ตรวจ" : "ระบุชิ้นส่วนที่ตรวจ";
+  if (input.type !== "ตรวจระบบ" && input.std !== "IATF 16949") e.type = "การตรวจกระบวนการและผลิตภัณฑ์เป็นข้อกำหนดของ IATF 16949";
+  const who = personOf(input.auditor);
+  if (!who) e.auditor = "เลือกผู้ตรวจ";
+  else {
+    const missing = auditorNeeds(input.type, input.std).filter((c) => !isQualified(who.name, c, input.planned || TODAY));
+    if (missing.length) e.auditor = \`\${who.name} ยังขาดหลักสูตร \${missing.map(courseName).join(", ")}\`;
+    else if (who.dept === input.area) e.auditor = "ผู้ตรวจต้องไม่ตรวจฝ่ายของตัวเอง";
+  }
+  if (!isDate(input.planned)) e.planned = "ใส่วันที่ตรวจ";
+  else if (input.planned < TODAY) e.planned = "วันที่ตรวจต้องไม่ย้อนหลัง";
+  return e;
+}
+
+export function planAudit(input: AuditInput): Audit {
+  assertValid(auditErrors(input));
+  return commit(() => {
+    const a: Audit = {
+      no: nextAuditNo(), type: input.type, std: input.std, area: input.area, subject: input.subject.trim() || undefined,
+      clauses: [...input.clauses], auditor: input.auditor, planned: input.planned, status: "ตามแผน", findings: [],
+    };
+    AUDITS.push(a);
+    return a;
+  });
+}
+
+export function startAudit(no: string, date = TODAY) {
+  const a = auditByNo(no);
+  if (a.status !== "ตามแผน") throw new Error(\`\${no} \${a.status}\`);
+  return commit(() => {
+    a.status = "กำลังตรวจ";
+    a.performedOn = date;
+    return a;
+  });
+}
+
+export function findingErrors(no: string, input: { clause: string; type: FindingType; detail: string }): Errors {
+  const a = auditByNo(no);
+  const e: Errors = {};
+  if (a.status !== "กำลังตรวจ") e.detail = "เริ่มการตรวจก่อนบันทึกสิ่งที่พบ";
+  if (!clauseById(input.clause)) e.clause = "เลือกข้อกำหนด";
+  if (input.detail.trim().length < 10) e.detail = "เขียนสิ่งที่พบพร้อมหลักฐาน";
+  return e;
+}
+
+export function addFinding(no: string, input: { clause: string; type: FindingType; detail: string }) {
+  assertValid(findingErrors(no, input));
+  const a = auditByNo(no);
+  return commit(() => {
+    const f: Finding = { id: a.findings.length + 1, clause: input.clause, type: input.type, detail: input.detail.trim() };
+    a.findings.push(f);
+    return f;
+  });
+}
+
+/** ข้อบกพร่องต้องมี CAR ก่อนปิดการตรวจ ข้อสังเกตไม่ต้อง — CAR ผูกกับข้อที่พบด้วยเลขอ้างอิง */
+export const carOf = (ref: string) => CAPAS.find((c) => c.ref === ref);
+export const findingsWithoutCar = (a: Audit) => a.findings.filter((f) => f.type !== "ข้อสังเกต" && !carOf(findingRef(a, f)));
+
+export const rating = (score: number) => (score >= 90 ? "A" : score >= 80 ? "B" : "C");
+
+export function closeAuditErrors(no: string, score?: number): Errors {
+  const a = auditByNo(no);
+  const e: Errors = {};
+  if (a.status !== "กำลังตรวจ") e.close = \`\${no} \${a.status} ปิดไม่ได้\`;
+  else if (findingsWithoutCar(a).length > 0) e.close = \`เปิด CAR ให้ข้อบกพร่องอีก \${findingsWithoutCar(a).length} ข้อก่อนปิดการตรวจ\`;
+  if (a.type === "ตรวจกระบวนการ" && (score === undefined || !(score >= 0 && score <= 100))) e.score = "การตรวจกระบวนการต้องบันทึกคะแนน VDA 6.3 (0–100%)";
+  return e;
+}
+
+export function closeAudit(no: string, score?: number, date = TODAY) {
+  assertValid(closeAuditErrors(no, score));
+  const a = auditByNo(no);
+  return commit(() => {
+    a.status = "ปิดแล้ว";
+    a.closedOn = date;
+    if (a.type === "ตรวจกระบวนการ") a.score = score;
+    return a;
+  });
+}
+
+/* ================================================================== capa */
+
+export const CAUSE_CATEGORIES = ["คน", "เครื่องจักร", "วัสดุ", "วิธีการ", "การวัด", "สภาพแวดล้อม"] as const;
+export type CauseCategory = (typeof CAUSE_CATEGORIES)[number];
+export const ACTION_TYPES = ["แก้ไข", "ป้องกันการเกิดซ้ำ", "ป้องกันความผิดพลาด (Poka-Yoke)"] as const;
+export type ActionType = (typeof ACTION_TYPES)[number];
+export const METHODS = ["5 Why", "8D"] as const;
+export type Method = (typeof METHODS)[number];
+
+export type CapaAction = { what: string; owner: string; due: string; type: ActionType; doneOn?: string };
+
+export type Capa = {
+  no: string;
+  date: string;
+  /** 8D ใช้กับปัญหาจากลูกค้ายานยนต์ (IATF 10.2.3) ที่เหลือใช้ 5 Why */
+  method: Method;
+  std: Standard;
+  /** NCR ผลตรวจติดตาม หรืออุบัติการณ์ที่เป็นต้นเรื่อง */
+  ref: string;
+  problem: string;
+  owner: string;
+  /** D1 ทีม — 8D ต้องมีอย่างน้อยสองคน */
+  team: string[];
+  /** D3 การกักกันชั่วคราว ก่อนรู้สาเหตุ */
+  containment?: string;
+  /** D4 — whys คือทำไมจึงเกิด escape คือทำไมจึงหลุดไปถึงลูกค้า */
+  rootCause?: { category: CauseCategory; whys: string[]; escape?: string };
+  actions: CapaAction[];
+  /** D7 เอกสารที่แก้เพื่อไม่ให้เกิดซ้ำ เช่น FMEA แผนควบคุม WI */
+  prevention?: string;
+  status: "วิเคราะห์สาเหตุ" | "ดำเนินการ" | "ติดตามผล" | "ปิดแล้ว";
+  verification?: { date: string; effective: boolean; note: string; by: string };
+};
+
+export const CAPAS: Capa[] = [
+  {
+    no: "CAR-2569-007", date: "2026-07-30", method: "5 Why", std: "ISO 9001", ref: "IA-2569-02 #1", owner: "ปิยะนุช ใจดี", team: ["ปิยะนุช ใจดี"],
+    problem: "ไม่มีหลักฐานการประเมินผู้ขายรายใหม่ก่อนออกใบสั่งซื้อครั้งแรก",
+    rootCause: { category: "วิธีการ", whys: ["ออกใบสั่งซื้อให้ผู้ขายใหม่ก่อนประเมิน", "ขั้นตอนไม่ได้กำหนดว่าต้องประเมินก่อนสั่งครั้งแรก", "SP-07 เขียนเฉพาะการสั่งซื้อ ไม่ครอบคลุมการคัดเลือกผู้ขาย"] },
+    actions: [
+      { what: "เพิ่มขั้นตอนประเมินผู้ขายใหม่ใน SP-07", owner: "ปิยะนุช ใจดี", due: "2026-08-15", type: "ป้องกันการเกิดซ้ำ", doneOn: "2026-08-12" },
+      { what: "ประเมินผู้ขายที่ใช้อยู่ย้อนหลังให้ครบ", owner: "ปิยะนุช ใจดี", due: "2026-08-31", type: "แก้ไข", doneOn: "2026-08-29" },
+    ],
+    status: "ปิดแล้ว",
+    verification: { date: "2026-09-15", effective: true, note: "สุ่มใบสั่งซื้อผู้ขายใหม่ 3 ใบ มีผลประเมินก่อนสั่งครบ", by: QMR },
+  },
+  {
+    no: "CAR-2569-008", date: "2026-09-11", method: "5 Why", std: "ISO 9001", ref: "NCR-2569-013", owner: "วรวุฒิ พึ่งบุญ", team: ["วรวุฒิ พึ่งบุญ"],
+    problem: "สินค้าสีถลอกระหว่างขนส่งถึงลูกค้า",
+    rootCause: { category: "วิธีการ", whys: ["มุมชั้นวางเสียดสีกันในรถ", "บรรจุโดยไม่มีมุมกันกระแทก", "ไม่มีวิธีการทำงานเรื่องการบรรจุสินค้าสำเร็จรูป"] },
+    actions: [
+      { what: "จัดทำ WI การบรรจุสินค้าสำเร็จรูปพร้อมมุมกันกระแทก", owner: "วรวุฒิ พึ่งบุญ", due: "2026-09-20", type: "ป้องกันการเกิดซ้ำ" },
+      { what: "อบรมพนักงานคลังเรื่องการบรรจุ", owner: "วรวุฒิ พึ่งบุญ", due: "2026-09-30", type: "แก้ไข" },
+    ],
+    status: "ดำเนินการ",
+  },
+];
+
+export const capaByNo = (no: string) => {
+  const c = CAPAS.find((x) => x.no === no);
+  if (!c) throw new Error(\`ไม่พบ \${no}\`);
+  return c;
+};
+
+export const nextCapaNo = () => nextNo(CAPAS.map((c) => c.no), \`CAR-\${YEAR}-\`, 3);
+export const overdueActions = (c: Capa) => c.actions.filter((a) => !a.doneOn && a.due < TODAY);
+export const openCapas = () => CAPAS.filter((c) => c.status !== "ปิดแล้ว");
+
+/** ขั้น D1–D8 ของ 8D จากข้อมูลที่บันทึกแล้ว — ใช้วาดขั้นตอนและตัดสินว่าไปขั้นถัดไปได้หรือยัง */
+export function eightD(c: Capa): { step: string; name: string; done: boolean }[] {
+  return [
+    { step: "D1", name: "ตั้งทีม", done: c.team.length >= 2 },
+    { step: "D2", name: "อธิบายปัญหา", done: c.problem.length > 0 },
+    { step: "D3", name: "กักกันชั่วคราว", done: !!c.containment },
+    { step: "D4", name: "สาเหตุรากและจุดที่หลุด", done: !!c.rootCause?.escape },
+    { step: "D5", name: "เลือกมาตรการถาวร", done: c.actions.length > 0 },
+    { step: "D6", name: "ดำเนินการและยืนยันผล", done: c.actions.length > 0 && c.actions.every((a) => a.doneOn) },
+    { step: "D7", name: "ป้องกันการเกิดซ้ำ", done: !!c.prevention },
+    { step: "D8", name: "ปิดและขอบคุณทีม", done: c.status === "ปิดแล้ว" },
+  ];
+}
+
+export type CapaInput = { method: Method; std: Standard; ref: string; problem: string; owner: string; team: string[] };
+
+export function capaErrors(input: CapaInput): Errors {
+  const e: Errors = {};
+  if (input.ref.trim().length < 3) e.ref = "ใส่ต้นเรื่อง เช่น เลข NCR หรือผลตรวจติดตาม";
+  else if (CAPAS.some((c) => c.ref === input.ref.trim())) e.ref = \`ต้นเรื่องนี้มี \${CAPAS.find((c) => c.ref === input.ref.trim())!.no} อยู่แล้ว\`;
+  if (input.problem.trim().length < 10) e.problem = "บอกปัญหาที่ต้องแก้";
+  if (!PEOPLE.includes(input.owner)) e.owner = "เลือกผู้รับผิดชอบ";
+  if (input.method === "8D" && new Set([input.owner, ...input.team]).size < 2) e.team = "8D ต้องทำเป็นทีม อย่างน้อยสองคนจากต่างหน้าที่";
+  return e;
+}
+
+/** เปิด CAR — ต้นเรื่องเก็บเป็นเลขอ้างอิง ระบบที่เป็นต้นเรื่องหา CAR ของตัวเองจากเลขนี้ */
+export function openCapa(input: CapaInput): Capa {
+  assertValid(capaErrors(input));
+  return commit(() => {
+    const c: Capa = {
+      no: nextCapaNo(), date: TODAY, method: input.method, std: input.std, ref: input.ref.trim(), problem: input.problem.trim(),
+      owner: input.owner, team: [...new Set([input.owner, ...input.team])], actions: [], status: "วิเคราะห์สาเหตุ",
+    };
+    CAPAS.push(c);
+    return c;
+  });
+}
+
+export function recordContainment(no: string, text: string) {
+  const c = capaByNo(no);
+  if (c.status === "ปิดแล้ว") throw new Error(\`\${no} ปิดไปแล้ว\`);
+  if (text.trim().length < 10) throw new Error("บอกว่ากักกันของอะไร ที่ไหน กี่ชิ้น");
+  return commit(() => {
+    c.containment = text.trim();
+    return c;
+  });
+}
+
+export type RootCauseInput = { category: CauseCategory; whys: string[]; escape: string };
+
+/** หาสาเหตุราก (ข้อ 10.2.1 ข) — ถามทำไมอย่างน้อยสามชั้น 8D ต้องบอกจุดที่หลุดด้วย */
+export function rootCauseErrors(no: string, input: RootCauseInput): Errors {
+  const c = capaByNo(no);
+  const e: Errors = {};
+  if (!CAUSE_CATEGORIES.includes(input.category)) e.category = "เลือกกลุ่มสาเหตุ";
+  if (input.whys.filter((w) => w.trim().length >= 5).length < 3) e.whys = "ถามทำไมให้ได้อย่างน้อยสามชั้น";
+  if (c.method === "8D" && input.escape.trim().length < 10) e.escape = "8D ต้องบอกว่าทำไมของเสียจึงหลุดการตรวจของเราไปถึงลูกค้า";
+  return e;
+}
+
+export function recordRootCause(no: string, input: RootCauseInput) {
+  const c = capaByNo(no);
+  if (c.status === "ปิดแล้ว") throw new Error(\`\${no} ปิดไปแล้ว\`);
+  assertValid(rootCauseErrors(no, input));
+  return commit(() => {
+    c.rootCause = { category: input.category, whys: input.whys.map((w) => w.trim()).filter(Boolean), escape: input.escape.trim() || undefined };
+    if (c.status === "วิเคราะห์สาเหตุ" && c.actions.length > 0) c.status = "ดำเนินการ";
+    return c;
+  });
+}
+
+export function actionErrors(input: CapaAction): Errors {
+  const e: Errors = taskErrors(input);
+  if (!ACTION_TYPES.includes(input.type)) e.type = "เลือกชนิดมาตรการ";
+  return e;
+}
+
+export function addCapaAction(no: string, input: CapaAction) {
+  const c = capaByNo(no);
+  if (c.status === "ปิดแล้ว" || c.status === "ติดตามผล") throw new Error(\`\${no} \${c.status} เพิ่มมาตรการไม่ได้\`);
+  assertValid(actionErrors(input));
+  return commit(() => {
+    c.actions.push({ what: input.what.trim(), owner: input.owner, due: input.due, type: input.type });
+    if (c.status === "วิเคราะห์สาเหตุ" && c.rootCause) c.status = "ดำเนินการ";
+    return c;
+  });
+}
+
+export function completeCapaAction(no: string, index: number, date = TODAY) {
+  const c = capaByNo(no);
+  const a = c.actions[index];
+  if (!a) throw new Error("ไม่พบมาตรการนี้");
+  if (a.doneOn) throw new Error("มาตรการนี้ทำเสร็จแล้ว");
+  if (!c.rootCause) throw new Error("บันทึกสาเหตุรากก่อน");
+  if (c.method === "8D" && !c.containment) throw new Error("8D ต้องกักกันชั่วคราว (D3) ก่อนทำมาตรการถาวร");
+  return commit(() => {
+    a.doneOn = date;
+    if (c.actions.every((x) => x.doneOn)) c.status = "ติดตามผล";
+    return c;
+  });
+}
+
+export function recordPrevention(no: string, text: string) {
+  const c = capaByNo(no);
+  if (c.status === "ปิดแล้ว") throw new Error(\`\${no} ปิดไปแล้ว\`);
+  if (text.trim().length < 10) throw new Error("บอกเอกสารที่แก้ เช่น PFMEA แผนควบคุม หรือ WI ฉบับใหม่");
+  return commit(() => {
+    c.prevention = text.trim();
+    return c;
+  });
+}
+
+/** ติดตามประสิทธิผล (ข้อ 10.2.1 ง) — ไม่ได้ผลคือกลับไปหาสาเหตุใหม่ ไม่ใช่ปิดทิ้ง */
+export function verifyCapaErrors(no: string, input: { effective: boolean; note: string; by: string }): Errors {
+  const c = capaByNo(no);
+  const e: Errors = {};
+  if (c.status !== "ติดตามผล") e.note = "ทำมาตรการให้ครบก่อนติดตามผล";
+  else if (c.method === "8D" && input.effective && !c.prevention) e.note = "8D ต้องบันทึกการป้องกันการเกิดซ้ำ (D7) ก่อนปิด";
+  if (input.note.trim().length < 10) e.note = e.note ?? "บอกหลักฐานที่ใช้ตัดสินว่าได้ผลหรือไม่";
+  if (!PEOPLE.includes(input.by)) e.by = "เลือกผู้ติดตามผล";
+  else if (input.by === c.owner) e.by = "ผู้ติดตามผลต้องไม่ใช่ผู้รับผิดชอบ CAR";
+  return e;
+}
+
+export function verifyCapa(no: string, input: { effective: boolean; note: string; by: string }, date = TODAY) {
+  assertValid(verifyCapaErrors(no, input));
+  const c = capaByNo(no);
+  return commit(() => {
+    c.verification = { date, effective: input.effective, note: input.note.trim(), by: input.by };
+    c.status = input.effective ? "ปิดแล้ว" : "วิเคราะห์สาเหตุ";
+    return c;
+  });
+}
+
+/* ===================================================== management review */
+
+export type ReviewFact = { label: string; value: string; tone: "ok" | "warn" | "bad" | "idle" };
+
+/**
+ * ข้อมูลเข้าวาระทบทวนโดยฝ่ายบริหาร (ISO 9001 9.3.2, ISO 14001 9.3) — แต่ละระบบส่งของตัวเองเข้ามา
+ * ตอนโหลด ระบบนี้จึงแสดงเฉพาะระบบที่ลูกค้าซื้อ และตัวเลขเป็นค่าเดียวกับที่หน้าจอนั้นใช้ทำงาน
+ */
+export type ReviewSource = { key: string; std: Standard[]; input: string; title: string; facts: () => ReviewFact[] };
+
+export const REVIEW_SOURCES: ReviewSource[] = [];
+
+export function contributeReviewInput(source: ReviewSource) {
+  const at = REVIEW_SOURCES.findIndex((s) => s.key === source.key);
+  if (at >= 0) REVIEW_SOURCES[at] = source;
+  else REVIEW_SOURCES.push(source);
+}
+
+export type ReviewOutput = { decision: string; kind: "โอกาสปรับปรุง" | "เปลี่ยนแปลงระบบ" | "ทรัพยากร"; owner: string; due: string; doneOn?: string };
+
+export type Review = {
+  no: string;
+  planned: string;
+  status: "ตามแผน" | "ประชุมแล้ว";
+  chair: string;
+  attendees: string[];
+  heldOn?: string;
+  /** ข้อมูลเข้าที่ใช้ในวันประชุม — เก็บเป็นภาพ ณ วันนั้น ไม่เปลี่ยนตามข้อมูลภายหลัง */
+  inputs: { title: string; facts: ReviewFact[] }[];
+  outputs: ReviewOutput[];
+};
+
+export const REVIEWS: Review[] = [
+  {
+    no: "MR-2569-01", planned: "2026-01-20", status: "ประชุมแล้ว", chair: TOP, heldOn: "2026-01-20",
+    attendees: [TOP, QMR, EMR, "อนุชา ทองดี", "ปิยะนุช ใจดี", "ชลธิชา มั่นคง", "วรวุฒิ พึ่งบุญ"],
+    inputs: [
+      { title: "ผลการตรวจติดตามภายในปี 2568", facts: [{ label: "ข้อบกพร่อง", value: "2 ข้อ ปิดครบ", tone: "ok" }, { label: "ข้อสังเกต", value: "5 ข้อ", tone: "idle" }] },
+      { title: "วัตถุประสงค์ปี 2568", facts: [{ label: "ถึงเป้า", value: "5 จาก 7", tone: "warn" }] },
+      { title: "ความพึงพอใจลูกค้าครึ่งปีหลัง 2568", facts: [{ label: "คะแนนเฉลี่ย", value: "4.2 / 5", tone: "ok" }] },
+    ],
+    outputs: [
+      { decision: "ขอการรับรอง IATF 16949 เพื่อรับงานชิ้นส่วนยานยนต์", kind: "เปลี่ยนแปลงระบบ", owner: QMR, due: "2026-12-31" },
+      { decision: "จัดซื้อเครื่องปั๊ม 200 ตันพร้อมแม่พิมพ์ชุดแรก", kind: "ทรัพยากร", owner: "อนุชา ทองดี", due: "2026-06-30", doneOn: "2026-06-18" },
+      { decision: "ลดของเสียในกระบวนการผลิตให้ต่ำกว่า 1.5%", kind: "โอกาสปรับปรุง", owner: "อนุชา ทองดี", due: "2026-12-31" },
+    ],
+  },
+  { no: "MR-2569-02", planned: "2026-10-20", status: "ตามแผน", chair: TOP, attendees: [], inputs: [], outputs: [] },
+];
+
+export const reviewByNo = (no: string) => {
+  const r = REVIEWS.find((x) => x.no === no);
+  if (!r) throw new Error(\`ไม่พบ \${no}\`);
+  return r;
+};
+
+export const nextReviewNo = () => nextNo(REVIEWS.map((r) => r.no), \`MR-\${YEAR}-\`, 2);
+
+/** วาระที่จะนำเข้าที่ประชุมครั้งถัดไป อ่านสด ณ ตอนนี้จากทุกระบบที่ติดตั้ง */
+export const liveAgenda = () => REVIEW_SOURCES.map((s) => ({ key: s.key, std: s.std, input: s.input, title: s.title, facts: s.facts() }));
+
+export function planReview(planned: string) {
+  if (!isDate(planned) || planned < TODAY) throw new Error("วันประชุมต้องไม่ย้อนหลัง");
+  if (REVIEWS.some((r) => r.status === "ตามแผน")) throw new Error("มีการประชุมที่วางแผนไว้แล้ว บันทึกครั้งนั้นก่อน");
+  return commit(() => {
+    const r: Review = { no: nextReviewNo(), planned, status: "ตามแผน", chair: TOP, attendees: [], inputs: [], outputs: [] };
+    REVIEWS.push(r);
+    return r;
+  });
+}
+
+export type MinutesInput = { attendees: string[]; outputs: Omit<ReviewOutput, "doneOn">[] };
+
+export function minutesErrors(no: string, input: MinutesInput): Errors {
+  const r = reviewByNo(no);
+  const e: Errors = {};
+  if (r.status !== "ตามแผน") e.attendees = \`\${no} บันทึกการประชุมแล้ว\`;
+  else if (!input.attendees.includes(TOP)) e.attendees = \`ผู้บริหารสูงสุด (\${TOP}) ต้องเข้าประชุม — ข้อ 9.3 เป็นหน้าที่ของฝ่ายบริหารสูงสุด\`;
+  else if (!input.attendees.includes(QMR)) e.attendees = \`ผู้แทนฝ่ายบริหาร (\${QMR}) ต้องเข้าประชุม\`;
+  if (input.outputs.length === 0) e.outputs = "การทบทวนต้องมีผลลัพธ์อย่างน้อยหนึ่งข้อ (ข้อ 9.3.3)";
+  else if (input.outputs.some((o) => o.decision.trim().length < 5 || !PEOPLE.includes(o.owner) || !isDate(o.due))) e.outputs = "ทุกข้อสั่งการต้องมีเรื่อง ผู้รับผิดชอบ และกำหนดเสร็จ";
+  return e;
+}
+
+/** บันทึกการประชุม — เก็บข้อมูลเข้า ณ วันนี้ไว้กับรายงาน แล้วตั้งวันประชุมครั้งถัดไปอีกหกเดือน */
+export function recordMinutes(no: string, input: MinutesInput, date = TODAY) {
+  assertValid(minutesErrors(no, input));
+  const r = reviewByNo(no);
+  return commit(() => {
+    r.status = "ประชุมแล้ว";
+    r.heldOn = date;
+    r.attendees = [...input.attendees];
+    r.inputs = liveAgenda().map((a) => ({ title: a.title, facts: a.facts }));
+    r.outputs = input.outputs.map((o) => ({ ...o, decision: o.decision.trim() }));
+    return r;
+  });
+}
+
+export function completeReviewOutput(no: string, index: number, date = TODAY) {
+  const r = reviewByNo(no);
+  const o = r.outputs[index];
+  if (!o) throw new Error("ไม่พบข้อสั่งการนี้");
+  if (o.doneOn) throw new Error("ข้อสั่งการนี้เสร็จแล้ว");
+  return commit(() => {
+    o.doneOn = date;
+    return r;
+  });
+}
+
+export const openReviewOutputs = () => REVIEWS.flatMap((r) => r.outputs.map((o, i) => ({ review: r.no, index: i, ...o }))).filter((o) => !o.doneOn);
+
+/* ================================================ this system's own input */
+
+const tone = (bad: boolean, warn = false): ReviewFact["tone"] => (bad ? "bad" : warn ? "warn" : "ok");
+
+contributeReviewInput({
+  key: "ims-audits", std: [...STANDARDS], input: "ก", title: "ผลการตรวจติดตามภายในปีนี้",
+  facts: () => {
+    const year = AUDITS.filter((a) => a.planned.slice(0, 4) === TODAY.slice(0, 4));
+    const closed = year.filter((a) => a.status === "ปิดแล้ว");
+    const nc = closed.flatMap((a) => a.findings).filter((f) => f.type !== "ข้อสังเกต").length;
+    return [
+      { label: "ตรวจแล้ว", value: \`\${closed.length} จาก \${year.length} ครั้งตามแผน\`, tone: tone(false, closed.length < year.length) },
+      { label: "ข้อบกพร่องที่พบ", value: \`\${nc} ข้อ\`, tone: tone(false, nc > 0) },
+    ];
+  },
+});
+
+contributeReviewInput({
+  key: "ims-capa", std: [...STANDARDS], input: "ข", title: "สถานะการแก้ไขและป้องกัน",
+  facts: () => {
+    const late = openCapas().flatMap((c) => overdueActions(c));
+    return [
+      { label: "CAR เปิดอยู่", value: \`\${openCapas().length} ใบ\`, tone: tone(false, openCapas().length > 0) },
+      { label: "มาตรการเลยกำหนด", value: \`\${late.length} ข้อ\`, tone: tone(late.length > 0) },
+    ];
+  },
+});
+
+contributeReviewInput({
+  key: "ims-objectives", std: [...STANDARDS], input: "ค", title: "ผลการบรรลุวัตถุประสงค์",
+  facts: () => {
+    const measured = OBJECTIVES.filter((o) => latestOf(o));
+    const met = measured.filter((o) => metNow(o)).length;
+    return [{ label: "ถึงเป้าเดือนล่าสุด", value: \`\${met} จาก \${measured.length} ข้อ\`, tone: tone(met < measured.length / 2, met < measured.length) }];
+  },
+});
+
+contributeReviewInput({
+  key: "ims-risks", std: [...STANDARDS], input: "ง", title: "ความเสี่ยงและโอกาส",
+  facts: () => {
+    const high = RISKS.filter((r) => r.kind === "ความเสี่ยง" && levelOf(currentScore(r)) === "สูง");
+    return [
+      { label: "ความเสี่ยงระดับสูง", value: \`\${high.length} เรื่อง\`, tone: tone(false, high.length > 0) },
+      { label: "ระดับสูงที่ไม่มีมาตรการค้าง", value: \`\${unmanaged().length} เรื่อง\`, tone: tone(unmanaged().length > 0) },
+    ];
+  },
+});
+
+contributeReviewInput({
+  key: "ims-competence", std: [...STANDARDS], input: "จ", title: "ความสามารถและทรัพยากรบุคคล",
+  facts: () => {
+    const gaps = STAFF.reduce((n, p) => n + gapsOf(p.name).length, 0);
+    return [
+      { label: "หลักสูตรที่ยังขาดตามตำแหน่ง", value: \`\${gaps} รายการ\`, tone: tone(false, gaps > 0) },
+      { label: "ใบรับรองจะหมดอายุใน 60 วัน", value: \`\${expiringSoon().length} รายการ\`, tone: tone(false, expiringSoon().length > 0) },
+    ];
+  },
+});
+
+contributeReviewInput({
+  key: "ims-previous", std: [...STANDARDS], input: "ฉ", title: "สถานะข้อสั่งการจากการทบทวนครั้งก่อน",
+  facts: () => [{ label: "ยังไม่เสร็จ", value: \`\${openReviewOutputs().length} ข้อ\`, tone: tone(false, openReviewOutputs().length > 0) }],
+});
+`,
+
+  "ims/documents.tsx": `import { Paper } from "../kit";
+import {
+  DOCUMENTS, QMR, RISKS, TOP, TRAININGS, auditByNo, capaByNo, carOf, clauseLabel, clauseName, courseName, currentScore,
+  eightD, findingRef, formNo, gapsOf, levelNo, levelOf, personOf, qualificationsOf, rating, reviewByNo, revLabel, score,
+} from "./data";
+import { Block, Facts, Foot, PaperHead, PaperTable, Signatures } from "./parts";
+
+/** เอกสารที่พิมพ์ได้จากระบบบริหารบูรณาการ — ทุกใบมีเลขแบบฟอร์มจากบัญชีรายชื่อเอกสาร */
+export type ImsDoc =
+  | { doc: "master-list" }
+  | { doc: "car"; no: string }
+  | { doc: "audit"; no: string }
+  | { doc: "risks" }
+  | { doc: "person"; name: string }
+  | { doc: "review"; no: string };
+
+const SYSTEM = "ระบบบริหารบูรณาการ ISO 9001 · ISO 14001 · IATF 16949";
+const Foot_ = () => <Foot system={SYSTEM} />;
+
+function MasterList() {
+  const live = DOCUMENTS.filter((d) => d.status !== "ยกเลิก").sort((a, b) => levelNo(a.level) - levelNo(b.level) || a.code.localeCompare(b.code));
+  const dead = DOCUMENTS.filter((d) => d.status === "ยกเลิก");
+  return (
+    <>
+      <PaperHead title="บัญชีรายชื่อเอกสารควบคุม" form={formNo("FM-01")} />
+      <p className="mt-3 text-slate-600">เอกสารที่ใช้งานและฉบับที่มีผลบังคับ ณ วันพิมพ์ — ฉบับที่ไม่อยู่ในบัญชีนี้ห้ามใช้ที่หน้างาน</p>
+      <PaperTable
+        head={["ระดับ", "รหัส", "ชื่อเอกสาร", "มาตรฐาน", "ฉบับ", "วันที่มีผล", "ฝ่ายเจ้าของ", "ทบทวนครั้งถัดไป"]}
+        rows={live.map((d) => [String(levelNo(d.level)), d.code, d.title, d.standards.map((s) => s.replace("ISO ", "")).join(", "), revLabel(d.rev), d.effective ?? "รออนุมัติ", d.owner, d.reviewDue ?? "—"])}
+      />
+      {dead.length > 0 && (
+        <>
+          <p className="mt-5 font-semibold text-slate-900">เอกสารที่ยกเลิก</p>
+          <PaperTable head={["รหัส", "ชื่อเอกสาร", "ฉบับสุดท้าย", "เหตุผล"]} rows={dead.map((d) => [d.code, d.title, revLabel(d.rev), d.obsoleteReason ?? ""])} />
+        </>
+      )}
+      <Signatures names={[["ผู้จัดทำ", "สุภาพร แก้วมณี"], ["ผู้อนุมัติ (QMR)", QMR]]} />
+      <Foot_ />
+    </>
+  );
+}
+
+function CarReport({ no }: { no: string }) {
+  const c = capaByNo(no);
+  const is8D = c.method === "8D";
+  return (
+    <>
+      <PaperHead title={is8D ? "รายงานการแก้ปัญหา 8D" : "ใบขอให้ดำเนินการแก้ไขและป้องกัน"} number={c.no} form={is8D ? formNo("FM-11") : \`\${formNo("FM-05")} · CAR\`} />
+      <Facts rows={[["วันที่ออก", c.date], ["มาตรฐาน", c.std], ["ต้นเรื่อง", c.ref], ["ผู้รับผิดชอบ", c.owner]]} />
+      {is8D && <Block title="D1 ทีม">{c.team.join(" · ")}</Block>}
+      <Block title={is8D ? "D2 อธิบายปัญหา" : "1. ปัญหา"}>{c.problem}</Block>
+      {is8D && <Block title="D3 การกักกันชั่วคราว">{c.containment ?? "ยังไม่บันทึก"}</Block>}
+      <Block title={is8D ? "D4 สาเหตุรากและจุดที่หลุด" : "2. สาเหตุราก"}>
+        {c.rootCause ? (
+          <>
+            <p className="text-slate-500">กลุ่มสาเหตุ: {c.rootCause.category}</p>
+            <ol className="mt-1 list-decimal pl-5">
+              {c.rootCause.whys.map((w, i) => <li key={i}>ทำไม — {w}</li>)}
+            </ol>
+            {c.rootCause.escape && <p className="mt-2"><span className="text-slate-500">ทำไมจึงหลุดถึงลูกค้า:</span> {c.rootCause.escape}</p>}
+          </>
+        ) : (
+          "ยังไม่วิเคราะห์"
+        )}
+      </Block>
+      <p className="mt-4 font-semibold text-slate-900">{is8D ? "D5–D6 มาตรการถาวรและการดำเนินการ" : "3. มาตรการ"}</p>
+      <PaperTable head={["มาตรการ", "ชนิด", "ผู้รับผิดชอบ", "กำหนดเสร็จ", "เสร็จเมื่อ"]} rows={c.actions.map((a) => [a.what, a.type, a.owner, a.due, a.doneOn ?? "—"])} />
+      {is8D && <Block title="D7 ป้องกันการเกิดซ้ำ">{c.prevention ?? "ยังไม่บันทึก"}</Block>}
+      <Block title={is8D ? "D8 ปิดและติดตามประสิทธิผล" : "4. ติดตามประสิทธิผล"}>
+        {c.verification ? \`\${c.verification.effective ? "ได้ผล" : "ไม่ได้ผล"} — \${c.verification.note} (\${c.verification.by}, \${c.verification.date})\` : "ยังไม่ติดตามผล"}
+      </Block>
+      {is8D && <p className="mt-3 text-slate-600">สถานะขั้นตอน: {eightD(c).map((s) => \`\${s.step}\${s.done ? " ✓" : ""}\`).join(" · ")}</p>}
+      <Signatures names={[["ผู้รับผิดชอบ", c.owner], ["ผู้ติดตามผล", c.verification?.by], ["ผู้อนุมัติ (QMR)", QMR]]} />
+      <Foot_ />
+    </>
+  );
+}
+
+function AuditReport({ no }: { no: string }) {
+  const a = auditByNo(no);
+  const count = (t: string) => a.findings.filter((f) => f.type === t).length;
+  return (
+    <>
+      <PaperHead title="รายงานการตรวจติดตามภายใน" number={a.no} form={formNo("FM-06")} />
+      <Facts
+        rows={[
+          ["ชนิดการตรวจ", \`\${a.type} · \${a.std}\`],
+          ["ฝ่ายที่ตรวจ", a.subject ? \`\${a.area} · \${a.subject}\` : a.area],
+          ["วันที่ตรวจ", a.performedOn ?? \`ตามแผน \${a.planned}\`],
+          ["ผู้ตรวจ", a.auditor],
+        ]}
+      />
+      <Block title="ขอบเขตการตรวจ">{a.clauses.map((c) => \`\${clauseLabel(c)} \${clauseName(c)}\`).join(" · ")}</Block>
+      <PaperTable
+        head={["#", "ข้อกำหนด", "ประเภท", "สิ่งที่พบ", "CAR"]}
+        rows={a.findings.map((f) => [String(f.id), clauseLabel(f.clause), f.type, f.detail, carOf(findingRef(a, f))?.no ?? (f.type === "ข้อสังเกต" ? "—" : "ยังไม่ออก")])}
+      />
+      <p className="mt-3 text-slate-700">
+        สรุป: ข้อบกพร่องหลัก {count("ข้อบกพร่องหลัก")} · ข้อบกพร่องย่อย {count("ข้อบกพร่องย่อย")} · ข้อสังเกต {count("ข้อสังเกต")}
+        {a.score !== undefined && \` · คะแนน VDA 6.3 \${a.score}% ระดับ \${rating(a.score)}\`}
+      </p>
+      <Signatures names={[["ผู้ตรวจ", a.auditor], ["ผู้รับการตรวจ"], ["ผู้อนุมัติ (QMR)", QMR]]} />
+      <Foot_ />
+    </>
+  );
+}
+
+function RiskRegister() {
+  return (
+    <>
+      <PaperHead title="ทะเบียนความเสี่ยงและโอกาส" form={formNo("FM-08")} />
+      <PaperTable
+        head={["เลขที่", "ประเภท", "กระบวนการ", "เรื่อง", "โอกาส×ผลกระทบ", "ระดับ", "การจัดการ", "มาตรการ", "เจ้าของ"]}
+        rows={RISKS.map((r) => [
+          r.no, r.kind, r.process, r.description,
+          r.residual ? \`\${score(r)} → \${currentScore(r)}\` : String(score(r)),
+          levelOf(currentScore(r)), r.treatment,
+          r.tasks.map((t) => \`\${t.what}\${t.doneOn ? " ✓" : \` (\${t.due})\`}\`).join(" / ") || "—",
+          r.owner,
+        ])}
+      />
+      <p className="mt-3 text-slate-600">ระดับ: สูง 15–25 · กลาง 8–14 · ต่ำ 1–7 — ความเสี่ยงระดับสูงต้องมีมาตรการ ยอมรับไม่ได้</p>
+      <Signatures names={[["ผู้จัดทำ (QMR)", QMR], ["ผู้อนุมัติ", TOP]]} />
+      <Foot_ />
+    </>
+  );
+}
+
+function PersonRecord({ name }: { name: string }) {
+  const p = personOf(name)!;
+  const attended = TRAININGS.filter((t) => t.attendees.some((a) => a.name === name));
+  const quals = qualificationsOf(name);
+  return (
+    <>
+      <PaperHead title="บันทึกประวัติการฝึกอบรมรายบุคคล" number={name} form={formNo("FM-09")} />
+      <Facts rows={[["ตำแหน่ง", p.role], ["ฝ่าย", p.dept], ["หลักสูตรที่ตำแหน่งต้องมี", \`\${p.requires.length} หลักสูตร\`], ["ยังขาด", gapsOf(name).map(courseName).join(", ") || "ครบ"]]} />
+      <PaperTable
+        head={["เลขที่", "หลักสูตร", "วันที่", "ชั่วโมง", "วิทยากร", "ผล", "ใช้ได้ถึง"]}
+        rows={attended.map((t) => {
+          const q = quals.find((x) => x.training === t.no);
+          return [t.no, courseName(t.course), t.date, String(t.hours), t.trainer, t.attendees.find((a) => a.name === name)?.result ?? "รออบรม", q ? (q.until ?? "ไม่หมดอายุ") : "—"];
+        })}
+      />
+      <Signatures names={[["พนักงาน", name], ["หัวหน้างาน"], ["ผู้รับผิดชอบการฝึกอบรม", QMR]]} />
+      <Foot_ />
+    </>
+  );
+}
+
+function Minutes({ no }: { no: string }) {
+  const r = reviewByNo(no);
+  return (
+    <>
+      <PaperHead title="รายงานการประชุมทบทวนโดยฝ่ายบริหาร" number={r.no} form={formNo("FM-10")} />
+      <Facts rows={[["วันที่ประชุม", r.heldOn ?? \`ตามแผน \${r.planned}\`], ["ประธาน", r.chair], ["ผู้เข้าประชุม", r.attendees.join(" · ") || "—"], ["สถานะ", r.status]]} />
+      <p className="mt-4 font-semibold text-slate-900">ข้อมูลเข้าการทบทวน (ข้อ 9.3.2)</p>
+      <PaperTable head={["เรื่อง", "ข้อมูล"]} rows={r.inputs.map((i) => [i.title, i.facts.map((f) => \`\${f.label}: \${f.value}\`).join(" · ")])} />
+      <p className="mt-4 font-semibold text-slate-900">ผลการทบทวนและข้อสั่งการ (ข้อ 9.3.3)</p>
+      <PaperTable head={["ข้อสั่งการ", "ประเภท", "ผู้รับผิดชอบ", "กำหนดเสร็จ", "เสร็จเมื่อ"]} rows={r.outputs.map((o) => [o.decision, o.kind, o.owner, o.due, o.doneOn ?? "—"])} />
+      <Signatures names={[["ผู้บันทึก (QMR)", QMR], ["ประธาน", r.chair]]} />
+      <Foot_ />
+    </>
+  );
+}
+
+export function ImsPaper({ d }: { d: ImsDoc }) {
+  return (
+    <Paper>
+      {d.doc === "master-list" && <MasterList />}
+      {d.doc === "car" && <CarReport no={d.no} />}
+      {d.doc === "audit" && <AuditReport no={d.no} />}
+      {d.doc === "risks" && <RiskRegister />}
+      {d.doc === "person" && <PersonRecord name={d.name} />}
+      {d.doc === "review" && <Minutes no={d.no} />}
+    </Paper>
+  );
+}
+`,
+
+  "ims/forms.tsx": `import { useState } from "react";
+import { Printer, Plus, Trash2 } from "lucide-react";
+import {
+  ACTION_TYPES, AUDIT_TYPES, CAUSE_CATEGORIES, COURSES, DEPARTMENTS, DOC_LEVELS, FINDING_TYPES, METHODS, PESTEL, PEOPLE, QMR,
+  STANDARDS, SWOT, TODAY, TOP, TREATMENTS, actionErrors, addCapaAction, addFinding, addIssue, addObjective, addParty, addRisk,
+  addRiskTask, approveDocument, auditByNo, auditErrors, auditorNeeds, capaByNo, capaErrors, clausesOf, closeAudit,
+  closeAuditErrors, confirmContext, courseName, createDocument, docByCode, docErrors, evaluateTraining, findingErrors,
+  issueErrors, levelOf, minutesErrors, nextDocCode, objectiveById, objectiveErrors, obsoleteDocument, partyErrors, planAudit,
+  planReview, planTraining, policyByCode, reassessErrors, reassessRisk, recordContainment, recordMinutes, recordObjectiveResult,
+  recordPrevention, recordRootCause, recordTraining, recordTrainingErrors, resultErrors, returnDocument, reviewByNo,
+  reviseDocument, revisePolicy, revLabel, riskByNo, riskErrors, rootCauseErrors, score, taskErrors, trainingByNo,
+  trainingErrors, verifyCapa, verifyCapaErrors, acknowledgePolicy, openCapa,
+} from "./data";
+import type {
+  ActionType, AuditType, CauseCategory, CourseCode, Department, DocLevel, FindingType, Lens, Method, ReviewOutput, RiskKind,
+  Standard, SwotKind, Treatment,
+} from "./data";
+import { ImsPaper } from "./documents";
+import type { ImsDoc } from "./documents";
+import { Actions, Area, Checks, Choice, Form, Input, people, tryRun } from "./parts";
+import { Badge, Button, Note, Segmented } from "../ui";
+import { ConfirmDialog, Field, FormModal, notify, printDocument, useData } from "../kit";
+
+/** ทุกการกระทำของระบบบริหารบูรณาการ ยกขึ้นแบบเดียวกันจากทุกหน้า */
+export type Act =
+  | { kind: "issue-new" }
+  | { kind: "party-new" }
+  | { kind: "context-confirm" }
+  | { kind: "risk-new" }
+  | { kind: "risk-task"; no: string }
+  | { kind: "risk-reassess"; no: string }
+  | { kind: "policy-revise"; code: string }
+  | { kind: "policy-ack"; code: string }
+  | { kind: "objective-new" }
+  | { kind: "objective-result"; id: number }
+  | { kind: "doc-new" }
+  | { kind: "doc-revise"; code: string }
+  | { kind: "doc-approve"; code: string }
+  | { kind: "doc-obsolete"; code: string }
+  | { kind: "training-new"; course?: CourseCode; attendees?: string[] }
+  | { kind: "training-record"; no: string }
+  | { kind: "training-evaluate"; no: string }
+  | { kind: "audit-new" }
+  | { kind: "audit-finding"; no: string }
+  | { kind: "audit-close"; no: string }
+  | { kind: "car-new"; ref?: string; problem?: string; method?: Method; std?: Standard }
+  | { kind: "car-containment"; no: string }
+  | { kind: "car-cause"; no: string }
+  | { kind: "car-action"; no: string }
+  | { kind: "car-prevention"; no: string }
+  | { kind: "car-verify"; no: string }
+  | { kind: "review-minutes"; no: string }
+  | { kind: "review-plan" }
+  | { kind: "print"; d: ImsDoc; title: string };
+
+type Of<K extends Act["kind"]> = Extract<Act, { kind: K }>;
+export type RecordKind = "doc" | "risk" | "objective" | "person" | "training" | "audit" | "car" | "review";
+
+const n1to5 = [1, 2, 3, 4, 5].map((n) => ({ value: String(n), label: String(n) }));
+
+/* --------------------------------------------------------------- context */
+
+function IssueForm({ onCancel, onDone }: { onCancel: () => void; onDone: () => void }) {
+  const [kind, setKind] = useState<SwotKind>("โอกาส");
+  const [lens, setLens] = useState<Lens>("เศรษฐกิจ");
+  const [text, setText] = useState("");
+  const [standards, setStandards] = useState<Standard[]>(["ISO 9001"]);
+  const [tried, setTried] = useState(false);
+  const external = kind === "โอกาส" || kind === "อุปสรรค";
+  const input = { kind, lens: external ? lens : undefined, text, standards };
+  const errors = tried ? issueErrors(input) : {};
+  return (
+    <Form onSubmit={() => { setTried(true); if (Object.keys(issueErrors(input)).length) return; addIssue(input); notify(\`เพิ่ม\${kind}ในบริบทองค์กรแล้ว\`); onDone(); }}>
+      <Field label="ประเภท"><Segmented options={SWOT} value={kind} onChange={(v) => setKind(v as SwotKind)} /></Field>
+      {external && <Field label="มุมมอง (PESTEL)" error={errors.lens}><Choice value={lens} onChange={(v) => setLens(v as Lens)} options={PESTEL} /></Field>}
+      <Field label="ประเด็น" error={errors.text}><Area value={text} onChange={setText} error={errors.text} /></Field>
+      <Field label="มาตรฐานที่เกี่ยวข้อง" error={errors.standards}><Checks options={STANDARDS} value={standards} onChange={setStandards} columns={3} /></Field>
+      <Actions onCancel={onCancel} label="เพิ่มประเด็น" />
+    </Form>
+  );
+}
+
+function PartyForm({ onCancel, onDone }: { onCancel: () => void; onDone: () => void }) {
+  const [v, setV] = useState({ name: "", needs: "", how: "" });
+  const [standards, setStandards] = useState<Standard[]>(["ISO 9001"]);
+  const [tried, setTried] = useState(false);
+  const input = { ...v, standards };
+  const errors = tried ? partyErrors(input) : {};
+  const set = (k: keyof typeof v) => (x: string) => setV((s) => ({ ...s, [k]: x }));
+  return (
+    <Form onSubmit={() => { setTried(true); if (Object.keys(partyErrors(input)).length) return; addParty(input); notify(\`เพิ่ม \${v.name} ในทะเบียนผู้มีส่วนได้ส่วนเสียแล้ว\`); onDone(); }}>
+      <Field label="ผู้มีส่วนได้ส่วนเสีย" error={errors.name}><Input value={v.name} onChange={set("name")} error={errors.name} placeholder="เช่น บริษัทประกันภัย" /></Field>
+      <Field label="เขาต้องการอะไรจากเรา" error={errors.needs}><Area value={v.needs} onChange={set("needs")} error={errors.needs} rows={2} /></Field>
+      <Field label="เราตอบสนองและติดตามอย่างไร" error={errors.how}><Area value={v.how} onChange={set("how")} error={errors.how} rows={2} /></Field>
+      <Field label="มาตรฐานที่เกี่ยวข้อง" error={errors.standards}><Checks options={STANDARDS} value={standards} onChange={setStandards} columns={3} /></Field>
+      <Actions onCancel={onCancel} label="เพิ่มในทะเบียน" />
+    </Form>
+  );
+}
+
+/* ------------------------------------------------------------------ risk */
+
+function RiskForm({ onCancel, onDone }: { onCancel: () => void; onDone: (no: string) => void }) {
+  const [kind, setKind] = useState<RiskKind>("ความเสี่ยง");
+  const [standards, setStandards] = useState<Standard[]>(["ISO 9001"]);
+  const [process, setProcess] = useState("");
+  const [description, setDescription] = useState("");
+  const [likelihood, setLikelihood] = useState(3);
+  const [impact, setImpact] = useState(3);
+  const [treatment, setTreatment] = useState<Treatment>("ลดความเสี่ยง");
+  const [owner, setOwner] = useState(QMR);
+  const [tried, setTried] = useState(false);
+  const input = { kind, standards, process, description, likelihood, impact, treatment: kind === "โอกาส" ? "ใช้โอกาส" as Treatment : treatment, owner };
+  const errors = tried ? riskErrors(input) : {};
+  const s = score({ likelihood, impact });
+  return (
+    <Form onSubmit={() => { setTried(true); if (Object.keys(riskErrors(input)).length) return; const r = addRisk(input); notify(\`เพิ่ม \${r.no} แล้ว · ระดับ\${levelOf(s)}\`); onDone(r.no); }}>
+      <Field label="ประเภท"><Segmented options={["ความเสี่ยง", "โอกาส"]} value={kind} onChange={(v) => setKind(v as RiskKind)} /></Field>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <Field label="กระบวนการ" error={errors.process}><Input value={process} onChange={setProcess} error={errors.process} placeholder="เช่น การจัดซื้อ" /></Field>
+        <Field label="เจ้าของ" error={errors.owner}><Choice value={owner} onChange={setOwner} options={people()} /></Field>
+      </div>
+      <Field label="เรื่อง" error={errors.description}><Area value={description} onChange={setDescription} error={errors.description} rows={2} /></Field>
+      <div className="grid gap-3 sm:grid-cols-3">
+        <Field label="โอกาสเกิด (1–5)" error={errors.likelihood}><Choice value={String(likelihood)} onChange={(v) => setLikelihood(Number(v))} options={n1to5} /></Field>
+        <Field label="ผลกระทบ (1–5)" error={errors.impact}><Choice value={String(impact)} onChange={(v) => setImpact(Number(v))} options={n1to5} /></Field>
+        <Field label="คะแนน"><div className="flex h-9 items-center gap-2"><span className="text-[15px] font-semibold tabular-nums">{s}</span><Badge tone={levelOf(s) === "สูง" ? "bad" : levelOf(s) === "กลาง" ? "warn" : "ok"}>{levelOf(s)}</Badge></div></Field>
+      </div>
+      {kind === "ความเสี่ยง" && <Field label="การจัดการ" error={errors.treatment}><Choice value={treatment} onChange={(v) => setTreatment(v as Treatment)} options={TREATMENTS.filter((t) => t !== "ใช้โอกาส")} error={errors.treatment} /></Field>}
+      <Field label="มาตรฐานที่เกี่ยวข้อง" error={errors.standards}><Checks options={STANDARDS} value={standards} onChange={setStandards} columns={3} /></Field>
+      <Actions onCancel={onCancel} label="เพิ่มในทะเบียน" />
+    </Form>
+  );
+}
+
+function TaskForm({ owner: initial, onSubmit, onCancel, label }: { owner: string; onSubmit: (t: { what: string; owner: string; due: string }) => void; onCancel: () => void; label: string }) {
+  const [what, setWhat] = useState("");
+  const [owner, setOwner] = useState(initial);
+  const [due, setDue] = useState("");
+  const [tried, setTried] = useState(false);
+  const input = { what, owner, due };
+  const errors = tried ? taskErrors(input) : {};
+  return (
+    <Form onSubmit={() => { setTried(true); if (Object.keys(taskErrors(input)).length) return; onSubmit(input); }}>
+      <Field label="มาตรการ" error={errors.what}><Area value={what} onChange={setWhat} error={errors.what} rows={2} /></Field>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <Field label="ผู้รับผิดชอบ" error={errors.owner}><Choice value={owner} onChange={setOwner} options={people()} /></Field>
+        <Field label="กำหนดเสร็จ" error={errors.due}><Input type="date" value={due} onChange={setDue} error={errors.due} /></Field>
+      </div>
+      <Actions onCancel={onCancel} label={label} />
+    </Form>
+  );
+}
+
+function ReassessForm({ no, onCancel, onDone }: { no: string; onCancel: () => void; onDone: () => void }) {
+  const r = riskByNo(no);
+  const [likelihood, setLikelihood] = useState(r.residual?.likelihood ?? r.likelihood);
+  const [impact, setImpact] = useState(r.residual?.impact ?? r.impact);
+  const [tried, setTried] = useState(false);
+  const errors = tried ? reassessErrors(no, { likelihood, impact }) : {};
+  const s = score({ likelihood, impact });
+  return (
+    <Form onSubmit={() => { setTried(true); if (Object.keys(reassessErrors(no, { likelihood, impact })).length) return; reassessRisk(no, { likelihood, impact }); notify(\`ประเมิน \${no} ซ้ำแล้ว · คงเหลือ \${s} ระดับ\${levelOf(s)}\`); onDone(); }}>
+      <p className="text-[13px] text-slate-600 dark:text-slate-300">ก่อนมาตรการ {score(r)} ({r.likelihood}×{r.impact}) ระดับ{levelOf(score(r))}</p>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <Field label="โอกาสเกิดหลังมาตรการ" error={errors.likelihood}><Choice value={String(likelihood)} onChange={(v) => setLikelihood(Number(v))} options={n1to5} /></Field>
+        <Field label="ผลกระทบหลังมาตรการ" error={errors.impact}><Choice value={String(impact)} onChange={(v) => setImpact(Number(v))} options={n1to5} /></Field>
+      </div>
+      <Note tone={levelOf(s) === "สูง" ? "bad" : levelOf(s) === "กลาง" ? "warn" : "ok"}>คงเหลือ {s} ระดับ{levelOf(s)}</Note>
+      <Actions onCancel={onCancel} label="บันทึกผลประเมินซ้ำ" />
+    </Form>
+  );
+}
+
+/* ---------------------------------------------------- policy, objectives */
+
+function PolicyForm({ code, onCancel, onDone }: { code: string; onCancel: () => void; onDone: () => void }) {
+  const p = policyByCode(code);
+  const [text, setText] = useState(p.text.join("\\n"));
+  const [by, setBy] = useState(TOP);
+  const [error, setError] = useState("");
+  return (
+    <Form error={error} onSubmit={() => tryRun(() => { const x = revisePolicy(code, text.split("\\n"), by); notify(\`ออก\${x.title} ฉบับที่ \${x.rev} แล้ว · ทุกคนต้องรับทราบใหม่\`); onDone(); }, setError)}>
+      <Note tone="info">ออกฉบับใหม่แล้วการรับทราบเริ่มนับใหม่ทั้งหมด (ข้อ 7.3)</Note>
+      <Field label="ข้อความนโยบาย" hint="หนึ่งบรรทัดต่อหนึ่งข้อ"><Area value={text} onChange={setText} rows={6} /></Field>
+      <Field label="ผู้อนุมัติ" hint="นโยบายอนุมัติได้เฉพาะผู้บริหารสูงสุด"><Choice value={by} onChange={setBy} options={people()} /></Field>
+      <Actions onCancel={onCancel} label={\`ออกฉบับที่ \${p.rev + 1}\`} />
+    </Form>
+  );
+}
+
+function AckForm({ code, onCancel, onDone }: { code: string; onCancel: () => void; onDone: () => void }) {
+  const p = policyByCode(code);
+  const pending = PEOPLE.filter((n) => !p.acknowledged.includes(n));
+  const [name, setName] = useState(pending[0] ?? "");
+  const [error, setError] = useState("");
+  if (pending.length === 0) return <Note tone="ok">ทุกคนรับทราบ{p.title}ฉบับนี้แล้ว</Note>;
+  return (
+    <Form error={error} onSubmit={() => tryRun(() => { acknowledgePolicy(code, name); notify(\`\${name} รับทราบ\${p.title}แล้ว\`); onDone(); }, setError)}>
+      <Field label="ผู้รับทราบ" hint={\`ยังไม่รับทราบ \${pending.length} คน\`}><Choice value={name} onChange={setName} options={people((x) => pending.includes(x.name))} /></Field>
+      <Actions onCancel={onCancel} label="บันทึกการรับทราบ" />
+    </Form>
+  );
+}
+
+function ObjectiveForm({ onCancel, onDone }: { onCancel: () => void; onDone: (id: number) => void }) {
+  const [std, setStd] = useState<Standard>("ISO 9001");
+  const [dept, setDept] = useState<Department>("ฝ่ายผลิต");
+  const [name, setName] = useState("");
+  const [target, setTarget] = useState("");
+  const [unit, setUnit] = useState("%");
+  const [better, setBetter] = useState<"higher" | "lower">("higher");
+  const [plan, setPlan] = useState("");
+  const [owner, setOwner] = useState("อนุชา ทองดี");
+  const [tried, setTried] = useState(false);
+  const input = { std, dept, name, target: Number(target), unit, better, plan, owner };
+  const errors = tried ? objectiveErrors(input) : {};
+  return (
+    <Form onSubmit={() => { setTried(true); if (Object.keys(objectiveErrors(input)).length) return; const o = addObjective(input); notify(\`ตั้งวัตถุประสงค์ \${o.name} แล้ว\`); onDone(o.id); }}>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <Field label="มาตรฐาน"><Choice value={std} onChange={(v) => setStd(v as Standard)} options={STANDARDS} /></Field>
+        <Field label="ฝ่าย"><Choice value={dept} onChange={(v) => setDept(v as Department)} options={DEPARTMENTS} /></Field>
+      </div>
+      <Field label="สิ่งที่วัด" error={errors.name}><Input value={name} onChange={setName} error={errors.name} placeholder="เช่น เวลาตอบข้อร้องเรียนลูกค้า" /></Field>
+      <div className="grid gap-3 sm:grid-cols-3">
+        <Field label="เป้าหมาย" error={errors.target}><Input type="number" value={target} onChange={setTarget} error={errors.target} /></Field>
+        <Field label="หน่วย" error={errors.unit}><Input value={unit} onChange={setUnit} error={errors.unit} /></Field>
+        <Field label="ทิศทาง"><Segmented options={["ยิ่งมากยิ่งดี", "ยิ่งน้อยยิ่งดี"]} value={better === "higher" ? "ยิ่งมากยิ่งดี" : "ยิ่งน้อยยิ่งดี"} onChange={(v) => setBetter(v === "ยิ่งมากยิ่งดี" ? "higher" : "lower")} /></Field>
+      </div>
+      <Field label="แผนบรรลุ" error={errors.plan} hint="ทำอะไร ใช้ทรัพยากรอะไร เสร็จเมื่อไร ประเมินผลอย่างไร (ข้อ 6.2.2)"><Area value={plan} onChange={setPlan} error={errors.plan} rows={2} /></Field>
+      <Field label="ผู้รับผิดชอบ" error={errors.owner}><Choice value={owner} onChange={setOwner} options={people()} /></Field>
+      <Actions onCancel={onCancel} label="ตั้งวัตถุประสงค์" />
+    </Form>
+  );
+}
+
+function ResultForm({ id, onCancel, onDone }: { id: number; onCancel: () => void; onDone: () => void }) {
+  const o = objectiveById(id);
+  const [month, setMonth] = useState(TODAY.slice(0, 7));
+  const [value, setValue] = useState("");
+  const [tried, setTried] = useState(false);
+  const input = { month, value: value === "" ? NaN : Number(value) };
+  const errors = tried ? resultErrors(id, input) : {};
+  return (
+    <Form onSubmit={() => { setTried(true); if (Object.keys(resultErrors(id, input)).length) return; recordObjectiveResult(id, input); notify(\`บันทึกผล \${o.name} เดือน \${month} แล้ว\`); onDone(); }}>
+      <p className="text-[13px] text-slate-600 dark:text-slate-300">เป้า {o.better === "higher" ? "≥" : "≤"} {o.target} {o.unit}</p>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <Field label="เดือน" error={errors.month}><Input type="month" value={month} onChange={setMonth} error={errors.month} /></Field>
+        <Field label={\`ผลที่วัดได้ (\${o.unit})\`} error={errors.value}><Input type="number" value={value} onChange={setValue} error={errors.value} /></Field>
+      </div>
+      <Actions onCancel={onCancel} label="บันทึกผล" />
+    </Form>
+  );
+}
+
+/* ------------------------------------------------------------- documents */
+
+function DocForm({ onCancel, onDone }: { onCancel: () => void; onDone: (code: string) => void }) {
+  const [level, setLevel] = useState<DocLevel>("ระเบียบปฏิบัติ");
+  const [title, setTitle] = useState("");
+  const [standards, setStandards] = useState<Standard[]>(["ISO 9001"]);
+  const [owner, setOwner] = useState<Department>("ฝ่ายประกันคุณภาพ");
+  const [by, setBy] = useState("สุภาพร แก้วมณี");
+  const [change, setChange] = useState("");
+  const [tried, setTried] = useState(false);
+  const input = { level, title, standards, owner, by, change };
+  const errors = tried ? docErrors(input) : {};
+  return (
+    <Form onSubmit={() => { setTried(true); if (Object.keys(docErrors(input)).length) return; const d = createDocument(input); notify(\`สร้างร่างเอกสาร \${d.code} แล้ว · ส่งอนุมัติเมื่อเขียนเสร็จ\`); onDone(d.code); }}>
+      <Field label="ระดับเอกสาร" hint={\`รหัสที่จะได้ \${nextDocCode(level)}\`}>
+        <Segmented options={DOC_LEVELS} value={level} onChange={(v) => setLevel(v as DocLevel)} />
+      </Field>
+      <Field label="ชื่อเอกสาร" error={errors.title}><Input value={title} onChange={setTitle} error={errors.title} placeholder="เช่น การจัดการข้อร้องเรียนลูกค้า" /></Field>
+      <Field label="ใช้กับมาตรฐาน" error={errors.standards} hint="ระเบียบกลางเลือกได้หลายมาตรฐาน"><Checks options={STANDARDS} value={standards} onChange={setStandards} columns={3} /></Field>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <Field label="ฝ่ายเจ้าของ" error={errors.owner}><Choice value={owner} onChange={(v) => setOwner(v as Department)} options={DEPARTMENTS} /></Field>
+        <Field label="ผู้จัดทำ" error={errors.by}><Choice value={by} onChange={setBy} options={people()} /></Field>
+      </div>
+      <Field label="รายละเอียดการออกใช้" hint="ว่างไว้จะบันทึกเป็น “ออกใช้ครั้งแรก”"><Input value={change} onChange={setChange} placeholder="ออกใช้ครั้งแรก" /></Field>
+      <Actions onCancel={onCancel} label="สร้างร่างเอกสาร" />
+    </Form>
+  );
+}
+
+function ReviseForm({ code, onCancel, onDone }: { code: string; onCancel: () => void; onDone: () => void }) {
+  const d = docByCode(code);
+  const [change, setChange] = useState("");
+  const [by, setBy] = useState("สุภาพร แก้วมณี");
+  const [error, setError] = useState("");
+  return (
+    <Form error={error} onSubmit={() => tryRun(() => { reviseDocument(code, change, by); notify(\`เปิดฉบับแก้ไข \${code} \${revLabel(d.rev + 1)} แล้ว · ฉบับ \${revLabel(d.rev)} ยังใช้อยู่จนกว่าจะอนุมัติ\`); onDone(); }, setError)}>
+      <Note tone="info">ฉบับที่ใช้อยู่ ({revLabel(d.rev)}) ใช้ต่อที่หน้างานจนกว่าฉบับใหม่จะได้รับอนุมัติ</Note>
+      <Field label="แก้อะไร"><Area value={change} onChange={setChange} placeholder="เช่น เพิ่มขั้นตอนประเมินผู้ขายใหม่" /></Field>
+      <Field label="ผู้จัดทำ"><Choice value={by} onChange={setBy} options={people()} /></Field>
+      <Actions onCancel={onCancel} label={\`เปิดฉบับ \${revLabel(d.rev + 1)}\`} />
+    </Form>
+  );
+}
+
+function ApproveForm({ code, onCancel, onDone }: { code: string; onCancel: () => void; onDone: () => void }) {
+  const d = docByCode(code);
+  const [approver, setApprover] = useState(d.level === "คู่มือระบบ" ? TOP : QMR);
+  const [error, setError] = useState("");
+  if (!d.draft) return <Note tone="idle">ไม่มีฉบับที่รออนุมัติ</Note>;
+  const draft = d.draft;
+  return (
+    <Form error={error} onSubmit={() => tryRun(() => { approveDocument(code, approver); notify(\`อนุมัติ \${code} \${revLabel(draft.rev)} แล้ว · มีผลวันนี้\`); onDone(); }, setError)}>
+      <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5 text-[13px]">
+        <dt className="text-slate-500">ฉบับ</dt><dd>{revLabel(draft.rev)}</dd>
+        <dt className="text-slate-500">รายละเอียด</dt><dd>{draft.change}</dd>
+        <dt className="text-slate-500">ผู้จัดทำ</dt><dd>{draft.by} · {draft.date}</dd>
+      </dl>
+      <Field label="ผู้อนุมัติ" hint={d.level === "คู่มือระบบ" ? "คู่มือระบบอนุมัติโดยผู้บริหารสูงสุด" : "ต้องไม่ใช่ผู้จัดทำ"}><Choice value={approver} onChange={setApprover} options={people()} /></Field>
+      <div className="flex justify-between gap-2 border-t border-slate-100 pt-4 dark:border-slate-800">
+        <Button variant="ghost" onClick={() => tryRun(() => { returnDocument(code); notify(\`ส่ง \${code} กลับไปแก้แล้ว\`, "info"); onDone(); }, setError)}>ส่งกลับไปแก้</Button>
+        <div className="flex gap-2">
+          <Button variant="secondary" onClick={onCancel}>ยกเลิก</Button>
+          <Button type="submit">อนุมัติและออกใช้</Button>
+        </div>
+      </div>
+    </Form>
+  );
+}
+
+/* -------------------------------------------------------------- training */
+
+function TrainingForm({ course: initial, attendees: invited, onCancel, onDone }: { course?: CourseCode; attendees?: string[]; onCancel: () => void; onDone: (no: string) => void }) {
+  const [course, setCourse] = useState<CourseCode>(initial ?? "TR-10");
+  const [date, setDate] = useState("");
+  const [hours, setHours] = useState("3");
+  const [trainer, setTrainer] = useState("");
+  const [attendees, setAttendees] = useState<string[]>(invited ?? []);
+  const [tried, setTried] = useState(false);
+  const input = { course, date, hours: Number(hours), trainer, attendees };
+  const errors = tried ? trainingErrors(input) : {};
+  return (
+    <Form onSubmit={() => { setTried(true); if (Object.keys(trainingErrors(input)).length) return; const t = planTraining(input); notify(\`วางแผนอบรม \${t.no} วันที่ \${date} แล้ว · \${attendees.length} คน\`); onDone(t.no); }}>
+      <Field label="หลักสูตร" error={errors.course}><Choice value={course} onChange={(v) => setCourse(v as CourseCode)} options={COURSES.map((c) => ({ value: c.code, label: \`\${c.code} · \${c.name}\` }))} /></Field>
+      <div className="grid gap-3 sm:grid-cols-[1fr_120px]">
+        <Field label="วันที่อบรม" error={errors.date}><Input type="date" value={date} onChange={setDate} error={errors.date} /></Field>
+        <Field label="ชั่วโมง" error={errors.hours}><Input type="number" value={hours} onChange={setHours} error={errors.hours} /></Field>
+      </div>
+      <Field label="วิทยากรหรือสถาบัน" error={errors.trainer}><Input value={trainer} onChange={setTrainer} error={errors.trainer} /></Field>
+      <Field label="ผู้เข้าอบรม" error={errors.attendees}><Checks options={PEOPLE} value={attendees} onChange={setAttendees} /></Field>
+      <Actions onCancel={onCancel} label="วางแผนอบรม" />
+    </Form>
+  );
+}
+
+function RecordTrainingForm({ no, onCancel, onDone }: { no: string; onCancel: () => void; onDone: () => void }) {
+  const t = trainingByNo(no);
+  const [results, setResults] = useState<Record<string, "ผ่าน" | "ไม่ผ่าน" | undefined>>(() => Object.fromEntries(t.attendees.map((a) => [a.name, "ผ่าน" as const])));
+  const [tried, setTried] = useState(false);
+  const errors = tried ? recordTrainingErrors(no, results) : {};
+  return (
+    <Form error={errors.results} onSubmit={() => { setTried(true); if (Object.keys(recordTrainingErrors(no, results)).length) return; recordTraining(no, results); const passed = Object.values(results).filter((r) => r === "ผ่าน").length; notify(\`บันทึกผล \${no} แล้ว · ผ่าน \${passed} จาก \${t.attendees.length} คน\`); onDone(); }}>
+      <p className="text-[13px] text-slate-600 dark:text-slate-300">{courseName(t.course)} · {t.date} · {t.trainer}</p>
+      <ul className="divide-y divide-slate-100 rounded-xl border border-slate-200 dark:divide-slate-800 dark:border-slate-800">
+        {t.attendees.map((a) => (
+          <li key={a.name} className="flex items-center justify-between gap-3 px-3 py-2 text-[13px]">
+            <span>{a.name}</span>
+            <Segmented options={["ผ่าน", "ไม่ผ่าน"]} value={results[a.name] ?? "ผ่าน"} onChange={(v) => setResults((s) => ({ ...s, [a.name]: v as "ผ่าน" | "ไม่ผ่าน" }))} />
+          </li>
+        ))}
+      </ul>
+      <Actions onCancel={onCancel} label="บันทึกผลอบรม" />
+    </Form>
+  );
+}
+
+function EvaluateForm({ no, onCancel, onDone }: { no: string; onCancel: () => void; onDone: () => void }) {
+  const t = trainingByNo(no);
+  const [effective, setEffective] = useState("ได้ผล");
+  const [note, setNote] = useState("");
+  const [by, setBy] = useState(t.trainer === QMR ? "สุภาพร แก้วมณี" : QMR);
+  const [error, setError] = useState("");
+  return (
+    <Form error={error} onSubmit={() => tryRun(() => { evaluateTraining(no, { effective: effective === "ได้ผล", note, by }); notify(\`ประเมินประสิทธิผล \${no} แล้ว\`); onDone(); }, setError)}>
+      <Field label="ผลจากงานจริง"><Segmented options={["ได้ผล", "ไม่ได้ผล"]} value={effective} onChange={setEffective} /></Field>
+      <Field label="หลักฐาน" hint="เช่น สุ่มสังเกตการทำงาน 5 ครั้ง ทำถูกวิธีทุกครั้ง"><Area value={note} onChange={setNote} /></Field>
+      <Field label="ผู้ประเมิน" hint="หัวหน้างาน ไม่ใช่วิทยากร"><Choice value={by} onChange={setBy} options={people()} /></Field>
+      <Actions onCancel={onCancel} label="บันทึกผลประเมิน" />
+    </Form>
+  );
+}
+
+/* ----------------------------------------------------------------- audit */
+
+function AuditForm({ onCancel, onDone }: { onCancel: () => void; onDone: (no: string) => void }) {
+  const [type, setType] = useState<AuditType>("ตรวจระบบ");
+  const [std, setStd] = useState<Standard>("ISO 9001");
+  const [area, setArea] = useState<Department>("ฝ่ายผลิต");
+  const [subject, setSubject] = useState("");
+  const [clauses, setClauses] = useState<string[]>([]);
+  const [auditor, setAuditor] = useState("สุภาพร แก้วมณี");
+  const [planned, setPlanned] = useState("");
+  const [tried, setTried] = useState(false);
+  const input = { type, std, area, subject, clauses, auditor, planned };
+  const errors = tried ? auditErrors(input) : {};
+  const pool = std === "IATF 16949" ? [...clausesOf("ISO 9001"), ...clausesOf("IATF 16949")] : clausesOf(std);
+  return (
+    <Form onSubmit={() => { setTried(true); if (Object.keys(auditErrors(input)).length) return; const a = planAudit(input); notify(\`วางแผนตรวจ \${a.no} \${area} วันที่ \${planned} แล้ว\`); onDone(a.no); }}>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <Field label="ชนิดการตรวจ" error={errors.type}><Choice value={type} onChange={(v) => setType(v as AuditType)} options={AUDIT_TYPES} error={errors.type} /></Field>
+        <Field label="มาตรฐาน"><Choice value={std} onChange={(v) => { setStd(v as Standard); setClauses([]); }} options={STANDARDS} /></Field>
+        <Field label="ฝ่ายที่จะตรวจ" error={errors.area}><Choice value={area} onChange={(v) => setArea(v as Department)} options={DEPARTMENTS} /></Field>
+        <Field label="วันที่ตรวจ" error={errors.planned}><Input type="date" value={planned} onChange={setPlanned} error={errors.planned} /></Field>
+      </div>
+      {type !== "ตรวจระบบ" && <Field label={type === "ตรวจกระบวนการ" ? "กระบวนการที่ตรวจ" : "ชิ้นส่วนที่ตรวจ"} error={errors.subject}><Input value={subject} onChange={setSubject} error={errors.subject} /></Field>}
+      <Field label="ผู้ตรวจ" error={errors.auditor} hint={\`ต้องผ่าน \${auditorNeeds(type, std).map(courseName).join(" + ")} และไม่ตรวจฝ่ายของตัวเอง\`}>
+        <Choice value={auditor} onChange={setAuditor} options={people()} error={errors.auditor} />
+      </Field>
+      <Field label="ข้อกำหนดที่จะตรวจ" error={errors.clauses}>
+        <div className="max-h-48 overflow-y-auto rounded-lg border border-slate-200 p-2 dark:border-slate-800">
+          <Checks options={pool.map((c) => ({ value: c.id, label: \`\${c.std === "IATF 16949" ? "IATF " : ""}\${c.code} \${c.name}\` }))} value={clauses} onChange={setClauses} columns={1} />
+        </div>
+      </Field>
+      <Actions onCancel={onCancel} label="วางแผนการตรวจ" />
+    </Form>
+  );
+}
+
+function FindingForm({ no, onCancel, onDone }: { no: string; onCancel: () => void; onDone: () => void }) {
+  const a = auditByNo(no);
+  const [clause, setClause] = useState(a.clauses[0] ?? "");
+  const [type, setType] = useState<FindingType>("ข้อบกพร่องย่อย");
+  const [detail, setDetail] = useState("");
+  const [tried, setTried] = useState(false);
+  const input = { clause, type, detail };
+  const errors = tried ? findingErrors(no, input) : {};
+  const pool = a.std === "IATF 16949" ? [...clausesOf("ISO 9001"), ...clausesOf("IATF 16949")] : clausesOf(a.std);
+  return (
+    <Form onSubmit={() => { setTried(true); if (Object.keys(findingErrors(no, input)).length) return; addFinding(no, input); notify(\`บันทึก\${type}ใน \${no} แล้ว\`, type === "ข้อสังเกต" ? "info" : "warn"); onDone(); }}>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <Field label="ข้อกำหนด" error={errors.clause}><Choice value={clause} onChange={setClause} options={pool.map((c) => ({ value: c.id, label: \`\${c.code} \${c.name}\` }))} /></Field>
+        <Field label="ประเภท"><Choice value={type} onChange={(v) => setType(v as FindingType)} options={FINDING_TYPES} /></Field>
+      </div>
+      <Field label="สิ่งที่พบและหลักฐาน" error={errors.detail}><Area value={detail} onChange={setDetail} error={errors.detail} /></Field>
+      <Actions onCancel={onCancel} label="บันทึกสิ่งที่พบ" />
+    </Form>
+  );
+}
+
+/* ------------------------------------------------------------------ capa */
+
+function CarForm({ refNo, problem: initial, method: m, std: s, onCancel, onDone }: { refNo?: string; problem?: string; method?: Method; std?: Standard; onCancel: () => void; onDone: (no: string) => void }) {
+  const [method, setMethod] = useState<Method>(m ?? "5 Why");
+  const [std, setStd] = useState<Standard>(s ?? "ISO 9001");
+  const [ref, setRef] = useState(refNo ?? "");
+  const [problem, setProblem] = useState(initial ?? "");
+  const [owner, setOwner] = useState("อนุชา ทองดี");
+  const [team, setTeam] = useState<string[]>([]);
+  const [tried, setTried] = useState(false);
+  const input = { method, std, ref, problem, owner, team };
+  const errors = tried ? capaErrors(input) : {};
+  return (
+    <Form onSubmit={() => { setTried(true); if (Object.keys(capaErrors(input)).length) return; const c = openCapa(input); notify(\`ออก \${c.no} ให้ \${owner} แล้ว · \${method === "8D" ? "เริ่มจากกักกันชั่วคราว" : "เริ่มจากหาสาเหตุราก"}\`); onDone(c.no); }}>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <Field label="วิธีแก้ปัญหา" hint={method === "8D" ? "ปัญหาจากลูกค้ายานยนต์ใช้ 8D (IATF 10.2.3)" : undefined}><Segmented options={METHODS} value={method} onChange={(v) => setMethod(v as Method)} /></Field>
+        <Field label="มาตรฐาน"><Choice value={std} onChange={(v) => setStd(v as Standard)} options={STANDARDS} /></Field>
+      </div>
+      <Field label="ต้นเรื่อง" error={errors.ref} hint="เลข NCR ผลตรวจติดตาม เช่น IA-2569-04 #1 หรืออุบัติการณ์"><Input value={ref} onChange={setRef} error={errors.ref} /></Field>
+      <Field label="ปัญหาที่ต้องแก้" error={errors.problem}><Area value={problem} onChange={setProblem} error={errors.problem} /></Field>
+      <Field label="ผู้รับผิดชอบ" error={errors.owner}><Choice value={owner} onChange={setOwner} options={people()} /></Field>
+      {method === "8D" && <Field label="ทีม (D1)" error={errors.team}><Checks options={PEOPLE.filter((p) => p !== owner)} value={team} onChange={setTeam} /></Field>}
+      <Actions onCancel={onCancel} label="ออกใบขอให้แก้ไข" />
+    </Form>
+  );
+}
+
+function TextForm({ label, hint, initial, submit, onCancel, onDone, button }: { label: string; hint?: string; initial?: string; submit: (text: string) => void; onCancel: () => void; onDone: () => void; button: string }) {
+  const [text, setText] = useState(initial ?? "");
+  const [error, setError] = useState("");
+  return (
+    <Form error={error} onSubmit={() => tryRun(() => { submit(text); onDone(); }, setError)}>
+      <Field label={label} hint={hint}><Area value={text} onChange={setText} rows={3} /></Field>
+      <Actions onCancel={onCancel} label={button} />
+    </Form>
+  );
+}
+
+function CauseForm({ no, onCancel, onDone }: { no: string; onCancel: () => void; onDone: () => void }) {
+  const c = capaByNo(no);
+  const [category, setCategory] = useState<CauseCategory>(c.rootCause?.category ?? "วิธีการ");
+  const [whys, setWhys] = useState<string[]>(() => [...(c.rootCause?.whys ?? []), "", "", "", "", ""].slice(0, 5));
+  const [escape, setEscape] = useState(c.rootCause?.escape ?? "");
+  const [tried, setTried] = useState(false);
+  const input = { category, whys, escape };
+  const errors = tried ? rootCauseErrors(no, input) : {};
+  return (
+    <Form onSubmit={() => { setTried(true); if (Object.keys(rootCauseErrors(no, input)).length) return; recordRootCause(no, input); notify(\`บันทึกสาเหตุรากของ \${no} แล้ว\`); onDone(); }}>
+      <p className="text-[13px] text-slate-600 dark:text-slate-300">{c.problem}</p>
+      <Field label="กลุ่มสาเหตุ (ผังก้างปลา)"><Segmented options={CAUSE_CATEGORIES} value={category} onChange={(v) => setCategory(v as CauseCategory)} /></Field>
+      <Field label="ทำไมจึงเกิด — ถามทำไม 5 ชั้น" error={errors.whys} hint="ชั้นสุดท้ายที่ตอบได้คือสาเหตุราก อย่างน้อยสามชั้น">
+        <div className="space-y-2">
+          {whys.map((w, i) => <Input key={i} value={w} onChange={(v) => setWhys((s) => s.map((x, j) => (j === i ? v : x)))} placeholder={\`ทำไมครั้งที่ \${i + 1}\`} error={i < 3 ? errors.whys : undefined} />)}
+        </div>
+      </Field>
+      {c.method === "8D" && <Field label="ทำไมจึงหลุดไปถึงลูกค้า" error={errors.escape}><Area value={escape} onChange={setEscape} error={errors.escape} rows={2} /></Field>}
+      <Actions onCancel={onCancel} label="บันทึกสาเหตุราก" />
+    </Form>
+  );
+}
+
+function ActionForm({ no, onCancel, onDone }: { no: string; onCancel: () => void; onDone: () => void }) {
+  const c = capaByNo(no);
+  const [what, setWhat] = useState("");
+  const [owner, setOwner] = useState(c.owner);
+  const [due, setDue] = useState("");
+  const [type, setType] = useState<ActionType>("แก้ไข");
+  const [tried, setTried] = useState(false);
+  const input = { what, owner, due, type };
+  const errors = tried ? actionErrors(input) : {};
+  return (
+    <Form onSubmit={() => { setTried(true); if (Object.keys(actionErrors(input)).length) return; addCapaAction(no, input); notify(\`เพิ่มมาตรการใน \${no} แล้ว · กำหนดเสร็จ \${due}\`); onDone(); }}>
+      <Field label="ชนิด" hint={type === "ป้องกันความผิดพลาด (Poka-Yoke)" ? "อุปกรณ์ที่ทำให้ทำผิดไม่ได้ ต้องทวนสอบว่าใช้งานได้ทุกกะ (IATF 10.2.4)" : undefined}><Choice value={type} onChange={(v) => setType(v as ActionType)} options={ACTION_TYPES} /></Field>
+      <Field label="มาตรการ" error={errors.what}><Area value={what} onChange={setWhat} error={errors.what} rows={2} /></Field>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <Field label="ผู้รับผิดชอบ" error={errors.owner}><Choice value={owner} onChange={setOwner} options={people()} /></Field>
+        <Field label="กำหนดเสร็จ" error={errors.due}><Input type="date" value={due} onChange={setDue} error={errors.due} /></Field>
+      </div>
+      <Actions onCancel={onCancel} label="เพิ่มมาตรการ" />
+    </Form>
+  );
+}
+
+function VerifyForm({ no, onCancel, onDone }: { no: string; onCancel: () => void; onDone: () => void }) {
+  const c = capaByNo(no);
+  const [effective, setEffective] = useState("ได้ผล");
+  const [note, setNote] = useState("");
+  const [by, setBy] = useState(c.owner === QMR ? "สุภาพร แก้วมณี" : QMR);
+  const [tried, setTried] = useState(false);
+  const input = { effective: effective === "ได้ผล", note, by };
+  const errors = tried ? verifyCapaErrors(no, input) : {};
+  return (
+    <Form onSubmit={() => { setTried(true); if (Object.keys(verifyCapaErrors(no, input)).length) return; verifyCapa(no, input); notify(input.effective ? \`ปิด \${no} แล้ว · มาตรการได้ผล\` : \`\${no} ยังไม่ได้ผล · กลับไปหาสาเหตุใหม่\`, input.effective ? "ok" : "warn"); onDone(); }}>
+      <Field label="ผลการติดตาม"><Segmented options={["ได้ผล", "ไม่ได้ผล"]} value={effective} onChange={setEffective} /></Field>
+      <Field label="หลักฐาน" error={errors.note} hint="เช่น สุ่มตรวจ 20 ชุดหลังแก้ ไม่พบปัญหาซ้ำ"><Area value={note} onChange={setNote} error={errors.note} /></Field>
+      <Field label="ผู้ติดตามผล" error={errors.by} hint="ต้องไม่ใช่ผู้รับผิดชอบ CAR"><Choice value={by} onChange={setBy} options={people()} error={errors.by} /></Field>
+      <Actions onCancel={onCancel} label="บันทึกผลการติดตาม" />
+    </Form>
+  );
+}
+
+/* ---------------------------------------------------- management review */
+
+function MinutesForm({ no, onCancel, onDone }: { no: string; onCancel: () => void; onDone: () => void }) {
+  const [attendees, setAttendees] = useState<string[]>([TOP, QMR]);
+  const [outputs, setOutputs] = useState<Omit<ReviewOutput, "doneOn">[]>([{ decision: "", kind: "โอกาสปรับปรุง", owner: QMR, due: "" }]);
+  const [tried, setTried] = useState(false);
+  const input = { attendees, outputs };
+  const errors = tried ? minutesErrors(no, input) : {};
+  const set = (i: number, patch: Partial<Omit<ReviewOutput, "doneOn">>) => setOutputs((s) => s.map((o, j) => (j === i ? { ...o, ...patch } : o)));
+  return (
+    <Form onSubmit={() => { setTried(true); if (Object.keys(minutesErrors(no, input)).length) return; recordMinutes(no, input); notify(\`บันทึกการประชุม \${no} แล้ว · ข้อสั่งการ \${outputs.length} ข้อ\`); onDone(); }}>
+      <Note tone="info">ข้อมูลเข้าจากทุกระบบ ณ วันนี้จะถูกเก็บไว้กับรายงานการประชุม</Note>
+      <Field label="ผู้เข้าประชุม" error={errors.attendees}><Checks options={PEOPLE} value={attendees} onChange={setAttendees} /></Field>
+      <Field label="ผลการทบทวนและข้อสั่งการ" error={errors.outputs}>
+        <div className="space-y-3">
+          {outputs.map((o, i) => (
+            <div key={i} className="space-y-2 rounded-xl border border-slate-200 p-3 dark:border-slate-800">
+              <div className="flex gap-2">
+                <Input value={o.decision} onChange={(v) => set(i, { decision: v })} placeholder="ข้อสั่งการ" />
+                {outputs.length > 1 && <Button variant="ghost" icon={<Trash2 size={14} />} onClick={() => setOutputs((s) => s.filter((_, j) => j !== i))}>ลบ</Button>}
+              </div>
+              <div className="grid gap-2 sm:grid-cols-3">
+                <Choice value={o.kind} onChange={(v) => set(i, { kind: v as ReviewOutput["kind"] })} options={["โอกาสปรับปรุง", "เปลี่ยนแปลงระบบ", "ทรัพยากร"]} />
+                <Choice value={o.owner} onChange={(v) => set(i, { owner: v })} options={people()} />
+                <Input type="date" value={o.due} onChange={(v) => set(i, { due: v })} />
+              </div>
+            </div>
+          ))}
+          <Button variant="secondary" icon={<Plus size={14} />} onClick={() => setOutputs((s) => [...s, { decision: "", kind: "โอกาสปรับปรุง", owner: QMR, due: "" }])}>เพิ่มข้อสั่งการ</Button>
+        </div>
+      </Field>
+      <Actions onCancel={onCancel} label="บันทึกการประชุม" />
+    </Form>
+  );
+}
+
+function PlanReviewForm({ onCancel, onDone }: { onCancel: () => void; onDone: (no: string) => void }) {
+  const [planned, setPlanned] = useState("");
+  const [error, setError] = useState("");
+  return (
+    <Form error={error} onSubmit={() => tryRun(() => { const r = planReview(planned); notify(\`นัดประชุม \${r.no} วันที่ \${planned} แล้ว\`); onDone(r.no); }, setError)}>
+      <Field label="วันประชุม"><Input type="date" value={planned} onChange={setPlanned} /></Field>
+      <Actions onCancel={onCancel} label="นัดประชุม" />
+    </Form>
+  );
+}
+
+/* --------------------------------------------------------------- actions */
+
+export function ImsActions({ act, onAct, onOpen }: { act: Act | null; onAct: (a: Act | null) => void; onOpen: (kind: RecordKind, key: string) => void }) {
+  useData();
+  const close = () => onAct(null);
+  const pick = <K extends Act["kind"]>(kind: K) => (act?.kind === kind ? (act as Of<K>) : null);
+  const [obsReason, setObsReason] = useState("");
+  const [score, setScore] = useState("");
+
+  const riskTask = pick("risk-task");
+  const reassess = pick("risk-reassess");
+  const polRevise = pick("policy-revise");
+  const polAck = pick("policy-ack");
+  const objResult = pick("objective-result");
+  const revise = pick("doc-revise");
+  const approve = pick("doc-approve");
+  const obsolete = pick("doc-obsolete");
+  const trNew = pick("training-new");
+  const trRecord = pick("training-record");
+  const trEval = pick("training-evaluate");
+  const finding = pick("audit-finding");
+  const auditClose = pick("audit-close");
+  const carNew = pick("car-new");
+  const containment = pick("car-containment");
+  const cause = pick("car-cause");
+  const action = pick("car-action");
+  const prevention = pick("car-prevention");
+  const verify = pick("car-verify");
+  const minutes = pick("review-minutes");
+  const print = pick("print");
+  const closing = auditClose ? auditByNo(auditClose.no) : null;
+  const closeProblem = auditClose ? Object.values(closeAuditErrors(auditClose.no, closing?.type === "ตรวจกระบวนการ" ? (score === "" ? undefined : Number(score)) : undefined))[0] : undefined;
+
+  return (
+    <>
+      <FormModal open={act?.kind === "issue-new"} title="เพิ่มประเด็นภายในและภายนอก" subtitle="SWOT สำหรับประเด็นภายใน PESTEL สำหรับประเด็นภายนอก (ข้อ 4.1)" onClose={close}>
+        {act?.kind === "issue-new" && <IssueForm onCancel={close} onDone={close} />}
+      </FormModal>
+      <FormModal open={act?.kind === "party-new"} title="เพิ่มผู้มีส่วนได้ส่วนเสีย" subtitle="ข้อ 4.2" onClose={close}>
+        {act?.kind === "party-new" && <PartyForm onCancel={close} onDone={close} />}
+      </FormModal>
+      <ConfirmDialog
+        open={act?.kind === "context-confirm"}
+        title="ยืนยันการทบทวนบริบทองค์กร"
+        body={\`ผู้บริหารสูงสุด (\${TOP}) ยืนยันว่าประเด็นภายในภายนอก ผู้มีส่วนได้ส่วนเสีย และขอบเขตยังเป็นปัจจุบัน\`}
+        confirmLabel="ยืนยันการทบทวน"
+        onCancel={close}
+        onConfirm={() => { confirmContext(TOP); notify("บันทึกการทบทวนบริบทองค์กรแล้ว"); close(); }}
+      />
+
+      <FormModal open={act?.kind === "risk-new"} title="เพิ่มความเสี่ยงหรือโอกาส" subtitle="ประเมินโอกาสเกิด × ผลกระทบ ระดับสูงยอมรับไม่ได้" onClose={close}>
+        {act?.kind === "risk-new" && <RiskForm onCancel={close} onDone={(no) => { close(); onOpen("risk", no); }} />}
+      </FormModal>
+      <FormModal open={riskTask !== null} title="เพิ่มมาตรการ" subtitle={riskTask?.no} onClose={close} size="sm">
+        {riskTask && <TaskForm key={riskTask.no} owner={riskByNo(riskTask.no).owner} label="เพิ่มมาตรการ" onCancel={close} onSubmit={(t) => { addRiskTask(riskTask.no, t); notify(\`เพิ่มมาตรการใน \${riskTask.no} แล้ว\`); close(); }} />}
+      </FormModal>
+      <FormModal open={reassess !== null} title="ประเมินซ้ำหลังมาตรการ" subtitle={reassess?.no} onClose={close} size="sm">
+        {reassess && <ReassessForm key={reassess.no} no={reassess.no} onCancel={close} onDone={close} />}
+      </FormModal>
+
+      <FormModal open={polRevise !== null} title="ทบทวนนโยบาย" subtitle={polRevise ? policyByCode(polRevise.code).title : undefined} onClose={close}>
+        {polRevise && <PolicyForm key={polRevise.code} code={polRevise.code} onCancel={close} onDone={close} />}
+      </FormModal>
+      <FormModal open={polAck !== null} title="บันทึกการรับทราบนโยบาย" subtitle={polAck ? policyByCode(polAck.code).title : undefined} onClose={close} size="sm">
+        {polAck && <AckForm key={polAck.code} code={polAck.code} onCancel={close} onDone={close} />}
+      </FormModal>
+      <FormModal open={act?.kind === "objective-new"} title="ตั้งวัตถุประสงค์" subtitle="วัดได้ มีแผนบรรลุ และมีผู้รับผิดชอบ (ข้อ 6.2)" onClose={close}>
+        {act?.kind === "objective-new" && <ObjectiveForm onCancel={close} onDone={(id) => { close(); onOpen("objective", String(id)); }} />}
+      </FormModal>
+      <FormModal open={objResult !== null} title="บันทึกผลรายเดือน" subtitle={objResult ? objectiveById(objResult.id).name : undefined} onClose={close} size="sm">
+        {objResult && <ResultForm key={objResult.id} id={objResult.id} onCancel={close} onDone={close} />}
+      </FormModal>
+
+      <FormModal open={act?.kind === "doc-new"} title="สร้างเอกสารควบคุม" subtitle="เริ่มเป็นร่าง ส่งอนุมัติเมื่อเขียนเสร็จ ออกใช้เมื่อได้รับอนุมัติ" onClose={close}>
+        {act?.kind === "doc-new" && <DocForm onCancel={close} onDone={(code) => { close(); onOpen("doc", code); }} />}
+      </FormModal>
+      <FormModal open={revise !== null} title="แก้ไขเอกสาร" subtitle={revise ? \`\${revise.code} · \${docByCode(revise.code).title}\` : undefined} onClose={close} size="sm">
+        {revise && <ReviseForm key={revise.code} code={revise.code} onCancel={close} onDone={close} />}
+      </FormModal>
+      <FormModal open={approve !== null} title="อนุมัติเอกสาร" subtitle={approve ? \`\${approve.code} · \${docByCode(approve.code).title}\` : undefined} onClose={close} size="sm">
+        {approve && <ApproveForm key={approve.code} code={approve.code} onCancel={close} onDone={close} />}
+      </FormModal>
+      <ConfirmDialog
+        open={obsolete !== null}
+        title="ยกเลิกเอกสาร"
+        body="เอกสารที่ยกเลิกต้องเก็บออกจากหน้างานทั้งหมด และจะแสดงในบัญชีรายชื่อว่ายกเลิกแล้ว"
+        subject={obsolete ? <Badge tone="bad">{obsolete.code} · {docByCode(obsolete.code).title}</Badge> : undefined}
+        fields={<Field label="เหตุผล"><Input value={obsReason} onChange={setObsReason} /></Field>}
+        confirmLabel="ยกเลิกเอกสาร"
+        disabled={obsReason.trim().length < 5}
+        onCancel={() => { setObsReason(""); close(); }}
+        onConfirm={() => { if (!obsolete) return; obsoleteDocument(obsolete.code, obsReason); notify(\`ยกเลิก \${obsolete.code} แล้ว\`, "info"); setObsReason(""); close(); }}
+      />
+
+      <FormModal open={trNew !== null} title="วางแผนฝึกอบรม" subtitle="ผ่านแล้วความสามารถขึ้นในทะเบียนทันที ใช้ตัดสินสิทธิ์ผู้ตรวจติดตามด้วย" onClose={close}>
+        {trNew && <TrainingForm course={trNew.course} attendees={trNew.attendees} onCancel={close} onDone={(no) => { close(); onOpen("training", no); }} />}
+      </FormModal>
+      <FormModal open={trRecord !== null} title="บันทึกผลอบรม" subtitle={trRecord?.no} onClose={close}>
+        {trRecord && <RecordTrainingForm key={trRecord.no} no={trRecord.no} onCancel={close} onDone={close} />}
+      </FormModal>
+      <FormModal open={trEval !== null} title="ประเมินประสิทธิผลการอบรม" subtitle={trEval ? \`\${trEval.no} · ข้อ 7.2 ค\` : undefined} onClose={close} size="sm">
+        {trEval && <EvaluateForm key={trEval.no} no={trEval.no} onCancel={close} onDone={close} />}
+      </FormModal>
+
+      <FormModal open={act?.kind === "audit-new"} title="วางแผนการตรวจติดตามภายใน" subtitle="ระบบตรวจคุณสมบัติและความเป็นอิสระของผู้ตรวจให้" onClose={close}>
+        {act?.kind === "audit-new" && <AuditForm onCancel={close} onDone={(no) => { close(); onOpen("audit", no); }} />}
+      </FormModal>
+      <FormModal open={finding !== null} title="บันทึกสิ่งที่พบ" subtitle={finding ? \`\${finding.no} · \${auditByNo(finding.no).area}\` : undefined} onClose={close}>
+        {finding && <FindingForm key={finding.no} no={finding.no} onCancel={close} onDone={close} />}
+      </FormModal>
+      <ConfirmDialog
+        open={auditClose !== null}
+        title="ปิดการตรวจ"
+        body={closeProblem ?? "ข้อบกพร่องทุกข้อมี CAR แล้ว"}
+        subject={auditClose ? <Badge tone="info">{auditClose.no}</Badge> : undefined}
+        fields={closing?.type === "ตรวจกระบวนการ" ? <Field label="คะแนน VDA 6.3 (%)" hint="90 ขึ้นไป A · 80–89 B · ต่ำกว่า 80 C"><Input type="number" value={score} onChange={setScore} /></Field> : undefined}
+        confirmLabel="ปิดการตรวจ"
+        disabled={!!closeProblem}
+        onCancel={() => { setScore(""); close(); }}
+        onConfirm={() => { if (!auditClose) return; closeAudit(auditClose.no, score === "" ? undefined : Number(score)); notify(\`ปิดการตรวจ \${auditClose.no} แล้ว\`); setScore(""); close(); }}
+      />
+
+      <FormModal open={carNew !== null} title="ออกใบขอให้แก้ไขและป้องกัน (CAR)" subtitle="หาสาเหตุราก วางมาตรการ แล้วติดตามว่าได้ผลจริง" onClose={close}>
+        {carNew && <CarForm refNo={carNew.ref} problem={carNew.problem} method={carNew.method} std={carNew.std} onCancel={close} onDone={(no) => { close(); onOpen("car", no); }} />}
+      </FormModal>
+      <FormModal open={containment !== null} title="กักกันชั่วคราว (D3)" subtitle={containment?.no} onClose={close} size="sm">
+        {containment && <TextForm key={containment.no} label="กักกันอะไร ที่ไหน กี่ชิ้น" initial={capaByNo(containment.no).containment} button="บันทึกการกักกัน" onCancel={close} onDone={close} submit={(t) => { recordContainment(containment.no, t); notify(\`บันทึกการกักกันใน \${containment.no} แล้ว\`); }} />}
+      </FormModal>
+      <FormModal open={cause !== null} title="หาสาเหตุราก" subtitle={cause?.no} onClose={close}>
+        {cause && <CauseForm key={cause.no} no={cause.no} onCancel={close} onDone={close} />}
+      </FormModal>
+      <FormModal open={action !== null} title="เพิ่มมาตรการ" subtitle={action?.no} onClose={close} size="sm">
+        {action && <ActionForm key={action.no} no={action.no} onCancel={close} onDone={close} />}
+      </FormModal>
+      <FormModal open={prevention !== null} title="ป้องกันการเกิดซ้ำ (D7)" subtitle={prevention?.no} onClose={close} size="sm">
+        {prevention && <TextForm key={prevention.no} label="เอกสารที่แก้" hint="เช่น PFMEA แผนควบคุม WI ฉบับใหม่" initial={capaByNo(prevention.no).prevention} button="บันทึก" onCancel={close} onDone={close} submit={(t) => { recordPrevention(prevention.no, t); notify(\`บันทึกการป้องกันการเกิดซ้ำใน \${prevention.no} แล้ว\`); }} />}
+      </FormModal>
+      <FormModal open={verify !== null} title="ติดตามประสิทธิผล" subtitle={verify?.no} onClose={close} size="sm">
+        {verify && <VerifyForm key={verify.no} no={verify.no} onCancel={close} onDone={close} />}
+      </FormModal>
+
+      <FormModal open={minutes !== null} title="บันทึกการประชุมทบทวนโดยฝ่ายบริหาร" subtitle={minutes ? \`\${minutes.no} · \${reviewByNo(minutes.no).planned}\` : undefined} onClose={close} size="lg">
+        {minutes && <MinutesForm key={minutes.no} no={minutes.no} onCancel={close} onDone={close} />}
+      </FormModal>
+      <FormModal open={act?.kind === "review-plan"} title="นัดประชุมทบทวนครั้งถัดไป" onClose={close} size="sm">
+        {act?.kind === "review-plan" && <PlanReviewForm onCancel={close} onDone={(no) => { close(); onOpen("review", no); }} />}
+      </FormModal>
+
+      <FormModal open={print !== null} title={print?.title ?? ""} subtitle="ตัวอย่างก่อนพิมพ์ — กระดาษ A4 พิมพ์เฉพาะเอกสาร" onClose={close} size="lg">
+        {print && (
+          <div className="space-y-3">
+            <div className="flex justify-end gap-2">
+              <Button variant="secondary" onClick={close}>ปิด</Button>
+              <Button icon={<Printer size={14} />} onClick={printDocument}>พิมพ์</Button>
+            </div>
+            <ImsPaper d={print.d} />
+          </div>
+        )}
+      </FormModal>
+    </>
+  );
+}
+
+`,
+
+  "ims/parts.tsx": `import type { ReactNode } from "react";
+import { CircleCheck, CircleDashed, CircleX } from "lucide-react";
+import { COMPANY, STAFF, TODAY } from "./data";
+import type { Standard } from "./data";
+import { Badge, Button, FIELD, Note } from "../ui";
+import type { Tone } from "../ui";
+import { notify } from "../kit";
+
+/**
+ * ชิ้นส่วนหน้าจอที่ระบบมาตรฐานทุกตัวใช้ร่วมกัน — ฟอร์ม หัวแฟ้ม และกระดาษเอกสารควบคุม
+ * อยู่ที่ระบบบริหารบูรณาการเพราะทุกระบบมาตรฐานต้องมีระบบนี้อยู่แล้ว
+ */
+
+/* ------------------------------------------------------------------ tone */
+
+/** สถานะเดียวกันสีเดียวกันทุกหน้าจอของทุกมาตรฐาน */
+const TONES: Record<string, Tone> = {
+  "ร่าง": "idle", "รออนุมัติ": "warn", "ใช้งาน": "ok", "ยกเลิก": "bad",
+  "รอตรวจ": "idle", "รอตัดสิน": "warn", "ผ่าน": "ok", "ไม่ผ่าน": "bad", "ยอมรับแบบมีเงื่อนไข": "warn",
+  "รอสั่งการ": "bad", "ดำเนินการ": "warn", "ปิดแล้ว": "ok",
+  "วิเคราะห์สาเหตุ": "bad", "ติดตามผล": "info",
+  "ตามแผน": "idle", "กำลังตรวจ": "info", "ประชุมแล้ว": "ok", "บันทึกผลแล้ว": "ok",
+  "ปกติ": "ok", "ใกล้ครบ": "warn", "เกินกำหนด": "bad", "พักใช้": "bad",
+  "รุนแรง": "bad", "ปานกลาง": "warn", "เล็กน้อย": "idle",
+  "สูง": "bad", "กลาง": "warn", "ต่ำ": "ok",
+  "อนุมัติ": "ok", "อนุมัติแบบมีเงื่อนไข": "warn", "ระงับ": "bad", "รอประเมิน": "idle",
+  "รับได้": "ok", "รับได้แบบมีเงื่อนไข": "warn", "รับไม่ได้": "bad",
+  "ได้รับการรับรอง": "ok", "กำลังขอรับรอง": "info",
+};
+
+export const tone = (s: string): Tone => TONES[s] ?? "idle";
+
+/** ไอคอนของขั้นตอนที่ทุกระบบมาตรฐานใช้วาดลำดับงาน — ออกแบบ 8D APQP */
+export const STEP_ICONS = {
+  done: <CircleCheck size={15} />,
+  current: <CircleDashed size={15} className="animate-[spin_3s_linear_infinite]" />,
+  todo: <CircleDashed size={15} />,
+  failed: <CircleX size={15} />,
+};
+
+/** ทะเบียนเรียงตามเลขที่ล่าสุดก่อน — ลำดับในอาร์เรย์คือลำดับที่บันทึก ไม่ใช่ลำดับเลขที่ */
+export const newest = <T extends { no: string }>(xs: T[]) => [...xs].sort((a, b) => b.no.localeCompare(a.no));
+
+const STD_TONE: Record<Standard, Tone> = { "ISO 9001": "accent", "ISO 14001": "ok", "IATF 16949": "info" };
+
+export function StdBadges({ standards }: { standards: readonly Standard[] }) {
+  return (
+    <span className="flex flex-wrap gap-1">
+      {standards.map((s) => (
+        <Badge key={s} tone={STD_TONE[s]}>{s.replace("ISO ", "").replace("IATF 16949", "IATF")}</Badge>
+      ))}
+    </span>
+  );
+}
+
+/* ----------------------------------------------------------------- forms */
+
+const bad = (error?: string) => (error ? " border-rose-400 dark:border-rose-500" : "");
+
+export function Input({ value, onChange, error, type = "text", placeholder }: { value: string; onChange: (v: string) => void; error?: string; type?: string; placeholder?: string }) {
+  return <input type={type} value={value} placeholder={placeholder} onChange={(e) => onChange(e.target.value)} className={FIELD + " w-full tabular-nums" + bad(error)} />;
+}
+
+export function Area({ value, onChange, error, placeholder, rows = 3 }: { value: string; onChange: (v: string) => void; error?: string; placeholder?: string; rows?: number }) {
+  return <textarea value={value} rows={rows} placeholder={placeholder} onChange={(e) => onChange(e.target.value)} className={FIELD + " w-full resize-none" + bad(error)} />;
+}
+
+export function Choice({ value, onChange, options, error, placeholder }: { value: string; onChange: (v: string) => void; options: readonly (string | { value: string; label: string })[]; error?: string; placeholder?: string }) {
+  return (
+    <select value={value} onChange={(e) => onChange(e.target.value)} className={FIELD + " w-full" + bad(error)}>
+      {placeholder && <option value="">{placeholder}</option>}
+      {options.map((o) => {
+        const opt = typeof o === "string" ? { value: o, label: o } : o;
+        return <option key={opt.value} value={opt.value}>{opt.label}</option>;
+      })}
+    </select>
+  );
+}
+
+/** เลือกได้หลายข้อ — มาตรฐาน ผู้เข้าร่วม ข้อกำหนด */
+export function Checks<T extends string>({ options, value, onChange, columns = 2 }: { options: readonly (T | { value: T; label: string })[]; value: T[]; onChange: (v: T[]) => void; columns?: 1 | 2 | 3 }) {
+  const cols = columns === 1 ? "" : columns === 3 ? "sm:grid-cols-3" : "sm:grid-cols-2";
+  return (
+    <div className={"grid gap-1.5 " + cols}>
+      {options.map((o) => {
+        const opt = typeof o === "string" ? { value: o, label: o } : o;
+        const on = value.includes(opt.value);
+        return (
+          <label key={opt.value} className="flex items-center gap-2 text-[12.5px] text-slate-700 dark:text-slate-200">
+            <input type="checkbox" checked={on} onChange={() => onChange(on ? value.filter((x) => x !== opt.value) : [...value, opt.value])} className="size-4 accent-violet-600" />
+            {opt.label}
+          </label>
+        );
+      })}
+    </div>
+  );
+}
+
+export function Actions({ onCancel, label, disabled }: { onCancel: () => void; label: string; disabled?: boolean }) {
+  return (
+    <div className="flex justify-end gap-2 border-t border-slate-100 pt-4 dark:border-slate-800">
+      <Button variant="secondary" onClick={onCancel}>ยกเลิก</Button>
+      <Button type="submit" disabled={disabled}>{label}</Button>
+    </div>
+  );
+}
+
+/** ฟอร์มที่ส่งแล้วเรียกฟังก์ชันของ data.ts — ข้อผิดพลาดจากกฎธุรกิจขึ้นใต้ฟอร์ม ไม่ใช่หน้าจอพัง */
+export function Form({ children, onSubmit, error }: { children: ReactNode; onSubmit: () => void; error?: string }) {
+  return (
+    <form
+      className="space-y-4"
+      onSubmit={(e) => {
+        e.preventDefault();
+        onSubmit();
+      }}
+    >
+      {children}
+      {error && <Note tone="bad">{error}</Note>}
+    </form>
+  );
+}
+
+export const people = (filter?: (p: (typeof STAFF)[number]) => boolean) =>
+  STAFF.filter(filter ?? (() => true)).map((p) => ({ value: p.name, label: \`\${p.name} · \${p.role}\` }));
+
+export const tryRun = (fn: () => void, setError: (e: string) => void) => {
+  try {
+    fn();
+  } catch (e) {
+    setError(e instanceof Error ? e.message : String(e));
+  }
+};
+
+/** ปุ่มที่เรียกฟังก์ชันตรง ๆ ไม่มีฟอร์ม — สำเร็จแจ้งผล ไม่สำเร็จแจ้งเหตุผล */
+export const run = (fn: () => void, ok: string) => {
+  try {
+    fn();
+    notify(ok);
+  } catch (e) {
+    notify(e instanceof Error ? e.message : String(e), "bad");
+  }
+};
+
+/* --------------------------------------------------------------- records */
+
+export function Header({ title, meta, badges, actions }: { title: string; meta: string; badges: ReactNode; actions: ReactNode }) {
+  return (
+    <div className="border-b border-slate-100 px-5 py-4 dark:border-slate-800">
+      <p className="text-[17px] font-semibold text-slate-900 dark:text-slate-50">{title}</p>
+      <p className="mt-0.5 text-[12.5px] text-slate-500 dark:text-slate-400">{meta}</p>
+      <div className="mt-2 flex flex-wrap gap-1.5">{badges}</div>
+      <div className="mt-3 flex flex-wrap gap-2">{actions}</div>
+    </div>
+  );
+}
+
+export function Body({ children }: { children: ReactNode }) {
+  return <div className="space-y-5 overflow-y-auto px-5 py-4">{children}</div>;
+}
+
+export function Empty({ children }: { children: ReactNode }) {
+  return <p className="px-4 py-6 text-center text-[13px] text-slate-400">{children}</p>;
+}
+
+/** รายการในการ์ด: ซ้ายคือเรื่อง ขวาคือสถานะหรือปุ่ม */
+export function Line({ title, sub, right, subTone }: { title: ReactNode; sub?: ReactNode; right?: ReactNode; subTone?: "bad" }) {
+  return (
+    <li className="flex flex-wrap items-center gap-3 px-4 py-2.5 text-[13px]">
+      <span className="min-w-0 flex-1">
+        <span className="block text-slate-800 dark:text-slate-100">{title}</span>
+        {sub && <span className={"block text-[11.5px] " + (subTone === "bad" ? "text-rose-600 dark:text-rose-400" : "text-slate-400")}>{sub}</span>}
+      </span>
+      {right}
+    </li>
+  );
+}
+
+export function Lines({ children }: { children: ReactNode }) {
+  return <ul className="divide-y divide-slate-100 dark:divide-slate-800">{children}</ul>;
+}
+
+/* ----------------------------------------------------------------- paper */
+
+export function PaperHead({ title, form, number }: { title: string; form: string; number?: string }) {
+  return (
+    <div className="flex items-start justify-between gap-6 border-b-2 border-slate-800 pb-3">
+      <div>
+        <p className="text-[15px] font-bold text-slate-900">{COMPANY.name}</p>
+        <p className="max-w-sm leading-relaxed text-slate-600">{COMPANY.address}</p>
+      </div>
+      <div className="text-right">
+        <p className="text-[16px] font-bold text-slate-900">{title}</p>
+        {number && <p className="mt-0.5 font-semibold tabular-nums text-slate-900">{number}</p>}
+        <p className="mt-1 text-[10.5px] text-slate-500">{form}</p>
+      </div>
+    </div>
+  );
+}
+
+export function Facts({ rows }: { rows: [string, ReactNode][] }) {
+  return (
+    <dl className="mt-4 grid grid-cols-[auto_1fr_auto_1fr] gap-x-4 gap-y-1.5 rounded-md border border-slate-300 p-3">
+      {rows.map(([k, v]) => (
+        <div key={k} className="contents">
+          <dt className="text-slate-500">{k}</dt>
+          <dd className="text-slate-900">{v}</dd>
+        </div>
+      ))}
+    </dl>
+  );
+}
+
+export function PaperTable({ head, rows }: { head: string[]; rows: ReactNode[][] }) {
+  return (
+    <table className="mt-4 w-full border-collapse">
+      <thead>
+        <tr className="bg-slate-100 text-[11.5px] text-slate-600">
+          {head.map((h) => (
+            <th key={h} className="border border-slate-300 px-2 py-1.5 text-left font-medium">{h}</th>
+          ))}
+        </tr>
+      </thead>
+      <tbody>
+        {rows.length === 0 && (
+          <tr>
+            <td colSpan={head.length} className="border border-slate-300 px-2 py-3 text-center text-slate-400">ไม่มีรายการ</td>
+          </tr>
+        )}
+        {rows.map((r, i) => (
+          <tr key={i}>
+            {r.map((c, j) => (
+              <td key={j} className="border border-slate-300 px-2 py-1.5 align-top">{c}</td>
+            ))}
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+}
+
+export function Block({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <div className="mt-4">
+      <p className="font-semibold text-slate-900">{title}</p>
+      <div className="mt-1 rounded-md border border-slate-300 p-3 leading-relaxed text-slate-700">{children}</div>
+    </div>
+  );
+}
+
+export function Signatures({ names }: { names: [string, string?][] }) {
+  return (
+    <div className="mt-10 grid gap-8" style={{ gridTemplateColumns: \`repeat(\${names.length}, minmax(0, 1fr))\` }}>
+      {names.map(([role, name]) => (
+        <div key={role} className="text-center">
+          <div className="mx-auto h-9 w-40 border-b border-dotted border-slate-500" />
+          <p className="mt-1.5 text-slate-700">{name ? \`( \${name} )\` : "(............................)"}</p>
+          <p className="text-slate-500">{role}</p>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+export function Foot({ system }: { system: string }) {
+  return (
+    <p className="mt-8 border-t border-slate-200 pt-2 text-[10.5px] text-slate-400">
+      เอกสารควบคุมตาม{system} · พิมพ์จากระบบเมื่อ {TODAY}
+    </p>
+  );
+}
+`,
+
+  "ims/screen.tsx": `import { useState } from "react";
+import type { ReactNode } from "react";
+import {
+  Award, BookOpenCheck, CalendarClock, CircleCheck, ClipboardList, Compass, FilePlus2, FileSpreadsheet, FileText,
+  GraduationCap, Landmark, ListChecks, Pencil, Play, Plus, Printer, Search as SearchIcon, ShieldAlert, Target, TriangleAlert, Users,
+} from "lucide-react";
+import {
+  AUDITS, CAPAS, CONTEXT, COURSES, DOCUMENTS, DOC_LEVELS, ISSUES, OBJECTIVES, PARTIES, POLICIES, REVIEWS, RISKS, SCOPES,
+  STAFF, STANDARDS, SWOT, TODAY, TRAININGS, addDays, auditByNo, awaitingApproval, awareness, capaByNo, carOf, clauseLabel,
+  clauseName, completeCapaAction, completeReviewOutput, completeRiskTask, confirmReview, courseName, currentScore,
+  eightD, expiringSoon, findingRef, findingsWithoutCar, gapsOf, isQualified, latestOf, levelNo, levelOf, liveAgenda, metNow,
+  objectiveById, openCapas, openReviewOutputs, overdueActions, overdueTasks, personOf, qualificationsOf, rating, reviewByNo,
+  reviewDue, revLabel, riskByNo, score, startAudit, submitDocument, trainingByNo, trainingNeeds, unmanaged,
+} from "./data";
+import type { Audit, Capa, ControlledDoc, Objective, Risk, Standard, Training } from "./data";
+import { ImsActions } from "./forms";
+import type { Act, RecordKind } from "./forms";
+import { Body, Empty, Header, Line, Lines, STEP_ICONS, StdBadges, newest, run, tone } from "./parts";
+import { Badge, Bar, Button, Card, Chip, ColumnChart, IconRow, Metric, Note, PageHead, Reveal, Search, Segmented, Stepper } from "../ui";
+import type { Tone } from "../ui";
+import { DataTable, DetailModal, downloadCsv, notify, useData } from "../kit";
+import type { Column } from "../kit";
+
+const TABS = ["บริบทองค์กร", "ความเสี่ยงและโอกาส", "นโยบายและวัตถุประสงค์", "ควบคุมเอกสาร", "ความสามารถและการฝึกอบรม", "ตรวจติดตามภายใน", "การแก้ไขและป้องกัน", "ทบทวนโดยฝ่ายบริหาร"];
+
+const exportIcon = <FileSpreadsheet size={14} />;
+const csv = (name: string, head: string[], rows: (string | number)[][]) => {
+  downloadCsv(name, head, rows);
+  notify(\`ส่งออก\${name} \${rows.length} รายการแล้ว\`);
+};
+const levelTone = (s: number): Tone => (levelOf(s) === "สูง" ? "bad" : levelOf(s) === "กลาง" ? "warn" : "ok");
+
+type Handlers = { onAct: (a: Act) => void; onOpen: (kind: RecordKind, key: string) => void };
+
+/* ----------------------------------------------------------------- screen */
+
+export default function ImsScreen({ section, onOpenSection }: { section?: string; onOpenSection?: (index: number) => void }) {
+  useData();
+  const tab = section && TABS.includes(section) ? section : undefined;
+  const [act, setAct] = useState<Act | null>(null);
+  const [record, setRecord] = useState<{ kind: RecordKind; key: string } | null>(null);
+  const open = (kind: RecordKind, key: string) => setRecord({ kind, key });
+
+  const keys: Record<RecordKind, string[]> = {
+    doc: DOCUMENTS.map((d) => d.code),
+    risk: RISKS.map((r) => r.no),
+    objective: OBJECTIVES.map((o) => String(o.id)),
+    person: STAFF.map((p) => p.name),
+    training: newest(TRAININGS).map((t) => t.no),
+    audit: AUDITS.map((a) => a.no),
+    car: newest(CAPAS).map((c) => c.no),
+    review: newest(REVIEWS).map((r) => r.no),
+  };
+  const list = record ? keys[record.kind] : [];
+  const at = record ? list.indexOf(record.key) : -1;
+  const TITLES: Record<RecordKind, string> = { doc: "เอกสารควบคุม", risk: "ความเสี่ยงและโอกาส", objective: "วัตถุประสงค์", person: "ความสามารถบุคลากร", training: "การฝึกอบรม", audit: "การตรวจติดตามภายใน", car: "การแก้ไขและป้องกัน", review: "การทบทวนโดยฝ่ายบริหาร" };
+  const h: Handlers = { onAct: setAct, onOpen: open };
+
+  const panels = (
+    <>
+      <DetailModal
+        open={record !== null && at >= 0}
+        title={record ? TITLES[record.kind] : ""}
+        onClose={() => setRecord(null)}
+        index={at}
+        total={list.length}
+        onStep={(d) => record && setRecord({ kind: record.kind, key: list[Math.min(list.length - 1, Math.max(0, at + d))] })}
+      >
+        {record && at >= 0 && <RecordView kind={record.kind} id={record.key} {...h} />}
+      </DetailModal>
+      <ImsActions act={act} onAct={setAct} onOpen={open} />
+    </>
+  );
+
+  const planned = REVIEWS.find((r) => r.status === "ตามแผน");
+  const index = (
+    <div hidden data-fitt-index>
+      <button data-fitt-screen="ระบบบริหารบูรณาการ" />
+      <button data-fitt-screen="เพิ่มประเด็นภายในและภายนอก" data-fitt-modal onClick={() => setAct({ kind: "issue-new" })} />
+      <button data-fitt-screen="เพิ่มผู้มีส่วนได้ส่วนเสีย" data-fitt-modal onClick={() => setAct({ kind: "party-new" })} />
+      <button data-fitt-screen="ยืนยันการทบทวนบริบทองค์กร" data-fitt-modal onClick={() => setAct({ kind: "context-confirm" })} />
+      <button data-fitt-screen="ความเสี่ยงและโอกาส" data-fitt-modal onClick={() => open("risk", RISKS[0].no)} />
+      <button data-fitt-screen="เพิ่มความเสี่ยงหรือโอกาส" data-fitt-modal onClick={() => setAct({ kind: "risk-new" })} />
+      <button data-fitt-screen="เพิ่มมาตรการความเสี่ยง" data-fitt-modal onClick={() => setAct({ kind: "risk-task", no: RISKS[0].no })} />
+      <button data-fitt-screen="ประเมินความเสี่ยงซ้ำ" data-fitt-modal onClick={() => setAct({ kind: "risk-reassess", no: RISKS[0].no })} />
+      <button data-fitt-screen="ทบทวนนโยบาย" data-fitt-modal onClick={() => setAct({ kind: "policy-revise", code: POLICIES[0].code })} />
+      <button data-fitt-screen="บันทึกการรับทราบนโยบาย" data-fitt-modal onClick={() => setAct({ kind: "policy-ack", code: POLICIES[0].code })} />
+      <button data-fitt-screen="วัตถุประสงค์" data-fitt-modal onClick={() => open("objective", String(OBJECTIVES[0].id))} />
+      <button data-fitt-screen="ตั้งวัตถุประสงค์" data-fitt-modal onClick={() => setAct({ kind: "objective-new" })} />
+      <button data-fitt-screen="บันทึกผลวัตถุประสงค์" data-fitt-modal onClick={() => setAct({ kind: "objective-result", id: OBJECTIVES[0].id })} />
+      <button data-fitt-screen="เอกสารควบคุม" data-fitt-modal onClick={() => open("doc", DOCUMENTS[0].code)} />
+      <button data-fitt-screen="สร้างเอกสารควบคุม" data-fitt-modal onClick={() => setAct({ kind: "doc-new" })} />
+      <button data-fitt-screen="แก้ไขเอกสาร" data-fitt-modal onClick={() => setAct({ kind: "doc-revise", code: "SP-01" })} />
+      <button data-fitt-screen="อนุมัติเอกสาร" data-fitt-modal onClick={() => setAct({ kind: "doc-approve", code: awaitingApproval()[0]?.code ?? "WI-03" })} />
+      <button data-fitt-screen="ยกเลิกเอกสาร" data-fitt-modal onClick={() => setAct({ kind: "doc-obsolete", code: "WI-02" })} />
+      <button data-fitt-screen="ความสามารถบุคลากร" data-fitt-modal onClick={() => open("person", STAFF[1].name)} />
+      <button data-fitt-screen="การฝึกอบรม" data-fitt-modal onClick={() => open("training", TRAININGS[0].no)} />
+      <button data-fitt-screen="วางแผนฝึกอบรม" data-fitt-modal onClick={() => setAct({ kind: "training-new" })} />
+      <button data-fitt-screen="บันทึกผลอบรม" data-fitt-modal onClick={() => setAct({ kind: "training-record", no: TRAININGS.find((t) => t.status === "ตามแผน")?.no ?? TRAININGS[0].no })} />
+      <button data-fitt-screen="ประเมินประสิทธิผลการอบรม" data-fitt-modal onClick={() => setAct({ kind: "training-evaluate", no: TRAININGS.find((t) => t.status === "บันทึกผลแล้ว" && !t.evaluation)?.no ?? TRAININGS[0].no })} />
+      <button data-fitt-screen="การตรวจติดตามภายใน" data-fitt-modal onClick={() => open("audit", AUDITS[0].no)} />
+      <button data-fitt-screen="วางแผนการตรวจติดตาม" data-fitt-modal onClick={() => setAct({ kind: "audit-new" })} />
+      <button data-fitt-screen="บันทึกสิ่งที่พบ" data-fitt-modal onClick={() => setAct({ kind: "audit-finding", no: AUDITS[AUDITS.length - 1].no })} />
+      <button data-fitt-screen="ปิดการตรวจ" data-fitt-modal onClick={() => setAct({ kind: "audit-close", no: AUDITS.find((a) => a.status === "กำลังตรวจ")?.no ?? AUDITS[0].no })} />
+      <button data-fitt-screen="ใบขอให้แก้ไขและป้องกัน" data-fitt-modal onClick={() => open("car", CAPAS[CAPAS.length - 1].no)} />
+      <button data-fitt-screen="ออก CAR" data-fitt-modal onClick={() => setAct({ kind: "car-new" })} />
+      <button data-fitt-screen="ออก 8D" data-fitt-modal onClick={() => setAct({ kind: "car-new", method: "8D", std: "IATF 16949" })} />
+      <button data-fitt-screen="กักกันชั่วคราว" data-fitt-modal onClick={() => setAct({ kind: "car-containment", no: CAPAS[CAPAS.length - 1].no })} />
+      <button data-fitt-screen="หาสาเหตุราก" data-fitt-modal onClick={() => setAct({ kind: "car-cause", no: CAPAS[CAPAS.length - 1].no })} />
+      <button data-fitt-screen="เพิ่มมาตรการ" data-fitt-modal onClick={() => setAct({ kind: "car-action", no: CAPAS[CAPAS.length - 1].no })} />
+      <button data-fitt-screen="ป้องกันการเกิดซ้ำ" data-fitt-modal onClick={() => setAct({ kind: "car-prevention", no: CAPAS[CAPAS.length - 1].no })} />
+      <button data-fitt-screen="ติดตามประสิทธิผล" data-fitt-modal onClick={() => setAct({ kind: "car-verify", no: CAPAS[CAPAS.length - 1].no })} />
+      <button data-fitt-screen="การทบทวนโดยฝ่ายบริหาร" data-fitt-modal onClick={() => open("review", REVIEWS[0].no)} />
+      <button data-fitt-screen="บันทึกการประชุมทบทวน" data-fitt-modal onClick={() => setAct({ kind: "review-minutes", no: planned?.no ?? REVIEWS[REVIEWS.length - 1].no })} />
+      <button data-fitt-screen="นัดประชุมทบทวน" data-fitt-modal onClick={() => setAct({ kind: "review-plan" })} />
+      <button data-fitt-screen="พิมพ์บัญชีรายชื่อเอกสารควบคุม" data-fitt-modal onClick={() => setAct({ kind: "print", d: { doc: "master-list" }, title: "บัญชีรายชื่อเอกสารควบคุม" })} />
+      <button data-fitt-screen="พิมพ์ทะเบียนความเสี่ยง" data-fitt-modal onClick={() => setAct({ kind: "print", d: { doc: "risks" }, title: "ทะเบียนความเสี่ยงและโอกาส" })} />
+      <button data-fitt-screen="พิมพ์ประวัติการฝึกอบรม" data-fitt-modal onClick={() => setAct({ kind: "print", d: { doc: "person", name: STAFF[1].name }, title: "บันทึกประวัติการฝึกอบรมรายบุคคล" })} />
+      <button data-fitt-screen="พิมพ์รายงานการตรวจติดตาม" data-fitt-modal onClick={() => setAct({ kind: "print", d: { doc: "audit", no: AUDITS[1].no }, title: "รายงานการตรวจติดตามภายใน" })} />
+      <button data-fitt-screen="พิมพ์ CAR" data-fitt-modal onClick={() => setAct({ kind: "print", d: { doc: "car", no: CAPAS[0].no }, title: "ใบขอให้ดำเนินการแก้ไขและป้องกัน" })} />
+      <button data-fitt-screen="พิมพ์รายงานการประชุมทบทวน" data-fitt-modal onClick={() => setAct({ kind: "print", d: { doc: "review", no: REVIEWS[0].no }, title: "รายงานการประชุมทบทวนโดยฝ่ายบริหาร" })} />
+    </div>
+  );
+
+  if (!tab) {
+    return (
+      <>
+        <Overview onOpenSection={onOpenSection} {...h} />
+        {panels}
+        {index}
+      </>
+    );
+  }
+
+  return (
+    <div>
+      <PageHead title="ระบบบริหารบูรณาการ" meta={\`\${tab} · ISO 9001 · ISO 14001 · IATF 16949 · ข้อมูล ณ \${TODAY}\`} />
+      {tab === "บริบทองค์กร" && <Context {...h} />}
+      {tab === "ความเสี่ยงและโอกาส" && <Risks {...h} />}
+      {tab === "นโยบายและวัตถุประสงค์" && <Policies {...h} />}
+      {tab === "ควบคุมเอกสาร" && <Documents {...h} />}
+      {tab === "ความสามารถและการฝึกอบรม" && <Competence {...h} />}
+      {tab === "ตรวจติดตามภายใน" && <Audits {...h} />}
+      {tab === "การแก้ไขและป้องกัน" && <Corrective {...h} />}
+      {tab === "ทบทวนโดยฝ่ายบริหาร" && <Reviews {...h} />}
+      {panels}
+      {index}
+    </div>
+  );
+}
+
+/* -------------------------------------------------------------- overview */
+
+function Overview({ onOpenSection, onAct, onOpen }: Handlers & { onOpenSection?: (i: number) => void }) {
+  const measured = OBJECTIVES.filter((o) => latestOf(o));
+  const met = measured.filter((o) => metNow(o)).length;
+  const high = RISKS.filter((r) => r.kind === "ความเสี่ยง" && levelOf(currentScore(r)) === "สูง");
+  const gaps = STAFF.reduce((n, p) => n + gapsOf(p.name).length, 0);
+  const late = openCapas().flatMap((c) => overdueActions(c).map((a) => ({ c, a })));
+  const nextAudits = AUDITS.filter((a) => a.status !== "ปิดแล้ว").sort((a, b) => a.planned.localeCompare(b.planned));
+  const planned = REVIEWS.find((r) => r.status === "ตามแผน");
+
+  const todo: { icon: ReactNode; text: string; sub: string; go: () => void; tone: Tone }[] = [
+    ...unmanaged().map((r) => ({ icon: <ShieldAlert size={15} />, text: \`\${r.no} \${r.description}\`, sub: "ความเสี่ยงสูงที่ไม่มีมาตรการค้าง", go: () => onOpen("risk", r.no), tone: "bad" as Tone })),
+    ...late.map(({ c, a }) => ({ icon: <CalendarClock size={15} />, text: \`\${c.no} \${a.what}\`, sub: \`\${a.owner} · เลยกำหนด \${a.due}\`, go: () => onOpen("car", c.no), tone: "bad" as Tone })),
+    ...RISKS.flatMap((r) => overdueTasks(r.tasks).map((t) => ({ icon: <CalendarClock size={15} />, text: \`\${r.no} \${t.what}\`, sub: \`\${t.owner} · เลยกำหนด \${t.due}\`, go: () => onOpen("risk", r.no), tone: "bad" as Tone }))),
+    ...expiringSoon().map((x) => ({ icon: <GraduationCap size={15} />, text: \`\${x.name} · \${courseName(x.course)}\`, sub: \`ใบรับรองหมดอายุ \${x.until}\`, go: () => onAct({ kind: "training-new", course: x.course, attendees: [x.name] }), tone: "warn" as Tone })),
+    ...awaitingApproval().map((d) => ({ icon: <FileText size={15} />, text: \`\${d.code} \${d.title}\`, sub: \`รออนุมัติ \${revLabel(d.draft!.rev)}\`, go: () => onOpen("doc", d.code), tone: "info" as Tone })),
+    ...TRAININGS.filter((t) => t.status === "ตามแผน" && t.date <= TODAY).map((t) => ({ icon: <BookOpenCheck size={15} />, text: \`\${t.no} \${courseName(t.course)}\`, sub: \`อบรมวันที่ \${t.date} แล้ว รอบันทึกผล\`, go: () => onAct({ kind: "training-record", no: t.no }), tone: "warn" as Tone })),
+  ];
+
+  return (
+    <div>
+      <PageHead
+        title="ระบบบริหารบูรณาการ"
+        meta={\`ISO 9001 · ISO 14001 · IATF 16949 · ข้อมูล ณ \${TODAY}\`}
+        right={
+          <div className="flex flex-wrap gap-2">
+            <Button variant="secondary" icon={<Users size={14} />} onClick={() => onAct({ kind: "audit-new" })}>วางแผนการตรวจ</Button>
+            <Button icon={<ListChecks size={14} />} onClick={() => onAct({ kind: "car-new" })}>ออก CAR</Button>
+          </div>
+        }
+      />
+      <Reveal>
+        <div className="grid gap-4 md:grid-cols-3">
+          {SCOPES.map((s) => (
+            <div key={s.std} className="rounded-2xl border border-slate-200/80 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-[15px] font-semibold text-slate-900 dark:text-slate-50">{s.std}</p>
+                <Badge dot tone={tone(s.status)}>{s.status}</Badge>
+              </div>
+              <p className="mt-1 line-clamp-2 text-[12.5px] text-slate-500 dark:text-slate-400">{s.text}</p>
+              <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-[12px] text-slate-600 dark:text-slate-300">
+                {s.certNo && <span>ใบรับรอง {s.certNo}</span>}
+                {s.validUntil && <span>ถึง {s.validUntil}</span>}
+                <span>ตรวจครั้งถัดไป {s.nextAudit}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      </Reveal>
+
+      <Reveal delay={0.05}>
+        <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <Metric icon={<Target size={17} />} label="วัตถุประสงค์ถึงเป้า" value={\`\${met} จาก \${measured.length}\`} deltaLabel="เทียบผลเดือนล่าสุด" />
+          <Metric icon={<ShieldAlert size={17} />} label="ความเสี่ยงระดับสูง" value={\`\${high.length} เรื่อง\`} deltaLabel={unmanaged().length ? \`ไม่มีมาตรการค้าง \${unmanaged().length} เรื่อง\` : "ทุกเรื่องมีมาตรการค้างอยู่"} />
+          <Metric icon={<ListChecks size={17} />} label="CAR เปิดอยู่" value={\`\${openCapas().length} ใบ\`} deltaLabel={late.length ? \`มาตรการเลยกำหนด \${late.length} ข้อ\` : "ไม่มีมาตรการเลยกำหนด"} />
+          <Metric icon={<GraduationCap size={17} />} label="หลักสูตรที่ยังขาด" value={\`\${gaps} รายการ\`} deltaLabel={\`ใบรับรองหมดใน 60 วัน \${expiringSoon().length}\`} />
+        </div>
+      </Reveal>
+
+      <Reveal delay={0.1} className="mt-4 grid gap-4 lg:grid-cols-3">
+        <Card title="ต้องจัดการ" subtitle="กดรายการเพื่อเปิดงานนั้น" className="lg:col-span-2">
+          {todo.length === 0 ? (
+            <Empty>ไม่มีงานค้าง</Empty>
+          ) : (
+            <ul className="divide-y divide-slate-100 dark:divide-slate-800">
+              {todo.slice(0, 9).map((t, i) => (
+                <li key={i}>
+                  <button onClick={t.go} className="flex w-full items-center gap-3 px-4 py-2.5 text-left transition hover:bg-slate-50 dark:hover:bg-slate-800/60">
+                    <span className={t.tone === "bad" ? "text-rose-500" : t.tone === "warn" ? "text-amber-500" : "text-sky-500"}>{t.icon}</span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-[13px] text-slate-800 dark:text-slate-100">{t.text}</span>
+                      <span className="block text-[11.5px] text-slate-500 dark:text-slate-400">{t.sub}</span>
+                    </span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Card>
+        <Card title="ตรวจติดตามที่จะมาถึง" subtitle="ตรวจระบบ กระบวนการ และผลิตภัณฑ์" action={<Button variant="ghost" className="whitespace-nowrap" onClick={() => onOpenSection?.(5)}>แผนทั้งปี</Button>}>
+          {nextAudits.length === 0 ? (
+            <Empty>ตรวจครบตามแผนแล้ว</Empty>
+          ) : (
+            <Lines>
+              {nextAudits.slice(0, 5).map((a) => (
+                <li key={a.no}>
+                  <button onClick={() => onOpen("audit", a.no)} className="flex w-full items-center gap-3 px-4 py-2.5 text-left text-[13px] transition hover:bg-slate-50 dark:hover:bg-slate-800/60">
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-slate-800 dark:text-slate-100">{a.planned} · {a.area}</span>
+                      <span className="block text-[11.5px] text-slate-400">{a.type} {a.std} · {a.auditor}</span>
+                    </span>
+                    <Badge dot tone={tone(a.status)}>{a.status}</Badge>
+                  </button>
+                </li>
+              ))}
+            </Lines>
+          )}
+        </Card>
+      </Reveal>
+
+      <Reveal delay={0.15} className="mt-4">
+        <Card
+          title={planned ? \`วาระทบทวนโดยฝ่ายบริหาร \${planned.no} · \${planned.planned}\` : "ทบทวนโดยฝ่ายบริหาร"}
+          subtitle="ข้อมูลเข้าอ่านสดจากทุกระบบที่ติดตั้ง ค่าเดียวกับที่หน้าจอนั้นใช้ทำงาน"
+          action={<Button variant="ghost" className="whitespace-nowrap" onClick={() => onOpenSection?.(7)}>เปิดวาระ</Button>}
+        >
+          <Agenda />
+        </Card>
+      </Reveal>
+    </div>
+  );
+}
+
+function Agenda() {
+  const agenda = liveAgenda();
+  return (
+    <div className="grid gap-px bg-slate-100 sm:grid-cols-2 xl:grid-cols-3 dark:bg-slate-800">
+      {agenda.map((a) => (
+        <div key={a.key} className="bg-white p-4 dark:bg-slate-900">
+          <div className="flex items-start justify-between gap-2">
+            <p className="text-[13px] font-medium text-slate-800 dark:text-slate-100">{a.title}</p>
+            <StdBadges standards={a.std.length === STANDARDS.length ? [] : a.std} />
+          </div>
+          <ul className="mt-2 space-y-1">
+            {a.facts.map((f) => (
+              <li key={f.label} className="flex items-center justify-between gap-2 text-[12.5px]">
+                <span className="text-slate-500 dark:text-slate-400">{f.label}</span>
+                <Badge tone={f.tone}>{f.value}</Badge>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/* --------------------------------------------------------------- context */
+
+function Context({ onAct }: Handlers) {
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center gap-2">
+        <p className="text-[12.5px] text-slate-500 dark:text-slate-400">ทบทวนล่าสุด {CONTEXT.reviewedOn} โดย {CONTEXT.reviewedBy} (ข้อ 4.1–4.3)</p>
+        <div className="ml-auto flex flex-wrap gap-2">
+          <Button variant="secondary" icon={exportIcon} onClick={() => csv("บริบทองค์กร", ["ประเภท", "มุมมอง", "ประเด็น", "มาตรฐาน"], ISSUES.map((i) => [i.kind, i.lens ?? "", i.text, i.standards.join(" ")]))}>ส่งออก Excel</Button>
+          <Button variant="secondary" icon={<Users size={14} />} onClick={() => onAct({ kind: "party-new" })}>เพิ่มผู้มีส่วนได้ส่วนเสีย</Button>
+          <Button variant="secondary" icon={<Plus size={14} />} onClick={() => onAct({ kind: "issue-new" })}>เพิ่มประเด็น</Button>
+          <Button icon={<CircleCheck size={14} />} onClick={() => onAct({ kind: "context-confirm" })}>ยืนยันการทบทวน</Button>
+        </div>
+      </div>
+      <div className="grid gap-4 md:grid-cols-3">
+        {SCOPES.map((s) => (
+          <Card key={s.std} title={\`ขอบเขต \${s.std}\`} subtitle={s.sites}>
+            <div className="space-y-2 px-4 py-3 text-[12.5px] text-slate-700 dark:text-slate-200">
+              <p>{s.text}</p>
+              <p className="text-slate-500">{s.status}{s.certNo ? \` · \${s.certNo} ถึง \${s.validUntil}\` : ""} · {s.certifiedBy}</p>
+              {s.exclusions.map((e) => <Note key={e.clause} tone="info">ยกเว้น {clauseLabel(e.clause)}: {e.reason}</Note>)}
+            </div>
+          </Card>
+        ))}
+      </div>
+      <Card title="ประเด็นภายในและภายนอก" subtitle="SWOT — ประเด็นภายนอกบอกมุมมองแบบ PESTEL">
+        <div className="grid gap-px bg-slate-100 sm:grid-cols-2 dark:bg-slate-800">
+          {SWOT.map((k) => (
+            <div key={k} className="bg-white p-4 dark:bg-slate-900">
+              <p className="text-[13px] font-semibold text-slate-900 dark:text-slate-50">{k}</p>
+              <ul className="mt-2 space-y-2">
+                {ISSUES.filter((i) => i.kind === k).map((i) => (
+                  <li key={i.id} className="text-[12.5px] text-slate-700 dark:text-slate-200">
+                    {i.lens && <Chip>{i.lens}</Chip>} {i.text}
+                    <div className="mt-1"><StdBadges standards={i.standards} /></div>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
+        </div>
+      </Card>
+      <Card title="ผู้มีส่วนได้ส่วนเสีย" subtitle="ความต้องการที่เกี่ยวข้อง และวิธีที่เราตอบสนอง (ข้อ 4.2)">
+        <Lines>
+          {PARTIES.map((p) => <Line key={p.id} title={p.name} sub={\`ต้องการ: \${p.needs} · เราทำ: \${p.how}\`} right={<StdBadges standards={p.standards} />} />)}
+        </Lines>
+      </Card>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ risk */
+
+function RiskMatrix({ onOpen }: Pick<Handlers, "onOpen">) {
+  const cell = (l: number, i: number) => RISKS.filter((r) => r.kind === "ความเสี่ยง" && (r.residual ?? r).likelihood === l && (r.residual ?? r).impact === i);
+  const color: Record<Tone, string> = { bad: "bg-rose-500/80", warn: "bg-amber-400/80", ok: "bg-emerald-500/70", idle: "", info: "", accent: "" };
+  return (
+    <div className="overflow-x-auto px-4 py-4">
+      <div className="inline-grid grid-cols-[auto_repeat(5,3rem)] gap-1 text-[11px]">
+        {[5, 4, 3, 2, 1].map((l) => (
+          <div key={l} className="contents">
+            <span className="pr-2 text-right leading-[3rem] text-slate-400">{l}</span>
+            {[1, 2, 3, 4, 5].map((i) => {
+              const here = cell(l, i);
+              return (
+                <button
+                  key={i}
+                  disabled={here.length === 0}
+                  onClick={() => onOpen("risk", here[0].no)}
+                  title={here.map((r) => \`\${r.no} \${r.description}\`).join("\\n")}
+                  className={"grid size-12 place-items-center rounded-md font-semibold text-white " + color[levelTone(l * i)] + (here.length ? " ring-2 ring-slate-900/20 dark:ring-white/30" : " opacity-25")}
+                >
+                  {here.length || ""}
+                </button>
+              );
+            })}
+          </div>
+        ))}
+        <span />
+        {[1, 2, 3, 4, 5].map((i) => <span key={i} className="text-center text-slate-400">{i}</span>)}
+      </div>
+      <p className="mt-2 text-[11.5px] text-slate-400">แนวตั้ง: โอกาสเกิด · แนวนอน: ผลกระทบ · เฉพาะความเสี่ยง นับค่าคงเหลือหลังมาตรการ</p>
+    </div>
+  );
+}
+
+function Risks({ onAct, onOpen }: Handlers) {
+  const [kind, setKind] = useState("ทั้งหมด");
+  const rows = RISKS.filter((r) => kind === "ทั้งหมด" || r.kind === kind);
+  const columns: Column<Risk>[] = [
+    { key: "no", header: "เลขที่", cell: (r) => <span className="whitespace-nowrap font-medium tabular-nums text-slate-800 dark:text-slate-100">{r.no}</span>, sort: (a, b) => a.no.localeCompare(b.no) },
+    { key: "kind", header: "ประเภท", cell: (r) => <span className="whitespace-nowrap"><Chip>{r.kind}</Chip></span> },
+    { key: "desc", header: "เรื่อง", cell: (r) => <span className="line-clamp-2">{r.description}</span> },
+    { key: "std", header: "มาตรฐาน", cell: (r) => <StdBadges standards={r.standards} /> },
+    { key: "score", header: "คะแนน", align: "right", cell: (r) => <span className="tabular-nums">{r.residual ? \`\${score(r)} → \${currentScore(r)}\` : score(r)}</span>, sort: (a, b) => currentScore(a) - currentScore(b) },
+    { key: "level", header: "ระดับ", cell: (r) => (r.kind === "โอกาส" ? <Badge dot tone="info">โอกาส</Badge> : <Badge dot tone={levelTone(currentScore(r))}>{levelOf(currentScore(r))}</Badge>) },
+    { key: "tasks", header: "มาตรการ", cell: (r) => <span className="tabular-nums text-slate-500">{r.tasks.filter((t) => t.doneOn).length}/{r.tasks.length}{overdueTasks(r.tasks).length ? " · เลยกำหนด" : ""}</span> },
+    { key: "owner", header: "เจ้าของ", cell: (r) => r.owner },
+  ];
+  return (
+    <div className="space-y-4">
+      {unmanaged().length > 0 && <Note tone="bad">ความเสี่ยงระดับสูง {unmanaged().length} เรื่องไม่มีมาตรการค้างอยู่ — เพิ่มมาตรการหรือประเมินซ้ำ</Note>}
+      <div className="grid gap-4 lg:grid-cols-[auto_1fr]">
+        <Card title="แผนที่ความเสี่ยง" subtitle="กดช่องเพื่อเปิดเรื่องนั้น"><RiskMatrix onOpen={onOpen} /></Card>
+        <Card title="สรุปตามระดับ">
+          <Lines>
+            {(["สูง", "กลาง", "ต่ำ"] as const).map((lv) => {
+              const n = RISKS.filter((r) => r.kind === "ความเสี่ยง" && levelOf(currentScore(r)) === lv).length;
+              return <Line key={lv} title={\`ความเสี่ยงระดับ\${lv}\`} sub={lv === "สูง" ? "15–25 ต้องมีมาตรการ ยอมรับไม่ได้" : lv === "กลาง" ? "8–14 ติดตามทุกไตรมาส" : "1–7 ยอมรับได้"} right={<Badge tone={tone(lv)}>{n} เรื่อง</Badge>} />;
+            })}
+            <Line title="โอกาส" sub="เรื่องที่ควรลงมือเพื่อรับประโยชน์" right={<Badge tone="info">{RISKS.filter((r) => r.kind === "โอกาส").length} เรื่อง</Badge>} />
+          </Lines>
+        </Card>
+      </div>
+      <DataTable
+        rows={rows}
+        columns={columns}
+        getId={(r) => r.no}
+        onOpen={(r) => onOpen("risk", r.no)}
+        toolbar={
+          <div className="flex flex-wrap items-center gap-2">
+            <Segmented options={["ทั้งหมด", "ความเสี่ยง", "โอกาส"]} value={kind} onChange={setKind} />
+            <div className="ml-auto flex gap-2">
+              <Button variant="secondary" icon={exportIcon} onClick={() => csv("ทะเบียนความเสี่ยง", ["เลขที่", "ประเภท", "กระบวนการ", "เรื่อง", "โอกาส", "ผลกระทบ", "คะแนน", "คงเหลือ", "การจัดการ", "เจ้าของ"], RISKS.map((r) => [r.no, r.kind, r.process, r.description, r.likelihood, r.impact, score(r), currentScore(r), r.treatment, r.owner]))}>ส่งออก Excel</Button>
+              <Button variant="secondary" icon={<Printer size={14} />} onClick={() => onAct({ kind: "print", d: { doc: "risks" }, title: "ทะเบียนความเสี่ยงและโอกาส" })}>พิมพ์ทะเบียน</Button>
+              <Button icon={<Plus size={14} />} onClick={() => onAct({ kind: "risk-new" })}>เพิ่มความเสี่ยงหรือโอกาส</Button>
+            </div>
+          </div>
+        }
+      />
+    </div>
+  );
+}
+
+/* ---------------------------------------------------- policy, objectives */
+
+function Policies({ onAct, onOpen }: Handlers) {
+  const [std, setStd] = useState("ทั้งหมด");
+  const rows = OBJECTIVES.filter((o) => std === "ทั้งหมด" || o.std === std);
+  const columns: Column<Objective>[] = [
+    { key: "std", header: "มาตรฐาน", cell: (o) => <StdBadges standards={[o.std]} /> },
+    { key: "dept", header: "ฝ่าย", cell: (o) => o.dept },
+    { key: "name", header: "วัตถุประสงค์", cell: (o) => o.name },
+    { key: "target", header: "เป้า", align: "right", cell: (o) => <span className="tabular-nums">{o.better === "higher" ? "≥" : "≤"} {o.target} {o.unit}</span> },
+    { key: "latest", header: "ล่าสุด", align: "right", cell: (o) => <span className="tabular-nums">{latestOf(o) ? \`\${latestOf(o)!.value} \${o.unit}\` : "—"}</span> },
+    { key: "met", header: "ผล", cell: (o) => (metNow(o) === undefined ? <Badge tone="idle">ยังไม่มีผล</Badge> : <Badge tone={metNow(o) ? "ok" : "bad"}>{metNow(o) ? "ถึงเป้า" : "ต่ำกว่าเป้า"}</Badge>) },
+    { key: "owner", header: "ผู้รับผิดชอบ", cell: (o) => o.owner },
+  ];
+  return (
+    <div className="space-y-4">
+      <div className="grid gap-4 lg:grid-cols-3">
+        {POLICIES.map((p) => (
+          <Card
+            key={p.code}
+            title={p.title}
+            subtitle={\`ฉบับที่ \${p.rev} · อนุมัติ \${p.approvedOn}\`}
+            action={<Button variant="ghost" icon={<Pencil size={13} />} onClick={() => onAct({ kind: "policy-revise", code: p.code })}>ทบทวน</Button>}
+          >
+            <div className="space-y-3 px-4 py-3">
+              <StdBadges standards={p.standards} />
+              <ol className="list-decimal space-y-1 pl-5 text-[12.5px] text-slate-700 dark:text-slate-200">
+                {p.text.map((t) => <li key={t}>{t}</li>)}
+              </ol>
+              <div>
+                <div className="flex justify-between text-[12px] text-slate-500"><span>รับทราบแล้ว {p.acknowledged.length} จาก {STAFF.length} คน</span><span className="tabular-nums">{awareness(p)}%</span></div>
+                <div className="mt-1"><Bar pct={awareness(p)} tone={awareness(p) === 100 ? "ok" : "warn"} width="w-full" /></div>
+              </div>
+              <Button variant="secondary" icon={<CircleCheck size={14} />} onClick={() => onAct({ kind: "policy-ack", code: p.code })}>บันทึกการรับทราบ</Button>
+            </div>
+          </Card>
+        ))}
+      </div>
+      <DataTable
+        rows={rows}
+        columns={columns}
+        getId={(o) => String(o.id)}
+        onOpen={(o) => onOpen("objective", String(o.id))}
+        toolbar={
+          <div className="flex flex-wrap items-center gap-2">
+            <Segmented options={["ทั้งหมด", ...STANDARDS]} value={std} onChange={setStd} />
+            <div className="ml-auto flex gap-2">
+              <Button variant="secondary" icon={exportIcon} onClick={() => csv("วัตถุประสงค์", ["มาตรฐาน", "ฝ่าย", "วัตถุประสงค์", "เป้า", "หน่วย", "ล่าสุด", "ผู้รับผิดชอบ", "แผนบรรลุ"], OBJECTIVES.map((o) => [o.std, o.dept, o.name, o.target, o.unit, latestOf(o)?.value ?? "", o.owner, o.plan]))}>ส่งออก Excel</Button>
+              <Button icon={<Target size={14} />} onClick={() => onAct({ kind: "objective-new" })}>ตั้งวัตถุประสงค์</Button>
+            </div>
+          </div>
+        }
+      />
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------- documents */
+
+function Documents({ onAct, onOpen }: Handlers) {
+  const [level, setLevel] = useState("ทั้งหมด");
+  const [std, setStd] = useState("ทั้งหมด");
+  const [q, setQ] = useState("");
+  const needle = q.trim().toLowerCase();
+  const rows = DOCUMENTS.filter((d) => (level === "ทั้งหมด" || d.level === level) && (std === "ทั้งหมด" || d.standards.includes(std as Standard)) && (!needle || \`\${d.code} \${d.title}\`.toLowerCase().includes(needle)))
+    .sort((a, b) => levelNo(a.level) - levelNo(b.level) || a.code.localeCompare(b.code));
+  const due = new Set(reviewDue().map((d) => d.code));
+  const columns: Column<ControlledDoc>[] = [
+    { key: "level", header: "ระดับ", cell: (d) => <span className="tabular-nums text-slate-400">L{levelNo(d.level)}</span> },
+    { key: "code", header: "รหัส", cell: (d) => <span className="font-medium tabular-nums text-slate-800 dark:text-slate-100">{d.code}</span>, sort: (a, b) => a.code.localeCompare(b.code) },
+    { key: "title", header: "ชื่อเอกสาร", cell: (d) => d.title, sort: (a, b) => a.title.localeCompare(b.title, "th") },
+    { key: "std", header: "มาตรฐาน", cell: (d) => <StdBadges standards={d.standards} /> },
+    { key: "rev", header: "ฉบับ", cell: (d) => <span className="tabular-nums">{revLabel(d.rev)}</span> },
+    { key: "status", header: "สถานะ", cell: (d) => <span className="flex flex-wrap items-center gap-1.5"><Badge dot tone={tone(d.status)}>{d.status}</Badge>{d.draft && d.rev >= 0 && <Badge tone="info">มีฉบับแก้ไข</Badge>}</span> },
+    { key: "review", header: "ทบทวนครั้งถัดไป", cell: (d) => <span className={due.has(d.code) ? "font-medium text-rose-600 dark:text-rose-400" : ""}>{d.reviewDue ?? "—"}</span> },
+  ];
+  return (
+    <div className="space-y-4">
+      {(awaitingApproval().length > 0 || due.size > 0) && (
+        <Note tone="warn">
+          {awaitingApproval().length > 0 && \`รออนุมัติ \${awaitingApproval().length} ฉบับ\`}
+          {awaitingApproval().length > 0 && due.size > 0 && " · "}
+          {due.size > 0 && \`ถึงรอบทบทวนภายใน 30 วัน \${due.size} ฉบับ\`}
+        </Note>
+      )}
+      <DataTable
+        rows={rows}
+        columns={columns}
+        getId={(d) => d.code}
+        onOpen={(d) => onOpen("doc", d.code)}
+        toolbar={
+          <div className="space-y-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <Segmented options={["ทั้งหมด", ...DOC_LEVELS]} value={level} onChange={setLevel} />
+              <Search value={q} onChange={setQ} placeholder="ค้นหารหัสหรือชื่อเอกสาร" icon={<SearchIcon size={14} />} />
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <Segmented options={["ทั้งหมด", ...STANDARDS]} value={std} onChange={setStd} />
+              <div className="ml-auto flex gap-2">
+                <Button variant="secondary" icon={exportIcon} onClick={() => csv("เอกสารควบคุม", ["ระดับ", "รหัส", "ชื่อเอกสาร", "มาตรฐาน", "ฉบับ", "สถานะ", "มีผลเมื่อ", "ทบทวนครั้งถัดไป", "ฝ่ายเจ้าของ"], rows.map((d) => [levelNo(d.level), d.code, d.title, d.standards.join(" "), revLabel(d.rev), d.status, d.effective ?? "", d.reviewDue ?? "", d.owner]))}>ส่งออก Excel</Button>
+                <Button variant="secondary" icon={<Printer size={14} />} onClick={() => onAct({ kind: "print", d: { doc: "master-list" }, title: "บัญชีรายชื่อเอกสารควบคุม" })}>พิมพ์บัญชีรายชื่อ</Button>
+                <Button icon={<FilePlus2 size={14} />} onClick={() => onAct({ kind: "doc-new" })}>สร้างเอกสาร</Button>
+              </div>
+            </div>
+          </div>
+        }
+      />
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------ competence */
+
+function Competence({ onAct, onOpen }: Handlers) {
+  const needs = trainingNeeds();
+  const soon = new Set(expiringSoon().map((x) => \`\${x.name}|\${x.course}\`));
+  const columns: Column<Training>[] = [
+    { key: "no", header: "เลขที่", cell: (t) => <span className="font-medium tabular-nums text-slate-800 dark:text-slate-100">{t.no}</span>, sort: (a, b) => a.no.localeCompare(b.no) },
+    { key: "course", header: "หลักสูตร", cell: (t) => courseName(t.course) },
+    { key: "date", header: "วันที่", cell: (t) => t.date, sort: (a, b) => a.date.localeCompare(b.date) },
+    { key: "trainer", header: "วิทยากร", cell: (t) => t.trainer },
+    { key: "people", header: "ผ่าน / เข้าอบรม", align: "right", cell: (t) => <span className="tabular-nums">{t.attendees.filter((a) => a.result === "ผ่าน").length} / {t.attendees.length}</span> },
+    { key: "status", header: "สถานะ", cell: (t) => <span className="flex gap-1.5"><Badge dot tone={tone(t.status)}>{t.status}</Badge>{t.evaluation && <Badge tone={t.evaluation.effective ? "ok" : "bad"}>ประเมินแล้ว</Badge>}</span> },
+  ];
+  return (
+    <div className="space-y-4">
+      <Card title="ตารางความสามารถ" subtitle="✓ ผ่านและยังไม่หมดอายุ · ! หมดอายุใน 60 วัน · ✕ ตำแหน่งต้องมีแต่ยังไม่มี · กดชื่อเพื่อดูประวัติ">
+        <div className="overflow-x-auto">
+          <table className="w-full text-[12px]">
+            <thead>
+              <tr className="text-slate-500">
+                <th className="sticky left-0 bg-white px-3 py-2 text-left font-medium dark:bg-slate-900">บุคลากร</th>
+                {COURSES.map((c) => <th key={c.code} title={c.name} className="px-1.5 py-2 text-center font-medium tabular-nums">{c.code.replace("TR-", "")}</th>)}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+              {STAFF.map((p) => (
+                <tr key={p.name}>
+                  <td className="sticky left-0 bg-white px-3 py-1.5 dark:bg-slate-900">
+                    <button onClick={() => onOpen("person", p.name)} className="text-left hover:underline">
+                      <span className="block text-slate-800 dark:text-slate-100">{p.name}</span>
+                      <span className="block text-[11px] text-slate-400">{p.role}</span>
+                    </button>
+                  </td>
+                  {COURSES.map((c) => {
+                    const has = isQualified(p.name, c.code);
+                    const need = p.requires.includes(c.code);
+                    const expiring = soon.has(\`\${p.name}|\${c.code}\`);
+                    const mark = has ? (expiring ? "!" : "✓") : need ? "✕" : "";
+                    const cls = has ? (expiring ? "bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300" : "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300") : need ? "bg-rose-100 text-rose-700 dark:bg-rose-500/15 dark:text-rose-300" : "";
+                    return <td key={c.code} className="px-1 py-1 text-center"><span className={"inline-grid size-6 place-items-center rounded font-semibold " + cls}>{mark}</span></td>;
+                  })}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <p className="px-4 pb-3 text-[11.5px] text-slate-400">{COURSES.map((c) => \`\${c.code.replace("TR-", "")} \${c.name}\`).join(" · ")}</p>
+      </Card>
+      <Card title="ความต้องการฝึกอบรม" subtitle="หลักสูตรที่ตำแหน่งต้องมีแต่ยังไม่มีหรือหมดอายุ">
+        {needs.length === 0 ? (
+          <Empty>ทุกคนมีครบตามตำแหน่ง</Empty>
+        ) : (
+          <Lines>
+            {needs.map((n) => <Line key={n.course} title={courseName(n.course)} sub={n.people.join(", ")} right={<Button variant="secondary" icon={<GraduationCap size={14} />} onClick={() => onAct({ kind: "training-new", course: n.course, attendees: n.people })}>วางแผนอบรม {n.people.length} คน</Button>} />)}
+          </Lines>
+        )}
+      </Card>
+      <DataTable
+        rows={newest(TRAININGS)}
+        columns={columns}
+        getId={(t) => t.no}
+        onOpen={(t) => onOpen("training", t.no)}
+        toolbar={
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="text-[12.5px] text-slate-500 dark:text-slate-400">ผลอบรมที่ผ่านคือความสามารถในทะเบียน ใช้ตัดสินสิทธิ์ผู้ตรวจติดตามด้วย (ข้อ 7.2, IATF 7.2.3)</p>
+            <div className="ml-auto flex gap-2">
+              <Button variant="secondary" icon={exportIcon} onClick={() => csv("ประวัติการฝึกอบรม", ["เลขที่", "หลักสูตร", "วันที่", "ชั่วโมง", "วิทยากร", "ผู้เข้าอบรม", "ผล"], TRAININGS.flatMap((t) => t.attendees.map((a) => [t.no, courseName(t.course), t.date, t.hours, t.trainer, a.name, a.result ?? "รออบรม"])))}>ส่งออก Excel</Button>
+              <Button icon={<GraduationCap size={14} />} onClick={() => onAct({ kind: "training-new" })}>วางแผนฝึกอบรม</Button>
+            </div>
+          </div>
+        }
+      />
+    </div>
+  );
+}
+
+/* ----------------------------------------------------------------- audit */
+
+function Audits({ onAct, onOpen }: Handlers) {
+  const [type, setType] = useState("ทั้งหมด");
+  const rows = AUDITS.filter((a) => type === "ทั้งหมด" || a.type === type);
+  const count = (a: Audit, t: string) => a.findings.filter((f) => f.type === t).length;
+  const columns: Column<Audit>[] = [
+    { key: "no", header: "เลขที่", cell: (a) => <span className="font-medium tabular-nums text-slate-800 dark:text-slate-100">{a.no}</span>, sort: (a, b) => a.no.localeCompare(b.no) },
+    { key: "type", header: "ชนิด", cell: (a) => <Chip>{a.type}</Chip> },
+    { key: "std", header: "มาตรฐาน", cell: (a) => <StdBadges standards={[a.std]} /> },
+    { key: "area", header: "ฝ่าย / เรื่อง", cell: (a) => (a.subject ? \`\${a.area} · \${a.subject}\` : a.area) },
+    { key: "auditor", header: "ผู้ตรวจ", cell: (a) => a.auditor },
+    { key: "planned", header: "วันที่", cell: (a) => a.performedOn ?? a.planned, sort: (a, b) => a.planned.localeCompare(b.planned) },
+    { key: "findings", header: "บกพร่อง / สังเกต", align: "right", cell: (a) => <span className="tabular-nums">{count(a, "ข้อบกพร่องหลัก") + count(a, "ข้อบกพร่องย่อย")} / {count(a, "ข้อสังเกต")}</span> },
+    { key: "status", header: "สถานะ", cell: (a) => <span className="flex gap-1.5"><Badge dot tone={tone(a.status)}>{a.status}</Badge>{a.score !== undefined && <Badge tone={a.score >= 90 ? "ok" : a.score >= 80 ? "warn" : "bad"}>{a.score}% · {rating(a.score)}</Badge>}</span> },
+  ];
+  return (
+    <DataTable
+      rows={rows}
+      columns={columns}
+      getId={(a) => a.no}
+      onOpen={(a) => onOpen("audit", a.no)}
+      toolbar={
+        <div className="flex flex-wrap items-center gap-2">
+          <Segmented options={["ทั้งหมด", "ตรวจระบบ", "ตรวจกระบวนการ", "ตรวจผลิตภัณฑ์"]} value={type} onChange={setType} />
+          <p className="text-[12.5px] text-slate-500 dark:text-slate-400">ผู้ตรวจต้องมีหลักสูตรตามชนิดการตรวจ และไม่ตรวจฝ่ายตัวเอง</p>
+          <div className="ml-auto flex gap-2">
+            <Button variant="secondary" icon={exportIcon} onClick={() => csv("แผนตรวจติดตามภายใน", ["เลขที่", "ชนิด", "มาตรฐาน", "ฝ่าย", "เรื่อง", "ข้อกำหนด", "ผู้ตรวจ", "วันที่ตามแผน", "วันที่ตรวจ", "สถานะ", "คะแนน"], AUDITS.map((a) => [a.no, a.type, a.std, a.area, a.subject ?? "", a.clauses.map(clauseLabel).join(" "), a.auditor, a.planned, a.performedOn ?? "", a.status, a.score ?? ""]))}>ส่งออก Excel</Button>
+            <Button icon={<Users size={14} />} onClick={() => onAct({ kind: "audit-new" })}>วางแผนการตรวจ</Button>
+          </div>
+        </div>
+      }
+    />
+  );
+}
+
+/* ------------------------------------------------------------------ capa */
+
+function Corrective({ onAct, onOpen }: Handlers) {
+  const [status, setStatus] = useState("ยังไม่ปิด");
+  const rows = newest(CAPAS).filter((c) => status === "ทั้งหมด" || (status === "ยังไม่ปิด" ? c.status !== "ปิดแล้ว" : c.status === "ปิดแล้ว"));
+  const columns: Column<Capa>[] = [
+    { key: "no", header: "เลขที่", cell: (c) => <span className="font-medium tabular-nums text-slate-800 dark:text-slate-100">{c.no}</span>, sort: (a, b) => a.no.localeCompare(b.no) },
+    { key: "method", header: "วิธี", cell: (c) => <Chip>{c.method}</Chip> },
+    { key: "std", header: "มาตรฐาน", cell: (c) => <StdBadges standards={[c.std]} /> },
+    { key: "ref", header: "ต้นเรื่อง", cell: (c) => <span className="tabular-nums text-slate-500">{c.ref}</span> },
+    { key: "problem", header: "ปัญหา", cell: (c) => <span className="line-clamp-2">{c.problem}</span> },
+    { key: "owner", header: "ผู้รับผิดชอบ", cell: (c) => c.owner },
+    { key: "status", header: "สถานะ", cell: (c) => <span className="flex flex-wrap gap-1.5"><Badge dot tone={tone(c.status)}>{c.status}</Badge>{overdueActions(c).length > 0 && <Badge tone="bad">เลยกำหนด {overdueActions(c).length}</Badge>}</span> },
+  ];
+  return (
+    <DataTable
+      rows={rows}
+      columns={columns}
+      getId={(c) => c.no}
+      onOpen={(c) => onOpen("car", c.no)}
+      toolbar={
+        <div className="flex flex-wrap items-center gap-2">
+          <Segmented options={["ยังไม่ปิด", "ปิดแล้ว", "ทั้งหมด"]} value={status} onChange={setStatus} counts={{ "ยังไม่ปิด": openCapas().length }} />
+          <p className="text-[12.5px] text-slate-500 dark:text-slate-400">ปัญหาจากลูกค้ายานยนต์ใช้ 8D นอกนั้นใช้ 5 Why</p>
+          <div className="ml-auto flex gap-2">
+            <Button variant="secondary" icon={exportIcon} onClick={() => csv("CAR", ["เลขที่", "วันที่", "วิธี", "มาตรฐาน", "ต้นเรื่อง", "ปัญหา", "ผู้รับผิดชอบ", "สาเหตุราก", "มาตรการเสร็จ", "สถานะ"], CAPAS.map((c) => [c.no, c.date, c.method, c.std, c.ref, c.problem, c.owner, c.rootCause?.whys.at(-1) ?? "", \`\${c.actions.filter((a) => a.doneOn).length}/\${c.actions.length}\`, c.status]))}>ส่งออก Excel</Button>
+            <Button variant="secondary" icon={<ClipboardList size={14} />} onClick={() => onAct({ kind: "car-new", method: "8D", std: "IATF 16949" })}>ออก 8D</Button>
+            <Button icon={<Plus size={14} />} onClick={() => onAct({ kind: "car-new" })}>ออก CAR</Button>
+          </div>
+        </div>
+      }
+    />
+  );
+}
+
+/* ---------------------------------------------------- management review */
+
+function Reviews({ onAct, onOpen }: Handlers) {
+  const planned = REVIEWS.find((r) => r.status === "ตามแผน");
+  const outputs = openReviewOutputs();
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center gap-2">
+        <p className="text-[12.5px] text-slate-500 dark:text-slate-400">ประธานคือผู้บริหารสูงสุด ข้อมูลเข้าเก็บเป็นภาพ ณ วันประชุม (ข้อ 9.3)</p>
+        <div className="ml-auto flex gap-2">
+          {planned ? (
+            <Button icon={<ClipboardList size={14} />} onClick={() => onAct({ kind: "review-minutes", no: planned.no })}>บันทึกการประชุม {planned.no}</Button>
+          ) : (
+            <Button icon={<CalendarClock size={14} />} onClick={() => onAct({ kind: "review-plan" })}>นัดประชุมครั้งถัดไป</Button>
+          )}
+        </div>
+      </div>
+      <Card title={planned ? \`วาระ \${planned.no} · \${planned.planned}\` : "วาระครั้งถัดไป"} subtitle="อ่านสดจากทุกระบบที่ติดตั้ง">
+        <Agenda />
+      </Card>
+      <div className="grid gap-4 lg:grid-cols-2">
+        <Card title="ข้อสั่งการที่ยังไม่เสร็จ" subtitle="จากการประชุมทุกครั้ง">
+          {outputs.length === 0 ? (
+            <Empty>ไม่มีข้อสั่งการค้าง</Empty>
+          ) : (
+            <Lines>
+              {outputs.map((o) => (
+                <Line
+                  key={\`\${o.review}-\${o.index}\`}
+                  title={o.decision}
+                  sub={\`\${o.review} · \${o.kind} · \${o.owner} · กำหนด \${o.due}\`}
+                  subTone={o.due < TODAY ? "bad" : undefined}
+                  right={<Button variant="secondary" icon={<CircleCheck size={14} />} onClick={() => run(() => completeReviewOutput(o.review, o.index), \`บันทึกว่าข้อสั่งการเสร็จแล้ว · \${o.review}\`)}>เสร็จแล้ว</Button>}
+                />
+              ))}
+            </Lines>
+          )}
+        </Card>
+        <Card title="การประชุมที่ผ่านมา">
+          <Lines>
+            {newest(REVIEWS).map((r) => (
+              <li key={r.no}>
+                <button onClick={() => onOpen("review", r.no)} className="flex w-full items-center gap-3 px-4 py-2.5 text-left text-[13px] transition hover:bg-slate-50 dark:hover:bg-slate-800/60">
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-slate-800 dark:text-slate-100">{r.no} · {r.heldOn ?? r.planned}</span>
+                    <span className="block text-[11.5px] text-slate-400">{r.attendees.length ? \`ผู้เข้าประชุม \${r.attendees.length} คน · ข้อสั่งการ \${r.outputs.length} ข้อ\` : "ยังไม่ประชุม"}</span>
+                  </span>
+                  <Badge dot tone={tone(r.status)}>{r.status}</Badge>
+                </button>
+              </li>
+            ))}
+          </Lines>
+        </Card>
+      </div>
+    </div>
+  );
+}
+
+/* --------------------------------------------------------------- records */
+
+function RecordView({ kind, id, ...h }: { kind: RecordKind; id: string } & Handlers) {
+  if (kind === "doc") return <DocRecord d={DOCUMENTS.find((x) => x.code === id)!} {...h} />;
+  if (kind === "risk") return <RiskRecord r={riskByNo(id)} {...h} />;
+  if (kind === "objective") return <ObjectiveRecord o={objectiveById(Number(id))} {...h} />;
+  if (kind === "person") return <PersonRecord name={id} {...h} />;
+  if (kind === "training") return <TrainingRecord t={trainingByNo(id)} {...h} />;
+  if (kind === "audit") return <AuditRecord a={auditByNo(id)} {...h} />;
+  if (kind === "car") return <CarRecord c={capaByNo(id)} {...h} />;
+  return <ReviewRecord no={id} {...h} />;
+}
+
+function DocRecord({ d, onAct }: { d: ControlledDoc } & Handlers) {
+  const due = d.reviewDue && d.reviewDue <= addDays(TODAY, 30);
+  return (
+    <div className="flex h-full flex-col">
+      <Header
+        title={\`\${d.code} · \${d.title}\`}
+        meta={\`ระดับ \${levelNo(d.level)} \${d.level} · \${d.owner}\`}
+        badges={<><Badge dot tone={tone(d.status)}>{d.status}</Badge><Badge tone="idle">{revLabel(d.rev)}</Badge><StdBadges standards={d.standards} />{d.draft && <Badge tone={d.draft.submitted ? "warn" : "info"}>{revLabel(d.draft.rev)} {d.draft.submitted ? "รออนุมัติ" : "กำลังแก้ไข"}</Badge>}</>}
+        actions={
+          <>
+            {d.draft && !d.draft.submitted && <Button icon={<CircleCheck size={14} />} onClick={() => run(() => submitDocument(d.code), \`ส่ง \${d.code} \${revLabel(d.draft!.rev)} ขออนุมัติแล้ว\`)}>ส่งอนุมัติ</Button>}
+            {d.draft?.submitted && <Button icon={<Award size={14} />} onClick={() => onAct({ kind: "doc-approve", code: d.code })}>อนุมัติ</Button>}
+            {d.status === "ใช้งาน" && !d.draft && <Button variant="secondary" icon={<Pencil size={14} />} onClick={() => onAct({ kind: "doc-revise", code: d.code })}>แก้ไขฉบับใหม่</Button>}
+            {d.status === "ใช้งาน" && due && !d.draft && <Button variant="secondary" icon={<CircleCheck size={14} />} onClick={() => run(() => confirmReview(d.code), \`ทบทวน \${d.code} แล้ว · ใช้ต่ออีกหนึ่งปี\`)}>ทบทวนแล้วยังเหมาะสม</Button>}
+            {d.status !== "ยกเลิก" && <Button variant="ghost" onClick={() => onAct({ kind: "doc-obsolete", code: d.code })}>ยกเลิกเอกสาร</Button>}
+          </>
+        }
+      />
+      <Body>
+        <div className="grid gap-x-8 sm:grid-cols-2">
+          <IconRow icon={<FileText size={14} />} label="ฉบับที่ใช้">{revLabel(d.rev)}{d.effective ? \` · มีผล \${d.effective}\` : ""}</IconRow>
+          <IconRow icon={<CalendarClock size={14} />} label="ทบทวนครั้งถัดไป"><span className={due ? "text-rose-600 dark:text-rose-400" : ""}>{d.reviewDue ?? "—"}</span></IconRow>
+          {d.obsoleteReason && <IconRow icon={<TriangleAlert size={14} />} label="เหตุผลที่ยกเลิก">{d.obsoleteReason}</IconRow>}
+        </div>
+        {d.draft && <Note tone="info">{revLabel(d.draft.rev)} โดย {d.draft.by} ({d.draft.date}): {d.draft.change}</Note>}
+        <Card title="ประวัติการแก้ไข" subtitle="ทุกฉบับที่เคยออกใช้ พร้อมผู้อนุมัติ">
+          {d.history.length === 0 ? (
+            <Empty>ยังไม่เคยออกใช้</Empty>
+          ) : (
+            <Lines>
+              {[...d.history].reverse().map((x) => <Line key={x.rev} title={\`\${revLabel(x.rev)} · \${x.change}\`} sub={\`\${x.date} · จัดทำ \${x.by} · อนุมัติ \${x.approvedBy}\`} />)}
+            </Lines>
+          )}
+        </Card>
+      </Body>
+    </div>
+  );
+}
+
+function RiskRecord({ r, onAct }: { r: Risk } & Handlers) {
+  const s = currentScore(r);
+  return (
+    <div className="flex h-full flex-col">
+      <Header
+        title={\`\${r.no} · \${r.description}\`}
+        meta={\`\${r.kind} · \${r.process} · \${r.owner} · ทบทวนล่าสุด \${r.reviewedOn}\`}
+        badges={<>{r.kind === "โอกาส" ? <Badge dot tone="info">โอกาส · {s}</Badge> : <Badge dot tone={levelTone(s)}>ระดับ{levelOf(s)} · {s}</Badge>}<Badge tone="idle">{r.treatment}</Badge><StdBadges standards={r.standards} /></>}
+        actions={
+          <>
+            <Button icon={<Plus size={14} />} onClick={() => onAct({ kind: "risk-task", no: r.no })}>เพิ่มมาตรการ</Button>
+            <Button variant="secondary" icon={<Compass size={14} />} onClick={() => onAct({ kind: "risk-reassess", no: r.no })}>ประเมินซ้ำ</Button>
+            <Button variant="secondary" icon={<Printer size={14} />} onClick={() => onAct({ kind: "print", d: { doc: "risks" }, title: "ทะเบียนความเสี่ยงและโอกาส" })}>พิมพ์ทะเบียน</Button>
+          </>
+        }
+      />
+      <Body>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <Metric label="ก่อนมาตรการ" value={\`\${score(r)} (\${r.likelihood}×\${r.impact})\`} deltaLabel={\`ระดับ\${levelOf(score(r))}\`} />
+          <Metric label="คงเหลือ" value={r.residual ? \`\${currentScore(r)} (\${r.residual.likelihood}×\${r.residual.impact})\` : "ยังไม่ประเมินซ้ำ"} deltaLabel={r.residual ? \`ประเมินซ้ำ \${r.residual.date}\` : "ทำมาตรการให้ครบแล้วประเมินซ้ำ"} />
+        </div>
+        <Card title="มาตรการ">
+          {r.tasks.length === 0 ? (
+            <Empty>ยังไม่มีมาตรการ</Empty>
+          ) : (
+            <Lines>
+              {r.tasks.map((t, i) => {
+                const late = !t.doneOn && t.due < TODAY;
+                return (
+                  <Line
+                    key={i}
+                    title={t.what}
+                    sub={\`\${t.owner} · กำหนด \${t.due}\${late ? " · เลยกำหนด" : ""}\`}
+                    subTone={late ? "bad" : undefined}
+                    right={t.doneOn ? <Badge tone="ok">เสร็จ {t.doneOn}</Badge> : <Button variant="secondary" icon={<CircleCheck size={14} />} onClick={() => run(() => completeRiskTask(r.no, i), \`บันทึกว่ามาตรการเสร็จแล้ว · \${r.no}\`)}>ทำเสร็จแล้ว</Button>}
+                  />
+                );
+              })}
+            </Lines>
+          )}
+        </Card>
+      </Body>
+    </div>
+  );
+}
+
+function ObjectiveRecord({ o, onAct }: { o: Objective } & Handlers) {
+  const m = metNow(o);
+  return (
+    <div className="flex h-full flex-col">
+      <Header
+        title={o.name}
+        meta={\`\${o.dept} · \${o.owner} · เป้า \${o.better === "higher" ? "≥" : "≤"} \${o.target} \${o.unit}\`}
+        badges={<><StdBadges standards={[o.std]} />{m === undefined ? <Badge tone="idle">ยังไม่มีผล</Badge> : <Badge tone={m ? "ok" : "bad"}>{m ? "ถึงเป้า" : "ต่ำกว่าเป้า"}</Badge>}</>}
+        actions={<Button icon={<Plus size={14} />} onClick={() => onAct({ kind: "objective-result", id: o.id })}>บันทึกผลรายเดือน</Button>}
+      />
+      <Body>
+        <Card title="แผนบรรลุ" subtitle="ข้อ 6.2.2"><p className="px-4 py-3 text-[13px] text-slate-700 dark:text-slate-200">{o.plan}</p></Card>
+        <Card title="ผลรายเดือน">
+          {o.results.length === 0 ? (
+            <Empty>ยังไม่มีผล</Empty>
+          ) : (
+            <ColumnChart
+              data={o.results.map((r) => ({ label: r.month.slice(5), value: r.value, tone: (o.better === "higher" ? r.value >= o.target : r.value <= o.target) ? undefined : "warn" }))}
+              format={(n) => \`\${n} \${o.unit}\`}
+            />
+          )}
+        </Card>
+      </Body>
+    </div>
+  );
+}
+
+function PersonRecord({ name, onAct }: { name: string } & Handlers) {
+  const p = personOf(name)!;
+  const quals = qualificationsOf(name);
+  const gaps = gapsOf(name);
+  const attended = TRAININGS.filter((t) => t.attendees.some((a) => a.name === name));
+  return (
+    <div className="flex h-full flex-col">
+      <Header
+        title={p.name}
+        meta={\`\${p.role} · \${p.dept}\`}
+        badges={<><Badge tone={gaps.length ? "bad" : "ok"}>{gaps.length ? \`ขาด \${gaps.length} หลักสูตร\` : "ครบตามตำแหน่ง"}</Badge><Badge tone="idle">มี {quals.length} หลักสูตร</Badge></>}
+        actions={
+          <>
+            {gaps.length > 0 && <Button icon={<GraduationCap size={14} />} onClick={() => onAct({ kind: "training-new", course: gaps[0], attendees: [name] })}>วางแผนอบรมที่ขาด</Button>}
+            <Button variant="secondary" icon={<Printer size={14} />} onClick={() => onAct({ kind: "print", d: { doc: "person", name }, title: "บันทึกประวัติการฝึกอบรมรายบุคคล" })}>พิมพ์ประวัติ</Button>
+          </>
+        }
+      />
+      <Body>
+        <Card title="หลักสูตรที่ตำแหน่งต้องมี">
+          <Lines>
+            {p.requires.map((c) => {
+              const q = quals.find((x) => x.course === c);
+              return <Line key={c} title={courseName(c)} sub={q ? \`ผ่านเมื่อ \${q.since}\${q.until ? \` · ใช้ได้ถึง \${q.until}\` : ""}\` : "ยังไม่มีหรือหมดอายุ"} subTone={q ? undefined : "bad"} right={<Badge tone={q ? "ok" : "bad"}>{q ? "มีแล้ว" : "ขาด"}</Badge>} />;
+            })}
+          </Lines>
+        </Card>
+        <Card title="ประวัติการอบรม">
+          {attended.length === 0 ? <Empty>ยังไม่เคยอบรม</Empty> : (
+            <Lines>
+              {attended.map((t) => <Line key={t.no} title={\`\${t.no} · \${courseName(t.course)}\`} sub={\`\${t.date} · \${t.hours} ชม. · \${t.trainer}\`} right={<Badge tone={tone(t.attendees.find((a) => a.name === name)?.result ?? "ตามแผน")}>{t.attendees.find((a) => a.name === name)?.result ?? "ตามแผน"}</Badge>} />)}
+            </Lines>
+          )}
+        </Card>
+      </Body>
+    </div>
+  );
+}
+
+function TrainingRecord({ t, onAct, onOpen }: { t: Training } & Handlers) {
+  return (
+    <div className="flex h-full flex-col">
+      <Header
+        title={\`\${t.no} · \${courseName(t.course)}\`}
+        meta={\`\${t.date} · \${t.hours} ชั่วโมง · \${t.trainer}\`}
+        badges={<><Badge dot tone={tone(t.status)}>{t.status}</Badge>{t.evaluation && <Badge tone={t.evaluation.effective ? "ok" : "bad"}>{t.evaluation.effective ? "ได้ผล" : "ไม่ได้ผล"}</Badge>}</>}
+        actions={
+          <>
+            {t.status === "ตามแผน" && <Button icon={<BookOpenCheck size={14} />} onClick={() => onAct({ kind: "training-record", no: t.no })}>บันทึกผลอบรม</Button>}
+            {t.status === "บันทึกผลแล้ว" && !t.evaluation && <Button icon={<Award size={14} />} onClick={() => onAct({ kind: "training-evaluate", no: t.no })}>ประเมินประสิทธิผล</Button>}
+          </>
+        }
+      />
+      <Body>
+        <Card title="ผู้เข้าอบรม">
+          <Lines>
+            {t.attendees.map((a) => (
+              <li key={a.name}>
+                <button onClick={() => onOpen("person", a.name)} className="flex w-full items-center justify-between gap-3 px-4 py-2.5 text-left text-[13px] hover:bg-slate-50 dark:hover:bg-slate-800/60">
+                  <span className="text-slate-800 dark:text-slate-100">{a.name}</span>
+                  <Badge tone={tone(a.result ?? "ตามแผน")}>{a.result ?? "รออบรม"}</Badge>
+                </button>
+              </li>
+            ))}
+          </Lines>
+        </Card>
+        {t.evaluation && <Note tone={t.evaluation.effective ? "ok" : "bad"}>ประเมินประสิทธิผล {t.evaluation.date} โดย {t.evaluation.by}: {t.evaluation.note}</Note>}
+      </Body>
+    </div>
+  );
+}
+
+function AuditRecord({ a, onAct }: { a: Audit } & Handlers) {
+  const missing = findingsWithoutCar(a);
+  return (
+    <div className="flex h-full flex-col">
+      <Header
+        title={\`\${a.no} · \${a.area}\${a.subject ? \` · \${a.subject}\` : ""}\`}
+        meta={\`\${a.type} \${a.std} · ผู้ตรวจ \${a.auditor} · \${a.performedOn ? \`ตรวจเมื่อ \${a.performedOn}\` : \`ตามแผน \${a.planned}\`}\`}
+        badges={<><Badge dot tone={tone(a.status)}>{a.status}</Badge>{a.score !== undefined && <Badge tone={a.score >= 90 ? "ok" : a.score >= 80 ? "warn" : "bad"}>VDA 6.3 {a.score}% · {rating(a.score)}</Badge>}</>}
+        actions={
+          <>
+            {a.status === "ตามแผน" && <Button icon={<Play size={14} />} onClick={() => run(() => startAudit(a.no), \`เริ่มตรวจ \${a.no} \${a.area} แล้ว\`)}>เริ่มตรวจ</Button>}
+            {a.status === "กำลังตรวจ" && <Button icon={<Plus size={14} />} onClick={() => onAct({ kind: "audit-finding", no: a.no })}>บันทึกสิ่งที่พบ</Button>}
+            {a.status === "กำลังตรวจ" && <Button variant="secondary" icon={<CircleCheck size={14} />} onClick={() => onAct({ kind: "audit-close", no: a.no })}>ปิดการตรวจ</Button>}
+            <Button variant="secondary" icon={<Printer size={14} />} onClick={() => onAct({ kind: "print", d: { doc: "audit", no: a.no }, title: "รายงานการตรวจติดตามภายใน" })}>พิมพ์รายงาน</Button>
+          </>
+        }
+      />
+      <Body>
+        {a.status === "กำลังตรวจ" && missing.length > 0 && <Note tone="warn">ข้อบกพร่อง {missing.length} ข้อยังไม่มี CAR — ต้องออกก่อนปิดการตรวจ</Note>}
+        <Card title="ขอบเขต">
+          <Lines>{a.clauses.map((c) => <Line key={c} title={\`\${clauseLabel(c)} \${clauseName(c)}\`} />)}</Lines>
+        </Card>
+        <Card title="สิ่งที่พบ" subtitle="ข้อบกพร่องต้องมี CAR · ข้อสังเกตไม่ต้อง">
+          {a.findings.length === 0 ? (
+            <Empty>{a.status === "ตามแผน" ? "ยังไม่ได้ตรวจ" : "ยังไม่พบสิ่งที่ต้องบันทึก"}</Empty>
+          ) : (
+            <Lines>
+              {a.findings.map((f) => {
+                const car = carOf(findingRef(a, f));
+                return (
+                  <Line
+                    key={f.id}
+                    title={\`#\${f.id} \${f.detail}\`}
+                    sub={\`\${clauseLabel(f.clause)} \${clauseName(f.clause)}\`}
+                    right={
+                      <span className="flex items-center gap-2">
+                        <Badge tone={f.type === "ข้อสังเกต" ? "info" : f.type === "ข้อบกพร่องหลัก" ? "bad" : "warn"}>{f.type}</Badge>
+                        {car ? <Badge tone="ok">{car.no}</Badge> : f.type !== "ข้อสังเกต" && <Button variant="secondary" onClick={() => onAct({ kind: "car-new", ref: findingRef(a, f), problem: f.detail, std: a.std })}>ออก CAR</Button>}
+                      </span>
+                    }
+                  />
+                );
+              })}
+            </Lines>
+          )}
+        </Card>
+      </Body>
+    </div>
+  );
+}
+
+function CarRecord({ c, onAct }: { c: Capa } & Handlers) {
+  const open = c.status !== "ปิดแล้ว" && c.status !== "ติดตามผล";
+  const is8D = c.method === "8D";
+  const steps = eightD(c);
+  return (
+    <div className="flex h-full flex-col">
+      <Header
+        title={\`\${c.no} · \${c.method}\`}
+        meta={\`ต้นเรื่อง \${c.ref} · ออกเมื่อ \${c.date} · \${c.owner}\`}
+        badges={<><Badge dot tone={tone(c.status)}>{c.status}</Badge><StdBadges standards={[c.std]} />{overdueActions(c).length > 0 && <Badge tone="bad">มาตรการเลยกำหนด {overdueActions(c).length}</Badge>}</>}
+        actions={
+          <>
+            {is8D && c.status !== "ปิดแล้ว" && <Button variant={c.containment ? "secondary" : "primary"} icon={<ShieldAlert size={14} />} onClick={() => onAct({ kind: "car-containment", no: c.no })}>กักกันชั่วคราว (D3)</Button>}
+            {open && <Button variant={c.rootCause ? "secondary" : "primary"} icon={<SearchIcon size={14} />} onClick={() => onAct({ kind: "car-cause", no: c.no })}>{c.rootCause ? "แก้สาเหตุราก" : "หาสาเหตุราก"}</Button>}
+            {open && <Button variant="secondary" icon={<Plus size={14} />} onClick={() => onAct({ kind: "car-action", no: c.no })}>เพิ่มมาตรการ</Button>}
+            {is8D && c.status !== "ปิดแล้ว" && <Button variant="secondary" icon={<Landmark size={14} />} onClick={() => onAct({ kind: "car-prevention", no: c.no })}>ป้องกันการเกิดซ้ำ (D7)</Button>}
+            {c.status === "ติดตามผล" && <Button icon={<Award size={14} />} onClick={() => onAct({ kind: "car-verify", no: c.no })}>ติดตามประสิทธิผล</Button>}
+            <Button variant="secondary" icon={<Printer size={14} />} onClick={() => onAct({ kind: "print", d: { doc: "car", no: c.no }, title: is8D ? "รายงานการแก้ปัญหา 8D" : "ใบขอให้ดำเนินการแก้ไขและป้องกัน" })}>พิมพ์</Button>
+          </>
+        }
+      />
+      <Body>
+        {is8D && <Stepper steps={steps.map((s, i) => ({ label: \`\${s.step} \${s.name}\`, state: s.done ? "done" : i === steps.findIndex((x) => !x.done) ? "current" : "todo" }))} icons={STEP_ICONS} />}
+        {is8D && <Card title="ทีม (D1)"><p className="px-4 py-3 text-[13px] text-slate-700 dark:text-slate-200">{c.team.join(" · ")}</p></Card>}
+        <Card title="ปัญหา"><p className="px-4 py-3 text-[13px] text-slate-700 dark:text-slate-200">{c.problem}</p></Card>
+        {is8D && <Card title="การกักกันชั่วคราว (D3)">{c.containment ? <p className="px-4 py-3 text-[13px] text-slate-700 dark:text-slate-200">{c.containment}</p> : <Empty>ยังไม่กักกัน</Empty>}</Card>}
+        <Card title="สาเหตุราก" subtitle={c.rootCause ? \`กลุ่ม\${c.rootCause.category} · ถามทำไม \${c.rootCause.whys.length} ชั้น\` : "ยังไม่วิเคราะห์"}>
+          {c.rootCause && (
+            <div className="space-y-2 px-4 py-3 text-[13px] text-slate-700 dark:text-slate-200">
+              <ol className="space-y-1.5">
+                {c.rootCause.whys.map((w, i) => (
+                  <li key={i} className="flex gap-2"><span className="w-16 shrink-0 text-slate-400">ทำไม {i + 1}</span><span className={i === c.rootCause!.whys.length - 1 ? "font-medium text-slate-900 dark:text-slate-50" : ""}>{w}</span></li>
+                ))}
+              </ol>
+              {c.rootCause.escape && <p><span className="text-slate-400">ทำไมจึงหลุดถึงลูกค้า:</span> {c.rootCause.escape}</p>}
+            </div>
+          )}
+        </Card>
+        <Card title="มาตรการ" subtitle="ทำเสร็จครบแล้วจึงติดตามผลได้">
+          {c.actions.length === 0 ? (
+            <Empty>ยังไม่มีมาตรการ</Empty>
+          ) : (
+            <Lines>
+              {c.actions.map((a, i) => {
+                const late = !a.doneOn && a.due < TODAY;
+                return (
+                  <Line
+                    key={i}
+                    title={a.what}
+                    sub={\`\${a.type} · \${a.owner} · กำหนด \${a.due}\${late ? " · เลยกำหนด" : ""}\`}
+                    subTone={late ? "bad" : undefined}
+                    right={a.doneOn ? <Badge tone="ok">เสร็จ {a.doneOn}</Badge> : c.status !== "ปิดแล้ว" && <Button variant="secondary" icon={<CircleCheck size={14} />} onClick={() => run(() => completeCapaAction(c.no, i), \`บันทึกว่ามาตรการเสร็จแล้ว · \${c.no}\`)}>ทำเสร็จแล้ว</Button>}
+                  />
+                );
+              })}
+            </Lines>
+          )}
+        </Card>
+        {is8D && <Card title="ป้องกันการเกิดซ้ำ (D7)">{c.prevention ? <p className="px-4 py-3 text-[13px] text-slate-700 dark:text-slate-200">{c.prevention}</p> : <Empty>ยังไม่บันทึก</Empty>}</Card>}
+        {c.verification && <Note tone={c.verification.effective ? "ok" : "bad"}>ติดตามผล {c.verification.date} โดย {c.verification.by}: {c.verification.effective ? "ได้ผล" : "ไม่ได้ผล"} — {c.verification.note}</Note>}
+      </Body>
+    </div>
+  );
+}
+
+function ReviewRecord({ no, onAct }: { no: string } & Handlers) {
+  const r = reviewByNo(no);
+  return (
+    <div className="flex h-full flex-col">
+      <Header
+        title={\`\${r.no} · การทบทวนโดยฝ่ายบริหาร\`}
+        meta={\`\${r.heldOn ? \`ประชุมเมื่อ \${r.heldOn}\` : \`ตามแผน \${r.planned}\`} · ประธาน \${r.chair}\`}
+        badges={<Badge dot tone={tone(r.status)}>{r.status}</Badge>}
+        actions={
+          <>
+            {r.status === "ตามแผน" && <Button icon={<ClipboardList size={14} />} onClick={() => onAct({ kind: "review-minutes", no: r.no })}>บันทึกการประชุม</Button>}
+            {r.status === "ประชุมแล้ว" && <Button variant="secondary" icon={<Printer size={14} />} onClick={() => onAct({ kind: "print", d: { doc: "review", no: r.no }, title: "รายงานการประชุมทบทวนโดยฝ่ายบริหาร" })}>พิมพ์รายงานการประชุม</Button>}
+          </>
+        }
+      />
+      <Body>
+        {r.status === "ตามแผน" ? (
+          <Card title="ข้อมูลเข้าที่จะนำเข้าที่ประชุม" subtitle="อ่านสดจากทุกระบบ บันทึกการประชุมแล้วจะเก็บเป็นภาพ ณ วันนั้น"><Agenda /></Card>
+        ) : (
+          <>
+            <Card title="ผู้เข้าประชุม"><p className="px-4 py-3 text-[13px] text-slate-700 dark:text-slate-200">{r.attendees.join(" · ")}</p></Card>
+            <Card title="ข้อมูลเข้า ณ วันประชุม">
+              <Lines>{r.inputs.map((i) => <Line key={i.title} title={i.title} sub={i.facts.map((f) => \`\${f.label}: \${f.value}\`).join(" · ")} />)}</Lines>
+            </Card>
+            <Card title="ข้อสั่งการ">
+              <Lines>
+                {r.outputs.map((o, i) => (
+                  <Line
+                    key={i}
+                    title={o.decision}
+                    sub={\`\${o.kind} · \${o.owner} · กำหนด \${o.due}\`}
+                    right={o.doneOn ? <Badge tone="ok">เสร็จ {o.doneOn}</Badge> : <Button variant="secondary" icon={<CircleCheck size={14} />} onClick={() => run(() => completeReviewOutput(r.no, i), \`บันทึกว่าข้อสั่งการเสร็จแล้ว · \${r.no}\`)}>เสร็จแล้ว</Button>}
+                  />
+                ))}
+              </Lines>
+            </Card>
+          </>
+        )}
+      </Body>
+    </div>
+  );
+}
+`,
+
   "kit.tsx": `import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import type { ReactNode } from "react";
 import { AnimatePresence, motion } from "motion/react";
@@ -28307,292 +32135,34 @@ export function PrintModal({
 `,
 
   "qm/data.ts": `import { commit } from "../kit";
-import { COMPANY, TODAY } from "../company";
-import { GOODS_RECEIPTS, MATERIALS, PURCHASE_ORDERS, VENDORS, postStockMove } from "../mm/data";
+import {
+  COMPANY, PEOPLE, QMR, TODAY, YEAR, addDays, addMonths, assertValid, carOf, contributeReviewInput, isDate, nextNo, rate,
+} from "../ims/data";
+import type { Errors } from "../ims/data";
+import {
+  GOODS_RECEIPTS, INFO_RECORDS, MATERIALS, PURCHASE_ORDERS, VENDORS, blockVendor, gradeOf, latestReview, postStockMove,
+  reviewScore, unblockVendor, vendorScore,
+} from "../mm/data";
 import { ORDERS, PP_MOVEMENTS } from "../pp/data";
-import { CUSTOMERS, DELIVERIES, SALES_ORDERS } from "../sd/data";
+import { CUSTOMERS, DELIVERIES, QUOTATIONS, SALES_ORDERS, isCancelled, salesOrder } from "../sd/data";
 
 export { COMPANY, TODAY };
+export type { Errors };
 
 /**
- * บริหารคุณภาพตาม ISO 9001:2015 — ข้อกำหนดแต่ละข้อเป็นงานที่ทำได้จริงในระบบ
- * ไม่ใช่แฟ้มเอกสารที่ทำแยกไว้ตอนรอผู้ตรวจ
+ * บริหารคุณภาพตาม ISO 9001:2015 — ส่วนที่เป็นงานคุณภาพหน้างาน ส่วนที่ใช้ร่วมกับมาตรฐานอื่น
+ * (เอกสาร ตรวจติดตาม CAR บุคลากร) อยู่ในระบบบริหารบูรณาการ
  *
  * ของที่ตรวจมาจากเอกสารจริงของระบบอื่น: ล็อตตรวจรับมาจากใบรับของของจัดซื้อ
  * ล็อตตรวจก่อนส่งมาจากการรับสินค้าผลิตเสร็จ ข้อร้องเรียนอ้างใบส่งของของฝ่ายขาย
- * และของที่ตัดสินให้ทำลายหรือส่งคืนผู้ขายตัดสต็อกผ่านฟังก์ชันของคลังวัสดุ
- * โมดูลนี้ไม่เขียนข้อมูลของโมดูลอื่นตรง ๆ
+ * ของที่ตัดสินให้ทำลายหรือส่งคืนผู้ขายตัดสต็อกผ่านฟังก์ชันของคลังวัสดุ และผู้ส่งมอบที่ถูก
+ * ระงับจะสั่งซื้อไม่ได้เพราะระงับผ่านระบบจัดซื้อ — โมดูลนี้ไม่เขียนข้อมูลของโมดูลอื่นตรง ๆ
  */
-
-const YEAR = Number(TODAY.slice(0, 4)) + 543;
-
-export type Errors = Record<string, string>;
-
-function assertValid(e: Errors) {
-  const first = Object.values(e)[0];
-  if (first) throw new Error(first);
-}
-
-const isDate = (s: string) => /^\\d{4}-\\d{2}-\\d{2}$/.test(s);
-
-export function addDays(iso: string, n: number) {
-  const [y, m, d] = iso.split("-").map(Number);
-  const t = new Date(y, m - 1, d + n);
-  return \`\${t.getFullYear()}-\${String(t.getMonth() + 1).padStart(2, "0")}-\${String(t.getDate()).padStart(2, "0")}\`;
-}
-
-export function addMonths(iso: string, n: number) {
-  const [y, m, d] = iso.split("-").map(Number);
-  const t = new Date(y, m - 1 + n, d);
-  return \`\${t.getFullYear()}-\${String(t.getMonth() + 1).padStart(2, "0")}-\${String(t.getDate()).padStart(2, "0")}\`;
-}
-
-/** เลขถัดไปของชุดเอกสาร — ต่อจากเลขที่สูงสุดที่มีอยู่ ไม่ใช่จากจำนวนใบ */
-function nextNo(existing: string[], prefix: string, width: number) {
-  const max = existing
-    .filter((n) => n.startsWith(prefix))
-    .map((n) => Number(n.slice(prefix.length)))
-    .filter((n) => Number.isFinite(n))
-    .reduce((a, b) => Math.max(a, b), 0);
-  return prefix + String(max + 1).padStart(width, "0");
-}
 
 export const materialName = (code: string) => MATERIALS.find((m) => m.code === code)?.name ?? code;
 export const materialUnit = (code: string) => MATERIALS.find((m) => m.code === code)?.unit ?? "";
 export const vendorName = (code?: string) => (code ? VENDORS.find((v) => v.code === code)?.name ?? code : "—");
 export const customerName = (code?: string) => (code ? CUSTOMERS.find((c) => c.code === code)?.name ?? code : "—");
-
-/* ================================================================ people */
-
-/** ทีมที่รับผิดชอบระบบคุณภาพ — ผู้ตรวจติดตามต้องไม่ตรวจงานของฝ่ายตัวเอง (ข้อ 9.2.2 ค) */
-export const QM_TEAM = [
-  { name: "นพดล ศรีวงศ์", role: "ผู้จัดการฝ่ายประกันคุณภาพ (QMR)", dept: "ฝ่ายประกันคุณภาพ", auditor: true },
-  { name: "สุภาพร แก้วมณี", role: "หัวหน้าตรวจสอบคุณภาพ (QC)", dept: "ฝ่ายประกันคุณภาพ", auditor: true },
-  { name: "อนุชา ทองดี", role: "หัวหน้าฝ่ายผลิต", dept: "ฝ่ายผลิต", auditor: true },
-  { name: "ปิยะนุช ใจดี", role: "หัวหน้าฝ่ายจัดซื้อ", dept: "ฝ่ายจัดซื้อ", auditor: true },
-  { name: "วรวุฒิ พึ่งบุญ", role: "หัวหน้าคลังสินค้า", dept: "ฝ่ายคลังสินค้า", auditor: false },
-  { name: "ชลธิชา มั่นคง", role: "หัวหน้าฝ่ายขาย", dept: "ฝ่ายขาย", auditor: true },
-];
-
-export const QMR = QM_TEAM[0].name;
-export const DEPARTMENTS = [...new Set(QM_TEAM.map((p) => p.dept))];
-export const PEOPLE = QM_TEAM.map((p) => p.name);
-export const deptOf = (name: string) => QM_TEAM.find((p) => p.name === name)?.dept ?? "";
-
-/** ข้อกำหนดของ ISO 9001:2015 ที่ระบบนี้ครอบคลุม ใช้อ้างในเอกสาร ผลตรวจติดตาม และรายงาน */
-export const CLAUSES = [
-  { code: "4.4", name: "ระบบบริหารคุณภาพและกระบวนการ" },
-  { code: "5.2", name: "นโยบายคุณภาพ" },
-  { code: "6.2", name: "วัตถุประสงค์คุณภาพ" },
-  { code: "7.1.5", name: "ทรัพยากรสำหรับการเฝ้าติดตามและการวัด" },
-  { code: "7.2", name: "ความสามารถ" },
-  { code: "7.5", name: "เอกสารสารสนเทศ" },
-  { code: "8.4", name: "การควบคุมผู้ให้บริการภายนอก" },
-  { code: "8.5", name: "การผลิตและการให้บริการ" },
-  { code: "8.6", name: "การตรวจปล่อยผลิตภัณฑ์" },
-  { code: "8.7", name: "การควบคุมผลลัพธ์ที่ไม่เป็นไปตามข้อกำหนด" },
-  { code: "9.1.2", name: "ความพึงพอใจของลูกค้า" },
-  { code: "9.2", name: "การตรวจติดตามภายใน" },
-  { code: "9.3", name: "การทบทวนโดยฝ่ายบริหาร" },
-  { code: "10.2", name: "สิ่งที่ไม่เป็นไปตามข้อกำหนดและการแก้ไข" },
-];
-
-export const clauseName = (code: string) => CLAUSES.find((c) => c.code === code)?.name ?? "";
-
-/* ============================================================= documents */
-
-export const DOC_TYPES = ["คู่มือคุณภาพ", "ขั้นตอนการปฏิบัติงาน", "วิธีการทำงาน", "แบบฟอร์ม"] as const;
-export type DocType = (typeof DOC_TYPES)[number];
-
-const DOC_PREFIX: Record<DocType, string> = {
-  "คู่มือคุณภาพ": "QM-",
-  "ขั้นตอนการปฏิบัติงาน": "QP-",
-  "วิธีการทำงาน": "WI-",
-  "แบบฟอร์ม": "FM-",
-};
-
-export type DocStatus = "ร่าง" | "รออนุมัติ" | "ใช้งาน" | "ยกเลิก";
-
-export type DocRevision = { rev: number; date: string; change: string; by: string; approvedBy: string };
-
-/** ฉบับที่กำลังเขียนหรือรออนุมัติ — ฉบับที่ใช้อยู่ยังใช้ต่อจนกว่าฉบับนี้จะอนุมัติ */
-export type DocDraft = { rev: number; change: string; by: string; date: string; submitted: boolean };
-
-export type QmDocument = {
-  code: string;
-  title: string;
-  type: DocType;
-  clause: string;
-  owner: string;
-  /** ฉบับที่ใช้อยู่ — -1 คือยังไม่เคยอนุมัติฉบับไหน */
-  rev: number;
-  status: DocStatus;
-  effective?: string;
-  /** ทบทวนความเหมาะสมทุกปี (ข้อ 7.5.2) */
-  reviewDue?: string;
-  draft?: DocDraft;
-  history: DocRevision[];
-  obsoleteReason?: string;
-};
-
-/** ทุกฉบับถูกทบทวนในการประชุมทบทวนโดยฝ่ายบริหารเมื่อ 2026-01-20 ยกเว้นที่ออกฉบับใหม่หลังจากนั้น */
-const MANAGEMENT_REVIEW = "2026-01-20";
-
-const issued = (code: string, title: string, type: DocType, clause: string, owner: string, revs: [string, string][], reviewed = MANAGEMENT_REVIEW): QmDocument => {
-  const history = revs.map(([date, change], i) => ({ rev: i, date, change, by: owner === "ฝ่ายผลิต" ? "อนุชา ทองดี" : "สุภาพร แก้วมณี", approvedBy: QMR }));
-  const last = history[history.length - 1];
-  const since = last.date > reviewed ? last.date : reviewed;
-  return { code, title, type, clause, owner, rev: last.rev, status: "ใช้งาน", effective: last.date, reviewDue: addMonths(since, 12), history };
-};
-
-export const DOCUMENTS: QmDocument[] = [
-  issued("QM-01", "คู่มือคุณภาพ", "คู่มือคุณภาพ", "4.4", "ฝ่ายประกันคุณภาพ", [["2025-01-15", "ออกใช้ครั้งแรก"], ["2025-11-03", "ปรับขอบเขตให้รวมงานพ่นสี"]]),
-  issued("QP-01", "การควบคุมเอกสารและบันทึก", "ขั้นตอนการปฏิบัติงาน", "7.5", "ฝ่ายประกันคุณภาพ", [["2025-01-15", "ออกใช้ครั้งแรก"]]),
-  issued("QP-02", "การตรวจติดตามภายใน", "ขั้นตอนการปฏิบัติงาน", "9.2", "ฝ่ายประกันคุณภาพ", [["2025-01-15", "ออกใช้ครั้งแรก"], ["2026-02-10", "เพิ่มเกณฑ์ความเป็นอิสระของผู้ตรวจ"]]),
-  issued("QP-03", "การควบคุมผลิตภัณฑ์ที่ไม่เป็นไปตามข้อกำหนด", "ขั้นตอนการปฏิบัติงาน", "8.7", "ฝ่ายประกันคุณภาพ", [["2025-01-15", "ออกใช้ครั้งแรก"]]),
-  issued("QP-04", "การแก้ไขและการป้องกัน", "ขั้นตอนการปฏิบัติงาน", "10.2", "ฝ่ายประกันคุณภาพ", [["2025-01-15", "ออกใช้ครั้งแรก"]]),
-  issued("QP-05", "การตรวจรับวัตถุดิบ", "ขั้นตอนการปฏิบัติงาน", "8.4", "ฝ่ายประกันคุณภาพ", [["2025-02-01", "ออกใช้ครั้งแรก"], ["2025-10-07", "เพิ่มแผนสุ่มตัวอย่างตามขนาดล็อต"]], "2025-10-07"),
-  issued("QP-06", "การสอบเทียบเครื่องมือวัด", "ขั้นตอนการปฏิบัติงาน", "7.1.5", "ฝ่ายประกันคุณภาพ", [["2025-02-01", "ออกใช้ครั้งแรก"]]),
-  issued("WI-01", "วิธีการเชื่อมโครงชั้นวาง", "วิธีการทำงาน", "8.5", "ฝ่ายผลิต", [["2025-03-12", "ออกใช้ครั้งแรก"], ["2026-06-20", "เปลี่ยนลวดเชื่อมเป็น ER70S-6"]]),
-  issued("WI-02", "การวัดความหนาเหล็กแผ่นและเหล็กเส้น", "วิธีการทำงาน", "8.6", "ฝ่ายประกันคุณภาพ", [["2025-03-12", "ออกใช้ครั้งแรก"]]),
-  // แบบฟอร์มที่ระบบพิมพ์ออกมา — เลขที่มุมกระดาษอ่านฉบับจากบัญชีนี้ แก้ฟอร์มแล้วใบที่พิมพ์เปลี่ยนตาม
-  issued("FM-01", "บัญชีรายชื่อเอกสารควบคุม", "แบบฟอร์ม", "7.5", "ฝ่ายประกันคุณภาพ", [["2025-01-15", "ออกใช้ครั้งแรก"]]),
-  issued("FM-02", "ใบรายงานผลการตรวจสอบ", "แบบฟอร์ม", "8.6", "ฝ่ายประกันคุณภาพ", [["2025-02-01", "ออกใช้ครั้งแรก"], ["2025-10-07", "เพิ่มช่องจำนวนตัวอย่างตามขนาดล็อต"]], "2025-10-07"),
-  issued("FM-03", "ใบรับรองคุณภาพสินค้า", "แบบฟอร์ม", "8.6", "ฝ่ายประกันคุณภาพ", [["2025-02-01", "ออกใช้ครั้งแรก"]], "2025-10-07"),
-  issued("FM-04", "ใบรายงานสิ่งที่ไม่เป็นไปตามข้อกำหนด", "แบบฟอร์ม", "8.7", "ฝ่ายประกันคุณภาพ", [["2025-01-15", "ออกใช้ครั้งแรก"]]),
-  issued("FM-05", "ใบขอให้ดำเนินการแก้ไขและป้องกัน", "แบบฟอร์ม", "10.2", "ฝ่ายประกันคุณภาพ", [["2025-01-15", "ออกใช้ครั้งแรก"]]),
-  issued("FM-06", "รายงานการตรวจติดตามภายใน", "แบบฟอร์ม", "9.2", "ฝ่ายประกันคุณภาพ", [["2025-01-15", "ออกใช้ครั้งแรก"], ["2026-02-10", "เพิ่มช่องระดับของสิ่งที่พบ"]]),
-  issued("FM-07", "บันทึกประวัติการสอบเทียบเครื่องมือวัด", "แบบฟอร์ม", "7.1.5", "ฝ่ายประกันคุณภาพ", [["2025-02-01", "ออกใช้ครั้งแรก"]]),
-  {
-    code: "WI-03", title: "วิธีการพ่นสีฝุ่นและอบ", type: "วิธีการทำงาน", clause: "8.5", owner: "ฝ่ายผลิต",
-    rev: -1, status: "รออนุมัติ", history: [],
-    draft: { rev: 0, change: "ออกใช้ครั้งแรก — กำหนดอุณหภูมิอบ 200°C 15 นาที", by: "อนุชา ทองดี", date: "2026-09-18", submitted: true },
-  },
-];
-
-export const docByCode = (code: string) => {
-  const d = DOCUMENTS.find((x) => x.code === code);
-  if (!d) throw new Error(\`ไม่พบเอกสาร \${code}\`);
-  return d;
-};
-
-/** เอกสารที่ถึงรอบทบทวนภายใน 30 วัน หรือเลยรอบมาแล้ว */
-export const reviewDue = () =>
-  DOCUMENTS.filter((d) => d.status === "ใช้งาน" && d.reviewDue && d.reviewDue <= addDays(TODAY, 30));
-
-export const awaitingApproval = () => DOCUMENTS.filter((d) => d.draft?.submitted);
-
-export type DocInput = { type: DocType; title: string; clause: string; owner: string; by: string; change: string };
-
-export function docErrors(input: DocInput): Errors {
-  const e: Errors = {};
-  if (input.title.trim().length < 4) e.title = "ใส่ชื่อเอกสาร";
-  else if (DOCUMENTS.some((d) => d.status !== "ยกเลิก" && d.title === input.title.trim())) e.title = "มีเอกสารชื่อนี้ใช้อยู่แล้ว";
-  if (!CLAUSES.some((c) => c.code === input.clause)) e.clause = "เลือกข้อกำหนดที่เอกสารนี้รองรับ";
-  if (!DEPARTMENTS.includes(input.owner)) e.owner = "เลือกฝ่ายเจ้าของเอกสาร";
-  if (!PEOPLE.includes(input.by)) e.by = "เลือกผู้จัดทำ";
-  return e;
-}
-
-export const nextDocCode = (type: DocType) => {
-  const prefix = DOC_PREFIX[type];
-  const nums = DOCUMENTS.filter((d) => d.code.startsWith(prefix)).map((d) => Number(d.code.slice(prefix.length)));
-  return \`\${prefix}\${String(Math.max(0, ...nums) + 1).padStart(2, "0")}\`;
-};
-
-export function createDocument(input: DocInput): QmDocument {
-  assertValid(docErrors(input));
-  return commit(() => {
-    const d: QmDocument = {
-      code: nextDocCode(input.type),
-      title: input.title.trim(),
-      type: input.type,
-      clause: input.clause,
-      owner: input.owner,
-      rev: -1,
-      status: "ร่าง",
-      history: [],
-      draft: { rev: 0, change: input.change.trim() || "ออกใช้ครั้งแรก", by: input.by, date: TODAY, submitted: false },
-    };
-    DOCUMENTS.push(d);
-    return d;
-  });
-}
-
-export function submitDocument(code: string) {
-  const d = docByCode(code);
-  if (!d.draft || d.draft.submitted) throw new Error(\`\${code} ไม่มีฉบับร่างที่รอส่ง\`);
-  return commit(() => {
-    d.draft!.submitted = true;
-    if (d.rev < 0) d.status = "รออนุมัติ";
-    return d;
-  });
-}
-
-/** อนุมัติก่อนออกใช้ (ข้อ 7.5.2) — ผู้อนุมัติต้องไม่ใช่คนเขียน */
-export function approveDocument(code: string, approver: string, date = TODAY) {
-  const d = docByCode(code);
-  if (!d.draft?.submitted) throw new Error(\`\${code} ไม่มีฉบับที่รออนุมัติ\`);
-  if (approver === d.draft.by) throw new Error("ผู้อนุมัติต้องไม่ใช่ผู้จัดทำเอกสาร");
-  if (!PEOPLE.includes(approver)) throw new Error("เลือกผู้อนุมัติ");
-  const draft = d.draft;
-  return commit(() => {
-    d.history.push({ rev: draft.rev, date, change: draft.change, by: draft.by, approvedBy: approver });
-    d.rev = draft.rev;
-    d.status = "ใช้งาน";
-    d.effective = date;
-    d.reviewDue = addMonths(date, 12);
-    d.draft = undefined;
-    return d;
-  });
-}
-
-/** ส่งฉบับกลับไปแก้ — ฉบับที่ใช้อยู่ไม่เปลี่ยน */
-export function returnDocument(code: string) {
-  const d = docByCode(code);
-  if (!d.draft?.submitted) throw new Error(\`\${code} ไม่มีฉบับที่รออนุมัติ\`);
-  return commit(() => {
-    d.draft!.submitted = false;
-    if (d.rev < 0) d.status = "ร่าง";
-    return d;
-  });
-}
-
-export function reviseDocument(code: string, change: string, by: string) {
-  const d = docByCode(code);
-  if (d.status !== "ใช้งาน") throw new Error(\`\${code} \${d.status} แก้ไขฉบับใหม่ไม่ได้\`);
-  if (d.draft) throw new Error(\`\${code} มีฉบับแก้ไข Rev.\${String(d.draft.rev).padStart(2, "0")} ค้างอยู่แล้ว\`);
-  if (change.trim().length < 5) throw new Error("บอกว่าแก้อะไร อย่างน้อยหนึ่งประโยค");
-  if (!PEOPLE.includes(by)) throw new Error("เลือกผู้จัดทำ");
-  return commit(() => {
-    d.draft = { rev: d.rev + 1, change: change.trim(), by, date: TODAY, submitted: false };
-    return d;
-  });
-}
-
-/** ทบทวนแล้วยังเหมาะสม — ต่อรอบทบทวนอีกหนึ่งปี ไม่ออกฉบับใหม่ */
-export function confirmReview(code: string, date = TODAY) {
-  const d = docByCode(code);
-  if (d.status !== "ใช้งาน") throw new Error(\`\${code} ไม่ได้ใช้งานอยู่\`);
-  return commit(() => {
-    d.reviewDue = addMonths(date, 12);
-    return d;
-  });
-}
-
-export function obsoleteDocument(code: string, reason: string) {
-  const d = docByCode(code);
-  if (d.status === "ยกเลิก") throw new Error(\`\${code} ยกเลิกไปแล้ว\`);
-  if (reason.trim().length < 5) throw new Error("ใส่เหตุผลที่ยกเลิก");
-  return commit(() => {
-    d.status = "ยกเลิก";
-    d.obsoleteReason = reason.trim();
-    d.draft = undefined;
-    return d;
-  });
-}
-
-export const revLabel = (rev: number) => (rev < 0 ? "—" : \`Rev.\${String(rev).padStart(2, "0")}\`);
 
 /* ============================================================ inspection */
 
@@ -28790,9 +32360,7 @@ export function resultErrors(no: string, results: ResultInput[]): Errors {
 export function judge(material: string, results: ResultInput[]): Result[] {
   return planOf(material).map((c) => {
     const r = results.find((x) => x.characteristic === c.name) ?? { characteristic: c.name };
-    return c.kind === "วัดค่า"
-      ? measured(c.name, r.min ?? NaN, r.max ?? NaN, c)
-      : visual(c.name, r.defects ?? 0);
+    return c.kind === "วัดค่า" ? measured(c.name, r.min ?? NaN, r.max ?? NaN, c) : visual(c.name, r.defects ?? 0);
   });
 }
 
@@ -28876,7 +32444,6 @@ export type Ncr = {
   dispositionNote?: string;
   /** เลขที่เอกสารเคลื่อนไหวสต็อกของคลังวัสดุ เมื่อสั่งทำลายหรือส่งคืน */
   stockDoc?: string;
-  capa?: string;
   closedOn?: string;
   closedBy?: string;
 };
@@ -28891,7 +32458,7 @@ export const NCRS: Ncr[] = [
   {
     no: "NCR-2569-013", date: "2026-09-10", source: "ข้อร้องเรียนลูกค้า", ref: "DO-2569-0299", material: "FG-5001", qty: 2, customer: "C-102",
     description: "ลูกค้าแจ้งชั้นวาง 2 ชุดสีถลอกที่มุม เกิดระหว่างขนส่ง", severity: "เล็กน้อย", reportedBy: "ชลธิชา มั่นคง",
-    status: "ดำเนินการ", disposition: "ซ่อมหรือทำใหม่", dispositionBy: QMR, dispositionNote: "ส่งช่างเข้าไปพ่นซ่อมที่หน้างานลูกค้า 26/09", capa: "CAR-2569-008",
+    status: "ดำเนินการ", disposition: "ซ่อมหรือทำใหม่", dispositionBy: QMR, dispositionNote: "ส่งช่างเข้าไปพ่นซ่อมที่หน้างานลูกค้า 26/09",
   },
   {
     no: "NCR-2569-014", date: "2026-09-19", source: "ตรวจรับ", ref: "IL-2569-0043", material: "MAT-1002", qty: 60, vendor: "V-002",
@@ -28906,6 +32473,9 @@ export const ncrByNo = (no: string) => {
   return n;
 };
 
+/** CAR ของ NCR ใบนี้ — หาจากเลขต้นเรื่องของ CAR ในระบบบริหารบูรณาการ ไม่เก็บซ้ำสองที่ */
+export const carOfNcr = (n: Ncr) => carOf(n.no);
+
 export const nextNcrNo = () => nextNo(NCRS.map((n) => n.no), \`NCR-\${YEAR}-\`, 3);
 
 function pushNcr(input: Omit<Ncr, "no" | "status">): Ncr {
@@ -28915,6 +32485,9 @@ function pushNcr(input: Omit<Ncr, "no" | "status">): Ncr {
 }
 
 export type NcrInput = { source: NcrSource; ref: string; material: string; qty: number; description: string; severity: Severity; reportedBy: string };
+
+/** NCR ระหว่างผลิตอ้างใบสั่งผลิตของระบบวางแผนการผลิต — เลขที่พิมพ์ต้องมีอยู่จริง */
+export const productionOrderExists = (no: string) => ORDERS.some((o) => o.no === no);
 
 export function ncrErrors(input: NcrInput): Errors {
   const e: Errors = {};
@@ -29019,7 +32592,7 @@ export function closeNcrErrors(no: string): Errors {
   const e: Errors = {};
   if (n.status === "ปิดแล้ว") e.close = \`\${no} ปิดไปแล้ว\`;
   else if (!n.disposition) e.close = "สั่งการก่อนปิด";
-  else if (n.severity === "รุนแรง" && !n.capa) e.close = "NCR รุนแรงต้องเปิดใบขอให้แก้ไข (CAR) หาสาเหตุก่อนปิด";
+  else if (n.severity === "รุนแรง" && !carOfNcr(n)) e.close = "NCR รุนแรงต้องเปิดใบขอให้แก้ไข (CAR) หาสาเหตุก่อนปิด";
   return e;
 }
 
@@ -29032,253 +32605,6 @@ export function closeNcr(no: string, by: string, date = TODAY) {
     n.closedOn = date;
     n.closedBy = by;
     return n;
-  });
-}
-
-/* ================================================================== capa */
-
-export const CAUSE_CATEGORIES = ["คน", "เครื่องจักร", "วัสดุ", "วิธีการ", "การวัด", "สภาพแวดล้อม"] as const;
-export type CauseCategory = (typeof CAUSE_CATEGORIES)[number];
-
-export type CapaAction = { what: string; owner: string; due: string; doneOn?: string };
-
-export type Capa = {
-  no: string;
-  date: string;
-  kind: "แก้ไข" | "ป้องกัน";
-  /** NCR หรือผลตรวจติดตามที่เป็นต้นเรื่อง */
-  ref: string;
-  problem: string;
-  owner: string;
-  rootCause?: { category: CauseCategory; whys: string[] };
-  actions: CapaAction[];
-  status: "วิเคราะห์สาเหตุ" | "ดำเนินการ" | "ติดตามผล" | "ปิดแล้ว";
-  verification?: { date: string; effective: boolean; note: string; by: string };
-};
-
-export const CAPAS: Capa[] = [
-  {
-    no: "CAR-2569-007", date: "2026-07-30", kind: "แก้ไข", ref: "IA-2569-02 #1", owner: "ปิยะนุช ใจดี",
-    problem: "ไม่มีหลักฐานการประเมินผู้ขายรายใหม่ก่อนออกใบสั่งซื้อครั้งแรก",
-    rootCause: { category: "วิธีการ", whys: ["ออกใบสั่งซื้อให้ผู้ขายใหม่ก่อนประเมิน", "ขั้นตอนไม่ได้กำหนดว่าต้องประเมินก่อนสั่งครั้งแรก", "QP-05 เขียนเฉพาะการตรวจรับ ไม่ครอบคลุมการคัดเลือกผู้ขาย"] },
-    actions: [
-      { what: "เพิ่มขั้นตอนประเมินผู้ขายใหม่ใน QP-05", owner: "ปิยะนุช ใจดี", due: "2026-08-15", doneOn: "2026-08-12" },
-      { what: "ประเมินผู้ขายที่ใช้อยู่ย้อนหลังให้ครบ", owner: "ปิยะนุช ใจดี", due: "2026-08-31", doneOn: "2026-08-29" },
-    ],
-    status: "ปิดแล้ว",
-    verification: { date: "2026-09-15", effective: true, note: "สุ่มใบสั่งซื้อผู้ขายใหม่ 3 ใบ มีผลประเมินก่อนสั่งครบ", by: QMR },
-  },
-  {
-    no: "CAR-2569-008", date: "2026-09-11", kind: "แก้ไข", ref: "NCR-2569-013", owner: "วรวุฒิ พึ่งบุญ",
-    problem: "สินค้าสีถลอกระหว่างขนส่งถึงลูกค้า",
-    rootCause: { category: "วิธีการ", whys: ["มุมชั้นวางเสียดสีกันในรถ", "บรรจุโดยไม่มีมุมกันกระแทก", "ไม่มีวิธีการทำงานเรื่องการบรรจุสินค้าสำเร็จรูป"] },
-    actions: [
-      { what: "จัดทำ WI การบรรจุสินค้าสำเร็จรูปพร้อมมุมกันกระแทก", owner: "วรวุฒิ พึ่งบุญ", due: "2026-09-20" },
-      { what: "อบรมพนักงานคลังเรื่องการบรรจุ", owner: "วรวุฒิ พึ่งบุญ", due: "2026-09-30" },
-    ],
-    status: "ดำเนินการ",
-  },
-];
-
-export const capaByNo = (no: string) => {
-  const c = CAPAS.find((x) => x.no === no);
-  if (!c) throw new Error(\`ไม่พบ \${no}\`);
-  return c;
-};
-
-export const nextCapaNo = () => nextNo(CAPAS.map((c) => c.no), \`CAR-\${YEAR}-\`, 3);
-export const overdueActions = (c: Capa) => c.actions.filter((a) => !a.doneOn && a.due < TODAY);
-export const openCapas = () => CAPAS.filter((c) => c.status !== "ปิดแล้ว");
-
-export type CapaInput = { kind: Capa["kind"]; ref: string; problem: string; owner: string };
-
-export function capaErrors(input: CapaInput): Errors {
-  const e: Errors = {};
-  if (input.ref.trim().length < 3) e.ref = "ใส่ต้นเรื่อง เช่น เลข NCR หรือผลตรวจติดตาม";
-  if (input.problem.trim().length < 10) e.problem = "บอกปัญหาที่ต้องแก้";
-  if (!PEOPLE.includes(input.owner)) e.owner = "เลือกผู้รับผิดชอบ";
-  return e;
-}
-
-/** เปิด CAR — ถ้าต้นเรื่องเป็น NCR หรือผลตรวจติดตาม จะผูกกลับไปที่ต้นเรื่องด้วย */
-export function openCapa(input: CapaInput): Capa {
-  assertValid(capaErrors(input));
-  return commit(() => {
-    const c: Capa = { no: nextCapaNo(), date: TODAY, kind: input.kind, ref: input.ref.trim(), problem: input.problem.trim(), owner: input.owner, actions: [], status: "วิเคราะห์สาเหตุ" };
-    CAPAS.push(c);
-    const ncr = NCRS.find((n) => n.no === c.ref);
-    if (ncr) ncr.capa = c.no;
-    for (const a of AUDITS) for (const f of a.findings) if (\`\${a.no} #\${f.id}\` === c.ref) f.capa = c.no;
-    return c;
-  });
-}
-
-/** หาสาเหตุราก (ข้อ 10.2.1 ข) — ถามทำไมอย่างน้อยสามชั้นก่อนสรุป */
-export function rootCauseErrors(input: { category: CauseCategory; whys: string[] }): Errors {
-  const e: Errors = {};
-  if (!CAUSE_CATEGORIES.includes(input.category)) e.category = "เลือกกลุ่มสาเหตุ";
-  if (input.whys.filter((w) => w.trim().length >= 5).length < 3) e.whys = "ถามทำไมให้ได้อย่างน้อยสามชั้น";
-  return e;
-}
-
-export function recordRootCause(no: string, input: { category: CauseCategory; whys: string[] }) {
-  const c = capaByNo(no);
-  if (c.status === "ปิดแล้ว") throw new Error(\`\${no} ปิดไปแล้ว\`);
-  assertValid(rootCauseErrors(input));
-  return commit(() => {
-    c.rootCause = { category: input.category, whys: input.whys.map((w) => w.trim()).filter(Boolean) };
-    if (c.status === "วิเคราะห์สาเหตุ" && c.actions.length > 0) c.status = "ดำเนินการ";
-    return c;
-  });
-}
-
-export function actionErrors(input: CapaAction): Errors {
-  const e: Errors = {};
-  if (input.what.trim().length < 5) e.what = "บอกสิ่งที่ต้องทำ";
-  if (!PEOPLE.includes(input.owner)) e.owner = "เลือกผู้รับผิดชอบ";
-  if (!isDate(input.due)) e.due = "ใส่กำหนดเสร็จ";
-  else if (input.due < TODAY) e.due = "กำหนดเสร็จต้องไม่ย้อนหลัง";
-  return e;
-}
-
-export function addCapaAction(no: string, input: CapaAction) {
-  const c = capaByNo(no);
-  if (c.status === "ปิดแล้ว" || c.status === "ติดตามผล") throw new Error(\`\${no} \${c.status} เพิ่มมาตรการไม่ได้\`);
-  assertValid(actionErrors(input));
-  return commit(() => {
-    c.actions.push({ what: input.what.trim(), owner: input.owner, due: input.due });
-    if (c.status === "วิเคราะห์สาเหตุ" && c.rootCause) c.status = "ดำเนินการ";
-    return c;
-  });
-}
-
-export function completeCapaAction(no: string, index: number, date = TODAY) {
-  const c = capaByNo(no);
-  const a = c.actions[index];
-  if (!a) throw new Error("ไม่พบมาตรการนี้");
-  if (a.doneOn) throw new Error("มาตรการนี้ทำเสร็จแล้ว");
-  if (!c.rootCause) throw new Error("บันทึกสาเหตุรากก่อน");
-  return commit(() => {
-    a.doneOn = date;
-    if (c.actions.every((x) => x.doneOn)) c.status = "ติดตามผล";
-    return c;
-  });
-}
-
-/** ติดตามประสิทธิผล (ข้อ 10.2.1 ง) — ไม่ได้ผลคือกลับไปหาสาเหตุใหม่ ไม่ใช่ปิดทิ้ง */
-export function verifyCapa(no: string, input: { effective: boolean; note: string; by: string }, date = TODAY) {
-  const c = capaByNo(no);
-  if (c.status !== "ติดตามผล") throw new Error("ทำมาตรการให้ครบก่อนติดตามผล");
-  if (input.note.trim().length < 10) throw new Error("บอกหลักฐานที่ใช้ตัดสินว่าได้ผลหรือไม่");
-  if (!PEOPLE.includes(input.by)) throw new Error("เลือกผู้ติดตามผล");
-  if (input.by === c.owner) throw new Error("ผู้ติดตามผลต้องไม่ใช่ผู้รับผิดชอบ CAR");
-  return commit(() => {
-    c.verification = { date, effective: input.effective, note: input.note.trim(), by: input.by };
-    c.status = input.effective ? "ปิดแล้ว" : "วิเคราะห์สาเหตุ";
-    return c;
-  });
-}
-
-/* ================================================================= audit */
-
-export const FINDING_TYPES = ["ข้อบกพร่องหลัก", "ข้อบกพร่องย่อย", "ข้อสังเกต"] as const;
-export type FindingType = (typeof FINDING_TYPES)[number];
-export type Finding = { id: number; clause: string; type: FindingType; detail: string; capa?: string };
-
-export type Audit = {
-  no: string;
-  /** ฝ่ายที่ถูกตรวจ */
-  area: string;
-  clauses: string[];
-  auditor: string;
-  planned: string;
-  status: "ตามแผน" | "กำลังตรวจ" | "ปิดแล้ว";
-  findings: Finding[];
-  performedOn?: string;
-  closedOn?: string;
-};
-
-export const AUDITS: Audit[] = [
-  { no: "IA-2569-01", area: "ฝ่ายผลิต", clauses: ["8.5", "7.1.5"], auditor: "ปิยะนุช ใจดี", planned: "2026-03-18", status: "ปิดแล้ว", performedOn: "2026-03-18", closedOn: "2026-04-02", findings: [{ id: 1, clause: "8.5", type: "ข้อสังเกต", detail: "ป้ายชี้บ่งสถานะงานระหว่างผลิตบางจุดซีดจางอ่านยาก" }] },
-  { no: "IA-2569-02", area: "ฝ่ายจัดซื้อ", clauses: ["8.4"], auditor: "อนุชา ทองดี", planned: "2026-07-24", status: "ปิดแล้ว", performedOn: "2026-07-24", closedOn: "2026-09-15", findings: [{ id: 1, clause: "8.4", type: "ข้อบกพร่องย่อย", detail: "ไม่มีหลักฐานการประเมินผู้ขายรายใหม่ก่อนสั่งซื้อครั้งแรก", capa: "CAR-2569-007" }] },
-  { no: "IA-2569-03", area: "ฝ่ายคลังสินค้า", clauses: ["8.5", "7.5"], auditor: "สุภาพร แก้วมณี", planned: "2026-10-08", status: "ตามแผน", findings: [] },
-  { no: "IA-2569-04", area: "ฝ่ายประกันคุณภาพ", clauses: ["7.5", "9.1.2", "10.2"], auditor: "ชลธิชา มั่นคง", planned: "2026-11-12", status: "ตามแผน", findings: [] },
-];
-
-export const auditByNo = (no: string) => {
-  const a = AUDITS.find((x) => x.no === no);
-  if (!a) throw new Error(\`ไม่พบ \${no}\`);
-  return a;
-};
-
-export const nextAuditNo = () => nextNo(AUDITS.map((a) => a.no), \`IA-\${YEAR}-\`, 2);
-
-export type AuditInput = { area: string; clauses: string[]; auditor: string; planned: string };
-
-/** ผู้ตรวจต้องไม่ตรวจงานของตัวเอง (ข้อ 9.2.2 ค) — ระบบตรวจให้ ไม่ต้องจำ */
-export function auditErrors(input: AuditInput): Errors {
-  const e: Errors = {};
-  if (!DEPARTMENTS.includes(input.area)) e.area = "เลือกฝ่ายที่จะตรวจ";
-  if (input.clauses.length === 0) e.clauses = "เลือกข้อกำหนดที่จะตรวจอย่างน้อยหนึ่งข้อ";
-  const who = QM_TEAM.find((p) => p.name === input.auditor);
-  if (!who) e.auditor = "เลือกผู้ตรวจ";
-  else if (!who.auditor) e.auditor = \`\${who.name} ยังไม่ผ่านการอบรมผู้ตรวจติดตามภายใน\`;
-  else if (who.dept === input.area) e.auditor = "ผู้ตรวจต้องไม่ตรวจฝ่ายของตัวเอง";
-  if (!isDate(input.planned)) e.planned = "ใส่วันที่ตรวจ";
-  else if (input.planned < TODAY) e.planned = "วันที่ตรวจต้องไม่ย้อนหลัง";
-  return e;
-}
-
-export function planAudit(input: AuditInput): Audit {
-  assertValid(auditErrors(input));
-  return commit(() => {
-    const a: Audit = { no: nextAuditNo(), area: input.area, clauses: [...input.clauses], auditor: input.auditor, planned: input.planned, status: "ตามแผน", findings: [] };
-    AUDITS.push(a);
-    return a;
-  });
-}
-
-export function startAudit(no: string, date = TODAY) {
-  const a = auditByNo(no);
-  if (a.status !== "ตามแผน") throw new Error(\`\${no} \${a.status}\`);
-  return commit(() => {
-    a.status = "กำลังตรวจ";
-    a.performedOn = date;
-    return a;
-  });
-}
-
-export function findingErrors(no: string, input: { clause: string; type: FindingType; detail: string }): Errors {
-  const a = auditByNo(no);
-  const e: Errors = {};
-  if (a.status !== "กำลังตรวจ") e.detail = "เริ่มการตรวจก่อนบันทึกสิ่งที่พบ";
-  if (!CLAUSES.some((c) => c.code === input.clause)) e.clause = "เลือกข้อกำหนด";
-  if (input.detail.trim().length < 10) e.detail = "เขียนสิ่งที่พบพร้อมหลักฐาน";
-  return e;
-}
-
-export function addFinding(no: string, input: { clause: string; type: FindingType; detail: string }) {
-  assertValid(findingErrors(no, input));
-  const a = auditByNo(no);
-  return commit(() => {
-    const f: Finding = { id: a.findings.length + 1, clause: input.clause, type: input.type, detail: input.detail.trim() };
-    a.findings.push(f);
-    return f;
-  });
-}
-
-/** ข้อบกพร่องต้องมี CAR ก่อนปิดการตรวจ ข้อสังเกตไม่ต้อง */
-export const findingsWithoutCapa = (a: Audit) => a.findings.filter((f) => f.type !== "ข้อสังเกต" && !f.capa);
-
-export function closeAudit(no: string, date = TODAY) {
-  const a = auditByNo(no);
-  if (a.status !== "กำลังตรวจ") throw new Error(\`\${no} \${a.status} ปิดไม่ได้\`);
-  const open = findingsWithoutCapa(a);
-  if (open.length > 0) throw new Error(\`เปิด CAR ให้ข้อบกพร่องอีก \${open.length} ข้อก่อนปิดการตรวจ\`);
-  return commit(() => {
-    a.status = "ปิดแล้ว";
-    a.closedOn = date;
-    return a;
   });
 }
 
@@ -29388,174 +32714,453 @@ export function recordCalibration(code: string, input: CalInput) {
   });
 }
 
-/* ============================================================ objectives */
+/* ================================================ customer requirements */
 
-const rate = (hit: number, of: number) => (of === 0 ? 100 : Math.round((hit / of) * 1000) / 10);
+export const REVIEW_CHECKS = [
+  { key: "spec", label: "ข้อกำหนดสินค้าชัดเจนและทำได้ตามแบบ" },
+  { key: "capacity", label: "กำลังการผลิตและวัตถุดิบเพียงพอ" },
+  { key: "delivery", label: "ส่งทันวันที่ลูกค้าต้องการ" },
+  { key: "legal", label: "เป็นไปตามกฎหมายและมาตรฐานที่เกี่ยวข้อง" },
+] as const;
+export type CheckKey = (typeof REVIEW_CHECKS)[number]["key"];
+
+export type RequirementReview = {
+  /** ใบเสนอราคาหรือใบสั่งขายที่ทบทวน */
+  doc: string;
+  date: string;
+  by: string;
+  checks: Record<CheckKey, boolean>;
+  special: string;
+  result: "รับได้" | "รับได้แบบมีเงื่อนไข" | "รับไม่ได้";
+  note: string;
+};
+
+const allYes: Record<CheckKey, boolean> = { spec: true, capacity: true, delivery: true, legal: true };
+
+export const REQUIREMENT_REVIEWS: RequirementReview[] = [
+  { doc: "SO-2569-0412", date: "2026-09-14", by: "ชลธิชา มั่นคง", checks: allYes, special: "", result: "รับได้", note: "" },
+  { doc: "SO-2569-0413", date: "2026-09-17", by: "ชลธิชา มั่นคง", checks: allYes, special: "ส่งพร้อมใบรับรองคุณภาพ", result: "รับได้", note: "" },
+  { doc: "QT-2569-0231", date: "2026-09-16", by: "ชลธิชา มั่นคง", checks: { ...allYes, delivery: false }, special: "", result: "รับได้แบบมีเงื่อนไข", note: "ลูกค้าขอรับใน 5 วัน ทำได้ 10 วัน ลูกค้ายอมรับทางอีเมล" },
+  { doc: "SO-2569-0414", date: "2026-09-19", by: "ชลธิชา มั่นคง", checks: allYes, special: "", result: "รับได้", note: "ทบทวนแล้วตอนเสนอราคา QT-2569-0231" },
+];
+
+/** ข้อตกลงกับลูกค้าที่ต้องทบทวนก่อนผูกพัน (ข้อ 8.2.3) — ใบเสนอราคาที่ยังรอลูกค้าและใบสั่งขายที่ยังไม่ยกเลิก */
+export function commitments() {
+  const quotes = QUOTATIONS.filter((q) => q.status !== "ยกเลิก").map((q) => ({ doc: q.no, kind: "ใบเสนอราคา" as const, customer: q.customer, date: q.date, lines: q.lines, shipBy: undefined as string | undefined }));
+  const orders = SALES_ORDERS.filter((so) => !isCancelled(so)).map((so) => ({ doc: so.no, kind: "ใบสั่งขาย" as const, customer: so.customer, date: so.date, lines: so.lines, shipBy: so.shipBy }));
+  return [...quotes, ...orders].sort((a, b) => b.date.localeCompare(a.date));
+}
+
+export const reviewOf = (doc: string) => REQUIREMENT_REVIEWS.find((r) => r.doc === doc);
+export const unreviewed = () => commitments().filter((c) => !reviewOf(c.doc));
+
+/** ใบสั่งขายที่ยืนยันกับลูกค้าไปก่อนทบทวน — ผู้ตรวจประเมินจะถามทุกใบ */
+export const confirmedBeforeReview = () =>
+  unreviewed().filter((c) => c.kind === "ใบสั่งขาย" && salesOrder(c.doc).status === "ยืนยันแล้ว");
+
+/** สต็อกที่พร้อมส่งต่อรายการ — ข้อมูลช่วยตัดสินเรื่องกำลังการผลิต */
+export const stockCover = (lines: { material: string; qty: number }[]) =>
+  lines.map((l) => ({ material: l.material, qty: l.qty, stock: MATERIALS.find((m) => m.code === l.material)?.stock ?? 0 }));
+
+export type RequirementInput = Omit<RequirementReview, "date">;
+
+export function requirementErrors(input: RequirementInput): Errors {
+  const e: Errors = {};
+  if (!commitments().some((c) => c.doc === input.doc)) e.doc = "เลือกใบเสนอราคาหรือใบสั่งขาย";
+  else if (reviewOf(input.doc)) e.doc = \`\${input.doc} ทบทวนแล้ว\`;
+  if (!PEOPLE.includes(input.by)) e.by = "เลือกผู้ทบทวน";
+  const failed = REVIEW_CHECKS.filter((c) => !input.checks[c.key]);
+  if (input.result === "รับได้" && failed.length > 0) e.result = \`ยังมีข้อที่ไม่ผ่าน (\${failed.map((c) => c.label).join(", ")}) — รับได้แบบมีเงื่อนไขหรือรับไม่ได้\`;
+  if (input.result !== "รับได้" && input.note.trim().length < 10) e.note = "บอกเงื่อนไขหรือเหตุผล และลูกค้ารับทราบอย่างไร";
+  return e;
+}
+
+export function reviewRequirement(input: RequirementInput, date = TODAY) {
+  assertValid(requirementErrors(input));
+  return commit(() => {
+    const r: RequirementReview = { ...input, date, special: input.special.trim(), note: input.note.trim(), checks: { ...input.checks } };
+    REQUIREMENT_REVIEWS.push(r);
+    return r;
+  });
+}
+
+/* ================================================== design and development */
+
+export const DESIGN_STAGES = ["ข้อมูลเข้า", "ผลการออกแบบ", "ทบทวนการออกแบบ", "ทวนสอบ", "รับรองความใช้ได้", "ส่งมอบสู่การผลิต"] as const;
+export type DesignStage = (typeof DESIGN_STAGES)[number];
+
+export type StageRecord = { stage: DesignStage; date: string; by: string; evidence: string; participants?: string[] };
+export type DesignChange = { date: string; change: string; reason: string; approvedBy: string; reverified: boolean };
+
+export type DesignProject = {
+  no: string;
+  product: string;
+  customer?: string;
+  owner: string;
+  started: string;
+  target: string;
+  records: StageRecord[];
+  changes: DesignChange[];
+};
+
+export const DESIGNS: DesignProject[] = [
+  {
+    no: "DP-2569-01", product: "ชั้นวางเหล็กรับน้ำหนักสูง 5 ชั้น (HD-500)", owner: "ศักดิ์ชัย วงศ์ไทย", started: "2026-03-02", target: "2026-08-31",
+    records: [
+      { stage: "ข้อมูลเข้า", date: "2026-03-05", by: "ศักดิ์ชัย วงศ์ไทย", evidence: "รับน้ำหนัก 250 กก./ชั้น สูง 2,000 มม. ถอดประกอบได้ ตาม มอก. 1167 และคำขอของลูกค้าคลังสินค้า 3 ราย" },
+      { stage: "ผลการออกแบบ", date: "2026-04-10", by: "ศักดิ์ชัย วงศ์ไทย", evidence: "แบบ HD-500 Rev.A รายการวัสดุ และข้อกำหนดการเชื่อม" },
+      { stage: "ทบทวนการออกแบบ", date: "2026-04-18", by: "ศักดิ์ชัย วงศ์ไทย", evidence: "ปรับเสาเป็น 2.0 มม. ตามข้อเสนอฝ่ายผลิต ลดรอยเชื่อม 4 จุด", participants: ["ศักดิ์ชัย วงศ์ไทย", "อนุชา ทองดี", "สุภาพร แก้วมณี"] },
+      { stage: "ทวนสอบ", date: "2026-06-02", by: "สุภาพร แก้วมณี", evidence: "ทดสอบรับน้ำหนัก 375 กก./ชั้น (1.5 เท่า) 24 ชั่วโมง ไม่เสียรูปถาวร รายงาน TR-26-014" },
+      { stage: "รับรองความใช้ได้", date: "2026-07-20", by: "ชลธิชา มั่นคง", evidence: "ลูกค้า C-101 ทดลองใช้ 20 ชุดในคลังจริง 6 สัปดาห์ ไม่มีข้อร้องเรียน" },
+      { stage: "ส่งมอบสู่การผลิต", date: "2026-08-15", by: "ศักดิ์ชัย วงศ์ไทย", evidence: "ส่งแบบ รายการวัสดุ และ WI การเชื่อมให้ฝ่ายผลิต" },
+    ],
+    changes: [{ date: "2026-09-05", change: "เปลี่ยนแผ่นรองชั้นเป็นเหล็ก 1.2 มม.", reason: "ลดน้ำหนักขนส่งตามคำขอลูกค้า", approvedBy: QMR, reverified: true }],
+  },
+  {
+    no: "DP-2569-02", product: "รถเข็นอุตสาหกรรมพื้นยกได้ (TR-LIFT)", owner: "ศักดิ์ชัย วงศ์ไทย", started: "2026-07-01", target: "2026-12-15",
+    records: [
+      { stage: "ข้อมูลเข้า", date: "2026-07-06", by: "ศักดิ์ชัย วงศ์ไทย", evidence: "ยกพื้นได้ 300–800 มม. รับ 200 กก. เบรกล็อกล้อหน้า ใช้มือเดียวปรับระดับ" },
+      { stage: "ผลการออกแบบ", date: "2026-08-28", by: "ศักดิ์ชัย วงศ์ไทย", evidence: "แบบ TR-LIFT Rev.A และการคำนวณแรงไฮดรอลิก" },
+    ],
+    changes: [],
+  },
+];
+
+export const designByNo = (no: string) => {
+  const d = DESIGNS.find((x) => x.no === no);
+  if (!d) throw new Error(\`ไม่พบ \${no}\`);
+  return d;
+};
+
+/** ขั้นถัดไปที่ต้องทำ — ออกแบบข้ามขั้นไม่ได้ (ข้อ 8.3.4) */
+export const nextStage = (d: DesignProject): DesignStage | undefined => DESIGN_STAGES[d.records.length];
+export const released = (d: DesignProject) => d.records.some((r) => r.stage === "ส่งมอบสู่การผลิต");
+
+export const nextDesignNo = () => nextNo(DESIGNS.map((d) => d.no), \`DP-\${YEAR}-\`, 2);
+
+export type DesignInput = { product: string; owner: string; target: string; inputs: string };
+
+export function designErrors(input: DesignInput): Errors {
+  const e: Errors = {};
+  if (input.product.trim().length < 5) e.product = "ใส่ชื่อผลิตภัณฑ์ที่ออกแบบ";
+  if (!PEOPLE.includes(input.owner)) e.owner = "เลือกผู้รับผิดชอบการออกแบบ";
+  if (!isDate(input.target) || input.target <= TODAY) e.target = "ใส่กำหนดเสร็จในอนาคต";
+  if (input.inputs.trim().length < 20) e.inputs = "ข้อมูลเข้าต้องครบ: หน้าที่ใช้งาน สมรรถนะ กฎหมายและมาตรฐานที่เกี่ยวข้อง (ข้อ 8.3.3)";
+  return e;
+}
+
+/** เปิดโครงการออกแบบ — ข้อมูลเข้าคือขั้นแรกเสมอ */
+export function startDesign(input: DesignInput): DesignProject {
+  assertValid(designErrors(input));
+  return commit(() => {
+    const d: DesignProject = {
+      no: nextDesignNo(), product: input.product.trim(), owner: input.owner, started: TODAY, target: input.target,
+      records: [{ stage: "ข้อมูลเข้า", date: TODAY, by: input.owner, evidence: input.inputs.trim() }], changes: [],
+    };
+    DESIGNS.push(d);
+    return d;
+  });
+}
+
+export type StageInput = { by: string; evidence: string; participants: string[] };
+
+export function stageErrors(no: string, input: StageInput): Errors {
+  const d = designByNo(no);
+  const stage = nextStage(d);
+  const e: Errors = {};
+  if (!stage) e.evidence = \`\${no} ส่งมอบสู่การผลิตแล้ว — แก้ไขแบบผ่านการควบคุมการเปลี่ยนแปลง\`;
+  if (!PEOPLE.includes(input.by)) e.by = "เลือกผู้บันทึก";
+  if (input.evidence.trim().length < 15) e.evidence = e.evidence ?? "บอกหลักฐาน เช่น เลขรายงานทดสอบ ผลที่ได้";
+  // ทบทวนต้องมีคนจากหน้าที่อื่น ทวนสอบและรับรองต้องไม่ใช่คนออกแบบตรวจงานตัวเอง (ข้อ 8.3.4)
+  if (stage === "ทบทวนการออกแบบ" && new Set(input.participants).size < 2) e.participants = "การทบทวนต้องมีผู้เข้าร่วมจากหน้าที่อื่นอย่างน้อยหนึ่งคน";
+  if ((stage === "ทวนสอบ" || stage === "รับรองความใช้ได้") && input.by === d.owner) e.by = "ผู้ทวนสอบหรือรับรองต้องไม่ใช่ผู้ออกแบบ";
+  return e;
+}
+
+export function recordStage(no: string, input: StageInput, date = TODAY) {
+  assertValid(stageErrors(no, input));
+  const d = designByNo(no);
+  const stage = nextStage(d)!;
+  return commit(() => {
+    d.records.push({ stage, date, by: input.by, evidence: input.evidence.trim(), participants: stage === "ทบทวนการออกแบบ" ? [...new Set(input.participants)] : undefined });
+    return d;
+  });
+}
+
+export function changeErrors(no: string, input: Omit<DesignChange, "date">): Errors {
+  const d = designByNo(no);
+  const e: Errors = {};
+  if (!released(d)) e.change = "ยังไม่ส่งมอบสู่การผลิต — แก้ในขั้นผลการออกแบบได้เลย";
+  if (input.change.trim().length < 5) e.change = e.change ?? "บอกสิ่งที่เปลี่ยน";
+  if (input.reason.trim().length < 5) e.reason = "บอกเหตุผล";
+  if (input.approvedBy !== QMR) e.approvedBy = \`การเปลี่ยนแปลงแบบหลังส่งมอบต้องอนุมัติโดย \${QMR}\`;
+  return e;
+}
+
+/** ควบคุมการเปลี่ยนแปลงแบบ (ข้อ 8.3.6) — บันทึกเหตุผล ผู้อนุมัติ และการทวนสอบซ้ำ */
+export function changeDesign(no: string, input: Omit<DesignChange, "date">, date = TODAY) {
+  assertValid(changeErrors(no, input));
+  const d = designByNo(no);
+  return commit(() => {
+    d.changes.push({ date, change: input.change.trim(), reason: input.reason.trim(), approvedBy: input.approvedBy, reverified: input.reverified });
+    return d;
+  });
+}
+
+/* ================================================== approved suppliers */
+
+export type SupplierStatus = "อนุมัติ" | "อนุมัติแบบมีเงื่อนไข" | "ระงับ";
+
+export type SupplierApproval = {
+  vendor: string;
+  status: SupplierStatus;
+  /** วัสดุที่อนุมัติให้ส่ง — นอกขอบเขตนี้ต้องประเมินเพิ่ม */
+  scope: string[];
+  since: string;
+  nextReview: string;
+  history: { date: string; status: SupplierStatus; quality: number; grade?: string; note: string; by: string }[];
+};
+
+export const APPROVALS: SupplierApproval[] = [
+  { vendor: "V-001", status: "อนุมัติ", scope: ["MAT-1001", "MAT-1002"], since: "2025-01-20", nextReview: "2027-01-20", history: [{ date: "2026-01-20", status: "อนุมัติ", quality: 100, grade: "A", note: "ประเมินประจำปี ไม่มีล็อตไม่ผ่าน", by: QMR }] },
+  { vendor: "V-002", status: "อนุมัติแบบมีเงื่อนไข", scope: ["MAT-1002"], since: "2025-06-02", nextReview: "2026-10-15", history: [{ date: "2026-04-15", status: "อนุมัติแบบมีเงื่อนไข", quality: 80, grade: "B", note: "ส่งของเลยกำหนดบ่อย ให้ส่งใบรับรองผลทดสอบทุกล็อต", by: QMR }] },
+  { vendor: "V-003", status: "อนุมัติ", scope: ["MAT-1003"], since: "2025-02-01", nextReview: "2027-02-01", history: [{ date: "2026-02-01", status: "อนุมัติ", quality: 100, grade: "A", note: "ประเมินประจำปี", by: QMR }] },
+  { vendor: "V-004", status: "อนุมัติ", scope: ["MAT-2002", "MAT-4001"], since: "2025-03-10", nextReview: "2027-03-10", history: [{ date: "2026-03-10", status: "อนุมัติ", quality: 100, grade: "B", note: "ประเมินประจำปี", by: "ปิยะนุช ใจดี" }] },
+];
+
+export const approvalOf = (vendor: string) => APPROVALS.find((a) => a.vendor === vendor);
+
+/** คุณภาพของผู้ขายจากงานตรวจรับจริง — ล็อตผ่านครั้งแรก และ NCR ที่เปิดกับผู้ขาย */
+export function supplierQuality(vendor: string) {
+  const lots = LOTS.filter((l) => l.vendor === vendor && l.status === "ตัดสินแล้ว");
+  const accepted = lots.filter((l) => l.decision === "ผ่าน").length;
+  const ncrs = NCRS.filter((n) => n.vendor === vendor);
+  return { lots: lots.length, accepted, rejected: lots.filter((l) => l.decision === "ไม่ผ่าน").length, ncrs: ncrs.length, score: rate(accepted, lots.length) };
+}
+
+/** เกรดล่าสุดจากการประเมินของฝ่ายจัดซื้อ — อ่านจากระบบจัดซื้อ ไม่ให้คะแนนซ้ำ */
+export const purchasingGrade = (vendor: string) => {
+  const r = latestReview(vendor);
+  return r ? gradeOf(reviewScore(r)) : undefined;
+};
+
+/** ทะเบียนผู้ส่งมอบ: ผู้ขายทุกรายในระบบจัดซื้อ รายที่ยังไม่มีผลอนุมัติคือรอประเมิน */
+export const supplierRegister = () =>
+  VENDORS.map((v) => ({
+    vendor: v,
+    approval: approvalOf(v.code),
+    quality: supplierQuality(v.code),
+    grade: purchasingGrade(v.code),
+    delivery: vendorScore(v.code).onTime,
+    supplies: [...new Set(INFO_RECORDS.filter((r) => r.vendor === v.code).map((r) => r.material))],
+  }));
+
+export const awaitingApproval = () => supplierRegister().filter((s) => !s.approval);
+export const approvalDue = () => APPROVALS.filter((a) => a.status !== "ระงับ" && a.nextReview <= addDays(TODAY, 30));
+
+export type ApprovalInput = { vendor: string; status: SupplierStatus; scope: string[]; note: string; by: string };
+
+export function approvalErrors(input: ApprovalInput): Errors {
+  const e: Errors = {};
+  const q = supplierQuality(input.vendor);
+  if (!VENDORS.some((v) => v.code === input.vendor)) e.vendor = "เลือกผู้ขาย";
+  if (input.status !== "ระงับ" && input.scope.length === 0) e.scope = "เลือกวัสดุที่อนุมัติให้ส่ง";
+  if (input.status === "อนุมัติ" && q.lots > 0 && q.score < 90) e.status = \`ล็อตผ่านครั้งแรก \${q.score}% ต่ำกว่า 90% — อนุมัติแบบมีเงื่อนไขหรือระงับ\`;
+  if (input.status === "อนุมัติ" && purchasingGrade(input.vendor) === "C") e.status = "ฝ่ายจัดซื้อประเมินเกรด C — อนุมัติเต็มไม่ได้";
+  if (![QMR, "ปิยะนุช ใจดี"].includes(input.by)) e.by = \`ผู้อนุมัติผู้ส่งมอบคือ \${QMR} หรือหัวหน้าฝ่ายจัดซื้อ\`;
+  if (input.note.trim().length < 5) e.note = "บอกเหตุผลของการตัดสิน";
+  return e;
+}
 
 /**
- * วัตถุประสงค์คุณภาพ (ข้อ 6.2) — วัดจากงานจริงในระบบ ไม่ใช่ตัวเลขที่กรอกตอนทบทวน
- * ฝ่ายบริหารจึงเห็นค่าเดียวกับที่หน้าจออื่นใช้ทำงาน
+ * ตัดสินสถานะผู้ส่งมอบ (ข้อ 8.4.1) — ระงับคือระงับการสั่งซื้อในระบบจัดซื้อด้วย
+ * ปล่อยจากระงับคือยกเลิกการระงับที่นั่นด้วย สองระบบจึงไม่ขัดกัน
  */
-export function objectives() {
+export function evaluateSupplier(input: ApprovalInput, date = TODAY) {
+  assertValid(approvalErrors(input));
+  const v = VENDORS.find((x) => x.code === input.vendor)!;
+  const q = supplierQuality(input.vendor);
+  return commit(() => {
+    let a = approvalOf(input.vendor);
+    const entry = { date, status: input.status, quality: q.score, grade: purchasingGrade(input.vendor), note: input.note.trim(), by: input.by };
+    if (!a) {
+      a = { vendor: input.vendor, status: input.status, scope: [...input.scope], since: date, nextReview: addMonths(date, 12), history: [entry] };
+      APPROVALS.push(a);
+    } else {
+      a.status = input.status;
+      a.scope = input.status === "ระงับ" ? a.scope : [...input.scope];
+      a.nextReview = addMonths(date, input.status === "อนุมัติ" ? 12 : 6);
+      a.history.push(entry);
+    }
+    if (input.status === "ระงับ" && !v.blocked) blockVendor(v.code, \`ระงับโดยฝ่ายคุณภาพ: \${input.note.trim()}\`);
+    if (input.status !== "ระงับ" && v.blocked) unblockVendor(v.code);
+    return a;
+  });
+}
+
+/* =================================================== customer satisfaction */
+
+export const SATISFACTION_CRITERIA = [
+  { key: "quality", label: "คุณภาพสินค้า" },
+  { key: "delivery", label: "ส่งตรงเวลา" },
+  { key: "price", label: "ราคา" },
+  { key: "service", label: "บริการและการประสานงาน" },
+  { key: "complaint", label: "การแก้ไขข้อร้องเรียน" },
+] as const;
+export type CriterionKey = (typeof SATISFACTION_CRITERIA)[number]["key"];
+
+export type Survey = {
+  no: string;
+  customer: string;
+  period: string;
+  date: string;
+  scores: Record<CriterionKey, number>;
+  comment: string;
+  followUp?: string;
+  by: string;
+};
+
+const s = (quality: number, delivery: number, price: number, service: number, complaint: number) => ({ quality, delivery, price, service, complaint });
+
+export const SURVEYS: Survey[] = [
+  { no: "CS-2569-01", customer: "C-101", period: "ครึ่งปีแรก 2569", date: "2026-07-10", scores: s(5, 4, 4, 5, 4), comment: "ชั้นวาง HD-500 ใช้งานดี อยากให้มีสีอื่น", by: "ชลธิชา มั่นคง" },
+  { no: "CS-2569-02", customer: "C-102", period: "ครึ่งปีแรก 2569", date: "2026-07-12", scores: s(4, 3, 4, 4, 3), comment: "ส่งช้า 2 ครั้งในไตรมาสที่สอง", by: "ชลธิชา มั่นคง" },
+  { no: "CS-2569-03", customer: "C-103", period: "ครึ่งปีแรก 2569", date: "2026-07-15", scores: s(4, 4, 3, 4, 4), comment: "", by: "ชลธิชา มั่นคง" },
+  { no: "CS-2569-04", customer: "C-105", period: "ครึ่งปีแรก 2569", date: "2026-07-18", scores: s(3, 3, 3, 3, 2), comment: "สีถลอกหลายครั้ง ตอบเรื่องช้า", followUp: "เปิด CAR เรื่องการบรรจุ และตั้งผู้ประสานงานลูกค้ารายนี้โดยตรง", by: "ชลธิชา มั่นคง" },
+];
+
+export const surveyByNo = (no: string) => {
+  const v = SURVEYS.find((x) => x.no === no);
+  if (!v) throw new Error(\`ไม่พบ \${no}\`);
+  return v;
+};
+
+export const average = (sc: Record<CriterionKey, number>) =>
+  Math.round((SATISFACTION_CRITERIA.reduce((n, c) => n + sc[c.key], 0) / SATISFACTION_CRITERIA.length) * 100) / 100;
+
+/** ภาพรวมรายลูกค้า — คะแนนที่ลูกค้าให้ วางคู่ข้อร้องเรียนที่ระบบนับได้เอง */
+export const satisfactionByCustomer = () =>
+  CUSTOMERS.map((c) => {
+    const mine = SURVEYS.filter((v) => v.customer === c.code).sort((a, b) => a.date.localeCompare(b.date));
+    const last = mine[mine.length - 1];
+    return { customer: c, last, score: last ? average(last.scores) : undefined, complaints: NCRS.filter((n) => n.customer === c.code).length };
+  });
+
+export const overallSatisfaction = () => {
+  const latest = satisfactionByCustomer().filter((x) => x.score !== undefined);
+  return latest.length ? Math.round((latest.reduce((n, x) => n + x.score!, 0) / latest.length) * 100) / 100 : undefined;
+};
+
+export const nextSurveyNo = () => nextNo(SURVEYS.map((v) => v.no), \`CS-\${YEAR}-\`, 2);
+export const currentHalf = () => \`\${Number(TODAY.slice(5, 7)) <= 6 ? "ครึ่งปีแรก" : "ครึ่งปีหลัง"} \${YEAR}\`;
+
+export type SurveyInput = Omit<Survey, "no" | "date">;
+
+export function surveyErrors(input: SurveyInput): Errors {
+  const e: Errors = {};
+  if (!CUSTOMERS.some((c) => c.code === input.customer)) e.customer = "เลือกลูกค้า";
+  else if (SURVEYS.some((v) => v.customer === input.customer && v.period === input.period)) e.customer = \`ลูกค้ารายนี้ตอบแบบสำรวจ\${input.period}แล้ว\`;
+  if (SATISFACTION_CRITERIA.some((c) => !(Number.isInteger(input.scores[c.key]) && input.scores[c.key] >= 1 && input.scores[c.key] <= 5))) e.scores = "ให้คะแนน 1–5 ทุกข้อ";
+  else if (average(input.scores) < 3.5 && (input.followUp ?? "").trim().length < 10) e.followUp = "คะแนนเฉลี่ยต่ำกว่า 3.5 ต้องบอกสิ่งที่จะทำต่อ";
+  if (!PEOPLE.includes(input.by)) e.by = "เลือกผู้บันทึก";
+  return e;
+}
+
+export function recordSurvey(input: SurveyInput, date = TODAY) {
+  assertValid(surveyErrors(input));
+  return commit(() => {
+    const v: Survey = { ...input, no: nextSurveyNo(), date, comment: input.comment.trim(), followUp: input.followUp?.trim() || undefined, scores: { ...input.scores } };
+    SURVEYS.push(v);
+    return v;
+  });
+}
+
+/* ============================================================ indicators */
+
+/**
+ * ตัวชี้วัดคุณภาพที่ระบบวัดเองจากงานจริง — ภาพรวมของระบบนี้และวาระทบทวนโดยฝ่ายบริหาร
+ * ใช้ค่าเดียวกับที่หน้าจออื่นใช้ทำงาน
+ */
+export function indicators() {
   const decided = (o: LotOrigin) => LOTS.filter((l) => l.origin === o && l.status === "ตัดสินแล้ว");
   const passed = (o: LotOrigin) => decided(o).filter((l) => l.decision === "ผ่าน").length;
   const complaints = NCRS.filter((n) => n.source === "ข้อร้องเรียนลูกค้า" && n.date.slice(0, 7) === TODAY.slice(0, 7)).length;
-  const actions = CAPAS.flatMap((c) => c.actions);
-  const dueActions = actions.filter((a) => a.due <= TODAY);
-  const onTime = dueActions.filter((a) => a.doneOn && a.doneOn <= a.due).length;
   const active = GAUGES.filter((g) => g.status === "ใช้งาน");
   const current = active.filter((g) => nextDue(g) >= TODAY).length;
+  const reviewed = commitments().filter((c) => reviewOf(c.doc)).length;
   return [
-    { name: "ของเข้าผ่านการตรวจรับ", clause: "8.4", target: 95, actual: rate(passed("ตรวจรับ"), decided("ตรวจรับ").length), unit: "%", better: "higher" as const },
-    { name: "สินค้าผ่านการตรวจก่อนส่งครั้งแรก", clause: "8.6", target: 98, actual: rate(passed("ตรวจก่อนส่ง"), decided("ตรวจก่อนส่ง").length), unit: "%", better: "higher" as const },
-    { name: "ข้อร้องเรียนลูกค้าเดือนนี้", clause: "9.1.2", target: 2, actual: complaints, unit: "เรื่อง", better: "lower" as const },
-    { name: "มาตรการแก้ไขเสร็จตามกำหนด", clause: "10.2", target: 90, actual: rate(onTime, dueActions.length), unit: "%", better: "higher" as const },
-    { name: "เครื่องมือวัดอยู่ในรอบสอบเทียบ", clause: "7.1.5", target: 100, actual: rate(current, active.length), unit: "%", better: "higher" as const },
+    { name: "ของเข้าผ่านการตรวจรับ", clause: "9001:8.4", target: 95, actual: rate(passed("ตรวจรับ"), decided("ตรวจรับ").length), unit: "%", better: "higher" as const },
+    { name: "สินค้าผ่านการตรวจก่อนส่งครั้งแรก", clause: "9001:8.6", target: 98, actual: rate(passed("ตรวจก่อนส่ง"), decided("ตรวจก่อนส่ง").length), unit: "%", better: "higher" as const },
+    { name: "ข้อร้องเรียนลูกค้าเดือนนี้", clause: "9001:9.1.2", target: 2, actual: complaints, unit: "เรื่อง", better: "lower" as const },
+    { name: "ข้อตกลงกับลูกค้าที่ทบทวนแล้ว", clause: "9001:8.2", target: 100, actual: rate(reviewed, commitments().length), unit: "%", better: "higher" as const },
+    { name: "เครื่องมือวัดอยู่ในรอบสอบเทียบ", clause: "9001:7.1.5", target: 100, actual: rate(current, active.length), unit: "%", better: "higher" as const },
   ].map((o) => ({ ...o, met: o.better === "higher" ? o.actual >= o.target : o.actual <= o.target }));
 }
 
-/** ผู้ขายตามอัตราล็อตที่ไม่ผ่าน — ข้อมูลตั้งต้นของการประเมินผู้ขาย (ข้อ 8.4.1) */
-export function vendorQuality() {
-  return VENDORS.map((v) => {
-    const lots = LOTS.filter((l) => l.vendor === v.code && l.status === "ตัดสินแล้ว");
-    const rejected = lots.filter((l) => l.decision === "ไม่ผ่าน").length;
-    return { code: v.code, name: v.name, lots: lots.length, rejected, rate: rate(rejected, lots.length) };
-  }).filter((v) => v.lots > 0);
-}
+/* ======================================================== review inputs */
 
-/** NCR ระหว่างผลิตอ้างใบสั่งผลิตของระบบวางแผนการผลิต — เลขที่พิมพ์ต้องมีอยู่จริง */
-export function productionOrderExists(no: string) {
-  return ORDERS.some((o) => o.no === no);
-}
+const toneOf = (bad: boolean, warn = false) => (bad ? "bad" : warn ? "warn" : "ok") as "bad" | "warn" | "ok";
+
+contributeReviewInput({
+  key: "qm-customers", std: ["ISO 9001", "IATF 16949"], input: "ค 1", title: "ความพึงพอใจและข้อร้องเรียนของลูกค้า",
+  facts: () => {
+    const avg = overallSatisfaction();
+    const complaints = NCRS.filter((n) => n.source === "ข้อร้องเรียนลูกค้า" && n.date.slice(0, 4) === TODAY.slice(0, 4)).length;
+    return [
+      { label: "คะแนนความพึงพอใจเฉลี่ย", value: avg === undefined ? "ยังไม่มีผลสำรวจ" : \`\${avg} / 5\`, tone: avg === undefined ? "idle" : toneOf(avg < 3.5, avg < 4) },
+      { label: "ข้อร้องเรียนปีนี้", value: \`\${complaints} เรื่อง\`, tone: toneOf(false, complaints > 0) },
+    ];
+  },
+});
+
+contributeReviewInput({
+  key: "qm-conformity", std: ["ISO 9001", "IATF 16949"], input: "ค 3", title: "ผลการตรวจสอบและสิ่งที่ไม่เป็นไปตามข้อกำหนด",
+  facts: () =>
+    indicators()
+      .filter((i) => i.unit === "%")
+      .slice(0, 2)
+      .map((i) => ({ label: i.name, value: \`\${i.actual}% (เป้า \${i.target}%)\`, tone: toneOf(!i.met) }))
+      .concat([{ label: "NCR ยังไม่ปิด", value: \`\${NCRS.filter((n) => n.status !== "ปิดแล้ว").length} เรื่อง\`, tone: toneOf(false, NCRS.some((n) => n.status === "รอสั่งการ")) }]),
+});
+
+contributeReviewInput({
+  key: "qm-suppliers", std: ["ISO 9001", "IATF 16949"], input: "ค 7", title: "ผลงานของผู้ส่งมอบภายนอก",
+  facts: () => [
+    { label: "ผู้ส่งมอบที่อนุมัติ", value: \`\${APPROVALS.filter((a) => a.status === "อนุมัติ").length} ราย\`, tone: "ok" },
+    { label: "มีเงื่อนไขหรือระงับ", value: \`\${APPROVALS.filter((a) => a.status !== "อนุมัติ").length} ราย\`, tone: toneOf(false, APPROVALS.some((a) => a.status !== "อนุมัติ")) },
+    { label: "ผู้ขายที่ยังไม่ผ่านการประเมิน", value: \`\${awaitingApproval().length} ราย\`, tone: toneOf(awaitingApproval().length > 0) },
+  ],
+});
+
+contributeReviewInput({
+  key: "qm-resources", std: ["ISO 9001", "IATF 16949"], input: "ง", title: "ความพร้อมของเครื่องมือวัด",
+  facts: () => {
+    const late = GAUGES.filter((g) => calState(g) === "เกินกำหนด" || calState(g) === "พักใช้").length;
+    return [{ label: "เครื่องมือเกินกำหนดหรือพักใช้", value: \`\${late} จาก \${GAUGES.length} ชิ้น\`, tone: toneOf(late > 0) }];
+  },
+});
 `,
 
-  "qm/documents.tsx": `import type { ReactNode } from "react";
-import { Paper } from "../kit";
+  "qm/documents.tsx": `import { Paper } from "../kit";
+import { QMR, formNo } from "../ims/data";
+import { Block, Facts, Foot, PaperHead, PaperTable, Signatures } from "../ims/parts";
 import {
-  COMPANY, DOCUMENTS, QMR, TODAY, auditByNo, docByCode, capaByNo, clauseName, customerName, gaugeByCode, lotByNo, materialName,
-  materialUnit, ncrByNo, nextDue, planOf, revLabel, vendorName,
+  DESIGN_STAGES, REVIEW_CHECKS, SATISFACTION_CRITERIA, SURVEYS, approvalOf, carOfNcr, commitments, customerName, designByNo,
+  gaugeByCode, lotByNo, materialName, materialUnit, ncrByNo, nextDue, planOf, purchasingGrade, reviewOf,
+  satisfactionByCustomer, supplierQuality, vendorName,
 } from "./data";
 
-/** เอกสารที่พิมพ์ได้จากระบบคุณภาพ — ทุกใบมีเลขแบบฟอร์มควบคุมที่มุมขวาเหมือนเอกสารจริง */
+/** เอกสารที่พิมพ์ได้จากระบบคุณภาพ — ทุกใบมีเลขแบบฟอร์มจากบัญชีรายชื่อเอกสารของระบบบริหารบูรณาการ */
 export type QmDoc =
-  | { doc: "master-list" }
   | { doc: "lot"; no: string }
   | { doc: "ncr"; no: string }
-  | { doc: "car"; no: string }
-  | { doc: "audit"; no: string }
-  | { doc: "gauge"; code: string };
+  | { doc: "gauge"; code: string }
+  | { doc: "requirement"; no: string }
+  | { doc: "design"; no: string }
+  | { doc: "supplier"; code: string }
+  | { doc: "satisfaction" };
 
-/** เลขแบบฟอร์มที่มุมกระดาษ อ่านฉบับจากบัญชีรายชื่อเอกสาร จึงตรงกับที่ผู้ตรวจประเมินเทียบเสมอ */
-const formNo = (code: string) => \`\${code} \${revLabel(docByCode(code).rev)}\`;
-
-function Head({ title, form, number }: { title: string; form: string; number?: string }) {
-  return (
-    <div className="flex items-start justify-between gap-6 border-b-2 border-slate-800 pb-3">
-      <div>
-        <p className="text-[15px] font-bold text-slate-900">{COMPANY.name}</p>
-        <p className="max-w-sm leading-relaxed text-slate-600">{COMPANY.address}</p>
-      </div>
-      <div className="text-right">
-        <p className="text-[16px] font-bold text-slate-900">{title}</p>
-        {number && <p className="mt-0.5 font-semibold tabular-nums text-slate-900">{number}</p>}
-        <p className="mt-1 text-[10.5px] text-slate-500">{form}</p>
-      </div>
-    </div>
-  );
-}
-
-function Facts({ rows }: { rows: [string, ReactNode][] }) {
-  return (
-    <dl className="mt-4 grid grid-cols-[auto_1fr_auto_1fr] gap-x-4 gap-y-1.5 rounded-md border border-slate-300 p-3">
-      {rows.map(([k, v]) => (
-        <div key={k} className="contents">
-          <dt className="text-slate-500">{k}</dt>
-          <dd className="text-slate-900">{v}</dd>
-        </div>
-      ))}
-    </dl>
-  );
-}
-
-function Table({ head, rows }: { head: string[]; rows: ReactNode[][] }) {
-  return (
-    <table className="mt-4 w-full border-collapse">
-      <thead>
-        <tr className="bg-slate-100 text-[11.5px] text-slate-600">
-          {head.map((h) => (
-            <th key={h} className="border border-slate-300 px-2 py-1.5 text-left font-medium">{h}</th>
-          ))}
-        </tr>
-      </thead>
-      <tbody>
-        {rows.length === 0 && (
-          <tr>
-            <td colSpan={head.length} className="border border-slate-300 px-2 py-3 text-center text-slate-400">ไม่มีรายการ</td>
-          </tr>
-        )}
-        {rows.map((r, i) => (
-          <tr key={i}>
-            {r.map((c, j) => (
-              <td key={j} className="border border-slate-300 px-2 py-1.5 align-top">{c}</td>
-            ))}
-          </tr>
-        ))}
-      </tbody>
-    </table>
-  );
-}
-
-function Block({ title, children }: { title: string; children: ReactNode }) {
-  return (
-    <div className="mt-4">
-      <p className="font-semibold text-slate-900">{title}</p>
-      <div className="mt-1 rounded-md border border-slate-300 p-3 leading-relaxed text-slate-700">{children}</div>
-    </div>
-  );
-}
-
-function Signatures({ names }: { names: [string, string?][] }) {
-  return (
-    <div className="mt-10 grid gap-8" style={{ gridTemplateColumns: \`repeat(\${names.length}, minmax(0, 1fr))\` }}>
-      {names.map(([role, name]) => (
-        <div key={role} className="text-center">
-          <div className="mx-auto h-9 w-40 border-b border-dotted border-slate-500" />
-          <p className="mt-1.5 text-slate-700">{name ? \`( \${name} )\` : "(............................)"}</p>
-          <p className="text-slate-500">{role}</p>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-const Foot = () => (
-  <p className="mt-8 border-t border-slate-200 pt-2 text-[10.5px] text-slate-400">
-    เอกสารควบคุมตามระบบบริหารคุณภาพ ISO 9001:2015 · พิมพ์จากระบบเมื่อ {TODAY}
-  </p>
-);
-
-function MasterList() {
-  const live = DOCUMENTS.filter((d) => d.status !== "ยกเลิก");
-  const dead = DOCUMENTS.filter((d) => d.status === "ยกเลิก");
-  return (
-    <>
-      <Head title="บัญชีรายชื่อเอกสารควบคุม" form={formNo("FM-01")} />
-      <p className="mt-3 text-slate-600">เอกสารที่ใช้งานและฉบับที่มีผลบังคับ ณ วันที่ {TODAY} — ฉบับที่ไม่อยู่ในบัญชีนี้ห้ามใช้ที่หน้างาน</p>
-      <Table
-        head={["รหัส", "ชื่อเอกสาร", "ประเภท", "ฉบับ", "วันที่มีผล", "ฝ่ายเจ้าของ", "ทบทวนครั้งถัดไป"]}
-        rows={live.map((d) => [d.code, d.title, d.type, revLabel(d.rev), d.effective ?? "รออนุมัติ", d.owner, d.reviewDue ?? "—"])}
-      />
-      {dead.length > 0 && (
-        <>
-          <p className="mt-5 font-semibold text-slate-900">เอกสารที่ยกเลิก</p>
-          <Table head={["รหัส", "ชื่อเอกสาร", "ฉบับสุดท้าย", "เหตุผล"]} rows={dead.map((d) => [d.code, d.title, revLabel(d.rev), d.obsoleteReason ?? ""])} />
-        </>
-      )}
-      <Signatures names={[["ผู้จัดทำ", "สุภาพร แก้วมณี"], ["ผู้อนุมัติ (QMR)", QMR]]} />
-      <Foot />
-    </>
-  );
-}
+const Foot_ = () => <Foot system="ระบบบริหารคุณภาพ ISO 9001:2015" />;
 
 function LotReport({ no }: { no: string }) {
   const l = lotByNo(no);
@@ -29563,30 +33168,29 @@ function LotReport({ no }: { no: string }) {
   const certificate = l.origin === "ตรวจก่อนส่ง" && l.decision && l.decision !== "ไม่ผ่าน";
   return (
     <>
-      <Head
-        title={certificate ? "ใบรับรองคุณภาพสินค้า" : "ใบรายงานผลการตรวจสอบ"}
-        number={l.no}
-        form={certificate ? \`\${formNo("FM-03")} · Certificate of Conformance\` : formNo("FM-02")}
-      />
+      <PaperHead title={certificate ? "ใบรับรองคุณภาพสินค้า" : "ใบรายงานผลการตรวจสอบ"} number={l.no} form={certificate ? \`\${formNo("FM-03")} · Certificate of Conformance\` : formNo("FM-02")} />
       <Facts
         rows={[
           ["ประเภทการตรวจ", l.origin],
           ["วันที่ตรวจ", l.inspectedOn ?? "ยังไม่ตรวจ"],
           ["รายการ", \`\${l.material} · \${materialName(l.material)}\`],
           ["จำนวนล็อต", \`\${l.qty.toLocaleString("th-TH")} \${materialUnit(l.material)}\`],
-          ["เอกสารต้นทาง", \`\${l.source} · \${l.ref}\`],
+          ["เอกสารต้นทาง", l.source === l.ref ? l.source : \`\${l.source} · \${l.ref}\`],
           ["จำนวนตัวอย่าง", \`\${l.sample} \${materialUnit(l.material)}\`],
-          [l.vendor ? "ผู้ขาย" : "หน่วยผลิต", l.vendor ? vendorName(l.vendor) : "ฝ่ายผลิต"],
-          ["ผลการตัดสิน", l.decision ?? "รอตัดสิน"],
+          [l.vendor ? "ผู้ขาย" : "ผู้ผลิต", l.vendor ? vendorName(l.vendor) : "ฝ่ายผลิต"],
+          ["ผลการตัดสิน", l.decision ?? l.status],
         ]}
       />
-      <Table
+      <PaperTable
         head={["คุณลักษณะ", "วิธีตรวจ", "เกณฑ์", "ผลที่ได้", "ผล"]}
         rows={plan.map((c) => {
           const r = l.results.find((x) => x.characteristic === c.name);
-          const spec = c.kind === "วัดค่า" ? \`\${c.lsl} – \${c.usl} \${c.unit ?? ""}\` : "ไม่พบจุดบกพร่อง";
-          const got = !r ? "—" : c.kind === "วัดค่า" ? \`\${r.min} – \${r.max} \${c.unit ?? ""}\` : r.defects === 0 ? "ไม่พบ" : \`พบ \${r.defects} ชิ้น\`;
-          return [c.name, c.method, spec, got, !r ? "—" : r.ok ? "ผ่าน" : "ไม่ผ่าน"];
+          return [
+            c.name, c.method,
+            c.kind === "วัดค่า" ? \`\${c.lsl}–\${c.usl} \${c.unit ?? ""}\` : "ไม่พบจุดบกพร่อง",
+            !r ? "—" : c.kind === "วัดค่า" ? \`\${r.min} – \${r.max}\` : r.defects === 0 ? "ไม่พบ" : \`พบ \${r.defects}\`,
+            !r ? "—" : r.ok ? "ผ่าน" : "ไม่ผ่าน",
+          ];
         })}
       />
       {l.note && <Block title="หมายเหตุ">{l.note}</Block>}
@@ -29597,16 +33201,17 @@ function LotReport({ no }: { no: string }) {
       )}
       {l.ncr && <p className="mt-3 text-slate-700">อ้างอิงใบรายงานสิ่งที่ไม่เป็นไปตามข้อกำหนด {l.ncr}</p>}
       <Signatures names={[["ผู้ตรวจ", l.inspector], ["ผู้ตัดสินผล", l.decidedBy]]} />
-      <Foot />
+      <Foot_ />
     </>
   );
 }
 
 function NcrReport({ no }: { no: string }) {
   const n = ncrByNo(no);
+  const car = carOfNcr(n);
   return (
     <>
-      <Head title="ใบรายงานสิ่งที่ไม่เป็นไปตามข้อกำหนด" number={n.no} form={\`\${formNo("FM-04")} · NCR\`} />
+      <PaperHead title="ใบรายงานสิ่งที่ไม่เป็นไปตามข้อกำหนด" number={n.no} form={\`\${formNo("FM-04")} · NCR\`} />
       <Facts
         rows={[
           ["วันที่พบ", n.date],
@@ -29632,81 +33237,9 @@ function NcrReport({ no }: { no: string }) {
           "ยังไม่สั่งการ"
         )}
       </Block>
-      <Block title="การแก้ไขที่สาเหตุ">{n.capa ? \`ออกใบขอให้แก้ไข \${n.capa}\` : "ไม่ต้องออก CAR"}</Block>
+      <Block title="การแก้ไขที่สาเหตุ">{car ? \`ออกใบขอให้แก้ไข \${car.no} (\${car.method}) — \${car.status}\` : "ไม่ต้องออก CAR"}</Block>
       <Signatures names={[["ผู้รายงาน", n.reportedBy], ["ผู้สั่งการ", n.dispositionBy], ["ผู้ปิดเรื่อง", n.closedBy]]} />
-      <Foot />
-    </>
-  );
-}
-
-function CarReport({ no }: { no: string }) {
-  const c = capaByNo(no);
-  return (
-    <>
-      <Head title="ใบขอให้ดำเนินการแก้ไขและป้องกัน" number={c.no} form={\`\${formNo("FM-05")} · CAR\`} />
-      <Facts
-        rows={[
-          ["วันที่ออก", c.date],
-          ["ประเภท", \`การ\${c.kind}\`],
-          ["ต้นเรื่อง", c.ref],
-          ["ผู้รับผิดชอบ", c.owner],
-        ]}
-      />
-      <Block title="1. ปัญหา">{c.problem}</Block>
-      <Block title="2. สาเหตุราก">
-        {c.rootCause ? (
-          <>
-            <p className="text-slate-500">กลุ่มสาเหตุ: {c.rootCause.category}</p>
-            <ol className="mt-1 list-decimal pl-5">
-              {c.rootCause.whys.map((w, i) => (
-                <li key={i}>ทำไม — {w}</li>
-              ))}
-            </ol>
-          </>
-        ) : (
-          "ยังไม่วิเคราะห์"
-        )}
-      </Block>
-      <p className="mt-4 font-semibold text-slate-900">3. มาตรการแก้ไข</p>
-      <Table
-        head={["มาตรการ", "ผู้รับผิดชอบ", "กำหนดเสร็จ", "เสร็จเมื่อ"]}
-        rows={c.actions.map((a) => [a.what, a.owner, a.due, a.doneOn ?? "—"])}
-      />
-      <Block title="4. ติดตามประสิทธิผล">
-        {c.verification ? \`\${c.verification.effective ? "ได้ผล" : "ไม่ได้ผล"} — \${c.verification.note} (\${c.verification.by}, \${c.verification.date})\` : "ยังไม่ติดตามผล"}
-      </Block>
-      <Signatures names={[["ผู้รับผิดชอบ", c.owner], ["ผู้ติดตามผล", c.verification?.by], ["ผู้อนุมัติ (QMR)", QMR]]} />
-      <Foot />
-    </>
-  );
-}
-
-function AuditReport({ no }: { no: string }) {
-  const a = auditByNo(no);
-  const count = (t: string) => a.findings.filter((f) => f.type === t).length;
-  return (
-    <>
-      <Head title="รายงานการตรวจติดตามภายใน" number={a.no} form={formNo("FM-06")} />
-      <Facts
-        rows={[
-          ["ฝ่ายที่ตรวจ", a.area],
-          ["วันที่ตรวจ", a.performedOn ?? \`ตามแผน \${a.planned}\`],
-          ["ผู้ตรวจ", a.auditor],
-          ["สถานะ", a.status],
-        ]}
-      />
-      <Block title="ขอบเขตการตรวจ">
-        {a.clauses.map((c) => \`ข้อ \${c} \${clauseName(c)}\`).join(" · ")}
-      </Block>
-      <Table
-        head={["#", "ข้อกำหนด", "ประเภท", "สิ่งที่พบ", "CAR"]}
-        rows={a.findings.map((f) => [String(f.id), f.clause, f.type, f.detail, f.capa ?? (f.type === "ข้อสังเกต" ? "—" : "ยังไม่ออก")])}
-      />
-      <p className="mt-3 text-slate-700">
-        สรุป: ข้อบกพร่องหลัก {count("ข้อบกพร่องหลัก")} · ข้อบกพร่องย่อย {count("ข้อบกพร่องย่อย")} · ข้อสังเกต {count("ข้อสังเกต")}
-      </p>
-      <Signatures names={[["ผู้ตรวจ", a.auditor], ["ผู้รับการตรวจ"], ["ผู้อนุมัติ (QMR)", QMR]]} />
-      <Foot />
+      <Foot_ />
     </>
   );
 }
@@ -29715,7 +33248,7 @@ function GaugeReport({ code }: { code: string }) {
   const g = gaugeByCode(code);
   return (
     <>
-      <Head title="บันทึกประวัติการสอบเทียบเครื่องมือวัด" number={g.code} form={formNo("FM-07")} />
+      <PaperHead title="บันทึกประวัติการสอบเทียบเครื่องมือวัด" number={g.code} form={formNo("FM-07")} />
       <Facts
         rows={[
           ["เครื่องมือ", g.name],
@@ -29726,12 +33259,99 @@ function GaugeReport({ code }: { code: string }) {
           ["ครบกำหนดครั้งถัดไป", g.status === "พักใช้" ? "พักใช้" : nextDue(g)],
         ]}
       />
-      <Table
-        head={["วันที่", "ผู้สอบเทียบ", "เลขที่ใบรับรอง", "ค่าคลาดเคลื่อน", "ผล"]}
-        rows={g.records.map((r) => [r.date, r.by, r.certNo, r.error, r.result])}
-      />
+      <PaperTable head={["วันที่", "ผู้สอบเทียบ", "เลขที่ใบรับรอง", "ค่าคลาดเคลื่อน", "ผล"]} rows={g.records.map((r) => [r.date, r.by, r.certNo, r.error, r.result])} />
       <Signatures names={[["ผู้บันทึก", "สุภาพร แก้วมณี"], ["ผู้อนุมัติ (QMR)", QMR]]} />
-      <Foot />
+      <Foot_ />
+    </>
+  );
+}
+
+function RequirementReport({ no }: { no: string }) {
+  const c = commitments().find((x) => x.doc === no)!;
+  const r = reviewOf(no);
+  return (
+    <>
+      <PaperHead title="ใบทบทวนข้อกำหนดลูกค้า" number={no} form={formNo("FM-12")} />
+      <Facts rows={[["เอกสาร", c.kind], ["ลูกค้า", customerName(c.customer)], ["วันที่เอกสาร", c.date], ["ต้องการรับของ", c.shipBy ?? "ตามตกลง"]]} />
+      <PaperTable head={["สินค้า", "จำนวน"]} rows={c.lines.map((l) => [materialName(l.material), \`\${l.qty.toLocaleString("th-TH")} \${materialUnit(l.material)}\`])} />
+      <PaperTable head={["หัวข้อทบทวน", "ผล"]} rows={REVIEW_CHECKS.map((k) => [k.label, r ? (r.checks[k.key] ? "ได้" : "ไม่ได้") : "—"])} />
+      {r?.special && <Block title="ข้อกำหนดพิเศษของลูกค้า">{r.special}</Block>}
+      <Block title="ผลการทบทวน">{r ? \`\${r.result}\${r.note ? \` — \${r.note}\` : ""}\` : "ยังไม่ทบทวน"}</Block>
+      <Signatures names={[["ผู้ทบทวน", r?.by], ["ผู้อนุมัติ (QMR)", QMR]]} />
+      <Foot_ />
+    </>
+  );
+}
+
+function DesignRecord({ no }: { no: string }) {
+  const d = designByNo(no);
+  return (
+    <>
+      <PaperHead title="บันทึกการออกแบบและพัฒนา" number={d.no} form={formNo("FM-13")} />
+      <Facts rows={[["ผลิตภัณฑ์", d.product], ["ผู้รับผิดชอบ", d.owner], ["เริ่ม", d.started], ["กำหนดเสร็จ", d.target]]} />
+      <PaperTable
+        head={["ขั้น", "วันที่", "ผู้บันทึก", "หลักฐาน"]}
+        rows={DESIGN_STAGES.map((stage) => {
+          const r = d.records.find((x) => x.stage === stage);
+          return [stage, r?.date ?? "—", r?.by ?? "—", r ? \`\${r.evidence}\${r.participants ? \` (ผู้เข้าร่วม: \${r.participants.join(", ")})\` : ""}\` : "ยังไม่ถึง"];
+        })}
+      />
+      {d.changes.length > 0 && (
+        <>
+          <p className="mt-4 font-semibold text-slate-900">การเปลี่ยนแปลงแบบหลังส่งมอบ (ข้อ 8.3.6)</p>
+          <PaperTable head={["วันที่", "สิ่งที่เปลี่ยน", "เหตุผล", "ผู้อนุมัติ", "ทวนสอบซ้ำ"]} rows={d.changes.map((c) => [c.date, c.change, c.reason, c.approvedBy, c.reverified ? "แล้ว" : "ยัง"])} />
+        </>
+      )}
+      <Signatures names={[["ผู้ออกแบบ", d.owner], ["ผู้อนุมัติ (QMR)", QMR]]} />
+      <Foot_ />
+    </>
+  );
+}
+
+function SupplierReport({ code }: { code: string }) {
+  const a = approvalOf(code);
+  const q = supplierQuality(code);
+  return (
+    <>
+      <PaperHead title="ใบประเมินผู้ส่งมอบประจำปี" number={code} form={formNo("FM-14")} />
+      <Facts
+        rows={[
+          ["ผู้ขาย", vendorName(code)],
+          ["สถานะ", a?.status ?? "รอประเมิน"],
+          ["ล็อตผ่านครั้งแรก", \`\${q.accepted} จาก \${q.lots} (\${q.score}%)\`],
+          ["เกรดจากฝ่ายจัดซื้อ", purchasingGrade(code) ?? "—"],
+          ["NCR ที่เปิดกับผู้ขาย", \`\${q.ncrs} เรื่อง\`],
+          ["ทบทวนครั้งถัดไป", a?.nextReview ?? "—"],
+        ]}
+      />
+      <Block title="ขอบเขตที่อนุมัติ">{a ? a.scope.map(materialName).join(" · ") || "—" : "ยังไม่อนุมัติ"}</Block>
+      <PaperTable head={["วันที่", "ผล", "คุณภาพ %", "เกรดจัดซื้อ", "เหตุผล", "ผู้ประเมิน"]} rows={(a?.history ?? []).map((h) => [h.date, h.status, String(h.quality), h.grade ?? "—", h.note, h.by])} />
+      <Signatures names={[["ผู้ประเมิน", a?.history.at(-1)?.by], ["ผู้อนุมัติ (QMR)", QMR]]} />
+      <Foot_ />
+    </>
+  );
+}
+
+function SatisfactionReport() {
+  const rows = satisfactionByCustomer();
+  return (
+    <>
+      <PaperHead title="สรุปผลสำรวจความพึงพอใจลูกค้า" form={formNo("FM-15")} />
+      <PaperTable
+        head={["ลูกค้า", "รอบ", ...SATISFACTION_CRITERIA.map((c) => c.label), "เฉลี่ย", "ข้อร้องเรียน"]}
+        rows={rows.map((x) => [
+          x.customer.name,
+          x.last?.period ?? "ยังไม่สำรวจ",
+          ...SATISFACTION_CRITERIA.map((c) => (x.last ? String(x.last.scores[c.key]) : "—")),
+          x.score !== undefined ? String(x.score) : "—",
+          String(x.complaints),
+        ])}
+      />
+      <p className="mt-4 font-semibold text-slate-900">ความเห็นและสิ่งที่จะทำต่อ</p>
+      <PaperTable head={["เลขที่", "ลูกค้า", "ความเห็น", "สิ่งที่จะทำต่อ"]} rows={SURVEYS.filter((v) => v.comment || v.followUp).map((v) => [v.no, customerName(v.customer), v.comment || "—", v.followUp ?? "—"])} />
+      <p className="mt-3 text-slate-600">คะแนน 1–5 จากรอบล่าสุดของแต่ละลูกค้า · เฉลี่ยต่ำกว่า 3.5 ต้องมีสิ่งที่จะทำต่อ</p>
+      <Signatures names={[["ผู้จัดทำ", "ชลธิชา มั่นคง"], ["ผู้อนุมัติ (QMR)", QMR]]} />
+      <Foot_ />
     </>
   );
 }
@@ -29739,45 +33359,41 @@ function GaugeReport({ code }: { code: string }) {
 export function QmPaper({ d }: { d: QmDoc }) {
   return (
     <Paper>
-      {d.doc === "master-list" && <MasterList />}
       {d.doc === "lot" && <LotReport no={d.no} />}
       {d.doc === "ncr" && <NcrReport no={d.no} />}
-      {d.doc === "car" && <CarReport no={d.no} />}
-      {d.doc === "audit" && <AuditReport no={d.no} />}
       {d.doc === "gauge" && <GaugeReport code={d.code} />}
+      {d.doc === "requirement" && <RequirementReport no={d.no} />}
+      {d.doc === "design" && <DesignRecord no={d.no} />}
+      {d.doc === "supplier" && <SupplierReport code={d.code} />}
+      {d.doc === "satisfaction" && <SatisfactionReport />}
     </Paper>
   );
 }
 `,
 
   "qm/forms.tsx": `import { useState } from "react";
-import type { ReactNode } from "react";
 import { Printer } from "lucide-react";
+import { PEOPLE, QMR, TODAY } from "../ims/data";
+import { Actions, Area, Checks, Choice, Form, Input, people, tryRun } from "../ims/parts";
 import {
-  CAUSE_CATEGORIES, CLAUSES, DECISIONS, DELIVERY_OPTIONS, DEPARTMENTS, DISPOSITIONS, DOC_TYPES, FINDING_TYPES,
-  NCR_SOURCES, QMR, QM_TEAM, SEVERITIES, TODAY, actionErrors, addCapaAction, addFinding, addGauge, approveDocument,
-  auditByNo, auditErrors, calErrors, capaByNo, capaErrors, closeNcr, closeNcrErrors, complaintErrors, createComplaint,
-  createDocument, createLot, createNcr, decideLot, decisionErrors, disposeNcr, dispositionErrors, docByCode, docErrors,
-  findingErrors, gaugeByCode, gaugeErrors, lotByNo, materialName, ncrByNo, ncrErrors, nextDocCode, obsoleteDocument,
-  openCapa, pendingInspections, planAudit, planOf, recordCalibration, recordResults, recordRootCause, resultErrors,
-  returnDocument, reviseDocument, revLabel, rootCauseErrors, verifyCapa,
+  DECISIONS, DELIVERY_OPTIONS, DISPOSITIONS, NCR_SOURCES, REVIEW_CHECKS, SATISFACTION_CRITERIA, SEVERITIES, addGauge,
+  approvalErrors, approvalOf, average, calErrors, changeDesign, changeErrors, closeNcr, closeNcrErrors, commitments,
+  complaintErrors, createComplaint, createLot, createNcr, currentHalf, customerName, decideLot, decisionErrors,
+  designByNo, designErrors, disposeNcr, dispositionErrors, evaluateSupplier, gaugeByCode, gaugeErrors, lotByNo,
+  materialName, ncrByNo, ncrErrors, nextStage, pendingInspections, planOf, recordCalibration, recordResults, recordStage,
+  recordSurvey, requirementErrors, resultErrors, reviewRequirement, stageErrors, startDesign, stockCover, supplierQuality,
+  purchasingGrade, surveyErrors, vendorName,
 } from "./data";
-import type {
-  CalInput, CapaInput, CauseCategory, Decision, Disposition, DocType, FindingType, NcrSource, Pending, Severity,
-} from "./data";
+import type { CalInput, CheckKey, CriterionKey, Decision, Disposition, NcrSource, Pending, RequirementReview, Severity, SupplierStatus } from "./data";
 import { MATERIALS } from "../mm/data";
-import { DELIVERIES } from "../sd/data";
+import { CUSTOMERS, DELIVERIES } from "../sd/data";
 import { QmPaper } from "./documents";
 import type { QmDoc } from "./documents";
-import { Badge, Button, FIELD, Note, Segmented } from "../ui";
+import { Badge, Button, Note, Segmented } from "../ui";
 import { ConfirmDialog, Field, FormModal, notify, printDocument, useData } from "../kit";
 
 /** ทุกการกระทำของฝ่ายคุณภาพ ยกขึ้นแบบเดียวกันจากทุกหน้า */
 export type Act =
-  | { kind: "doc-new" }
-  | { kind: "doc-revise"; code: string }
-  | { kind: "doc-approve"; code: string }
-  | { kind: "doc-obsolete"; code: string }
   | { kind: "lot-new"; source?: string; material?: string }
   | { kind: "lot-results"; no: string }
   | { kind: "lot-decide"; no: string }
@@ -29785,174 +33401,18 @@ export type Act =
   | { kind: "complaint-new" }
   | { kind: "ncr-dispose"; no: string }
   | { kind: "ncr-close"; no: string }
-  | { kind: "car-new"; ref?: string; problem?: string }
-  | { kind: "car-cause"; no: string }
-  | { kind: "car-action"; no: string }
-  | { kind: "car-verify"; no: string }
-  | { kind: "audit-new" }
-  | { kind: "audit-finding"; no: string }
   | { kind: "gauge-new" }
   | { kind: "gauge-cal"; code: string }
+  | { kind: "req-review"; doc: string }
+  | { kind: "design-new" }
+  | { kind: "design-stage"; no: string }
+  | { kind: "design-change"; no: string }
+  | { kind: "supplier-evaluate"; code: string }
+  | { kind: "survey-new"; customer?: string }
   | { kind: "print"; d: QmDoc; title: string };
 
 type Of<K extends Act["kind"]> = Extract<Act, { kind: K }>;
-
-/* ---------------------------------------------------------------- pieces */
-
-const bad = (error?: string) => (error ? " border-rose-400 dark:border-rose-500" : "");
-
-function Input({ value, onChange, error, type = "text", placeholder }: { value: string; onChange: (v: string) => void; error?: string; type?: string; placeholder?: string }) {
-  return <input type={type} value={value} placeholder={placeholder} onChange={(e) => onChange(e.target.value)} className={FIELD + " w-full tabular-nums" + bad(error)} />;
-}
-
-function Area({ value, onChange, error, placeholder, rows = 3 }: { value: string; onChange: (v: string) => void; error?: string; placeholder?: string; rows?: number }) {
-  return <textarea value={value} rows={rows} placeholder={placeholder} onChange={(e) => onChange(e.target.value)} className={FIELD + " w-full resize-none" + bad(error)} />;
-}
-
-function Choice({ value, onChange, options, error, placeholder }: { value: string; onChange: (v: string) => void; options: readonly (string | { value: string; label: string })[]; error?: string; placeholder?: string }) {
-  return (
-    <select value={value} onChange={(e) => onChange(e.target.value)} className={FIELD + " w-full" + bad(error)}>
-      {placeholder && <option value="">{placeholder}</option>}
-      {options.map((o) => {
-        const opt = typeof o === "string" ? { value: o, label: o } : o;
-        return <option key={opt.value} value={opt.value}>{opt.label}</option>;
-      })}
-    </select>
-  );
-}
-
-function Actions({ onCancel, label, disabled }: { onCancel: () => void; label: string; disabled?: boolean }) {
-  return (
-    <div className="flex justify-end gap-2 border-t border-slate-100 pt-4 dark:border-slate-800">
-      <Button variant="secondary" onClick={onCancel}>ยกเลิก</Button>
-      <Button type="submit" disabled={disabled}>{label}</Button>
-    </div>
-  );
-}
-
-/** ฟอร์มที่ส่งแล้วเรียกฟังก์ชันของ data.ts — ข้อผิดพลาดจากกฎธุรกิจขึ้นใต้ฟอร์ม ไม่ใช่หน้าจอพัง */
-function Form({ children, onSubmit, error }: { children: ReactNode; onSubmit: () => void; error?: string }) {
-  return (
-    <form
-      className="space-y-4"
-      onSubmit={(e) => {
-        e.preventDefault();
-        onSubmit();
-      }}
-    >
-      {children}
-      {error && <Note tone="bad">{error}</Note>}
-    </form>
-  );
-}
-
-const people = (filter?: (p: (typeof QM_TEAM)[number]) => boolean) => QM_TEAM.filter(filter ?? (() => true)).map((p) => ({ value: p.name, label: \`\${p.name} · \${p.role}\` }));
-const tryRun = (fn: () => void, setError: (e: string) => void) => {
-  try {
-    fn();
-  } catch (e) {
-    setError(e instanceof Error ? e.message : String(e));
-  }
-};
-
-/* ------------------------------------------------------------- documents */
-
-function DocForm({ onCancel, onDone }: { onCancel: () => void; onDone: (code: string) => void }) {
-  const [type, setType] = useState<DocType>("ขั้นตอนการปฏิบัติงาน");
-  const [title, setTitle] = useState("");
-  const [clause, setClause] = useState("");
-  const [owner, setOwner] = useState("ฝ่ายประกันคุณภาพ");
-  const [by, setBy] = useState("สุภาพร แก้วมณี");
-  const [change, setChange] = useState("");
-  const [tried, setTried] = useState(false);
-  const input = { type, title, clause, owner, by, change };
-  const errors = tried ? docErrors(input) : {};
-  return (
-    <Form
-      onSubmit={() => {
-        setTried(true);
-        if (Object.keys(docErrors(input)).length) return;
-        const d = createDocument(input);
-        notify(\`สร้างร่างเอกสาร \${d.code} แล้ว · ส่งอนุมัติเมื่อเขียนเสร็จ\`);
-        onDone(d.code);
-      }}
-    >
-      <div className="grid gap-3 sm:grid-cols-2">
-        <Field label="ประเภท" hint={\`รหัสที่จะได้ \${nextDocCode(type)}\`}>
-          <Choice value={type} onChange={(v) => setType(v as DocType)} options={DOC_TYPES} />
-        </Field>
-        <Field label="รองรับข้อกำหนด" error={errors.clause}>
-          <Choice value={clause} onChange={setClause} placeholder="เลือกข้อกำหนด…" error={errors.clause} options={CLAUSES.map((c) => ({ value: c.code, label: \`\${c.code} \${c.name}\` }))} />
-        </Field>
-      </div>
-      <Field label="ชื่อเอกสาร" error={errors.title}>
-        <Input value={title} onChange={setTitle} error={errors.title} placeholder="เช่น การจัดการข้อร้องเรียนลูกค้า" />
-      </Field>
-      <div className="grid gap-3 sm:grid-cols-2">
-        <Field label="ฝ่ายเจ้าของ" error={errors.owner}>
-          <Choice value={owner} onChange={setOwner} options={DEPARTMENTS} />
-        </Field>
-        <Field label="ผู้จัดทำ" error={errors.by}>
-          <Choice value={by} onChange={setBy} options={people()} />
-        </Field>
-      </div>
-      <Field label="รายละเอียดการออกใช้" hint="ว่างไว้จะบันทึกเป็น “ออกใช้ครั้งแรก”">
-        <Input value={change} onChange={setChange} placeholder="ออกใช้ครั้งแรก" />
-      </Field>
-      <Actions onCancel={onCancel} label="สร้างร่างเอกสาร" />
-    </Form>
-  );
-}
-
-function ReviseForm({ code, onCancel, onDone }: { code: string; onCancel: () => void; onDone: () => void }) {
-  const d = docByCode(code);
-  const [change, setChange] = useState("");
-  const [by, setBy] = useState("สุภาพร แก้วมณี");
-  const [error, setError] = useState("");
-  return (
-    <Form error={error} onSubmit={() => tryRun(() => { reviseDocument(code, change, by); notify(\`เปิดฉบับแก้ไข \${code} \${revLabel(d.rev + 1)} แล้ว · ฉบับ \${revLabel(d.rev)} ยังใช้อยู่จนกว่าจะอนุมัติ\`); onDone(); }, setError)}>
-      <Note tone="info">ฉบับที่ใช้อยู่ ({revLabel(d.rev)}) ใช้ต่อที่หน้างานจนกว่าฉบับใหม่จะได้รับอนุมัติ</Note>
-      <Field label="แก้อะไร">
-        <Area value={change} onChange={setChange} placeholder="เช่น เพิ่มขั้นตอนประเมินผู้ขายใหม่" />
-      </Field>
-      <Field label="ผู้จัดทำ">
-        <Choice value={by} onChange={setBy} options={people()} />
-      </Field>
-      <Actions onCancel={onCancel} label={\`เปิดฉบับ \${revLabel(d.rev + 1)}\`} />
-    </Form>
-  );
-}
-
-function ApproveForm({ code, onCancel, onDone }: { code: string; onCancel: () => void; onDone: () => void }) {
-  const d = docByCode(code);
-  const [approver, setApprover] = useState(QMR);
-  const [error, setError] = useState("");
-  if (!d.draft) return <Note tone="idle">ไม่มีฉบับที่รออนุมัติ</Note>;
-  return (
-    <Form error={error} onSubmit={() => tryRun(() => { approveDocument(code, approver); notify(\`อนุมัติ \${code} \${revLabel(d.rev)} แล้ว · มีผลวันนี้\`); onDone(); }, setError)}>
-      <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5 text-[13px]">
-        <dt className="text-slate-500">ฉบับ</dt>
-        <dd>{revLabel(d.draft.rev)}</dd>
-        <dt className="text-slate-500">รายละเอียด</dt>
-        <dd>{d.draft.change}</dd>
-        <dt className="text-slate-500">ผู้จัดทำ</dt>
-        <dd>{d.draft.by} · {d.draft.date}</dd>
-      </dl>
-      <Field label="ผู้อนุมัติ" hint="ต้องไม่ใช่ผู้จัดทำ">
-        <Choice value={approver} onChange={setApprover} options={people()} />
-      </Field>
-      <div className="flex justify-between gap-2 border-t border-slate-100 pt-4 dark:border-slate-800">
-        <Button variant="ghost" onClick={() => tryRun(() => { returnDocument(code); notify(\`ส่ง \${code} กลับไปแก้แล้ว\`, "info"); onDone(); }, setError)}>
-          ส่งกลับไปแก้
-        </Button>
-        <div className="flex gap-2">
-          <Button variant="secondary" onClick={onCancel}>ยกเลิก</Button>
-          <Button type="submit">อนุมัติและออกใช้</Button>
-        </div>
-      </div>
-    </Form>
-  );
-}
+export type RecordKind = "lot" | "ncr" | "gauge" | "design" | "supplier" | "survey";
 
 /* ------------------------------------------------------------ inspection */
 
@@ -30021,9 +33481,7 @@ function ResultsForm({ no, onCancel, onDone }: { no: string; onCancel: () => voi
           )}
         </Field>
       ))}
-      <Field label="ผู้ตรวจ">
-        <Choice value={inspector} onChange={setInspector} options={people()} />
-      </Field>
+      <Field label="ผู้ตรวจ"><Choice value={inspector} onChange={setInspector} options={people()} /></Field>
       <Actions onCancel={onCancel} label="บันทึกผลตรวจ" />
     </Form>
   );
@@ -30047,14 +33505,8 @@ function DecideForm({ no, onCancel, onDone }: { no: string; onCancel: () => void
         onDone(ncr?.no);
       }}
     >
-      {failing.length > 0 ? (
-        <Note tone="warn">ไม่ผ่านเกณฑ์: {failing.map((r) => r.characteristic).join(", ")}</Note>
-      ) : (
-        <Note tone="ok">ผ่านเกณฑ์ทุกคุณลักษณะ</Note>
-      )}
-      <Field label="ผลการตัดสิน" error={errors.decision}>
-        <Segmented options={DECISIONS} value={decision} onChange={(v) => setDecision(v as Decision)} />
-      </Field>
+      {failing.length > 0 ? <Note tone="warn">ไม่ผ่านเกณฑ์: {failing.map((r) => r.characteristic).join(", ")}</Note> : <Note tone="ok">ผ่านเกณฑ์ทุกคุณลักษณะ</Note>}
+      <Field label="ผลการตัดสิน" error={errors.decision}><Segmented options={DECISIONS} value={decision} onChange={(v) => setDecision(v as Decision)} /></Field>
       <Field label="ผู้ตัดสิน" error={errors.by} hint={decision === "ยอมรับแบบมีเงื่อนไข" ? "การผ่อนผันต้องอนุมัติโดย QMR" : undefined}>
         <Choice value={by} onChange={setBy} options={people()} error={errors.by} />
       </Field>
@@ -30080,40 +33532,20 @@ function NcrForm({ onCancel, onDone }: { onCancel: () => void; onDone: (no: stri
   const input = { source, ref, material, qty: Number(qty), description, severity, reportedBy };
   const errors = tried ? ncrErrors(input) : {};
   return (
-    <Form
-      onSubmit={() => {
-        setTried(true);
-        if (Object.keys(ncrErrors(input)).length) return;
-        const n = createNcr(input);
-        notify(\`เปิด \${n.no} แล้ว · รอสั่งการ\`, "warn");
-        onDone(n.no);
-      }}
-    >
+    <Form onSubmit={() => { setTried(true); if (Object.keys(ncrErrors(input)).length) return; const n = createNcr(input); notify(\`เปิด \${n.no} แล้ว · รอสั่งการ\`, "warn"); onDone(n.no); }}>
       <div className="grid gap-3 sm:grid-cols-2">
-        <Field label="พบที่">
-          <Choice value={source} onChange={(v) => setSource(v as NcrSource)} options={NCR_SOURCES.filter((s) => s !== "ข้อร้องเรียนลูกค้า" && s !== "สอบเทียบเครื่องมือ")} />
-        </Field>
+        <Field label="พบที่"><Choice value={source} onChange={(v) => setSource(v as NcrSource)} options={NCR_SOURCES.filter((s) => s !== "ข้อร้องเรียนลูกค้า" && s !== "สอบเทียบเครื่องมือ")} /></Field>
         <Field label="เอกสารอ้างอิง" error={errors.ref} hint={source === "ระหว่างผลิต" ? "เลขใบสั่งผลิต เช่น PO-P-3301" : undefined}>
           <Input value={ref} onChange={setRef} error={errors.ref} placeholder={source === "ระหว่างผลิต" ? "PO-P-3301" : ""} />
         </Field>
       </div>
       <div className="grid gap-3 sm:grid-cols-[1fr_120px]">
-        <Field label="วัสดุหรือสินค้า" error={errors.material}>
-          <Choice value={material} onChange={setMaterial} placeholder="เลือก…" options={MATERIALS.map((m) => ({ value: m.code, label: \`\${m.code} · \${m.name}\` }))} />
-        </Field>
-        <Field label="จำนวน" error={errors.qty}>
-          <Input type="number" value={qty} onChange={setQty} error={errors.qty} />
-        </Field>
+        <Field label="วัสดุหรือสินค้า" error={errors.material}><Choice value={material} onChange={setMaterial} placeholder="เลือก…" options={MATERIALS.map((m) => ({ value: m.code, label: \`\${m.code} · \${m.name}\` }))} /></Field>
+        <Field label="จำนวน" error={errors.qty}><Input type="number" value={qty} onChange={setQty} error={errors.qty} /></Field>
       </div>
-      <Field label="ความรุนแรง">
-        <Segmented options={SEVERITIES} value={severity} onChange={(v) => setSeverity(v as Severity)} />
-      </Field>
-      <Field label="สิ่งที่พบ" error={errors.description}>
-        <Area value={description} onChange={setDescription} error={errors.description} />
-      </Field>
-      <Field label="ผู้รายงาน" error={errors.reportedBy}>
-        <Choice value={reportedBy} onChange={setReportedBy} options={people()} />
-      </Field>
+      <Field label="ความรุนแรง"><Segmented options={SEVERITIES} value={severity} onChange={(v) => setSeverity(v as Severity)} /></Field>
+      <Field label="สิ่งที่พบ" error={errors.description}><Area value={description} onChange={setDescription} error={errors.description} /></Field>
+      <Field label="ผู้รายงาน" error={errors.reportedBy}><Choice value={reportedBy} onChange={setReportedBy} options={people()} /></Field>
       <Actions onCancel={onCancel} label="เปิด NCR" />
     </Form>
   );
@@ -30131,35 +33563,17 @@ function ComplaintForm({ onCancel, onDone }: { onCancel: () => void; onDone: (no
   const input = { delivery, material, qty: Number(qty), description, severity, reportedBy };
   const errors = tried ? complaintErrors(input) : {};
   return (
-    <Form
-      onSubmit={() => {
-        setTried(true);
-        if (Object.keys(complaintErrors(input)).length) return;
-        const n = createComplaint(input);
-        notify(\`รับเรื่องร้องเรียนเป็น \${n.no} แล้ว\`, "warn");
-        onDone(n.no);
-      }}
-    >
+    <Form onSubmit={() => { setTried(true); if (Object.keys(complaintErrors(input)).length) return; const n = createComplaint(input); notify(\`รับเรื่องร้องเรียนเป็น \${n.no} แล้ว\`, "warn"); onDone(n.no); }}>
       <Field label="ใบส่งของที่ลูกค้าร้องเรียน" error={errors.delivery}>
         <Choice value={delivery} onChange={(v) => { setDelivery(v); setMaterial(""); }} placeholder="เลือกใบส่งของ…" error={errors.delivery} options={DELIVERY_OPTIONS()} />
       </Field>
       <div className="grid gap-3 sm:grid-cols-[1fr_120px]">
-        <Field label="สินค้า" error={errors.material}>
-          <Choice value={material} onChange={setMaterial} placeholder="เลือก…" error={errors.material} options={(d?.lines ?? []).map((l) => ({ value: l.material, label: \`\${materialName(l.material)} · ส่ง \${l.qty}\` }))} />
-        </Field>
-        <Field label="จำนวน" error={errors.qty}>
-          <Input type="number" value={qty} onChange={setQty} error={errors.qty} />
-        </Field>
+        <Field label="สินค้า" error={errors.material}><Choice value={material} onChange={setMaterial} placeholder="เลือก…" error={errors.material} options={(d?.lines ?? []).map((l) => ({ value: l.material, label: \`\${materialName(l.material)} · ส่ง \${l.qty}\` }))} /></Field>
+        <Field label="จำนวน" error={errors.qty}><Input type="number" value={qty} onChange={setQty} error={errors.qty} /></Field>
       </div>
-      <Field label="ความรุนแรง">
-        <Segmented options={SEVERITIES} value={severity} onChange={(v) => setSeverity(v as Severity)} />
-      </Field>
-      <Field label="สิ่งที่ลูกค้าแจ้ง" error={errors.description}>
-        <Area value={description} onChange={setDescription} error={errors.description} />
-      </Field>
-      <Field label="ผู้รับเรื่อง">
-        <Choice value={reportedBy} onChange={setReportedBy} options={people()} />
-      </Field>
+      <Field label="ความรุนแรง"><Segmented options={SEVERITIES} value={severity} onChange={(v) => setSeverity(v as Severity)} /></Field>
+      <Field label="สิ่งที่ลูกค้าแจ้ง" error={errors.description}><Area value={description} onChange={setDescription} error={errors.description} /></Field>
+      <Field label="ผู้รับเรื่อง"><Choice value={reportedBy} onChange={setReportedBy} options={people()} /></Field>
       <Actions onCancel={onCancel} label="รับเรื่องร้องเรียน" />
     </Form>
   );
@@ -30175,241 +33589,13 @@ function DisposeForm({ no, onCancel, onDone }: { no: string; onCancel: () => voi
   const errors = tried ? dispositionErrors(no, input) : {};
   const cutsStock = (disposition === "ทำลาย" || disposition === "ส่งคืนผู้ขาย") && ["ตรวจรับ", "ระหว่างผลิต", "ตรวจก่อนส่ง"].includes(n.source) && n.material;
   return (
-    <Form
-      onSubmit={() => {
-        setTried(true);
-        if (Object.keys(dispositionErrors(no, input)).length) return;
-        const saved = disposeNcr(no, input);
-        notify(saved.stockDoc ? \`สั่งการ \${no} แล้ว · ตัดสต็อกตาม \${saved.stockDoc}\` : \`สั่งการ \${no} แล้ว\`);
-        onDone();
-      }}
-    >
+    <Form onSubmit={() => { setTried(true); if (Object.keys(dispositionErrors(no, input)).length) return; const saved = disposeNcr(no, input); notify(saved.stockDoc ? \`สั่งการ \${no} แล้ว · ตัดสต็อกตาม \${saved.stockDoc}\` : \`สั่งการ \${no} แล้ว\`); onDone(); }}>
       <p className="text-[13px] text-slate-600 dark:text-slate-300">{n.description}</p>
-      <Field label="การสั่งการ" error={errors.disposition}>
-        <Choice value={disposition} onChange={(v) => setDisposition(v as Disposition)} options={DISPOSITIONS} error={errors.disposition} />
-      </Field>
+      <Field label="การสั่งการ" error={errors.disposition}><Choice value={disposition} onChange={(v) => setDisposition(v as Disposition)} options={DISPOSITIONS} error={errors.disposition} /></Field>
       {cutsStock && <Note tone="info">ตัดสต็อก {materialName(n.material!)} ออก {n.qty.toLocaleString("th-TH")} ในคลังวัสดุ ใต้เลข {no}</Note>}
-      <Field label="ผู้สั่งการ" error={errors.by}>
-        <Choice value={by} onChange={setBy} options={people()} error={errors.by} />
-      </Field>
-      <Field label="สิ่งที่ต้องทำ" error={errors.note}>
-        <Area value={note} onChange={setNote} error={errors.note} />
-      </Field>
+      <Field label="ผู้สั่งการ" error={errors.by}><Choice value={by} onChange={setBy} options={people()} error={errors.by} /></Field>
+      <Field label="สิ่งที่ต้องทำ" error={errors.note}><Area value={note} onChange={setNote} error={errors.note} /></Field>
       <Actions onCancel={onCancel} label="บันทึกการสั่งการ" />
-    </Form>
-  );
-}
-
-/* ------------------------------------------------------------------ capa */
-
-function CarForm({ refNo, problem: initial, onCancel, onDone }: { refNo?: string; problem?: string; onCancel: () => void; onDone: (no: string) => void }) {
-  const [kind, setKind] = useState<CapaInput["kind"]>("แก้ไข");
-  const [ref, setRef] = useState(refNo ?? "");
-  const [problem, setProblem] = useState(initial ?? "");
-  const [owner, setOwner] = useState("อนุชา ทองดี");
-  const [tried, setTried] = useState(false);
-  const input = { kind, ref, problem, owner };
-  const errors = tried ? capaErrors(input) : {};
-  return (
-    <Form
-      onSubmit={() => {
-        setTried(true);
-        if (Object.keys(capaErrors(input)).length) return;
-        const c = openCapa(input);
-        notify(\`ออก \${c.no} ให้ \${owner} แล้ว · เริ่มจากหาสาเหตุราก\`);
-        onDone(c.no);
-      }}
-    >
-      <Field label="ประเภท">
-        <Segmented options={["แก้ไข", "ป้องกัน"]} value={kind} onChange={(v) => setKind(v as CapaInput["kind"])} />
-      </Field>
-      <Field label="ต้นเรื่อง" error={errors.ref} hint="เลข NCR หรือผลตรวจติดตาม เช่น IA-2569-03 #1">
-        <Input value={ref} onChange={setRef} error={errors.ref} />
-      </Field>
-      <Field label="ปัญหาที่ต้องแก้" error={errors.problem}>
-        <Area value={problem} onChange={setProblem} error={errors.problem} />
-      </Field>
-      <Field label="ผู้รับผิดชอบ" error={errors.owner}>
-        <Choice value={owner} onChange={setOwner} options={people()} />
-      </Field>
-      <Actions onCancel={onCancel} label="ออกใบขอให้แก้ไข" />
-    </Form>
-  );
-}
-
-function CauseForm({ no, onCancel, onDone }: { no: string; onCancel: () => void; onDone: () => void }) {
-  const c = capaByNo(no);
-  const [category, setCategory] = useState<CauseCategory>(c.rootCause?.category ?? "วิธีการ");
-  const [whys, setWhys] = useState<string[]>(() => [...(c.rootCause?.whys ?? []), "", "", "", "", ""].slice(0, 5));
-  const [tried, setTried] = useState(false);
-  const errors = tried ? rootCauseErrors({ category, whys }) : {};
-  return (
-    <Form
-      onSubmit={() => {
-        setTried(true);
-        if (Object.keys(rootCauseErrors({ category, whys })).length) return;
-        recordRootCause(no, { category, whys });
-        notify(\`บันทึกสาเหตุรากของ \${no} แล้ว\`);
-        onDone();
-      }}
-    >
-      <p className="text-[13px] text-slate-600 dark:text-slate-300">{c.problem}</p>
-      <Field label="กลุ่มสาเหตุ (ผังก้างปลา)">
-        <Segmented options={CAUSE_CATEGORIES} value={category} onChange={(v) => setCategory(v as CauseCategory)} />
-      </Field>
-      <Field label="ถามทำไม 5 ชั้น" error={errors.whys} hint="ชั้นสุดท้ายที่ตอบได้คือสาเหตุราก อย่างน้อยสามชั้น">
-        <div className="space-y-2">
-          {whys.map((w, i) => (
-            <Input key={i} value={w} onChange={(v) => setWhys((s) => s.map((x, j) => (j === i ? v : x)))} placeholder={\`ทำไมครั้งที่ \${i + 1}\`} error={i < 3 ? errors.whys : undefined} />
-          ))}
-        </div>
-      </Field>
-      <Actions onCancel={onCancel} label="บันทึกสาเหตุราก" />
-    </Form>
-  );
-}
-
-function ActionForm({ no, onCancel, onDone }: { no: string; onCancel: () => void; onDone: () => void }) {
-  const c = capaByNo(no);
-  const [what, setWhat] = useState("");
-  const [owner, setOwner] = useState(c.owner);
-  const [due, setDue] = useState("");
-  const [tried, setTried] = useState(false);
-  const input = { what, owner, due };
-  const errors = tried ? actionErrors(input) : {};
-  return (
-    <Form
-      onSubmit={() => {
-        setTried(true);
-        if (Object.keys(actionErrors(input)).length) return;
-        addCapaAction(no, input);
-        notify(\`เพิ่มมาตรการใน \${no} แล้ว · กำหนดเสร็จ \${due}\`);
-        onDone();
-      }}
-    >
-      <Field label="มาตรการ" error={errors.what}>
-        <Area value={what} onChange={setWhat} error={errors.what} rows={2} />
-      </Field>
-      <div className="grid gap-3 sm:grid-cols-2">
-        <Field label="ผู้รับผิดชอบ" error={errors.owner}>
-          <Choice value={owner} onChange={setOwner} options={people()} />
-        </Field>
-        <Field label="กำหนดเสร็จ" error={errors.due}>
-          <Input type="date" value={due} onChange={setDue} error={errors.due} />
-        </Field>
-      </div>
-      <Actions onCancel={onCancel} label="เพิ่มมาตรการ" />
-    </Form>
-  );
-}
-
-function VerifyForm({ no, onCancel, onDone }: { no: string; onCancel: () => void; onDone: () => void }) {
-  const c = capaByNo(no);
-  const [effective, setEffective] = useState("ได้ผล");
-  const [note, setNote] = useState("");
-  const [by, setBy] = useState(c.owner === QMR ? "สุภาพร แก้วมณี" : QMR);
-  const [error, setError] = useState("");
-  return (
-    <Form
-      error={error}
-      onSubmit={() => tryRun(() => {
-        const ok = effective === "ได้ผล";
-        verifyCapa(no, { effective: ok, note, by });
-        notify(ok ? \`ปิด \${no} แล้ว · มาตรการได้ผล\` : \`\${no} ยังไม่ได้ผล · กลับไปหาสาเหตุใหม่\`, ok ? "ok" : "warn");
-        onDone();
-      }, setError)}
-    >
-      <Field label="ผลการติดตาม">
-        <Segmented options={["ได้ผล", "ไม่ได้ผล"]} value={effective} onChange={setEffective} />
-      </Field>
-      <Field label="หลักฐาน" hint="เช่น สุ่มตรวจ 20 ชุดหลังแก้ ไม่พบปัญหาซ้ำ">
-        <Area value={note} onChange={setNote} />
-      </Field>
-      <Field label="ผู้ติดตามผล" hint="ต้องไม่ใช่ผู้รับผิดชอบ CAR">
-        <Choice value={by} onChange={setBy} options={people()} />
-      </Field>
-      <Actions onCancel={onCancel} label="บันทึกผลการติดตาม" />
-    </Form>
-  );
-}
-
-/* ----------------------------------------------------------------- audit */
-
-function AuditForm({ onCancel, onDone }: { onCancel: () => void; onDone: (no: string) => void }) {
-  const [area, setArea] = useState("ฝ่ายผลิต");
-  const [clauses, setClauses] = useState<string[]>(["8.5"]);
-  const [auditor, setAuditor] = useState("สุภาพร แก้วมณี");
-  const [planned, setPlanned] = useState("");
-  const [tried, setTried] = useState(false);
-  const input = { area, clauses, auditor, planned };
-  const errors = tried ? auditErrors(input) : {};
-  const toggle = (c: string) => setClauses((s) => (s.includes(c) ? s.filter((x) => x !== c) : [...s, c]));
-  return (
-    <Form
-      onSubmit={() => {
-        setTried(true);
-        if (Object.keys(auditErrors(input)).length) return;
-        const a = planAudit(input);
-        notify(\`วางแผนตรวจ \${a.no} \${area} วันที่ \${planned} แล้ว\`);
-        onDone(a.no);
-      }}
-    >
-      <div className="grid gap-3 sm:grid-cols-2">
-        <Field label="ฝ่ายที่จะตรวจ" error={errors.area}>
-          <Choice value={area} onChange={setArea} options={DEPARTMENTS} />
-        </Field>
-        <Field label="วันที่ตรวจ" error={errors.planned}>
-          <Input type="date" value={planned} onChange={setPlanned} error={errors.planned} />
-        </Field>
-      </div>
-      <Field label="ผู้ตรวจ" error={errors.auditor} hint="ต้องผ่านการอบรม และไม่ตรวจฝ่ายของตัวเอง">
-        <Choice value={auditor} onChange={setAuditor} options={people()} error={errors.auditor} />
-      </Field>
-      <Field label="ข้อกำหนดที่จะตรวจ" error={errors.clauses}>
-        <div className="grid gap-1.5 sm:grid-cols-2">
-          {CLAUSES.map((c) => (
-            <label key={c.code} className="flex items-center gap-2 text-[12.5px] text-slate-700 dark:text-slate-200">
-              <input type="checkbox" checked={clauses.includes(c.code)} onChange={() => toggle(c.code)} className="size-4 accent-violet-600" />
-              <span className="tabular-nums text-slate-400">{c.code}</span> {c.name}
-            </label>
-          ))}
-        </div>
-      </Field>
-      <Actions onCancel={onCancel} label="วางแผนการตรวจ" />
-    </Form>
-  );
-}
-
-function FindingForm({ no, onCancel, onDone }: { no: string; onCancel: () => void; onDone: () => void }) {
-  const a = auditByNo(no);
-  const [clause, setClause] = useState(a.clauses[0] ?? "");
-  const [type, setType] = useState<FindingType>("ข้อบกพร่องย่อย");
-  const [detail, setDetail] = useState("");
-  const [tried, setTried] = useState(false);
-  const input = { clause, type, detail };
-  const errors = tried ? findingErrors(no, input) : {};
-  return (
-    <Form
-      onSubmit={() => {
-        setTried(true);
-        if (Object.keys(findingErrors(no, input)).length) return;
-        addFinding(no, input);
-        notify(\`บันทึก\${type}ใน \${no} แล้ว\`, type === "ข้อสังเกต" ? "info" : "warn");
-        onDone();
-      }}
-    >
-      <div className="grid gap-3 sm:grid-cols-2">
-        <Field label="ข้อกำหนด" error={errors.clause}>
-          <Choice value={clause} onChange={setClause} options={CLAUSES.map((c) => ({ value: c.code, label: \`\${c.code} \${c.name}\` }))} />
-        </Field>
-        <Field label="ประเภท">
-          <Choice value={type} onChange={(v) => setType(v as FindingType)} options={FINDING_TYPES} />
-        </Field>
-      </div>
-      <Field label="สิ่งที่พบและหลักฐาน" error={errors.detail}>
-        <Area value={detail} onChange={setDetail} error={errors.detail} />
-      </Field>
-      <Actions onCancel={onCancel} label="บันทึกสิ่งที่พบ" />
     </Form>
   );
 }
@@ -30422,15 +33608,7 @@ function GaugeForm({ onCancel, onDone }: { onCancel: () => void; onDone: (code: 
   const errors = tried ? gaugeErrors(v) : {};
   const set = (k: keyof typeof v) => (x: string) => setV((s) => ({ ...s, [k]: k === "intervalMonths" ? Number(x) : x }));
   return (
-    <Form
-      onSubmit={() => {
-        setTried(true);
-        if (Object.keys(gaugeErrors(v)).length) return;
-        const g = addGauge(v);
-        notify(\`ขึ้นทะเบียนเครื่องมือ \${g.code} แล้ว\`);
-        onDone(g.code);
-      }}
-    >
+    <Form onSubmit={() => { setTried(true); if (Object.keys(gaugeErrors(v)).length) return; const g = addGauge(v); notify(\`ขึ้นทะเบียนเครื่องมือ \${g.code} แล้ว\`); onDone(g.code); }}>
       <div className="grid gap-3 sm:grid-cols-[140px_1fr]">
         <Field label="รหัส" error={errors.code}><Input value={v.code} onChange={set("code")} error={errors.code} placeholder="QC-XX-00" /></Field>
         <Field label="ชื่อเครื่องมือ" error={errors.name}><Input value={v.name} onChange={set("name")} error={errors.name} /></Field>
@@ -30439,9 +33617,7 @@ function GaugeForm({ onCancel, onDone }: { onCancel: () => void; onDone: (code: 
         <Field label="ช่วงการวัด" error={errors.range}><Input value={v.range} onChange={set("range")} error={errors.range} placeholder="0–150 มม." /></Field>
         <Field label="ความละเอียด"><Input value={v.resolution} onChange={set("resolution")} placeholder="0.01 มม." /></Field>
         <Field label="ที่ใช้งาน" error={errors.location}><Input value={v.location} onChange={set("location")} error={errors.location} /></Field>
-        <Field label="รอบสอบเทียบ" error={errors.intervalMonths}>
-          <Choice value={String(v.intervalMonths)} onChange={set("intervalMonths")} options={[3, 6, 12, 24].map((n) => ({ value: String(n), label: \`ทุก \${n} เดือน\` }))} />
-        </Field>
+        <Field label="รอบสอบเทียบ" error={errors.intervalMonths}><Choice value={String(v.intervalMonths)} onChange={set("intervalMonths")} options={[3, 6, 12, 24].map((n) => ({ value: String(n), label: \`ทุก \${n} เดือน\` }))} /></Field>
       </div>
       <Field label="สอบเทียบล่าสุด" error={errors.lastCal}><Input type="date" value={v.lastCal} onChange={set("lastCal")} error={errors.lastCal} /></Field>
       <Actions onCancel={onCancel} label="ขึ้นทะเบียน" />
@@ -30456,20 +33632,10 @@ function CalForm({ code, onCancel, onDone }: { code: string; onCancel: () => voi
   const errors = tried ? calErrors(code, v) : {};
   const set = (k: keyof CalInput) => (x: string) => setV((s) => ({ ...s, [k]: x }));
   return (
-    <Form
-      onSubmit={() => {
-        setTried(true);
-        if (Object.keys(calErrors(code, v)).length) return;
-        const { ncr } = recordCalibration(code, v);
-        notify(ncr ? \`\${code} ไม่ผ่าน · พักใช้และเปิด \${ncr.no} ให้ทบทวนผลการวัดแล้ว\` : \`บันทึกผลสอบเทียบ \${code} แล้ว · เริ่มรอบใหม่\`, ncr ? "warn" : "ok");
-        onDone(ncr?.no);
-      }}
-    >
+    <Form onSubmit={() => { setTried(true); if (Object.keys(calErrors(code, v)).length) return; const { ncr } = recordCalibration(code, v); notify(ncr ? \`\${code} ไม่ผ่าน · พักใช้และเปิด \${ncr.no} ให้ทบทวนผลการวัดแล้ว\` : \`บันทึกผลสอบเทียบ \${code} แล้ว · เริ่มรอบใหม่\`, ncr ? "warn" : "ok"); onDone(ncr?.no); }}>
       <div className="grid gap-3 sm:grid-cols-2">
         <Field label="วันที่สอบเทียบ" error={errors.date}><Input type="date" value={v.date} onChange={set("date")} error={errors.date} /></Field>
-        <Field label="ผล">
-          <Segmented options={["ผ่าน", "ไม่ผ่าน"]} value={v.result} onChange={(x) => setV((s) => ({ ...s, result: x as CalInput["result"] }))} />
-        </Field>
+        <Field label="ผล"><Segmented options={["ผ่าน", "ไม่ผ่าน"]} value={v.result} onChange={(x) => setV((s) => ({ ...s, result: x as CalInput["result"] }))} /></Field>
         <Field label="ผู้สอบเทียบ / ห้องปฏิบัติการ" error={errors.by}><Input value={v.by} onChange={set("by")} error={errors.by} /></Field>
         <Field label="เลขที่ใบรับรองผล" error={errors.certNo}><Input value={v.certNo} onChange={set("certNo")} error={errors.certNo} /></Field>
       </div>
@@ -30482,66 +33648,202 @@ function CalForm({ code, onCancel, onDone }: { code: string; onCancel: () => voi
   );
 }
 
+/* ================================================ customer requirements */
+
+function RequirementForm({ doc, onCancel, onDone }: { doc: string; onCancel: () => void; onDone: () => void }) {
+  const c = commitments().find((x) => x.doc === doc)!;
+  const cover = stockCover(c.lines);
+  const [checks, setChecks] = useState<Record<CheckKey, boolean>>({ spec: true, capacity: cover.every((l) => l.stock >= l.qty), delivery: true, legal: true });
+  const [special, setSpecial] = useState("");
+  const [result, setResult] = useState<RequirementReview["result"]>("รับได้");
+  const [note, setNote] = useState("");
+  const [by, setBy] = useState("ชลธิชา มั่นคง");
+  const [tried, setTried] = useState(false);
+  const input = { doc, by, checks, special, result, note };
+  const errors = tried ? requirementErrors(input) : {};
+  return (
+    <Form onSubmit={() => { setTried(true); if (Object.keys(requirementErrors(input)).length) return; reviewRequirement(input); notify(\`ทบทวน \${doc} แล้ว · \${result}\`, result === "รับไม่ได้" ? "warn" : "ok"); onDone(); }}>
+      <p className="text-[13px] text-slate-600 dark:text-slate-300">{c.kind} ของ {customerName(c.customer)} · {c.date}{c.shipBy ? \` · ต้องการรับ \${c.shipBy}\` : ""}</p>
+      <ul className="divide-y divide-slate-100 rounded-xl border border-slate-200 text-[12.5px] dark:divide-slate-800 dark:border-slate-800">
+        {cover.map((l) => (
+          <li key={l.material} className="flex items-center justify-between gap-3 px-3 py-2">
+            <span>{materialName(l.material)} · {l.qty.toLocaleString("th-TH")}</span>
+            <Badge tone={l.stock >= l.qty ? "ok" : "warn"}>{l.stock >= l.qty ? \`มีในคลัง \${l.stock}\` : \`คลังมี \${l.stock} ต้องผลิตเพิ่ม\`}</Badge>
+          </li>
+        ))}
+      </ul>
+      <Field label="หัวข้อทบทวน (ข้อ 8.2.3)">
+        <div className="space-y-1.5">
+          {REVIEW_CHECKS.map((k) => (
+            <label key={k.key} className="flex items-center gap-2 text-[12.5px] text-slate-700 dark:text-slate-200">
+              <input type="checkbox" checked={checks[k.key]} onChange={() => setChecks((s) => ({ ...s, [k.key]: !s[k.key] }))} className="size-4 accent-violet-600" />
+              {k.label}
+            </label>
+          ))}
+        </div>
+      </Field>
+      <Field label="ข้อกำหนดพิเศษของลูกค้า (ถ้ามี)"><Input value={special} onChange={setSpecial} placeholder="เช่น ต้องการใบรับรองคุณภาพทุกล็อต" /></Field>
+      <Field label="ผลการทบทวน" error={errors.result}><Segmented options={["รับได้", "รับได้แบบมีเงื่อนไข", "รับไม่ได้"]} value={result} onChange={(v) => setResult(v as RequirementReview["result"])} /></Field>
+      <Field label="เงื่อนไขหรือเหตุผล" error={errors.note}><Area value={note} onChange={setNote} error={errors.note} rows={2} /></Field>
+      <Field label="ผู้ทบทวน" error={errors.by}><Choice value={by} onChange={setBy} options={people()} /></Field>
+      <Actions onCancel={onCancel} label="บันทึกการทบทวน" />
+    </Form>
+  );
+}
+
+/* ================================================== design and development */
+
+function DesignForm({ onCancel, onDone }: { onCancel: () => void; onDone: (no: string) => void }) {
+  const [v, setV] = useState({ product: "", owner: "ศักดิ์ชัย วงศ์ไทย", target: "", inputs: "" });
+  const [tried, setTried] = useState(false);
+  const errors = tried ? designErrors(v) : {};
+  const set = (k: keyof typeof v) => (x: string) => setV((s) => ({ ...s, [k]: x }));
+  return (
+    <Form onSubmit={() => { setTried(true); if (Object.keys(designErrors(v)).length) return; const d = startDesign(v); notify(\`เปิดโครงการออกแบบ \${d.no} แล้ว · บันทึกข้อมูลเข้าแล้ว\`); onDone(d.no); }}>
+      <Field label="ผลิตภัณฑ์" error={errors.product}><Input value={v.product} onChange={set("product")} error={errors.product} /></Field>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <Field label="ผู้รับผิดชอบ" error={errors.owner}><Choice value={v.owner} onChange={set("owner")} options={people()} /></Field>
+        <Field label="กำหนดเสร็จ" error={errors.target}><Input type="date" value={v.target} onChange={set("target")} error={errors.target} /></Field>
+      </div>
+      <Field label="ข้อมูลเข้า (ข้อ 8.3.3)" error={errors.inputs} hint="หน้าที่ใช้งาน สมรรถนะ กฎหมายและมาตรฐาน บทเรียนจากแบบเดิม"><Area value={v.inputs} onChange={set("inputs")} error={errors.inputs} rows={4} /></Field>
+      <Actions onCancel={onCancel} label="เปิดโครงการ" />
+    </Form>
+  );
+}
+
+function StageForm({ no, onCancel, onDone }: { no: string; onCancel: () => void; onDone: () => void }) {
+  const d = designByNo(no);
+  const stage = nextStage(d);
+  const [by, setBy] = useState(stage === "ทวนสอบ" ? "สุภาพร แก้วมณี" : stage === "รับรองความใช้ได้" ? "ชลธิชา มั่นคง" : d.owner);
+  const [evidence, setEvidence] = useState("");
+  const [participants, setParticipants] = useState<string[]>([d.owner]);
+  const [tried, setTried] = useState(false);
+  const input = { by, evidence, participants };
+  const errors = tried ? stageErrors(no, input) : {};
+  return (
+    <Form onSubmit={() => { setTried(true); if (Object.keys(stageErrors(no, input)).length) return; recordStage(no, input); notify(\`บันทึกขั้น\${stage} ของ \${no} แล้ว\`); onDone(); }}>
+      <Note tone="info">ขั้นนี้: {stage}</Note>
+      <Field label="หลักฐาน" error={errors.evidence}><Area value={evidence} onChange={setEvidence} error={errors.evidence} /></Field>
+      {stage === "ทบทวนการออกแบบ" && <Field label="ผู้เข้าร่วมทบทวน" error={errors.participants}><Checks options={PEOPLE} value={participants} onChange={setParticipants} /></Field>}
+      <Field label="ผู้บันทึก" error={errors.by}><Choice value={by} onChange={setBy} options={people()} error={errors.by} /></Field>
+      <Actions onCancel={onCancel} label={\`บันทึกขั้น\${stage}\`} />
+    </Form>
+  );
+}
+
+function ChangeForm({ no, onCancel, onDone }: { no: string; onCancel: () => void; onDone: () => void }) {
+  const [change, setChange] = useState("");
+  const [reason, setReason] = useState("");
+  const [approvedBy, setApprovedBy] = useState(QMR);
+  const [reverified, setReverified] = useState("ทวนสอบซ้ำแล้ว");
+  const [tried, setTried] = useState(false);
+  const input = { change, reason, approvedBy, reverified: reverified === "ทวนสอบซ้ำแล้ว" };
+  const errors = tried ? changeErrors(no, input) : {};
+  return (
+    <Form onSubmit={() => { setTried(true); if (Object.keys(changeErrors(no, input)).length) return; changeDesign(no, input); notify(\`บันทึกการเปลี่ยนแปลงแบบ \${no} แล้ว\`); onDone(); }}>
+      <Field label="สิ่งที่เปลี่ยน" error={errors.change}><Area value={change} onChange={setChange} error={errors.change} rows={2} /></Field>
+      <Field label="เหตุผล" error={errors.reason}><Input value={reason} onChange={setReason} error={errors.reason} /></Field>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <Field label="ผู้อนุมัติ" error={errors.approvedBy}><Choice value={approvedBy} onChange={setApprovedBy} options={people()} error={errors.approvedBy} /></Field>
+        <Field label="ทวนสอบ"><Segmented options={["ทวนสอบซ้ำแล้ว", "ไม่กระทบ"]} value={reverified} onChange={setReverified} /></Field>
+      </div>
+      <Actions onCancel={onCancel} label="บันทึกการเปลี่ยนแปลง" />
+    </Form>
+  );
+}
+
+/* ================================================== approved suppliers */
+
+function SupplierForm({ code, onCancel, onDone }: { code: string; onCancel: () => void; onDone: () => void }) {
+  const a = approvalOf(code);
+  const q = supplierQuality(code);
+  const [status, setStatus] = useState<SupplierStatus>(a?.status ?? "อนุมัติแบบมีเงื่อนไข");
+  const [scope, setScope] = useState<string[]>(a?.scope ?? []);
+  const [note, setNote] = useState("");
+  const [by, setBy] = useState(QMR);
+  const [tried, setTried] = useState(false);
+  const input = { vendor: code, status, scope, note, by };
+  const errors = tried ? approvalErrors(input) : {};
+  const materials = MATERIALS.filter((m) => m.group !== "สินค้าสำเร็จรูป");
+  return (
+    <Form onSubmit={() => { setTried(true); if (Object.keys(approvalErrors(input)).length) return; evaluateSupplier(input); notify(status === "ระงับ" ? \`ระงับ \${vendorName(code)} แล้ว · สั่งซื้อไม่ได้จนกว่าจะอนุมัติใหม่\` : \`บันทึกผลประเมิน \${vendorName(code)} แล้ว · \${status}\`, status === "ระงับ" ? "warn" : "ok"); onDone(); }}>
+      <div className="grid gap-2 rounded-xl bg-slate-50 p-3 text-[12.5px] text-slate-600 sm:grid-cols-3 dark:bg-slate-800/50 dark:text-slate-300">
+        <span>ล็อตผ่านครั้งแรก <b className="text-slate-900 dark:text-slate-50">{q.score}%</b> ({q.accepted}/{q.lots})</span>
+        <span>เกรดจัดซื้อ <b className="text-slate-900 dark:text-slate-50">{purchasingGrade(code) ?? "—"}</b></span>
+        <span>NCR <b className="text-slate-900 dark:text-slate-50">{q.ncrs}</b> เรื่อง</span>
+      </div>
+      <Field label="ผลการตัดสิน" error={errors.status}><Segmented options={["อนุมัติ", "อนุมัติแบบมีเงื่อนไข", "ระงับ"]} value={status} onChange={(v) => setStatus(v as SupplierStatus)} /></Field>
+      {status === "ระงับ" && <Note tone="warn">ระงับแล้วระบบจัดซื้อจะออกใบสั่งซื้อให้ผู้ขายรายนี้ไม่ได้</Note>}
+      {status !== "ระงับ" && <Field label="วัสดุที่อนุมัติให้ส่ง" error={errors.scope}><Checks options={materials.map((m) => ({ value: m.code, label: m.name }))} value={scope} onChange={setScope} /></Field>}
+      <Field label="เหตุผล" error={errors.note}><Area value={note} onChange={setNote} error={errors.note} rows={2} /></Field>
+      <Field label="ผู้ประเมิน" error={errors.by}><Choice value={by} onChange={setBy} options={people()} error={errors.by} /></Field>
+      <Actions onCancel={onCancel} label="บันทึกผลประเมิน" />
+    </Form>
+  );
+}
+
+/* =================================================== customer satisfaction */
+
+function SurveyForm({ customer: initial, onCancel, onDone }: { customer?: string; onCancel: () => void; onDone: () => void }) {
+  const [customer, setCustomer] = useState(initial ?? "");
+  const [period, setPeriod] = useState(currentHalf());
+  const [scores, setScores] = useState<Record<CriterionKey, number>>({ quality: 4, delivery: 4, price: 4, service: 4, complaint: 4 });
+  const [comment, setComment] = useState("");
+  const [followUp, setFollowUp] = useState("");
+  const [by, setBy] = useState("ชลธิชา มั่นคง");
+  const [tried, setTried] = useState(false);
+  const input = { customer, period, scores, comment, followUp, by };
+  const errors = tried ? surveyErrors(input) : {};
+  const avg = average(scores);
+  return (
+    <Form onSubmit={() => { setTried(true); if (Object.keys(surveyErrors(input)).length) return; const v = recordSurvey(input); notify(\`บันทึกแบบสำรวจ \${v.no} แล้ว · เฉลี่ย \${avg}\`, avg < 3.5 ? "warn" : "ok"); onDone(); }}>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <Field label="ลูกค้า" error={errors.customer}><Choice value={customer} onChange={setCustomer} placeholder="เลือกลูกค้า…" options={CUSTOMERS.map((c) => ({ value: c.code, label: c.name }))} error={errors.customer} /></Field>
+        <Field label="รอบ"><Input value={period} onChange={setPeriod} /></Field>
+      </div>
+      <Field label="คะแนน 1–5" error={errors.scores}>
+        <div className="space-y-2">
+          {SATISFACTION_CRITERIA.map((c) => (
+            <div key={c.key} className="flex items-center justify-between gap-3 text-[12.5px]">
+              <span className="text-slate-700 dark:text-slate-200">{c.label}</span>
+              <Segmented options={["1", "2", "3", "4", "5"]} value={String(scores[c.key])} onChange={(v) => setScores((s) => ({ ...s, [c.key]: Number(v) }))} />
+            </div>
+          ))}
+        </div>
+      </Field>
+      <Note tone={avg < 3.5 ? "bad" : avg < 4 ? "warn" : "ok"}>เฉลี่ย {avg}</Note>
+      <Field label="ความเห็นของลูกค้า"><Area value={comment} onChange={setComment} rows={2} /></Field>
+      <Field label="สิ่งที่จะทำต่อ" error={errors.followUp} hint="เฉลี่ยต่ำกว่า 3.5 ต้องมี"><Area value={followUp} onChange={setFollowUp} error={errors.followUp} rows={2} /></Field>
+      <Field label="ผู้บันทึก" error={errors.by}><Choice value={by} onChange={setBy} options={people()} /></Field>
+      <Actions onCancel={onCancel} label="บันทึกแบบสำรวจ" />
+    </Form>
+  );
+}
+
 /* --------------------------------------------------------------- actions */
 
-export function QmActions({ act, onAct, onOpen }: {
-  act: Act | null;
-  onAct: (a: Act | null) => void;
-  /** เปิดแฟ้มของสิ่งที่เพิ่งสร้าง — ล็อต NCR หรือ CAR */
-  onOpen: (kind: "lot" | "ncr" | "car" | "audit" | "doc" | "gauge", key: string) => void;
-}) {
+export function QmActions({ act, onAct, onOpen }: { act: Act | null; onAct: (a: Act | null) => void; onOpen: (kind: RecordKind, key: string) => void }) {
   useData();
   const close = () => onAct(null);
   const pick = <K extends Act["kind"]>(kind: K) => (act?.kind === kind ? (act as Of<K>) : null);
-  const [obsReason, setObsReason] = useState("");
   const [closeBy, setCloseBy] = useState(QMR);
 
-  const revise = pick("doc-revise");
-  const approve = pick("doc-approve");
-  const obsolete = pick("doc-obsolete");
   const lotNew = pick("lot-new");
   const results = pick("lot-results");
   const decide = pick("lot-decide");
   const dispose = pick("ncr-dispose");
   const ncrClose = pick("ncr-close");
-  const carNew = pick("car-new");
-  const cause = pick("car-cause");
-  const action = pick("car-action");
-  const verify = pick("car-verify");
-  const finding = pick("audit-finding");
   const cal = pick("gauge-cal");
+  const req = pick("req-review");
+  const stage = pick("design-stage");
+  const change = pick("design-change");
+  const supplier = pick("supplier-evaluate");
+  const survey = pick("survey-new");
   const print = pick("print");
   const closeProblem = ncrClose ? closeNcrErrors(ncrClose.no).close : undefined;
 
   return (
     <>
-      <FormModal open={act?.kind === "doc-new"} title="สร้างเอกสารควบคุม" subtitle="เริ่มเป็นร่าง ส่งอนุมัติเมื่อเขียนเสร็จ ออกใช้เมื่อได้รับอนุมัติ" onClose={close}>
-        {act?.kind === "doc-new" && <DocForm onCancel={close} onDone={(code) => { close(); onOpen("doc", code); }} />}
-      </FormModal>
-      <FormModal open={revise !== null} title="แก้ไขเอกสาร" subtitle={revise ? \`\${revise.code} · \${docByCode(revise.code).title}\` : undefined} onClose={close} size="sm">
-        {revise && <ReviseForm key={revise.code} code={revise.code} onCancel={close} onDone={close} />}
-      </FormModal>
-      <FormModal open={approve !== null} title="อนุมัติเอกสาร" subtitle={approve ? \`\${approve.code} · \${docByCode(approve.code).title}\` : undefined} onClose={close} size="sm">
-        {approve && <ApproveForm key={approve.code} code={approve.code} onCancel={close} onDone={close} />}
-      </FormModal>
-      <ConfirmDialog
-        open={obsolete !== null}
-        title="ยกเลิกเอกสาร"
-        body="เอกสารที่ยกเลิกต้องเก็บออกจากหน้างานทั้งหมด และจะแสดงในบัญชีรายชื่อว่ายกเลิกแล้ว"
-        subject={obsolete ? <Badge tone="bad">{obsolete.code} · {docByCode(obsolete.code).title}</Badge> : undefined}
-        fields={<Field label="เหตุผล"><Input value={obsReason} onChange={setObsReason} /></Field>}
-        confirmLabel="ยกเลิกเอกสาร"
-        disabled={obsReason.trim().length < 5}
-        onCancel={() => { setObsReason(""); close(); }}
-        onConfirm={() => {
-          if (!obsolete) return;
-          obsoleteDocument(obsolete.code, obsReason);
-          notify(\`ยกเลิก \${obsolete.code} แล้ว\`, "info");
-          setObsReason("");
-          close();
-        }}
-      />
-
       <FormModal open={lotNew !== null} title="เปิดล็อตตรวจ" subtitle="ของที่รับเข้ามาแล้วแต่ยังไม่ได้ตรวจ จากใบรับของและการรับสินค้าผลิตเสร็จ" onClose={close} size="sm">
         {lotNew && <LotNewForm source={lotNew.source} material={lotNew.material} onCancel={close} onDone={(no) => { close(); onOpen("lot", no); }} />}
       </FormModal>
@@ -30570,39 +33872,36 @@ export function QmActions({ act, onAct, onOpen }: {
         confirmLabel="ปิด NCR"
         disabled={!!closeProblem}
         onCancel={close}
-        onConfirm={() => {
-          if (!ncrClose) return;
-          closeNcr(ncrClose.no, closeBy);
-          notify(\`ปิด \${ncrClose.no} แล้ว\`);
-          close();
-        }}
+        onConfirm={() => { if (!ncrClose) return; closeNcr(ncrClose.no, closeBy); notify(\`ปิด \${ncrClose.no} แล้ว\`); close(); }}
       />
-
-      <FormModal open={carNew !== null} title="ออกใบขอให้แก้ไขและป้องกัน (CAR)" subtitle="หาสาเหตุราก วางมาตรการ แล้วติดตามว่าได้ผลจริง" onClose={close}>
-        {carNew && <CarForm refNo={carNew.ref} problem={carNew.problem} onCancel={close} onDone={(no) => { close(); onOpen("car", no); }} />}
-      </FormModal>
-      <FormModal open={cause !== null} title="หาสาเหตุราก" subtitle={cause?.no} onClose={close}>
-        {cause && <CauseForm key={cause.no} no={cause.no} onCancel={close} onDone={close} />}
-      </FormModal>
-      <FormModal open={action !== null} title="เพิ่มมาตรการ" subtitle={action?.no} onClose={close} size="sm">
-        {action && <ActionForm key={action.no} no={action.no} onCancel={close} onDone={close} />}
-      </FormModal>
-      <FormModal open={verify !== null} title="ติดตามประสิทธิผล" subtitle={verify?.no} onClose={close} size="sm">
-        {verify && <VerifyForm key={verify.no} no={verify.no} onCancel={close} onDone={close} />}
-      </FormModal>
-
-      <FormModal open={act?.kind === "audit-new"} title="วางแผนการตรวจติดตามภายใน" subtitle="ระบบตรวจความเป็นอิสระของผู้ตรวจให้" onClose={close}>
-        {act?.kind === "audit-new" && <AuditForm onCancel={close} onDone={(no) => { close(); onOpen("audit", no); }} />}
-      </FormModal>
-      <FormModal open={finding !== null} title="บันทึกสิ่งที่พบ" subtitle={finding ? \`\${finding.no} · \${auditByNo(finding.no).area}\` : undefined} onClose={close}>
-        {finding && <FindingForm key={finding.no} no={finding.no} onCancel={close} onDone={close} />}
-      </FormModal>
 
       <FormModal open={act?.kind === "gauge-new"} title="ขึ้นทะเบียนเครื่องมือวัด" onClose={close}>
         {act?.kind === "gauge-new" && <GaugeForm onCancel={close} onDone={(code) => { close(); onOpen("gauge", code); }} />}
       </FormModal>
       <FormModal open={cal !== null} title="บันทึกผลสอบเทียบ" subtitle={cal ? \`\${cal.code} · \${gaugeByCode(cal.code).name}\` : undefined} onClose={close}>
         {cal && <CalForm key={cal.code} code={cal.code} onCancel={close} onDone={(ncr) => { close(); if (ncr) onOpen("ncr", ncr); }} />}
+      </FormModal>
+
+      <FormModal open={req !== null} title="ทบทวนข้อกำหนดลูกค้า" subtitle={req ? \`\${req.doc} · ทบทวนก่อนผูกพันกับลูกค้า\` : undefined} onClose={close}>
+        {req && <RequirementForm key={req.doc} doc={req.doc} onCancel={close} onDone={close} />}
+      </FormModal>
+
+      <FormModal open={act?.kind === "design-new"} title="เปิดโครงการออกแบบและพัฒนา" subtitle="เริ่มจากข้อมูลเข้า แล้วเดินทีละขั้นจนส่งมอบสู่การผลิต" onClose={close}>
+        {act?.kind === "design-new" && <DesignForm onCancel={close} onDone={(no) => { close(); onOpen("design", no); }} />}
+      </FormModal>
+      <FormModal open={stage !== null} title="บันทึกขั้นการออกแบบ" subtitle={stage ? \`\${stage.no} · \${designByNo(stage.no).product}\` : undefined} onClose={close}>
+        {stage && <StageForm key={stage.no} no={stage.no} onCancel={close} onDone={close} />}
+      </FormModal>
+      <FormModal open={change !== null} title="ควบคุมการเปลี่ยนแปลงแบบ" subtitle={change ? \`\${change.no} · ข้อ 8.3.6\` : undefined} onClose={close} size="sm">
+        {change && <ChangeForm key={change.no} no={change.no} onCancel={close} onDone={close} />}
+      </FormModal>
+
+      <FormModal open={supplier !== null} title="ประเมินผู้ส่งมอบ" subtitle={supplier ? \`\${vendorName(supplier.code)} · ข้อ 8.4.1\` : undefined} onClose={close}>
+        {supplier && <SupplierForm key={supplier.code} code={supplier.code} onCancel={close} onDone={close} />}
+      </FormModal>
+
+      <FormModal open={survey !== null} title="บันทึกแบบสำรวจความพึงพอใจ" subtitle="ข้อ 9.1.2" onClose={close}>
+        {survey && <SurveyForm customer={survey.customer} onCancel={close} onDone={close} />}
       </FormModal>
 
       <FormModal open={print !== null} title={print?.title ?? ""} subtitle="ตัวอย่างก่อนพิมพ์ — กระดาษ A4 พิมพ์เฉพาะเอกสาร" onClose={close} size="lg">
@@ -30619,54 +33918,45 @@ export function QmActions({ act, onAct, onOpen }: {
     </>
   );
 }
-
 `,
 
   "qm/screen.tsx": `import { useState } from "react";
 import type { ReactNode } from "react";
 import {
-  CalendarClock, CircleCheck, ClipboardCheck, FilePlus2, FileSpreadsheet, FileText, FileWarning, Gauge as GaugeIcon,
-  ListChecks, MessageSquareWarning, Microscope, Pencil, Play, Plus, Printer, Search as SearchIcon, ShieldCheck, Target,
-  TriangleAlert, Users,
+  CalendarClock, CircleCheck, ClipboardCheck, FilePlus2, FileSpreadsheet, FileWarning, Gauge as GaugeIcon, Handshake,
+  ListChecks, MessageSquareWarning, Microscope, PencilRuler, Plus, Printer, ShieldCheck, Smile, Target, Truck, Users,
 } from "lucide-react";
+import { TODAY, capaByNo } from "../ims/data";
+import { ImsActions } from "../ims/forms";
+import type { Act as ImsAct } from "../ims/forms";
+import { Body, Empty, Header, Line, Lines, STEP_ICONS, newest, tone } from "../ims/parts";
 import {
-  AUDITS, CAPAS, CLAUSES, DOCUMENTS, DOC_TYPES, GAUGES, LOTS, NCRS, NCR_SOURCES, TODAY, addDays, awaitingApproval,
-  calState, clauseName, completeCapaAction, confirmReview, customerName, findingsWithoutCapa, materialName, materialUnit,
-  nextDue, objectives, openCapas, overdueActions, pendingInspections, planOf, reviewDue, revLabel, startAudit,
-  submitDocument, vendorName, vendorQuality, closeAudit,
+  APPROVALS, DESIGNS, DESIGN_STAGES, GAUGES, LOTS, NCRS, NCR_SOURCES, SATISFACTION_CRITERIA, SURVEYS, approvalDue,
+  awaitingApproval, calState, carOfNcr, commitments, confirmedBeforeReview, customerName, designByNo, indicators,
+  materialName, materialUnit, nextDue, nextStage, overallSatisfaction, pendingInspections, planOf, released, reviewOf,
+  satisfactionByCustomer, supplierRegister, unreviewed, vendorName,
 } from "./data";
-import type { Audit, Capa, Gauge, InspectionLot, Ncr, QmDocument } from "./data";
+import type { DesignProject, Gauge, InspectionLot, Ncr } from "./data";
 import { QmActions } from "./forms";
-import type { Act } from "./forms";
-import {
-  Badge, Bar, Button, Card, Chip, Donut, IconRow, Metric, Note, PageHead, Progress, Reveal, Search, Segmented, swatchFor,
-} from "../ui";
+import type { Act, RecordKind } from "./forms";
+import { Badge, Bar, Button, Card, Chip, Donut, IconRow, Metric, Note, PageHead, Reveal, Segmented, Stepper, swatchFor } from "../ui";
 import type { Tone } from "../ui";
 import { DataTable, DetailModal, downloadCsv, notify, useData } from "../kit";
 import type { Column } from "../kit";
 
-const TABS = ["ควบคุมเอกสาร", "ตรวจสอบคุณภาพ", "สิ่งที่ไม่เป็นไปตามข้อกำหนด", "การแก้ไขและป้องกัน", "ตรวจติดตามภายใน", "สอบเทียบเครื่องมือวัด"];
-
-type Kind = "doc" | "lot" | "ncr" | "car" | "audit" | "gauge";
+const TABS = ["ตรวจสอบคุณภาพ", "สิ่งที่ไม่เป็นไปตามข้อกำหนด", "สอบเทียบเครื่องมือวัด", "ทบทวนข้อกำหนดลูกค้า", "ออกแบบและพัฒนา", "ผู้ส่งมอบที่อนุมัติ", "ความพึงพอใจลูกค้า"];
 
 const exportIcon = <FileSpreadsheet size={14} />;
-
-/** ตัดสินใจจุดเดียวว่าอะไรเป็นสีอะไร ทุกหน้าจอจึงอ่านสถานะด้วยสีเดียวกัน */
-const TONE: Record<string, Tone> = {
-  "ร่าง": "idle", "รออนุมัติ": "warn", "ใช้งาน": "ok", "ยกเลิก": "bad",
-  "รอตรวจ": "idle", "รอตัดสิน": "warn", "ผ่าน": "ok", "ไม่ผ่าน": "bad", "ยอมรับแบบมีเงื่อนไข": "warn",
-  "รอสั่งการ": "bad", "ดำเนินการ": "warn", "ปิดแล้ว": "ok",
-  "วิเคราะห์สาเหตุ": "bad", "ติดตามผล": "info",
-  "ตามแผน": "idle", "กำลังตรวจ": "info",
-  "ปกติ": "ok", "ใกล้ครบ": "warn", "เกินกำหนด": "bad", "พักใช้": "bad",
-  "รุนแรง": "bad", "ปานกลาง": "warn", "เล็กน้อย": "idle",
-};
-
-const tone = (s: string) => TONE[s] ?? "idle";
-/** ทะเบียนเรียงตามเลขที่ล่าสุดก่อน — ลำดับในอาร์เรย์คือลำดับที่บันทึก ไม่ใช่ลำดับเลขที่ */
-const newest = <T extends { no: string }>(xs: T[]) => [...xs].sort((a, b) => b.no.localeCompare(a.no));
 const lotState = (l: InspectionLot) => (l.status === "ตัดสินแล้ว" ? l.decision! : l.status);
 const sourceSwatch = (s: string) => swatchFor(s, NCR_SOURCES);
+const csv = (name: string, head: string[], rows: (string | number)[][]) => {
+  downloadCsv(name, head, rows);
+  notify(\`ส่งออก\${name} \${rows.length} รายการแล้ว\`);
+};
+const designSteps = (d: DesignProject) =>
+  DESIGN_STAGES.map((s, i) => ({ label: s, state: (i < d.records.length ? "done" : i === d.records.length ? "current" : "todo") as "done" | "current" | "todo" }));
+
+type Handlers = { onAct: (a: Act) => void; onOpen: (kind: RecordKind, key: string) => void; onIms: (a: ImsAct) => void };
 
 /* ----------------------------------------------------------------- screen */
 
@@ -30674,20 +33964,22 @@ export default function QmScreen({ section, onOpenSection }: { section?: string;
   useData();
   const tab = section && TABS.includes(section) ? section : undefined;
   const [act, setAct] = useState<Act | null>(null);
-  const [record, setRecord] = useState<{ kind: Kind; key: string } | null>(null);
-  const open = (kind: Kind, key: string) => setRecord({ kind, key });
+  const [imsAct, setImsAct] = useState<ImsAct | null>(null);
+  const [record, setRecord] = useState<{ kind: RecordKind; key: string } | null>(null);
+  const open = (kind: RecordKind, key: string) => setRecord({ kind, key });
 
-  const keys: Record<Kind, string[]> = {
-    doc: DOCUMENTS.map((d) => d.code),
+  const keys: Record<RecordKind, string[]> = {
     lot: newest(LOTS).map((l) => l.no),
     ncr: newest(NCRS).map((n) => n.no),
-    car: newest(CAPAS).map((c) => c.no),
-    audit: AUDITS.map((a) => a.no),
     gauge: GAUGES.map((g) => g.code),
+    design: newest(DESIGNS).map((d) => d.no),
+    supplier: supplierRegister().map((s) => s.vendor.code),
+    survey: newest(SURVEYS).map((s) => s.no),
   };
   const list = record ? keys[record.kind] : [];
   const at = record ? list.indexOf(record.key) : -1;
-  const TITLES: Record<Kind, string> = { doc: "เอกสารควบคุม", lot: "ล็อตตรวจ", ncr: "สิ่งที่ไม่เป็นไปตามข้อกำหนด", car: "ใบขอให้แก้ไขและป้องกัน", audit: "การตรวจติดตามภายใน", gauge: "เครื่องมือวัด" };
+  const TITLES: Record<RecordKind, string> = { lot: "ล็อตตรวจ", ncr: "สิ่งที่ไม่เป็นไปตามข้อกำหนด", gauge: "เครื่องมือวัด", design: "โครงการออกแบบ", supplier: "ผู้ส่งมอบ", survey: "แบบสำรวจความพึงพอใจ" };
+  const h: Handlers = { onAct: setAct, onOpen: open, onIms: setImsAct };
 
   const panels = (
     <>
@@ -30699,20 +33991,17 @@ export default function QmScreen({ section, onOpenSection }: { section?: string;
         total={list.length}
         onStep={(d) => record && setRecord({ kind: record.kind, key: list[Math.min(list.length - 1, Math.max(0, at + d))] })}
       >
-        {record && at >= 0 && <RecordView kind={record.kind} id={record.key} onAct={setAct} onOpen={open} />}
+        {record && at >= 0 && <RecordView kind={record.kind} id={record.key} {...h} />}
       </DetailModal>
       <QmActions act={act} onAct={setAct} onOpen={open} />
+      <ImsActions act={imsAct} onAct={setImsAct} onOpen={(kind, no) => kind === "car" && notify(\`ติดตาม \${no} ได้ที่ระบบบริหารบูรณาการ · การแก้ไขและป้องกัน\`, "info")} />
     </>
   );
 
+  const firstPending = unreviewed()[0]?.doc ?? commitments()[0].doc;
   const index = (
     <div hidden data-fitt-index>
       <button data-fitt-screen="บริหารคุณภาพ" />
-      <button data-fitt-screen="เอกสารควบคุม" data-fitt-modal onClick={() => open("doc", DOCUMENTS[0].code)} />
-      <button data-fitt-screen="สร้างเอกสารควบคุม" data-fitt-modal onClick={() => setAct({ kind: "doc-new" })} />
-      <button data-fitt-screen="แก้ไขเอกสาร" data-fitt-modal onClick={() => setAct({ kind: "doc-revise", code: "QP-01" })} />
-      <button data-fitt-screen="อนุมัติเอกสาร" data-fitt-modal onClick={() => setAct({ kind: "doc-approve", code: awaitingApproval()[0]?.code ?? "WI-03" })} />
-      <button data-fitt-screen="ยกเลิกเอกสาร" data-fitt-modal onClick={() => setAct({ kind: "doc-obsolete", code: "WI-02" })} />
       <button data-fitt-screen="ล็อตตรวจ" data-fitt-modal onClick={() => open("lot", LOTS[0].no)} />
       <button data-fitt-screen="เปิดล็อตตรวจ" data-fitt-modal onClick={() => setAct({ kind: "lot-new" })} />
       <button data-fitt-screen="บันทึกผลตรวจ" data-fitt-modal onClick={() => setAct({ kind: "lot-results", no: LOTS.find((l) => l.status !== "ตัดสินแล้ว")?.no ?? LOTS[0].no })} />
@@ -30722,30 +34011,33 @@ export default function QmScreen({ section, onOpenSection }: { section?: string;
       <button data-fitt-screen="รับเรื่องร้องเรียนจากลูกค้า" data-fitt-modal onClick={() => setAct({ kind: "complaint-new" })} />
       <button data-fitt-screen="สั่งการ NCR" data-fitt-modal onClick={() => setAct({ kind: "ncr-dispose", no: NCRS.find((n) => n.status === "รอสั่งการ")?.no ?? NCRS[0].no })} />
       <button data-fitt-screen="ปิด NCR" data-fitt-modal onClick={() => setAct({ kind: "ncr-close", no: NCRS.find((n) => n.status === "ดำเนินการ")?.no ?? NCRS[0].no })} />
-      <button data-fitt-screen="ใบขอให้แก้ไขและป้องกัน" data-fitt-modal onClick={() => open("car", CAPAS[CAPAS.length - 1].no)} />
-      <button data-fitt-screen="ออก CAR" data-fitt-modal onClick={() => setAct({ kind: "car-new" })} />
-      <button data-fitt-screen="หาสาเหตุราก" data-fitt-modal onClick={() => setAct({ kind: "car-cause", no: CAPAS[CAPAS.length - 1].no })} />
-      <button data-fitt-screen="เพิ่มมาตรการ" data-fitt-modal onClick={() => setAct({ kind: "car-action", no: CAPAS[CAPAS.length - 1].no })} />
-      <button data-fitt-screen="ติดตามประสิทธิผล" data-fitt-modal onClick={() => setAct({ kind: "car-verify", no: CAPAS[CAPAS.length - 1].no })} />
-      <button data-fitt-screen="การตรวจติดตามภายใน" data-fitt-modal onClick={() => open("audit", AUDITS[0].no)} />
-      <button data-fitt-screen="วางแผนการตรวจติดตาม" data-fitt-modal onClick={() => setAct({ kind: "audit-new" })} />
-      <button data-fitt-screen="บันทึกสิ่งที่พบ" data-fitt-modal onClick={() => setAct({ kind: "audit-finding", no: AUDITS[AUDITS.length - 1].no })} />
+      <button data-fitt-screen="ออก CAR จาก NCR" data-fitt-modal onClick={() => setImsAct({ kind: "car-new", ref: NCRS[NCRS.length - 1].no, problem: NCRS[NCRS.length - 1].description })} />
       <button data-fitt-screen="เครื่องมือวัด" data-fitt-modal onClick={() => open("gauge", GAUGES[0].code)} />
       <button data-fitt-screen="ขึ้นทะเบียนเครื่องมือวัด" data-fitt-modal onClick={() => setAct({ kind: "gauge-new" })} />
       <button data-fitt-screen="บันทึกผลสอบเทียบ" data-fitt-modal onClick={() => setAct({ kind: "gauge-cal", code: GAUGES[0].code })} />
-      <button data-fitt-screen="พิมพ์บัญชีรายชื่อเอกสารควบคุม" data-fitt-modal onClick={() => setAct({ kind: "print", d: { doc: "master-list" }, title: "บัญชีรายชื่อเอกสารควบคุม" })} />
+      <button data-fitt-screen="ทบทวนข้อกำหนดลูกค้า" data-fitt-modal onClick={() => setAct({ kind: "req-review", doc: firstPending })} />
+      <button data-fitt-screen="โครงการออกแบบ" data-fitt-modal onClick={() => open("design", DESIGNS[0].no)} />
+      <button data-fitt-screen="เปิดโครงการออกแบบ" data-fitt-modal onClick={() => setAct({ kind: "design-new" })} />
+      <button data-fitt-screen="บันทึกขั้นการออกแบบ" data-fitt-modal onClick={() => setAct({ kind: "design-stage", no: DESIGNS.find((d) => nextStage(d))?.no ?? DESIGNS[0].no })} />
+      <button data-fitt-screen="ควบคุมการเปลี่ยนแปลงแบบ" data-fitt-modal onClick={() => setAct({ kind: "design-change", no: DESIGNS.find(released)?.no ?? DESIGNS[0].no })} />
+      <button data-fitt-screen="ผู้ส่งมอบ" data-fitt-modal onClick={() => open("supplier", APPROVALS[0].vendor)} />
+      <button data-fitt-screen="ประเมินผู้ส่งมอบ" data-fitt-modal onClick={() => setAct({ kind: "supplier-evaluate", code: APPROVALS[0].vendor })} />
+      <button data-fitt-screen="แบบสำรวจความพึงพอใจ" data-fitt-modal onClick={() => open("survey", SURVEYS[0].no)} />
+      <button data-fitt-screen="บันทึกแบบสำรวจความพึงพอใจ" data-fitt-modal onClick={() => setAct({ kind: "survey-new" })} />
       <button data-fitt-screen="พิมพ์ใบรับรองคุณภาพ" data-fitt-modal onClick={() => setAct({ kind: "print", d: { doc: "lot", no: LOTS.find((l) => l.origin === "ตรวจก่อนส่ง")!.no }, title: "ใบรับรองคุณภาพสินค้า" })} />
       <button data-fitt-screen="พิมพ์ NCR" data-fitt-modal onClick={() => setAct({ kind: "print", d: { doc: "ncr", no: NCRS[0].no }, title: "ใบรายงานสิ่งที่ไม่เป็นไปตามข้อกำหนด" })} />
-      <button data-fitt-screen="พิมพ์ CAR" data-fitt-modal onClick={() => setAct({ kind: "print", d: { doc: "car", no: CAPAS[0].no }, title: "ใบขอให้ดำเนินการแก้ไขและป้องกัน" })} />
-      <button data-fitt-screen="พิมพ์รายงานการตรวจติดตาม" data-fitt-modal onClick={() => setAct({ kind: "print", d: { doc: "audit", no: AUDITS[1].no }, title: "รายงานการตรวจติดตามภายใน" })} />
       <button data-fitt-screen="พิมพ์ประวัติการสอบเทียบ" data-fitt-modal onClick={() => setAct({ kind: "print", d: { doc: "gauge", code: GAUGES[0].code }, title: "บันทึกประวัติการสอบเทียบ" })} />
+      <button data-fitt-screen="พิมพ์ใบทบทวนข้อกำหนดลูกค้า" data-fitt-modal onClick={() => setAct({ kind: "print", d: { doc: "requirement", no: commitments()[0].doc }, title: "ใบทบทวนข้อกำหนดลูกค้า" })} />
+      <button data-fitt-screen="พิมพ์บันทึกการออกแบบ" data-fitt-modal onClick={() => setAct({ kind: "print", d: { doc: "design", no: DESIGNS[0].no }, title: "บันทึกการออกแบบและพัฒนา" })} />
+      <button data-fitt-screen="พิมพ์ใบประเมินผู้ส่งมอบ" data-fitt-modal onClick={() => setAct({ kind: "print", d: { doc: "supplier", code: APPROVALS[0].vendor }, title: "ใบประเมินผู้ส่งมอบประจำปี" })} />
+      <button data-fitt-screen="พิมพ์สรุปความพึงพอใจลูกค้า" data-fitt-modal onClick={() => setAct({ kind: "print", d: { doc: "satisfaction" }, title: "สรุปผลสำรวจความพึงพอใจลูกค้า" })} />
     </div>
   );
 
   if (!tab) {
     return (
       <>
-        <Overview onOpenSection={onOpenSection} onAct={setAct} onOpen={open} />
+        <Overview onOpenSection={onOpenSection} {...h} />
         {panels}
         {index}
       </>
@@ -30755,19 +34047,18 @@ export default function QmScreen({ section, onOpenSection }: { section?: string;
   return (
     <div>
       <PageHead title="บริหารคุณภาพ" meta={\`\${tab} · ISO 9001:2015 · ข้อมูล ณ \${TODAY}\`} />
-      {tab === "ควบคุมเอกสาร" && <Documents onAct={setAct} onOpen={open} />}
-      {tab === "ตรวจสอบคุณภาพ" && <Inspection onAct={setAct} onOpen={open} />}
-      {tab === "สิ่งที่ไม่เป็นไปตามข้อกำหนด" && <Nonconformance onAct={setAct} onOpen={open} />}
-      {tab === "การแก้ไขและป้องกัน" && <Corrective onAct={setAct} onOpen={open} />}
-      {tab === "ตรวจติดตามภายใน" && <Audits onAct={setAct} onOpen={open} />}
-      {tab === "สอบเทียบเครื่องมือวัด" && <Calibration onAct={setAct} onOpen={open} />}
+      {tab === "ตรวจสอบคุณภาพ" && <Inspection {...h} />}
+      {tab === "สิ่งที่ไม่เป็นไปตามข้อกำหนด" && <Nonconformance {...h} />}
+      {tab === "สอบเทียบเครื่องมือวัด" && <Calibration {...h} />}
+      {tab === "ทบทวนข้อกำหนดลูกค้า" && <Requirements {...h} />}
+      {tab === "ออกแบบและพัฒนา" && <Designs {...h} />}
+      {tab === "ผู้ส่งมอบที่อนุมัติ" && <Suppliers {...h} />}
+      {tab === "ความพึงพอใจลูกค้า" && <Satisfaction {...h} />}
       {panels}
       {index}
     </div>
   );
 }
-
-type Handlers = { onAct: (a: Act) => void; onOpen: (kind: Kind, key: string) => void };
 
 /* -------------------------------------------------------------- overview */
 
@@ -30775,22 +34066,20 @@ function Overview({ onOpenSection, onAct, onOpen }: Handlers & { onOpenSection?:
   const pending = pendingInspections();
   const waiting = LOTS.filter((l) => l.status !== "ตัดสินแล้ว");
   const openNcrs = NCRS.filter((n) => n.status !== "ปิดแล้ว");
-  const cars = openCapas();
-  const late = cars.flatMap((c) => overdueActions(c).map((a) => ({ c, a })));
   const gauges = GAUGES.filter((g) => ["เกินกำหนด", "ใกล้ครบ", "พักใช้"].includes(calState(g)));
-  const objs = objectives();
+  const kpis = indicators();
   const bySource = NCR_SOURCES.map((s) => ({ label: s, value: NCRS.filter((n) => n.source === s).length, swatch: sourceSwatch(s) })).filter((x) => x.value > 0);
-  const vendors = vendorQuality();
-  const nextAudit = AUDITS.filter((a) => a.status === "ตามแผน").sort((a, b) => a.planned.localeCompare(b.planned))[0];
+  const suppliers = supplierRegister().filter((s) => s.quality.lots > 0);
+  const avg = overallSatisfaction();
 
   const todo: { icon: ReactNode; text: string; sub: string; go: () => void; tone: Tone }[] = [
     ...pending.map((p) => ({ icon: <Microscope size={15} />, text: \`\${p.origin} \${materialName(p.material)} \${p.qty.toLocaleString("th-TH")} \${materialUnit(p.material)}\`, sub: \`\${p.source} · ยังไม่เปิดล็อตตรวจ\`, go: () => onAct({ kind: "lot-new", source: p.source, material: p.material }), tone: "warn" as Tone })),
     ...waiting.map((l) => ({ icon: <ClipboardCheck size={15} />, text: \`\${l.no} \${materialName(l.material)}\`, sub: l.status === "รอตรวจ" ? "รอบันทึกผลตรวจ" : "รอตัดสินผล", go: () => onOpen("lot", l.no), tone: "warn" as Tone })),
     ...openNcrs.filter((n) => n.status === "รอสั่งการ").map((n) => ({ icon: <FileWarning size={15} />, text: \`\${n.no} \${n.material ? materialName(n.material) : n.ref}\`, sub: \`\${n.source} · รอสั่งการ\`, go: () => onOpen("ncr", n.no), tone: "bad" as Tone })),
-    ...late.map(({ c, a }) => ({ icon: <CalendarClock size={15} />, text: \`\${c.no} \${a.what}\`, sub: \`\${a.owner} · เลยกำหนด \${a.due}\`, go: () => onOpen("car", c.no), tone: "bad" as Tone })),
+    ...confirmedBeforeReview().map((c) => ({ icon: <Handshake size={15} />, text: \`\${c.doc} \${customerName(c.customer)}\`, sub: "ยืนยันกับลูกค้าแล้วแต่ยังไม่ได้ทบทวนข้อกำหนด", go: () => onAct({ kind: "req-review", doc: c.doc }), tone: "bad" as Tone })),
     ...gauges.map((g) => ({ icon: <GaugeIcon size={15} />, text: \`\${g.code} \${g.name}\`, sub: calState(g) === "พักใช้" ? "พักใช้ รอซ่อมหรือสอบเทียบใหม่" : \`\${calState(g)} · ครบกำหนด \${nextDue(g)}\`, go: () => onOpen("gauge", g.code), tone: (calState(g) === "ใกล้ครบ" ? "warn" : "bad") as Tone })),
-    ...awaitingApproval().map((d) => ({ icon: <FileText size={15} />, text: \`\${d.code} \${d.title}\`, sub: \`รออนุมัติ \${revLabel(d.draft!.rev)}\`, go: () => onOpen("doc", d.code), tone: "info" as Tone })),
-    ...reviewDue().map((d) => ({ icon: <FileText size={15} />, text: \`\${d.code} \${d.title}\`, sub: \`ถึงรอบทบทวน \${d.reviewDue}\`, go: () => onOpen("doc", d.code), tone: "info" as Tone })),
+    ...awaitingApproval().map((s) => ({ icon: <Truck size={15} />, text: s.vendor.name, sub: "ผู้ขายใหม่ยังไม่ผ่านการประเมิน", go: () => onAct({ kind: "supplier-evaluate", code: s.vendor.code }), tone: "bad" as Tone })),
+    ...approvalDue().map((a) => ({ icon: <Truck size={15} />, text: vendorName(a.vendor), sub: \`ถึงรอบประเมินผู้ส่งมอบ \${a.nextReview}\`, go: () => onOpen("supplier", a.vendor), tone: "info" as Tone })),
   ];
 
   return (
@@ -30809,20 +34098,20 @@ function Overview({ onOpenSection, onAct, onOpen }: Handlers & { onOpenSection?:
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           <Metric icon={<Microscope size={17} />} label="ของรอตรวจ" value={\`\${pending.length + waiting.length} รายการ\`} deltaLabel={\`เปิดล็อตแล้ว \${waiting.length} · ยังไม่เปิด \${pending.length}\`} />
           <Metric icon={<FileWarning size={17} />} label="NCR เปิดอยู่" value={\`\${openNcrs.length} เรื่อง\`} deltaLabel={\`รอสั่งการ \${openNcrs.filter((n) => n.status === "รอสั่งการ").length}\`} />
-          <Metric icon={<ListChecks size={17} />} label="CAR เปิดอยู่" value={\`\${cars.length} ใบ\`} deltaLabel={late.length ? \`มาตรการเลยกำหนด \${late.length} ข้อ\` : "ไม่มีมาตรการเลยกำหนด"} />
-          <Metric icon={<GaugeIcon size={17} />} label="เครื่องมือต้องดูแล" value={\`\${gauges.length} ชิ้น\`} deltaLabel={nextAudit ? \`ตรวจติดตามถัดไป \${nextAudit.planned} \${nextAudit.area}\` : "ไม่มีการตรวจตามแผน"} />
+          <Metric icon={<Handshake size={17} />} label="ข้อตกลงรอทบทวน" value={\`\${unreviewed().length} ใบ\`} deltaLabel={\`ยืนยันก่อนทบทวน \${confirmedBeforeReview().length} ใบ\`} />
+          <Metric icon={<Smile size={17} />} label="ความพึงพอใจลูกค้า" value={avg === undefined ? "—" : \`\${avg} / 5\`} deltaLabel={\`สำรวจแล้ว \${satisfactionByCustomer().filter((x) => x.last).length} ราย\`} />
         </div>
       </Reveal>
 
       <Reveal delay={0.06} className="mt-4 grid gap-4 lg:grid-cols-3">
-        <Card title="วัตถุประสงค์คุณภาพ" subtitle="วัดจากงานจริงในระบบ ใช้เป็นข้อมูลทบทวนโดยฝ่ายบริหาร (ข้อ 6.2 และ 9.3)" className="lg:col-span-2">
+        <Card title="ตัวชี้วัดคุณภาพ" subtitle="วัดจากงานจริงในระบบ และส่งเข้าวาระทบทวนโดยฝ่ายบริหาร" className="lg:col-span-2">
           <ul className="divide-y divide-slate-100 dark:divide-slate-800">
-            {objs.map((o) => (
+            {kpis.map((o) => (
               <li key={o.name} className="flex items-center gap-3 px-4 py-3">
                 <Target size={15} className={o.met ? "shrink-0 text-emerald-500" : "shrink-0 text-rose-500"} />
                 <div className="min-w-0 flex-1">
                   <p className="text-[13px] text-slate-800 dark:text-slate-100">{o.name}</p>
-                  <p className="text-[11.5px] text-slate-500 dark:text-slate-400">ข้อ {o.clause} · เป้า {o.better === "higher" ? "≥" : "≤"} {o.target}{o.unit === "%" ? "%" : \` \${o.unit}\`}</p>
+                  <p className="text-[11.5px] text-slate-500 dark:text-slate-400">เป้า {o.better === "higher" ? "≥" : "≤"} {o.target}{o.unit === "%" ? "%" : \` \${o.unit}\`}</p>
                 </div>
                 <span className="w-20 text-right text-[14px] font-semibold tabular-nums text-slate-900 dark:text-slate-50">{o.actual}{o.unit === "%" ? "%" : \` \${o.unit}\`}</span>
                 <Badge tone={o.met ? "ok" : "bad"}>{o.met ? "ถึงเป้า" : "ต่ำกว่าเป้า"}</Badge>
@@ -30840,7 +34129,7 @@ function Overview({ onOpenSection, onAct, onOpen }: Handlers & { onOpenSection?:
       <Reveal delay={0.12} className="mt-4 grid gap-4 lg:grid-cols-3">
         <Card title="ต้องจัดการ" subtitle="กดรายการเพื่อเปิดงานนั้น" className="lg:col-span-2">
           {todo.length === 0 ? (
-            <p className="px-4 py-8 text-center text-[13px] text-slate-400">ไม่มีงานค้าง</p>
+            <Empty>ไม่มีงานค้าง</Empty>
           ) : (
             <ul className="divide-y divide-slate-100 dark:divide-slate-800">
               {todo.slice(0, 10).map((t, i) => (
@@ -30857,71 +34146,20 @@ function Overview({ onOpenSection, onAct, onOpen }: Handlers & { onOpenSection?:
             </ul>
           )}
         </Card>
-        <Card
-          title="คุณภาพผู้ขาย"
-          subtitle="สัดส่วนล็อตที่ไม่ผ่านการตรวจรับ ใช้ประเมินผู้ขาย (ข้อ 8.4)"
-          action={<Button variant="ghost" className="whitespace-nowrap" onClick={() => onOpenSection?.(1)}>ดูล็อตตรวจ</Button>}
-        >
+        <Card title="คุณภาพผู้ส่งมอบ" subtitle="ล็อตผ่านการตรวจรับครั้งแรก (ข้อ 8.4)" action={<Button variant="ghost" className="whitespace-nowrap" onClick={() => onOpenSection?.(5)}>ดูทะเบียน</Button>}>
           <ul className="space-y-3 p-4">
-            {vendors.map((v) => (
-              <li key={v.code}>
+            {suppliers.map((s) => (
+              <li key={s.vendor.code}>
                 <div className="flex items-baseline justify-between gap-2 text-[12.5px]">
-                  <span className="truncate text-slate-700 dark:text-slate-200">{v.name}</span>
-                  <span className="shrink-0 tabular-nums text-slate-500">ไม่ผ่าน {v.rejected}/{v.lots}</span>
+                  <span className="truncate text-slate-700 dark:text-slate-200">{s.vendor.name}</span>
+                  <span className="shrink-0 tabular-nums text-slate-500">{s.quality.accepted}/{s.quality.lots}</span>
                 </div>
-                <div className="mt-1"><Bar pct={v.rate} tone={v.rate === 0 ? "ok" : v.rate < 20 ? "warn" : "bad"} width="w-full" /></div>
+                <div className="mt-1"><Bar pct={s.quality.score} tone={s.quality.score >= 90 ? "ok" : s.quality.score >= 70 ? "warn" : "bad"} width="w-full" /></div>
               </li>
             ))}
           </ul>
         </Card>
       </Reveal>
-    </div>
-  );
-}
-
-/* ------------------------------------------------------------- documents */
-
-function Documents({ onAct, onOpen }: Handlers) {
-  const [type, setType] = useState("ทั้งหมด");
-  const [q, setQ] = useState("");
-  const needle = q.trim().toLowerCase();
-  const rows = DOCUMENTS.filter((d) => (type === "ทั้งหมด" || d.type === type) && (!needle || \`\${d.code} \${d.title}\`.toLowerCase().includes(needle)));
-  const due = new Set(reviewDue().map((d) => d.code));
-  const columns: Column<QmDocument>[] = [
-    { key: "code", header: "รหัส", cell: (d) => <span className="font-medium tabular-nums text-slate-800 dark:text-slate-100">{d.code}</span>, sort: (a, b) => a.code.localeCompare(b.code) },
-    { key: "title", header: "ชื่อเอกสาร", cell: (d) => d.title, sort: (a, b) => a.title.localeCompare(b.title, "th") },
-    { key: "type", header: "ประเภท", cell: (d) => <Chip>{d.type}</Chip> },
-    { key: "rev", header: "ฉบับ", cell: (d) => <span className="tabular-nums">{revLabel(d.rev)}</span> },
-    { key: "status", header: "สถานะ", cell: (d) => <span className="flex flex-wrap items-center gap-1.5"><Badge dot tone={tone(d.status)}>{d.status}</Badge>{d.draft && d.rev >= 0 && <Badge tone="info">มีฉบับแก้ไข</Badge>}</span> },
-    { key: "effective", header: "มีผลเมื่อ", cell: (d) => d.effective ?? "—", sort: (a, b) => (a.effective ?? "").localeCompare(b.effective ?? "") },
-    { key: "review", header: "ทบทวนครั้งถัดไป", cell: (d) => <span className={due.has(d.code) ? "font-medium text-rose-600 dark:text-rose-400" : ""}>{d.reviewDue ?? "—"}</span> },
-  ];
-  return (
-    <div className="space-y-4">
-      {(awaitingApproval().length > 0 || due.size > 0) && (
-        <Note tone="warn">
-          {awaitingApproval().length > 0 && \`รออนุมัติ \${awaitingApproval().length} ฉบับ\`}
-          {awaitingApproval().length > 0 && due.size > 0 && " · "}
-          {due.size > 0 && \`ถึงรอบทบทวนภายใน 30 วัน \${due.size} ฉบับ\`}
-        </Note>
-      )}
-      <DataTable
-        rows={rows}
-        columns={columns}
-        getId={(d) => d.code}
-        onOpen={(d) => onOpen("doc", d.code)}
-        toolbar={
-          <div className="flex flex-wrap items-center gap-2">
-            <Segmented options={["ทั้งหมด", ...DOC_TYPES]} value={type} onChange={setType} />
-            <Search value={q} onChange={setQ} placeholder="ค้นหารหัสหรือชื่อเอกสาร" icon={<SearchIcon size={14} />} />
-            <div className="ml-auto flex gap-2">
-              <Button variant="secondary" icon={exportIcon} onClick={() => { downloadCsv("เอกสารควบคุม", ["รหัส", "ชื่อเอกสาร", "ประเภท", "ฉบับ", "สถานะ", "มีผลเมื่อ", "ทบทวนครั้งถัดไป", "ฝ่ายเจ้าของ"], rows.map((d) => [d.code, d.title, d.type, revLabel(d.rev), d.status, d.effective ?? "", d.reviewDue ?? "", d.owner])); notify(\`ส่งออกเอกสาร \${rows.length} รายการแล้ว\`); }}>ส่งออก Excel</Button>
-              <Button variant="secondary" icon={<Printer size={14} />} onClick={() => onAct({ kind: "print", d: { doc: "master-list" }, title: "บัญชีรายชื่อเอกสารควบคุม" })}>พิมพ์บัญชีรายชื่อ</Button>
-              <Button icon={<FilePlus2 size={14} />} onClick={() => onAct({ kind: "doc-new" })}>สร้างเอกสาร</Button>
-            </div>
-          </div>
-        }
-      />
     </div>
   );
 }
@@ -30945,20 +34183,18 @@ function Inspection({ onAct, onOpen }: Handlers) {
     <div className="space-y-4">
       <Card title="ของที่รับเข้ามาแต่ยังไม่ได้ตรวจ" subtitle="อ่านจากใบรับของของจัดซื้อและการรับสินค้าผลิตเสร็จ บันทึกที่ระบบอื่นแล้วขึ้นที่นี่ทันที">
         {pending.length === 0 ? (
-          <p className="px-4 py-5 text-center text-[13px] text-slate-400">เปิดล็อตตรวจครบทุกใบแล้ว</p>
+          <Empty>เปิดล็อตตรวจครบทุกใบแล้ว</Empty>
         ) : (
-          <ul className="divide-y divide-slate-100 dark:divide-slate-800">
+          <Lines>
             {pending.map((p) => (
-              <li key={\`\${p.source}-\${p.material}\`} className="flex flex-wrap items-center gap-3 px-4 py-2.5">
-                <Chip>{p.origin}</Chip>
-                <span className="min-w-0 flex-1 text-[13px] text-slate-700 dark:text-slate-200">
-                  {materialName(p.material)} {p.qty.toLocaleString("th-TH")} {materialUnit(p.material)}
-                  <span className="ml-2 text-[11.5px] text-slate-400">{p.source} · {p.date}{p.vendor ? \` · \${vendorName(p.vendor)}\` : ""}</span>
-                </span>
-                <Button variant="secondary" icon={<Plus size={14} />} onClick={() => onAct({ kind: "lot-new", source: p.source, material: p.material })}>เปิดล็อตตรวจ</Button>
-              </li>
+              <Line
+                key={\`\${p.source}-\${p.material}\`}
+                title={\`\${materialName(p.material)} \${p.qty.toLocaleString("th-TH")} \${materialUnit(p.material)}\`}
+                sub={\`\${p.origin} · \${p.source} · \${p.date}\${p.vendor ? \` · \${vendorName(p.vendor)}\` : ""}\`}
+                right={<Button variant="secondary" icon={<Plus size={14} />} onClick={() => onAct({ kind: "lot-new", source: p.source, material: p.material })}>เปิดล็อตตรวจ</Button>}
+              />
             ))}
-          </ul>
+          </Lines>
         )}
       </Card>
       <DataTable
@@ -30969,7 +34205,7 @@ function Inspection({ onAct, onOpen }: Handlers) {
         toolbar={
           <div className="flex flex-wrap items-center gap-2">
             <Segmented options={["ทั้งหมด", "ตรวจรับ", "ตรวจก่อนส่ง"]} value={origin} onChange={setOrigin} />
-            <Button className="ml-auto" variant="secondary" icon={exportIcon} onClick={() => { downloadCsv("ล็อตตรวจ", ["เลขที่", "ประเภท", "รายการ", "จำนวน", "ตัวอย่าง", "ต้นทาง", "ผู้ขาย", "ผล", "ผู้ตรวจ", "วันที่ตัดสิน"], rows.map((l) => [l.no, l.origin, materialName(l.material), l.qty, l.sample, l.source, l.vendor ? vendorName(l.vendor) : "ฝ่ายผลิต", lotState(l), l.inspector ?? "", l.decidedOn ?? ""])); notify(\`ส่งออกล็อตตรวจ \${rows.length} รายการแล้ว\`); }}>ส่งออก Excel</Button>
+            <Button className="ml-auto" variant="secondary" icon={exportIcon} onClick={() => csv("ล็อตตรวจ", ["เลขที่", "ประเภท", "รายการ", "จำนวน", "ตัวอย่าง", "ต้นทาง", "ผู้ขาย", "ผล", "ผู้ตรวจ", "วันที่ตัดสิน"], rows.map((l) => [l.no, l.origin, materialName(l.material), l.qty, l.sample, l.source, l.vendor ? vendorName(l.vendor) : "ฝ่ายผลิต", lotState(l), l.inspector ?? "", l.decidedOn ?? ""]))}>ส่งออก Excel</Button>
           </div>
         }
       />
@@ -30990,7 +34226,7 @@ function Nonconformance({ onAct, onOpen }: Handlers) {
     { key: "party", header: "ผู้ขาย / ลูกค้า", cell: (n) => (n.customer ? customerName(n.customer) : n.vendor ? vendorName(n.vendor) : "—") },
     { key: "severity", header: "ความรุนแรง", cell: (n) => <Badge tone={tone(n.severity)}>{n.severity}</Badge> },
     { key: "status", header: "สถานะ", cell: (n) => <Badge dot tone={tone(n.status)}>{n.status}</Badge> },
-    { key: "car", header: "CAR", cell: (n) => <span className="tabular-nums text-slate-500">{n.capa ?? "—"}</span> },
+    { key: "car", header: "CAR", cell: (n) => <span className="tabular-nums text-slate-500">{carOfNcr(n)?.no ?? "—"}</span> },
   ];
   return (
     <DataTable
@@ -31002,72 +34238,9 @@ function Nonconformance({ onAct, onOpen }: Handlers) {
         <div className="flex flex-wrap items-center gap-2">
           <Segmented options={["ยังไม่ปิด", "ปิดแล้ว", "ทั้งหมด"]} value={status} onChange={setStatus} counts={{ "ยังไม่ปิด": NCRS.filter((n) => n.status !== "ปิดแล้ว").length }} />
           <div className="ml-auto flex flex-wrap gap-2">
-            <Button variant="secondary" icon={exportIcon} onClick={() => { downloadCsv("NCR", ["เลขที่", "วันที่", "พบที่", "อ้างอิง", "รายการ", "จำนวน", "ความรุนแรง", "สถานะ", "การสั่งการ", "CAR"], rows.map((n) => [n.no, n.date, n.source, n.ref, n.material ? materialName(n.material) : "", n.qty, n.severity, n.status, n.disposition ?? "", n.capa ?? ""])); notify(\`ส่งออก NCR \${rows.length} รายการแล้ว\`); }}>ส่งออก Excel</Button>
+            <Button variant="secondary" icon={exportIcon} onClick={() => csv("NCR", ["เลขที่", "วันที่", "พบที่", "อ้างอิง", "รายการ", "จำนวน", "ความรุนแรง", "สถานะ", "การสั่งการ", "CAR"], rows.map((n) => [n.no, n.date, n.source, n.ref, n.material ? materialName(n.material) : "", n.qty, n.severity, n.status, n.disposition ?? "", carOfNcr(n)?.no ?? ""]))}>ส่งออก Excel</Button>
             <Button variant="secondary" icon={<MessageSquareWarning size={14} />} onClick={() => onAct({ kind: "complaint-new" })}>รับเรื่องร้องเรียน</Button>
             <Button icon={<FileWarning size={14} />} onClick={() => onAct({ kind: "ncr-new" })}>เปิด NCR</Button>
-          </div>
-        </div>
-      }
-    />
-  );
-}
-
-/* ------------------------------------------------------------------ capa */
-
-function Corrective({ onAct, onOpen }: Handlers) {
-  const rows = newest(CAPAS);
-  const columns: Column<Capa>[] = [
-    { key: "no", header: "เลขที่", cell: (c) => <span className="font-medium tabular-nums text-slate-800 dark:text-slate-100">{c.no}</span>, sort: (a, b) => a.no.localeCompare(b.no) },
-    { key: "ref", header: "ต้นเรื่อง", cell: (c) => <span className="tabular-nums text-slate-500">{c.ref}</span> },
-    { key: "problem", header: "ปัญหา", cell: (c) => <span className="line-clamp-2">{c.problem}</span> },
-    { key: "owner", header: "ผู้รับผิดชอบ", cell: (c) => c.owner },
-    { key: "progress", header: "มาตรการ", cell: (c) => <Progress done={c.actions.filter((a) => a.doneOn).length} total={Math.max(1, c.actions.length)} label={c.actions.length ? undefined : "ยังไม่มี"} /> },
-    { key: "status", header: "สถานะ", cell: (c) => <span className="flex flex-wrap gap-1.5"><Badge dot tone={tone(c.status)}>{c.status}</Badge>{overdueActions(c).length > 0 && <Badge tone="bad">เลยกำหนด {overdueActions(c).length}</Badge>}</span> },
-  ];
-  return (
-    <DataTable
-      rows={rows}
-      columns={columns}
-      getId={(c) => c.no}
-      onOpen={(c) => onOpen("car", c.no)}
-      toolbar={
-        <div className="flex flex-wrap items-center gap-2">
-          <p className="text-[12.5px] text-slate-500 dark:text-slate-400">หาสาเหตุราก วางมาตรการ แล้วให้คนอื่นติดตามว่าได้ผลจริงก่อนปิด (ข้อ 10.2)</p>
-          <div className="ml-auto flex gap-2">
-            <Button variant="secondary" icon={exportIcon} onClick={() => { downloadCsv("CAR", ["เลขที่", "วันที่", "ประเภท", "ต้นเรื่อง", "ปัญหา", "ผู้รับผิดชอบ", "สาเหตุราก", "มาตรการเสร็จ", "สถานะ"], rows.map((c) => [c.no, c.date, c.kind, c.ref, c.problem, c.owner, c.rootCause?.whys.at(-1) ?? "", \`\${c.actions.filter((a) => a.doneOn).length}/\${c.actions.length}\`, c.status])); notify(\`ส่งออก CAR \${rows.length} รายการแล้ว\`); }}>ส่งออก Excel</Button>
-            <Button icon={<Plus size={14} />} onClick={() => onAct({ kind: "car-new" })}>ออก CAR</Button>
-          </div>
-        </div>
-      }
-    />
-  );
-}
-
-/* ----------------------------------------------------------------- audit */
-
-function Audits({ onAct, onOpen }: Handlers) {
-  const count = (a: Audit, t: string) => a.findings.filter((f) => f.type === t).length;
-  const columns: Column<Audit>[] = [
-    { key: "no", header: "เลขที่", cell: (a) => <span className="font-medium tabular-nums text-slate-800 dark:text-slate-100">{a.no}</span>, sort: (a, b) => a.no.localeCompare(b.no) },
-    { key: "area", header: "ฝ่ายที่ตรวจ", cell: (a) => a.area },
-    { key: "clauses", header: "ข้อกำหนด", cell: (a) => <span className="flex flex-wrap gap-1">{a.clauses.map((c) => <Chip key={c}>{c}</Chip>)}</span> },
-    { key: "auditor", header: "ผู้ตรวจ", cell: (a) => a.auditor },
-    { key: "planned", header: "วันที่", cell: (a) => a.performedOn ?? a.planned, sort: (a, b) => a.planned.localeCompare(b.planned) },
-    { key: "findings", header: "ข้อบกพร่อง / ข้อสังเกต", align: "right", cell: (a) => <span className="tabular-nums">{count(a, "ข้อบกพร่องหลัก") + count(a, "ข้อบกพร่องย่อย")} / {count(a, "ข้อสังเกต")}</span> },
-    { key: "status", header: "สถานะ", cell: (a) => <Badge dot tone={tone(a.status)}>{a.status}</Badge> },
-  ];
-  return (
-    <DataTable
-      rows={AUDITS}
-      columns={columns}
-      getId={(a) => a.no}
-      onOpen={(a) => onOpen("audit", a.no)}
-      toolbar={
-        <div className="flex flex-wrap items-center gap-2">
-          <p className="text-[12.5px] text-slate-500 dark:text-slate-400">แผนการตรวจปี {Number(TODAY.slice(0, 4)) + 543} · ผู้ตรวจไม่ตรวจฝ่ายของตัวเอง (ข้อ 9.2)</p>
-          <div className="ml-auto flex gap-2">
-            <Button variant="secondary" icon={exportIcon} onClick={() => { downloadCsv("แผนตรวจติดตามภายใน", ["เลขที่", "ฝ่าย", "ข้อกำหนด", "ผู้ตรวจ", "วันที่ตามแผน", "วันที่ตรวจ", "ข้อบกพร่อง", "ข้อสังเกต", "สถานะ"], AUDITS.map((a) => [a.no, a.area, a.clauses.join(" "), a.auditor, a.planned, a.performedOn ?? "", count(a, "ข้อบกพร่องหลัก") + count(a, "ข้อบกพร่องย่อย"), count(a, "ข้อสังเกต"), a.status])); notify(\`ส่งออกแผนตรวจ \${AUDITS.length} รายการแล้ว\`); }}>ส่งออก Excel</Button>
-            <Button icon={<Users size={14} />} onClick={() => onAct({ kind: "audit-new" })}>วางแผนการตรวจ</Button>
           </div>
         </div>
       }
@@ -31108,7 +34281,7 @@ function Calibration({ onAct, onOpen }: Handlers) {
           <div className="flex flex-wrap items-center gap-2">
             <p className="text-[12.5px] text-slate-500 dark:text-slate-400">เครื่องมือที่ไม่ผ่านถูกพักใช้ และเปิด NCR ให้ทบทวนผลการวัดที่ผ่านมา (ข้อ 7.1.5)</p>
             <div className="ml-auto flex gap-2">
-              <Button variant="secondary" icon={exportIcon} onClick={() => { downloadCsv("ทะเบียนเครื่องมือวัด", ["รหัส", "เครื่องมือ", "ช่วงการวัด", "ความละเอียด", "ที่ใช้งาน", "รอบ (เดือน)", "สอบเทียบล่าสุด", "ครบกำหนด", "สถานะ"], GAUGES.map((g) => [g.code, g.name, g.range, g.resolution, g.location, g.intervalMonths, g.lastCal, nextDue(g), calState(g)])); notify(\`ส่งออกเครื่องมือวัด \${GAUGES.length} รายการแล้ว\`); }}>ส่งออก Excel</Button>
+              <Button variant="secondary" icon={exportIcon} onClick={() => csv("ทะเบียนเครื่องมือวัด", ["รหัส", "เครื่องมือ", "ช่วงการวัด", "ความละเอียด", "ที่ใช้งาน", "รอบ (เดือน)", "สอบเทียบล่าสุด", "ครบกำหนด", "สถานะ"], GAUGES.map((g) => [g.code, g.name, g.range, g.resolution, g.location, g.intervalMonths, g.lastCal, nextDue(g), calState(g)]))}>ส่งออก Excel</Button>
               <Button icon={<Plus size={14} />} onClick={() => onAct({ kind: "gauge-new" })}>ขึ้นทะเบียนเครื่องมือ</Button>
             </div>
           </div>
@@ -31118,87 +34291,158 @@ function Calibration({ onAct, onOpen }: Handlers) {
   );
 }
 
-/* --------------------------------------------------------------- records */
+/* ================================================ customer requirements */
 
-function Header({ title, meta, badges, actions }: { title: string; meta: string; badges: ReactNode; actions: ReactNode }) {
+type Commitment = ReturnType<typeof commitments>[number];
+
+function Requirements({ onAct }: Handlers) {
+  const [show, setShow] = useState("รอทบทวน");
+  const all = commitments();
+  const rows = all.filter((c) => show === "ทั้งหมด" || (show === "รอทบทวน" ? !reviewOf(c.doc) : !!reviewOf(c.doc)));
+  const late = new Set(confirmedBeforeReview().map((c) => c.doc));
+  const printIt = (doc: string) => onAct({ kind: "print", d: { doc: "requirement", no: doc }, title: "ใบทบทวนข้อกำหนดลูกค้า" });
+  const columns: Column<Commitment>[] = [
+    { key: "doc", header: "เอกสาร", cell: (c) => <span className="font-medium tabular-nums text-slate-800 dark:text-slate-100">{c.doc}</span>, sort: (a, b) => a.doc.localeCompare(b.doc) },
+    { key: "kind", header: "ประเภท", cell: (c) => <Chip>{c.kind}</Chip> },
+    { key: "customer", header: "ลูกค้า", cell: (c) => customerName(c.customer) },
+    { key: "date", header: "วันที่", cell: (c) => c.date, sort: (a, b) => a.date.localeCompare(b.date) },
+    { key: "items", header: "รายการ", cell: (c) => <span className="text-slate-500">{c.lines.map((l) => \`\${materialName(l.material)} ×\${l.qty}\`).join(", ")}</span> },
+    {
+      key: "result", header: "ผลทบทวน",
+      cell: (c) => {
+        const r = reviewOf(c.doc);
+        if (r) return <Badge dot tone={tone(r.result)}>{r.result}</Badge>;
+        return <Badge dot tone={late.has(c.doc) ? "bad" : "idle"}>{late.has(c.doc) ? "ยืนยันก่อนทบทวน" : "รอทบทวน"}</Badge>;
+      },
+    },
+  ];
   return (
-    <div className="border-b border-slate-100 px-5 py-4 dark:border-slate-800">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-0">
-          <p className="text-[17px] font-semibold text-slate-900 dark:text-slate-50">{title}</p>
-          <p className="mt-0.5 text-[12.5px] text-slate-500 dark:text-slate-400">{meta}</p>
-          <div className="mt-2 flex flex-wrap gap-1.5">{badges}</div>
-        </div>
-      </div>
-      <div className="mt-3 flex flex-wrap gap-2">{actions}</div>
-    </div>
-  );
-}
-
-const run = (fn: () => void, ok: string) => {
-  try {
-    fn();
-    notify(ok);
-  } catch (e) {
-    notify(e instanceof Error ? e.message : String(e), "bad");
-  }
-};
-
-function RecordView({ kind, id, onAct, onOpen }: { kind: Kind; id: string } & Handlers) {
-  if (kind === "doc") return <DocRecord d={DOCUMENTS.find((x) => x.code === id)!} onAct={onAct} onOpen={onOpen} />;
-  if (kind === "lot") return <LotRecord l={LOTS.find((x) => x.no === id)!} onAct={onAct} onOpen={onOpen} />;
-  if (kind === "ncr") return <NcrRecord n={NCRS.find((x) => x.no === id)!} onAct={onAct} onOpen={onOpen} />;
-  if (kind === "car") return <CarRecord c={CAPAS.find((x) => x.no === id)!} onAct={onAct} onOpen={onOpen} />;
-  if (kind === "audit") return <AuditRecord a={AUDITS.find((x) => x.no === id)!} onAct={onAct} onOpen={onOpen} />;
-  return <GaugeRecord g={GAUGES.find((x) => x.code === id)!} onAct={onAct} onOpen={onOpen} />;
-}
-
-function Body({ children }: { children: ReactNode }) {
-  return <div className="space-y-5 overflow-y-auto px-5 py-4">{children}</div>;
-}
-
-function DocRecord({ d, onAct }: { d: QmDocument } & Handlers) {
-  const due = d.reviewDue && d.reviewDue <= addDays(TODAY, 30);
-  return (
-    <div className="flex h-full flex-col">
-      <Header
-        title={\`\${d.code} · \${d.title}\`}
-        meta={\`\${d.type} · ข้อ \${d.clause} \${clauseName(d.clause)} · \${d.owner}\`}
-        badges={<><Badge dot tone={tone(d.status)}>{d.status}</Badge><Badge tone="idle">{revLabel(d.rev)}</Badge>{d.draft && <Badge tone={d.draft.submitted ? "warn" : "info"}>{revLabel(d.draft.rev)} {d.draft.submitted ? "รออนุมัติ" : "กำลังแก้ไข"}</Badge>}</>}
-        actions={
-          <>
-            {d.draft && !d.draft.submitted && <Button icon={<CircleCheck size={14} />} onClick={() => run(() => submitDocument(d.code), \`ส่ง \${d.code} \${revLabel(d.draft!.rev)} ขออนุมัติแล้ว\`)}>ส่งอนุมัติ</Button>}
-            {d.draft?.submitted && <Button icon={<ShieldCheck size={14} />} onClick={() => onAct({ kind: "doc-approve", code: d.code })}>อนุมัติ</Button>}
-            {d.status === "ใช้งาน" && !d.draft && <Button variant="secondary" icon={<Pencil size={14} />} onClick={() => onAct({ kind: "doc-revise", code: d.code })}>แก้ไขฉบับใหม่</Button>}
-            {d.status === "ใช้งาน" && due && !d.draft && <Button variant="secondary" icon={<CircleCheck size={14} />} onClick={() => run(() => confirmReview(d.code), \`ทบทวน \${d.code} แล้ว · ใช้ต่ออีกหนึ่งปี\`)}>ทบทวนแล้วยังเหมาะสม</Button>}
-            {d.status !== "ยกเลิก" && <Button variant="ghost" onClick={() => onAct({ kind: "doc-obsolete", code: d.code })}>ยกเลิกเอกสาร</Button>}
-          </>
+    <div className="space-y-4">
+      {late.size > 0 && <Note tone="bad">ใบสั่งขาย {late.size} ใบยืนยันกับลูกค้าไปแล้วโดยยังไม่ทบทวนข้อกำหนด — ผู้ตรวจประเมินจะถามทุกใบ (ข้อ 8.2.3)</Note>}
+      <DataTable
+        rows={rows}
+        columns={columns}
+        getId={(c) => c.doc}
+        onOpen={(c) => (reviewOf(c.doc) ? printIt(c.doc) : onAct({ kind: "req-review", doc: c.doc }))}
+        toolbar={
+          <div className="flex flex-wrap items-center gap-2">
+            <Segmented options={["รอทบทวน", "ทบทวนแล้ว", "ทั้งหมด"]} value={show} onChange={setShow} counts={{ "รอทบทวน": unreviewed().length }} />
+            <p className="text-[12.5px] text-slate-500 dark:text-slate-400">กดแถวที่รอเพื่อทบทวน กดแถวที่ทบทวนแล้วเพื่อพิมพ์</p>
+            <Button className="ml-auto" variant="secondary" icon={exportIcon} onClick={() => csv("การทบทวนข้อกำหนดลูกค้า", ["เอกสาร", "ประเภท", "ลูกค้า", "วันที่", "ผล", "ผู้ทบทวน", "เงื่อนไข"], all.map((c) => [c.doc, c.kind, customerName(c.customer), c.date, reviewOf(c.doc)?.result ?? "รอทบทวน", reviewOf(c.doc)?.by ?? "", reviewOf(c.doc)?.note ?? ""]))}>ส่งออก Excel</Button>
+          </div>
         }
       />
-      <Body>
-        <div className="grid gap-x-8 sm:grid-cols-2">
-          <IconRow icon={<FileText size={14} />} label="ฉบับที่ใช้">{revLabel(d.rev)}{d.effective ? \` · มีผล \${d.effective}\` : ""}</IconRow>
-          <IconRow icon={<CalendarClock size={14} />} label="ทบทวนครั้งถัดไป"><span className={due ? "text-rose-600 dark:text-rose-400" : ""}>{d.reviewDue ?? "—"}</span></IconRow>
-          {d.obsoleteReason && <IconRow icon={<TriangleAlert size={14} />} label="เหตุผลที่ยกเลิก">{d.obsoleteReason}</IconRow>}
-        </div>
-        {d.draft && <Note tone="info">{revLabel(d.draft.rev)} โดย {d.draft.by} ({d.draft.date}): {d.draft.change}</Note>}
-        <Card title="ประวัติการแก้ไข" subtitle="ทุกฉบับที่เคยออกใช้ พร้อมผู้อนุมัติ">
-          {d.history.length === 0 ? (
-            <p className="px-4 py-5 text-center text-[13px] text-slate-400">ยังไม่เคยออกใช้</p>
-          ) : (
-            <ul className="divide-y divide-slate-100 dark:divide-slate-800">
-              {[...d.history].reverse().map((h) => (
-                <li key={h.rev} className="flex gap-3 px-4 py-2.5 text-[13px]">
-                  <span className="w-14 shrink-0 font-medium tabular-nums text-slate-800 dark:text-slate-100">{revLabel(h.rev)}</span>
-                  <span className="min-w-0 flex-1 text-slate-700 dark:text-slate-200">{h.change}<span className="block text-[11.5px] text-slate-400">{h.date} · จัดทำ {h.by} · อนุมัติ {h.approvedBy}</span></span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </Card>
-      </Body>
     </div>
   );
+}
+
+/* ================================================== design and development */
+
+function Designs({ onAct, onOpen }: Handlers) {
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center gap-2">
+        <p className="text-[12.5px] text-slate-500 dark:text-slate-400">ออกแบบทีละขั้น ข้ามขั้นไม่ได้ ทวนสอบและรับรองโดยคนที่ไม่ใช่ผู้ออกแบบ (ข้อ 8.3)</p>
+        <div className="ml-auto flex gap-2">
+          <Button variant="secondary" icon={exportIcon} onClick={() => csv("โครงการออกแบบ", ["เลขที่", "ผลิตภัณฑ์", "ผู้รับผิดชอบ", "เริ่ม", "กำหนดเสร็จ", "ขั้นล่าสุด", "การเปลี่ยนแปลง"], DESIGNS.map((d) => [d.no, d.product, d.owner, d.started, d.target, d.records.at(-1)?.stage ?? "", d.changes.length]))}>ส่งออก Excel</Button>
+          <Button icon={<PencilRuler size={14} />} onClick={() => onAct({ kind: "design-new" })}>เปิดโครงการออกแบบ</Button>
+        </div>
+      </div>
+      <div className="grid gap-4 lg:grid-cols-2">
+        {newest(DESIGNS).map((d) => (
+          <Card key={d.no} title={\`\${d.no} · \${d.product}\`} subtitle={\`\${d.owner} · กำหนดเสร็จ \${d.target}\`} action={<Button variant="ghost" onClick={() => onOpen("design", d.no)}>เปิด</Button>}>
+            <div className="p-4">
+              <Stepper steps={designSteps(d)} icons={STEP_ICONS} />
+              <p className="mt-3 text-[12.5px] text-slate-500 dark:text-slate-400">{released(d) ? \`ส่งมอบสู่การผลิตแล้ว · เปลี่ยนแปลงแบบ \${d.changes.length} ครั้ง\` : \`ขั้นถัดไป: \${nextStage(d)}\`}</p>
+            </div>
+          </Card>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ================================================== approved suppliers */
+
+type SupplierRow = ReturnType<typeof supplierRegister>[number];
+
+function Suppliers({ onOpen }: Handlers) {
+  const rows = supplierRegister();
+  const columns: Column<SupplierRow>[] = [
+    { key: "code", header: "รหัส", cell: (s) => <span className="font-medium tabular-nums text-slate-800 dark:text-slate-100">{s.vendor.code}</span> },
+    { key: "name", header: "ผู้ขาย", cell: (s) => s.vendor.name },
+    { key: "scope", header: "อนุมัติให้ส่ง", cell: (s) => <span className="text-slate-500">{s.approval?.scope.map(materialName).join(", ") || "—"}</span> },
+    { key: "quality", header: "ล็อตผ่าน", align: "right", cell: (s) => <span className="tabular-nums">{s.quality.lots ? \`\${s.quality.score}%\` : "—"}</span> },
+    { key: "delivery", header: "ส่งตรงเวลา", align: "right", cell: (s) => <span className="tabular-nums">{s.delivery === null ? "—" : \`\${s.delivery}%\`}</span> },
+    { key: "grade", header: "เกรดจัดซื้อ", cell: (s) => (s.grade ? <Badge tone={s.grade === "A" ? "ok" : s.grade === "B" ? "warn" : "bad"}>{s.grade}</Badge> : "—") },
+    { key: "status", header: "สถานะ", cell: (s) => <span className="flex flex-wrap gap-1.5"><Badge dot tone={tone(s.approval?.status ?? "รอประเมิน")}>{s.approval?.status ?? "รอประเมิน"}</Badge>{s.vendor.blocked && <Badge tone="bad">ระงับสั่งซื้อ</Badge>}</span> },
+    { key: "next", header: "ประเมินครั้งถัดไป", cell: (s) => s.approval?.nextReview ?? "ก่อนสั่งซื้อครั้งแรก" },
+  ];
+  return (
+    <div className="space-y-4">
+      {awaitingApproval().length > 0 && <Note tone="bad">ผู้ขาย {awaitingApproval().length} รายยังไม่ผ่านการประเมิน — ต้องประเมินก่อนสั่งซื้อครั้งแรก (SP-07)</Note>}
+      <DataTable
+        rows={rows}
+        columns={columns}
+        getId={(s) => s.vendor.code}
+        onOpen={(s) => onOpen("supplier", s.vendor.code)}
+        toolbar={
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="text-[12.5px] text-slate-500 dark:text-slate-400">ผู้ขายอ่านจากระบบจัดซื้อ คุณภาพจากล็อตตรวจรับ เกรดจากการประเมินของฝ่ายจัดซื้อ ระงับที่นี่แล้วสั่งซื้อไม่ได้</p>
+            <Button className="ml-auto" variant="secondary" icon={exportIcon} onClick={() => csv("ทะเบียนผู้ส่งมอบ", ["รหัส", "ผู้ขาย", "สถานะ", "อนุมัติให้ส่ง", "ล็อตผ่าน %", "ส่งตรงเวลา %", "เกรดจัดซื้อ", "ประเมินครั้งถัดไป"], rows.map((s) => [s.vendor.code, s.vendor.name, s.approval?.status ?? "รอประเมิน", s.approval?.scope.join(" ") ?? "", s.quality.score, s.delivery ?? "", s.grade ?? "", s.approval?.nextReview ?? ""]))}>ส่งออก Excel</Button>
+          </div>
+        }
+      />
+    </div>
+  );
+}
+
+/* =================================================== customer satisfaction */
+
+function Satisfaction({ onAct, onOpen }: Handlers) {
+  const rows = satisfactionByCustomer();
+  const avg = overallSatisfaction();
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center gap-2">
+        <p className="text-[12.5px] text-slate-500 dark:text-slate-400">คะแนนที่ลูกค้าให้ วางคู่ข้อร้องเรียนที่ระบบนับเอง · เฉลี่ยทุกรายล่าสุด {avg ?? "—"} / 5</p>
+        <div className="ml-auto flex gap-2">
+          <Button variant="secondary" icon={<Printer size={14} />} onClick={() => onAct({ kind: "print", d: { doc: "satisfaction" }, title: "สรุปผลสำรวจความพึงพอใจลูกค้า" })}>พิมพ์สรุป</Button>
+          <Button variant="secondary" icon={exportIcon} onClick={() => csv("แบบสำรวจความพึงพอใจ", ["เลขที่", "ลูกค้า", "รอบ", ...SATISFACTION_CRITERIA.map((c) => c.label), "ความเห็น", "สิ่งที่จะทำต่อ"], SURVEYS.map((v) => [v.no, customerName(v.customer), v.period, ...SATISFACTION_CRITERIA.map((c) => v.scores[c.key]), v.comment, v.followUp ?? ""]))}>ส่งออก Excel</Button>
+          <Button icon={<Smile size={14} />} onClick={() => onAct({ kind: "survey-new" })}>บันทึกแบบสำรวจ</Button>
+        </div>
+      </div>
+      <Card title="รายลูกค้า" subtitle="ผลรอบล่าสุดของแต่ละราย">
+        <Lines>
+          {rows.map((x) => (
+            <Line
+              key={x.customer.code}
+              title={x.customer.name}
+              sub={x.last ? \`\${x.last.period} · \${x.last.comment || "ไม่มีความเห็น"}\` : "ยังไม่สำรวจ"}
+              right={
+                <span className="flex items-center gap-2">
+                  {x.complaints > 0 && <Badge tone="warn">ร้องเรียน {x.complaints}</Badge>}
+                  {x.score !== undefined && <Badge tone={x.score < 3.5 ? "bad" : x.score < 4 ? "warn" : "ok"}>{x.score} / 5</Badge>}
+                  {x.last ? <Button variant="ghost" onClick={() => onOpen("survey", x.last!.no)}>ดู</Button> : <Button variant="secondary" onClick={() => onAct({ kind: "survey-new", customer: x.customer.code })}>สำรวจ</Button>}
+                </span>
+              }
+            />
+          ))}
+        </Lines>
+      </Card>
+    </div>
+  );
+}
+
+/* --------------------------------------------------------------- records */
+
+function RecordView({ kind, id, ...h }: { kind: RecordKind; id: string } & Handlers) {
+  if (kind === "lot") return <LotRecord l={LOTS.find((x) => x.no === id)!} {...h} />;
+  if (kind === "ncr") return <NcrRecord n={NCRS.find((x) => x.no === id)!} {...h} />;
+  if (kind === "gauge") return <GaugeRecord g={GAUGES.find((x) => x.code === id)!} {...h} />;
+  if (kind === "design") return <DesignRecord no={id} {...h} />;
+  if (kind === "supplier") return <SupplierRecord code={id} {...h} />;
+  return <SurveyRecord no={id} {...h} />;
 }
 
 function LotRecord({ l, onAct, onOpen }: { l: InspectionLot } & Handlers) {
@@ -31221,22 +34465,20 @@ function LotRecord({ l, onAct, onOpen }: { l: InspectionLot } & Handlers) {
       />
       <Body>
         <Card title="ผลตรวจตามแผน" subtitle={l.inspector ? \`ตรวจโดย \${l.inspector} · \${l.inspectedOn}\` : "ยังไม่ได้บันทึกผล"}>
-          <ul className="divide-y divide-slate-100 dark:divide-slate-800">
+          <Lines>
             {plan.map((c) => {
               const r = l.results.find((x) => x.characteristic === c.name);
               const got = !r ? "—" : c.kind === "วัดค่า" ? \`\${r.min} – \${r.max} \${c.unit ?? ""}\` : r.defects === 0 ? "ไม่พบข้อบกพร่อง" : \`พบ \${r.defects} ชิ้น\`;
               return (
-                <li key={c.name} className="flex flex-wrap items-center gap-3 px-4 py-2.5 text-[13px]">
-                  <span className="min-w-0 flex-1">
-                    <span className="block text-slate-800 dark:text-slate-100">{c.name}</span>
-                    <span className="block text-[11.5px] text-slate-400">{c.method} · เกณฑ์ {c.kind === "วัดค่า" ? \`\${c.lsl}–\${c.usl} \${c.unit ?? ""}\` : "ไม่พบข้อบกพร่อง"}</span>
-                  </span>
-                  <span className="tabular-nums text-slate-700 dark:text-slate-200">{got}</span>
-                  {r && <Badge tone={r.ok ? "ok" : "bad"}>{r.ok ? "ผ่าน" : "ไม่ผ่าน"}</Badge>}
-                </li>
+                <Line
+                  key={c.name}
+                  title={c.name}
+                  sub={\`\${c.method} · เกณฑ์ \${c.kind === "วัดค่า" ? \`\${c.lsl}–\${c.usl} \${c.unit ?? ""}\` : "ไม่พบข้อบกพร่อง"}\`}
+                  right={<span className="flex items-center gap-3"><span className="tabular-nums text-slate-700 dark:text-slate-200">{got}</span>{r && <Badge tone={r.ok ? "ok" : "bad"}>{r.ok ? "ผ่าน" : "ไม่ผ่าน"}</Badge>}</span>}
+                />
               );
             })}
-          </ul>
+          </Lines>
         </Card>
         {l.decision && <Note tone={tone(l.decision)}>ตัดสิน{l.decision} โดย {l.decidedBy} · {l.decidedOn}{l.note ? \` — \${l.note}\` : ""}</Note>}
       </Body>
@@ -31244,18 +34486,18 @@ function LotRecord({ l, onAct, onOpen }: { l: InspectionLot } & Handlers) {
   );
 }
 
-function NcrRecord({ n, onAct, onOpen }: { n: Ncr } & Handlers) {
+function NcrRecord({ n, onAct, onIms }: { n: Ncr } & Handlers) {
+  const car = carOfNcr(n);
   return (
     <div className="flex h-full flex-col">
       <Header
         title={\`\${n.no} · \${n.material ? materialName(n.material) : n.ref}\`}
         meta={\`\${n.source} · \${n.date} · อ้างอิง \${n.ref}\`}
-        badges={<><Badge dot tone={tone(n.status)}>{n.status}</Badge><Badge tone={tone(n.severity)}>{n.severity}</Badge>{n.capa && <Badge tone="info">{n.capa}</Badge>}</>}
+        badges={<><Badge dot tone={tone(n.status)}>{n.status}</Badge><Badge tone={tone(n.severity)}>{n.severity}</Badge>{car && <Badge tone="info">{car.no} · {car.status}</Badge>}</>}
         actions={
           <>
             {n.status === "รอสั่งการ" && <Button icon={<ShieldCheck size={14} />} onClick={() => onAct({ kind: "ncr-dispose", no: n.no })}>สั่งการ</Button>}
-            {!n.capa && n.status !== "ปิดแล้ว" && <Button variant="secondary" icon={<ListChecks size={14} />} onClick={() => onAct({ kind: "car-new", ref: n.no, problem: n.description })}>ออก CAR</Button>}
-            {n.capa && <Button variant="secondary" icon={<ListChecks size={14} />} onClick={() => onOpen("car", n.capa!)}>ดู {n.capa}</Button>}
+            {!car && n.status !== "ปิดแล้ว" && <Button variant="secondary" icon={<ListChecks size={14} />} onClick={() => onIms({ kind: "car-new", ref: n.no, problem: n.description })}>ออก CAR</Button>}
             {n.status === "ดำเนินการ" && <Button variant="secondary" icon={<CircleCheck size={14} />} onClick={() => onAct({ kind: "ncr-close", no: n.no })}>ปิด NCR</Button>}
             <Button variant="secondary" icon={<Printer size={14} />} onClick={() => onAct({ kind: "print", d: { doc: "ncr", no: n.no }, title: "ใบรายงานสิ่งที่ไม่เป็นไปตามข้อกำหนด" })}>พิมพ์</Button>
           </>
@@ -31265,7 +34507,7 @@ function NcrRecord({ n, onAct, onOpen }: { n: Ncr } & Handlers) {
         <div className="grid gap-x-8 sm:grid-cols-2">
           <IconRow icon={<FileWarning size={14} />} label="จำนวน">{n.qty.toLocaleString("th-TH")} {n.material ? materialUnit(n.material) : ""}</IconRow>
           <IconRow icon={<Users size={14} />} label={n.customer ? "ลูกค้า" : "ผู้ขาย"}>{n.customer ? customerName(n.customer) : vendorName(n.vendor)}</IconRow>
-          <IconRow icon={<Pencil size={14} />} label="ผู้รายงาน">{n.reportedBy}</IconRow>
+          <IconRow icon={<Users size={14} />} label="ผู้รายงาน">{n.reportedBy}</IconRow>
           {n.closedOn && <IconRow icon={<CircleCheck size={14} />} label="ปิดเมื่อ">{n.closedOn} · {n.closedBy}</IconRow>}
         </div>
         <Card title="สิ่งที่พบ"><p className="px-4 py-3 text-[13px] leading-relaxed text-slate-700 dark:text-slate-200">{n.description}</p></Card>
@@ -31278,113 +34520,16 @@ function NcrRecord({ n, onAct, onOpen }: { n: Ncr } & Handlers) {
               <p className="mt-1 text-[12px] text-slate-400">สั่งการโดย {n.dispositionBy}</p>
             </div>
           ) : (
-            <p className="px-4 py-5 text-center text-[13px] text-slate-400">ยังไม่สั่งการ</p>
+            <Empty>ยังไม่สั่งการ</Empty>
           )}
         </Card>
-      </Body>
-    </div>
-  );
-}
-
-function CarRecord({ c, onAct }: { c: Capa } & Handlers) {
-  return (
-    <div className="flex h-full flex-col">
-      <Header
-        title={\`\${c.no} · การ\${c.kind}\`}
-        meta={\`ต้นเรื่อง \${c.ref} · ออกเมื่อ \${c.date} · \${c.owner}\`}
-        badges={<><Badge dot tone={tone(c.status)}>{c.status}</Badge>{overdueActions(c).length > 0 && <Badge tone="bad">มาตรการเลยกำหนด {overdueActions(c).length}</Badge>}</>}
-        actions={
-          <>
-            {c.status !== "ปิดแล้ว" && c.status !== "ติดตามผล" && <Button variant={c.rootCause ? "secondary" : "primary"} icon={<SearchIcon size={14} />} onClick={() => onAct({ kind: "car-cause", no: c.no })}>{c.rootCause ? "แก้สาเหตุราก" : "หาสาเหตุราก"}</Button>}
-            {c.status !== "ปิดแล้ว" && c.status !== "ติดตามผล" && <Button variant="secondary" icon={<Plus size={14} />} onClick={() => onAct({ kind: "car-action", no: c.no })}>เพิ่มมาตรการ</Button>}
-            {c.status === "ติดตามผล" && <Button icon={<ShieldCheck size={14} />} onClick={() => onAct({ kind: "car-verify", no: c.no })}>ติดตามประสิทธิผล</Button>}
-            <Button variant="secondary" icon={<Printer size={14} />} onClick={() => onAct({ kind: "print", d: { doc: "car", no: c.no }, title: "ใบขอให้ดำเนินการแก้ไขและป้องกัน" })}>พิมพ์</Button>
-          </>
-        }
-      />
-      <Body>
-        <Card title="ปัญหา"><p className="px-4 py-3 text-[13px] text-slate-700 dark:text-slate-200">{c.problem}</p></Card>
-        <Card title="สาเหตุราก" subtitle={c.rootCause ? \`กลุ่ม\${c.rootCause.category} · ถามทำไม \${c.rootCause.whys.length} ชั้น\` : "ยังไม่วิเคราะห์"}>
-          {c.rootCause && (
-            <ol className="space-y-1.5 px-4 py-3 text-[13px] text-slate-700 dark:text-slate-200">
-              {c.rootCause.whys.map((w, i) => (
-                <li key={i} className="flex gap-2"><span className="w-16 shrink-0 text-slate-400">ทำไม {i + 1}</span><span className={i === c.rootCause!.whys.length - 1 ? "font-medium text-slate-900 dark:text-slate-50" : ""}>{w}</span></li>
-              ))}
-            </ol>
-          )}
-        </Card>
-        <Card title="มาตรการ" subtitle="ทำเสร็จครบแล้วจึงติดตามผลได้">
-          {c.actions.length === 0 ? (
-            <p className="px-4 py-5 text-center text-[13px] text-slate-400">ยังไม่มีมาตรการ</p>
-          ) : (
-            <ul className="divide-y divide-slate-100 dark:divide-slate-800">
-              {c.actions.map((a, i) => {
-                const late = !a.doneOn && a.due < TODAY;
-                return (
-                  <li key={i} className="flex flex-wrap items-center gap-3 px-4 py-2.5 text-[13px]">
-                    <span className="min-w-0 flex-1">
-                      <span className="block text-slate-800 dark:text-slate-100">{a.what}</span>
-                      <span className={"block text-[11.5px] " + (late ? "text-rose-600 dark:text-rose-400" : "text-slate-400")}>{a.owner} · กำหนด {a.due}{late ? " · เลยกำหนด" : ""}</span>
-                    </span>
-                    {a.doneOn ? (
-                      <Badge tone="ok">เสร็จ {a.doneOn}</Badge>
-                    ) : (
-                      c.status !== "ปิดแล้ว" && <Button variant="secondary" icon={<CircleCheck size={14} />} onClick={() => run(() => completeCapaAction(c.no, i), \`บันทึกว่ามาตรการเสร็จแล้ว · \${c.no}\`)}>ทำเสร็จแล้ว</Button>
-                    )}
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-        </Card>
-        {c.verification && <Note tone={c.verification.effective ? "ok" : "bad"}>ติดตามผล {c.verification.date} โดย {c.verification.by}: {c.verification.effective ? "ได้ผล" : "ไม่ได้ผล"} — {c.verification.note}</Note>}
-      </Body>
-    </div>
-  );
-}
-
-function AuditRecord({ a, onAct }: { a: Audit } & Handlers) {
-  const missing = findingsWithoutCapa(a);
-  return (
-    <div className="flex h-full flex-col">
-      <Header
-        title={\`\${a.no} · \${a.area}\`}
-        meta={\`ผู้ตรวจ \${a.auditor} · \${a.performedOn ? \`ตรวจเมื่อ \${a.performedOn}\` : \`ตามแผน \${a.planned}\`}\`}
-        badges={<><Badge dot tone={tone(a.status)}>{a.status}</Badge>{a.clauses.map((c) => <Chip key={c}>ข้อ {c}</Chip>)}</>}
-        actions={
-          <>
-            {a.status === "ตามแผน" && <Button icon={<Play size={14} />} onClick={() => run(() => startAudit(a.no), \`เริ่มตรวจ \${a.no} \${a.area} แล้ว\`)}>เริ่มตรวจ</Button>}
-            {a.status === "กำลังตรวจ" && <Button icon={<Plus size={14} />} onClick={() => onAct({ kind: "audit-finding", no: a.no })}>บันทึกสิ่งที่พบ</Button>}
-            {a.status === "กำลังตรวจ" && <Button variant="secondary" icon={<CircleCheck size={14} />} onClick={() => run(() => closeAudit(a.no), \`ปิดการตรวจ \${a.no} แล้ว\`)}>ปิดการตรวจ</Button>}
-            <Button variant="secondary" icon={<Printer size={14} />} onClick={() => onAct({ kind: "print", d: { doc: "audit", no: a.no }, title: "รายงานการตรวจติดตามภายใน" })}>พิมพ์รายงาน</Button>
-          </>
-        }
-      />
-      <Body>
-        {a.status === "กำลังตรวจ" && missing.length > 0 && <Note tone="warn">ข้อบกพร่อง {missing.length} ข้อยังไม่มี CAR — ต้องออกก่อนปิดการตรวจ</Note>}
-        <Card title="ขอบเขต">
-          <ul className="space-y-1 px-4 py-3 text-[13px] text-slate-700 dark:text-slate-200">
-            {a.clauses.map((c) => <li key={c}><span className="tabular-nums text-slate-400">ข้อ {c}</span> {CLAUSES.find((x) => x.code === c)?.name}</li>)}
-          </ul>
-        </Card>
-        <Card title="สิ่งที่พบ" subtitle="ข้อบกพร่องต้องมี CAR · ข้อสังเกตไม่ต้อง">
-          {a.findings.length === 0 ? (
-            <p className="px-4 py-5 text-center text-[13px] text-slate-400">{a.status === "ตามแผน" ? "ยังไม่ได้ตรวจ" : "ยังไม่พบสิ่งที่ต้องบันทึก"}</p>
-          ) : (
-            <ul className="divide-y divide-slate-100 dark:divide-slate-800">
-              {a.findings.map((f) => (
-                <li key={f.id} className="flex flex-wrap items-center gap-3 px-4 py-2.5 text-[13px]">
-                  <span className="min-w-0 flex-1">
-                    <span className="block text-slate-800 dark:text-slate-100">#{f.id} {f.detail}</span>
-                    <span className="block text-[11.5px] text-slate-400">ข้อ {f.clause} {clauseName(f.clause)}</span>
-                  </span>
-                  <Badge tone={f.type === "ข้อสังเกต" ? "info" : f.type === "ข้อบกพร่องหลัก" ? "bad" : "warn"}>{f.type}</Badge>
-                  {f.capa ? <Badge tone="ok">{f.capa}</Badge> : f.type !== "ข้อสังเกต" && <Button variant="secondary" onClick={() => onAct({ kind: "car-new", ref: \`\${a.no} #\${f.id}\`, problem: f.detail })}>ออก CAR</Button>}
-                </li>
-              ))}
-            </ul>
-          )}
-        </Card>
+        {car && (
+          <Card title="การแก้ไขที่สาเหตุ" subtitle="ติดตามต่อที่ระบบบริหารบูรณาการ">
+            <Lines>
+              <Line title={\`\${car.no} · \${car.method} · \${car.owner}\`} sub={capaByNo(car.no).rootCause?.whys.at(-1) ?? "ยังไม่หาสาเหตุราก"} right={<Badge dot tone={tone(car.status)}>{car.status}</Badge>} />
+            </Lines>
+          </Card>
+        )}
       </Body>
     </div>
   );
@@ -31410,16 +34555,113 @@ function GaugeRecord({ g, onAct }: { g: Gauge } & Handlers) {
           <IconRow icon={<CalendarClock size={14} />} label="ครบกำหนด">{g.status === "พักใช้" ? "พักใช้" : nextDue(g)}</IconRow>
         </div>
         <Card title="ประวัติการสอบเทียบ">
-          <ul className="divide-y divide-slate-100 dark:divide-slate-800">
+          <Lines>
             {[...g.records].reverse().map((r, i) => (
-              <li key={i} className="flex flex-wrap items-center gap-3 px-4 py-2.5 text-[13px]">
-                <span className="w-24 shrink-0 tabular-nums text-slate-500">{r.date}</span>
-                <span className="min-w-0 flex-1 text-slate-700 dark:text-slate-200">{r.by}<span className="block text-[11.5px] text-slate-400">ใบรับรอง {r.certNo} · คลาดเคลื่อน {r.error}{r.note ? \` · \${r.note}\` : ""}</span></span>
-                <Badge tone={r.result === "ผ่าน" ? "ok" : "bad"}>{r.result}</Badge>
+              <Line key={i} title={\`\${r.date} · \${r.by}\`} sub={\`ใบรับรอง \${r.certNo} · คลาดเคลื่อน \${r.error}\${r.note ? \` · \${r.note}\` : ""}\`} right={<Badge tone={r.result === "ผ่าน" ? "ok" : "bad"}>{r.result}</Badge>} />
+            ))}
+          </Lines>
+        </Card>
+      </Body>
+    </div>
+  );
+}
+
+function DesignRecord({ no, onAct }: { no: string } & Handlers) {
+  const d = designByNo(no);
+  const stage = nextStage(d);
+  return (
+    <div className="flex h-full flex-col">
+      <Header
+        title={\`\${d.no} · \${d.product}\`}
+        meta={\`\${d.owner} · เริ่ม \${d.started} · กำหนดเสร็จ \${d.target}\`}
+        badges={<Badge dot tone={released(d) ? "ok" : "info"}>{released(d) ? "ส่งมอบสู่การผลิตแล้ว" : \`ขั้นถัดไป: \${stage}\`}</Badge>}
+        actions={
+          <>
+            {stage && <Button icon={<PencilRuler size={14} />} onClick={() => onAct({ kind: "design-stage", no: d.no })}>บันทึกขั้น{stage}</Button>}
+            {released(d) && <Button variant="secondary" icon={<FilePlus2 size={14} />} onClick={() => onAct({ kind: "design-change", no: d.no })}>เปลี่ยนแปลงแบบ</Button>}
+            <Button variant="secondary" icon={<Printer size={14} />} onClick={() => onAct({ kind: "print", d: { doc: "design", no: d.no }, title: "บันทึกการออกแบบและพัฒนา" })}>พิมพ์บันทึก</Button>
+          </>
+        }
+      />
+      <Body>
+        <Stepper steps={designSteps(d)} icons={STEP_ICONS} />
+        <Card title="บันทึกแต่ละขั้น">
+          <Lines>
+            {d.records.map((r) => <Line key={r.stage} title={\`\${r.stage} · \${r.date} · \${r.by}\`} sub={\`\${r.evidence}\${r.participants ? \` · ผู้เข้าร่วม \${r.participants.join(", ")}\` : ""}\`} />)}
+          </Lines>
+        </Card>
+        {d.changes.length > 0 && (
+          <Card title="การเปลี่ยนแปลงแบบหลังส่งมอบ" subtitle="ข้อ 8.3.6">
+            <Lines>
+              {d.changes.map((c, i) => <Line key={i} title={c.change} sub={\`\${c.date} · \${c.reason} · อนุมัติ \${c.approvedBy}\`} right={<Badge tone={c.reverified ? "ok" : "warn"}>{c.reverified ? "ทวนสอบซ้ำแล้ว" : "ไม่กระทบ"}</Badge>} />)}
+            </Lines>
+          </Card>
+        )}
+      </Body>
+    </div>
+  );
+}
+
+function SupplierRecord({ code, onAct }: { code: string } & Handlers) {
+  const s = supplierRegister().find((x) => x.vendor.code === code)!;
+  const status = s.approval?.status ?? "รอประเมิน";
+  return (
+    <div className="flex h-full flex-col">
+      <Header
+        title={\`\${s.vendor.code} · \${s.vendor.name}\`}
+        meta={\`ส่งได้ \${s.supplies.map(materialName).join(", ") || "—"} · \${s.vendor.terms}\`}
+        badges={<><Badge dot tone={tone(status)}>{status}</Badge>{s.grade && <Badge tone="idle">เกรดจัดซื้อ {s.grade}</Badge>}{s.vendor.blocked && <Badge tone="bad">ระงับสั่งซื้อ</Badge>}</>}
+        actions={
+          <>
+            <Button icon={<ShieldCheck size={14} />} onClick={() => onAct({ kind: "supplier-evaluate", code })}>ประเมินผู้ส่งมอบ</Button>
+            <Button variant="secondary" icon={<Printer size={14} />} onClick={() => onAct({ kind: "print", d: { doc: "supplier", code }, title: "ใบประเมินผู้ส่งมอบประจำปี" })}>พิมพ์ใบประเมิน</Button>
+          </>
+        }
+      />
+      <Body>
+        <div className="grid gap-3 sm:grid-cols-3">
+          <Metric icon={<Microscope size={16} />} label="ล็อตผ่านครั้งแรก" value={s.quality.lots ? \`\${s.quality.score}%\` : "—"} deltaLabel={\`\${s.quality.accepted} จาก \${s.quality.lots} ล็อต\`} />
+          <Metric icon={<Truck size={16} />} label="ส่งตรงเวลา" value={s.delivery === null ? "—" : \`\${s.delivery}%\`} deltaLabel="จากใบรับของของจัดซื้อ" />
+          <Metric icon={<FileWarning size={16} />} label="NCR" value={\`\${s.quality.ncrs} เรื่อง\`} deltaLabel="ที่เปิดกับผู้ขายรายนี้" />
+        </div>
+        <Card title="ประวัติการประเมิน">
+          {s.approval ? (
+            <Lines>
+              {[...s.approval.history].reverse().map((h, i) => <Line key={i} title={\`\${h.date} · \${h.status}\`} sub={\`\${h.note} · \${h.by}\`} right={<span className="tabular-nums text-[12.5px] text-slate-500">คุณภาพ {h.quality}%{h.grade ? \` · \${h.grade}\` : ""}</span>} />)}
+            </Lines>
+          ) : (
+            <Empty>ยังไม่เคยประเมิน — ต้องประเมินก่อนสั่งซื้อครั้งแรก</Empty>
+          )}
+        </Card>
+      </Body>
+    </div>
+  );
+}
+
+function SurveyRecord({ no, onAct }: { no: string } & Handlers) {
+  const v = SURVEYS.find((x) => x.no === no)!;
+  const avg = Math.round((SATISFACTION_CRITERIA.reduce((n, c) => n + v.scores[c.key], 0) / SATISFACTION_CRITERIA.length) * 100) / 100;
+  return (
+    <div className="flex h-full flex-col">
+      <Header
+        title={\`\${v.no} · \${customerName(v.customer)}\`}
+        meta={\`\${v.period} · บันทึก \${v.date} · \${v.by}\`}
+        badges={<Badge tone={avg < 3.5 ? "bad" : avg < 4 ? "warn" : "ok"}>เฉลี่ย {avg} / 5</Badge>}
+        actions={<Button variant="secondary" icon={<Printer size={14} />} onClick={() => onAct({ kind: "print", d: { doc: "satisfaction" }, title: "สรุปผลสำรวจความพึงพอใจลูกค้า" })}>พิมพ์สรุป</Button>}
+      />
+      <Body>
+        <Card title="คะแนน">
+          <ul className="space-y-3 p-4">
+            {SATISFACTION_CRITERIA.map((c) => (
+              <li key={c.key}>
+                <div className="flex justify-between text-[12.5px]"><span className="text-slate-700 dark:text-slate-200">{c.label}</span><span className="tabular-nums text-slate-500">{v.scores[c.key]} / 5</span></div>
+                <div className="mt-1"><Bar pct={v.scores[c.key] * 20} tone={v.scores[c.key] <= 2 ? "bad" : v.scores[c.key] === 3 ? "warn" : "ok"} width="w-full" /></div>
               </li>
             ))}
           </ul>
         </Card>
+        {v.comment && <Card title="ความเห็นของลูกค้า"><p className="px-4 py-3 text-[13px] text-slate-700 dark:text-slate-200">{v.comment}</p></Card>}
+        {v.followUp && <Note tone="warn">สิ่งที่จะทำต่อ: {v.followUp}</Note>}
       </Body>
     </div>
   );

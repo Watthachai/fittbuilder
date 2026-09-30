@@ -1,48 +1,40 @@
 import { useState } from "react";
 import type { ReactNode } from "react";
 import {
-  CalendarClock, CircleCheck, ClipboardCheck, FilePlus2, FileSpreadsheet, FileText, FileWarning, Gauge as GaugeIcon,
-  ListChecks, MessageSquareWarning, Microscope, Pencil, Play, Plus, Printer, Search as SearchIcon, ShieldCheck, Target,
-  TriangleAlert, Users,
+  CalendarClock, CircleCheck, ClipboardCheck, FilePlus2, FileSpreadsheet, FileWarning, Gauge as GaugeIcon, Handshake,
+  ListChecks, MessageSquareWarning, Microscope, PencilRuler, Plus, Printer, ShieldCheck, Smile, Target, Truck, Users,
 } from "lucide-react";
+import { TODAY, capaByNo } from "../ims/data";
+import { ImsActions } from "../ims/forms";
+import type { Act as ImsAct } from "../ims/forms";
+import { Body, Empty, Header, Line, Lines, STEP_ICONS, newest, tone } from "../ims/parts";
 import {
-  AUDITS, CAPAS, CLAUSES, DOCUMENTS, DOC_TYPES, GAUGES, LOTS, NCRS, NCR_SOURCES, TODAY, addDays, awaitingApproval,
-  calState, clauseName, completeCapaAction, confirmReview, customerName, findingsWithoutCapa, materialName, materialUnit,
-  nextDue, objectives, openCapas, overdueActions, pendingInspections, planOf, reviewDue, revLabel, startAudit,
-  submitDocument, vendorName, vendorQuality, closeAudit,
+  APPROVALS, DESIGNS, DESIGN_STAGES, GAUGES, LOTS, NCRS, NCR_SOURCES, SATISFACTION_CRITERIA, SURVEYS, approvalDue,
+  awaitingApproval, calState, carOfNcr, commitments, confirmedBeforeReview, customerName, designByNo, indicators,
+  materialName, materialUnit, nextDue, nextStage, overallSatisfaction, pendingInspections, planOf, released, reviewOf,
+  satisfactionByCustomer, supplierRegister, unreviewed, vendorName,
 } from "./data";
-import type { Audit, Capa, Gauge, InspectionLot, Ncr, QmDocument } from "./data";
+import type { DesignProject, Gauge, InspectionLot, Ncr } from "./data";
 import { QmActions } from "./forms";
-import type { Act } from "./forms";
-import {
-  Badge, Bar, Button, Card, Chip, Donut, IconRow, Metric, Note, PageHead, Progress, Reveal, Search, Segmented, swatchFor,
-} from "../ui";
+import type { Act, RecordKind } from "./forms";
+import { Badge, Bar, Button, Card, Chip, Donut, IconRow, Metric, Note, PageHead, Reveal, Segmented, Stepper, swatchFor } from "../ui";
 import type { Tone } from "../ui";
 import { DataTable, DetailModal, downloadCsv, notify, useData } from "../kit";
 import type { Column } from "../kit";
 
-const TABS = ["ควบคุมเอกสาร", "ตรวจสอบคุณภาพ", "สิ่งที่ไม่เป็นไปตามข้อกำหนด", "การแก้ไขและป้องกัน", "ตรวจติดตามภายใน", "สอบเทียบเครื่องมือวัด"];
-
-type Kind = "doc" | "lot" | "ncr" | "car" | "audit" | "gauge";
+const TABS = ["ตรวจสอบคุณภาพ", "สิ่งที่ไม่เป็นไปตามข้อกำหนด", "สอบเทียบเครื่องมือวัด", "ทบทวนข้อกำหนดลูกค้า", "ออกแบบและพัฒนา", "ผู้ส่งมอบที่อนุมัติ", "ความพึงพอใจลูกค้า"];
 
 const exportIcon = <FileSpreadsheet size={14} />;
-
-/** ตัดสินใจจุดเดียวว่าอะไรเป็นสีอะไร ทุกหน้าจอจึงอ่านสถานะด้วยสีเดียวกัน */
-const TONE: Record<string, Tone> = {
-  "ร่าง": "idle", "รออนุมัติ": "warn", "ใช้งาน": "ok", "ยกเลิก": "bad",
-  "รอตรวจ": "idle", "รอตัดสิน": "warn", "ผ่าน": "ok", "ไม่ผ่าน": "bad", "ยอมรับแบบมีเงื่อนไข": "warn",
-  "รอสั่งการ": "bad", "ดำเนินการ": "warn", "ปิดแล้ว": "ok",
-  "วิเคราะห์สาเหตุ": "bad", "ติดตามผล": "info",
-  "ตามแผน": "idle", "กำลังตรวจ": "info",
-  "ปกติ": "ok", "ใกล้ครบ": "warn", "เกินกำหนด": "bad", "พักใช้": "bad",
-  "รุนแรง": "bad", "ปานกลาง": "warn", "เล็กน้อย": "idle",
-};
-
-const tone = (s: string) => TONE[s] ?? "idle";
-/** ทะเบียนเรียงตามเลขที่ล่าสุดก่อน — ลำดับในอาร์เรย์คือลำดับที่บันทึก ไม่ใช่ลำดับเลขที่ */
-const newest = <T extends { no: string }>(xs: T[]) => [...xs].sort((a, b) => b.no.localeCompare(a.no));
 const lotState = (l: InspectionLot) => (l.status === "ตัดสินแล้ว" ? l.decision! : l.status);
 const sourceSwatch = (s: string) => swatchFor(s, NCR_SOURCES);
+const csv = (name: string, head: string[], rows: (string | number)[][]) => {
+  downloadCsv(name, head, rows);
+  notify(`ส่งออก${name} ${rows.length} รายการแล้ว`);
+};
+const designSteps = (d: DesignProject) =>
+  DESIGN_STAGES.map((s, i) => ({ label: s, state: (i < d.records.length ? "done" : i === d.records.length ? "current" : "todo") as "done" | "current" | "todo" }));
+
+type Handlers = { onAct: (a: Act) => void; onOpen: (kind: RecordKind, key: string) => void; onIms: (a: ImsAct) => void };
 
 /* ----------------------------------------------------------------- screen */
 
@@ -50,20 +42,22 @@ export default function QmScreen({ section, onOpenSection }: { section?: string;
   useData();
   const tab = section && TABS.includes(section) ? section : undefined;
   const [act, setAct] = useState<Act | null>(null);
-  const [record, setRecord] = useState<{ kind: Kind; key: string } | null>(null);
-  const open = (kind: Kind, key: string) => setRecord({ kind, key });
+  const [imsAct, setImsAct] = useState<ImsAct | null>(null);
+  const [record, setRecord] = useState<{ kind: RecordKind; key: string } | null>(null);
+  const open = (kind: RecordKind, key: string) => setRecord({ kind, key });
 
-  const keys: Record<Kind, string[]> = {
-    doc: DOCUMENTS.map((d) => d.code),
+  const keys: Record<RecordKind, string[]> = {
     lot: newest(LOTS).map((l) => l.no),
     ncr: newest(NCRS).map((n) => n.no),
-    car: newest(CAPAS).map((c) => c.no),
-    audit: AUDITS.map((a) => a.no),
     gauge: GAUGES.map((g) => g.code),
+    design: newest(DESIGNS).map((d) => d.no),
+    supplier: supplierRegister().map((s) => s.vendor.code),
+    survey: newest(SURVEYS).map((s) => s.no),
   };
   const list = record ? keys[record.kind] : [];
   const at = record ? list.indexOf(record.key) : -1;
-  const TITLES: Record<Kind, string> = { doc: "เอกสารควบคุม", lot: "ล็อตตรวจ", ncr: "สิ่งที่ไม่เป็นไปตามข้อกำหนด", car: "ใบขอให้แก้ไขและป้องกัน", audit: "การตรวจติดตามภายใน", gauge: "เครื่องมือวัด" };
+  const TITLES: Record<RecordKind, string> = { lot: "ล็อตตรวจ", ncr: "สิ่งที่ไม่เป็นไปตามข้อกำหนด", gauge: "เครื่องมือวัด", design: "โครงการออกแบบ", supplier: "ผู้ส่งมอบ", survey: "แบบสำรวจความพึงพอใจ" };
+  const h: Handlers = { onAct: setAct, onOpen: open, onIms: setImsAct };
 
   const panels = (
     <>
@@ -75,20 +69,17 @@ export default function QmScreen({ section, onOpenSection }: { section?: string;
         total={list.length}
         onStep={(d) => record && setRecord({ kind: record.kind, key: list[Math.min(list.length - 1, Math.max(0, at + d))] })}
       >
-        {record && at >= 0 && <RecordView kind={record.kind} id={record.key} onAct={setAct} onOpen={open} />}
+        {record && at >= 0 && <RecordView kind={record.kind} id={record.key} {...h} />}
       </DetailModal>
       <QmActions act={act} onAct={setAct} onOpen={open} />
+      <ImsActions act={imsAct} onAct={setImsAct} onOpen={(kind, no) => kind === "car" && notify(`ติดตาม ${no} ได้ที่ระบบบริหารบูรณาการ · การแก้ไขและป้องกัน`, "info")} />
     </>
   );
 
+  const firstPending = unreviewed()[0]?.doc ?? commitments()[0].doc;
   const index = (
     <div hidden data-fitt-index>
       <button data-fitt-screen="บริหารคุณภาพ" />
-      <button data-fitt-screen="เอกสารควบคุม" data-fitt-modal onClick={() => open("doc", DOCUMENTS[0].code)} />
-      <button data-fitt-screen="สร้างเอกสารควบคุม" data-fitt-modal onClick={() => setAct({ kind: "doc-new" })} />
-      <button data-fitt-screen="แก้ไขเอกสาร" data-fitt-modal onClick={() => setAct({ kind: "doc-revise", code: "QP-01" })} />
-      <button data-fitt-screen="อนุมัติเอกสาร" data-fitt-modal onClick={() => setAct({ kind: "doc-approve", code: awaitingApproval()[0]?.code ?? "WI-03" })} />
-      <button data-fitt-screen="ยกเลิกเอกสาร" data-fitt-modal onClick={() => setAct({ kind: "doc-obsolete", code: "WI-02" })} />
       <button data-fitt-screen="ล็อตตรวจ" data-fitt-modal onClick={() => open("lot", LOTS[0].no)} />
       <button data-fitt-screen="เปิดล็อตตรวจ" data-fitt-modal onClick={() => setAct({ kind: "lot-new" })} />
       <button data-fitt-screen="บันทึกผลตรวจ" data-fitt-modal onClick={() => setAct({ kind: "lot-results", no: LOTS.find((l) => l.status !== "ตัดสินแล้ว")?.no ?? LOTS[0].no })} />
@@ -98,30 +89,33 @@ export default function QmScreen({ section, onOpenSection }: { section?: string;
       <button data-fitt-screen="รับเรื่องร้องเรียนจากลูกค้า" data-fitt-modal onClick={() => setAct({ kind: "complaint-new" })} />
       <button data-fitt-screen="สั่งการ NCR" data-fitt-modal onClick={() => setAct({ kind: "ncr-dispose", no: NCRS.find((n) => n.status === "รอสั่งการ")?.no ?? NCRS[0].no })} />
       <button data-fitt-screen="ปิด NCR" data-fitt-modal onClick={() => setAct({ kind: "ncr-close", no: NCRS.find((n) => n.status === "ดำเนินการ")?.no ?? NCRS[0].no })} />
-      <button data-fitt-screen="ใบขอให้แก้ไขและป้องกัน" data-fitt-modal onClick={() => open("car", CAPAS[CAPAS.length - 1].no)} />
-      <button data-fitt-screen="ออก CAR" data-fitt-modal onClick={() => setAct({ kind: "car-new" })} />
-      <button data-fitt-screen="หาสาเหตุราก" data-fitt-modal onClick={() => setAct({ kind: "car-cause", no: CAPAS[CAPAS.length - 1].no })} />
-      <button data-fitt-screen="เพิ่มมาตรการ" data-fitt-modal onClick={() => setAct({ kind: "car-action", no: CAPAS[CAPAS.length - 1].no })} />
-      <button data-fitt-screen="ติดตามประสิทธิผล" data-fitt-modal onClick={() => setAct({ kind: "car-verify", no: CAPAS[CAPAS.length - 1].no })} />
-      <button data-fitt-screen="การตรวจติดตามภายใน" data-fitt-modal onClick={() => open("audit", AUDITS[0].no)} />
-      <button data-fitt-screen="วางแผนการตรวจติดตาม" data-fitt-modal onClick={() => setAct({ kind: "audit-new" })} />
-      <button data-fitt-screen="บันทึกสิ่งที่พบ" data-fitt-modal onClick={() => setAct({ kind: "audit-finding", no: AUDITS[AUDITS.length - 1].no })} />
+      <button data-fitt-screen="ออก CAR จาก NCR" data-fitt-modal onClick={() => setImsAct({ kind: "car-new", ref: NCRS[NCRS.length - 1].no, problem: NCRS[NCRS.length - 1].description })} />
       <button data-fitt-screen="เครื่องมือวัด" data-fitt-modal onClick={() => open("gauge", GAUGES[0].code)} />
       <button data-fitt-screen="ขึ้นทะเบียนเครื่องมือวัด" data-fitt-modal onClick={() => setAct({ kind: "gauge-new" })} />
       <button data-fitt-screen="บันทึกผลสอบเทียบ" data-fitt-modal onClick={() => setAct({ kind: "gauge-cal", code: GAUGES[0].code })} />
-      <button data-fitt-screen="พิมพ์บัญชีรายชื่อเอกสารควบคุม" data-fitt-modal onClick={() => setAct({ kind: "print", d: { doc: "master-list" }, title: "บัญชีรายชื่อเอกสารควบคุม" })} />
+      <button data-fitt-screen="ทบทวนข้อกำหนดลูกค้า" data-fitt-modal onClick={() => setAct({ kind: "req-review", doc: firstPending })} />
+      <button data-fitt-screen="โครงการออกแบบ" data-fitt-modal onClick={() => open("design", DESIGNS[0].no)} />
+      <button data-fitt-screen="เปิดโครงการออกแบบ" data-fitt-modal onClick={() => setAct({ kind: "design-new" })} />
+      <button data-fitt-screen="บันทึกขั้นการออกแบบ" data-fitt-modal onClick={() => setAct({ kind: "design-stage", no: DESIGNS.find((d) => nextStage(d))?.no ?? DESIGNS[0].no })} />
+      <button data-fitt-screen="ควบคุมการเปลี่ยนแปลงแบบ" data-fitt-modal onClick={() => setAct({ kind: "design-change", no: DESIGNS.find(released)?.no ?? DESIGNS[0].no })} />
+      <button data-fitt-screen="ผู้ส่งมอบ" data-fitt-modal onClick={() => open("supplier", APPROVALS[0].vendor)} />
+      <button data-fitt-screen="ประเมินผู้ส่งมอบ" data-fitt-modal onClick={() => setAct({ kind: "supplier-evaluate", code: APPROVALS[0].vendor })} />
+      <button data-fitt-screen="แบบสำรวจความพึงพอใจ" data-fitt-modal onClick={() => open("survey", SURVEYS[0].no)} />
+      <button data-fitt-screen="บันทึกแบบสำรวจความพึงพอใจ" data-fitt-modal onClick={() => setAct({ kind: "survey-new" })} />
       <button data-fitt-screen="พิมพ์ใบรับรองคุณภาพ" data-fitt-modal onClick={() => setAct({ kind: "print", d: { doc: "lot", no: LOTS.find((l) => l.origin === "ตรวจก่อนส่ง")!.no }, title: "ใบรับรองคุณภาพสินค้า" })} />
       <button data-fitt-screen="พิมพ์ NCR" data-fitt-modal onClick={() => setAct({ kind: "print", d: { doc: "ncr", no: NCRS[0].no }, title: "ใบรายงานสิ่งที่ไม่เป็นไปตามข้อกำหนด" })} />
-      <button data-fitt-screen="พิมพ์ CAR" data-fitt-modal onClick={() => setAct({ kind: "print", d: { doc: "car", no: CAPAS[0].no }, title: "ใบขอให้ดำเนินการแก้ไขและป้องกัน" })} />
-      <button data-fitt-screen="พิมพ์รายงานการตรวจติดตาม" data-fitt-modal onClick={() => setAct({ kind: "print", d: { doc: "audit", no: AUDITS[1].no }, title: "รายงานการตรวจติดตามภายใน" })} />
       <button data-fitt-screen="พิมพ์ประวัติการสอบเทียบ" data-fitt-modal onClick={() => setAct({ kind: "print", d: { doc: "gauge", code: GAUGES[0].code }, title: "บันทึกประวัติการสอบเทียบ" })} />
+      <button data-fitt-screen="พิมพ์ใบทบทวนข้อกำหนดลูกค้า" data-fitt-modal onClick={() => setAct({ kind: "print", d: { doc: "requirement", no: commitments()[0].doc }, title: "ใบทบทวนข้อกำหนดลูกค้า" })} />
+      <button data-fitt-screen="พิมพ์บันทึกการออกแบบ" data-fitt-modal onClick={() => setAct({ kind: "print", d: { doc: "design", no: DESIGNS[0].no }, title: "บันทึกการออกแบบและพัฒนา" })} />
+      <button data-fitt-screen="พิมพ์ใบประเมินผู้ส่งมอบ" data-fitt-modal onClick={() => setAct({ kind: "print", d: { doc: "supplier", code: APPROVALS[0].vendor }, title: "ใบประเมินผู้ส่งมอบประจำปี" })} />
+      <button data-fitt-screen="พิมพ์สรุปความพึงพอใจลูกค้า" data-fitt-modal onClick={() => setAct({ kind: "print", d: { doc: "satisfaction" }, title: "สรุปผลสำรวจความพึงพอใจลูกค้า" })} />
     </div>
   );
 
   if (!tab) {
     return (
       <>
-        <Overview onOpenSection={onOpenSection} onAct={setAct} onOpen={open} />
+        <Overview onOpenSection={onOpenSection} {...h} />
         {panels}
         {index}
       </>
@@ -131,19 +125,18 @@ export default function QmScreen({ section, onOpenSection }: { section?: string;
   return (
     <div>
       <PageHead title="บริหารคุณภาพ" meta={`${tab} · ISO 9001:2015 · ข้อมูล ณ ${TODAY}`} />
-      {tab === "ควบคุมเอกสาร" && <Documents onAct={setAct} onOpen={open} />}
-      {tab === "ตรวจสอบคุณภาพ" && <Inspection onAct={setAct} onOpen={open} />}
-      {tab === "สิ่งที่ไม่เป็นไปตามข้อกำหนด" && <Nonconformance onAct={setAct} onOpen={open} />}
-      {tab === "การแก้ไขและป้องกัน" && <Corrective onAct={setAct} onOpen={open} />}
-      {tab === "ตรวจติดตามภายใน" && <Audits onAct={setAct} onOpen={open} />}
-      {tab === "สอบเทียบเครื่องมือวัด" && <Calibration onAct={setAct} onOpen={open} />}
+      {tab === "ตรวจสอบคุณภาพ" && <Inspection {...h} />}
+      {tab === "สิ่งที่ไม่เป็นไปตามข้อกำหนด" && <Nonconformance {...h} />}
+      {tab === "สอบเทียบเครื่องมือวัด" && <Calibration {...h} />}
+      {tab === "ทบทวนข้อกำหนดลูกค้า" && <Requirements {...h} />}
+      {tab === "ออกแบบและพัฒนา" && <Designs {...h} />}
+      {tab === "ผู้ส่งมอบที่อนุมัติ" && <Suppliers {...h} />}
+      {tab === "ความพึงพอใจลูกค้า" && <Satisfaction {...h} />}
       {panels}
       {index}
     </div>
   );
 }
-
-type Handlers = { onAct: (a: Act) => void; onOpen: (kind: Kind, key: string) => void };
 
 /* -------------------------------------------------------------- overview */
 
@@ -151,22 +144,20 @@ function Overview({ onOpenSection, onAct, onOpen }: Handlers & { onOpenSection?:
   const pending = pendingInspections();
   const waiting = LOTS.filter((l) => l.status !== "ตัดสินแล้ว");
   const openNcrs = NCRS.filter((n) => n.status !== "ปิดแล้ว");
-  const cars = openCapas();
-  const late = cars.flatMap((c) => overdueActions(c).map((a) => ({ c, a })));
   const gauges = GAUGES.filter((g) => ["เกินกำหนด", "ใกล้ครบ", "พักใช้"].includes(calState(g)));
-  const objs = objectives();
+  const kpis = indicators();
   const bySource = NCR_SOURCES.map((s) => ({ label: s, value: NCRS.filter((n) => n.source === s).length, swatch: sourceSwatch(s) })).filter((x) => x.value > 0);
-  const vendors = vendorQuality();
-  const nextAudit = AUDITS.filter((a) => a.status === "ตามแผน").sort((a, b) => a.planned.localeCompare(b.planned))[0];
+  const suppliers = supplierRegister().filter((s) => s.quality.lots > 0);
+  const avg = overallSatisfaction();
 
   const todo: { icon: ReactNode; text: string; sub: string; go: () => void; tone: Tone }[] = [
     ...pending.map((p) => ({ icon: <Microscope size={15} />, text: `${p.origin} ${materialName(p.material)} ${p.qty.toLocaleString("th-TH")} ${materialUnit(p.material)}`, sub: `${p.source} · ยังไม่เปิดล็อตตรวจ`, go: () => onAct({ kind: "lot-new", source: p.source, material: p.material }), tone: "warn" as Tone })),
     ...waiting.map((l) => ({ icon: <ClipboardCheck size={15} />, text: `${l.no} ${materialName(l.material)}`, sub: l.status === "รอตรวจ" ? "รอบันทึกผลตรวจ" : "รอตัดสินผล", go: () => onOpen("lot", l.no), tone: "warn" as Tone })),
     ...openNcrs.filter((n) => n.status === "รอสั่งการ").map((n) => ({ icon: <FileWarning size={15} />, text: `${n.no} ${n.material ? materialName(n.material) : n.ref}`, sub: `${n.source} · รอสั่งการ`, go: () => onOpen("ncr", n.no), tone: "bad" as Tone })),
-    ...late.map(({ c, a }) => ({ icon: <CalendarClock size={15} />, text: `${c.no} ${a.what}`, sub: `${a.owner} · เลยกำหนด ${a.due}`, go: () => onOpen("car", c.no), tone: "bad" as Tone })),
+    ...confirmedBeforeReview().map((c) => ({ icon: <Handshake size={15} />, text: `${c.doc} ${customerName(c.customer)}`, sub: "ยืนยันกับลูกค้าแล้วแต่ยังไม่ได้ทบทวนข้อกำหนด", go: () => onAct({ kind: "req-review", doc: c.doc }), tone: "bad" as Tone })),
     ...gauges.map((g) => ({ icon: <GaugeIcon size={15} />, text: `${g.code} ${g.name}`, sub: calState(g) === "พักใช้" ? "พักใช้ รอซ่อมหรือสอบเทียบใหม่" : `${calState(g)} · ครบกำหนด ${nextDue(g)}`, go: () => onOpen("gauge", g.code), tone: (calState(g) === "ใกล้ครบ" ? "warn" : "bad") as Tone })),
-    ...awaitingApproval().map((d) => ({ icon: <FileText size={15} />, text: `${d.code} ${d.title}`, sub: `รออนุมัติ ${revLabel(d.draft!.rev)}`, go: () => onOpen("doc", d.code), tone: "info" as Tone })),
-    ...reviewDue().map((d) => ({ icon: <FileText size={15} />, text: `${d.code} ${d.title}`, sub: `ถึงรอบทบทวน ${d.reviewDue}`, go: () => onOpen("doc", d.code), tone: "info" as Tone })),
+    ...awaitingApproval().map((s) => ({ icon: <Truck size={15} />, text: s.vendor.name, sub: "ผู้ขายใหม่ยังไม่ผ่านการประเมิน", go: () => onAct({ kind: "supplier-evaluate", code: s.vendor.code }), tone: "bad" as Tone })),
+    ...approvalDue().map((a) => ({ icon: <Truck size={15} />, text: vendorName(a.vendor), sub: `ถึงรอบประเมินผู้ส่งมอบ ${a.nextReview}`, go: () => onOpen("supplier", a.vendor), tone: "info" as Tone })),
   ];
 
   return (
@@ -185,20 +176,20 @@ function Overview({ onOpenSection, onAct, onOpen }: Handlers & { onOpenSection?:
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           <Metric icon={<Microscope size={17} />} label="ของรอตรวจ" value={`${pending.length + waiting.length} รายการ`} deltaLabel={`เปิดล็อตแล้ว ${waiting.length} · ยังไม่เปิด ${pending.length}`} />
           <Metric icon={<FileWarning size={17} />} label="NCR เปิดอยู่" value={`${openNcrs.length} เรื่อง`} deltaLabel={`รอสั่งการ ${openNcrs.filter((n) => n.status === "รอสั่งการ").length}`} />
-          <Metric icon={<ListChecks size={17} />} label="CAR เปิดอยู่" value={`${cars.length} ใบ`} deltaLabel={late.length ? `มาตรการเลยกำหนด ${late.length} ข้อ` : "ไม่มีมาตรการเลยกำหนด"} />
-          <Metric icon={<GaugeIcon size={17} />} label="เครื่องมือต้องดูแล" value={`${gauges.length} ชิ้น`} deltaLabel={nextAudit ? `ตรวจติดตามถัดไป ${nextAudit.planned} ${nextAudit.area}` : "ไม่มีการตรวจตามแผน"} />
+          <Metric icon={<Handshake size={17} />} label="ข้อตกลงรอทบทวน" value={`${unreviewed().length} ใบ`} deltaLabel={`ยืนยันก่อนทบทวน ${confirmedBeforeReview().length} ใบ`} />
+          <Metric icon={<Smile size={17} />} label="ความพึงพอใจลูกค้า" value={avg === undefined ? "—" : `${avg} / 5`} deltaLabel={`สำรวจแล้ว ${satisfactionByCustomer().filter((x) => x.last).length} ราย`} />
         </div>
       </Reveal>
 
       <Reveal delay={0.06} className="mt-4 grid gap-4 lg:grid-cols-3">
-        <Card title="วัตถุประสงค์คุณภาพ" subtitle="วัดจากงานจริงในระบบ ใช้เป็นข้อมูลทบทวนโดยฝ่ายบริหาร (ข้อ 6.2 และ 9.3)" className="lg:col-span-2">
+        <Card title="ตัวชี้วัดคุณภาพ" subtitle="วัดจากงานจริงในระบบ และส่งเข้าวาระทบทวนโดยฝ่ายบริหาร" className="lg:col-span-2">
           <ul className="divide-y divide-slate-100 dark:divide-slate-800">
-            {objs.map((o) => (
+            {kpis.map((o) => (
               <li key={o.name} className="flex items-center gap-3 px-4 py-3">
                 <Target size={15} className={o.met ? "shrink-0 text-emerald-500" : "shrink-0 text-rose-500"} />
                 <div className="min-w-0 flex-1">
                   <p className="text-[13px] text-slate-800 dark:text-slate-100">{o.name}</p>
-                  <p className="text-[11.5px] text-slate-500 dark:text-slate-400">ข้อ {o.clause} · เป้า {o.better === "higher" ? "≥" : "≤"} {o.target}{o.unit === "%" ? "%" : ` ${o.unit}`}</p>
+                  <p className="text-[11.5px] text-slate-500 dark:text-slate-400">เป้า {o.better === "higher" ? "≥" : "≤"} {o.target}{o.unit === "%" ? "%" : ` ${o.unit}`}</p>
                 </div>
                 <span className="w-20 text-right text-[14px] font-semibold tabular-nums text-slate-900 dark:text-slate-50">{o.actual}{o.unit === "%" ? "%" : ` ${o.unit}`}</span>
                 <Badge tone={o.met ? "ok" : "bad"}>{o.met ? "ถึงเป้า" : "ต่ำกว่าเป้า"}</Badge>
@@ -216,7 +207,7 @@ function Overview({ onOpenSection, onAct, onOpen }: Handlers & { onOpenSection?:
       <Reveal delay={0.12} className="mt-4 grid gap-4 lg:grid-cols-3">
         <Card title="ต้องจัดการ" subtitle="กดรายการเพื่อเปิดงานนั้น" className="lg:col-span-2">
           {todo.length === 0 ? (
-            <p className="px-4 py-8 text-center text-[13px] text-slate-400">ไม่มีงานค้าง</p>
+            <Empty>ไม่มีงานค้าง</Empty>
           ) : (
             <ul className="divide-y divide-slate-100 dark:divide-slate-800">
               {todo.slice(0, 10).map((t, i) => (
@@ -233,71 +224,20 @@ function Overview({ onOpenSection, onAct, onOpen }: Handlers & { onOpenSection?:
             </ul>
           )}
         </Card>
-        <Card
-          title="คุณภาพผู้ขาย"
-          subtitle="สัดส่วนล็อตที่ไม่ผ่านการตรวจรับ ใช้ประเมินผู้ขาย (ข้อ 8.4)"
-          action={<Button variant="ghost" className="whitespace-nowrap" onClick={() => onOpenSection?.(1)}>ดูล็อตตรวจ</Button>}
-        >
+        <Card title="คุณภาพผู้ส่งมอบ" subtitle="ล็อตผ่านการตรวจรับครั้งแรก (ข้อ 8.4)" action={<Button variant="ghost" className="whitespace-nowrap" onClick={() => onOpenSection?.(5)}>ดูทะเบียน</Button>}>
           <ul className="space-y-3 p-4">
-            {vendors.map((v) => (
-              <li key={v.code}>
+            {suppliers.map((s) => (
+              <li key={s.vendor.code}>
                 <div className="flex items-baseline justify-between gap-2 text-[12.5px]">
-                  <span className="truncate text-slate-700 dark:text-slate-200">{v.name}</span>
-                  <span className="shrink-0 tabular-nums text-slate-500">ไม่ผ่าน {v.rejected}/{v.lots}</span>
+                  <span className="truncate text-slate-700 dark:text-slate-200">{s.vendor.name}</span>
+                  <span className="shrink-0 tabular-nums text-slate-500">{s.quality.accepted}/{s.quality.lots}</span>
                 </div>
-                <div className="mt-1"><Bar pct={v.rate} tone={v.rate === 0 ? "ok" : v.rate < 20 ? "warn" : "bad"} width="w-full" /></div>
+                <div className="mt-1"><Bar pct={s.quality.score} tone={s.quality.score >= 90 ? "ok" : s.quality.score >= 70 ? "warn" : "bad"} width="w-full" /></div>
               </li>
             ))}
           </ul>
         </Card>
       </Reveal>
-    </div>
-  );
-}
-
-/* ------------------------------------------------------------- documents */
-
-function Documents({ onAct, onOpen }: Handlers) {
-  const [type, setType] = useState("ทั้งหมด");
-  const [q, setQ] = useState("");
-  const needle = q.trim().toLowerCase();
-  const rows = DOCUMENTS.filter((d) => (type === "ทั้งหมด" || d.type === type) && (!needle || `${d.code} ${d.title}`.toLowerCase().includes(needle)));
-  const due = new Set(reviewDue().map((d) => d.code));
-  const columns: Column<QmDocument>[] = [
-    { key: "code", header: "รหัส", cell: (d) => <span className="font-medium tabular-nums text-slate-800 dark:text-slate-100">{d.code}</span>, sort: (a, b) => a.code.localeCompare(b.code) },
-    { key: "title", header: "ชื่อเอกสาร", cell: (d) => d.title, sort: (a, b) => a.title.localeCompare(b.title, "th") },
-    { key: "type", header: "ประเภท", cell: (d) => <Chip>{d.type}</Chip> },
-    { key: "rev", header: "ฉบับ", cell: (d) => <span className="tabular-nums">{revLabel(d.rev)}</span> },
-    { key: "status", header: "สถานะ", cell: (d) => <span className="flex flex-wrap items-center gap-1.5"><Badge dot tone={tone(d.status)}>{d.status}</Badge>{d.draft && d.rev >= 0 && <Badge tone="info">มีฉบับแก้ไข</Badge>}</span> },
-    { key: "effective", header: "มีผลเมื่อ", cell: (d) => d.effective ?? "—", sort: (a, b) => (a.effective ?? "").localeCompare(b.effective ?? "") },
-    { key: "review", header: "ทบทวนครั้งถัดไป", cell: (d) => <span className={due.has(d.code) ? "font-medium text-rose-600 dark:text-rose-400" : ""}>{d.reviewDue ?? "—"}</span> },
-  ];
-  return (
-    <div className="space-y-4">
-      {(awaitingApproval().length > 0 || due.size > 0) && (
-        <Note tone="warn">
-          {awaitingApproval().length > 0 && `รออนุมัติ ${awaitingApproval().length} ฉบับ`}
-          {awaitingApproval().length > 0 && due.size > 0 && " · "}
-          {due.size > 0 && `ถึงรอบทบทวนภายใน 30 วัน ${due.size} ฉบับ`}
-        </Note>
-      )}
-      <DataTable
-        rows={rows}
-        columns={columns}
-        getId={(d) => d.code}
-        onOpen={(d) => onOpen("doc", d.code)}
-        toolbar={
-          <div className="flex flex-wrap items-center gap-2">
-            <Segmented options={["ทั้งหมด", ...DOC_TYPES]} value={type} onChange={setType} />
-            <Search value={q} onChange={setQ} placeholder="ค้นหารหัสหรือชื่อเอกสาร" icon={<SearchIcon size={14} />} />
-            <div className="ml-auto flex gap-2">
-              <Button variant="secondary" icon={exportIcon} onClick={() => { downloadCsv("เอกสารควบคุม", ["รหัส", "ชื่อเอกสาร", "ประเภท", "ฉบับ", "สถานะ", "มีผลเมื่อ", "ทบทวนครั้งถัดไป", "ฝ่ายเจ้าของ"], rows.map((d) => [d.code, d.title, d.type, revLabel(d.rev), d.status, d.effective ?? "", d.reviewDue ?? "", d.owner])); notify(`ส่งออกเอกสาร ${rows.length} รายการแล้ว`); }}>ส่งออก Excel</Button>
-              <Button variant="secondary" icon={<Printer size={14} />} onClick={() => onAct({ kind: "print", d: { doc: "master-list" }, title: "บัญชีรายชื่อเอกสารควบคุม" })}>พิมพ์บัญชีรายชื่อ</Button>
-              <Button icon={<FilePlus2 size={14} />} onClick={() => onAct({ kind: "doc-new" })}>สร้างเอกสาร</Button>
-            </div>
-          </div>
-        }
-      />
     </div>
   );
 }
@@ -321,20 +261,18 @@ function Inspection({ onAct, onOpen }: Handlers) {
     <div className="space-y-4">
       <Card title="ของที่รับเข้ามาแต่ยังไม่ได้ตรวจ" subtitle="อ่านจากใบรับของของจัดซื้อและการรับสินค้าผลิตเสร็จ บันทึกที่ระบบอื่นแล้วขึ้นที่นี่ทันที">
         {pending.length === 0 ? (
-          <p className="px-4 py-5 text-center text-[13px] text-slate-400">เปิดล็อตตรวจครบทุกใบแล้ว</p>
+          <Empty>เปิดล็อตตรวจครบทุกใบแล้ว</Empty>
         ) : (
-          <ul className="divide-y divide-slate-100 dark:divide-slate-800">
+          <Lines>
             {pending.map((p) => (
-              <li key={`${p.source}-${p.material}`} className="flex flex-wrap items-center gap-3 px-4 py-2.5">
-                <Chip>{p.origin}</Chip>
-                <span className="min-w-0 flex-1 text-[13px] text-slate-700 dark:text-slate-200">
-                  {materialName(p.material)} {p.qty.toLocaleString("th-TH")} {materialUnit(p.material)}
-                  <span className="ml-2 text-[11.5px] text-slate-400">{p.source} · {p.date}{p.vendor ? ` · ${vendorName(p.vendor)}` : ""}</span>
-                </span>
-                <Button variant="secondary" icon={<Plus size={14} />} onClick={() => onAct({ kind: "lot-new", source: p.source, material: p.material })}>เปิดล็อตตรวจ</Button>
-              </li>
+              <Line
+                key={`${p.source}-${p.material}`}
+                title={`${materialName(p.material)} ${p.qty.toLocaleString("th-TH")} ${materialUnit(p.material)}`}
+                sub={`${p.origin} · ${p.source} · ${p.date}${p.vendor ? ` · ${vendorName(p.vendor)}` : ""}`}
+                right={<Button variant="secondary" icon={<Plus size={14} />} onClick={() => onAct({ kind: "lot-new", source: p.source, material: p.material })}>เปิดล็อตตรวจ</Button>}
+              />
             ))}
-          </ul>
+          </Lines>
         )}
       </Card>
       <DataTable
@@ -345,7 +283,7 @@ function Inspection({ onAct, onOpen }: Handlers) {
         toolbar={
           <div className="flex flex-wrap items-center gap-2">
             <Segmented options={["ทั้งหมด", "ตรวจรับ", "ตรวจก่อนส่ง"]} value={origin} onChange={setOrigin} />
-            <Button className="ml-auto" variant="secondary" icon={exportIcon} onClick={() => { downloadCsv("ล็อตตรวจ", ["เลขที่", "ประเภท", "รายการ", "จำนวน", "ตัวอย่าง", "ต้นทาง", "ผู้ขาย", "ผล", "ผู้ตรวจ", "วันที่ตัดสิน"], rows.map((l) => [l.no, l.origin, materialName(l.material), l.qty, l.sample, l.source, l.vendor ? vendorName(l.vendor) : "ฝ่ายผลิต", lotState(l), l.inspector ?? "", l.decidedOn ?? ""])); notify(`ส่งออกล็อตตรวจ ${rows.length} รายการแล้ว`); }}>ส่งออก Excel</Button>
+            <Button className="ml-auto" variant="secondary" icon={exportIcon} onClick={() => csv("ล็อตตรวจ", ["เลขที่", "ประเภท", "รายการ", "จำนวน", "ตัวอย่าง", "ต้นทาง", "ผู้ขาย", "ผล", "ผู้ตรวจ", "วันที่ตัดสิน"], rows.map((l) => [l.no, l.origin, materialName(l.material), l.qty, l.sample, l.source, l.vendor ? vendorName(l.vendor) : "ฝ่ายผลิต", lotState(l), l.inspector ?? "", l.decidedOn ?? ""]))}>ส่งออก Excel</Button>
           </div>
         }
       />
@@ -366,7 +304,7 @@ function Nonconformance({ onAct, onOpen }: Handlers) {
     { key: "party", header: "ผู้ขาย / ลูกค้า", cell: (n) => (n.customer ? customerName(n.customer) : n.vendor ? vendorName(n.vendor) : "—") },
     { key: "severity", header: "ความรุนแรง", cell: (n) => <Badge tone={tone(n.severity)}>{n.severity}</Badge> },
     { key: "status", header: "สถานะ", cell: (n) => <Badge dot tone={tone(n.status)}>{n.status}</Badge> },
-    { key: "car", header: "CAR", cell: (n) => <span className="tabular-nums text-slate-500">{n.capa ?? "—"}</span> },
+    { key: "car", header: "CAR", cell: (n) => <span className="tabular-nums text-slate-500">{carOfNcr(n)?.no ?? "—"}</span> },
   ];
   return (
     <DataTable
@@ -378,72 +316,9 @@ function Nonconformance({ onAct, onOpen }: Handlers) {
         <div className="flex flex-wrap items-center gap-2">
           <Segmented options={["ยังไม่ปิด", "ปิดแล้ว", "ทั้งหมด"]} value={status} onChange={setStatus} counts={{ "ยังไม่ปิด": NCRS.filter((n) => n.status !== "ปิดแล้ว").length }} />
           <div className="ml-auto flex flex-wrap gap-2">
-            <Button variant="secondary" icon={exportIcon} onClick={() => { downloadCsv("NCR", ["เลขที่", "วันที่", "พบที่", "อ้างอิง", "รายการ", "จำนวน", "ความรุนแรง", "สถานะ", "การสั่งการ", "CAR"], rows.map((n) => [n.no, n.date, n.source, n.ref, n.material ? materialName(n.material) : "", n.qty, n.severity, n.status, n.disposition ?? "", n.capa ?? ""])); notify(`ส่งออก NCR ${rows.length} รายการแล้ว`); }}>ส่งออก Excel</Button>
+            <Button variant="secondary" icon={exportIcon} onClick={() => csv("NCR", ["เลขที่", "วันที่", "พบที่", "อ้างอิง", "รายการ", "จำนวน", "ความรุนแรง", "สถานะ", "การสั่งการ", "CAR"], rows.map((n) => [n.no, n.date, n.source, n.ref, n.material ? materialName(n.material) : "", n.qty, n.severity, n.status, n.disposition ?? "", carOfNcr(n)?.no ?? ""]))}>ส่งออก Excel</Button>
             <Button variant="secondary" icon={<MessageSquareWarning size={14} />} onClick={() => onAct({ kind: "complaint-new" })}>รับเรื่องร้องเรียน</Button>
             <Button icon={<FileWarning size={14} />} onClick={() => onAct({ kind: "ncr-new" })}>เปิด NCR</Button>
-          </div>
-        </div>
-      }
-    />
-  );
-}
-
-/* ------------------------------------------------------------------ capa */
-
-function Corrective({ onAct, onOpen }: Handlers) {
-  const rows = newest(CAPAS);
-  const columns: Column<Capa>[] = [
-    { key: "no", header: "เลขที่", cell: (c) => <span className="font-medium tabular-nums text-slate-800 dark:text-slate-100">{c.no}</span>, sort: (a, b) => a.no.localeCompare(b.no) },
-    { key: "ref", header: "ต้นเรื่อง", cell: (c) => <span className="tabular-nums text-slate-500">{c.ref}</span> },
-    { key: "problem", header: "ปัญหา", cell: (c) => <span className="line-clamp-2">{c.problem}</span> },
-    { key: "owner", header: "ผู้รับผิดชอบ", cell: (c) => c.owner },
-    { key: "progress", header: "มาตรการ", cell: (c) => <Progress done={c.actions.filter((a) => a.doneOn).length} total={Math.max(1, c.actions.length)} label={c.actions.length ? undefined : "ยังไม่มี"} /> },
-    { key: "status", header: "สถานะ", cell: (c) => <span className="flex flex-wrap gap-1.5"><Badge dot tone={tone(c.status)}>{c.status}</Badge>{overdueActions(c).length > 0 && <Badge tone="bad">เลยกำหนด {overdueActions(c).length}</Badge>}</span> },
-  ];
-  return (
-    <DataTable
-      rows={rows}
-      columns={columns}
-      getId={(c) => c.no}
-      onOpen={(c) => onOpen("car", c.no)}
-      toolbar={
-        <div className="flex flex-wrap items-center gap-2">
-          <p className="text-[12.5px] text-slate-500 dark:text-slate-400">หาสาเหตุราก วางมาตรการ แล้วให้คนอื่นติดตามว่าได้ผลจริงก่อนปิด (ข้อ 10.2)</p>
-          <div className="ml-auto flex gap-2">
-            <Button variant="secondary" icon={exportIcon} onClick={() => { downloadCsv("CAR", ["เลขที่", "วันที่", "ประเภท", "ต้นเรื่อง", "ปัญหา", "ผู้รับผิดชอบ", "สาเหตุราก", "มาตรการเสร็จ", "สถานะ"], rows.map((c) => [c.no, c.date, c.kind, c.ref, c.problem, c.owner, c.rootCause?.whys.at(-1) ?? "", `${c.actions.filter((a) => a.doneOn).length}/${c.actions.length}`, c.status])); notify(`ส่งออก CAR ${rows.length} รายการแล้ว`); }}>ส่งออก Excel</Button>
-            <Button icon={<Plus size={14} />} onClick={() => onAct({ kind: "car-new" })}>ออก CAR</Button>
-          </div>
-        </div>
-      }
-    />
-  );
-}
-
-/* ----------------------------------------------------------------- audit */
-
-function Audits({ onAct, onOpen }: Handlers) {
-  const count = (a: Audit, t: string) => a.findings.filter((f) => f.type === t).length;
-  const columns: Column<Audit>[] = [
-    { key: "no", header: "เลขที่", cell: (a) => <span className="font-medium tabular-nums text-slate-800 dark:text-slate-100">{a.no}</span>, sort: (a, b) => a.no.localeCompare(b.no) },
-    { key: "area", header: "ฝ่ายที่ตรวจ", cell: (a) => a.area },
-    { key: "clauses", header: "ข้อกำหนด", cell: (a) => <span className="flex flex-wrap gap-1">{a.clauses.map((c) => <Chip key={c}>{c}</Chip>)}</span> },
-    { key: "auditor", header: "ผู้ตรวจ", cell: (a) => a.auditor },
-    { key: "planned", header: "วันที่", cell: (a) => a.performedOn ?? a.planned, sort: (a, b) => a.planned.localeCompare(b.planned) },
-    { key: "findings", header: "ข้อบกพร่อง / ข้อสังเกต", align: "right", cell: (a) => <span className="tabular-nums">{count(a, "ข้อบกพร่องหลัก") + count(a, "ข้อบกพร่องย่อย")} / {count(a, "ข้อสังเกต")}</span> },
-    { key: "status", header: "สถานะ", cell: (a) => <Badge dot tone={tone(a.status)}>{a.status}</Badge> },
-  ];
-  return (
-    <DataTable
-      rows={AUDITS}
-      columns={columns}
-      getId={(a) => a.no}
-      onOpen={(a) => onOpen("audit", a.no)}
-      toolbar={
-        <div className="flex flex-wrap items-center gap-2">
-          <p className="text-[12.5px] text-slate-500 dark:text-slate-400">แผนการตรวจปี {Number(TODAY.slice(0, 4)) + 543} · ผู้ตรวจไม่ตรวจฝ่ายของตัวเอง (ข้อ 9.2)</p>
-          <div className="ml-auto flex gap-2">
-            <Button variant="secondary" icon={exportIcon} onClick={() => { downloadCsv("แผนตรวจติดตามภายใน", ["เลขที่", "ฝ่าย", "ข้อกำหนด", "ผู้ตรวจ", "วันที่ตามแผน", "วันที่ตรวจ", "ข้อบกพร่อง", "ข้อสังเกต", "สถานะ"], AUDITS.map((a) => [a.no, a.area, a.clauses.join(" "), a.auditor, a.planned, a.performedOn ?? "", count(a, "ข้อบกพร่องหลัก") + count(a, "ข้อบกพร่องย่อย"), count(a, "ข้อสังเกต"), a.status])); notify(`ส่งออกแผนตรวจ ${AUDITS.length} รายการแล้ว`); }}>ส่งออก Excel</Button>
-            <Button icon={<Users size={14} />} onClick={() => onAct({ kind: "audit-new" })}>วางแผนการตรวจ</Button>
           </div>
         </div>
       }
@@ -484,7 +359,7 @@ function Calibration({ onAct, onOpen }: Handlers) {
           <div className="flex flex-wrap items-center gap-2">
             <p className="text-[12.5px] text-slate-500 dark:text-slate-400">เครื่องมือที่ไม่ผ่านถูกพักใช้ และเปิด NCR ให้ทบทวนผลการวัดที่ผ่านมา (ข้อ 7.1.5)</p>
             <div className="ml-auto flex gap-2">
-              <Button variant="secondary" icon={exportIcon} onClick={() => { downloadCsv("ทะเบียนเครื่องมือวัด", ["รหัส", "เครื่องมือ", "ช่วงการวัด", "ความละเอียด", "ที่ใช้งาน", "รอบ (เดือน)", "สอบเทียบล่าสุด", "ครบกำหนด", "สถานะ"], GAUGES.map((g) => [g.code, g.name, g.range, g.resolution, g.location, g.intervalMonths, g.lastCal, nextDue(g), calState(g)])); notify(`ส่งออกเครื่องมือวัด ${GAUGES.length} รายการแล้ว`); }}>ส่งออก Excel</Button>
+              <Button variant="secondary" icon={exportIcon} onClick={() => csv("ทะเบียนเครื่องมือวัด", ["รหัส", "เครื่องมือ", "ช่วงการวัด", "ความละเอียด", "ที่ใช้งาน", "รอบ (เดือน)", "สอบเทียบล่าสุด", "ครบกำหนด", "สถานะ"], GAUGES.map((g) => [g.code, g.name, g.range, g.resolution, g.location, g.intervalMonths, g.lastCal, nextDue(g), calState(g)]))}>ส่งออก Excel</Button>
               <Button icon={<Plus size={14} />} onClick={() => onAct({ kind: "gauge-new" })}>ขึ้นทะเบียนเครื่องมือ</Button>
             </div>
           </div>
@@ -494,87 +369,158 @@ function Calibration({ onAct, onOpen }: Handlers) {
   );
 }
 
-/* --------------------------------------------------------------- records */
+/* ================================================ customer requirements */
 
-function Header({ title, meta, badges, actions }: { title: string; meta: string; badges: ReactNode; actions: ReactNode }) {
+type Commitment = ReturnType<typeof commitments>[number];
+
+function Requirements({ onAct }: Handlers) {
+  const [show, setShow] = useState("รอทบทวน");
+  const all = commitments();
+  const rows = all.filter((c) => show === "ทั้งหมด" || (show === "รอทบทวน" ? !reviewOf(c.doc) : !!reviewOf(c.doc)));
+  const late = new Set(confirmedBeforeReview().map((c) => c.doc));
+  const printIt = (doc: string) => onAct({ kind: "print", d: { doc: "requirement", no: doc }, title: "ใบทบทวนข้อกำหนดลูกค้า" });
+  const columns: Column<Commitment>[] = [
+    { key: "doc", header: "เอกสาร", cell: (c) => <span className="font-medium tabular-nums text-slate-800 dark:text-slate-100">{c.doc}</span>, sort: (a, b) => a.doc.localeCompare(b.doc) },
+    { key: "kind", header: "ประเภท", cell: (c) => <Chip>{c.kind}</Chip> },
+    { key: "customer", header: "ลูกค้า", cell: (c) => customerName(c.customer) },
+    { key: "date", header: "วันที่", cell: (c) => c.date, sort: (a, b) => a.date.localeCompare(b.date) },
+    { key: "items", header: "รายการ", cell: (c) => <span className="text-slate-500">{c.lines.map((l) => `${materialName(l.material)} ×${l.qty}`).join(", ")}</span> },
+    {
+      key: "result", header: "ผลทบทวน",
+      cell: (c) => {
+        const r = reviewOf(c.doc);
+        if (r) return <Badge dot tone={tone(r.result)}>{r.result}</Badge>;
+        return <Badge dot tone={late.has(c.doc) ? "bad" : "idle"}>{late.has(c.doc) ? "ยืนยันก่อนทบทวน" : "รอทบทวน"}</Badge>;
+      },
+    },
+  ];
   return (
-    <div className="border-b border-slate-100 px-5 py-4 dark:border-slate-800">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-0">
-          <p className="text-[17px] font-semibold text-slate-900 dark:text-slate-50">{title}</p>
-          <p className="mt-0.5 text-[12.5px] text-slate-500 dark:text-slate-400">{meta}</p>
-          <div className="mt-2 flex flex-wrap gap-1.5">{badges}</div>
-        </div>
-      </div>
-      <div className="mt-3 flex flex-wrap gap-2">{actions}</div>
-    </div>
-  );
-}
-
-const run = (fn: () => void, ok: string) => {
-  try {
-    fn();
-    notify(ok);
-  } catch (e) {
-    notify(e instanceof Error ? e.message : String(e), "bad");
-  }
-};
-
-function RecordView({ kind, id, onAct, onOpen }: { kind: Kind; id: string } & Handlers) {
-  if (kind === "doc") return <DocRecord d={DOCUMENTS.find((x) => x.code === id)!} onAct={onAct} onOpen={onOpen} />;
-  if (kind === "lot") return <LotRecord l={LOTS.find((x) => x.no === id)!} onAct={onAct} onOpen={onOpen} />;
-  if (kind === "ncr") return <NcrRecord n={NCRS.find((x) => x.no === id)!} onAct={onAct} onOpen={onOpen} />;
-  if (kind === "car") return <CarRecord c={CAPAS.find((x) => x.no === id)!} onAct={onAct} onOpen={onOpen} />;
-  if (kind === "audit") return <AuditRecord a={AUDITS.find((x) => x.no === id)!} onAct={onAct} onOpen={onOpen} />;
-  return <GaugeRecord g={GAUGES.find((x) => x.code === id)!} onAct={onAct} onOpen={onOpen} />;
-}
-
-function Body({ children }: { children: ReactNode }) {
-  return <div className="space-y-5 overflow-y-auto px-5 py-4">{children}</div>;
-}
-
-function DocRecord({ d, onAct }: { d: QmDocument } & Handlers) {
-  const due = d.reviewDue && d.reviewDue <= addDays(TODAY, 30);
-  return (
-    <div className="flex h-full flex-col">
-      <Header
-        title={`${d.code} · ${d.title}`}
-        meta={`${d.type} · ข้อ ${d.clause} ${clauseName(d.clause)} · ${d.owner}`}
-        badges={<><Badge dot tone={tone(d.status)}>{d.status}</Badge><Badge tone="idle">{revLabel(d.rev)}</Badge>{d.draft && <Badge tone={d.draft.submitted ? "warn" : "info"}>{revLabel(d.draft.rev)} {d.draft.submitted ? "รออนุมัติ" : "กำลังแก้ไข"}</Badge>}</>}
-        actions={
-          <>
-            {d.draft && !d.draft.submitted && <Button icon={<CircleCheck size={14} />} onClick={() => run(() => submitDocument(d.code), `ส่ง ${d.code} ${revLabel(d.draft!.rev)} ขออนุมัติแล้ว`)}>ส่งอนุมัติ</Button>}
-            {d.draft?.submitted && <Button icon={<ShieldCheck size={14} />} onClick={() => onAct({ kind: "doc-approve", code: d.code })}>อนุมัติ</Button>}
-            {d.status === "ใช้งาน" && !d.draft && <Button variant="secondary" icon={<Pencil size={14} />} onClick={() => onAct({ kind: "doc-revise", code: d.code })}>แก้ไขฉบับใหม่</Button>}
-            {d.status === "ใช้งาน" && due && !d.draft && <Button variant="secondary" icon={<CircleCheck size={14} />} onClick={() => run(() => confirmReview(d.code), `ทบทวน ${d.code} แล้ว · ใช้ต่ออีกหนึ่งปี`)}>ทบทวนแล้วยังเหมาะสม</Button>}
-            {d.status !== "ยกเลิก" && <Button variant="ghost" onClick={() => onAct({ kind: "doc-obsolete", code: d.code })}>ยกเลิกเอกสาร</Button>}
-          </>
+    <div className="space-y-4">
+      {late.size > 0 && <Note tone="bad">ใบสั่งขาย {late.size} ใบยืนยันกับลูกค้าไปแล้วโดยยังไม่ทบทวนข้อกำหนด — ผู้ตรวจประเมินจะถามทุกใบ (ข้อ 8.2.3)</Note>}
+      <DataTable
+        rows={rows}
+        columns={columns}
+        getId={(c) => c.doc}
+        onOpen={(c) => (reviewOf(c.doc) ? printIt(c.doc) : onAct({ kind: "req-review", doc: c.doc }))}
+        toolbar={
+          <div className="flex flex-wrap items-center gap-2">
+            <Segmented options={["รอทบทวน", "ทบทวนแล้ว", "ทั้งหมด"]} value={show} onChange={setShow} counts={{ "รอทบทวน": unreviewed().length }} />
+            <p className="text-[12.5px] text-slate-500 dark:text-slate-400">กดแถวที่รอเพื่อทบทวน กดแถวที่ทบทวนแล้วเพื่อพิมพ์</p>
+            <Button className="ml-auto" variant="secondary" icon={exportIcon} onClick={() => csv("การทบทวนข้อกำหนดลูกค้า", ["เอกสาร", "ประเภท", "ลูกค้า", "วันที่", "ผล", "ผู้ทบทวน", "เงื่อนไข"], all.map((c) => [c.doc, c.kind, customerName(c.customer), c.date, reviewOf(c.doc)?.result ?? "รอทบทวน", reviewOf(c.doc)?.by ?? "", reviewOf(c.doc)?.note ?? ""]))}>ส่งออก Excel</Button>
+          </div>
         }
       />
-      <Body>
-        <div className="grid gap-x-8 sm:grid-cols-2">
-          <IconRow icon={<FileText size={14} />} label="ฉบับที่ใช้">{revLabel(d.rev)}{d.effective ? ` · มีผล ${d.effective}` : ""}</IconRow>
-          <IconRow icon={<CalendarClock size={14} />} label="ทบทวนครั้งถัดไป"><span className={due ? "text-rose-600 dark:text-rose-400" : ""}>{d.reviewDue ?? "—"}</span></IconRow>
-          {d.obsoleteReason && <IconRow icon={<TriangleAlert size={14} />} label="เหตุผลที่ยกเลิก">{d.obsoleteReason}</IconRow>}
-        </div>
-        {d.draft && <Note tone="info">{revLabel(d.draft.rev)} โดย {d.draft.by} ({d.draft.date}): {d.draft.change}</Note>}
-        <Card title="ประวัติการแก้ไข" subtitle="ทุกฉบับที่เคยออกใช้ พร้อมผู้อนุมัติ">
-          {d.history.length === 0 ? (
-            <p className="px-4 py-5 text-center text-[13px] text-slate-400">ยังไม่เคยออกใช้</p>
-          ) : (
-            <ul className="divide-y divide-slate-100 dark:divide-slate-800">
-              {[...d.history].reverse().map((h) => (
-                <li key={h.rev} className="flex gap-3 px-4 py-2.5 text-[13px]">
-                  <span className="w-14 shrink-0 font-medium tabular-nums text-slate-800 dark:text-slate-100">{revLabel(h.rev)}</span>
-                  <span className="min-w-0 flex-1 text-slate-700 dark:text-slate-200">{h.change}<span className="block text-[11.5px] text-slate-400">{h.date} · จัดทำ {h.by} · อนุมัติ {h.approvedBy}</span></span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </Card>
-      </Body>
     </div>
   );
+}
+
+/* ================================================== design and development */
+
+function Designs({ onAct, onOpen }: Handlers) {
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center gap-2">
+        <p className="text-[12.5px] text-slate-500 dark:text-slate-400">ออกแบบทีละขั้น ข้ามขั้นไม่ได้ ทวนสอบและรับรองโดยคนที่ไม่ใช่ผู้ออกแบบ (ข้อ 8.3)</p>
+        <div className="ml-auto flex gap-2">
+          <Button variant="secondary" icon={exportIcon} onClick={() => csv("โครงการออกแบบ", ["เลขที่", "ผลิตภัณฑ์", "ผู้รับผิดชอบ", "เริ่ม", "กำหนดเสร็จ", "ขั้นล่าสุด", "การเปลี่ยนแปลง"], DESIGNS.map((d) => [d.no, d.product, d.owner, d.started, d.target, d.records.at(-1)?.stage ?? "", d.changes.length]))}>ส่งออก Excel</Button>
+          <Button icon={<PencilRuler size={14} />} onClick={() => onAct({ kind: "design-new" })}>เปิดโครงการออกแบบ</Button>
+        </div>
+      </div>
+      <div className="grid gap-4 lg:grid-cols-2">
+        {newest(DESIGNS).map((d) => (
+          <Card key={d.no} title={`${d.no} · ${d.product}`} subtitle={`${d.owner} · กำหนดเสร็จ ${d.target}`} action={<Button variant="ghost" onClick={() => onOpen("design", d.no)}>เปิด</Button>}>
+            <div className="p-4">
+              <Stepper steps={designSteps(d)} icons={STEP_ICONS} />
+              <p className="mt-3 text-[12.5px] text-slate-500 dark:text-slate-400">{released(d) ? `ส่งมอบสู่การผลิตแล้ว · เปลี่ยนแปลงแบบ ${d.changes.length} ครั้ง` : `ขั้นถัดไป: ${nextStage(d)}`}</p>
+            </div>
+          </Card>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ================================================== approved suppliers */
+
+type SupplierRow = ReturnType<typeof supplierRegister>[number];
+
+function Suppliers({ onOpen }: Handlers) {
+  const rows = supplierRegister();
+  const columns: Column<SupplierRow>[] = [
+    { key: "code", header: "รหัส", cell: (s) => <span className="font-medium tabular-nums text-slate-800 dark:text-slate-100">{s.vendor.code}</span> },
+    { key: "name", header: "ผู้ขาย", cell: (s) => s.vendor.name },
+    { key: "scope", header: "อนุมัติให้ส่ง", cell: (s) => <span className="text-slate-500">{s.approval?.scope.map(materialName).join(", ") || "—"}</span> },
+    { key: "quality", header: "ล็อตผ่าน", align: "right", cell: (s) => <span className="tabular-nums">{s.quality.lots ? `${s.quality.score}%` : "—"}</span> },
+    { key: "delivery", header: "ส่งตรงเวลา", align: "right", cell: (s) => <span className="tabular-nums">{s.delivery === null ? "—" : `${s.delivery}%`}</span> },
+    { key: "grade", header: "เกรดจัดซื้อ", cell: (s) => (s.grade ? <Badge tone={s.grade === "A" ? "ok" : s.grade === "B" ? "warn" : "bad"}>{s.grade}</Badge> : "—") },
+    { key: "status", header: "สถานะ", cell: (s) => <span className="flex flex-wrap gap-1.5"><Badge dot tone={tone(s.approval?.status ?? "รอประเมิน")}>{s.approval?.status ?? "รอประเมิน"}</Badge>{s.vendor.blocked && <Badge tone="bad">ระงับสั่งซื้อ</Badge>}</span> },
+    { key: "next", header: "ประเมินครั้งถัดไป", cell: (s) => s.approval?.nextReview ?? "ก่อนสั่งซื้อครั้งแรก" },
+  ];
+  return (
+    <div className="space-y-4">
+      {awaitingApproval().length > 0 && <Note tone="bad">ผู้ขาย {awaitingApproval().length} รายยังไม่ผ่านการประเมิน — ต้องประเมินก่อนสั่งซื้อครั้งแรก (SP-07)</Note>}
+      <DataTable
+        rows={rows}
+        columns={columns}
+        getId={(s) => s.vendor.code}
+        onOpen={(s) => onOpen("supplier", s.vendor.code)}
+        toolbar={
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="text-[12.5px] text-slate-500 dark:text-slate-400">ผู้ขายอ่านจากระบบจัดซื้อ คุณภาพจากล็อตตรวจรับ เกรดจากการประเมินของฝ่ายจัดซื้อ ระงับที่นี่แล้วสั่งซื้อไม่ได้</p>
+            <Button className="ml-auto" variant="secondary" icon={exportIcon} onClick={() => csv("ทะเบียนผู้ส่งมอบ", ["รหัส", "ผู้ขาย", "สถานะ", "อนุมัติให้ส่ง", "ล็อตผ่าน %", "ส่งตรงเวลา %", "เกรดจัดซื้อ", "ประเมินครั้งถัดไป"], rows.map((s) => [s.vendor.code, s.vendor.name, s.approval?.status ?? "รอประเมิน", s.approval?.scope.join(" ") ?? "", s.quality.score, s.delivery ?? "", s.grade ?? "", s.approval?.nextReview ?? ""]))}>ส่งออก Excel</Button>
+          </div>
+        }
+      />
+    </div>
+  );
+}
+
+/* =================================================== customer satisfaction */
+
+function Satisfaction({ onAct, onOpen }: Handlers) {
+  const rows = satisfactionByCustomer();
+  const avg = overallSatisfaction();
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center gap-2">
+        <p className="text-[12.5px] text-slate-500 dark:text-slate-400">คะแนนที่ลูกค้าให้ วางคู่ข้อร้องเรียนที่ระบบนับเอง · เฉลี่ยทุกรายล่าสุด {avg ?? "—"} / 5</p>
+        <div className="ml-auto flex gap-2">
+          <Button variant="secondary" icon={<Printer size={14} />} onClick={() => onAct({ kind: "print", d: { doc: "satisfaction" }, title: "สรุปผลสำรวจความพึงพอใจลูกค้า" })}>พิมพ์สรุป</Button>
+          <Button variant="secondary" icon={exportIcon} onClick={() => csv("แบบสำรวจความพึงพอใจ", ["เลขที่", "ลูกค้า", "รอบ", ...SATISFACTION_CRITERIA.map((c) => c.label), "ความเห็น", "สิ่งที่จะทำต่อ"], SURVEYS.map((v) => [v.no, customerName(v.customer), v.period, ...SATISFACTION_CRITERIA.map((c) => v.scores[c.key]), v.comment, v.followUp ?? ""]))}>ส่งออก Excel</Button>
+          <Button icon={<Smile size={14} />} onClick={() => onAct({ kind: "survey-new" })}>บันทึกแบบสำรวจ</Button>
+        </div>
+      </div>
+      <Card title="รายลูกค้า" subtitle="ผลรอบล่าสุดของแต่ละราย">
+        <Lines>
+          {rows.map((x) => (
+            <Line
+              key={x.customer.code}
+              title={x.customer.name}
+              sub={x.last ? `${x.last.period} · ${x.last.comment || "ไม่มีความเห็น"}` : "ยังไม่สำรวจ"}
+              right={
+                <span className="flex items-center gap-2">
+                  {x.complaints > 0 && <Badge tone="warn">ร้องเรียน {x.complaints}</Badge>}
+                  {x.score !== undefined && <Badge tone={x.score < 3.5 ? "bad" : x.score < 4 ? "warn" : "ok"}>{x.score} / 5</Badge>}
+                  {x.last ? <Button variant="ghost" onClick={() => onOpen("survey", x.last!.no)}>ดู</Button> : <Button variant="secondary" onClick={() => onAct({ kind: "survey-new", customer: x.customer.code })}>สำรวจ</Button>}
+                </span>
+              }
+            />
+          ))}
+        </Lines>
+      </Card>
+    </div>
+  );
+}
+
+/* --------------------------------------------------------------- records */
+
+function RecordView({ kind, id, ...h }: { kind: RecordKind; id: string } & Handlers) {
+  if (kind === "lot") return <LotRecord l={LOTS.find((x) => x.no === id)!} {...h} />;
+  if (kind === "ncr") return <NcrRecord n={NCRS.find((x) => x.no === id)!} {...h} />;
+  if (kind === "gauge") return <GaugeRecord g={GAUGES.find((x) => x.code === id)!} {...h} />;
+  if (kind === "design") return <DesignRecord no={id} {...h} />;
+  if (kind === "supplier") return <SupplierRecord code={id} {...h} />;
+  return <SurveyRecord no={id} {...h} />;
 }
 
 function LotRecord({ l, onAct, onOpen }: { l: InspectionLot } & Handlers) {
@@ -597,22 +543,20 @@ function LotRecord({ l, onAct, onOpen }: { l: InspectionLot } & Handlers) {
       />
       <Body>
         <Card title="ผลตรวจตามแผน" subtitle={l.inspector ? `ตรวจโดย ${l.inspector} · ${l.inspectedOn}` : "ยังไม่ได้บันทึกผล"}>
-          <ul className="divide-y divide-slate-100 dark:divide-slate-800">
+          <Lines>
             {plan.map((c) => {
               const r = l.results.find((x) => x.characteristic === c.name);
               const got = !r ? "—" : c.kind === "วัดค่า" ? `${r.min} – ${r.max} ${c.unit ?? ""}` : r.defects === 0 ? "ไม่พบข้อบกพร่อง" : `พบ ${r.defects} ชิ้น`;
               return (
-                <li key={c.name} className="flex flex-wrap items-center gap-3 px-4 py-2.5 text-[13px]">
-                  <span className="min-w-0 flex-1">
-                    <span className="block text-slate-800 dark:text-slate-100">{c.name}</span>
-                    <span className="block text-[11.5px] text-slate-400">{c.method} · เกณฑ์ {c.kind === "วัดค่า" ? `${c.lsl}–${c.usl} ${c.unit ?? ""}` : "ไม่พบข้อบกพร่อง"}</span>
-                  </span>
-                  <span className="tabular-nums text-slate-700 dark:text-slate-200">{got}</span>
-                  {r && <Badge tone={r.ok ? "ok" : "bad"}>{r.ok ? "ผ่าน" : "ไม่ผ่าน"}</Badge>}
-                </li>
+                <Line
+                  key={c.name}
+                  title={c.name}
+                  sub={`${c.method} · เกณฑ์ ${c.kind === "วัดค่า" ? `${c.lsl}–${c.usl} ${c.unit ?? ""}` : "ไม่พบข้อบกพร่อง"}`}
+                  right={<span className="flex items-center gap-3"><span className="tabular-nums text-slate-700 dark:text-slate-200">{got}</span>{r && <Badge tone={r.ok ? "ok" : "bad"}>{r.ok ? "ผ่าน" : "ไม่ผ่าน"}</Badge>}</span>}
+                />
               );
             })}
-          </ul>
+          </Lines>
         </Card>
         {l.decision && <Note tone={tone(l.decision)}>ตัดสิน{l.decision} โดย {l.decidedBy} · {l.decidedOn}{l.note ? ` — ${l.note}` : ""}</Note>}
       </Body>
@@ -620,18 +564,18 @@ function LotRecord({ l, onAct, onOpen }: { l: InspectionLot } & Handlers) {
   );
 }
 
-function NcrRecord({ n, onAct, onOpen }: { n: Ncr } & Handlers) {
+function NcrRecord({ n, onAct, onIms }: { n: Ncr } & Handlers) {
+  const car = carOfNcr(n);
   return (
     <div className="flex h-full flex-col">
       <Header
         title={`${n.no} · ${n.material ? materialName(n.material) : n.ref}`}
         meta={`${n.source} · ${n.date} · อ้างอิง ${n.ref}`}
-        badges={<><Badge dot tone={tone(n.status)}>{n.status}</Badge><Badge tone={tone(n.severity)}>{n.severity}</Badge>{n.capa && <Badge tone="info">{n.capa}</Badge>}</>}
+        badges={<><Badge dot tone={tone(n.status)}>{n.status}</Badge><Badge tone={tone(n.severity)}>{n.severity}</Badge>{car && <Badge tone="info">{car.no} · {car.status}</Badge>}</>}
         actions={
           <>
             {n.status === "รอสั่งการ" && <Button icon={<ShieldCheck size={14} />} onClick={() => onAct({ kind: "ncr-dispose", no: n.no })}>สั่งการ</Button>}
-            {!n.capa && n.status !== "ปิดแล้ว" && <Button variant="secondary" icon={<ListChecks size={14} />} onClick={() => onAct({ kind: "car-new", ref: n.no, problem: n.description })}>ออก CAR</Button>}
-            {n.capa && <Button variant="secondary" icon={<ListChecks size={14} />} onClick={() => onOpen("car", n.capa!)}>ดู {n.capa}</Button>}
+            {!car && n.status !== "ปิดแล้ว" && <Button variant="secondary" icon={<ListChecks size={14} />} onClick={() => onIms({ kind: "car-new", ref: n.no, problem: n.description })}>ออก CAR</Button>}
             {n.status === "ดำเนินการ" && <Button variant="secondary" icon={<CircleCheck size={14} />} onClick={() => onAct({ kind: "ncr-close", no: n.no })}>ปิด NCR</Button>}
             <Button variant="secondary" icon={<Printer size={14} />} onClick={() => onAct({ kind: "print", d: { doc: "ncr", no: n.no }, title: "ใบรายงานสิ่งที่ไม่เป็นไปตามข้อกำหนด" })}>พิมพ์</Button>
           </>
@@ -641,7 +585,7 @@ function NcrRecord({ n, onAct, onOpen }: { n: Ncr } & Handlers) {
         <div className="grid gap-x-8 sm:grid-cols-2">
           <IconRow icon={<FileWarning size={14} />} label="จำนวน">{n.qty.toLocaleString("th-TH")} {n.material ? materialUnit(n.material) : ""}</IconRow>
           <IconRow icon={<Users size={14} />} label={n.customer ? "ลูกค้า" : "ผู้ขาย"}>{n.customer ? customerName(n.customer) : vendorName(n.vendor)}</IconRow>
-          <IconRow icon={<Pencil size={14} />} label="ผู้รายงาน">{n.reportedBy}</IconRow>
+          <IconRow icon={<Users size={14} />} label="ผู้รายงาน">{n.reportedBy}</IconRow>
           {n.closedOn && <IconRow icon={<CircleCheck size={14} />} label="ปิดเมื่อ">{n.closedOn} · {n.closedBy}</IconRow>}
         </div>
         <Card title="สิ่งที่พบ"><p className="px-4 py-3 text-[13px] leading-relaxed text-slate-700 dark:text-slate-200">{n.description}</p></Card>
@@ -654,113 +598,16 @@ function NcrRecord({ n, onAct, onOpen }: { n: Ncr } & Handlers) {
               <p className="mt-1 text-[12px] text-slate-400">สั่งการโดย {n.dispositionBy}</p>
             </div>
           ) : (
-            <p className="px-4 py-5 text-center text-[13px] text-slate-400">ยังไม่สั่งการ</p>
+            <Empty>ยังไม่สั่งการ</Empty>
           )}
         </Card>
-      </Body>
-    </div>
-  );
-}
-
-function CarRecord({ c, onAct }: { c: Capa } & Handlers) {
-  return (
-    <div className="flex h-full flex-col">
-      <Header
-        title={`${c.no} · การ${c.kind}`}
-        meta={`ต้นเรื่อง ${c.ref} · ออกเมื่อ ${c.date} · ${c.owner}`}
-        badges={<><Badge dot tone={tone(c.status)}>{c.status}</Badge>{overdueActions(c).length > 0 && <Badge tone="bad">มาตรการเลยกำหนด {overdueActions(c).length}</Badge>}</>}
-        actions={
-          <>
-            {c.status !== "ปิดแล้ว" && c.status !== "ติดตามผล" && <Button variant={c.rootCause ? "secondary" : "primary"} icon={<SearchIcon size={14} />} onClick={() => onAct({ kind: "car-cause", no: c.no })}>{c.rootCause ? "แก้สาเหตุราก" : "หาสาเหตุราก"}</Button>}
-            {c.status !== "ปิดแล้ว" && c.status !== "ติดตามผล" && <Button variant="secondary" icon={<Plus size={14} />} onClick={() => onAct({ kind: "car-action", no: c.no })}>เพิ่มมาตรการ</Button>}
-            {c.status === "ติดตามผล" && <Button icon={<ShieldCheck size={14} />} onClick={() => onAct({ kind: "car-verify", no: c.no })}>ติดตามประสิทธิผล</Button>}
-            <Button variant="secondary" icon={<Printer size={14} />} onClick={() => onAct({ kind: "print", d: { doc: "car", no: c.no }, title: "ใบขอให้ดำเนินการแก้ไขและป้องกัน" })}>พิมพ์</Button>
-          </>
-        }
-      />
-      <Body>
-        <Card title="ปัญหา"><p className="px-4 py-3 text-[13px] text-slate-700 dark:text-slate-200">{c.problem}</p></Card>
-        <Card title="สาเหตุราก" subtitle={c.rootCause ? `กลุ่ม${c.rootCause.category} · ถามทำไม ${c.rootCause.whys.length} ชั้น` : "ยังไม่วิเคราะห์"}>
-          {c.rootCause && (
-            <ol className="space-y-1.5 px-4 py-3 text-[13px] text-slate-700 dark:text-slate-200">
-              {c.rootCause.whys.map((w, i) => (
-                <li key={i} className="flex gap-2"><span className="w-16 shrink-0 text-slate-400">ทำไม {i + 1}</span><span className={i === c.rootCause!.whys.length - 1 ? "font-medium text-slate-900 dark:text-slate-50" : ""}>{w}</span></li>
-              ))}
-            </ol>
-          )}
-        </Card>
-        <Card title="มาตรการ" subtitle="ทำเสร็จครบแล้วจึงติดตามผลได้">
-          {c.actions.length === 0 ? (
-            <p className="px-4 py-5 text-center text-[13px] text-slate-400">ยังไม่มีมาตรการ</p>
-          ) : (
-            <ul className="divide-y divide-slate-100 dark:divide-slate-800">
-              {c.actions.map((a, i) => {
-                const late = !a.doneOn && a.due < TODAY;
-                return (
-                  <li key={i} className="flex flex-wrap items-center gap-3 px-4 py-2.5 text-[13px]">
-                    <span className="min-w-0 flex-1">
-                      <span className="block text-slate-800 dark:text-slate-100">{a.what}</span>
-                      <span className={"block text-[11.5px] " + (late ? "text-rose-600 dark:text-rose-400" : "text-slate-400")}>{a.owner} · กำหนด {a.due}{late ? " · เลยกำหนด" : ""}</span>
-                    </span>
-                    {a.doneOn ? (
-                      <Badge tone="ok">เสร็จ {a.doneOn}</Badge>
-                    ) : (
-                      c.status !== "ปิดแล้ว" && <Button variant="secondary" icon={<CircleCheck size={14} />} onClick={() => run(() => completeCapaAction(c.no, i), `บันทึกว่ามาตรการเสร็จแล้ว · ${c.no}`)}>ทำเสร็จแล้ว</Button>
-                    )}
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-        </Card>
-        {c.verification && <Note tone={c.verification.effective ? "ok" : "bad"}>ติดตามผล {c.verification.date} โดย {c.verification.by}: {c.verification.effective ? "ได้ผล" : "ไม่ได้ผล"} — {c.verification.note}</Note>}
-      </Body>
-    </div>
-  );
-}
-
-function AuditRecord({ a, onAct }: { a: Audit } & Handlers) {
-  const missing = findingsWithoutCapa(a);
-  return (
-    <div className="flex h-full flex-col">
-      <Header
-        title={`${a.no} · ${a.area}`}
-        meta={`ผู้ตรวจ ${a.auditor} · ${a.performedOn ? `ตรวจเมื่อ ${a.performedOn}` : `ตามแผน ${a.planned}`}`}
-        badges={<><Badge dot tone={tone(a.status)}>{a.status}</Badge>{a.clauses.map((c) => <Chip key={c}>ข้อ {c}</Chip>)}</>}
-        actions={
-          <>
-            {a.status === "ตามแผน" && <Button icon={<Play size={14} />} onClick={() => run(() => startAudit(a.no), `เริ่มตรวจ ${a.no} ${a.area} แล้ว`)}>เริ่มตรวจ</Button>}
-            {a.status === "กำลังตรวจ" && <Button icon={<Plus size={14} />} onClick={() => onAct({ kind: "audit-finding", no: a.no })}>บันทึกสิ่งที่พบ</Button>}
-            {a.status === "กำลังตรวจ" && <Button variant="secondary" icon={<CircleCheck size={14} />} onClick={() => run(() => closeAudit(a.no), `ปิดการตรวจ ${a.no} แล้ว`)}>ปิดการตรวจ</Button>}
-            <Button variant="secondary" icon={<Printer size={14} />} onClick={() => onAct({ kind: "print", d: { doc: "audit", no: a.no }, title: "รายงานการตรวจติดตามภายใน" })}>พิมพ์รายงาน</Button>
-          </>
-        }
-      />
-      <Body>
-        {a.status === "กำลังตรวจ" && missing.length > 0 && <Note tone="warn">ข้อบกพร่อง {missing.length} ข้อยังไม่มี CAR — ต้องออกก่อนปิดการตรวจ</Note>}
-        <Card title="ขอบเขต">
-          <ul className="space-y-1 px-4 py-3 text-[13px] text-slate-700 dark:text-slate-200">
-            {a.clauses.map((c) => <li key={c}><span className="tabular-nums text-slate-400">ข้อ {c}</span> {CLAUSES.find((x) => x.code === c)?.name}</li>)}
-          </ul>
-        </Card>
-        <Card title="สิ่งที่พบ" subtitle="ข้อบกพร่องต้องมี CAR · ข้อสังเกตไม่ต้อง">
-          {a.findings.length === 0 ? (
-            <p className="px-4 py-5 text-center text-[13px] text-slate-400">{a.status === "ตามแผน" ? "ยังไม่ได้ตรวจ" : "ยังไม่พบสิ่งที่ต้องบันทึก"}</p>
-          ) : (
-            <ul className="divide-y divide-slate-100 dark:divide-slate-800">
-              {a.findings.map((f) => (
-                <li key={f.id} className="flex flex-wrap items-center gap-3 px-4 py-2.5 text-[13px]">
-                  <span className="min-w-0 flex-1">
-                    <span className="block text-slate-800 dark:text-slate-100">#{f.id} {f.detail}</span>
-                    <span className="block text-[11.5px] text-slate-400">ข้อ {f.clause} {clauseName(f.clause)}</span>
-                  </span>
-                  <Badge tone={f.type === "ข้อสังเกต" ? "info" : f.type === "ข้อบกพร่องหลัก" ? "bad" : "warn"}>{f.type}</Badge>
-                  {f.capa ? <Badge tone="ok">{f.capa}</Badge> : f.type !== "ข้อสังเกต" && <Button variant="secondary" onClick={() => onAct({ kind: "car-new", ref: `${a.no} #${f.id}`, problem: f.detail })}>ออก CAR</Button>}
-                </li>
-              ))}
-            </ul>
-          )}
-        </Card>
+        {car && (
+          <Card title="การแก้ไขที่สาเหตุ" subtitle="ติดตามต่อที่ระบบบริหารบูรณาการ">
+            <Lines>
+              <Line title={`${car.no} · ${car.method} · ${car.owner}`} sub={capaByNo(car.no).rootCause?.whys.at(-1) ?? "ยังไม่หาสาเหตุราก"} right={<Badge dot tone={tone(car.status)}>{car.status}</Badge>} />
+            </Lines>
+          </Card>
+        )}
       </Body>
     </div>
   );
@@ -786,16 +633,113 @@ function GaugeRecord({ g, onAct }: { g: Gauge } & Handlers) {
           <IconRow icon={<CalendarClock size={14} />} label="ครบกำหนด">{g.status === "พักใช้" ? "พักใช้" : nextDue(g)}</IconRow>
         </div>
         <Card title="ประวัติการสอบเทียบ">
-          <ul className="divide-y divide-slate-100 dark:divide-slate-800">
+          <Lines>
             {[...g.records].reverse().map((r, i) => (
-              <li key={i} className="flex flex-wrap items-center gap-3 px-4 py-2.5 text-[13px]">
-                <span className="w-24 shrink-0 tabular-nums text-slate-500">{r.date}</span>
-                <span className="min-w-0 flex-1 text-slate-700 dark:text-slate-200">{r.by}<span className="block text-[11.5px] text-slate-400">ใบรับรอง {r.certNo} · คลาดเคลื่อน {r.error}{r.note ? ` · ${r.note}` : ""}</span></span>
-                <Badge tone={r.result === "ผ่าน" ? "ok" : "bad"}>{r.result}</Badge>
+              <Line key={i} title={`${r.date} · ${r.by}`} sub={`ใบรับรอง ${r.certNo} · คลาดเคลื่อน ${r.error}${r.note ? ` · ${r.note}` : ""}`} right={<Badge tone={r.result === "ผ่าน" ? "ok" : "bad"}>{r.result}</Badge>} />
+            ))}
+          </Lines>
+        </Card>
+      </Body>
+    </div>
+  );
+}
+
+function DesignRecord({ no, onAct }: { no: string } & Handlers) {
+  const d = designByNo(no);
+  const stage = nextStage(d);
+  return (
+    <div className="flex h-full flex-col">
+      <Header
+        title={`${d.no} · ${d.product}`}
+        meta={`${d.owner} · เริ่ม ${d.started} · กำหนดเสร็จ ${d.target}`}
+        badges={<Badge dot tone={released(d) ? "ok" : "info"}>{released(d) ? "ส่งมอบสู่การผลิตแล้ว" : `ขั้นถัดไป: ${stage}`}</Badge>}
+        actions={
+          <>
+            {stage && <Button icon={<PencilRuler size={14} />} onClick={() => onAct({ kind: "design-stage", no: d.no })}>บันทึกขั้น{stage}</Button>}
+            {released(d) && <Button variant="secondary" icon={<FilePlus2 size={14} />} onClick={() => onAct({ kind: "design-change", no: d.no })}>เปลี่ยนแปลงแบบ</Button>}
+            <Button variant="secondary" icon={<Printer size={14} />} onClick={() => onAct({ kind: "print", d: { doc: "design", no: d.no }, title: "บันทึกการออกแบบและพัฒนา" })}>พิมพ์บันทึก</Button>
+          </>
+        }
+      />
+      <Body>
+        <Stepper steps={designSteps(d)} icons={STEP_ICONS} />
+        <Card title="บันทึกแต่ละขั้น">
+          <Lines>
+            {d.records.map((r) => <Line key={r.stage} title={`${r.stage} · ${r.date} · ${r.by}`} sub={`${r.evidence}${r.participants ? ` · ผู้เข้าร่วม ${r.participants.join(", ")}` : ""}`} />)}
+          </Lines>
+        </Card>
+        {d.changes.length > 0 && (
+          <Card title="การเปลี่ยนแปลงแบบหลังส่งมอบ" subtitle="ข้อ 8.3.6">
+            <Lines>
+              {d.changes.map((c, i) => <Line key={i} title={c.change} sub={`${c.date} · ${c.reason} · อนุมัติ ${c.approvedBy}`} right={<Badge tone={c.reverified ? "ok" : "warn"}>{c.reverified ? "ทวนสอบซ้ำแล้ว" : "ไม่กระทบ"}</Badge>} />)}
+            </Lines>
+          </Card>
+        )}
+      </Body>
+    </div>
+  );
+}
+
+function SupplierRecord({ code, onAct }: { code: string } & Handlers) {
+  const s = supplierRegister().find((x) => x.vendor.code === code)!;
+  const status = s.approval?.status ?? "รอประเมิน";
+  return (
+    <div className="flex h-full flex-col">
+      <Header
+        title={`${s.vendor.code} · ${s.vendor.name}`}
+        meta={`ส่งได้ ${s.supplies.map(materialName).join(", ") || "—"} · ${s.vendor.terms}`}
+        badges={<><Badge dot tone={tone(status)}>{status}</Badge>{s.grade && <Badge tone="idle">เกรดจัดซื้อ {s.grade}</Badge>}{s.vendor.blocked && <Badge tone="bad">ระงับสั่งซื้อ</Badge>}</>}
+        actions={
+          <>
+            <Button icon={<ShieldCheck size={14} />} onClick={() => onAct({ kind: "supplier-evaluate", code })}>ประเมินผู้ส่งมอบ</Button>
+            <Button variant="secondary" icon={<Printer size={14} />} onClick={() => onAct({ kind: "print", d: { doc: "supplier", code }, title: "ใบประเมินผู้ส่งมอบประจำปี" })}>พิมพ์ใบประเมิน</Button>
+          </>
+        }
+      />
+      <Body>
+        <div className="grid gap-3 sm:grid-cols-3">
+          <Metric icon={<Microscope size={16} />} label="ล็อตผ่านครั้งแรก" value={s.quality.lots ? `${s.quality.score}%` : "—"} deltaLabel={`${s.quality.accepted} จาก ${s.quality.lots} ล็อต`} />
+          <Metric icon={<Truck size={16} />} label="ส่งตรงเวลา" value={s.delivery === null ? "—" : `${s.delivery}%`} deltaLabel="จากใบรับของของจัดซื้อ" />
+          <Metric icon={<FileWarning size={16} />} label="NCR" value={`${s.quality.ncrs} เรื่อง`} deltaLabel="ที่เปิดกับผู้ขายรายนี้" />
+        </div>
+        <Card title="ประวัติการประเมิน">
+          {s.approval ? (
+            <Lines>
+              {[...s.approval.history].reverse().map((h, i) => <Line key={i} title={`${h.date} · ${h.status}`} sub={`${h.note} · ${h.by}`} right={<span className="tabular-nums text-[12.5px] text-slate-500">คุณภาพ {h.quality}%{h.grade ? ` · ${h.grade}` : ""}</span>} />)}
+            </Lines>
+          ) : (
+            <Empty>ยังไม่เคยประเมิน — ต้องประเมินก่อนสั่งซื้อครั้งแรก</Empty>
+          )}
+        </Card>
+      </Body>
+    </div>
+  );
+}
+
+function SurveyRecord({ no, onAct }: { no: string } & Handlers) {
+  const v = SURVEYS.find((x) => x.no === no)!;
+  const avg = Math.round((SATISFACTION_CRITERIA.reduce((n, c) => n + v.scores[c.key], 0) / SATISFACTION_CRITERIA.length) * 100) / 100;
+  return (
+    <div className="flex h-full flex-col">
+      <Header
+        title={`${v.no} · ${customerName(v.customer)}`}
+        meta={`${v.period} · บันทึก ${v.date} · ${v.by}`}
+        badges={<Badge tone={avg < 3.5 ? "bad" : avg < 4 ? "warn" : "ok"}>เฉลี่ย {avg} / 5</Badge>}
+        actions={<Button variant="secondary" icon={<Printer size={14} />} onClick={() => onAct({ kind: "print", d: { doc: "satisfaction" }, title: "สรุปผลสำรวจความพึงพอใจลูกค้า" })}>พิมพ์สรุป</Button>}
+      />
+      <Body>
+        <Card title="คะแนน">
+          <ul className="space-y-3 p-4">
+            {SATISFACTION_CRITERIA.map((c) => (
+              <li key={c.key}>
+                <div className="flex justify-between text-[12.5px]"><span className="text-slate-700 dark:text-slate-200">{c.label}</span><span className="tabular-nums text-slate-500">{v.scores[c.key]} / 5</span></div>
+                <div className="mt-1"><Bar pct={v.scores[c.key] * 20} tone={v.scores[c.key] <= 2 ? "bad" : v.scores[c.key] === 3 ? "warn" : "ok"} width="w-full" /></div>
               </li>
             ))}
           </ul>
         </Card>
+        {v.comment && <Card title="ความเห็นของลูกค้า"><p className="px-4 py-3 text-[13px] text-slate-700 dark:text-slate-200">{v.comment}</p></Card>}
+        {v.followUp && <Note tone="warn">สิ่งที่จะทำต่อ: {v.followUp}</Note>}
       </Body>
     </div>
   );

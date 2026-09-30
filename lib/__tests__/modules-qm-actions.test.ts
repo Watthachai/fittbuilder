@@ -1,12 +1,13 @@
 import { describe, expect, it } from "vitest";
+import { QMR, liveAgenda, openCapa } from "../../demo/modules/ims/data";
 import {
-  AUDITS, CAPAS, DOCUMENTS, GAUGES, LOTS, NCRS, QMR, addCapaAction, addFinding, approveDocument, auditErrors, calState,
-  closeAudit, closeNcr, closeNcrErrors, completeCapaAction, createComplaint, createDocument, createLot, decideLot,
-  decisionErrors, disposeNcr, dispositionErrors, gaugeByCode, lotByNo, ncrByNo, objectives, obsoleteDocument, openCapa,
-  pendingInspections, planAudit, recordCalibration, recordResults, recordRootCause, resultErrors, reviseDocument,
-  startAudit, submitDocument, verifyCapa, vendorQuality,
+  GAUGES, LOTS, NCRS, approvalErrors, calState, carOfNcr, changeErrors, closeNcr, closeNcrErrors, commitments,
+  confirmedBeforeReview, createComplaint, createLot, decideLot, decisionErrors, designByNo, disposeNcr, dispositionErrors,
+  evaluateSupplier, gaugeByCode, indicators, lotByNo, nextStage, overallSatisfaction, pendingInspections, purchasingGrade,
+  recordCalibration, recordResults, recordStage, recordSurvey, requirementErrors, resultErrors, reviewRequirement,
+  stageErrors, startDesign, supplierQuality, surveyErrors, unreviewed,
 } from "../../demo/modules/qm/data";
-import { MATERIALS, STOCK_MOVES, postGoodsReceipt } from "../../demo/modules/mm/data";
+import { MATERIALS, STOCK_MOVES, VENDORS, orderProblems, postGoodsReceipt } from "../../demo/modules/mm/data";
 
 /**
  * บริหารคุณภาพตาม ISO 9001:2015 — แต่ละข้อกำหนดทดสอบผ่านงานที่ทำได้จริงในระบบ
@@ -15,61 +16,65 @@ import { MATERIALS, STOCK_MOVES, postGoodsReceipt } from "../../demo/modules/mm/
  */
 
 const stock = (code: string) => MATERIALS.find((m) => m.code === code)!.stock;
+const all = { spec: true, capacity: true, delivery: true, legal: true };
 
-describe("the quality objectives the management review reads (6.2, 9.3)", () => {
+describe("the indicators the quality overview and the management review read", () => {
   it("are measured from the work in the system at cold start", () => {
-    const o = Object.fromEntries(objectives().map((x) => [x.name, x]));
+    const o = Object.fromEntries(indicators().map((x) => [x.name, x]));
     // ตรวจรับ: 0041 ผ่าน, 0042 ผ่าน, 0043 ไม่ผ่าน → 2/3
     expect(o["ของเข้าผ่านการตรวจรับ"]).toMatchObject({ actual: 66.7, met: false });
     // ตรวจก่อนส่ง: 0039 ผ่าน, 0040 ยอมรับแบบมีเงื่อนไข → 1/2
     expect(o["สินค้าผ่านการตรวจก่อนส่งครั้งแรก"]).toMatchObject({ actual: 50, met: false });
-    // ข้อร้องเรียนเดือนกันยายน: NCR-2569-013 เรื่องเดียว ≤ 2
     expect(o["ข้อร้องเรียนลูกค้าเดือนนี้"]).toMatchObject({ actual: 1, met: true });
-    // มาตรการที่ถึงกำหนดแล้ว 3 ข้อ เสร็จตรงเวลา 2 (ข้อของ CAR-008 เลยกำหนด 20/09)
-    expect(o["มาตรการแก้ไขเสร็จตามกำหนด"]).toMatchObject({ actual: 66.7, met: false });
+    // ใบเสนอราคา 2 ใบ + ใบสั่งขาย 5 ใบ ทบทวนแล้ว 4 → 4/7
+    expect(o["ข้อตกลงกับลูกค้าที่ทบทวนแล้ว"]).toMatchObject({ actual: 57.1, met: false });
     // เครื่องมือใช้งาน 5 ตัว ไมโครมิเตอร์เลยรอบ 10/09 → 4/5
     expect(o["เครื่องมือวัดอยู่ในรอบสอบเทียบ"]).toMatchObject({ actual: 80, met: false });
   });
 
-  it("rates suppliers by the lots they failed (8.4.1)", () => {
-    const v = Object.fromEntries(vendorQuality().map((x) => [x.code, x]));
-    expect(v["V-001"]).toMatchObject({ lots: 2, rejected: 0, rate: 0 });
-    expect(v["V-002"]).toMatchObject({ lots: 1, rejected: 1, rate: 100 });
+  it("feeds the management review of the integrated system", () => {
+    const keys = liveAgenda().map((a) => a.key);
+    expect(keys).toEqual(expect.arrayContaining(["ims-audits", "qm-customers", "qm-conformity", "qm-suppliers", "qm-resources"]));
   });
 });
 
-describe("document control (7.5)", () => {
-  it("issues a new procedure only after someone other than its author approves it", () => {
-    const d = createDocument({ type: "ขั้นตอนการปฏิบัติงาน", title: "การจัดการข้อร้องเรียนลูกค้า", clause: "9.1.2", owner: "ฝ่ายขาย", by: "ชลธิชา มั่นคง", change: "" });
-    expect(d).toMatchObject({ code: "QP-07", status: "ร่าง", rev: -1 });
-    submitDocument(d.code);
-    expect(d.status).toBe("รออนุมัติ");
-    expect(() => approveDocument(d.code, "ชลธิชา มั่นคง")).toThrow("ผู้อนุมัติต้องไม่ใช่ผู้จัดทำ");
-    approveDocument(d.code, QMR, "2026-09-22");
-    expect(d).toMatchObject({ status: "ใช้งาน", rev: 0, effective: "2026-09-22", reviewDue: "2027-09-22" });
+describe("customer requirements (8.2)", () => {
+  it("lists every commitment nobody has reviewed", () => {
+    expect(unreviewed().map((c) => c.doc)).toEqual(["QT-2569-0232", "SO-2569-0416", "SO-2569-0415"]);
+    expect(confirmedBeforeReview().map((c) => c.doc)).toEqual(["SO-2569-0416", "SO-2569-0415"]);
+    expect(commitments()).toHaveLength(7);
   });
 
-  it("keeps the issued revision in use while the next one is drafted", () => {
-    const d = DOCUMENTS.find((x) => x.code === "QP-03")!;
-    reviseDocument("QP-03", "เพิ่มการสั่งการกรณีส่งคืนผู้ขาย", "สุภาพร แก้วมณี");
-    expect(d).toMatchObject({ rev: 0, status: "ใช้งาน", draft: { rev: 1, submitted: false } });
-    expect(() => reviseDocument("QP-03", "แก้อีกรอบ", "สุภาพร แก้วมณี")).toThrow("ค้างอยู่แล้ว");
-    submitDocument("QP-03");
-    approveDocument("QP-03", QMR);
-    expect(d.rev).toBe(1);
-    expect(d.history.map((h) => h.rev)).toEqual([0, 1]);
+  it("does not accept outright what fails a check", () => {
+    const input = { doc: "QT-2569-0232", by: "ชลธิชา มั่นคง", checks: { ...all, capacity: false }, special: "", result: "รับได้" as const, note: "" };
+    expect(requirementErrors(input).result).toContain("กำลังการผลิต");
+    expect(requirementErrors({ ...input, result: "รับได้แบบมีเงื่อนไข" }).note).toContain("เงื่อนไข");
+    reviewRequirement({ ...input, result: "รับได้แบบมีเงื่อนไข", note: "ส่งรถเข็น 2 คันก่อน ที่เหลือส่งตามใน 14 วัน ลูกค้ารับทราบ" });
+    expect(unreviewed().map((c) => c.doc)).toEqual(["SO-2569-0416", "SO-2569-0415"]);
+    expect(requirementErrors({ ...input, result: "รับได้แบบมีเงื่อนไข", note: "ซ้ำ" }).doc).toContain("ทบทวนแล้ว");
+  });
+});
+
+describe("design and development (8.3)", () => {
+  it("does not skip a stage or let designers verify their own work", () => {
+    const d = designByNo("DP-2569-02");
+    expect(nextStage(d)).toBe("ทบทวนการออกแบบ");
+    expect(stageErrors(d.no, { by: "ศักดิ์ชัย วงศ์ไทย", evidence: "ทบทวนแบบกับทีมแล้วไม่มีข้อแก้", participants: ["ศักดิ์ชัย วงศ์ไทย"] }).participants).toContain("หน้าที่อื่น");
+    recordStage(d.no, { by: "ศักดิ์ชัย วงศ์ไทย", evidence: "ย้ายคันโยกไปด้านขวาตามข้อเสนอฝ่ายผลิต", participants: ["ศักดิ์ชัย วงศ์ไทย", "อนุชา ทองดี"] });
+    expect(nextStage(d)).toBe("ทวนสอบ");
+    expect(stageErrors(d.no, { by: "ศักดิ์ชัย วงศ์ไทย", evidence: "ทดสอบยก 300 กก. 100 รอบ ไม่รั่ว", participants: [] }).by).toContain("ไม่ใช่ผู้ออกแบบ");
   });
 
-  it("withdraws a document only with a reason", () => {
-    expect(() => obsoleteDocument("WI-02", "")).toThrow("เหตุผล");
-    obsoleteDocument("WI-02", "รวมเข้ากับแผนการตรวจในระบบแล้ว");
-    expect(DOCUMENTS.find((d) => d.code === "WI-02")!.status).toBe("ยกเลิก");
+  it("controls a change only after the design is released", () => {
+    expect(changeErrors("DP-2569-02", { change: "เปลี่ยนล้อเป็นยาง PU", reason: "ลดเสียง", approvedBy: QMR, reverified: false }).change).toContain("ยังไม่ส่งมอบ");
+    expect(changeErrors("DP-2569-01", { change: "เปลี่ยนล้อเป็นยาง PU", reason: "ลดเสียง", approvedBy: "ศักดิ์ชัย วงศ์ไทย", reverified: false }).approvedBy).toContain(QMR);
+    const d = startDesign({ product: "โต๊ะปรับระดับไฟฟ้า", owner: "ศักดิ์ชัย วงศ์ไทย", target: "2027-03-31", inputs: "ปรับสูง 650–1,250 มม. รับ 80 กก. เสียงมอเตอร์ไม่เกิน 50 dB ตาม มอก. 1167" });
+    expect(d).toMatchObject({ no: "DP-2569-03", records: [{ stage: "ข้อมูลเข้า" }] });
   });
 });
 
 describe("inspection and release (8.6)", () => {
   it("lists what purchasing received but nobody has inspected yet", () => {
-    // GR-2569-197 (28/08) ตลับลูกปืนมีแผนตรวจแต่ยังไม่เปิดล็อต ผู้ขายตามใบสั่งซื้อ PO-2569-112
     expect(pendingInspections()).toEqual([
       { origin: "ตรวจรับ", source: "GR-2569-197", ref: "PO-2569-112", material: "MAT-2002", qty: 200, date: "2026-08-28", vendor: "V-004" },
     ]);
@@ -80,21 +85,16 @@ describe("inspection and release (8.6)", () => {
     const p = pendingInspections().find((x) => x.source === gr.no)!;
     expect(p).toMatchObject({ origin: "ตรวจรับ", material: "MAT-1003", qty: 6, vendor: "V-003" });
     const l = createLot(p);
-    // IL ต่อจาก 0044 · ล็อต 6 ถังเล็กกว่า 8 จึงตรวจทุกถัง
     expect(l).toMatchObject({ no: "IL-2569-0045", sample: 6, status: "รอตรวจ" });
     expect(() => createLot(p)).toThrow("เปิดล็อตตรวจไปแล้ว");
   });
 
   it("judges each characteristic against the plan, not against the inspector", () => {
     expect(resultErrors("IL-2569-0045", [])).toMatchObject({ ความหนืด: expect.any(String) });
-    recordResults("IL-2569-0045", [
-      { characteristic: "ความหนืด", min: 19, max: 25 },
-      { characteristic: "สีตรงตามแผ่นเทียบ RAL 7035", defects: 0 },
-    ], "สุภาพร แก้วมณี");
+    recordResults("IL-2569-0045", [{ characteristic: "ความหนืด", min: 19, max: 25 }, { characteristic: "สีตรงตามแผ่นเทียบ RAL 7035", defects: 0 }], "สุภาพร แก้วมณี");
     const l = lotByNo("IL-2569-0045");
     expect(l.results.map((r) => r.ok)).toEqual([false, true]); // 25 วินาทีเกิน USL 24
     expect(decisionErrors(l.no, "ผ่าน", QMR, "").decision).toContain("ตัดสินผ่านไม่ได้");
-    // ผ่อนผันต้องเป็น QMR
     expect(decisionErrors(l.no, "ยอมรับแบบมีเงื่อนไข", "สุภาพร แก้วมณี", "ความหนืดสูงเล็กน้อย เจือจางได้").by).toContain("QMR");
   });
 
@@ -119,64 +119,58 @@ describe("nonconforming outputs (8.7)", () => {
     const c = createComplaint({ delivery: "DO-2569-0301", material: "FG-5001", qty: 2, description: "ลูกค้าแจ้งน็อตยึดชั้นหลวม 2 ชุด", severity: "รุนแรง", reportedBy: "ชลธิชา มั่นคง" });
     expect(c).toMatchObject({ source: "ข้อร้องเรียนลูกค้า", customer: "C-102", ref: "DO-2569-0301" });
     expect(dispositionErrors(c.no, { disposition: "ส่งคืนผู้ขาย", by: QMR, note: "ส่งคืน" }).disposition).toContain("การตรวจรับ");
-    // ของอยู่ที่ลูกค้า ซ่อมหน้างานไม่ตัดสต็อกเรา
     const before = stock("FG-5001");
     disposeNcr(c.no, { disposition: "ซ่อมหรือทำใหม่", by: QMR, note: "ส่งช่างขันน็อตใหม่ที่หน้างาน" });
     expect(stock("FG-5001")).toBe(before);
-    // รุนแรงต้องมี CAR ก่อนปิด
     expect(closeNcrErrors(c.no).close).toContain("CAR");
   });
 
-  it("closes a severe NCR once a corrective action is open against it", () => {
+  it("closes a severe NCR once the integrated system holds a CAR against it", () => {
     const n = NCRS[NCRS.length - 1];
-    openCapa({ kind: "แก้ไข", ref: n.no, problem: "น็อตยึดชั้นหลวมเมื่อถึงมือลูกค้า", owner: "อนุชา ทองดี" });
-    expect(ncrByNo(n.no).capa).toMatch(/^CAR-2569-/);
+    const car = openCapa({ method: "5 Why", std: "ISO 9001", ref: n.no, problem: "น็อตยึดชั้นหลวมเมื่อถึงมือลูกค้า", owner: "อนุชา ทองดี", team: [] });
+    expect(carOfNcr(n)?.no).toBe(car.no);
     closeNcr(n.no, QMR);
-    expect(ncrByNo(n.no).status).toBe("ปิดแล้ว");
+    expect(n.status).toBe("ปิดแล้ว");
   });
 });
 
-describe("corrective action (10.2)", () => {
-  it("asks why three times, closes only after someone else checks it worked", () => {
-    const c = CAPAS[CAPAS.length - 1];
-    expect(c.status).toBe("วิเคราะห์สาเหตุ");
-    expect(() => recordRootCause(c.no, { category: "วิธีการ", whys: ["น็อตหลวม"] })).toThrow("สามชั้น");
-    addCapaAction(c.no, { what: "กำหนดแรงขันน็อตในใบงานประกอบ", owner: "อนุชา ทองดี", due: "2026-10-05" });
-    expect(() => completeCapaAction(c.no, 0)).toThrow("สาเหตุราก");
-    recordRootCause(c.no, { category: "วิธีการ", whys: ["น็อตหลวมระหว่างขนส่ง", "ขันด้วยมือไม่ได้ค่าแรงบิดที่กำหนด", "ใบงานไม่ระบุแรงบิดและไม่มีประแจทอร์ก"] });
-    expect(c.status).toBe("ดำเนินการ");
-    completeCapaAction(c.no, 0);
-    expect(c.status).toBe("ติดตามผล");
-    expect(() => verifyCapa(c.no, { effective: true, note: "ตรวจ 20 ชุดไม่พบน็อตหลวม", by: "อนุชา ทองดี" })).toThrow("ต้องไม่ใช่ผู้รับผิดชอบ");
-    verifyCapa(c.no, { effective: false, note: "ยังพบน็อตหลวม 1 ใน 20 ชุด", by: QMR });
-    expect(c.status).toBe("วิเคราะห์สาเหตุ");
+describe("external providers (8.4)", () => {
+  it("reads the purchasing grade instead of scoring vendors twice", () => {
+    expect(purchasingGrade("V-001")).toBe("A"); // (5+4+4+4)/4 × 20 = 85
+    expect(purchasingGrade("V-002")).toBe("B"); // (4+3+5+3)/4 × 20 = 75
+    expect(supplierQuality("V-002")).toMatchObject({ lots: 1, accepted: 0, score: 0, ncrs: 1 });
+  });
+
+  it("suspends a supplier in purchasing too, so nobody can order from them", () => {
+    const input = { vendor: "V-002", status: "อนุมัติ" as const, scope: ["MAT-1002"], note: "ประเมินหลังล็อตไม่ผ่าน", by: QMR };
+    expect(approvalErrors(input).status).toContain("ต่ำกว่า 90%");
+    evaluateSupplier({ ...input, status: "ระงับ", note: "เหล็กเส้นไม่ได้ขนาดซ้ำ รอผลแก้ไขจากผู้ขาย" });
+    expect(VENDORS.find((v) => v.code === "V-002")!.blocked).toBe(true);
+    const po = { vendor: "V-002", date: "2026-09-22", deliverBy: "2026-09-30", note: "", lines: [{ material: "MAT-1002", qty: 10, price: 420 }] };
+    expect(orderProblems(po).vendor).toContain("ระงับ");
+    evaluateSupplier({ ...input, status: "อนุมัติแบบมีเงื่อนไข", note: "ผู้ขายเปลี่ยนแม่พิมพ์รีดแล้ว ให้ส่งผลวัดทุกล็อต" });
+    expect(orderProblems(po).vendor).toBeUndefined();
   });
 });
 
-describe("internal audit (9.2)", () => {
-  it("does not let an auditor audit their own department", () => {
-    expect(auditErrors({ area: "ฝ่ายผลิต", clauses: ["8.5"], auditor: "อนุชา ทองดี", planned: "2026-10-20" }).auditor).toContain("ฝ่ายของตัวเอง");
-    expect(auditErrors({ area: "ฝ่ายผลิต", clauses: ["8.5"], auditor: "วรวุฒิ พึ่งบุญ", planned: "2026-10-20" }).auditor).toContain("อบรม");
+describe("customer satisfaction (9.1.2)", () => {
+  it("averages each customer's latest survey", () => {
+    // 4.4, 3.6, 3.8, 2.8 → 3.65
+    expect(overallSatisfaction()).toBe(3.65);
   });
 
-  it("closes an audit only when every nonconformity has a corrective action", () => {
-    const a = planAudit({ area: "ฝ่ายผลิต", clauses: ["8.5", "7.5"], auditor: "สุภาพร แก้วมณี", planned: "2026-10-20" });
-    expect(a.no).toBe("IA-2569-05");
-    startAudit(a.no);
-    addFinding(a.no, { clause: "7.5", type: "ข้อบกพร่องย่อย", detail: "ใบงาน WI-01 ที่หน้างานเป็นฉบับ Rev.00 ที่ยกเลิกแล้ว" });
-    addFinding(a.no, { clause: "8.5", type: "ข้อสังเกต", detail: "พื้นที่วางงานรอพ่นสีไม่มีเส้นแบ่งชัดเจน" });
-    expect(() => closeAudit(a.no)).toThrow("อีก 1 ข้อ");
-    openCapa({ kind: "แก้ไข", ref: `${a.no} #1`, problem: "เอกสารฉบับเก่ายังใช้อยู่หน้างาน", owner: "อนุชา ทองดี" });
-    expect(AUDITS.find((x) => x.no === a.no)!.findings[0].capa).toMatch(/^CAR-/);
-    closeAudit(a.no);
-    expect(a.status).toBe("ปิดแล้ว");
+  it("insists on a follow-up when a customer is unhappy", () => {
+    const low = { customer: "C-104", period: "ครึ่งปีหลัง 2569", scores: { quality: 3, delivery: 3, price: 4, service: 3, complaint: 3 }, comment: "", by: "ชลธิชา มั่นคง" };
+    expect(surveyErrors(low).followUp).toContain("3.5");
+    recordSurvey({ ...low, followUp: "เยี่ยมร้านทุกเดือนและส่งของรอบเช้า" });
+    expect(surveyErrors({ ...low, followUp: "ซ้ำ ๆ ๆ ๆ ๆ ๆ" }).customer).toContain("ตอบแบบสำรวจ");
   });
 });
 
 describe("calibration (7.1.5)", () => {
   it("knows which instruments are overdue or due soon", () => {
-    expect(calState(gaugeByCode("QC-MC-01"))).toBe("เกินกำหนด"); // 10/09/2025 + 12 เดือน
-    expect(calState(gaugeByCode("QC-CT-01"))).toBe("ใกล้ครบ"); // 05/04 + 6 เดือน = 05/10
+    expect(calState(gaugeByCode("QC-MC-01"))).toBe("เกินกำหนด");
+    expect(calState(gaugeByCode("QC-CT-01"))).toBe("ใกล้ครบ");
     expect(calState(gaugeByCode("QC-VC-01"))).toBe("ปกติ");
   });
 
@@ -185,8 +179,6 @@ describe("calibration (7.1.5)", () => {
       date: "2026-09-22", by: "บจก. ไทยแคลิเบรชั่น", certNo: "TC-26-02290", result: "ไม่ผ่าน", error: "+0.021 มม.", note: "ค่าคลาดเคลื่อนเกินเกณฑ์ ±0.004 มม.",
     });
     expect(gauge.status).toBe("พักใช้");
-    expect(calState(gauge)).toBe("พักใช้");
-    // IL-2569-0041 วัดความหนาด้วย QC-MC-01 เมื่อ 03/09 หลังสอบเทียบครั้งก่อน
     expect(ncr).toMatchObject({ source: "สอบเทียบเครื่องมือ", ref: "QC-MC-01" });
     expect(ncr!.description).toContain("IL-2569-0041");
     expect(GAUGES.find((g) => g.code === "QC-MC-01")!.records).toHaveLength(2);

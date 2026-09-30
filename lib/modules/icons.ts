@@ -1,4 +1,4 @@
-import { Banknote, Boxes, ChartPie, Clock, Factory, Landmark, PanelsTopLeft, ShieldCheck, Ship, Users, Warehouse } from "lucide-react";
+import { Banknote, Boxes, ChartPie, Clock, Factory, Landmark, Layers, PanelsTopLeft, ShieldCheck, Ship, Users, Warehouse } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
 /**
@@ -18,6 +18,7 @@ export const MODULE_ICONS = {
   Clock,
   Factory,
   Landmark,
+  Layers,
   PanelsTopLeft,
   ShieldCheck,
   Ship,

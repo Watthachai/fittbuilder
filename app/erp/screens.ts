@@ -9,6 +9,7 @@ import SdScreen from "@/demo/modules/sd/screen";
 import WmScreen from "@/demo/modules/wm/screen";
 import FiScreen from "@/demo/modules/fi/screen";
 import CoScreen from "@/demo/modules/co/screen";
+import ImsScreen from "@/demo/modules/ims/screen";
 import QmScreen from "@/demo/modules/qm/screen";
 
 /** The same components the WebContainer build gets as text. */
@@ -26,5 +27,6 @@ export const SCREENS: Record<string, ComponentType<ScreenProps>> = {
   wm: WmScreen,
   fi: FiScreen,
   co: CoScreen,
+  ims: ImsScreen,
   qm: QmScreen,
 };

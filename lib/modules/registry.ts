@@ -10,6 +10,7 @@ import { SD } from "./logistics/sd";
 import { WM } from "./logistics/wm";
 import { FI } from "./finance/fi";
 import { CO } from "./finance/co";
+import { IMS } from "./quality/ims";
 import { QM } from "./quality/qm";
 
 /**
@@ -23,14 +24,14 @@ import { QM } from "./quality/qm";
  */
 // Catalogue order follows how an HR team grows into the system: records first,
 // then the structure around them, then what people do with their time, then pay.
-export const MODULES: Module[] = [PA, OM, TM, PY, MM, PP, SD, WM, FI, CO, QM];
+export const MODULES: Module[] = [PA, OM, TM, PY, MM, PP, SD, WM, FI, CO, IMS, QM];
 
 /** Buyer-facing name for each family, in catalogue order. */
 export const FAMILIES: { id: Module["family"]; name: string; blurb: string }[] = [
   { id: "hr", name: SYSTEM_NAMES.hr, blurb: "ทะเบียนพนักงานเป็นฐาน แล้วโครงสร้าง เวลา และเงินเดือนอ่านต่อจากที่เดียวกัน" },
   { id: "logistics", name: SYSTEM_NAMES.logistics, blurb: "แฟ้มวัสดุชุดเดียวเดินตั้งแต่ขอซื้อจนส่งของถึงลูกค้า" },
   { id: "finance", name: SYSTEM_NAMES.finance, blurb: "ลงบัญชีจากเอกสารที่ออกจริง จึงต้องมีฝั่งจัดซื้อและขายอยู่ด้วย" },
-  { id: "quality", name: SYSTEM_NAMES.quality, blurb: "ตรวจของที่จัดซื้อรับเข้าและที่ผลิตเสร็จจริง ของเสียตัดสต็อกจริง จึงต้องมีฝั่งจัดซื้อ ผลิต และขายอยู่ด้วย" },
+  { id: "quality", name: SYSTEM_NAMES.quality, blurb: "ISO 9001 และ ISO 14001 บนระบบบริหารบูรณาการชุดเดียว ตรวจของและสิ่งแวดล้อมจากงานจริงของฝั่งจัดซื้อ ผลิต และขาย" },
 ];
 
 export function getModule(id: string | null | undefined): Module | undefined {

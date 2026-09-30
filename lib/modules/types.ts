@@ -34,7 +34,7 @@ export const SYSTEM_NAMES: Record<ModuleFamily, string> = {
   hr: "บุคคลและเงินเดือน",
   logistics: "จัดซื้อ ผลิต ขาย คลัง",
   finance: "บัญชีและต้นทุน",
-  quality: "บริหารคุณภาพ ISO 9001",
+  quality: "มาตรฐาน ISO",
 };
 
 export interface Module {

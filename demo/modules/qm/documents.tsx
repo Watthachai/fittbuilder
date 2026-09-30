@@ -1,130 +1,23 @@
-import type { ReactNode } from "react";
 import { Paper } from "../kit";
+import { QMR, formNo } from "../ims/data";
+import { Block, Facts, Foot, PaperHead, PaperTable, Signatures } from "../ims/parts";
 import {
-  COMPANY, DOCUMENTS, QMR, TODAY, auditByNo, docByCode, capaByNo, clauseName, customerName, gaugeByCode, lotByNo, materialName,
-  materialUnit, ncrByNo, nextDue, planOf, revLabel, vendorName,
+  DESIGN_STAGES, REVIEW_CHECKS, SATISFACTION_CRITERIA, SURVEYS, approvalOf, carOfNcr, commitments, customerName, designByNo,
+  gaugeByCode, lotByNo, materialName, materialUnit, ncrByNo, nextDue, planOf, purchasingGrade, reviewOf,
+  satisfactionByCustomer, supplierQuality, vendorName,
 } from "./data";
 
-/** เอกสารที่พิมพ์ได้จากระบบคุณภาพ — ทุกใบมีเลขแบบฟอร์มควบคุมที่มุมขวาเหมือนเอกสารจริง */
+/** เอกสารที่พิมพ์ได้จากระบบคุณภาพ — ทุกใบมีเลขแบบฟอร์มจากบัญชีรายชื่อเอกสารของระบบบริหารบูรณาการ */
 export type QmDoc =
-  | { doc: "master-list" }
   | { doc: "lot"; no: string }
   | { doc: "ncr"; no: string }
-  | { doc: "car"; no: string }
-  | { doc: "audit"; no: string }
-  | { doc: "gauge"; code: string };
+  | { doc: "gauge"; code: string }
+  | { doc: "requirement"; no: string }
+  | { doc: "design"; no: string }
+  | { doc: "supplier"; code: string }
+  | { doc: "satisfaction" };
 
-/** เลขแบบฟอร์มที่มุมกระดาษ อ่านฉบับจากบัญชีรายชื่อเอกสาร จึงตรงกับที่ผู้ตรวจประเมินเทียบเสมอ */
-const formNo = (code: string) => `${code} ${revLabel(docByCode(code).rev)}`;
-
-function Head({ title, form, number }: { title: string; form: string; number?: string }) {
-  return (
-    <div className="flex items-start justify-between gap-6 border-b-2 border-slate-800 pb-3">
-      <div>
-        <p className="text-[15px] font-bold text-slate-900">{COMPANY.name}</p>
-        <p className="max-w-sm leading-relaxed text-slate-600">{COMPANY.address}</p>
-      </div>
-      <div className="text-right">
-        <p className="text-[16px] font-bold text-slate-900">{title}</p>
-        {number && <p className="mt-0.5 font-semibold tabular-nums text-slate-900">{number}</p>}
-        <p className="mt-1 text-[10.5px] text-slate-500">{form}</p>
-      </div>
-    </div>
-  );
-}
-
-function Facts({ rows }: { rows: [string, ReactNode][] }) {
-  return (
-    <dl className="mt-4 grid grid-cols-[auto_1fr_auto_1fr] gap-x-4 gap-y-1.5 rounded-md border border-slate-300 p-3">
-      {rows.map(([k, v]) => (
-        <div key={k} className="contents">
-          <dt className="text-slate-500">{k}</dt>
-          <dd className="text-slate-900">{v}</dd>
-        </div>
-      ))}
-    </dl>
-  );
-}
-
-function Table({ head, rows }: { head: string[]; rows: ReactNode[][] }) {
-  return (
-    <table className="mt-4 w-full border-collapse">
-      <thead>
-        <tr className="bg-slate-100 text-[11.5px] text-slate-600">
-          {head.map((h) => (
-            <th key={h} className="border border-slate-300 px-2 py-1.5 text-left font-medium">{h}</th>
-          ))}
-        </tr>
-      </thead>
-      <tbody>
-        {rows.length === 0 && (
-          <tr>
-            <td colSpan={head.length} className="border border-slate-300 px-2 py-3 text-center text-slate-400">ไม่มีรายการ</td>
-          </tr>
-        )}
-        {rows.map((r, i) => (
-          <tr key={i}>
-            {r.map((c, j) => (
-              <td key={j} className="border border-slate-300 px-2 py-1.5 align-top">{c}</td>
-            ))}
-          </tr>
-        ))}
-      </tbody>
-    </table>
-  );
-}
-
-function Block({ title, children }: { title: string; children: ReactNode }) {
-  return (
-    <div className="mt-4">
-      <p className="font-semibold text-slate-900">{title}</p>
-      <div className="mt-1 rounded-md border border-slate-300 p-3 leading-relaxed text-slate-700">{children}</div>
-    </div>
-  );
-}
-
-function Signatures({ names }: { names: [string, string?][] }) {
-  return (
-    <div className="mt-10 grid gap-8" style={{ gridTemplateColumns: `repeat(${names.length}, minmax(0, 1fr))` }}>
-      {names.map(([role, name]) => (
-        <div key={role} className="text-center">
-          <div className="mx-auto h-9 w-40 border-b border-dotted border-slate-500" />
-          <p className="mt-1.5 text-slate-700">{name ? `( ${name} )` : "(............................)"}</p>
-          <p className="text-slate-500">{role}</p>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-const Foot = () => (
-  <p className="mt-8 border-t border-slate-200 pt-2 text-[10.5px] text-slate-400">
-    เอกสารควบคุมตามระบบบริหารคุณภาพ ISO 9001:2015 · พิมพ์จากระบบเมื่อ {TODAY}
-  </p>
-);
-
-function MasterList() {
-  const live = DOCUMENTS.filter((d) => d.status !== "ยกเลิก");
-  const dead = DOCUMENTS.filter((d) => d.status === "ยกเลิก");
-  return (
-    <>
-      <Head title="บัญชีรายชื่อเอกสารควบคุม" form={formNo("FM-01")} />
-      <p className="mt-3 text-slate-600">เอกสารที่ใช้งานและฉบับที่มีผลบังคับ ณ วันที่ {TODAY} — ฉบับที่ไม่อยู่ในบัญชีนี้ห้ามใช้ที่หน้างาน</p>
-      <Table
-        head={["รหัส", "ชื่อเอกสาร", "ประเภท", "ฉบับ", "วันที่มีผล", "ฝ่ายเจ้าของ", "ทบทวนครั้งถัดไป"]}
-        rows={live.map((d) => [d.code, d.title, d.type, revLabel(d.rev), d.effective ?? "รออนุมัติ", d.owner, d.reviewDue ?? "—"])}
-      />
-      {dead.length > 0 && (
-        <>
-          <p className="mt-5 font-semibold text-slate-900">เอกสารที่ยกเลิก</p>
-          <Table head={["รหัส", "ชื่อเอกสาร", "ฉบับสุดท้าย", "เหตุผล"]} rows={dead.map((d) => [d.code, d.title, revLabel(d.rev), d.obsoleteReason ?? ""])} />
-        </>
-      )}
-      <Signatures names={[["ผู้จัดทำ", "สุภาพร แก้วมณี"], ["ผู้อนุมัติ (QMR)", QMR]]} />
-      <Foot />
-    </>
-  );
-}
+const Foot_ = () => <Foot system="ระบบบริหารคุณภาพ ISO 9001:2015" />;
 
 function LotReport({ no }: { no: string }) {
   const l = lotByNo(no);
@@ -132,30 +25,29 @@ function LotReport({ no }: { no: string }) {
   const certificate = l.origin === "ตรวจก่อนส่ง" && l.decision && l.decision !== "ไม่ผ่าน";
   return (
     <>
-      <Head
-        title={certificate ? "ใบรับรองคุณภาพสินค้า" : "ใบรายงานผลการตรวจสอบ"}
-        number={l.no}
-        form={certificate ? `${formNo("FM-03")} · Certificate of Conformance` : formNo("FM-02")}
-      />
+      <PaperHead title={certificate ? "ใบรับรองคุณภาพสินค้า" : "ใบรายงานผลการตรวจสอบ"} number={l.no} form={certificate ? `${formNo("FM-03")} · Certificate of Conformance` : formNo("FM-02")} />
       <Facts
         rows={[
           ["ประเภทการตรวจ", l.origin],
           ["วันที่ตรวจ", l.inspectedOn ?? "ยังไม่ตรวจ"],
           ["รายการ", `${l.material} · ${materialName(l.material)}`],
           ["จำนวนล็อต", `${l.qty.toLocaleString("th-TH")} ${materialUnit(l.material)}`],
-          ["เอกสารต้นทาง", `${l.source} · ${l.ref}`],
+          ["เอกสารต้นทาง", l.source === l.ref ? l.source : `${l.source} · ${l.ref}`],
           ["จำนวนตัวอย่าง", `${l.sample} ${materialUnit(l.material)}`],
-          [l.vendor ? "ผู้ขาย" : "หน่วยผลิต", l.vendor ? vendorName(l.vendor) : "ฝ่ายผลิต"],
-          ["ผลการตัดสิน", l.decision ?? "รอตัดสิน"],
+          [l.vendor ? "ผู้ขาย" : "ผู้ผลิต", l.vendor ? vendorName(l.vendor) : "ฝ่ายผลิต"],
+          ["ผลการตัดสิน", l.decision ?? l.status],
         ]}
       />
-      <Table
+      <PaperTable
         head={["คุณลักษณะ", "วิธีตรวจ", "เกณฑ์", "ผลที่ได้", "ผล"]}
         rows={plan.map((c) => {
           const r = l.results.find((x) => x.characteristic === c.name);
-          const spec = c.kind === "วัดค่า" ? `${c.lsl} – ${c.usl} ${c.unit ?? ""}` : "ไม่พบจุดบกพร่อง";
-          const got = !r ? "—" : c.kind === "วัดค่า" ? `${r.min} – ${r.max} ${c.unit ?? ""}` : r.defects === 0 ? "ไม่พบ" : `พบ ${r.defects} ชิ้น`;
-          return [c.name, c.method, spec, got, !r ? "—" : r.ok ? "ผ่าน" : "ไม่ผ่าน"];
+          return [
+            c.name, c.method,
+            c.kind === "วัดค่า" ? `${c.lsl}–${c.usl} ${c.unit ?? ""}` : "ไม่พบจุดบกพร่อง",
+            !r ? "—" : c.kind === "วัดค่า" ? `${r.min} – ${r.max}` : r.defects === 0 ? "ไม่พบ" : `พบ ${r.defects}`,
+            !r ? "—" : r.ok ? "ผ่าน" : "ไม่ผ่าน",
+          ];
         })}
       />
       {l.note && <Block title="หมายเหตุ">{l.note}</Block>}
@@ -166,16 +58,17 @@ function LotReport({ no }: { no: string }) {
       )}
       {l.ncr && <p className="mt-3 text-slate-700">อ้างอิงใบรายงานสิ่งที่ไม่เป็นไปตามข้อกำหนด {l.ncr}</p>}
       <Signatures names={[["ผู้ตรวจ", l.inspector], ["ผู้ตัดสินผล", l.decidedBy]]} />
-      <Foot />
+      <Foot_ />
     </>
   );
 }
 
 function NcrReport({ no }: { no: string }) {
   const n = ncrByNo(no);
+  const car = carOfNcr(n);
   return (
     <>
-      <Head title="ใบรายงานสิ่งที่ไม่เป็นไปตามข้อกำหนด" number={n.no} form={`${formNo("FM-04")} · NCR`} />
+      <PaperHead title="ใบรายงานสิ่งที่ไม่เป็นไปตามข้อกำหนด" number={n.no} form={`${formNo("FM-04")} · NCR`} />
       <Facts
         rows={[
           ["วันที่พบ", n.date],
@@ -201,81 +94,9 @@ function NcrReport({ no }: { no: string }) {
           "ยังไม่สั่งการ"
         )}
       </Block>
-      <Block title="การแก้ไขที่สาเหตุ">{n.capa ? `ออกใบขอให้แก้ไข ${n.capa}` : "ไม่ต้องออก CAR"}</Block>
+      <Block title="การแก้ไขที่สาเหตุ">{car ? `ออกใบขอให้แก้ไข ${car.no} (${car.method}) — ${car.status}` : "ไม่ต้องออก CAR"}</Block>
       <Signatures names={[["ผู้รายงาน", n.reportedBy], ["ผู้สั่งการ", n.dispositionBy], ["ผู้ปิดเรื่อง", n.closedBy]]} />
-      <Foot />
-    </>
-  );
-}
-
-function CarReport({ no }: { no: string }) {
-  const c = capaByNo(no);
-  return (
-    <>
-      <Head title="ใบขอให้ดำเนินการแก้ไขและป้องกัน" number={c.no} form={`${formNo("FM-05")} · CAR`} />
-      <Facts
-        rows={[
-          ["วันที่ออก", c.date],
-          ["ประเภท", `การ${c.kind}`],
-          ["ต้นเรื่อง", c.ref],
-          ["ผู้รับผิดชอบ", c.owner],
-        ]}
-      />
-      <Block title="1. ปัญหา">{c.problem}</Block>
-      <Block title="2. สาเหตุราก">
-        {c.rootCause ? (
-          <>
-            <p className="text-slate-500">กลุ่มสาเหตุ: {c.rootCause.category}</p>
-            <ol className="mt-1 list-decimal pl-5">
-              {c.rootCause.whys.map((w, i) => (
-                <li key={i}>ทำไม — {w}</li>
-              ))}
-            </ol>
-          </>
-        ) : (
-          "ยังไม่วิเคราะห์"
-        )}
-      </Block>
-      <p className="mt-4 font-semibold text-slate-900">3. มาตรการแก้ไข</p>
-      <Table
-        head={["มาตรการ", "ผู้รับผิดชอบ", "กำหนดเสร็จ", "เสร็จเมื่อ"]}
-        rows={c.actions.map((a) => [a.what, a.owner, a.due, a.doneOn ?? "—"])}
-      />
-      <Block title="4. ติดตามประสิทธิผล">
-        {c.verification ? `${c.verification.effective ? "ได้ผล" : "ไม่ได้ผล"} — ${c.verification.note} (${c.verification.by}, ${c.verification.date})` : "ยังไม่ติดตามผล"}
-      </Block>
-      <Signatures names={[["ผู้รับผิดชอบ", c.owner], ["ผู้ติดตามผล", c.verification?.by], ["ผู้อนุมัติ (QMR)", QMR]]} />
-      <Foot />
-    </>
-  );
-}
-
-function AuditReport({ no }: { no: string }) {
-  const a = auditByNo(no);
-  const count = (t: string) => a.findings.filter((f) => f.type === t).length;
-  return (
-    <>
-      <Head title="รายงานการตรวจติดตามภายใน" number={a.no} form={formNo("FM-06")} />
-      <Facts
-        rows={[
-          ["ฝ่ายที่ตรวจ", a.area],
-          ["วันที่ตรวจ", a.performedOn ?? `ตามแผน ${a.planned}`],
-          ["ผู้ตรวจ", a.auditor],
-          ["สถานะ", a.status],
-        ]}
-      />
-      <Block title="ขอบเขตการตรวจ">
-        {a.clauses.map((c) => `ข้อ ${c} ${clauseName(c)}`).join(" · ")}
-      </Block>
-      <Table
-        head={["#", "ข้อกำหนด", "ประเภท", "สิ่งที่พบ", "CAR"]}
-        rows={a.findings.map((f) => [String(f.id), f.clause, f.type, f.detail, f.capa ?? (f.type === "ข้อสังเกต" ? "—" : "ยังไม่ออก")])}
-      />
-      <p className="mt-3 text-slate-700">
-        สรุป: ข้อบกพร่องหลัก {count("ข้อบกพร่องหลัก")} · ข้อบกพร่องย่อย {count("ข้อบกพร่องย่อย")} · ข้อสังเกต {count("ข้อสังเกต")}
-      </p>
-      <Signatures names={[["ผู้ตรวจ", a.auditor], ["ผู้รับการตรวจ"], ["ผู้อนุมัติ (QMR)", QMR]]} />
-      <Foot />
+      <Foot_ />
     </>
   );
 }
@@ -284,7 +105,7 @@ function GaugeReport({ code }: { code: string }) {
   const g = gaugeByCode(code);
   return (
     <>
-      <Head title="บันทึกประวัติการสอบเทียบเครื่องมือวัด" number={g.code} form={formNo("FM-07")} />
+      <PaperHead title="บันทึกประวัติการสอบเทียบเครื่องมือวัด" number={g.code} form={formNo("FM-07")} />
       <Facts
         rows={[
           ["เครื่องมือ", g.name],
@@ -295,12 +116,99 @@ function GaugeReport({ code }: { code: string }) {
           ["ครบกำหนดครั้งถัดไป", g.status === "พักใช้" ? "พักใช้" : nextDue(g)],
         ]}
       />
-      <Table
-        head={["วันที่", "ผู้สอบเทียบ", "เลขที่ใบรับรอง", "ค่าคลาดเคลื่อน", "ผล"]}
-        rows={g.records.map((r) => [r.date, r.by, r.certNo, r.error, r.result])}
-      />
+      <PaperTable head={["วันที่", "ผู้สอบเทียบ", "เลขที่ใบรับรอง", "ค่าคลาดเคลื่อน", "ผล"]} rows={g.records.map((r) => [r.date, r.by, r.certNo, r.error, r.result])} />
       <Signatures names={[["ผู้บันทึก", "สุภาพร แก้วมณี"], ["ผู้อนุมัติ (QMR)", QMR]]} />
-      <Foot />
+      <Foot_ />
+    </>
+  );
+}
+
+function RequirementReport({ no }: { no: string }) {
+  const c = commitments().find((x) => x.doc === no)!;
+  const r = reviewOf(no);
+  return (
+    <>
+      <PaperHead title="ใบทบทวนข้อกำหนดลูกค้า" number={no} form={formNo("FM-12")} />
+      <Facts rows={[["เอกสาร", c.kind], ["ลูกค้า", customerName(c.customer)], ["วันที่เอกสาร", c.date], ["ต้องการรับของ", c.shipBy ?? "ตามตกลง"]]} />
+      <PaperTable head={["สินค้า", "จำนวน"]} rows={c.lines.map((l) => [materialName(l.material), `${l.qty.toLocaleString("th-TH")} ${materialUnit(l.material)}`])} />
+      <PaperTable head={["หัวข้อทบทวน", "ผล"]} rows={REVIEW_CHECKS.map((k) => [k.label, r ? (r.checks[k.key] ? "ได้" : "ไม่ได้") : "—"])} />
+      {r?.special && <Block title="ข้อกำหนดพิเศษของลูกค้า">{r.special}</Block>}
+      <Block title="ผลการทบทวน">{r ? `${r.result}${r.note ? ` — ${r.note}` : ""}` : "ยังไม่ทบทวน"}</Block>
+      <Signatures names={[["ผู้ทบทวน", r?.by], ["ผู้อนุมัติ (QMR)", QMR]]} />
+      <Foot_ />
+    </>
+  );
+}
+
+function DesignRecord({ no }: { no: string }) {
+  const d = designByNo(no);
+  return (
+    <>
+      <PaperHead title="บันทึกการออกแบบและพัฒนา" number={d.no} form={formNo("FM-13")} />
+      <Facts rows={[["ผลิตภัณฑ์", d.product], ["ผู้รับผิดชอบ", d.owner], ["เริ่ม", d.started], ["กำหนดเสร็จ", d.target]]} />
+      <PaperTable
+        head={["ขั้น", "วันที่", "ผู้บันทึก", "หลักฐาน"]}
+        rows={DESIGN_STAGES.map((stage) => {
+          const r = d.records.find((x) => x.stage === stage);
+          return [stage, r?.date ?? "—", r?.by ?? "—", r ? `${r.evidence}${r.participants ? ` (ผู้เข้าร่วม: ${r.participants.join(", ")})` : ""}` : "ยังไม่ถึง"];
+        })}
+      />
+      {d.changes.length > 0 && (
+        <>
+          <p className="mt-4 font-semibold text-slate-900">การเปลี่ยนแปลงแบบหลังส่งมอบ (ข้อ 8.3.6)</p>
+          <PaperTable head={["วันที่", "สิ่งที่เปลี่ยน", "เหตุผล", "ผู้อนุมัติ", "ทวนสอบซ้ำ"]} rows={d.changes.map((c) => [c.date, c.change, c.reason, c.approvedBy, c.reverified ? "แล้ว" : "ยัง"])} />
+        </>
+      )}
+      <Signatures names={[["ผู้ออกแบบ", d.owner], ["ผู้อนุมัติ (QMR)", QMR]]} />
+      <Foot_ />
+    </>
+  );
+}
+
+function SupplierReport({ code }: { code: string }) {
+  const a = approvalOf(code);
+  const q = supplierQuality(code);
+  return (
+    <>
+      <PaperHead title="ใบประเมินผู้ส่งมอบประจำปี" number={code} form={formNo("FM-14")} />
+      <Facts
+        rows={[
+          ["ผู้ขาย", vendorName(code)],
+          ["สถานะ", a?.status ?? "รอประเมิน"],
+          ["ล็อตผ่านครั้งแรก", `${q.accepted} จาก ${q.lots} (${q.score}%)`],
+          ["เกรดจากฝ่ายจัดซื้อ", purchasingGrade(code) ?? "—"],
+          ["NCR ที่เปิดกับผู้ขาย", `${q.ncrs} เรื่อง`],
+          ["ทบทวนครั้งถัดไป", a?.nextReview ?? "—"],
+        ]}
+      />
+      <Block title="ขอบเขตที่อนุมัติ">{a ? a.scope.map(materialName).join(" · ") || "—" : "ยังไม่อนุมัติ"}</Block>
+      <PaperTable head={["วันที่", "ผล", "คุณภาพ %", "เกรดจัดซื้อ", "เหตุผล", "ผู้ประเมิน"]} rows={(a?.history ?? []).map((h) => [h.date, h.status, String(h.quality), h.grade ?? "—", h.note, h.by])} />
+      <Signatures names={[["ผู้ประเมิน", a?.history.at(-1)?.by], ["ผู้อนุมัติ (QMR)", QMR]]} />
+      <Foot_ />
+    </>
+  );
+}
+
+function SatisfactionReport() {
+  const rows = satisfactionByCustomer();
+  return (
+    <>
+      <PaperHead title="สรุปผลสำรวจความพึงพอใจลูกค้า" form={formNo("FM-15")} />
+      <PaperTable
+        head={["ลูกค้า", "รอบ", ...SATISFACTION_CRITERIA.map((c) => c.label), "เฉลี่ย", "ข้อร้องเรียน"]}
+        rows={rows.map((x) => [
+          x.customer.name,
+          x.last?.period ?? "ยังไม่สำรวจ",
+          ...SATISFACTION_CRITERIA.map((c) => (x.last ? String(x.last.scores[c.key]) : "—")),
+          x.score !== undefined ? String(x.score) : "—",
+          String(x.complaints),
+        ])}
+      />
+      <p className="mt-4 font-semibold text-slate-900">ความเห็นและสิ่งที่จะทำต่อ</p>
+      <PaperTable head={["เลขที่", "ลูกค้า", "ความเห็น", "สิ่งที่จะทำต่อ"]} rows={SURVEYS.filter((v) => v.comment || v.followUp).map((v) => [v.no, customerName(v.customer), v.comment || "—", v.followUp ?? "—"])} />
+      <p className="mt-3 text-slate-600">คะแนน 1–5 จากรอบล่าสุดของแต่ละลูกค้า · เฉลี่ยต่ำกว่า 3.5 ต้องมีสิ่งที่จะทำต่อ</p>
+      <Signatures names={[["ผู้จัดทำ", "ชลธิชา มั่นคง"], ["ผู้อนุมัติ (QMR)", QMR]]} />
+      <Foot_ />
     </>
   );
 }
@@ -308,12 +216,13 @@ function GaugeReport({ code }: { code: string }) {
 export function QmPaper({ d }: { d: QmDoc }) {
   return (
     <Paper>
-      {d.doc === "master-list" && <MasterList />}
       {d.doc === "lot" && <LotReport no={d.no} />}
       {d.doc === "ncr" && <NcrReport no={d.no} />}
-      {d.doc === "car" && <CarReport no={d.no} />}
-      {d.doc === "audit" && <AuditReport no={d.no} />}
       {d.doc === "gauge" && <GaugeReport code={d.code} />}
+      {d.doc === "requirement" && <RequirementReport no={d.no} />}
+      {d.doc === "design" && <DesignRecord no={d.no} />}
+      {d.doc === "supplier" && <SupplierReport code={d.code} />}
+      {d.doc === "satisfaction" && <SatisfactionReport />}
     </Paper>
   );
 }

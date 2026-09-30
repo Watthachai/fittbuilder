@@ -3111,6 +3111,1925 @@ export const COMPANY = {
 };
 `,
 
+  "ct/data.ts": `import { commit } from "../kit";
+import { PEOPLE, QMR, TODAY, YEAR, addDays, assertValid, contributeReviewInput, isDate, nextNo } from "../ims/data";
+import type { Errors } from "../ims/data";
+import { MATERIALS } from "../mm/data";
+import { ROUTING, WORK_CENTERS } from "../pp/data";
+import { CUSTOMERS } from "../sd/data";
+import { GAUGES } from "../qm/data";
+
+export { TODAY };
+export type { Errors };
+
+/**
+ * เครื่องมือหลักยานยนต์ (Core Tools) ตาม IATF 16949 — APQP PPAP FMEA แผนควบคุม SPC และ MSA
+ *
+ * ทั้งหกเครื่องมือผูกกันด้วยข้อมูลเดียว: ขั้นตอนใน PFMEA และแผนควบคุมคือขั้นตอนการผลิตของ
+ * ระบบวางแผนการผลิต คุณลักษณะพิเศษที่ PFMEA ประกาศต้องไปอยู่ในแผนควบคุม ความสามารถของ
+ * กระบวนการคำนวณจากค่าที่วัดจริง ผลวิเคราะห์ระบบการวัดใช้เครื่องมือวัดในทะเบียนของระบบคุณภาพ
+ * และรายการส่งมอบของ APQP กับเอกสาร PPAP ตัดสินจากข้อมูลเหล่านี้เอง ไม่ใช่ช่องติ๊กที่ใครก็ติ๊กได้
+ */
+
+export const materialName = (code: string) => MATERIALS.find((m) => m.code === code)?.name ?? code;
+export const customerName = (code: string) => CUSTOMERS.find((c) => c.code === code)?.name ?? code;
+
+/* ================================================================== parts */
+
+export type Part = {
+  code: string;
+  customer: string;
+  customerPart: string;
+  program: string;
+  /** วันเริ่มผลิตจริงตามที่ลูกค้ากำหนด */
+  sop: string;
+  /** ชิ้นส่วนที่เกี่ยวกับความปลอดภัย (IATF 4.4.1.2) */
+  safety: boolean;
+  drawing: string;
+};
+
+export const PARTS: Part[] = [
+  { code: "FG-5004", customer: "C-106", customerPart: "52211-TK220", program: "EV-Compact 2027", sop: "2027-01-15", safety: true, drawing: "52211-TK220 Rev.C" },
+];
+
+export const partOf = (code: string) => {
+  const p = PARTS.find((x) => x.code === code);
+  if (!p) throw new Error(\`ไม่พบชิ้นส่วน \${code}\`);
+  return p;
+};
+
+/** ขั้นตอนการผลิตของชิ้นส่วน — อ่านจากขั้นตอนการผลิตของระบบวางแผนการผลิต */
+export const stepsOf = (part: string) => (ROUTING[part] ?? []).map((r) => ({ op: r.op, text: r.text, wc: r.wc, machine: WORK_CENTERS.find((w) => w.code === r.wc)?.name ?? r.wc }));
+
+/* =================================================================== fmea */
+
+export type ApLevel = "สูง" | "กลาง" | "ต่ำ";
+
+/**
+ * ลำดับความสำคัญของการดำเนินการ (Action Priority) ตามคู่มือ AIAG-VDA — ไม่ใช้ RPN
+ * เพราะ RPN ให้ความรุนแรง 10 กับโอกาสเกิด 1 เท่ากับความรุนแรง 1 กับโอกาสเกิด 10
+ */
+export function actionPriority(s: number, o: number, d: number): ApLevel {
+  if (s <= 1) return "ต่ำ";
+  if (s <= 3) return o >= 8 && d >= 5 ? "กลาง" : "ต่ำ";
+  if (s <= 6) {
+    if (o >= 8) return d >= 5 ? "สูง" : "กลาง";
+    if (o >= 6) return d >= 2 ? "กลาง" : "ต่ำ";
+    if (o >= 4) return d >= 7 ? "กลาง" : "ต่ำ";
+    return "ต่ำ";
+  }
+  if (s <= 8) {
+    if (o >= 8) return "สูง";
+    if (o >= 6) return d >= 2 ? "สูง" : "กลาง";
+    if (o >= 4) return d >= 7 ? "สูง" : "กลาง";
+    if (o >= 2) return d >= 5 ? "กลาง" : "ต่ำ";
+    return "ต่ำ";
+  }
+  if (o >= 6) return "สูง";
+  if (o >= 4) return d >= 2 ? "สูง" : "กลาง";
+  if (o >= 2) return d >= 7 ? "สูง" : d >= 5 ? "กลาง" : "ต่ำ";
+  return "ต่ำ";
+}
+
+export type Special = "CC" | "SC";
+
+export type FmeaAction = { what: string; owner: string; due: string; doneOn?: string; s?: number; o?: number; d?: number };
+
+export type FmeaRow = {
+  id: number;
+  /** ขั้นตอนการผลิต (PFMEA) หรือหน้าที่ของชิ้นส่วน (DFMEA) */
+  step: string;
+  failure: string;
+  effect: string;
+  cause: string;
+  s: number;
+  o: number;
+  d: number;
+  prevention: string;
+  detection: string;
+  /** คุณลักษณะพิเศษที่ความล้มเหลวนี้ชี้ — ต้องไปอยู่ในแผนควบคุม */
+  characteristic?: string;
+  special?: Special;
+  action?: FmeaAction;
+};
+
+export type Fmea = { no: string; type: "DFMEA" | "PFMEA"; part: string; team: string[]; rev: number; date: string; rows: FmeaRow[] };
+
+/** ค่าที่ใช้ตัดสินตอนนี้ — มาตรการเสร็จและประเมินซ้ำแล้วใช้ค่าหลังมาตรการ */
+export const rated = (r: FmeaRow) => (r.action?.doneOn && r.action.s ? { s: r.action.s, o: r.action.o!, d: r.action.d! } : { s: r.s, o: r.o, d: r.d });
+export const apOf = (r: FmeaRow) => {
+  const x = rated(r);
+  return actionPriority(x.s, x.o, x.d);
+};
+/** ระดับสูงที่ยังไม่มีมาตรการ หรือมาตรการยังไม่เสร็จ */
+export const openHigh = (f: Fmea) => f.rows.filter((r) => apOf(r) === "สูง");
+
+export const FMEAS: Fmea[] = [
+  {
+    no: "PF-2569-01", type: "PFMEA", part: "FG-5004", team: ["ศักดิ์ชัย วงศ์ไทย", "ธนพล เจริญผล", "อนุชา ทองดี", "ประสิทธิ์ ขยันยิ่ง"], rev: 2, date: "2026-08-20",
+    rows: [
+      { id: 1, step: "0010 ปั๊มขึ้นรูปและเจาะรู", failure: "ตำแหน่งรูยึดเยื้อง", effect: "ประกอบแบตเตอรี่ไม่ได้ หรือยึดไม่แน่นเมื่อรถชน", cause: "ไกด์พินแม่พิมพ์สึก", s: 9, o: 4, d: 6, prevention: "เปลี่ยนไกด์พินทุก 50,000 ครั้ง", detection: "ตรวจชิ้นแรกทุกกะด้วยฟิกซ์เจอร์", characteristic: "ตำแหน่งรูยึด", special: "CC", action: { what: "ติดตั้งเกจ Go/No-Go ตรวจรูทุกชิ้นและเพิ่มการเปลี่ยนไกด์พินในแผน PM แม่พิมพ์", owner: "ศักดิ์ชัย วงศ์ไทย", due: "2026-09-10", doneOn: "2026-09-08", s: 9, o: 2, d: 3 } },
+      { id: 2, step: "0010 ปั๊มขึ้นรูปและเจาะรู", failure: "ขนาดรูเล็กกว่าเกณฑ์", effect: "สกรูยึดใส่ไม่ได้ที่สายประกอบลูกค้า", cause: "พันช์สึกหรอ", s: 7, o: 5, d: 5, prevention: "ลับพันช์ตามรอบ", detection: "วัดรูด้วยเวอร์เนียร์ 5 ชิ้นต่อชั่วโมง", characteristic: "ขนาดรูยึด", special: "SC" },
+      { id: 3, step: "0010 ปั๊มขึ้นรูปและเจาะรู", failure: "ครีบคม (burr) ที่ขอบ", effect: "บาดสายไฟแบตเตอรี่", cause: "ระยะห่างพันช์กับดายไม่ได้", s: 8, o: 3, d: 4, prevention: "ตั้งระยะห่างตามใบตั้งแม่พิมพ์", detection: "ตรวจพินิจทุกชิ้น" },
+      { id: 4, step: "0020 พ่นสีฝุ่นดำและอบ", failure: "ความหนาสีต่ำกว่าเกณฑ์", effect: "เป็นสนิมก่อนกำหนด", cause: "แรงดันปืนพ่นตก", s: 5, o: 4, d: 3, prevention: "ตรวจแรงดันต้นกะ", detection: "วัดความหนาสี 3 ชิ้นต่อชั่วโมง", characteristic: "ความหนาสีเคลือบ" },
+      { id: 5, step: "0030 ตรวจรูด้วยเกจ Go/No-Go ทุกชิ้นและบรรจุ", failure: "บรรจุชิ้นงานผิดรุ่นปนกัน", effect: "ลูกค้าประกอบผิดรุ่น", cause: "วางกล่องหลายรุ่นในพื้นที่เดียว", s: 6, o: 3, d: 5, prevention: "แยกพื้นที่บรรจุตามรุ่น", detection: "สแกนบาร์โค้ดป้ายกล่อง" },
+    ],
+  },
+  {
+    no: "DF-2569-01", type: "DFMEA", part: "FG-5001", team: ["ศักดิ์ชัย วงศ์ไทย", "สุภาพร แก้วมณี"], rev: 0, date: "2026-04-12",
+    rows: [
+      { id: 1, step: "รับน้ำหนักชั้นละ 150 กก.", failure: "คานรับชั้นยุบตัว", effect: "สินค้าบนชั้นตกใส่ผู้ใช้", cause: "ความหนาคานไม่พอ", s: 9, o: 2, d: 3, prevention: "คำนวณแรงด้วยค่าความปลอดภัย 1.5 เท่า", detection: "ทดสอบรับน้ำหนักต้นแบบ 24 ชั่วโมง" },
+      { id: 2, step: "ป้องกันสนิม 5 ปี", failure: "สีหลุดล่อน", effect: "เป็นสนิม ลูกค้าร้องเรียน", cause: "ไม่ได้ปรับสภาพผิวก่อนพ่น", s: 4, o: 3, d: 4, prevention: "กำหนดขั้นตอนฟอสเฟตใน WI-03", detection: "ทดสอบการยึดเกาะแบบขีดตาราง" },
+    ],
+  },
+];
+
+export const fmeaByNo = (no: string) => {
+  const f = FMEAS.find((x) => x.no === no);
+  if (!f) throw new Error(\`ไม่พบ \${no}\`);
+  return f;
+};
+
+const in1to10 = (n: number) => Number.isInteger(n) && n >= 1 && n <= 10;
+
+export type FmeaRowInput = Omit<FmeaRow, "id" | "action">;
+
+export function fmeaRowErrors(input: FmeaRowInput): Errors {
+  const e: Errors = {};
+  if (input.step.trim().length < 3) e.step = "ขั้นตอนหรือหน้าที่";
+  if (input.failure.trim().length < 3) e.failure = "ลักษณะความล้มเหลว";
+  if (input.effect.trim().length < 3) e.effect = "ผลกระทบ";
+  if (input.cause.trim().length < 3) e.cause = "สาเหตุ";
+  if (![input.s, input.o, input.d].every(in1to10)) e.s = "S O D ต้องเป็น 1–10";
+  if (input.detection.trim().length < 3) e.detection = "การตรวจจับที่ใช้อยู่";
+  if (input.special && !input.characteristic?.trim()) e.characteristic = "คุณลักษณะพิเศษต้องบอกว่าคุณลักษณะอะไร";
+  if (input.special === "CC" && input.s < 9) e.special = "CC ใช้กับความรุนแรง 9–10 (ความปลอดภัยหรือกฎหมาย)";
+  return e;
+}
+
+export function addFmeaRow(no: string, input: FmeaRowInput) {
+  const f = fmeaByNo(no);
+  assertValid(fmeaRowErrors(input));
+  return commit(() => {
+    const r: FmeaRow = { ...input, id: Math.max(0, ...f.rows.map((x) => x.id)) + 1, characteristic: input.characteristic?.trim() || undefined };
+    f.rows.push(r);
+    return r;
+  });
+}
+
+export function fmeaActionErrors(input: Pick<FmeaAction, "what" | "owner" | "due">): Errors {
+  const e: Errors = {};
+  if (input.what.trim().length < 5) e.what = "บอกมาตรการ";
+  if (!PEOPLE.includes(input.owner)) e.owner = "เลือกผู้รับผิดชอบ";
+  if (!isDate(input.due) || input.due < TODAY) e.due = "กำหนดเสร็จต้องไม่ย้อนหลัง";
+  return e;
+}
+
+export function addFmeaAction(no: string, id: number, input: Pick<FmeaAction, "what" | "owner" | "due">) {
+  const f = fmeaByNo(no);
+  const r = f.rows.find((x) => x.id === id);
+  if (!r) throw new Error("ไม่พบแถวนี้");
+  if (r.action && !r.action.doneOn) throw new Error("แถวนี้มีมาตรการค้างอยู่แล้ว");
+  assertValid(fmeaActionErrors(input));
+  return commit(() => {
+    r.action = { what: input.what.trim(), owner: input.owner, due: input.due };
+    return r;
+  });
+}
+
+/** ปิดมาตรการพร้อมประเมินซ้ำ — ความรุนแรงลดได้เฉพาะเมื่อแก้แบบ ปกติคงเดิม */
+export function completeFmeaAction(no: string, id: number, input: { s: number; o: number; d: number }, date = TODAY) {
+  const f = fmeaByNo(no);
+  const r = f.rows.find((x) => x.id === id);
+  if (!r?.action || r.action.doneOn) throw new Error("ไม่มีมาตรการที่รอปิด");
+  if (![input.s, input.o, input.d].every(in1to10)) throw new Error("S O D ต้องเป็น 1–10");
+  if (f.type === "PFMEA" && input.s !== r.s) throw new Error("PFMEA ลดความรุนแรงไม่ได้ ต้องแก้แบบผลิตภัณฑ์");
+  return commit(() => {
+    Object.assign(r.action!, { doneOn: date, s: input.s, o: input.o, d: input.d });
+    f.rev += 1;
+    f.date = date;
+    return r;
+  });
+}
+
+/** คุณลักษณะพิเศษที่ PFMEA ของชิ้นส่วนประกาศไว้ */
+export const specialsOf = (part: string) =>
+  FMEAS.filter((f) => f.part === part && f.type === "PFMEA").flatMap((f) => f.rows.filter((r) => r.special && r.characteristic).map((r) => ({ characteristic: r.characteristic!, special: r.special! })));
+
+/* ========================================================== control plan */
+
+export const CP_PHASES = ["ต้นแบบ", "ก่อนผลิต", "ผลิตจริง"] as const;
+export type CpPhase = (typeof CP_PHASES)[number];
+export const CONTROL_METHODS = ["SPC", "Poka-Yoke", "ตรวจ 100%", "ตรวจชิ้นแรกและชิ้นสุดท้าย", "สุ่มตรวจ"] as const;
+export type ControlMethod = (typeof CONTROL_METHODS)[number];
+
+export type CpRow = {
+  op: string;
+  characteristic: string;
+  special?: Special;
+  spec: string;
+  lsl?: number;
+  usl?: number;
+  gauge: string;
+  sample: string;
+  control: ControlMethod;
+  reaction: string;
+};
+
+export type ControlPlan = { no: string; part: string; phase: CpPhase; rev: number; date: string; approvedBy?: string; rows: CpRow[] };
+
+const BK220_ROWS: CpRow[] = [
+  { op: "0010", characteristic: "ตำแหน่งรูยึด", special: "CC", spec: "120.00 ± 0.20 มม.", lsl: 119.8, usl: 120.2, gauge: "CMM-FX-01", sample: "5 ชิ้น ทุก 2 ชั่วโมง", control: "SPC", reaction: "หยุดเครื่อง กักชิ้นงานตั้งแต่ครั้งตรวจก่อน แจ้ง QC" },
+  { op: "0010", characteristic: "ตำแหน่งรูยึด", special: "CC", spec: "ผ่านเกจ Go/No-Go", gauge: "GG-BK220-01", sample: "ทุกชิ้น", control: "Poka-Yoke", reaction: "ชิ้นที่ไม่ผ่านตกรางของเสียอัตโนมัติ ทวนสอบเกจต้นกะ" },
+  { op: "0010", characteristic: "ขนาดรูยึด", special: "SC", spec: "Ø10.50–10.60 มม.", lsl: 10.5, usl: 10.6, gauge: "QC-VC-01", sample: "5 ชิ้น ทุก 2 ชั่วโมง", control: "SPC", reaction: "ลับพันช์ ตรวจย้อนหลัง 2 ชั่วโมง" },
+  { op: "0010", characteristic: "ครีบคมที่ขอบ", spec: "ไม่มีครีบเกิน 0.1 มม.", gauge: "ตรวจพินิจ", sample: "ทุกชิ้น", control: "ตรวจ 100%", reaction: "คัดแยก ตั้งระยะแม่พิมพ์ใหม่" },
+  { op: "0020", characteristic: "ความหนาสีเคลือบ", spec: "60–120 ไมครอน", lsl: 60, usl: 120, gauge: "QC-CT-01", sample: "3 ชิ้น ทุกชั่วโมง", control: "สุ่มตรวจ", reaction: "ปรับแรงดันปืนพ่น พ่นซ้ำชิ้นที่บาง" },
+];
+
+export const CONTROL_PLANS: ControlPlan[] = [
+  { no: "CP-BK220-P", part: "FG-5004", phase: "ต้นแบบ", rev: 0, date: "2026-06-15", approvedBy: QMR, rows: BK220_ROWS.filter((r) => r.control !== "Poka-Yoke").map((r) => ({ ...r, sample: "ทุกชิ้น", control: "ตรวจ 100%" as ControlMethod })) },
+  { no: "CP-BK220-L", part: "FG-5004", phase: "ก่อนผลิต", rev: 1, date: "2026-09-08", approvedBy: QMR, rows: BK220_ROWS.map((r) => ({ ...r })) },
+];
+
+export const planByNo = (no: string) => {
+  const p = CONTROL_PLANS.find((x) => x.no === no);
+  if (!p) throw new Error(\`ไม่พบ \${no}\`);
+  return p;
+};
+
+export const planOfPhase = (part: string, phase: CpPhase) => CONTROL_PLANS.find((p) => p.part === part && p.phase === phase);
+
+/** คุณลักษณะพิเศษที่ PFMEA ประกาศแต่แผนควบคุมยังไม่มี — ผู้ตรวจ IATF ถามข้อนี้เสมอ */
+export const missingSpecials = (cp: ControlPlan) =>
+  specialsOf(cp.part).filter((s) => !cp.rows.some((r) => r.characteristic === s.characteristic && r.special === s.special));
+
+/** CC ต้องควบคุมด้วยวิธีที่จับของเสียได้จริง ไม่ใช่สุ่มตรวจ */
+export const weakCc = (cp: ControlPlan) =>
+  [...new Set(cp.rows.filter((r) => r.special === "CC").map((r) => r.characteristic))].filter(
+    (c) => !cp.rows.some((r) => r.characteristic === c && (r.control === "SPC" || r.control === "Poka-Yoke" || r.control === "ตรวจ 100%")),
+  );
+
+export function cpRowErrors(no: string, input: CpRow): Errors {
+  const cp = planByNo(no);
+  const e: Errors = {};
+  if (!stepsOf(cp.part).some((s) => s.op === input.op)) e.op = "เลือกขั้นตอนจากขั้นตอนการผลิต";
+  if (input.characteristic.trim().length < 3) e.characteristic = "ใส่คุณลักษณะ";
+  if (input.spec.trim().length < 2) e.spec = "ใส่เกณฑ์";
+  if (input.gauge.trim().length < 2) e.gauge = "ใส่เครื่องมือวัดหรือวิธีตรวจ";
+  if (input.sample.trim().length < 2) e.sample = "ขนาดและความถี่การสุ่ม";
+  if (input.reaction.trim().length < 5) e.reaction = "แผนตอบสนองเมื่อไม่เป็นไปตามเกณฑ์";
+  if (input.special === "CC" && input.control === "สุ่มตรวจ") e.control = "CC ใช้การสุ่มตรวจอย่างเดียวไม่ได้";
+  return e;
+}
+
+export function addCpRow(no: string, input: CpRow) {
+  assertValid(cpRowErrors(no, input));
+  const cp = planByNo(no);
+  return commit(() => {
+    cp.rows.push({ ...input, characteristic: input.characteristic.trim() });
+    cp.rev += 1;
+    cp.date = TODAY;
+    cp.approvedBy = undefined;
+    return cp;
+  });
+}
+
+export function approvePlanErrors(no: string, by: string): Errors {
+  const cp = planByNo(no);
+  const e: Errors = {};
+  if (cp.approvedBy) e.by = \`\${no} ฉบับนี้อนุมัติแล้ว\`;
+  else if (missingSpecials(cp).length) e.by = \`ยังขาดคุณลักษณะพิเศษ \${missingSpecials(cp).map((s) => \`\${s.characteristic} (\${s.special})\`).join(", ")}\`;
+  else if (weakCc(cp).length) e.by = \`CC \${weakCc(cp).join(", ")} ยังควบคุมด้วยการสุ่มตรวจอย่างเดียว\`;
+  if (!PEOPLE.includes(by)) e.by = e.by ?? "เลือกผู้อนุมัติ";
+  return e;
+}
+
+export function approvePlan(no: string, by: string) {
+  assertValid(approvePlanErrors(no, by));
+  const cp = planByNo(no);
+  return commit(() => {
+    cp.approvedBy = by;
+    return cp;
+  });
+}
+
+/** ยกแผนก่อนผลิตเป็นแผนผลิตจริง — ทำได้เมื่อ PPAP อนุมัติแล้วเท่านั้น */
+export function promoteToProduction(part: string) {
+  const launch = planOfPhase(part, "ก่อนผลิต");
+  if (!launch?.approvedBy) throw new Error("ต้องมีแผนควบคุมก่อนผลิตที่อนุมัติแล้ว");
+  if (planOfPhase(part, "ผลิตจริง")) throw new Error("มีแผนควบคุมผลิตจริงแล้ว");
+  const s = submissionOf(part);
+  if (s?.decision !== "อนุมัติ" && s?.decision !== "อนุมัติชั่วคราว") throw new Error("ลูกค้าต้องอนุมัติ PPAP ก่อนใช้แผนควบคุมผลิตจริง");
+  return commit(() => {
+    const cp: ControlPlan = { no: launch.no.replace(/-L$/, "-M"), part, phase: "ผลิตจริง", rev: 0, date: TODAY, approvedBy: QMR, rows: launch.rows.map((r) => ({ ...r })) };
+    CONTROL_PLANS.push(cp);
+    return cp;
+  });
+}
+
+/* ==================================================================== spc */
+
+/** ค่าคงที่ของแผนภูมิ X̄–R สำหรับกลุ่มย่อยขนาด 2–5 */
+const SPC_CONST: Record<number, { a2: number; d2: number; d3: number; d4: number }> = {
+  2: { a2: 1.88, d2: 1.128, d3: 0, d4: 3.267 },
+  3: { a2: 1.023, d2: 1.693, d3: 0, d4: 2.574 },
+  4: { a2: 0.729, d2: 2.059, d3: 0, d4: 2.282 },
+  5: { a2: 0.577, d2: 2.326, d3: 0, d4: 2.114 },
+};
+
+export type Subgroup = { date: string; values: number[] };
+export type SpcChart = {
+  code: string; part: string; op: string; characteristic: string; special?: Special; lsl: number; usl: number; n: number; subgroups: Subgroup[];
+  /** การศึกษาก่อนหน้าที่ปิดไปเมื่อกระบวนการเปลี่ยน — เก็บไว้เป็นหลักฐาน ไม่นำมาคำนวณ */
+  history: { closedOn: string; reason: string; subgroups: Subgroup[] }[];
+};
+
+/** ตัวสุ่มที่ให้ค่าเดิมทุกครั้ง — ข้อมูลตัวอย่างต้องเหมือนกันทุกเครื่องทุกครั้งที่เปิด */
+function seeded(seed: number) {
+  let x = seed;
+  const next = () => {
+    x = (x * 1103515245 + 12345) % 2147483648;
+    return x / 2147483648;
+  };
+  // Box–Muller: ค่ากระจายแบบปกติ
+  return () => Math.sqrt(-2 * Math.log(next() || 1e-9)) * Math.cos(2 * Math.PI * next());
+}
+
+const round = (n: number, dp: number) => Math.round(n * 10 ** dp) / 10 ** dp;
+
+function sampleGroups(seed: number, mean: number, sd: number, count: number, dp: number): Subgroup[] {
+  const z = seeded(seed);
+  return Array.from({ length: count }, (_, i) => ({
+    date: addDays("2026-08-24", Math.floor(i / 3)),
+    values: Array.from({ length: 5 }, () => round(mean + z() * sd, dp)),
+  }));
+}
+
+export const CHARTS: SpcChart[] = [
+  { code: "SPC-01", part: "FG-5004", op: "0010", characteristic: "ตำแหน่งรูยึด", special: "CC", lsl: 119.8, usl: 120.2, n: 5, subgroups: sampleGroups(11, 120.01, 0.025, 25, 3), history: [] },
+  { code: "SPC-02", part: "FG-5004", op: "0010", characteristic: "ขนาดรูยึด", special: "SC", lsl: 10.5, usl: 10.6, n: 5, subgroups: sampleGroups(29, 10.557, 0.013, 25, 3), history: [] },
+];
+
+export const chartByCode = (code: string) => {
+  const c = CHARTS.find((x) => x.code === code);
+  if (!c) throw new Error(\`ไม่พบ \${code}\`);
+  return c;
+};
+
+const mean = (xs: number[]) => xs.reduce((a, b) => a + b, 0) / xs.length;
+
+/** สถิติของแผนภูมิ — Cp/Cpk จากความแปรปรวนภายในกลุ่ม (R̄/d2) Pp/Ppk จากส่วนเบี่ยงเบนรวม */
+export function stats(c: SpcChart) {
+  const k = SPC_CONST[c.n];
+  const means = c.subgroups.map((g) => mean(g.values));
+  const ranges = c.subgroups.map((g) => Math.max(...g.values) - Math.min(...g.values));
+  const xbar = mean(means);
+  const rbar = mean(ranges);
+  const within = rbar / k.d2;
+  if (c.subgroups.length < 2) return { xbar: NaN, rbar: NaN, within: NaN, overall: NaN, cp: NaN, cpk: NaN, pp: NaN, ppk: NaN, limits: { uclX: NaN, lclX: NaN, uclR: NaN, lclR: NaN }, means, ranges, outOfControl: [] as number[] };
+  const all = c.subgroups.flatMap((g) => g.values);
+  const overall = Math.sqrt(all.reduce((s, v) => s + (v - xbar) ** 2, 0) / (all.length - 1));
+  const tol = c.usl - c.lsl;
+  const cp = tol / (6 * within);
+  const cpk = Math.min(c.usl - xbar, xbar - c.lsl) / (3 * within);
+  const pp = tol / (6 * overall);
+  const ppk = Math.min(c.usl - xbar, xbar - c.lsl) / (3 * overall);
+  const limits = { uclX: xbar + k.a2 * rbar, lclX: xbar - k.a2 * rbar, uclR: k.d4 * rbar, lclR: k.d3 * rbar };
+  const outOfControl = c.subgroups.map((_, i) => i).filter((i) => means[i] > limits.uclX || means[i] < limits.lclX || ranges[i] > limits.uclR);
+  return { xbar, rbar, within, overall, cp: round(cp, 2), cpk: round(cpk, 2), pp: round(pp, 2), ppk: round(ppk, 2), limits, means, ranges, outOfControl };
+}
+
+/** เกณฑ์ความสามารถตาม IATF — CC ต้องได้ 1.67 ในการศึกษาเบื้องต้น ที่เหลือ 1.33 */
+export const capabilityTarget = (c: SpcChart) => (c.special === "CC" ? 1.67 : 1.33);
+/** การศึกษาเบื้องต้นต้องมีอย่างน้อย 25 กลุ่มย่อย ไม่อย่างนั้นค่าดัชนียังเชื่อไม่ได้ */
+export const MIN_SUBGROUPS = 25;
+export const enoughData = (c: SpcChart) => c.subgroups.length >= MIN_SUBGROUPS;
+export const capable = (c: SpcChart) => enoughData(c) && stats(c).ppk >= capabilityTarget(c);
+
+/** เริ่มการศึกษาใหม่หลังปรับกระบวนการหรือเปลี่ยนเครื่องมือวัด — ข้อมูลเดิมย้ายไปเป็นประวัติ */
+export function restartChart(code: string, reason: string, date = TODAY) {
+  const c = chartByCode(code);
+  if (reason.trim().length < 10) throw new Error("บอกว่าเปลี่ยนอะไรในกระบวนการ จึงต้องเริ่มศึกษาใหม่");
+  if (c.subgroups.length === 0) throw new Error("ยังไม่มีข้อมูลให้ปิดการศึกษา");
+  return commit(() => {
+    c.history.push({ closedOn: date, reason: reason.trim(), subgroups: c.subgroups });
+    c.subgroups = [];
+    return c;
+  });
+}
+
+export function subgroupErrors(code: string, values: number[]): Errors {
+  const c = chartByCode(code);
+  const e: Errors = {};
+  if (values.length !== c.n || values.some((v) => !Number.isFinite(v))) e.values = \`ใส่ค่าที่วัดได้ครบ \${c.n} ชิ้น\`;
+  return e;
+}
+
+/** เพิ่มกลุ่มย่อย — จุดที่หลุดเส้นควบคุมคืนค่ากลับให้หน้าจอบอกแผนตอบสนอง */
+export function addSubgroup(code: string, values: number[], date = TODAY) {
+  assertValid(subgroupErrors(code, values));
+  const c = chartByCode(code);
+  return commit(() => {
+    c.subgroups.push({ date, values: [...values] });
+    const st = stats(c);
+    return { chart: c, outOfControl: st.outOfControl.includes(c.subgroups.length - 1), outOfSpec: values.some((v) => v < c.lsl || v > c.usl) };
+  });
+}
+
+/** นำเข้าหลายกลุ่มย่อยในครั้งเดียว — บรรทัดละหนึ่งกลุ่ม */
+export function parseSubgroups(text: string, n: number): number[][] | undefined {
+  const lines = text.split("\\n").map((l) => l.trim()).filter(Boolean).map((l) => l.split(/[\\s,]+/).map(Number));
+  if (lines.length === 0 || lines.some((l) => l.length !== n || l.some((v) => !Number.isFinite(v)))) return undefined;
+  return lines;
+}
+
+export function addSubgroups(code: string, text: string, date = TODAY) {
+  const c = chartByCode(code);
+  const rows = parseSubgroups(text, c.n);
+  if (!rows) throw new Error(\`ใส่บรรทัดละ \${c.n} ค่า คั่นด้วยช่องว่างหรือจุลภาค\`);
+  return commit(() => {
+    for (const values of rows) c.subgroups.push({ date, values });
+    return c;
+  });
+}
+
+/* ==================================================================== msa */
+
+/** ค่าคงที่วิธีค่าเฉลี่ยและพิสัย (AIAG MSA ฉบับที่ 4) — 3 ครั้ง 3 ผู้วัด 10 ชิ้น */
+const K1 = 0.5908;
+const K2 = 0.5231;
+const K3 = 0.3146;
+
+export type MsaStudy = {
+  no: string;
+  gauge: string;
+  gaugeName: string;
+  characteristic: string;
+  lsl: number;
+  usl: number;
+  date: string;
+  appraisers: string[];
+  /** data[ผู้วัด][ครั้งที่][ชิ้นที่] */
+  data: number[][][];
+};
+
+function studyData(seed: number, center: number, partSpread: number, bias: number[], repeat: number, dp: number): number[][][] {
+  const z = seeded(seed);
+  const parts = Array.from({ length: 10 }, () => center + z() * partSpread);
+  return bias.map((b) => Array.from({ length: 3 }, () => parts.map((p) => round(p + b + z() * repeat, dp))));
+}
+
+export const STUDIES: MsaStudy[] = [
+  {
+    no: "MSA-2569-01", gauge: "CMM-FX-01", gaugeName: "ฟิกซ์เจอร์วัดตำแหน่งรู", characteristic: "ตำแหน่งรูยึด", lsl: 119.8, usl: 120.2, date: "2026-08-18",
+    appraisers: ["สุภาพร แก้วมณี", "ธนพล เจริญผล", "อนุชา ทองดี"], data: studyData(7, 120.01, 0.06, [0, 0.002, -0.002], 0.004, 3),
+  },
+  {
+    no: "MSA-2569-02", gauge: "QC-VC-01", gaugeName: "เวอร์เนียร์คาลิปเปอร์", characteristic: "ขนาดรูยึด", lsl: 10.5, usl: 10.6, date: "2026-08-19",
+    appraisers: ["สุภาพร แก้วมณี", "ธนพล เจริญผล", "อนุชา ทองดี"], data: studyData(13, 10.555, 0.012, [0, 0.004, -0.003], 0.004, 3),
+  },
+];
+
+export const studyByNo = (no: string) => {
+  const s = STUDIES.find((x) => x.no === no);
+  if (!s) throw new Error(\`ไม่พบ \${no}\`);
+  return s;
+};
+
+/** Gage R&R วิธีค่าเฉลี่ยและพิสัย — %GRR เทียบความแปรปรวนรวม และจำนวนกลุ่มที่แยกได้ (ndc) */
+export function grr(s: MsaStudy) {
+  const appraiserAvg = s.data.map((trials) => mean(trials.flat()));
+  const rangeBar = mean(s.data.map((trials) => mean(trials[0].map((_, p) => Math.max(...trials.map((t) => t[p])) - Math.min(...trials.map((t) => t[p]))))));
+  const ev = rangeBar * K1;
+  const xdiff = Math.max(...appraiserAvg) - Math.min(...appraiserAvg);
+  const n = s.data[0][0].length;
+  const r = s.data[0].length;
+  const av = Math.sqrt(Math.max(0, (xdiff * K2) ** 2 - ev ** 2 / (n * r)));
+  const g = Math.sqrt(ev ** 2 + av ** 2);
+  const partAvg = s.data[0][0].map((_, p) => mean(s.data.flatMap((trials) => trials.map((t) => t[p]))));
+  const pv = (Math.max(...partAvg) - Math.min(...partAvg)) * K3;
+  const tv = Math.sqrt(g ** 2 + pv ** 2);
+  const pct = round((100 * g) / tv, 1);
+  const ndc = Math.floor((1.41 * pv) / g);
+  return { ev, av, grr: g, pv, tv, pct, ndc, verdict: pct < 10 && ndc >= 5 ? ("ยอมรับได้" as const) : pct <= 30 ? ("ยอมรับได้แบบมีเงื่อนไข" as const) : ("ยอมรับไม่ได้" as const) };
+}
+
+export const msaAcceptable = (s: MsaStudy) => grr(s).verdict !== "ยอมรับไม่ได้";
+
+/** อุปกรณ์ช่วยตรวจเฉพาะชิ้นส่วน (PPAP ข้อ 16) — ทำขึ้นสำหรับชิ้นส่วนนี้โดยเฉพาะ */
+export const CHECKING_AIDS = [
+  { code: "CMM-FX-01", name: "ฟิกซ์เจอร์วัดตำแหน่งรู", part: "FG-5004" },
+  { code: "GG-BK220-01", name: "เกจ Go/No-Go ตรวจรูยึด", part: "FG-5004" },
+  { code: "BG-BK220-01", name: "เกจวัดรูแบบบอร์ (air gauge)", part: "FG-5004" },
+];
+
+/** เครื่องมือวัดที่ใช้ศึกษาได้ — ทะเบียนเครื่องมือวัดของระบบคุณภาพ และอุปกรณ์ช่วยตรวจเฉพาะชิ้นส่วน */
+export const GAUGE_OPTIONS = () => [
+  ...GAUGES.map((g) => ({ value: g.code, label: \`\${g.code} · \${g.name}\` })),
+  ...CHECKING_AIDS.map((a) => ({ value: a.code, label: \`\${a.code} · \${a.name}\` })),
+];
+
+/** ผลศึกษาล่าสุดของแต่ละคุณลักษณะ — ศึกษาใหม่หลังเปลี่ยนเครื่องมือ ผลเก่าไม่นับ */
+export const latestStudies = (part: string) => {
+  const chars = CHARTS.filter((c) => c.part === part).map((c) => c.characteristic);
+  return chars.map((ch) => STUDIES.filter((x) => x.characteristic === ch).sort((a, b) => a.no.localeCompare(b.no)).at(-1)).filter((x): x is MsaStudy => !!x);
+};
+
+export type StudyInput = { gauge: string; characteristic: string; lsl: number; usl: number; appraisers: string[]; rows: string };
+
+/** ข้อมูลเก้าบรรทัด: ผู้วัดละสามครั้ง บรรทัดละสิบค่าคั่นด้วยช่องว่างหรือจุลภาค */
+export function parseRows(rows: string): number[][][] | undefined {
+  const lines = rows.split("\\n").map((l) => l.trim()).filter(Boolean).map((l) => l.split(/[\\s,]+/).map(Number));
+  if (lines.length !== 9 || lines.some((l) => l.length !== 10 || l.some((v) => !Number.isFinite(v)))) return undefined;
+  return [lines.slice(0, 3), lines.slice(3, 6), lines.slice(6, 9)];
+}
+
+export function studyErrors(input: StudyInput): Errors {
+  const e: Errors = {};
+  if (!GAUGE_OPTIONS().some((g) => g.value === input.gauge)) e.gauge = "เลือกเครื่องมือวัด";
+  if (input.characteristic.trim().length < 3) e.characteristic = "คุณลักษณะที่วัด";
+  if (!(input.usl > input.lsl)) e.usl = "USL ต้องมากกว่า LSL";
+  if (new Set(input.appraisers).size !== 3 || input.appraisers.some((a) => !PEOPLE.includes(a))) e.appraisers = "เลือกผู้วัด 3 คนไม่ซ้ำกัน";
+  if (!parseRows(input.rows)) e.rows = "ใส่ 9 บรรทัด (ผู้วัด 3 คน × 3 ครั้ง) บรรทัดละ 10 ค่า";
+  return e;
+}
+
+export function recordStudy(input: StudyInput, date = TODAY) {
+  assertValid(studyErrors(input));
+  return commit(() => {
+    const s: MsaStudy = {
+      no: nextNo(STUDIES.map((x) => x.no), \`MSA-\${YEAR}-\`, 2), gauge: input.gauge, gaugeName: GAUGE_OPTIONS().find((g) => g.value === input.gauge)!.label.split(" · ")[1],
+      characteristic: input.characteristic.trim(), lsl: input.lsl, usl: input.usl, date, appraisers: [...input.appraisers], data: parseRows(input.rows)!,
+    };
+    STUDIES.push(s);
+    return s;
+  });
+}
+
+/* ================================================================== ppap */
+
+export const PPAP_ELEMENTS = [
+  "บันทึกการออกแบบ", "เอกสารการเปลี่ยนแปลงทางวิศวกรรม", "การอนุมัติทางวิศวกรรมจากลูกค้า", "DFMEA", "แผนผังกระบวนการ", "PFMEA",
+  "แผนควบคุม", "ผลการวิเคราะห์ระบบการวัด", "ผลการวัดขนาด", "ผลทดสอบวัสดุและสมรรถนะ", "ผลการศึกษากระบวนการเบื้องต้น",
+  "เอกสารห้องปฏิบัติการ", "รายงานอนุมัติลักษณะภายนอก", "ชิ้นงานตัวอย่าง", "ชิ้นงานต้นแบบ", "อุปกรณ์ช่วยตรวจ", "ข้อกำหนดเฉพาะลูกค้า",
+  "ใบรับรองการส่งชิ้นส่วน (PSW)",
+] as const;
+export type PpapElement = (typeof PPAP_ELEMENTS)[number];
+export type ElementStatus = "ครบ" | "ยังไม่ครบ" | "ไม่เกี่ยวข้อง";
+
+export type Submission = {
+  no: string;
+  part: string;
+  level: 1 | 2 | 3 | 4 | 5;
+  reason: string;
+  manual: Partial<Record<PpapElement, ElementStatus>>;
+  submittedOn?: string;
+  decision?: "อนุมัติ" | "อนุมัติชั่วคราว" | "ไม่อนุมัติ";
+  decidedOn?: string;
+  customerNote?: string;
+  interimUntil?: string;
+};
+
+export const SUBMISSIONS: Submission[] = [
+  {
+    no: "PPAP-2569-01", part: "FG-5004", level: 3, reason: "ชิ้นส่วนใหม่",
+    manual: {
+      "บันทึกการออกแบบ": "ครบ", "เอกสารการเปลี่ยนแปลงทางวิศวกรรม": "ไม่เกี่ยวข้อง", "การอนุมัติทางวิศวกรรมจากลูกค้า": "ไม่เกี่ยวข้อง", DFMEA: "ไม่เกี่ยวข้อง",
+      "แผนผังกระบวนการ": "ครบ", "ผลการวัดขนาด": "ครบ", "ผลทดสอบวัสดุและสมรรถนะ": "ครบ", "เอกสารห้องปฏิบัติการ": "ครบ", "รายงานอนุมัติลักษณะภายนอก": "ครบ",
+      "ชิ้นงานตัวอย่าง": "ครบ", "ชิ้นงานต้นแบบ": "ครบ", "อุปกรณ์ช่วยตรวจ": "ครบ", "ข้อกำหนดเฉพาะลูกค้า": "ครบ",
+    },
+  },
+];
+
+export const submissionOf = (part: string) => SUBMISSIONS.filter((s) => s.part === part).at(-1);
+export const submissionByNo = (no: string) => {
+  const s = SUBMISSIONS.find((x) => x.no === no);
+  if (!s) throw new Error(\`ไม่พบ \${no}\`);
+  return s;
+};
+
+/** องค์ประกอบที่ระบบตัดสินเองจากข้อมูลจริง — ไม่ต้องติ๊ก และติ๊กแทนไม่ได้ */
+export const AUTO_ELEMENTS: PpapElement[] = ["PFMEA", "แผนควบคุม", "ผลการวิเคราะห์ระบบการวัด", "ผลการศึกษากระบวนการเบื้องต้น", "ใบรับรองการส่งชิ้นส่วน (PSW)"];
+
+export function elementStatus(s: Submission, el: PpapElement): { status: ElementStatus; why: string } {
+  const pf = FMEAS.filter((f) => f.part === s.part && f.type === "PFMEA");
+  const cp = planOfPhase(s.part, "ก่อนผลิต");
+  const studies = latestStudies(s.part);
+  const charts = CHARTS.filter((c) => c.part === s.part);
+  switch (el) {
+    case "PFMEA":
+      if (!pf.length) return { status: "ยังไม่ครบ", why: "ยังไม่มี PFMEA" };
+      return pf.some((f) => openHigh(f).length) ? { status: "ยังไม่ครบ", why: \`ยังมี AP สูง \${pf.reduce((n, f) => n + openHigh(f).length, 0)} แถว\` } : { status: "ครบ", why: \`\${pf.map((f) => \`\${f.no} Rev.\${f.rev}\`).join(", ")} ไม่มี AP สูงค้าง\` };
+    case "แผนควบคุม":
+      if (!cp) return { status: "ยังไม่ครบ", why: "ยังไม่มีแผนควบคุมก่อนผลิต" };
+      if (!cp.approvedBy) return { status: "ยังไม่ครบ", why: \`\${cp.no} ยังไม่อนุมัติ\` };
+      return missingSpecials(cp).length ? { status: "ยังไม่ครบ", why: "ขาดคุณลักษณะพิเศษจาก PFMEA" } : { status: "ครบ", why: \`\${cp.no} Rev.\${cp.rev} อนุมัติแล้ว\` };
+    case "ผลการวิเคราะห์ระบบการวัด":
+      if (!studies.length) return { status: "ยังไม่ครบ", why: "ยังไม่ศึกษา MSA" };
+      return studies.every(msaAcceptable) ? { status: "ครบ", why: studies.map((x) => \`\${x.no} %GRR \${grr(x).pct}%\`).join(", ") } : { status: "ยังไม่ครบ", why: "มีเครื่องมือที่ %GRR เกิน 30%" };
+    case "ผลการศึกษากระบวนการเบื้องต้น": {
+      const weak = charts.filter((c) => !capable(c));
+      const why = (c: SpcChart) => (enoughData(c) ? \`\${c.characteristic} Ppk \${stats(c).ppk} < \${capabilityTarget(c)}\` : \`\${c.characteristic} มีข้อมูล \${c.subgroups.length} จาก \${MIN_SUBGROUPS} กลุ่มย่อย\`);
+      return weak.length ? { status: "ยังไม่ครบ", why: weak.map(why).join(", ") } : { status: "ครบ", why: charts.map((c) => \`\${c.characteristic} Ppk \${stats(c).ppk}\`).join(", ") };
+    }
+    case "ใบรับรองการส่งชิ้นส่วน (PSW)":
+      return s.submittedOn ? { status: "ครบ", why: \`ลงนามส่ง \${s.submittedOn}\` } : { status: "ยังไม่ครบ", why: "ออกเมื่อส่ง" };
+    default:
+      return { status: s.manual[el] ?? "ยังไม่ครบ", why: s.manual[el] === "ไม่เกี่ยวข้อง" ? "ลูกค้าเป็นผู้ออกแบบ หรือไม่มีการเปลี่ยนแปลง" : "" };
+  }
+}
+
+/** ที่ยังขาดก่อนส่ง — ทุกองค์ประกอบยกเว้น PSW ที่จะออกตอนส่ง */
+export const pendingElements = (s: Submission) => PPAP_ELEMENTS.filter((el) => el !== "ใบรับรองการส่งชิ้นส่วน (PSW)" && elementStatus(s, el).status === "ยังไม่ครบ");
+
+export function setElement(no: string, el: PpapElement, status: ElementStatus) {
+  const s = submissionByNo(no);
+  if (AUTO_ELEMENTS.includes(el)) throw new Error(\`\${el} ระบบตัดสินจากข้อมูลจริง แก้ด้วยมือไม่ได้\`);
+  if (s.submittedOn) throw new Error(\`\${no} ส่งลูกค้าแล้ว\`);
+  return commit(() => {
+    s.manual[el] = status;
+    return s;
+  });
+}
+
+export function submitPpap(no: string, date = TODAY) {
+  const s = submissionByNo(no);
+  if (s.submittedOn) throw new Error(\`\${no} ส่งแล้ว\`);
+  const pending = pendingElements(s);
+  if (pending.length) throw new Error(\`ยังขาด \${pending.join(", ")}\`);
+  return commit(() => {
+    s.submittedOn = date;
+    return s;
+  });
+}
+
+export function decisionErrors(no: string, input: { decision: NonNullable<Submission["decision"]>; note: string; interimUntil: string }): Errors {
+  const s = submissionByNo(no);
+  const e: Errors = {};
+  if (!s.submittedOn) e.decision = "ส่ง PPAP ก่อนบันทึกผลจากลูกค้า";
+  else if (s.decision) e.decision = \`\${no} ลูกค้าตัดสินแล้ว\`;
+  if (input.decision !== "อนุมัติ" && input.note.trim().length < 5) e.note = "บันทึกเหตุผลหรือเงื่อนไขจากลูกค้า";
+  if (input.decision === "อนุมัติชั่วคราว" && (!isDate(input.interimUntil) || input.interimUntil <= TODAY)) e.interimUntil = "อนุมัติชั่วคราวต้องมีวันหมดอายุ";
+  return e;
+}
+
+export function recordDecision(no: string, input: { decision: NonNullable<Submission["decision"]>; note: string; interimUntil: string }, date = TODAY) {
+  assertValid(decisionErrors(no, input));
+  const s = submissionByNo(no);
+  return commit(() => {
+    s.decision = input.decision;
+    s.decidedOn = date;
+    s.customerNote = input.note.trim() || undefined;
+    s.interimUntil = input.decision === "อนุมัติชั่วคราว" ? input.interimUntil : undefined;
+    return s;
+  });
+}
+
+/** ส่งชิ้นส่วนผลิตจริงได้หรือยัง — ใช้ร่วมกับข้อกำหนด IATF และฝ่ายขาย */
+export const releasedForProduction = (part: string) => {
+  const s = submissionOf(part);
+  return s?.decision === "อนุมัติ" || (s?.decision === "อนุมัติชั่วคราว" && (s.interimUntil ?? "") >= TODAY);
+};
+
+/* ================================================================== apqp */
+
+export const PHASES = [
+  "วางแผนและกำหนดโครงการ",
+  "ออกแบบและพัฒนาผลิตภัณฑ์",
+  "ออกแบบและพัฒนากระบวนการ",
+  "ทวนสอบผลิตภัณฑ์และกระบวนการ",
+  "ผลป้อนกลับและการปรับปรุง",
+] as const;
+
+export type AutoCheck = "pfmea" | "cp-launch" | "msa" | "spc" | "ppap" | "cp-production";
+
+export type Deliverable = { item: string; phase: number; owner: string; due: string; doneOn?: string; auto?: AutoCheck };
+export type Gate = { phase: number; date: string; decision: "ผ่าน" | "ผ่านแบบมีเงื่อนไข"; note: string; by: string };
+
+export type ApqpProject = { no: string; part: string; leader: string; team: string[]; started: string; deliverables: Deliverable[]; gates: Gate[] };
+
+export const PROJECTS: ApqpProject[] = [
+  {
+    no: "APQP-2569-01", part: "FG-5004", leader: "ธนพล เจริญผล", team: ["ธนพล เจริญผล", "ศักดิ์ชัย วงศ์ไทย", "อนุชา ทองดี", "ปิยะนุช ใจดี", "ชลธิชา มั่นคง"], started: "2026-05-04",
+    deliverables: [
+      { item: "ข้อกำหนดลูกค้าและเป้าหมายคุณภาพ", phase: 0, owner: "ชลธิชา มั่นคง", due: "2026-05-15", doneOn: "2026-05-12" },
+      { item: "รายการคุณลักษณะพิเศษเบื้องต้น", phase: 0, owner: "ธนพล เจริญผล", due: "2026-05-20", doneOn: "2026-05-19" },
+      { item: "ทบทวนความเป็นไปได้และลงนามรับงาน (Feasibility)", phase: 1, owner: "ศักดิ์ชัย วงศ์ไทย", due: "2026-06-05", doneOn: "2026-06-03" },
+      { item: "ทบทวนแบบและความคลาดเคลื่อนที่ผลิตได้", phase: 1, owner: "ศักดิ์ชัย วงศ์ไทย", due: "2026-06-10", doneOn: "2026-06-09" },
+      { item: "แผนผังกระบวนการ", phase: 2, owner: "ศักดิ์ชัย วงศ์ไทย", due: "2026-07-01", doneOn: "2026-06-28" },
+      { item: "PFMEA ไม่มี AP สูงค้าง", phase: 2, owner: "ศักดิ์ชัย วงศ์ไทย", due: "2026-07-20", auto: "pfmea" },
+      { item: "แผนควบคุมก่อนผลิตที่อนุมัติแล้ว", phase: 2, owner: "ธนพล เจริญผล", due: "2026-08-10", auto: "cp-launch" },
+      { item: "ผลการวิเคราะห์ระบบการวัด", phase: 3, owner: "ธนพล เจริญผล", due: "2026-08-25", auto: "msa" },
+      { item: "ความสามารถกระบวนการเบื้องต้นถึงเกณฑ์", phase: 3, owner: "ธนพล เจริญผล", due: "2026-09-15", auto: "spc" },
+      { item: "PPAP ได้รับอนุมัติจากลูกค้า", phase: 3, owner: "ธนพล เจริญผล", due: "2026-10-30", auto: "ppap" },
+      { item: "แผนควบคุมผลิตจริง", phase: 4, owner: "ธนพล เจริญผล", due: "2027-01-10", auto: "cp-production" },
+      { item: "ติดตามของเสียที่ลูกค้าพบ 3 เดือนแรกหลังเริ่มผลิต", phase: 4, owner: "ธนพล เจริญผล", due: "2027-04-15" },
+    ],
+    gates: [
+      { phase: 0, date: "2026-05-22", decision: "ผ่าน", note: "ได้รับการคัดเลือกเป็นผู้ส่งมอบ", by: QMR },
+      { phase: 1, date: "2026-06-12", decision: "ผ่าน", note: "ยืนยันความเป็นไปได้ ลูกค้าเป็นผู้ออกแบบ", by: QMR },
+      { phase: 2, date: "2026-09-09", decision: "ผ่าน", note: "PFMEA และแผนควบคุมก่อนผลิตพร้อม เริ่มผลิตทดลอง", by: QMR },
+    ],
+  },
+];
+
+export const projectByNo = (no: string) => {
+  const p = PROJECTS.find((x) => x.no === no);
+  if (!p) throw new Error(\`ไม่พบ \${no}\`);
+  return p;
+};
+
+export function isDone(p: ApqpProject, d: Deliverable) {
+  if (!d.auto) return !!d.doneOn;
+  const s = submissionOf(p.part);
+  switch (d.auto) {
+    case "pfmea":
+      return s ? elementStatus(s, "PFMEA").status === "ครบ" : false;
+    case "cp-launch":
+      return s ? elementStatus(s, "แผนควบคุม").status === "ครบ" : false;
+    case "msa":
+      return s ? elementStatus(s, "ผลการวิเคราะห์ระบบการวัด").status === "ครบ" : false;
+    case "spc":
+      return s ? elementStatus(s, "ผลการศึกษากระบวนการเบื้องต้น").status === "ครบ" : false;
+    case "ppap":
+      return releasedForProduction(p.part);
+    case "cp-production":
+      return !!planOfPhase(p.part, "ผลิตจริง");
+  }
+}
+
+/** เฟสปัจจุบัน — เฟสแรกที่ยังไม่ผ่านประตู */
+export const currentPhase = (p: ApqpProject) => {
+  const passed = p.gates.map((g) => g.phase);
+  return PHASES.findIndex((_, i) => !passed.includes(i));
+};
+
+export const lateDeliverables = (p: ApqpProject) => p.deliverables.filter((d) => !isDone(p, d) && d.due < TODAY);
+
+export function completeDeliverable(no: string, index: number, date = TODAY) {
+  const p = projectByNo(no);
+  const d = p.deliverables[index];
+  if (!d) throw new Error("ไม่พบรายการนี้");
+  if (d.auto) throw new Error(\`\${d.item} ระบบตัดสินจากข้อมูลจริง\`);
+  if (d.doneOn) throw new Error("ทำเสร็จแล้ว");
+  if (d.phase > Math.max(0, currentPhase(p))) throw new Error("ยังไม่ถึงเฟสนี้");
+  return commit(() => {
+    d.doneOn = date;
+    return p;
+  });
+}
+
+export function gateErrors(no: string, input: { decision: Gate["decision"]; note: string; by: string }): Errors {
+  const p = projectByNo(no);
+  const phase = currentPhase(p);
+  const e: Errors = {};
+  if (phase < 0) e.decision = "ผ่านครบทุกเฟสแล้ว";
+  else {
+    const open = p.deliverables.filter((d) => d.phase === phase && !isDone(p, d));
+    if (input.decision === "ผ่าน" && open.length) e.decision = \`ยังค้าง \${open.map((d) => d.item).join(", ")} — ผ่านแบบมีเงื่อนไขพร้อมบอกแผน\`;
+  }
+  if (input.decision === "ผ่านแบบมีเงื่อนไข" && input.note.trim().length < 10) e.note = "บอกสิ่งที่ค้างและกำหนดปิด";
+  if (input.by !== QMR && input.by !== "วีระ ตั้งมั่น") e.by = "ประตูผ่านเฟสอนุมัติโดยผู้แทนฝ่ายบริหารหรือผู้บริหารสูงสุด";
+  return e;
+}
+
+export function passGate(no: string, input: { decision: Gate["decision"]; note: string; by: string }, date = TODAY) {
+  assertValid(gateErrors(no, input));
+  const p = projectByNo(no);
+  return commit(() => {
+    const g: Gate = { phase: currentPhase(p), date, decision: input.decision, note: input.note.trim(), by: input.by };
+    p.gates.push(g);
+    return g;
+  });
+}
+
+/* ======================================================== review inputs */
+
+const toneOf = (bad: boolean, warn = false) => (bad ? "bad" : warn ? "warn" : "ok") as "bad" | "warn" | "ok";
+
+contributeReviewInput({
+  key: "ct-launch", std: ["IATF 16949"], input: "IATF 9.3.2.1", title: "ความพร้อมการเปิดตัวชิ้นส่วนใหม่",
+  facts: () => {
+    const p = PROJECTS[0];
+    const s = submissionOf(p.part);
+    return [
+      { label: \`\${p.part} เฟส APQP\`, value: currentPhase(p) < 0 ? "ครบทุกเฟส" : PHASES[currentPhase(p)], tone: "idle" },
+      { label: "รายการส่งมอบเลยกำหนด", value: \`\${lateDeliverables(p).length} รายการ\`, tone: toneOf(lateDeliverables(p).length > 0) },
+      { label: "PPAP", value: s?.decision ?? (s?.submittedOn ? "รอลูกค้า" : \`ขาด \${s ? pendingElements(s).length : "—"} องค์ประกอบ\`), tone: toneOf(!releasedForProduction(p.part) && !!s && pendingElements(s).length > 0, !releasedForProduction(p.part)) },
+    ];
+  },
+});
+
+contributeReviewInput({
+  key: "ct-capability", std: ["IATF 16949"], input: "IATF 9.1.1.1", title: "ความสามารถของกระบวนการและระบบการวัด",
+  facts: () => [
+    { label: "คุณลักษณะที่ Ppk ต่ำกว่าเกณฑ์", value: \`\${CHARTS.filter((c) => !capable(c)).length} จาก \${CHARTS.length}\`, tone: toneOf(CHARTS.some((c) => !capable(c))) },
+    { label: "MSA ล่าสุดที่ยอมรับไม่ได้", value: \`\${PARTS.flatMap((p) => latestStudies(p.code)).filter((s) => !msaAcceptable(s)).length} เรื่อง\`, tone: toneOf(PARTS.flatMap((p) => latestStudies(p.code)).some((s) => !msaAcceptable(s))) },
+  ],
+});
+`,
+
+  "ct/documents.tsx": `import { Paper } from "../kit";
+import { COMPANY, QMR, formNo } from "../ims/data";
+import { Block, Facts, Foot, PaperHead, PaperTable, Signatures } from "../ims/parts";
+import {
+  PHASES, PPAP_ELEMENTS, apOf, chartByCode, customerName, elementStatus, fmeaByNo, grr, isDone, materialName, partOf, planByNo,
+  projectByNo, rated, stats, capabilityTarget, studyByNo, submissionByNo,
+} from "./data";
+
+/** เอกสารที่พิมพ์ได้จาก Core Tools — ทุกใบมีเลขแบบฟอร์มจากบัญชีรายชื่อเอกสาร */
+export type CtDoc =
+  | { doc: "psw"; no: string }
+  | { doc: "fmea"; no: string }
+  | { doc: "control-plan"; no: string }
+  | { doc: "spc"; code: string }
+  | { doc: "msa"; no: string }
+  | { doc: "apqp"; no: string };
+
+const Foot_ = () => <Foot system="IATF 16949:2016 · AIAG-VDA Core Tools" />;
+const f2 = (n: number) => (Number.isFinite(n) ? n.toFixed(2) : "—");
+const f4 = (n: number) => (Number.isFinite(n) ? n.toFixed(4) : "—");
+
+function Psw({ no }: { no: string }) {
+  const s = submissionByNo(no);
+  const p = partOf(s.part);
+  return (
+    <>
+      <PaperHead title="ใบรับรองการส่งชิ้นส่วน (Part Submission Warrant)" number={s.no} form={formNo("FM-21")} />
+      <Facts
+        rows={[
+          ["ชื่อชิ้นส่วน", materialName(s.part)],
+          ["เลขชิ้นส่วนลูกค้า", p.customerPart],
+          ["แบบเลขที่", p.drawing],
+          ["โครงการ", p.program],
+          ["ผู้ผลิต", COMPANY.name],
+          ["ลูกค้า", customerName(p.customer)],
+          ["เหตุผลที่ส่ง", s.reason],
+          ["ระดับการส่ง", \`ระดับ \${s.level}\`],
+        ]}
+      />
+      <PaperTable
+        head={["#", "องค์ประกอบ", "สถานะ", "หมายเหตุ"]}
+        rows={PPAP_ELEMENTS.map((el, i) => {
+          const st = elementStatus(s, el);
+          return [String(i + 1), el, st.status, st.why];
+        })}
+      />
+      <Block title="คำรับรอง">
+        ขอรับรองว่าตัวอย่างที่ส่งผลิตจากเครื่องมือ แม่พิมพ์ และกระบวนการผลิตจริง ในอัตราการผลิตจริง และเป็นไปตามข้อกำหนดทุกข้อในแบบและข้อกำหนดเฉพาะของลูกค้า
+        {s.submittedOn ? \` · ลงนามส่ง \${s.submittedOn}\` : " · ยังไม่ส่ง"}
+      </Block>
+      <Block title="ผลการพิจารณาของลูกค้า">
+        {s.decision ? \`\${s.decision} เมื่อ \${s.decidedOn}\${s.interimUntil ? \` ใช้ได้ถึง \${s.interimUntil}\` : ""}\${s.customerNote ? \` — \${s.customerNote}\` : ""}\` : "รอผล"}
+      </Block>
+      <Signatures names={[["ผู้ลงนามของผู้ผลิต", QMR], ["ผู้อนุมัติของลูกค้า"]]} />
+      <Foot_ />
+    </>
+  );
+}
+
+function FmeaSheet({ no }: { no: string }) {
+  const f = fmeaByNo(no);
+  return (
+    <>
+      <PaperHead title={f.type === "PFMEA" ? "การวิเคราะห์ลักษณะความล้มเหลวของกระบวนการ (PFMEA)" : "การวิเคราะห์ลักษณะความล้มเหลวของการออกแบบ (DFMEA)"} number={\`\${f.no} Rev.\${f.rev}\`} form={formNo("FM-22")} />
+      <Facts rows={[["ชิ้นส่วน", \`\${f.part} · \${materialName(f.part)}\`], ["ปรับปรุงล่าสุด", f.date], ["ทีม", f.team.join(", ")], ["วิธีจัดลำดับ", "Action Priority ตาม AIAG-VDA"]]} />
+      <PaperTable
+        head={[f.type === "PFMEA" ? "ขั้นตอน" : "หน้าที่", "ความล้มเหลว", "ผลกระทบ", "สาเหตุ", "S", "O", "D", "AP", "พิเศษ", "มาตรการ", "หลังมาตรการ"]}
+        rows={f.rows.map((r) => [
+          r.step, r.failure, r.effect, r.cause, String(r.s), String(r.o), String(r.d), apOf({ ...r, action: undefined }), r.special ? \`\${r.special} \${r.characteristic}\` : "—",
+          r.action ? \`\${r.action.what} (\${r.action.owner}, \${r.action.doneOn ?? \`กำหนด \${r.action.due}\`})\` : "—",
+          r.action?.doneOn ? \`S\${rated(r).s} O\${rated(r).o} D\${rated(r).d} · AP \${apOf(r)}\` : "—",
+        ])}
+      />
+      <Signatures names={[["หัวหน้าทีม", f.team[0]], ["ผู้อนุมัติ (QMR)", QMR]]} />
+      <Foot_ />
+    </>
+  );
+}
+
+function ControlPlanSheet({ no }: { no: string }) {
+  const cp = planByNo(no);
+  const p = partOf(cp.part);
+  return (
+    <>
+      <PaperHead title={\`แผนควบคุม — ระยะ\${cp.phase}\`} number={\`\${cp.no} Rev.\${cp.rev}\`} form={formNo("FM-23")} />
+      <Facts rows={[["ชิ้นส่วน", \`\${materialName(cp.part)} (\${p.customerPart})\`], ["ลูกค้า", customerName(p.customer)], ["วันที่", cp.date], ["อนุมัติ", cp.approvedBy ?? "ยังไม่อนุมัติ"]]} />
+      <PaperTable
+        head={["ขั้นตอน", "คุณลักษณะ", "พิเศษ", "เกณฑ์", "เครื่องมือวัด", "ขนาด/ความถี่", "วิธีควบคุม", "แผนตอบสนอง"]}
+        rows={cp.rows.map((r) => [r.op, r.characteristic, r.special ?? "—", r.spec, r.gauge, r.sample, r.control, r.reaction])}
+      />
+      <Signatures names={[["ผู้จัดทำ", "ธนพล เจริญผล"], ["ผู้อนุมัติ (QMR)", cp.approvedBy]]} />
+      <Foot_ />
+    </>
+  );
+}
+
+function SpcReport({ code }: { code: string }) {
+  const c = chartByCode(code);
+  const st = stats(c);
+  return (
+    <>
+      <PaperHead title="รายงานความสามารถของกระบวนการ" number={c.code} form={formNo("FM-24")} />
+      <Facts
+        rows={[
+          ["คุณลักษณะ", \`\${c.characteristic}\${c.special ? \` (\${c.special})\` : ""}\`],
+          ["เกณฑ์", \`\${c.lsl} – \${c.usl}\`],
+          ["กลุ่มย่อย", \`\${c.subgroups.length} กลุ่ม × \${c.n} ชิ้น\`],
+          ["เป้า Ppk", String(capabilityTarget(c))],
+          ["X̄", f4(st.xbar)],
+          ["R̄", f4(st.rbar)],
+          ["Cp / Cpk", \`\${f2(st.cp)} / \${f2(st.cpk)}\`],
+          ["Pp / Ppk", \`\${f2(st.pp)} / \${f2(st.ppk)}\`],
+        ]}
+      />
+      <Block title="เส้นควบคุม">UCL X̄ {f4(st.limits.uclX)} · LCL X̄ {f4(st.limits.lclX)} · UCL R {f4(st.limits.uclR)} · จุดหลุดการควบคุม {st.outOfControl.length} จุด</Block>
+      <PaperTable head={["#", "วันที่", "ค่าที่วัด", "X̄", "R"]} rows={c.subgroups.map((g, i) => [String(i + 1), g.date, g.values.join("  "), f4(st.means[i]), f4(st.ranges[i])])} />
+      {c.history.length > 0 && <Block title="การศึกษาก่อนหน้า">{c.history.map((h) => \`ปิด \${h.closedOn}: \${h.reason} (\${h.subgroups.length} กลุ่ม)\`).join(" · ")}</Block>}
+      <Signatures names={[["ผู้วิเคราะห์", "ธนพล เจริญผล"], ["ผู้อนุมัติ (QMR)", QMR]]} />
+      <Foot_ />
+    </>
+  );
+}
+
+function MsaReport({ no }: { no: string }) {
+  const s = studyByNo(no);
+  const r = grr(s);
+  return (
+    <>
+      <PaperHead title="รายงานการวิเคราะห์ระบบการวัด (Gage R&R)" number={s.no} form={formNo("FM-25")} />
+      <Facts
+        rows={[
+          ["เครื่องมือวัด", \`\${s.gauge} · \${s.gaugeName}\`],
+          ["คุณลักษณะ", s.characteristic],
+          ["เกณฑ์", \`\${s.lsl} – \${s.usl}\`],
+          ["วันที่ศึกษา", s.date],
+          ["ผู้วัด", s.appraisers.join(", ")],
+          ["วิธี", "ค่าเฉลี่ยและพิสัย · 10 ชิ้น × 3 คน × 3 ครั้ง"],
+        ]}
+      />
+      <PaperTable
+        head={["รายการ", "ค่า"]}
+        rows={[
+          ["ความผันแปรของเครื่องมือ (EV)", f4(r.ev)],
+          ["ความผันแปรของผู้วัด (AV)", f4(r.av)],
+          ["GRR", f4(r.grr)],
+          ["ความผันแปรของชิ้นงาน (PV)", f4(r.pv)],
+          ["%GRR เทียบความผันแปรรวม", \`\${r.pct}%\`],
+          ["จำนวนกลุ่มที่แยกได้ (ndc)", String(r.ndc)],
+        ]}
+      />
+      <Block title="ผลการตัดสิน">{r.verdict} — เกณฑ์: ต่ำกว่า 10% และ ndc ตั้งแต่ 5 ยอมรับได้ · 10–30% ยอมรับได้แบบมีเงื่อนไข · เกิน 30% ยอมรับไม่ได้</Block>
+      <Signatures names={[["ผู้วิเคราะห์", "ธนพล เจริญผล"], ["ผู้อนุมัติ (QMR)", QMR]]} />
+      <Foot_ />
+    </>
+  );
+}
+
+function ApqpReport({ no }: { no: string }) {
+  const p = projectByNo(no);
+  const part = partOf(p.part);
+  return (
+    <>
+      <PaperHead title="รายงานสถานะ APQP" number={p.no} form={formNo("FM-26")} />
+      <Facts rows={[["ชิ้นส่วน", \`\${materialName(p.part)} (\${part.customerPart})\`], ["ลูกค้า", customerName(part.customer)], ["เริ่มผลิตจริง", part.sop], ["หัวหน้าทีม", p.leader]]} />
+      {PHASES.map((ph, i) => {
+        const gate = p.gates.find((g) => g.phase === i);
+        return (
+          <div key={ph}>
+            <p className="mt-4 font-semibold text-slate-900">เฟส {i + 1} {ph} — {gate ? \`\${gate.decision} \${gate.date}\` : "ยังไม่ผ่านประตู"}</p>
+            <PaperTable head={["รายการส่งมอบ", "ผู้รับผิดชอบ", "กำหนด", "สถานะ"]} rows={p.deliverables.filter((d) => d.phase === i).map((d) => [d.item, d.owner, d.due, isDone(p, d) ? "เสร็จ" : "ค้าง"])} />
+          </div>
+        );
+      })}
+      <Signatures names={[["หัวหน้าทีม", p.leader], ["ผู้อนุมัติ (QMR)", QMR]]} />
+      <Foot_ />
+    </>
+  );
+}
+
+export function CtPaper({ d }: { d: CtDoc }) {
+  return (
+    <Paper>
+      {d.doc === "psw" && <Psw no={d.no} />}
+      {d.doc === "fmea" && <FmeaSheet no={d.no} />}
+      {d.doc === "control-plan" && <ControlPlanSheet no={d.no} />}
+      {d.doc === "spc" && <SpcReport code={d.code} />}
+      {d.doc === "msa" && <MsaReport no={d.no} />}
+      {d.doc === "apqp" && <ApqpReport no={d.no} />}
+    </Paper>
+  );
+}
+`,
+
+  "ct/forms.tsx": `import { useState } from "react";
+import { Printer } from "lucide-react";
+import { PEOPLE, QMR } from "../ims/data";
+import { Actions, Area, Checks, Choice, Form, Input, people, tryRun } from "../ims/parts";
+import {
+  CONTROL_METHODS, GAUGE_OPTIONS, PHASES, AUTO_ELEMENTS, actionPriority, addCpRow, addFmeaAction, addFmeaRow,
+  addSubgroup, addSubgroups, approvePlan, approvePlanErrors, chartByCode, completeFmeaAction, cpRowErrors, currentPhase,
+  decisionErrors, elementStatus, fmeaActionErrors, fmeaByNo, fmeaRowErrors, gateErrors, passGate, planByNo, projectByNo,
+  recordDecision, recordStudy, restartChart, setElement, stepsOf, studyErrors, submissionByNo, subgroupErrors,
+} from "./data";
+import type { ControlMethod, ElementStatus, Gate, PpapElement, Special, Submission } from "./data";
+import { CtPaper } from "./documents";
+import type { CtDoc } from "./documents";
+import { Badge, Button, Note, Segmented } from "../ui";
+import { ConfirmDialog, Field, FormModal, notify, printDocument, useData } from "../kit";
+
+/** ทุกการกระทำของ Core Tools ยกขึ้นแบบเดียวกันจากทุกหน้า */
+export type Act =
+  | { kind: "fmea-row"; no: string }
+  | { kind: "fmea-action"; no: string; id: number }
+  | { kind: "fmea-complete"; no: string; id: number }
+  | { kind: "cp-row"; no: string }
+  | { kind: "cp-approve"; no: string }
+  | { kind: "spc-add"; code: string }
+  | { kind: "spc-import"; code: string }
+  | { kind: "spc-restart"; code: string }
+  | { kind: "msa-new"; characteristic?: string }
+  | { kind: "ppap-element"; no: string; element: PpapElement }
+  | { kind: "ppap-decision"; no: string }
+  | { kind: "apqp-gate"; no: string }
+  | { kind: "print"; d: CtDoc; title: string };
+
+type Of<K extends Act["kind"]> = Extract<Act, { kind: K }>;
+export type RecordKind = "apqp" | "ppap" | "fmea" | "plan" | "spc" | "msa";
+
+const n1to10 = Array.from({ length: 10 }, (_, i) => ({ value: String(i + 1), label: String(i + 1) }));
+
+function FmeaRowForm({ no, onCancel, onDone }: { no: string; onCancel: () => void; onDone: () => void }) {
+  const f = fmeaByNo(no);
+  const steps = f.type === "PFMEA" ? stepsOf(f.part).map((s) => \`\${s.op} \${s.text}\`) : [];
+  const [v, setV] = useState({ step: steps[0] ?? "", failure: "", effect: "", cause: "", s: 5, o: 3, d: 5, prevention: "", detection: "", characteristic: "", special: "" as Special | "" });
+  const [tried, setTried] = useState(false);
+  const input = { ...v, special: v.special || undefined, characteristic: v.characteristic || undefined };
+  const errors = tried ? fmeaRowErrors(input) : {};
+  const set = <K extends keyof typeof v>(k: K) => (x: (typeof v)[K]) => setV((s) => ({ ...s, [k]: x }));
+  const ap = actionPriority(v.s, v.o, v.d);
+  return (
+    <Form onSubmit={() => { setTried(true); if (Object.keys(fmeaRowErrors(input)).length) return; addFmeaRow(no, input); notify(\`เพิ่มแถวใน \${no} แล้ว · AP \${ap}\`, ap === "สูง" ? "warn" : "ok"); onDone(); }}>
+      <Field label={f.type === "PFMEA" ? "ขั้นตอนการผลิต" : "หน้าที่ของชิ้นส่วน"} error={errors.step}>
+        {f.type === "PFMEA" ? <Choice value={v.step} onChange={set("step")} options={steps} /> : <Input value={v.step} onChange={set("step")} error={errors.step} />}
+      </Field>
+      <div className="grid gap-3 sm:grid-cols-3">
+        <Field label="ความล้มเหลว" error={errors.failure}><Input value={v.failure} onChange={set("failure")} error={errors.failure} /></Field>
+        <Field label="ผลกระทบ" error={errors.effect}><Input value={v.effect} onChange={set("effect")} error={errors.effect} /></Field>
+        <Field label="สาเหตุ" error={errors.cause}><Input value={v.cause} onChange={set("cause")} error={errors.cause} /></Field>
+      </div>
+      <div className="grid gap-3 sm:grid-cols-4">
+        <Field label="S ความรุนแรง" error={errors.s}><Choice value={String(v.s)} onChange={(x) => set("s")(Number(x))} options={n1to10} /></Field>
+        <Field label="O โอกาสเกิด"><Choice value={String(v.o)} onChange={(x) => set("o")(Number(x))} options={n1to10} /></Field>
+        <Field label="D การตรวจจับ"><Choice value={String(v.d)} onChange={(x) => set("d")(Number(x))} options={n1to10} /></Field>
+        <Field label="AP"><div className="flex h-9 items-center"><Badge tone={ap === "สูง" ? "bad" : ap === "กลาง" ? "warn" : "ok"}>{ap}</Badge></div></Field>
+      </div>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <Field label="การป้องกันที่มีอยู่"><Input value={v.prevention} onChange={set("prevention")} /></Field>
+        <Field label="การตรวจจับที่มีอยู่" error={errors.detection}><Input value={v.detection} onChange={set("detection")} error={errors.detection} /></Field>
+        <Field label="คุณลักษณะพิเศษ" error={errors.special}><Segmented options={["ไม่มี", "CC", "SC"]} value={v.special || "ไม่มี"} onChange={(x) => set("special")(x === "ไม่มี" ? "" : (x as Special))} /></Field>
+        <Field label="คุณลักษณะ" error={errors.characteristic} hint="ต้องไปอยู่ในแผนควบคุม"><Input value={v.characteristic} onChange={set("characteristic")} error={errors.characteristic} /></Field>
+      </div>
+      <Actions onCancel={onCancel} label="เพิ่มแถว" />
+    </Form>
+  );
+}
+
+function FmeaActionForm({ no, id, onCancel, onDone }: { no: string; id: number; onCancel: () => void; onDone: () => void }) {
+  const [v, setV] = useState({ what: "", owner: fmeaByNo(no).team[0], due: "" });
+  const [tried, setTried] = useState(false);
+  const [error, setError] = useState("");
+  const errors = tried ? fmeaActionErrors(v) : {};
+  const set = (k: keyof typeof v) => (x: string) => setV((s) => ({ ...s, [k]: x }));
+  return (
+    <Form error={error} onSubmit={() => { setTried(true); if (Object.keys(fmeaActionErrors(v)).length) return; tryRun(() => { addFmeaAction(no, id, v); notify(\`เพิ่มมาตรการใน \${no} แล้ว\`); onDone(); }, setError); }}>
+      <Field label="มาตรการ" error={errors.what} hint="ลดโอกาสเกิดก่อน แล้วค่อยเพิ่มการตรวจจับ"><Area value={v.what} onChange={set("what")} error={errors.what} rows={2} /></Field>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <Field label="ผู้รับผิดชอบ" error={errors.owner}><Choice value={v.owner} onChange={set("owner")} options={people()} /></Field>
+        <Field label="กำหนดเสร็จ" error={errors.due}><Input type="date" value={v.due} onChange={set("due")} error={errors.due} /></Field>
+      </div>
+      <Actions onCancel={onCancel} label="เพิ่มมาตรการ" />
+    </Form>
+  );
+}
+
+function RerateForm({ no, id, onCancel, onDone }: { no: string; id: number; onCancel: () => void; onDone: () => void }) {
+  const r = fmeaByNo(no).rows.find((x) => x.id === id)!;
+  const [v, setV] = useState({ s: r.s, o: r.o, d: r.d });
+  const [error, setError] = useState("");
+  const ap = actionPriority(v.s, v.o, v.d);
+  return (
+    <Form error={error} onSubmit={() => tryRun(() => { completeFmeaAction(no, id, v); notify(\`ปิดมาตรการ · AP ใหม่ \${ap}\`, ap === "สูง" ? "warn" : "ok"); onDone(); }, setError)}>
+      <p className="text-[13px] text-slate-600 dark:text-slate-300">{r.action?.what}</p>
+      <div className="grid gap-3 sm:grid-cols-4">
+        <Field label="S"><Choice value={String(v.s)} onChange={(x) => setV((s) => ({ ...s, s: Number(x) }))} options={n1to10} /></Field>
+        <Field label="O"><Choice value={String(v.o)} onChange={(x) => setV((s) => ({ ...s, o: Number(x) }))} options={n1to10} /></Field>
+        <Field label="D"><Choice value={String(v.d)} onChange={(x) => setV((s) => ({ ...s, d: Number(x) }))} options={n1to10} /></Field>
+        <Field label="AP ใหม่"><div className="flex h-9 items-center"><Badge tone={ap === "สูง" ? "bad" : ap === "กลาง" ? "warn" : "ok"}>{ap}</Badge></div></Field>
+      </div>
+      <Actions onCancel={onCancel} label="ปิดมาตรการและประเมินซ้ำ" />
+    </Form>
+  );
+}
+
+function CpRowForm({ no, onCancel, onDone }: { no: string; onCancel: () => void; onDone: () => void }) {
+  const cp = planByNo(no);
+  const steps = stepsOf(cp.part);
+  const [v, setV] = useState({ op: steps[0]?.op ?? "", characteristic: "", special: "" as Special | "", spec: "", gauge: "", sample: "", control: "สุ่มตรวจ" as ControlMethod, reaction: "" });
+  const [tried, setTried] = useState(false);
+  const input = { ...v, special: v.special || undefined };
+  const errors = tried ? cpRowErrors(no, input) : {};
+  const set = <K extends keyof typeof v>(k: K) => (x: (typeof v)[K]) => setV((s) => ({ ...s, [k]: x }));
+  return (
+    <Form onSubmit={() => { setTried(true); if (Object.keys(cpRowErrors(no, input)).length) return; addCpRow(no, input); notify(\`เพิ่มแถวใน \${no} แล้ว · ต้องอนุมัติฉบับใหม่\`, "info"); onDone(); }}>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <Field label="ขั้นตอน" error={errors.op}><Choice value={v.op} onChange={set("op")} options={steps.map((s) => ({ value: s.op, label: \`\${s.op} \${s.text}\` }))} /></Field>
+        <Field label="คุณลักษณะ" error={errors.characteristic}><Input value={v.characteristic} onChange={set("characteristic")} error={errors.characteristic} /></Field>
+        <Field label="คุณลักษณะพิเศษ"><Segmented options={["ไม่มี", "CC", "SC"]} value={v.special || "ไม่มี"} onChange={(x) => set("special")(x === "ไม่มี" ? "" : (x as Special))} /></Field>
+        <Field label="เกณฑ์" error={errors.spec}><Input value={v.spec} onChange={set("spec")} error={errors.spec} /></Field>
+        <Field label="เครื่องมือวัด" error={errors.gauge}><Input value={v.gauge} onChange={set("gauge")} error={errors.gauge} /></Field>
+        <Field label="ขนาดและความถี่" error={errors.sample}><Input value={v.sample} onChange={set("sample")} error={errors.sample} /></Field>
+      </div>
+      <Field label="วิธีควบคุม" error={errors.control}><Choice value={v.control} onChange={(x) => set("control")(x as ControlMethod)} options={CONTROL_METHODS} error={errors.control} /></Field>
+      <Field label="แผนตอบสนอง" error={errors.reaction}><Area value={v.reaction} onChange={set("reaction")} error={errors.reaction} rows={2} /></Field>
+      <Actions onCancel={onCancel} label="เพิ่มแถว" />
+    </Form>
+  );
+}
+
+function SubgroupForm({ code, onCancel, onDone }: { code: string; onCancel: () => void; onDone: () => void }) {
+  const c = chartByCode(code);
+  const [values, setValues] = useState<string[]>(Array(c.n).fill(""));
+  const [tried, setTried] = useState(false);
+  const nums = values.map((x) => (x === "" ? NaN : Number(x)));
+  const errors = tried ? subgroupErrors(code, nums) : {};
+  return (
+    <Form onSubmit={() => { setTried(true); if (Object.keys(subgroupErrors(code, nums)).length) return; const r = addSubgroup(code, nums); notify(r.outOfSpec ? "มีค่านอกเกณฑ์ · ทำตามแผนตอบสนองในแผนควบคุม" : r.outOfControl ? "จุดหลุดเส้นควบคุม · หาสาเหตุพิเศษ" : \`เพิ่มกลุ่มย่อยที่ \${r.chart.subgroups.length} แล้ว\`, r.outOfSpec || r.outOfControl ? "warn" : "ok"); onDone(); }}>
+      <p className="text-[13px] text-slate-600 dark:text-slate-300">{c.characteristic} · เกณฑ์ {c.lsl}–{c.usl}</p>
+      <Field label={\`ค่าที่วัดได้ \${c.n} ชิ้น\`} error={errors.values}>
+        <div className="grid grid-cols-5 gap-2">
+          {values.map((x, i) => <Input key={i} type="number" value={x} onChange={(v) => setValues((s) => s.map((y, j) => (j === i ? v : y)))} />)}
+        </div>
+      </Field>
+      <Actions onCancel={onCancel} label="เพิ่มกลุ่มย่อย" />
+    </Form>
+  );
+}
+
+function TextForm({ label, hint, button, rows = 3, submit, onCancel, onDone, placeholder }: { label: string; hint?: string; button: string; rows?: number; submit: (t: string) => void; onCancel: () => void; onDone: () => void; placeholder?: string }) {
+  const [text, setText] = useState("");
+  const [error, setError] = useState("");
+  return (
+    <Form error={error} onSubmit={() => tryRun(() => { submit(text); onDone(); }, setError)}>
+      <Field label={label} hint={hint}><Area value={text} onChange={setText} rows={rows} placeholder={placeholder} /></Field>
+      <Actions onCancel={onCancel} label={button} />
+    </Form>
+  );
+}
+
+function StudyForm({ characteristic, onCancel, onDone }: { characteristic?: string; onCancel: () => void; onDone: (no: string) => void }) {
+  const [v, setV] = useState({ gauge: "BG-BK220-01", characteristic: characteristic ?? "ขนาดรูยึด", lsl: "10.5", usl: "10.6", rows: "" });
+  const [appraisers, setAppraisers] = useState<string[]>(["สุภาพร แก้วมณี", "ธนพล เจริญผล", "อนุชา ทองดี"]);
+  const [tried, setTried] = useState(false);
+  const input = { ...v, lsl: Number(v.lsl), usl: Number(v.usl), appraisers };
+  const errors = tried ? studyErrors(input) : {};
+  const set = (k: keyof typeof v) => (x: string) => setV((s) => ({ ...s, [k]: x }));
+  return (
+    <Form onSubmit={() => { setTried(true); if (Object.keys(studyErrors(input)).length) return; const s = recordStudy(input); notify(\`บันทึก \${s.no} แล้ว\`); onDone(s.no); }}>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <Field label="เครื่องมือวัด" error={errors.gauge}><Choice value={v.gauge} onChange={set("gauge")} options={GAUGE_OPTIONS()} /></Field>
+        <Field label="คุณลักษณะ" error={errors.characteristic}><Input value={v.characteristic} onChange={set("characteristic")} error={errors.characteristic} /></Field>
+        <Field label="LSL"><Input type="number" value={v.lsl} onChange={set("lsl")} /></Field>
+        <Field label="USL" error={errors.usl}><Input type="number" value={v.usl} onChange={set("usl")} error={errors.usl} /></Field>
+      </div>
+      <Field label="ผู้วัด 3 คน" error={errors.appraisers}><Checks options={PEOPLE} value={appraisers} onChange={setAppraisers} /></Field>
+      <Field label="ผลวัด" error={errors.rows} hint="9 บรรทัด: ผู้วัดคนที่ 1 ครั้งที่ 1–3 แล้วคนที่ 2 และ 3 · บรรทัดละ 10 ค่าตามชิ้นที่ 1–10">
+        <Area value={v.rows} onChange={set("rows")} error={errors.rows} rows={9} />
+      </Field>
+      <Actions onCancel={onCancel} label="คำนวณและบันทึก" />
+    </Form>
+  );
+}
+
+function ElementForm({ no, element, onCancel, onDone }: { no: string; element: PpapElement; onCancel: () => void; onDone: () => void }) {
+  const s = submissionByNo(no);
+  const [status, setStatus] = useState<ElementStatus>(elementStatus(s, element).status);
+  const [error, setError] = useState("");
+  return (
+    <Form error={error} onSubmit={() => tryRun(() => { setElement(no, element, status); notify(\`\${element}: \${status}\`); onDone(); }, setError)}>
+      <Field label="สถานะ"><Segmented options={["ครบ", "ยังไม่ครบ", "ไม่เกี่ยวข้อง"]} value={status} onChange={(x) => setStatus(x as ElementStatus)} /></Field>
+      <Actions onCancel={onCancel} label="บันทึก" />
+    </Form>
+  );
+}
+
+function DecisionForm({ no, onCancel, onDone }: { no: string; onCancel: () => void; onDone: () => void }) {
+  const [decision, setDecision] = useState<NonNullable<Submission["decision"]>>("อนุมัติ");
+  const [note, setNote] = useState("");
+  const [interimUntil, setInterimUntil] = useState("");
+  const [tried, setTried] = useState(false);
+  const input = { decision, note, interimUntil };
+  const errors = tried ? decisionErrors(no, input) : {};
+  return (
+    <Form onSubmit={() => { setTried(true); if (Object.keys(decisionErrors(no, input)).length) return; recordDecision(no, input); notify(\`บันทึกผล PPAP \${no}: \${decision}\`, decision === "ไม่อนุมัติ" ? "warn" : "ok"); onDone(); }}>
+      <Field label="ผลจากลูกค้า" error={errors.decision}><Segmented options={["อนุมัติ", "อนุมัติชั่วคราว", "ไม่อนุมัติ"]} value={decision} onChange={(x) => setDecision(x as NonNullable<Submission["decision"]>)} /></Field>
+      {decision === "อนุมัติชั่วคราว" && <Field label="ใช้ได้ถึง" error={errors.interimUntil}><Input type="date" value={interimUntil} onChange={setInterimUntil} error={errors.interimUntil} /></Field>}
+      <Field label="ความเห็นหรือเงื่อนไขจากลูกค้า" error={errors.note}><Area value={note} onChange={setNote} error={errors.note} rows={2} /></Field>
+      <Actions onCancel={onCancel} label="บันทึกผล" />
+    </Form>
+  );
+}
+
+function GateForm({ no, onCancel, onDone }: { no: string; onCancel: () => void; onDone: () => void }) {
+  const p = projectByNo(no);
+  const phase = currentPhase(p);
+  const [decision, setDecision] = useState<Gate["decision"]>("ผ่าน");
+  const [note, setNote] = useState("");
+  const [by, setBy] = useState(QMR);
+  const [tried, setTried] = useState(false);
+  const input = { decision, note, by };
+  const errors = tried ? gateErrors(no, input) : {};
+  return (
+    <Form onSubmit={() => { setTried(true); if (Object.keys(gateErrors(no, input)).length) return; passGate(no, input); notify(\`ผ่านประตูเฟส \${phase + 1} ของ \${no} แล้ว\`); onDone(); }}>
+      <Note tone="info">เฟส {phase + 1} {PHASES[phase]}</Note>
+      <Field label="ผล" error={errors.decision}><Segmented options={["ผ่าน", "ผ่านแบบมีเงื่อนไข"]} value={decision} onChange={(x) => setDecision(x as Gate["decision"])} /></Field>
+      <Field label="บันทึก" error={errors.note}><Area value={note} onChange={setNote} error={errors.note} rows={2} /></Field>
+      <Field label="ผู้อนุมัติ" error={errors.by}><Choice value={by} onChange={setBy} options={people()} error={errors.by} /></Field>
+      <Actions onCancel={onCancel} label="บันทึกประตูผ่านเฟส" />
+    </Form>
+  );
+}
+
+export function CtActions({ act, onAct, onOpen }: { act: Act | null; onAct: (a: Act | null) => void; onOpen: (kind: RecordKind, key: string) => void }) {
+  useData();
+  const close = () => onAct(null);
+  const pick = <K extends Act["kind"]>(kind: K) => (act?.kind === kind ? (act as Of<K>) : null);
+  const [approver, setApprover] = useState(QMR);
+  const fRow = pick("fmea-row");
+  const fAct = pick("fmea-action");
+  const fDone = pick("fmea-complete");
+  const cRow = pick("cp-row");
+  const cApprove = pick("cp-approve");
+  const sAdd = pick("spc-add");
+  const sImport = pick("spc-import");
+  const sRestart = pick("spc-restart");
+  const msa = pick("msa-new");
+  const el = pick("ppap-element");
+  const dec = pick("ppap-decision");
+  const gate = pick("apqp-gate");
+  const print = pick("print");
+  const approveProblem = cApprove ? Object.values(approvePlanErrors(cApprove.no, approver))[0] : undefined;
+
+  return (
+    <>
+      <FormModal open={fRow !== null} title="เพิ่มแถวใน FMEA" subtitle={fRow?.no} onClose={close} size="lg">
+        {fRow && <FmeaRowForm key={fRow.no} no={fRow.no} onCancel={close} onDone={close} />}
+      </FormModal>
+      <FormModal open={fAct !== null} title="เพิ่มมาตรการ" subtitle={fAct ? \`\${fAct.no} แถว \${fAct.id}\` : undefined} onClose={close} size="sm">
+        {fAct && <FmeaActionForm key={\`\${fAct.no}-\${fAct.id}\`} no={fAct.no} id={fAct.id} onCancel={close} onDone={close} />}
+      </FormModal>
+      <FormModal open={fDone !== null} title="ปิดมาตรการและประเมินซ้ำ" subtitle={fDone ? \`\${fDone.no} แถว \${fDone.id}\` : undefined} onClose={close} size="sm">
+        {fDone && <RerateForm key={\`\${fDone.no}-\${fDone.id}\`} no={fDone.no} id={fDone.id} onCancel={close} onDone={close} />}
+      </FormModal>
+      <FormModal open={cRow !== null} title="เพิ่มแถวในแผนควบคุม" subtitle={cRow?.no} onClose={close}>
+        {cRow && <CpRowForm key={cRow.no} no={cRow.no} onCancel={close} onDone={close} />}
+      </FormModal>
+      <ConfirmDialog
+        open={cApprove !== null}
+        title="อนุมัติแผนควบคุม"
+        body={approveProblem ?? "คุณลักษณะพิเศษจาก PFMEA อยู่ในแผนครบ และ CC ควบคุมด้วยวิธีที่จับของเสียได้"}
+        subject={cApprove ? <Badge tone="info">{cApprove.no}</Badge> : undefined}
+        fields={<Field label="ผู้อนุมัติ"><Choice value={approver} onChange={setApprover} options={people()} /></Field>}
+        confirmLabel="อนุมัติ"
+        disabled={!!approveProblem}
+        onCancel={close}
+        onConfirm={() => { if (!cApprove) return; approvePlan(cApprove.no, approver); notify(\`อนุมัติ \${cApprove.no} แล้ว\`); close(); }}
+      />
+      <FormModal open={sAdd !== null} title="เพิ่มกลุ่มย่อย" subtitle={sAdd?.code} onClose={close}>
+        {sAdd && <SubgroupForm key={sAdd.code} code={sAdd.code} onCancel={close} onDone={close} />}
+      </FormModal>
+      <FormModal open={sImport !== null} title="นำเข้าหลายกลุ่มย่อย" subtitle={sImport?.code} onClose={close}>
+        {sImport && <TextForm label="ค่าที่วัด" hint={\`บรรทัดละหนึ่งกลุ่มย่อย \${chartByCode(sImport.code).n} ค่า\`} rows={10} button="นำเข้า" onCancel={close} onDone={close} submit={(t) => { const c = addSubgroups(sImport.code, t); notify(\`นำเข้าแล้ว · รวม \${c.subgroups.length} กลุ่มย่อย\`); }} />}
+      </FormModal>
+      <FormModal open={sRestart !== null} title="เริ่มการศึกษาใหม่" subtitle="ข้อมูลเดิมย้ายไปเป็นประวัติ ไม่นำมาคำนวณ" onClose={close} size="sm">
+        {sRestart && <TextForm label="เปลี่ยนอะไรในกระบวนการ" button="เริ่มการศึกษาใหม่" onCancel={close} onDone={close} submit={(t) => { restartChart(sRestart.code, t); notify(\`เริ่มการศึกษา \${sRestart.code} ใหม่แล้ว · ต้องเก็บ 25 กลุ่มย่อย\`, "info"); }} />}
+      </FormModal>
+      <FormModal open={msa !== null} title="บันทึกการศึกษา Gage R&R" subtitle="10 ชิ้น × 3 ผู้วัด × 3 ครั้ง · วิธีค่าเฉลี่ยและพิสัย" onClose={close} size="lg">
+        {msa && <StudyForm characteristic={msa.characteristic} onCancel={close} onDone={(no) => { close(); onOpen("msa", no); }} />}
+      </FormModal>
+      <FormModal open={el !== null} title={el?.element ?? ""} subtitle={el ? (AUTO_ELEMENTS.includes(el.element) ? "ระบบตัดสินจากข้อมูลจริง" : el.no) : undefined} onClose={close} size="sm">
+        {el && <ElementForm key={el.element} no={el.no} element={el.element} onCancel={close} onDone={close} />}
+      </FormModal>
+      <FormModal open={dec !== null} title="บันทึกผล PPAP จากลูกค้า" subtitle={dec?.no} onClose={close} size="sm">
+        {dec && <DecisionForm key={dec.no} no={dec.no} onCancel={close} onDone={close} />}
+      </FormModal>
+      <FormModal open={gate !== null} title="ประตูผ่านเฟส APQP" subtitle={gate?.no} onClose={close} size="sm">
+        {gate && <GateForm key={gate.no} no={gate.no} onCancel={close} onDone={close} />}
+      </FormModal>
+      <FormModal open={print !== null} title={print?.title ?? ""} subtitle="ตัวอย่างก่อนพิมพ์ — กระดาษ A4 พิมพ์เฉพาะเอกสาร" onClose={close} size="lg">
+        {print && (
+          <div className="space-y-3">
+            <div className="flex justify-end gap-2">
+              <Button variant="secondary" onClick={close}>ปิด</Button>
+              <Button icon={<Printer size={14} />} onClick={printDocument}>พิมพ์</Button>
+            </div>
+            <CtPaper d={print.d} />
+          </div>
+        )}
+      </FormModal>
+    </>
+  );
+}
+
+`,
+
+  "ct/screen.tsx": `import { useState } from "react";
+import type { ReactNode } from "react";
+import {
+  Activity, CalendarClock, CircleCheck, ClipboardCheck, FileCheck2, FileSpreadsheet, Gauge as GaugeIcon, ListTree, Plus, Printer,
+  RotateCcw, Rocket, Ruler, Send, ShieldCheck, Upload,
+} from "lucide-react";
+import { TODAY } from "../ims/data";
+import { Body, Empty, Header, Line, Lines, STEP_ICONS, run } from "../ims/parts";
+import {
+  AUTO_ELEMENTS, CHARTS, CONTROL_PLANS, FMEAS, MIN_SUBGROUPS, PARTS, PHASES, PPAP_ELEMENTS, PROJECTS, STUDIES, SUBMISSIONS, apOf,
+  capabilityTarget, capable, chartByCode, completeDeliverable, currentPhase, customerName, elementStatus, enoughData, fmeaByNo,
+  grr, isDone, lateDeliverables, latestStudies, materialName, missingSpecials, msaAcceptable, openHigh, partOf, pendingElements,
+  planByNo, planOfPhase, projectByNo, promoteToProduction, rated, releasedForProduction, stats, studyByNo, submissionByNo,
+  submitPpap, weakCc,
+} from "./data";
+import type { ApqpProject, ControlPlan, Fmea, MsaStudy, SpcChart, Submission } from "./data";
+import { CtActions } from "./forms";
+import type { Act, RecordKind } from "./forms";
+import { Badge, Button, Card, Chip, Metric, Note, PageHead, Reveal, Stepper } from "../ui";
+import type { Tone } from "../ui";
+import { DataTable, DetailModal, downloadCsv, notify, useData } from "../kit";
+import type { Column } from "../kit";
+
+const TABS = ["วางแผนคุณภาพผลิตภัณฑ์ (APQP)", "อนุมัติชิ้นส่วนการผลิต (PPAP)", "วิเคราะห์ความล้มเหลว (FMEA)", "แผนควบคุม", "ควบคุมกระบวนการเชิงสถิติ (SPC)", "วิเคราะห์ระบบการวัด (MSA)"];
+
+const exportIcon = <FileSpreadsheet size={14} />;
+const csv = (name: string, head: string[], rows: (string | number)[][]) => {
+  downloadCsv(name, head, rows);
+  notify(\`ส่งออก\${name} \${rows.length} รายการแล้ว\`);
+};
+const apTone = (ap: string): Tone => (ap === "สูง" ? "bad" : ap === "กลาง" ? "warn" : "ok");
+const grrTone = (v: string): Tone => (v === "ยอมรับได้" ? "ok" : v === "ยอมรับไม่ได้" ? "bad" : "warn");
+const f2 = (n: number) => (Number.isFinite(n) ? n.toFixed(2) : "—");
+const phaseSteps = (p: ApqpProject) =>
+  PHASES.map((ph, i) => ({ label: \`\${i + 1} \${ph}\`, state: (p.gates.some((g) => g.phase === i) ? "done" : i === currentPhase(p) ? "current" : "todo") as "done" | "current" | "todo" }));
+
+type Handlers = { onAct: (a: Act) => void; onOpen: (kind: RecordKind, key: string) => void };
+
+export default function CtScreen({ section, onOpenSection }: { section?: string; onOpenSection?: (index: number) => void }) {
+  useData();
+  const tab = section && TABS.includes(section) ? section : undefined;
+  const [act, setAct] = useState<Act | null>(null);
+  const [record, setRecord] = useState<{ kind: RecordKind; key: string } | null>(null);
+  const open = (kind: RecordKind, key: string) => setRecord({ kind, key });
+
+  const keys: Record<RecordKind, string[]> = {
+    apqp: PROJECTS.map((p) => p.no),
+    ppap: SUBMISSIONS.map((s) => s.no),
+    fmea: FMEAS.map((f) => f.no),
+    plan: CONTROL_PLANS.map((c) => c.no),
+    spc: CHARTS.map((c) => c.code),
+    msa: STUDIES.map((s) => s.no),
+  };
+  const list = record ? keys[record.kind] : [];
+  const at = record ? list.indexOf(record.key) : -1;
+  const TITLES: Record<RecordKind, string> = { apqp: "โครงการ APQP", ppap: "PPAP", fmea: "FMEA", plan: "แผนควบคุม", spc: "แผนภูมิควบคุม", msa: "การศึกษา Gage R&R" };
+  const h: Handlers = { onAct: setAct, onOpen: open };
+  const project = PROJECTS[0];
+  const sub = SUBMISSIONS[SUBMISSIONS.length - 1];
+
+  const panels = (
+    <>
+      <DetailModal
+        open={record !== null && at >= 0}
+        title={record ? TITLES[record.kind] : ""}
+        onClose={() => setRecord(null)}
+        index={at}
+        total={list.length}
+        onStep={(d) => record && setRecord({ kind: record.kind, key: list[Math.min(list.length - 1, Math.max(0, at + d))] })}
+      >
+        {record && at >= 0 && <RecordView kind={record.kind} id={record.key} {...h} />}
+      </DetailModal>
+      <CtActions act={act} onAct={setAct} onOpen={open} />
+    </>
+  );
+
+  const index = (
+    <div hidden data-fitt-index>
+      <button data-fitt-screen="เครื่องมือหลักยานยนต์" />
+      <button data-fitt-screen="โครงการ APQP" data-fitt-modal onClick={() => open("apqp", project.no)} />
+      <button data-fitt-screen="ประตูผ่านเฟส APQP" data-fitt-modal onClick={() => setAct({ kind: "apqp-gate", no: project.no })} />
+      <button data-fitt-screen="PPAP" data-fitt-modal onClick={() => open("ppap", sub.no)} />
+      <button data-fitt-screen="แก้สถานะองค์ประกอบ PPAP" data-fitt-modal onClick={() => setAct({ kind: "ppap-element", no: sub.no, element: "ผลการวัดขนาด" })} />
+      <button data-fitt-screen="บันทึกผล PPAP จากลูกค้า" data-fitt-modal onClick={() => setAct({ kind: "ppap-decision", no: sub.no })} />
+      <button data-fitt-screen="FMEA" data-fitt-modal onClick={() => open("fmea", FMEAS[0].no)} />
+      <button data-fitt-screen="เพิ่มแถวใน FMEA" data-fitt-modal onClick={() => setAct({ kind: "fmea-row", no: FMEAS[0].no })} />
+      <button data-fitt-screen="เพิ่มมาตรการ FMEA" data-fitt-modal onClick={() => setAct({ kind: "fmea-action", no: FMEAS[0].no, id: 2 })} />
+      <button data-fitt-screen="แผนควบคุม" data-fitt-modal onClick={() => open("plan", CONTROL_PLANS[CONTROL_PLANS.length - 1].no)} />
+      <button data-fitt-screen="เพิ่มแถวในแผนควบคุม" data-fitt-modal onClick={() => setAct({ kind: "cp-row", no: CONTROL_PLANS[CONTROL_PLANS.length - 1].no })} />
+      <button data-fitt-screen="อนุมัติแผนควบคุม" data-fitt-modal onClick={() => setAct({ kind: "cp-approve", no: CONTROL_PLANS[CONTROL_PLANS.length - 1].no })} />
+      <button data-fitt-screen="แผนภูมิควบคุม" data-fitt-modal onClick={() => open("spc", CHARTS[0].code)} />
+      <button data-fitt-screen="เพิ่มกลุ่มย่อย" data-fitt-modal onClick={() => setAct({ kind: "spc-add", code: CHARTS[0].code })} />
+      <button data-fitt-screen="นำเข้าหลายกลุ่มย่อย" data-fitt-modal onClick={() => setAct({ kind: "spc-import", code: CHARTS[1].code })} />
+      <button data-fitt-screen="เริ่มการศึกษาใหม่" data-fitt-modal onClick={() => setAct({ kind: "spc-restart", code: CHARTS[1].code })} />
+      <button data-fitt-screen="การศึกษา Gage R&R" data-fitt-modal onClick={() => open("msa", STUDIES[0].no)} />
+      <button data-fitt-screen="บันทึกการศึกษา Gage R&R" data-fitt-modal onClick={() => setAct({ kind: "msa-new" })} />
+      <button data-fitt-screen="พิมพ์ PSW" data-fitt-modal onClick={() => setAct({ kind: "print", d: { doc: "psw", no: sub.no }, title: "ใบรับรองการส่งชิ้นส่วน (PSW)" })} />
+      <button data-fitt-screen="พิมพ์ FMEA" data-fitt-modal onClick={() => setAct({ kind: "print", d: { doc: "fmea", no: FMEAS[0].no }, title: "FMEA" })} />
+      <button data-fitt-screen="พิมพ์แผนควบคุม" data-fitt-modal onClick={() => setAct({ kind: "print", d: { doc: "control-plan", no: CONTROL_PLANS[CONTROL_PLANS.length - 1].no }, title: "แผนควบคุม" })} />
+      <button data-fitt-screen="พิมพ์รายงานความสามารถกระบวนการ" data-fitt-modal onClick={() => setAct({ kind: "print", d: { doc: "spc", code: CHARTS[0].code }, title: "รายงานความสามารถของกระบวนการ" })} />
+      <button data-fitt-screen="พิมพ์รายงาน Gage R&R" data-fitt-modal onClick={() => setAct({ kind: "print", d: { doc: "msa", no: STUDIES[0].no }, title: "รายงานการวิเคราะห์ระบบการวัด" })} />
+      <button data-fitt-screen="พิมพ์รายงานสถานะ APQP" data-fitt-modal onClick={() => setAct({ kind: "print", d: { doc: "apqp", no: project.no }, title: "รายงานสถานะ APQP" })} />
+    </div>
+  );
+
+  if (!tab) {
+    return (
+      <>
+        <Overview onOpenSection={onOpenSection} {...h} />
+        {panels}
+        {index}
+      </>
+    );
+  }
+
+  return (
+    <div>
+      <PageHead title="เครื่องมือหลักยานยนต์" meta={\`\${tab} · IATF 16949 · AIAG-VDA · ข้อมูล ณ \${TODAY}\`} />
+      {tab === TABS[0] && <Apqp {...h} />}
+      {tab === TABS[1] && <Ppap {...h} />}
+      {tab === TABS[2] && <Fmeas {...h} />}
+      {tab === TABS[3] && <Plans {...h} />}
+      {tab === TABS[4] && <Spc {...h} />}
+      {tab === TABS[5] && <Msa {...h} />}
+      {panels}
+      {index}
+    </div>
+  );
+}
+
+/* -------------------------------------------------------------- overview */
+
+function Overview({ onOpenSection, onAct, onOpen }: Handlers & { onOpenSection?: (i: number) => void }) {
+  const p = PROJECTS[0];
+  const part = partOf(p.part);
+  const s = SUBMISSIONS.find((x) => x.part === p.part)!;
+  const days = Math.round((Date.parse(part.sop) - Date.parse(TODAY)) / 86_400_000);
+  const highs = FMEAS.reduce((n, f) => n + openHigh(f).length, 0);
+  const weak = CHARTS.filter((c) => !capable(c));
+
+  const todo: { icon: ReactNode; text: string; sub: string; go: () => void; tone: Tone }[] = [
+    ...lateDeliverables(p).map((d) => ({ icon: <CalendarClock size={15} />, text: d.item, sub: \`\${d.owner} · กำหนด \${d.due}\${d.auto ? " · ระบบตัดสินจากข้อมูล" : ""}\`, go: () => onOpen("apqp", p.no), tone: "bad" as Tone })),
+    ...pendingElements(s).map((el) => ({ icon: <FileCheck2 size={15} />, text: \`PPAP · \${el}\`, sub: elementStatus(s, el).why || "ยังไม่ครบ", go: () => onOpen("ppap", s.no), tone: "warn" as Tone })),
+    ...weak.map((c) => ({ icon: <Activity size={15} />, text: \`\${c.code} \${c.characteristic}\`, sub: enoughData(c) ? \`Ppk \${f2(stats(c).ppk)} ต่ำกว่า \${capabilityTarget(c)}\` : \`มีข้อมูล \${c.subgroups.length} จาก \${MIN_SUBGROUPS} กลุ่มย่อย\`, go: () => onOpen("spc", c.code), tone: "bad" as Tone })),
+    ...PARTS.flatMap((x) => latestStudies(x.code)).filter((st) => !msaAcceptable(st)).map((st) => ({ icon: <Ruler size={15} />, text: \`\${st.no} \${st.gaugeName}\`, sub: \`%GRR \${grr(st).pct}% ยอมรับไม่ได้ · \${st.characteristic}\`, go: () => onAct({ kind: "msa-new", characteristic: st.characteristic }), tone: "bad" as Tone })),
+    ...CONTROL_PLANS.filter((c) => missingSpecials(c).length || weakCc(c).length || !c.approvedBy).map((c) => ({ icon: <ListTree size={15} />, text: \`\${c.no} \${c.phase}\`, sub: !c.approvedBy ? "รออนุมัติฉบับใหม่" : "ขาดคุณลักษณะพิเศษจาก PFMEA", go: () => onOpen("plan", c.no), tone: "warn" as Tone })),
+  ];
+
+  return (
+    <div>
+      <PageHead
+        title="เครื่องมือหลักยานยนต์"
+        meta={\`APQP · PPAP · FMEA · แผนควบคุม · SPC · MSA · ข้อมูล ณ \${TODAY}\`}
+        right={<Button icon={<Printer size={14} />} variant="secondary" onClick={() => onAct({ kind: "print", d: { doc: "apqp", no: p.no }, title: "รายงานสถานะ APQP" })}>พิมพ์รายงานสถานะ</Button>}
+      />
+      <Reveal>
+        <Card title={\`\${materialName(p.part)} · \${part.customerPart}\`} subtitle={\`\${customerName(part.customer)} · \${part.program} · เริ่มผลิตจริง \${part.sop} (อีก \${days} วัน)\${part.safety ? " · ชิ้นส่วนเกี่ยวกับความปลอดภัย" : ""}\`} action={<Button variant="ghost" onClick={() => onOpen("apqp", p.no)}>เปิดโครงการ</Button>}>
+          <div className="space-y-3 p-4">
+            <Stepper steps={phaseSteps(p)} icons={STEP_ICONS} />
+            <div className="flex flex-wrap gap-2">
+              <Badge dot tone={releasedForProduction(p.part) ? "ok" : s.submittedOn ? "info" : "warn"}>PPAP {s.decision ?? (s.submittedOn ? "รอลูกค้า" : \`ขาด \${pendingElements(s).length} องค์ประกอบ\`)}</Badge>
+              <Badge tone={planOfPhase(p.part, "ผลิตจริง") ? "ok" : "idle"}>แผนควบคุม{planOfPhase(p.part, "ผลิตจริง") ? "ผลิตจริงแล้ว" : "ระยะก่อนผลิต"}</Badge>
+            </div>
+          </div>
+        </Card>
+      </Reveal>
+      <Reveal delay={0.05}>
+        <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <Metric icon={<CalendarClock size={17} />} label="รายการส่งมอบเลยกำหนด" value={\`\${lateDeliverables(p).length} รายการ\`} deltaLabel={\`เฟสปัจจุบัน \${currentPhase(p) < 0 ? "ครบแล้ว" : PHASES[currentPhase(p)]}\`} />
+          <Metric icon={<FileCheck2 size={17} />} label="PPAP ขาด" value={\`\${pendingElements(s).length} จาก 17\`} deltaLabel={\`ระดับการส่ง \${s.level}\`} />
+          <Metric icon={<ShieldCheck size={17} />} label="FMEA AP สูงค้าง" value={\`\${highs} แถว\`} deltaLabel={\`\${FMEAS.length} ฉบับ\`} />
+          <Metric icon={<Activity size={17} />} label="ความสามารถต่ำกว่าเกณฑ์" value={\`\${weak.length} จาก \${CHARTS.length}\`} deltaLabel="CC ต้อง Ppk ≥ 1.67 · SC ≥ 1.33" />
+        </div>
+      </Reveal>
+      <Reveal delay={0.1} className="mt-4 grid gap-4 lg:grid-cols-3">
+        <Card title="ต้องจัดการก่อนเริ่มผลิต" subtitle="กดรายการเพื่อเปิดงานนั้น" className="lg:col-span-2">
+          {todo.length === 0 ? <Empty>พร้อมเริ่มผลิต</Empty> : (
+            <ul className="divide-y divide-slate-100 dark:divide-slate-800">
+              {todo.slice(0, 9).map((t, i) => (
+                <li key={i}>
+                  <button onClick={t.go} className="flex w-full items-center gap-3 px-4 py-2.5 text-left transition hover:bg-slate-50 dark:hover:bg-slate-800/60">
+                    <span className={t.tone === "bad" ? "text-rose-500" : t.tone === "warn" ? "text-amber-500" : "text-sky-500"}>{t.icon}</span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-[13px] text-slate-800 dark:text-slate-100">{t.text}</span>
+                      <span className="block text-[11.5px] text-slate-500 dark:text-slate-400">{t.sub}</span>
+                    </span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Card>
+        <Card title="ความสามารถของกระบวนการ" subtitle="Ppk จากค่าที่วัดจริง" action={<Button variant="ghost" className="whitespace-nowrap" onClick={() => onOpenSection?.(4)}>แผนภูมิ</Button>}>
+          <Lines>
+            {CHARTS.map((c) => <Line key={c.code} title={\`\${c.characteristic}\${c.special ? \` · \${c.special}\` : ""}\`} sub={\`\${c.subgroups.length} กลุ่มย่อย · เป้า \${capabilityTarget(c)}\`} right={<Badge tone={capable(c) ? "ok" : "bad"}>Ppk {f2(stats(c).ppk)}</Badge>} />)}
+          </Lines>
+        </Card>
+      </Reveal>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ apqp */
+
+function Apqp({ onAct, onOpen }: Handlers) {
+  return (
+    <div className="space-y-4">
+      {PROJECTS.map((p) => (
+        <ApqpBody key={p.no} p={p} onAct={onAct} onOpen={onOpen} />
+      ))}
+    </div>
+  );
+}
+
+function ApqpBody({ p, onAct }: { p: ApqpProject } & Handlers) {
+  const phase = currentPhase(p);
+  return (
+    <>
+      <div className="flex flex-wrap items-center gap-2">
+        <p className="text-[12.5px] text-slate-500 dark:text-slate-400">{p.no} · {materialName(p.part)} · หัวหน้าทีม {p.leader} · รายการที่มีป้ายระบบตัดสิน ปิดได้ด้วยข้อมูลจริงเท่านั้น</p>
+        <div className="ml-auto flex gap-2">
+          <Button variant="secondary" icon={<Printer size={14} />} onClick={() => onAct({ kind: "print", d: { doc: "apqp", no: p.no }, title: "รายงานสถานะ APQP" })}>พิมพ์รายงาน</Button>
+          {phase >= 0 && <Button icon={<Rocket size={14} />} onClick={() => onAct({ kind: "apqp-gate", no: p.no })}>ประตูผ่านเฟส {phase + 1}</Button>}
+        </div>
+      </div>
+      <Stepper steps={phaseSteps(p)} icons={STEP_ICONS} />
+      <div className="grid gap-4 lg:grid-cols-2">
+        {PHASES.map((ph, i) => {
+          const gate = p.gates.find((g) => g.phase === i);
+          return (
+            <Card key={ph} title={\`เฟส \${i + 1} · \${ph}\`} subtitle={gate ? \`\${gate.decision} \${gate.date} · \${gate.note}\` : i === phase ? "เฟสปัจจุบัน" : "ยังไม่ถึง"}>
+              <Lines>
+                {p.deliverables.map((d, idx) => ({ d, idx })).filter((x) => x.d.phase === i).map(({ d, idx }) => {
+                  const done = isDone(p, d);
+                  const late = !done && d.due < TODAY;
+                  return (
+                    <Line
+                      key={idx}
+                      title={d.item}
+                      sub={\`\${d.owner} · กำหนด \${d.due}\${late ? " · เลยกำหนด" : ""}\`}
+                      subTone={late ? "bad" : undefined}
+                      right={
+                        <span className="flex items-center gap-2">
+                          {d.auto && <Chip>ระบบตัดสิน</Chip>}
+                          {done ? <Badge tone="ok">เสร็จ</Badge> : d.auto ? <Badge tone="warn">ยังไม่ผ่าน</Badge> : <Button variant="secondary" icon={<CircleCheck size={14} />} onClick={() => run(() => completeDeliverable(p.no, idx), \`บันทึกว่า \${d.item} เสร็จแล้ว\`)}>เสร็จแล้ว</Button>}
+                        </span>
+                      }
+                    />
+                  );
+                })}
+              </Lines>
+            </Card>
+          );
+        })}
+      </div>
+    </>
+  );
+}
+
+/* ------------------------------------------------------------------ ppap */
+
+function Ppap({ onAct }: Handlers) {
+  return <div className="space-y-4">{SUBMISSIONS.map((s) => <PpapBody key={s.no} s={s} onAct={onAct} />)}</div>;
+}
+
+function PpapBody({ s, onAct }: { s: Submission; onAct: (a: Act) => void }) {
+  const pending = pendingElements(s);
+  return (
+    <>
+      <div className="flex flex-wrap items-center gap-2">
+        <p className="text-[12.5px] text-slate-500 dark:text-slate-400">{s.no} · {materialName(s.part)} · ระดับ {s.level} · {s.reason}</p>
+        <Badge dot tone={s.decision === "อนุมัติ" ? "ok" : s.decision === "ไม่อนุมัติ" ? "bad" : s.submittedOn ? "info" : "warn"}>{s.decision ?? (s.submittedOn ? \`ส่งแล้ว \${s.submittedOn} รอลูกค้า\` : "ยังไม่ส่ง")}</Badge>
+        <div className="ml-auto flex gap-2">
+          <Button variant="secondary" icon={<Printer size={14} />} onClick={() => onAct({ kind: "print", d: { doc: "psw", no: s.no }, title: "ใบรับรองการส่งชิ้นส่วน (PSW)" })}>พิมพ์ PSW</Button>
+          {!s.submittedOn && <Button icon={<Send size={14} />} disabled={pending.length > 0} onClick={() => run(() => submitPpap(s.no), \`ส่ง \${s.no} ให้ลูกค้าแล้ว\`)}>ส่ง PPAP</Button>}
+          {s.submittedOn && !s.decision && <Button icon={<ClipboardCheck size={14} />} onClick={() => onAct({ kind: "ppap-decision", no: s.no })}>บันทึกผลจากลูกค้า</Button>}
+        </div>
+      </div>
+      {pending.length > 0 && <Note tone="warn">ยังขาด {pending.length} องค์ประกอบ: {pending.join(", ")}</Note>}
+      <Card title="18 องค์ประกอบ" subtitle="องค์ประกอบที่มีป้ายระบบตัดสินอ่านจาก FMEA แผนควบคุม SPC และ MSA">
+        <Lines>
+          {PPAP_ELEMENTS.map((el, i) => {
+            const st = elementStatus(s, el);
+            const auto = AUTO_ELEMENTS.includes(el);
+            return (
+              <Line
+                key={el}
+                title={\`\${i + 1}. \${el}\`}
+                sub={st.why || undefined}
+                right={
+                  <span className="flex items-center gap-2">
+                    {auto && <Chip>ระบบตัดสิน</Chip>}
+                    <Badge tone={st.status === "ครบ" ? "ok" : st.status === "ไม่เกี่ยวข้อง" ? "idle" : "warn"}>{st.status}</Badge>
+                    {!auto && !s.submittedOn && <Button variant="ghost" onClick={() => onAct({ kind: "ppap-element", no: s.no, element: el })}>แก้</Button>}
+                  </span>
+                }
+              />
+            );
+          })}
+        </Lines>
+      </Card>
+    </>
+  );
+}
+
+/* ------------------------------------------------------------------ fmea */
+
+function Fmeas({ onAct, onOpen }: Handlers) {
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center gap-2">
+        <p className="text-[12.5px] text-slate-500 dark:text-slate-400">จัดลำดับด้วย Action Priority ตาม AIAG-VDA · AP สูงต้องมีมาตรการ · PFMEA ลดความรุนแรงไม่ได้</p>
+        <Button className="ml-auto" variant="secondary" icon={exportIcon} onClick={() => csv("FMEA", ["เลขที่", "ประเภท", "ขั้นตอน", "ความล้มเหลว", "ผลกระทบ", "สาเหตุ", "S", "O", "D", "AP", "พิเศษ", "มาตรการ"], FMEAS.flatMap((f) => f.rows.map((r) => [f.no, f.type, r.step, r.failure, r.effect, r.cause, rated(r).s, rated(r).o, rated(r).d, apOf(r), r.special ?? "", r.action?.what ?? ""])))}>ส่งออก Excel</Button>
+      </div>
+      {FMEAS.map((f) => (
+        <Card key={f.no} title={\`\${f.no} · \${f.type} · \${materialName(f.part)}\`} subtitle={\`Rev.\${f.rev} · \${f.date} · ทีม \${f.team.join(", ")}\`} action={<Button variant="ghost" onClick={() => onOpen("fmea", f.no)}>เปิด</Button>}>
+          <FmeaRows f={f} onAct={onAct} />
+        </Card>
+      ))}
+    </div>
+  );
+}
+
+function FmeaRows({ f, onAct }: { f: Fmea; onAct: (a: Act) => void }) {
+  return (
+    <Lines>
+      {f.rows.map((r) => {
+        const x = rated(r);
+        const ap = apOf(r);
+        return (
+          <Line
+            key={r.id}
+            title={\`\${r.failure} → \${r.effect}\`}
+            sub={\`\${r.step} · สาเหตุ \${r.cause} · S\${x.s} O\${x.o} D\${x.d}\${r.special ? \` · \${r.special} \${r.characteristic}\` : ""}\${r.action ? \` · มาตรการ: \${r.action.what}\${r.action.doneOn ? " (เสร็จ)" : \` (กำหนด \${r.action.due})\`}\` : ""}\`}
+            right={
+              <span className="flex items-center gap-2">
+                <Badge tone={apTone(ap)}>AP {ap}</Badge>
+                {!r.action && ap !== "ต่ำ" && <Button variant="secondary" onClick={() => onAct({ kind: "fmea-action", no: f.no, id: r.id })}>เพิ่มมาตรการ</Button>}
+                {r.action && !r.action.doneOn && <Button variant="secondary" onClick={() => onAct({ kind: "fmea-complete", no: f.no, id: r.id })}>ปิดและประเมินซ้ำ</Button>}
+              </span>
+            }
+          />
+        );
+      })}
+    </Lines>
+  );
+}
+
+/* ------------------------------------------------------------ control plan */
+
+function Plans({ onAct, onOpen }: Handlers) {
+  const columns: Column<ControlPlan>[] = [
+    { key: "no", header: "เลขที่", cell: (c) => <span className="whitespace-nowrap font-medium tabular-nums text-slate-800 dark:text-slate-100">{c.no}</span> },
+    { key: "phase", header: "ระยะ", cell: (c) => <Chip>{c.phase}</Chip> },
+    { key: "part", header: "ชิ้นส่วน", cell: (c) => materialName(c.part) },
+    { key: "rev", header: "ฉบับ", cell: (c) => \`Rev.\${c.rev} · \${c.date}\` },
+    { key: "rows", header: "คุณลักษณะ", align: "right", cell: (c) => <span className="tabular-nums">{c.rows.length}</span> },
+    { key: "status", header: "สถานะ", cell: (c) => <span className="flex flex-wrap gap-1.5">{c.approvedBy ? <Badge tone="ok">อนุมัติแล้ว</Badge> : <Badge tone="warn">รออนุมัติ</Badge>}{missingSpecials(c).length > 0 && <Badge tone="bad">ขาดคุณลักษณะพิเศษ {missingSpecials(c).length}</Badge>}</span> },
+  ];
+  const canPromote = PARTS.filter((p) => !planOfPhase(p.code, "ผลิตจริง") && releasedForProduction(p.code));
+  return (
+    <div className="space-y-4">
+      {canPromote.map((p) => <Note key={p.code} tone="info">PPAP ของ {materialName(p.code)} อนุมัติแล้ว — ยกแผนก่อนผลิตเป็นแผนผลิตจริงได้</Note>)}
+      <DataTable
+        rows={CONTROL_PLANS}
+        columns={columns}
+        getId={(c) => c.no}
+        onOpen={(c) => onOpen("plan", c.no)}
+        toolbar={
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="text-[12.5px] text-slate-500 dark:text-slate-400">สามระยะ: ต้นแบบ ก่อนผลิต ผลิตจริง · ขั้นตอนอ่านจากระบบวางแผนการผลิต · คุณลักษณะพิเศษจาก PFMEA ต้องอยู่ครบ</p>
+            <div className="ml-auto flex gap-2">
+              <Button variant="secondary" icon={exportIcon} onClick={() => csv("แผนควบคุม", ["แผน", "ระยะ", "ขั้นตอน", "คุณลักษณะ", "พิเศษ", "เกณฑ์", "เครื่องมือวัด", "ความถี่", "วิธีควบคุม", "แผนตอบสนอง"], CONTROL_PLANS.flatMap((c) => c.rows.map((r) => [c.no, c.phase, r.op, r.characteristic, r.special ?? "", r.spec, r.gauge, r.sample, r.control, r.reaction])))}>ส่งออก Excel</Button>
+              {canPromote.map((p) => <Button key={p.code} icon={<Rocket size={14} />} onClick={() => run(() => promoteToProduction(p.code), \`ใช้แผนควบคุมผลิตจริงของ \${materialName(p.code)} แล้ว\`)}>ยกเป็นแผนผลิตจริง</Button>)}
+            </div>
+          </div>
+        }
+      />
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------- spc */
+
+function XbarChart({ c }: { c: SpcChart }) {
+  const st = stats(c);
+  if (c.subgroups.length < 2) return <Empty>เก็บข้อมูลอย่างน้อย 2 กลุ่มย่อยเพื่อวาดแผนภูมิ</Empty>;
+  const W = 640;
+  const H = 180;
+  const pad = 28;
+  const lo = Math.min(st.limits.lclX, ...st.means);
+  const hi = Math.max(st.limits.uclX, ...st.means);
+  const span = hi - lo || 1;
+  const y = (v: number) => H - pad - ((v - lo) / span) * (H - 2 * pad);
+  const x = (i: number) => pad + (i / Math.max(1, st.means.length - 1)) * (W - 2 * pad);
+  const line = (v: number, cls: string, label: string) => (
+    <g>
+      <line x1={pad} x2={W - pad} y1={y(v)} y2={y(v)} className={cls} strokeDasharray="4 4" />
+      <text x={W - pad + 2} y={y(v) + 3} className="fill-slate-400 text-[9px]">{label}</text>
+    </g>
+  );
+  return (
+    <div className="overflow-x-auto px-4 py-3">
+      <svg viewBox={\`0 0 \${W + 30} \${H}\`} className="w-full min-w-[520px]">
+        {line(st.limits.uclX, "stroke-rose-400", "UCL")}
+        {line(st.xbar, "stroke-slate-400", "X̄")}
+        {line(st.limits.lclX, "stroke-rose-400", "LCL")}
+        <polyline points={st.means.map((m, i) => \`\${x(i)},\${y(m)}\`).join(" ")} className="fill-none stroke-violet-500" strokeWidth={1.5} />
+        {st.means.map((m, i) => <circle key={i} cx={x(i)} cy={y(m)} r={3} className={st.outOfControl.includes(i) ? "fill-rose-500" : "fill-violet-500"} />)}
+      </svg>
+    </div>
+  );
+}
+
+function Spc({ onAct, onOpen }: Handlers) {
+  return (
+    <div className="space-y-4">
+      <p className="text-[12.5px] text-slate-500 dark:text-slate-400">Cp/Cpk จากความแปรปรวนภายในกลุ่ม Pp/Ppk จากส่วนเบี่ยงเบนรวม · การศึกษาเบื้องต้นต้องมีอย่างน้อย {MIN_SUBGROUPS} กลุ่มย่อย</p>
+      {CHARTS.map((c) => {
+        const st = stats(c);
+        return (
+          <Card key={c.code} title={\`\${c.code} · \${c.characteristic}\${c.special ? \` (\${c.special})\` : ""}\`} subtitle={\`\${materialName(c.part)} · ขั้นตอน \${c.op} · เกณฑ์ \${c.lsl}–\${c.usl} · \${c.subgroups.length} กลุ่มย่อย × \${c.n}\`} action={<Button variant="ghost" onClick={() => onOpen("spc", c.code)}>เปิด</Button>}>
+            <div className="grid gap-3 px-4 pt-3 sm:grid-cols-4">
+              {[["Cp", st.cp], ["Cpk", st.cpk], ["Pp", st.pp], ["Ppk", st.ppk]].map(([k, v]) => (
+                <div key={k as string} className="rounded-xl bg-slate-50 px-3 py-2 dark:bg-slate-800/50">
+                  <p className="text-[11.5px] text-slate-500">{k}</p>
+                  <p className={"text-[18px] font-semibold tabular-nums " + (k === "Ppk" ? (capable(c) ? "text-emerald-600" : "text-rose-600") : "text-slate-900 dark:text-slate-50")}>{f2(v as number)}</p>
+                </div>
+              ))}
+            </div>
+            <XbarChart c={c} />
+            <div className="flex flex-wrap gap-2 px-4 pb-4">
+              <Button variant="secondary" icon={<Plus size={14} />} onClick={() => onAct({ kind: "spc-add", code: c.code })}>เพิ่มกลุ่มย่อย</Button>
+              <Button variant="secondary" icon={<Upload size={14} />} onClick={() => onAct({ kind: "spc-import", code: c.code })}>นำเข้าหลายกลุ่ม</Button>
+              <Button variant="ghost" icon={<RotateCcw size={14} />} onClick={() => onAct({ kind: "spc-restart", code: c.code })}>เริ่มการศึกษาใหม่</Button>
+              <Button variant="ghost" icon={<Printer size={14} />} onClick={() => onAct({ kind: "print", d: { doc: "spc", code: c.code }, title: "รายงานความสามารถของกระบวนการ" })}>พิมพ์</Button>
+            </div>
+          </Card>
+        );
+      })}
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------- msa */
+
+function Msa({ onAct, onOpen }: Handlers) {
+  const latest = new Set(PARTS.flatMap((p) => latestStudies(p.code)).map((s) => s.no));
+  const columns: Column<MsaStudy>[] = [
+    { key: "no", header: "เลขที่", cell: (s) => <span className="whitespace-nowrap font-medium tabular-nums text-slate-800 dark:text-slate-100">{s.no}</span> },
+    { key: "gauge", header: "เครื่องมือวัด", cell: (s) => \`\${s.gauge} · \${s.gaugeName}\` },
+    { key: "char", header: "คุณลักษณะ", cell: (s) => s.characteristic },
+    { key: "date", header: "วันที่", cell: (s) => s.date },
+    { key: "grr", header: "%GRR", align: "right", cell: (s) => <span className="tabular-nums">{grr(s).pct}%</span> },
+    { key: "ndc", header: "ndc", align: "right", cell: (s) => <span className="tabular-nums">{grr(s).ndc}</span> },
+    { key: "verdict", header: "ผล", cell: (s) => <span className="flex gap-1.5"><Badge tone={grrTone(grr(s).verdict)}>{grr(s).verdict}</Badge>{latest.has(s.no) ? <Badge tone="info">ใช้อยู่</Badge> : <Badge tone="idle">แทนที่แล้ว</Badge>}</span> },
+  ];
+  return (
+    <DataTable
+      rows={STUDIES}
+      columns={columns}
+      getId={(s) => s.no}
+      onOpen={(s) => onOpen("msa", s.no)}
+      toolbar={
+        <div className="flex flex-wrap items-center gap-2">
+          <p className="text-[12.5px] text-slate-500 dark:text-slate-400">%GRR ต่ำกว่า 10% และ ndc ≥ 5 ยอมรับได้ · 10–30% มีเงื่อนไข · เกิน 30% ยอมรับไม่ได้ · ผลล่าสุดของแต่ละคุณลักษณะคือผลที่ใช้</p>
+          <div className="ml-auto flex gap-2">
+            <Button variant="secondary" icon={exportIcon} onClick={() => csv("Gage R&R", ["เลขที่", "เครื่องมือ", "คุณลักษณะ", "วันที่", "%GRR", "ndc", "ผล"], STUDIES.map((s) => [s.no, s.gauge, s.characteristic, s.date, grr(s).pct, grr(s).ndc, grr(s).verdict]))}>ส่งออก Excel</Button>
+            <Button icon={<GaugeIcon size={14} />} onClick={() => onAct({ kind: "msa-new" })}>ศึกษาใหม่</Button>
+          </div>
+        </div>
+      }
+    />
+  );
+}
+
+/* --------------------------------------------------------------- records */
+
+function RecordView({ kind, id, ...h }: { kind: RecordKind; id: string } & Handlers) {
+  if (kind === "apqp") return <div className="space-y-4 overflow-y-auto px-5 py-4"><ApqpBody p={projectByNo(id)} {...h} /></div>;
+  if (kind === "ppap") return <div className="space-y-4 overflow-y-auto px-5 py-4"><PpapBody s={submissionByNo(id)} onAct={h.onAct} /></div>;
+  if (kind === "fmea") return <FmeaRecord f={fmeaByNo(id)} {...h} />;
+  if (kind === "plan") return <PlanRecord cp={planByNo(id)} {...h} />;
+  if (kind === "spc") return <ChartRecord c={chartByCode(id)} {...h} />;
+  return <StudyRecord s={studyByNo(id)} {...h} />;
+}
+
+function FmeaRecord({ f, onAct }: { f: Fmea } & Handlers) {
+  return (
+    <div className="flex h-full flex-col">
+      <Header
+        title={\`\${f.no} · \${f.type}\`}
+        meta={\`\${materialName(f.part)} · Rev.\${f.rev} · \${f.date}\`}
+        badges={<>{openHigh(f).length ? <Badge tone="bad">AP สูงค้าง {openHigh(f).length}</Badge> : <Badge tone="ok">ไม่มี AP สูงค้าง</Badge>}<Badge tone="idle">{f.rows.length} แถว</Badge></>}
+        actions={
+          <>
+            <Button icon={<Plus size={14} />} onClick={() => onAct({ kind: "fmea-row", no: f.no })}>เพิ่มแถว</Button>
+            <Button variant="secondary" icon={<Printer size={14} />} onClick={() => onAct({ kind: "print", d: { doc: "fmea", no: f.no }, title: f.type })}>พิมพ์</Button>
+          </>
+        }
+      />
+      <Body><Card title="แถววิเคราะห์"><FmeaRows f={f} onAct={onAct} /></Card></Body>
+    </div>
+  );
+}
+
+function PlanRecord({ cp, onAct }: { cp: ControlPlan } & Handlers) {
+  const missing = missingSpecials(cp);
+  return (
+    <div className="flex h-full flex-col">
+      <Header
+        title={\`\${cp.no} · ระยะ\${cp.phase}\`}
+        meta={\`\${materialName(cp.part)} · Rev.\${cp.rev} · \${cp.date}\`}
+        badges={<>{cp.approvedBy ? <Badge tone="ok">อนุมัติโดย {cp.approvedBy}</Badge> : <Badge tone="warn">รออนุมัติ</Badge>}{missing.length > 0 && <Badge tone="bad">ขาดคุณลักษณะพิเศษ {missing.length}</Badge>}</>}
+        actions={
+          <>
+            <Button icon={<Plus size={14} />} onClick={() => onAct({ kind: "cp-row", no: cp.no })}>เพิ่มแถว</Button>
+            {!cp.approvedBy && <Button variant="secondary" icon={<ShieldCheck size={14} />} onClick={() => onAct({ kind: "cp-approve", no: cp.no })}>อนุมัติ</Button>}
+            <Button variant="secondary" icon={<Printer size={14} />} onClick={() => onAct({ kind: "print", d: { doc: "control-plan", no: cp.no }, title: "แผนควบคุม" })}>พิมพ์</Button>
+          </>
+        }
+      />
+      <Body>
+        {missing.length > 0 && <Note tone="bad">PFMEA ประกาศคุณลักษณะพิเศษที่แผนนี้ยังไม่มี: {missing.map((m) => \`\${m.characteristic} (\${m.special})\`).join(", ")}</Note>}
+        <Card title="แถวควบคุม">
+          <Lines>
+            {cp.rows.map((r, i) => <Line key={i} title={\`\${r.op} · \${r.characteristic}\${r.special ? \` · \${r.special}\` : ""}\`} sub={\`เกณฑ์ \${r.spec} · \${r.gauge} · \${r.sample} · ตอบสนอง: \${r.reaction}\`} right={<Badge tone={r.special === "CC" ? "bad" : r.special === "SC" ? "warn" : "idle"}>{r.control}</Badge>} />)}
+          </Lines>
+        </Card>
+      </Body>
+    </div>
+  );
+}
+
+function ChartRecord({ c, onAct }: { c: SpcChart } & Handlers) {
+  const st = stats(c);
+  return (
+    <div className="flex h-full flex-col">
+      <Header
+        title={\`\${c.code} · \${c.characteristic}\`}
+        meta={\`\${materialName(c.part)} · เกณฑ์ \${c.lsl}–\${c.usl} · \${c.subgroups.length} กลุ่มย่อย\`}
+        badges={<><Badge tone={capable(c) ? "ok" : "bad"}>Ppk {f2(st.ppk)} · เป้า {capabilityTarget(c)}</Badge><Badge tone="idle">Cpk {f2(st.cpk)}</Badge>{st.outOfControl.length > 0 && <Badge tone="warn">หลุดการควบคุม {st.outOfControl.length} จุด</Badge>}</>}
+        actions={
+          <>
+            <Button icon={<Plus size={14} />} onClick={() => onAct({ kind: "spc-add", code: c.code })}>เพิ่มกลุ่มย่อย</Button>
+            <Button variant="secondary" icon={<Upload size={14} />} onClick={() => onAct({ kind: "spc-import", code: c.code })}>นำเข้าหลายกลุ่ม</Button>
+            <Button variant="secondary" icon={<Printer size={14} />} onClick={() => onAct({ kind: "print", d: { doc: "spc", code: c.code }, title: "รายงานความสามารถของกระบวนการ" })}>พิมพ์</Button>
+          </>
+        }
+      />
+      <Body>
+        <Card title="แผนภูมิ X̄"><XbarChart c={c} /></Card>
+        {c.history.length > 0 && <Card title="การศึกษาก่อนหน้า"><Lines>{c.history.map((x, i) => <Line key={i} title={\`ปิด \${x.closedOn}\`} sub={\`\${x.reason} · \${x.subgroups.length} กลุ่มย่อย\`} />)}</Lines></Card>}
+      </Body>
+    </div>
+  );
+}
+
+function StudyRecord({ s, onAct }: { s: MsaStudy } & Handlers) {
+  const r = grr(s);
+  return (
+    <div className="flex h-full flex-col">
+      <Header
+        title={\`\${s.no} · \${s.gaugeName}\`}
+        meta={\`\${s.gauge} · \${s.characteristic} · เกณฑ์ \${s.lsl}–\${s.usl} · \${s.date}\`}
+        badges={<><Badge tone={grrTone(r.verdict)}>{r.verdict}</Badge><Badge tone="idle">%GRR {r.pct}% · ndc {r.ndc}</Badge></>}
+        actions={
+          <>
+            {r.verdict === "ยอมรับไม่ได้" && <Button icon={<GaugeIcon size={14} />} onClick={() => onAct({ kind: "msa-new", characteristic: s.characteristic })}>ศึกษาใหม่ด้วยเครื่องมืออื่น</Button>}
+            <Button variant="secondary" icon={<Printer size={14} />} onClick={() => onAct({ kind: "print", d: { doc: "msa", no: s.no }, title: "รายงานการวิเคราะห์ระบบการวัด" })}>พิมพ์รายงาน</Button>
+          </>
+        }
+      />
+      <Body>
+        <div className="grid gap-3 sm:grid-cols-4">
+          <Metric label="EV เครื่องมือ" value={r.ev.toFixed(4)} />
+          <Metric label="AV ผู้วัด" value={r.av.toFixed(4)} />
+          <Metric label="PV ชิ้นงาน" value={r.pv.toFixed(4)} />
+          <Metric label="%GRR" value={\`\${r.pct}%\`} deltaLabel={\`ndc \${r.ndc}\`} />
+        </div>
+        <Card title="ผู้วัด"><p className="px-4 py-3 text-[13px] text-slate-700 dark:text-slate-200">{s.appraisers.join(" · ")}</p></Card>
+      </Body>
+    </div>
+  );
+}
+`,
+
   "em/data.ts": `import { commit } from "../kit";
 import {
   EMR, PEOPLE, TODAY, YEAR, addDays, addMonths, assertValid, carOf, contributeReviewInput, docByCode, isDate, nextNo, openCapa,
@@ -9227,6 +11146,1219 @@ function AssetRecord({ code, open }: { code: string; open: Open }) {
 }
 `,
 
+  "iatf/data.ts": `import { commit } from "../kit";
+import {
+  PEOPLE, QMR, TODAY, YEAR, addDays, addMonths, assertValid, carOf, contributeReviewInput, courseName, docByCode, isDate, isQualified,
+  nextNo, openCapa,
+} from "../ims/data";
+import type { CourseCode, Errors } from "../ims/data";
+import { VENDORS } from "../mm/data";
+import { CUSTOMERS, DELIVERIES, SALES_ORDERS } from "../sd/data";
+import { NCRS } from "../qm/data";
+import { PARTS, planOfPhase, releasedForProduction, specialsOf } from "../ct/data";
+
+export { TODAY };
+export type { Errors };
+
+/**
+ * ข้อกำหนดเพิ่มเติมของ IATF 16949 ที่ ISO 9001 ไม่มี — ข้อกำหนดเฉพาะลูกค้า ความปลอดภัยผลิตภัณฑ์
+ * แผนฉุกเฉินทางธุรกิจ การตรวจประเมินผู้ส่งมอบ ผลงานต่อลูกค้า และอุปกรณ์ป้องกันความผิดพลาด
+ *
+ * ทุกข้อตัดสินจากข้อมูลของระบบอื่น: ข้อกำหนดเฉพาะลูกค้าที่นำไปใช้ต้องชี้ไปที่เอกสารที่ใช้งานอยู่
+ * ความปลอดภัยผลิตภัณฑ์อ่านคุณลักษณะ CC แผนควบคุม และ PPAP จาก Core Tools ผู้ตรวจผู้ส่งมอบต้องผ่าน
+ * หลักสูตรในทะเบียนความสามารถ และ PPM ที่ลูกค้ารายงานวางคู่ข้อร้องเรียนที่ระบบคุณภาพนับเอง
+ */
+
+export const customerName = (code: string) => CUSTOMERS.find((c) => c.code === code)?.name ?? code;
+export const vendorName = (code: string) => VENDORS.find((v) => v.code === code)?.name ?? code;
+
+/** ลูกค้ายานยนต์ — ลูกค้าที่มีชิ้นส่วนยานยนต์ในระบบ Core Tools */
+export const automotiveCustomers = () => [...new Set(PARTS.map((p) => p.customer))];
+
+/* ================================================================== csr */
+
+export const CSR_STATUSES = ["นำไปใช้แล้ว", "กำลังดำเนินการ", "ยังไม่ได้ทำ"] as const;
+export type CsrStatus = (typeof CSR_STATUSES)[number];
+
+export type Csr = { id: number; customer: string; source: string; clause: string; requirement: string; doc?: string; status: CsrStatus; owner: string };
+
+const TAP = "TAP Supplier Quality Manual Rev.7";
+
+export const CSRS: Csr[] = [
+  { id: 1, customer: "C-106", source: TAP, clause: "8.3.4.4", requirement: "PPAP ระดับ 3 ทุกชิ้นส่วนใหม่และทุกการเปลี่ยนแปลง", doc: "SP-17", status: "นำไปใช้แล้ว", owner: "ธนพล เจริญผล" },
+  { id: 2, customer: "C-106", source: TAP, clause: "8.5.2.1", requirement: "สอบกลับจากชิ้นงานถึงล็อตวัตถุดิบได้ภายใน 4 ชั่วโมง", doc: "SP-21", status: "นำไปใช้แล้ว", owner: "ธนพล เจริญผล" },
+  { id: 3, customer: "C-106", source: TAP, clause: "10.2.3", requirement: "ตอบ 8D: กักกันภายใน 24 ชั่วโมง สาเหตุรากภายใน 10 วันทำการ", doc: "SP-04", status: "นำไปใช้แล้ว", owner: QMR },
+  { id: 4, customer: "C-106", source: TAP, clause: "8.5.1.1", requirement: "แผนควบคุมที่มี CC ต้องส่งลูกค้าอนุมัติก่อนใช้", doc: "SP-18", status: "นำไปใช้แล้ว", owner: "ศักดิ์ชัย วงศ์ไทย" },
+  { id: 5, customer: "C-106", source: TAP, clause: "8.6.2", requirement: "ตรวจวัดขนาดเต็มรูปแบบ (layout inspection) ปีละครั้งทุกชิ้นส่วน", status: "กำลังดำเนินการ", owner: "สุภาพร แก้วมณี" },
+  { id: 6, customer: "C-106", source: TAP, clause: "8.5.6.1", requirement: "แจ้งการเปลี่ยนแปลงกระบวนการล่วงหน้า 60 วันก่อนดำเนินการ", status: "กำลังดำเนินการ", owner: "ศักดิ์ชัย วงศ์ไทย" },
+  { id: 7, customer: "C-106", source: TAP, clause: "8.5.4", requirement: "บรรจุในกล่องหมุนเวียนของลูกค้า ติดป้ายบาร์โค้ดตามมาตรฐานลูกค้า", status: "ยังไม่ได้ทำ", owner: "วรวุฒิ พึ่งบุญ" },
+  { id: 8, customer: "C-106", source: TAP, clause: "4.4.1.2", requirement: "ชิ้นส่วนความปลอดภัยต้องมีผู้แทนความปลอดภัยผลิตภัณฑ์ที่ผ่านการอบรม", doc: "SP-21", status: "นำไปใช้แล้ว", owner: QMR },
+];
+
+export const csrById = (id: number) => {
+  const c = CSRS.find((x) => x.id === id);
+  if (!c) throw new Error("ไม่พบข้อกำหนดนี้");
+  return c;
+};
+
+/** ความครอบคลุม — ข้อที่นำไปใช้แล้วและเอกสารที่ชี้ยังใช้งานอยู่จริง */
+export const effective = (c: Csr) => c.status === "นำไปใช้แล้ว" && !!c.doc && docByCode(c.doc).status === "ใช้งาน";
+export const coverage = (customer: string) => {
+  const mine = CSRS.filter((c) => c.customer === customer);
+  return { done: mine.filter(effective).length, total: mine.length };
+};
+
+export type CsrInput = Omit<Csr, "id" | "status" | "doc">;
+
+export function csrErrors(input: CsrInput): Errors {
+  const e: Errors = {};
+  if (!automotiveCustomers().includes(input.customer)) e.customer = "เลือกลูกค้ายานยนต์";
+  if (input.source.trim().length < 3) e.source = "เอกสารต้นทางของลูกค้า";
+  if (!/^\\d+(\\.\\d+)*$/.test(input.clause.trim())) e.clause = "ข้อ IATF ที่เกี่ยวข้อง เช่น 8.5.2.1";
+  if (input.requirement.trim().length < 10) e.requirement = "สิ่งที่ลูกค้ากำหนด";
+  if (!PEOPLE.includes(input.owner)) e.owner = "เลือกผู้รับผิดชอบ";
+  return e;
+}
+
+export function addCsr(input: CsrInput) {
+  assertValid(csrErrors(input));
+  return commit(() => {
+    const c: Csr = { ...input, id: Math.max(0, ...CSRS.map((x) => x.id)) + 1, source: input.source.trim(), clause: input.clause.trim(), requirement: input.requirement.trim(), status: "ยังไม่ได้ทำ" };
+    CSRS.push(c);
+    return c;
+  });
+}
+
+/** นำไปใช้ — ต้องผูกกับเอกสารควบคุมที่ใช้งานอยู่ในทะเบียนกลาง */
+export function implementCsr(id: number, doc: string) {
+  const c = csrById(id);
+  let d;
+  try {
+    d = docByCode(doc);
+  } catch {
+    throw new Error(\`ไม่พบ \${doc} ในทะเบียนเอกสาร\`);
+  }
+  if (d.status !== "ใช้งาน") throw new Error(\`\${doc} ยังไม่ได้ใช้งาน\`);
+  return commit(() => {
+    c.doc = d.code;
+    c.status = "นำไปใช้แล้ว";
+    return c;
+  });
+}
+
+export function progressCsr(id: number) {
+  const c = csrById(id);
+  if (c.status !== "ยังไม่ได้ทำ") throw new Error(\`ข้อนี้\${c.status}\`);
+  return commit(() => {
+    c.status = "กำลังดำเนินการ";
+    return c;
+  });
+}
+
+/* ========================================================= product safety */
+
+/** ผู้แทนความปลอดภัยผลิตภัณฑ์ (Product Safety Representative) */
+export const PSR = "ธนพล เจริญผล";
+const PSR_COURSE: CourseCode = "TR-06";
+
+export type TraceDrill = { no: string; part: string; lot: string; date: string; tracedTo: string; minutes: number; by: string };
+
+export const TRACE_DRILLS: TraceDrill[] = [
+  { no: "TRC-2569-01", part: "FG-5004", lot: "LOT-BK-260905", date: "2026-09-06", tracedTo: "MAT-1004 heat H24-7781 · ใบรับของ GR-2569-203 · ผลิตทดลองกะเช้า 05/09 · ผู้ควบคุมเครื่อง อนุชา ทองดี", minutes: 95, by: PSR },
+];
+
+/** สอบกลับผ่านเมื่อทำได้ภายในเวลาที่ลูกค้ากำหนด (CSR ข้อ 2) */
+export const TRACE_LIMIT_MINUTES = 240;
+
+/** รายการตรวจความปลอดภัยผลิตภัณฑ์ของชิ้นส่วนหนึ่ง (IATF 4.4.1.2) — ตัดสินจากข้อมูลจริงทุกข้อ */
+export function safetyChecks(part: string) {
+  const cc = specialsOf(part).filter((s) => s.special === "CC");
+  const cp = planOfPhase(part, "ผลิตจริง") ?? planOfPhase(part, "ก่อนผลิต");
+  const drill = TRACE_DRILLS.filter((d) => d.part === part && d.date >= addMonths(TODAY, -12)).sort((a, b) => a.date.localeCompare(b.date)).at(-1);
+  return [
+    { item: "PFMEA ระบุคุณลักษณะวิกฤต (CC)", ok: cc.length > 0, why: cc.map((c) => c.characteristic).join(", ") || "ยังไม่มี CC" },
+    { item: "แผนควบคุมมี CC ครบและอนุมัติแล้ว", ok: !!cp?.approvedBy && cc.every((c) => cp.rows.some((r) => r.characteristic === c.characteristic && r.special === "CC")), why: cp ? \`\${cp.no} \${cp.approvedBy ? "อนุมัติแล้ว" : "รออนุมัติ"}\` : "ยังไม่มีแผนควบคุม" },
+    { item: "ลูกค้าอนุมัติ PPAP", ok: releasedForProduction(part), why: releasedForProduction(part) ? "อนุมัติแล้ว" : "ยังไม่อนุมัติ" },
+    { item: "ผู้แทนความปลอดภัยผลิตภัณฑ์ผ่านการอบรม", ok: isQualified(PSR, PSR_COURSE), why: \`\${PSR} · \${courseName(PSR_COURSE)}\` },
+    { item: \`ทดสอบสอบกลับภายใน \${TRACE_LIMIT_MINUTES / 60} ชั่วโมงในรอบปี\`, ok: !!drill && drill.minutes <= TRACE_LIMIT_MINUTES, why: drill ? \`\${drill.no} ใช้ \${drill.minutes} นาที\` : "ยังไม่เคยทดสอบในรอบปี" },
+  ];
+}
+
+export const safetyParts = () => PARTS.filter((p) => p.safety);
+export const safetyGaps = () => safetyParts().flatMap((p) => safetyChecks(p.code).filter((c) => !c.ok).map((c) => ({ part: p.code, item: c.item })));
+
+export type TraceInput = Omit<TraceDrill, "no">;
+
+export function traceErrors(input: TraceInput): Errors {
+  const e: Errors = {};
+  if (!PARTS.some((p) => p.code === input.part)) e.part = "เลือกชิ้นส่วน";
+  if (input.lot.trim().length < 3) e.lot = "ล็อตที่ทดสอบ";
+  if (input.tracedTo.trim().length < 10) e.tracedTo = "สอบกลับไปถึงอะไร เช่น ล็อตวัตถุดิบ ใบรับของ กะผลิต";
+  if (!(input.minutes > 0)) e.minutes = "เวลาที่ใช้ (นาที)";
+  if (!isDate(input.date) || input.date > TODAY) e.date = "วันที่ต้องไม่เกินวันนี้";
+  if (!PEOPLE.includes(input.by)) e.by = "เลือกผู้ทดสอบ";
+  return e;
+}
+
+export function recordTrace(input: TraceInput) {
+  assertValid(traceErrors(input));
+  return commit(() => {
+    const d: TraceDrill = { ...input, no: nextNo(TRACE_DRILLS.map((x) => x.no), \`TRC-\${YEAR}-\`, 2), lot: input.lot.trim(), tracedTo: input.tracedTo.trim() };
+    TRACE_DRILLS.push(d);
+    return d;
+  });
+}
+
+/* ============================================================ contingency */
+
+export type Contingency = {
+  code: string;
+  scenario: string;
+  /** กี่วันก่อนกระทบการส่งมอบลูกค้า */
+  impactDays: number;
+  actions: string[];
+  owner: string;
+  risk?: string;
+  tests: { date: string; result: "ผ่าน" | "ต้องปรับปรุง"; note: string; by: string }[];
+};
+
+export const CONTINGENCIES: Contingency[] = [
+  { code: "BCP-01", scenario: "เครื่องปั๊ม 200 ตันเสียนานเกิน 8 ชั่วโมง", impactDays: 2, owner: "ประสิทธิ์ ขยันยิ่ง", risk: "RSK-001", actions: ["ใช้สต็อกสำรองชิ้นส่วน 2 วัน", "ย้ายแม่พิมพ์ไปปั๊มที่โรงงานพันธมิตรตามสัญญา", "เบิกอะไหล่วิกฤตจากคลัง แจ้งลูกค้าภายใน 24 ชั่วโมง"], tests: [{ date: "2026-08-28", result: "ผ่าน", note: "ซ้อมแบบโต๊ะ ย้ายแม่พิมพ์ถึงโรงงานพันธมิตรใน 6 ชั่วโมง", by: QMR }] },
+  { code: "BCP-02", scenario: "ไฟฟ้าดับเกิน 4 ชั่วโมง", impactDays: 3, owner: "ประสิทธิ์ ขยันยิ่ง", actions: ["เปิดเครื่องกำเนิดไฟฟ้าให้ปั๊มลมและระบบไอที", "เลื่อนงานพ่นสีไปกะถัดไป", "ทำงานล่วงเวลาชดเชย"], tests: [] },
+  { code: "BCP-03", scenario: "เหล็กแผ่น SAPH440 ขาดตลาด", impactDays: 10, owner: "ปิยะนุช ใจดี", actions: ["ถือสต็อกขั้นต่ำ 2 สัปดาห์", "สั่งจากผู้ขายรายที่สองที่ผ่านการอนุมัติ", "แจ้งลูกค้าขออนุมัติวัตถุดิบทดแทนถ้าจำเป็น"], tests: [{ date: "2025-07-15", result: "ต้องปรับปรุง", note: "ยังไม่มีผู้ขายรายที่สองที่อนุมัติแล้ว", by: "ปิยะนุช ใจดี" }] },
+  { code: "BCP-04", scenario: "ถูกโจมตีทางไซเบอร์ ระบบหยุด", impactDays: 1, owner: "วีระ ตั้งมั่น", actions: ["ตัดเครือข่ายเครื่องที่ติดเชื้อ", "กู้ข้อมูลจากสำเนาออฟไลน์รายวัน", "ออกใบส่งของด้วยแบบฟอร์มกระดาษชั่วคราว"], tests: [] },
+  { code: "BCP-05", scenario: "ขาดแรงงานเกิน 20% จากโรคระบาด", impactDays: 5, owner: "อนุชา ทองดี", actions: ["หมุนพนักงานที่ฝึกข้ามหน้าที่ตามตารางความสามารถ", "จัดลำดับงานลูกค้ายานยนต์ก่อน", "ใช้แรงงานเสริมจากผู้รับเหมาที่ผ่านการอบรม"], tests: [{ date: "2026-03-10", result: "ผ่าน", note: "ตารางความสามารถครอบคลุมทุกตำแหน่งหลักอย่างน้อยสองคน", by: "อนุชา ทองดี" }] },
+];
+
+export const contingencyByCode = (code: string) => {
+  const c = CONTINGENCIES.find((x) => x.code === code);
+  if (!c) throw new Error(\`ไม่พบ \${code}\`);
+  return c;
+};
+
+/** ทดสอบแผนอย่างน้อยปีละครั้ง (IATF 6.1.2.3 จ) — ครั้งล่าสุดต้องผ่านด้วย */
+export const lastTest = (c: Contingency) => c.tests.at(-1);
+export const testDue = (c: Contingency) => !lastTest(c) || addMonths(lastTest(c)!.date, 12) < TODAY || lastTest(c)!.result === "ต้องปรับปรุง";
+
+export function testErrors(code: string, input: { result: "ผ่าน" | "ต้องปรับปรุง"; note: string; by: string; date: string }): Errors {
+  contingencyByCode(code);
+  const e: Errors = {};
+  if (input.note.trim().length < 10) e.note = "บอกวิธีทดสอบและสิ่งที่พบ";
+  if (!PEOPLE.includes(input.by)) e.by = "เลือกผู้ทดสอบ";
+  if (!isDate(input.date) || input.date > TODAY) e.date = "วันที่ต้องไม่เกินวันนี้";
+  return e;
+}
+
+export function testContingency(code: string, input: { result: "ผ่าน" | "ต้องปรับปรุง"; note: string; by: string; date: string }) {
+  assertValid(testErrors(code, input));
+  const c = contingencyByCode(code);
+  return commit(() => {
+    c.tests.push({ date: input.date, result: input.result, note: input.note.trim(), by: input.by });
+    return c;
+  });
+}
+
+/* ========================================================== supplier audits */
+
+export type SupplierCert = { vendor: string; standard: "IATF 16949" | "ISO 9001" | "ไม่มี"; certNo?: string; validUntil?: string };
+
+export const CERTS: SupplierCert[] = [
+  { vendor: "V-001", standard: "IATF 16949", certNo: "IATF-0441872", validUntil: "2027-05-20" },
+  { vendor: "V-002", standard: "ISO 9001", certNo: "TH-QMS-19-0033", validUntil: "2026-12-10" },
+  { vendor: "V-003", standard: "ISO 9001", certNo: "TH-QMS-21-0271", validUntil: "2027-08-31" },
+  { vendor: "V-004", standard: "ไม่มี" },
+];
+
+export const certOf = (vendor: string) => CERTS.find((c) => c.vendor === vendor) ?? { vendor, standard: "ไม่มี" as const };
+/** ผู้ส่งมอบวัตถุดิบยานยนต์ต้องได้ ISO 9001 เป็นอย่างน้อย และใบรับรองยังไม่หมดอายุ (IATF 8.4.2.3) */
+export const certified = (vendor: string) => {
+  const c = certOf(vendor);
+  return c.standard !== "ไม่มี" && !!c.validUntil && c.validUntil >= TODAY;
+};
+
+export type SupplierAudit = { no: string; vendor: string; planned: string; auditor: string; status: "ตามแผน" | "ปิดแล้ว"; performedOn?: string; score?: number; findings?: string };
+
+export const SUPPLIER_AUDITS: SupplierAudit[] = [
+  { no: "SA-2569-01", vendor: "V-001", planned: "2026-07-22", auditor: "ธนพล เจริญผล", status: "ปิดแล้ว", performedOn: "2026-07-22", score: 88, findings: "ไม่มีการตรวจสอบความแข็งของล็อตรีดทุกม้วน ให้แนบใบรับรองผลทดสอบทุกล็อต" },
+  { no: "SA-2569-02", vendor: "V-002", planned: "2026-10-28", auditor: "ธนพล เจริญผล", status: "ตามแผน" },
+];
+
+export const supplierAuditByNo = (no: string) => {
+  const a = SUPPLIER_AUDITS.find((x) => x.no === no);
+  if (!a) throw new Error(\`ไม่พบ \${no}\`);
+  return a;
+};
+
+/** ผู้ตรวจผู้ส่งมอบต้องมีความสามารถตาม IATF 7.2.4 — VDA 6.3 และ Core Tools */
+export const SUPPLIER_AUDITOR_COURSES: CourseCode[] = ["TR-04", "TR-05"];
+export const grade = (score: number) => (score >= 90 ? "A" : score >= 80 ? "B" : "C");
+
+export function supplierAuditErrors(input: { vendor: string; planned: string; auditor: string }): Errors {
+  const e: Errors = {};
+  if (!VENDORS.some((v) => v.code === input.vendor)) e.vendor = "เลือกผู้ขาย";
+  else if (SUPPLIER_AUDITS.some((a) => a.vendor === input.vendor && a.status === "ตามแผน")) e.vendor = "ผู้ขายรายนี้มีแผนตรวจค้างอยู่แล้ว";
+  if (!isDate(input.planned) || input.planned < TODAY) e.planned = "วันที่ตรวจต้องไม่ย้อนหลัง";
+  const missing = SUPPLIER_AUDITOR_COURSES.filter((c) => !isQualified(input.auditor, c));
+  if (!PEOPLE.includes(input.auditor)) e.auditor = "เลือกผู้ตรวจ";
+  else if (missing.length) e.auditor = \`\${input.auditor} ยังขาดหลักสูตร \${missing.map(courseName).join(", ")}\`;
+  return e;
+}
+
+export function planSupplierAudit(input: { vendor: string; planned: string; auditor: string }) {
+  assertValid(supplierAuditErrors(input));
+  return commit(() => {
+    const a: SupplierAudit = { no: nextNo(SUPPLIER_AUDITS.map((x) => x.no), \`SA-\${YEAR}-\`, 2), vendor: input.vendor, planned: input.planned, auditor: input.auditor, status: "ตามแผน" };
+    SUPPLIER_AUDITS.push(a);
+    return a;
+  });
+}
+
+/** บันทึกผลตรวจ — เกรด C เปิด CAR ให้ผู้ส่งมอบพัฒนาในระบบบริหารบูรณาการ */
+export function closeSupplierAudit(no: string, input: { score: number; findings: string }, date = TODAY) {
+  const a = supplierAuditByNo(no);
+  if (a.status !== "ตามแผน") throw new Error(\`\${no} ปิดแล้ว\`);
+  if (!(input.score >= 0 && input.score <= 100)) throw new Error("คะแนน VDA 6.3 เป็นร้อยละ 0–100");
+  if (input.findings.trim().length < 10) throw new Error("บอกสิ่งที่พบ");
+  return commit(() => {
+    a.status = "ปิดแล้ว";
+    a.performedOn = date;
+    a.score = input.score;
+    a.findings = input.findings.trim();
+    const car = grade(input.score) === "C"
+      ? openCapa({ method: "8D", std: "IATF 16949", ref: a.no, problem: \`\${vendorName(a.vendor)} ได้คะแนนตรวจกระบวนการ \${input.score}% เกรด C — \${input.findings.trim()}\`, owner: "ปิยะนุช ใจดี", team: [a.auditor] })
+      : undefined;
+    return { audit: a, car };
+  });
+}
+
+/* =============================================================== scorecard */
+
+export type Scorecard = { month: string; customer: string; ppm: number; delivery: number; premiumFreight: number; disruptions: number };
+
+export const SCORECARDS: Scorecard[] = [
+  { month: "2026-07", customer: "C-106", ppm: 0, delivery: 100, premiumFreight: 0, disruptions: 0 },
+  { month: "2026-08", customer: "C-106", ppm: 0, delivery: 96, premiumFreight: 1, disruptions: 0 },
+];
+
+/** ระดับตามเกณฑ์ของลูกค้า — เขียวคือไม่ต้องทำอะไร แดงต้องตอบด้วย 8D */
+export function rating(s: Pick<Scorecard, "ppm" | "delivery" | "disruptions">) {
+  if (s.ppm <= 50 && s.delivery >= 98 && s.disruptions === 0) return "เขียว" as const;
+  if (s.ppm <= 150 && s.delivery >= 95 && s.disruptions <= 1) return "เหลือง" as const;
+  return "แดง" as const;
+}
+
+/** PPM ที่ระบบคุณภาพนับเองในเดือนเดียวกัน — ข้อร้องเรียนของลูกค้ารายนั้นเทียบจำนวนที่ส่ง */
+export function ourPpm(customer: string, month: string) {
+  const shipped = DELIVERIES.filter((d) => d.date.slice(0, 7) === month && SALES_ORDERS.find((s) => s.no === d.so)?.customer === customer).reduce((n, d) => n + d.lines.reduce((m, l) => m + l.qty, 0), 0);
+  const rejected = NCRS.filter((n) => n.customer === customer && n.date.slice(0, 7) === month).reduce((k, n) => k + n.qty, 0);
+  return { shipped, rejected, ppm: shipped ? Math.round((rejected / shipped) * 1_000_000) : 0 };
+}
+
+export function scorecardErrors(input: Scorecard): Errors {
+  const e: Errors = {};
+  if (!automotiveCustomers().includes(input.customer)) e.customer = "เลือกลูกค้ายานยนต์";
+  if (!/^\\d{4}-\\d{2}$/.test(input.month) || input.month > TODAY.slice(0, 7)) e.month = "เดือนที่ลูกค้ารายงาน";
+  else if (SCORECARDS.some((s) => s.customer === input.customer && s.month === input.month)) e.month = "เดือนนี้บันทึกแล้ว";
+  if (!(input.ppm >= 0)) e.ppm = "PPM ตามที่ลูกค้ารายงาน";
+  if (!(input.delivery >= 0 && input.delivery <= 100)) e.delivery = "ร้อยละ 0–100";
+  if (!(Number.isInteger(input.premiumFreight) && input.premiumFreight >= 0)) e.premiumFreight = "จำนวนครั้ง";
+  if (!(Number.isInteger(input.disruptions) && input.disruptions >= 0)) e.disruptions = "จำนวนครั้ง";
+  return e;
+}
+
+/** บันทึก scorecard — ระดับแดงเปิด 8D ในระบบบริหารบูรณาการทันที (IATF 9.1.2.1) */
+export function recordScorecard(input: Scorecard) {
+  assertValid(scorecardErrors(input));
+  return commit(() => {
+    const s: Scorecard = { ...input };
+    SCORECARDS.push(s);
+    const r = rating(s);
+    const ref = \`SC \${s.customer} \${s.month}\`;
+    const car = r === "แดง" && !carOf(ref)
+      ? openCapa({ method: "8D", std: "IATF 16949", ref, problem: \`\${customerName(s.customer)} ให้ระดับแดงเดือน \${s.month}: PPM \${s.ppm} ส่งตรงเวลา \${s.delivery}% กระทบสายการผลิต \${s.disruptions} ครั้ง\`, owner: "ธนพล เจริญผล", team: ["ชลธิชา มั่นคง", "อนุชา ทองดี"] })
+      : undefined;
+    return { scorecard: s, rating: r, car };
+  });
+}
+
+/* ================================================================ poka-yoke */
+
+export const SHIFTS = ["เช้า", "บ่าย"] as const;
+export type Shift = (typeof SHIFTS)[number];
+
+export type Device = {
+  code: string;
+  name: string;
+  part: string;
+  op: string;
+  prevents: string;
+  master: string;
+  status: "ใช้งาน" | "หยุดใช้";
+  checks: { date: string; shift: Shift; ok: boolean; by: string; note?: string }[];
+};
+
+const daily = (from: string, days: number, by: string) =>
+  Array.from({ length: days }, (_, i) => addDays(from, i)).flatMap((date) => SHIFTS.map((shift) => ({ date, shift, ok: true, by })));
+
+export const DEVICES: Device[] = [
+  { code: "PY-01", name: "เกจ Go/No-Go ตรวจรูพร้อมรางคัดออกอัตโนมัติ", part: "FG-5004", op: "0030", prevents: "ชิ้นที่ตำแหน่งรูเยื้องหลุดถึงลูกค้า", master: "ชิ้นต้นแบบเสีย RR-BK220-01 (รูเยื้อง 0.3 มม.)", status: "ใช้งาน", checks: [...daily("2026-09-15", 7, "อนุชา ทองดี"), { date: "2026-09-22", shift: "เช้า", ok: true, by: "อนุชา ทองดี" }] },
+  { code: "PY-02", name: "เซนเซอร์ตรวจแผ่นซ้อนที่ป้อนเครื่องปั๊ม", part: "FG-5004", op: "0010", prevents: "ปั๊มสองแผ่นพร้อมกันจนแม่พิมพ์เสียหายและชิ้นงานผิดรูป", master: "แผ่นทดสอบซ้อนสองชั้น", status: "ใช้งาน", checks: daily("2026-09-15", 7, "อนุชา ทองดี") },
+];
+
+export const deviceByCode = (code: string) => {
+  const d = DEVICES.find((x) => x.code === code);
+  if (!d) throw new Error(\`ไม่พบ \${code}\`);
+  return d;
+};
+
+/** กะของวันนี้ที่ยังไม่ได้ทวนสอบ — ต้องทวนสอบด้วยชิ้นต้นแบบเสียทุกกะก่อนผลิต (IATF 10.2.4) */
+export const missingChecks = () =>
+  DEVICES.filter((d) => d.status === "ใช้งาน").flatMap((d) => SHIFTS.filter((s) => !d.checks.some((c) => c.date === TODAY && c.shift === s)).map((s) => ({ device: d.code, shift: s })));
+
+export function verifyErrors(code: string, input: { shift: Shift; ok: boolean; by: string; note: string }): Errors {
+  const d = deviceByCode(code);
+  const e: Errors = {};
+  if (d.status !== "ใช้งาน") e.shift = \`\${code} หยุดใช้อยู่ ซ่อมแล้วทวนสอบใหม่ผ่าน CAR\`;
+  else if (d.checks.some((c) => c.date === TODAY && c.shift === input.shift)) e.shift = \`กะ\${input.shift}วันนี้ทวนสอบแล้ว\`;
+  if (!PEOPLE.includes(input.by)) e.by = "เลือกผู้ทวนสอบ";
+  if (!input.ok && input.note.trim().length < 10) e.note = "ไม่ผ่านต้องบอกสิ่งที่พบและชิ้นงานที่กักไว้";
+  return e;
+}
+
+/** ทวนสอบประจำกะ — ไม่ผ่านคือหยุดใช้ ตรวจ 100% ด้วยมือแทน และเปิด CAR ทันที */
+export function verifyDevice(code: string, input: { shift: Shift; ok: boolean; by: string; note: string }) {
+  assertValid(verifyErrors(code, input));
+  const d = deviceByCode(code);
+  return commit(() => {
+    d.checks.push({ date: TODAY, shift: input.shift, ok: input.ok, by: input.by, note: input.note.trim() || undefined });
+    if (input.ok) return { device: d, car: undefined };
+    d.status = "หยุดใช้";
+    const car = openCapa({ method: "5 Why", std: "IATF 16949", ref: \`\${d.code} \${TODAY} \${input.shift}\`, problem: \`\${d.name} ไม่จับชิ้นต้นแบบเสีย — \${input.note.trim()}\`, owner: "ศักดิ์ชัย วงศ์ไทย", team: [] });
+    return { device: d, car };
+  });
+}
+
+/** กลับมาใช้หลังซ่อม — CAR ของครั้งที่ไม่ผ่านต้องปิดแล้ว */
+export function restoreDevice(code: string) {
+  const d = deviceByCode(code);
+  if (d.status === "ใช้งาน") throw new Error(\`\${code} ใช้งานอยู่\`);
+  const failed = [...d.checks].reverse().find((c) => !c.ok);
+  const car = failed ? carOf(\`\${d.code} \${failed.date} \${failed.shift}\`) : undefined;
+  if (car && car.status !== "ปิดแล้ว") throw new Error(\`ปิด \${car.no} ก่อนนำ \${code} กลับมาใช้\`);
+  return commit(() => {
+    d.status = "ใช้งาน";
+    return d;
+  });
+}
+
+/* ======================================================== review inputs */
+
+const toneOf = (bad: boolean, warn = false) => (bad ? "bad" : warn ? "warn" : "ok") as "bad" | "warn" | "ok";
+
+contributeReviewInput({
+  key: "iatf-customer", std: ["IATF 16949"], input: "IATF 9.3.2.1", title: "ผลงานต่อลูกค้ายานยนต์และข้อกำหนดเฉพาะ",
+  facts: () => {
+    const last = SCORECARDS.at(-1);
+    const cov = automotiveCustomers().map(coverage).reduce((a, b) => ({ done: a.done + b.done, total: a.total + b.total }), { done: 0, total: 0 });
+    return [
+      { label: "Scorecard ล่าสุด", value: last ? \`\${last.month} \${rating(last)}\` : "—", tone: last ? toneOf(rating(last) === "แดง", rating(last) === "เหลือง") : "idle" },
+      { label: "ข้อกำหนดเฉพาะลูกค้าที่นำไปใช้", value: \`\${cov.done} จาก \${cov.total}\`, tone: toneOf(false, cov.done < cov.total) },
+    ];
+  },
+});
+
+contributeReviewInput({
+  key: "iatf-risk", std: ["IATF 16949"], input: "IATF 9.3.2.1", title: "ความปลอดภัยผลิตภัณฑ์ แผนฉุกเฉิน และผู้ส่งมอบ",
+  facts: () => [
+    { label: "ข้อความปลอดภัยผลิตภัณฑ์ที่ยังไม่ผ่าน", value: \`\${safetyGaps().length} ข้อ\`, tone: toneOf(false, safetyGaps().length > 0) },
+    { label: "แผนฉุกเฉินที่ต้องทดสอบ", value: \`\${CONTINGENCIES.filter(testDue).length} แผน\`, tone: toneOf(CONTINGENCIES.filter(testDue).length > 2, CONTINGENCIES.some(testDue)) },
+    { label: "อุปกรณ์ป้องกันความผิดพลาดหยุดใช้", value: \`\${DEVICES.filter((d) => d.status === "หยุดใช้").length} ชิ้น\`, tone: toneOf(DEVICES.some((d) => d.status === "หยุดใช้")) },
+  ],
+});
+`,
+
+  "iatf/documents.tsx": `import { Paper } from "../kit";
+import { QMR, TOP, formNo } from "../ims/data";
+import { Block, Facts, Foot, PaperHead, PaperTable, Signatures } from "../ims/parts";
+import { CSRS, certOf, contingencyByCode, customerName, deviceByCode, effective, grade, lastTest, supplierAuditByNo, vendorName } from "./data";
+
+/** เอกสารที่พิมพ์ได้จากข้อกำหนด IATF — ทุกใบมีเลขแบบฟอร์มจากบัญชีรายชื่อเอกสาร */
+export type IatfDoc =
+  | { doc: "csr"; customer: string }
+  | { doc: "contingency"; code: string }
+  | { doc: "supplier-audit"; no: string }
+  | { doc: "device"; code: string };
+
+const Foot_ = () => <Foot system="IATF 16949:2016" />;
+
+function CsrMatrix({ customer }: { customer: string }) {
+  const rows = CSRS.filter((c) => c.customer === customer);
+  return (
+    <>
+      <PaperHead title="ตารางข้อกำหนดเฉพาะลูกค้า" number={customer} form={formNo("FM-27")} />
+      <Facts rows={[["ลูกค้า", customerName(customer)], ["จำนวนข้อ", \`\${rows.length} ข้อ\`], ["นำไปใช้แล้ว", \`\${rows.filter(effective).length} ข้อ\`], ["เอกสารต้นทาง", [...new Set(rows.map((r) => r.source))].join(", ")]]} />
+      <PaperTable head={["#", "ข้อ IATF", "ข้อกำหนดของลูกค้า", "เอกสารของเรา", "สถานะ", "ผู้รับผิดชอบ"]} rows={rows.map((c) => [String(c.id), c.clause, c.requirement, c.doc ?? "—", c.status, c.owner])} />
+      <Signatures names={[["ผู้จัดทำ", "ธนพล เจริญผล"], ["ผู้อนุมัติ (QMR)", QMR]]} />
+      <Foot_ />
+    </>
+  );
+}
+
+function ContingencySheet({ code }: { code: string }) {
+  const c = contingencyByCode(code);
+  return (
+    <>
+      <PaperHead title="แผนฉุกเฉินทางธุรกิจ" number={c.code} form={formNo("FM-28")} />
+      <Facts rows={[["สถานการณ์", c.scenario], ["กระทบลูกค้าภายใน", \`\${c.impactDays} วัน\`], ["ผู้รับผิดชอบ", c.owner], ["ความเสี่ยงที่เกี่ยวข้อง", c.risk ?? "—"]]} />
+      <Block title="สิ่งที่ต้องทำ"><ol className="list-decimal pl-5">{c.actions.map((a) => <li key={a}>{a}</li>)}</ol></Block>
+      <PaperTable head={["วันที่ทดสอบ", "ผล", "สิ่งที่พบ", "ผู้ทดสอบ"]} rows={c.tests.map((t) => [t.date, t.result, t.note, t.by])} />
+      <p className="mt-3 text-slate-600">ทดสอบล่าสุด: {lastTest(c) ? \`\${lastTest(c)!.date} \${lastTest(c)!.result}\` : "ยังไม่เคยทดสอบ"} · ทดสอบอย่างน้อยปีละครั้ง</p>
+      <Signatures names={[["ผู้รับผิดชอบ", c.owner], ["ผู้อนุมัติ", TOP]]} />
+      <Foot_ />
+    </>
+  );
+}
+
+function SupplierAuditReport({ no }: { no: string }) {
+  const a = supplierAuditByNo(no);
+  const cert = certOf(a.vendor);
+  return (
+    <>
+      <PaperHead title="รายงานการตรวจประเมินผู้ส่งมอบ" number={a.no} form={formNo("FM-29")} />
+      <Facts
+        rows={[
+          ["ผู้ส่งมอบ", vendorName(a.vendor)],
+          ["ใบรับรองระบบ", cert.standard === "ไม่มี" ? "ไม่มี" : \`\${cert.standard} \${cert.certNo} ถึง \${cert.validUntil}\`],
+          ["วันที่ตรวจ", a.performedOn ?? \`ตามแผน \${a.planned}\`],
+          ["ผู้ตรวจ", a.auditor],
+          ["วิธีตรวจ", "ตรวจกระบวนการตาม VDA 6.3"],
+          ["ผล", a.score !== undefined ? \`\${a.score}% เกรด \${grade(a.score)}\` : "ยังไม่ตรวจ"],
+        ]}
+      />
+      <Block title="สิ่งที่พบ">{a.findings ?? "—"}</Block>
+      <p className="mt-3 text-slate-600">เกรด A ตั้งแต่ 90% · B 80–89% · C ต่ำกว่า 80% ต้องมีแผนพัฒนาผู้ส่งมอบ</p>
+      <Signatures names={[["ผู้ตรวจ", a.auditor], ["ผู้แทนผู้ส่งมอบ"], ["ผู้อนุมัติ (QMR)", QMR]]} />
+      <Foot_ />
+    </>
+  );
+}
+
+function DeviceSheet({ code }: { code: string }) {
+  const d = deviceByCode(code);
+  return (
+    <>
+      <PaperHead title="ใบทวนสอบอุปกรณ์ป้องกันความผิดพลาดประจำกะ" number={d.code} form={formNo("FM-30")} />
+      <Facts rows={[["อุปกรณ์", d.name], ["ขั้นตอน", d.op], ["ป้องกัน", d.prevents], ["ชิ้นต้นแบบเสีย", d.master]]} />
+      <PaperTable head={["วันที่", "กะ", "ผล", "ผู้ทวนสอบ", "หมายเหตุ"]} rows={[...d.checks].reverse().slice(0, 20).map((c) => [c.date, c.shift, c.ok ? "จับได้" : "ไม่จับ", c.by, c.note ?? ""])} />
+      <p className="mt-3 text-slate-600">ทวนสอบด้วยชิ้นต้นแบบเสียทุกกะก่อนผลิต ถ้าไม่จับ ให้หยุดใช้ ตรวจ 100% ด้วยมือ และกักชิ้นงานตั้งแต่ครั้งทวนสอบก่อน</p>
+      <Signatures names={[["หัวหน้ากะ"], ["QC"]]} />
+      <Foot_ />
+    </>
+  );
+}
+
+export function IatfPaper({ d }: { d: IatfDoc }) {
+  return (
+    <Paper>
+      {d.doc === "csr" && <CsrMatrix customer={d.customer} />}
+      {d.doc === "contingency" && <ContingencySheet code={d.code} />}
+      {d.doc === "supplier-audit" && <SupplierAuditReport no={d.no} />}
+      {d.doc === "device" && <DeviceSheet code={d.code} />}
+    </Paper>
+  );
+}
+`,
+
+  "iatf/forms.tsx": `import { useState } from "react";
+import { Printer } from "lucide-react";
+import { DOCUMENTS, TODAY } from "../ims/data";
+import { Actions, Area, Choice, Form, Input, people, tryRun } from "../ims/parts";
+import {
+  PSR, SHIFTS, TRACE_LIMIT_MINUTES, addCsr, automotiveCustomers, closeSupplierAudit, contingencyByCode, csrById,
+  csrErrors, customerName, deviceByCode, implementCsr, planSupplierAudit, rating, recordScorecard, recordTrace, scorecardErrors,
+  supplierAuditByNo, supplierAuditErrors, testContingency, testErrors, traceErrors, vendorName, verifyDevice, verifyErrors,
+} from "./data";
+import type { Shift } from "./data";
+import { PARTS } from "../ct/data";
+import { VENDORS } from "../mm/data";
+import { IatfPaper } from "./documents";
+import type { IatfDoc } from "./documents";
+import { Button, Note, Segmented } from "../ui";
+import { Field, FormModal, notify, printDocument, useData } from "../kit";
+
+/** ทุกการกระทำของข้อกำหนด IATF ยกขึ้นแบบเดียวกันจากทุกหน้า */
+export type Act =
+  | { kind: "csr-new" }
+  | { kind: "csr-implement"; id: number }
+  | { kind: "trace-new" }
+  | { kind: "contingency-test"; code: string }
+  | { kind: "supplier-audit-new"; vendor?: string }
+  | { kind: "supplier-audit-close"; no: string }
+  | { kind: "scorecard-new" }
+  | { kind: "device-verify"; code: string; shift?: Shift }
+  | { kind: "print"; d: IatfDoc; title: string };
+
+type Of<K extends Act["kind"]> = Extract<Act, { kind: K }>;
+export type RecordKind = "contingency" | "supplier-audit" | "device";
+
+function CsrForm({ onCancel, onDone }: { onCancel: () => void; onDone: () => void }) {
+  const [v, setV] = useState({ customer: automotiveCustomers()[0] ?? "", source: "", clause: "", requirement: "", owner: "ธนพล เจริญผล" });
+  const [tried, setTried] = useState(false);
+  const errors = tried ? csrErrors(v) : {};
+  const set = (k: keyof typeof v) => (x: string) => setV((s) => ({ ...s, [k]: x }));
+  return (
+    <Form onSubmit={() => { setTried(true); if (Object.keys(csrErrors(v)).length) return; addCsr(v); notify("เพิ่มข้อกำหนดเฉพาะลูกค้าแล้ว · ยังไม่ได้ทำ"); onDone(); }}>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <Field label="ลูกค้า" error={errors.customer}><Choice value={v.customer} onChange={set("customer")} options={automotiveCustomers().map((c) => ({ value: c, label: customerName(c) }))} /></Field>
+        <Field label="ข้อ IATF" error={errors.clause}><Input value={v.clause} onChange={set("clause")} error={errors.clause} placeholder="8.5.2.1" /></Field>
+      </div>
+      <Field label="เอกสารต้นทางของลูกค้า" error={errors.source}><Input value={v.source} onChange={set("source")} error={errors.source} placeholder="คู่มือคุณภาพผู้ส่งมอบของลูกค้า" /></Field>
+      <Field label="ข้อกำหนด" error={errors.requirement}><Area value={v.requirement} onChange={set("requirement")} error={errors.requirement} rows={2} /></Field>
+      <Field label="ผู้รับผิดชอบ" error={errors.owner}><Choice value={v.owner} onChange={set("owner")} options={people()} /></Field>
+      <Actions onCancel={onCancel} label="เพิ่มข้อกำหนด" />
+    </Form>
+  );
+}
+
+function ImplementForm({ id, onCancel, onDone }: { id: number; onCancel: () => void; onDone: () => void }) {
+  const c = csrById(id);
+  const [doc, setDoc] = useState(c.doc ?? "");
+  const [error, setError] = useState("");
+  return (
+    <Form error={error} onSubmit={() => tryRun(() => { implementCsr(id, doc); notify(\`นำข้อกำหนดไปใช้ใน \${doc} แล้ว\`); onDone(); }, setError)}>
+      <p className="text-[13px] text-slate-600 dark:text-slate-300">{c.requirement}</p>
+      <Field label="เอกสารควบคุมที่รองรับ" hint="ต้องเป็นเอกสารที่ใช้งานอยู่ในทะเบียนกลาง"><Choice value={doc} onChange={setDoc} placeholder="เลือกเอกสาร…" options={DOCUMENTS.filter((d) => d.level !== "แบบฟอร์ม").map((d) => ({ value: d.code, label: \`\${d.code} · \${d.title} (\${d.status})\` }))} /></Field>
+      <Actions onCancel={onCancel} label="นำไปใช้" />
+    </Form>
+  );
+}
+
+function TraceForm({ onCancel, onDone }: { onCancel: () => void; onDone: () => void }) {
+  const [v, setV] = useState({ part: PARTS[0]?.code ?? "", lot: "", tracedTo: "", minutes: "", date: TODAY, by: PSR });
+  const [tried, setTried] = useState(false);
+  const input = { ...v, minutes: Number(v.minutes) };
+  const errors = tried ? traceErrors(input) : {};
+  const set = (k: keyof typeof v) => (x: string) => setV((s) => ({ ...s, [k]: x }));
+  return (
+    <Form onSubmit={() => { setTried(true); if (Object.keys(traceErrors(input)).length) return; const d = recordTrace(input); notify(d.minutes <= TRACE_LIMIT_MINUTES ? \`บันทึก \${d.no} แล้ว · ผ่าน\` : \`\${d.no} ใช้เวลาเกิน \${TRACE_LIMIT_MINUTES} นาที\`, d.minutes <= TRACE_LIMIT_MINUTES ? "ok" : "warn"); onDone(); }}>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <Field label="ชิ้นส่วน" error={errors.part}><Choice value={v.part} onChange={set("part")} options={PARTS.map((p) => ({ value: p.code, label: \`\${p.code} · \${p.customerPart}\` }))} /></Field>
+        <Field label="ล็อตที่ทดสอบ" error={errors.lot}><Input value={v.lot} onChange={set("lot")} error={errors.lot} /></Field>
+        <Field label="เวลาที่ใช้ (นาที)" error={errors.minutes} hint={\`ลูกค้ากำหนดไม่เกิน \${TRACE_LIMIT_MINUTES} นาที\`}><Input type="number" value={v.minutes} onChange={set("minutes")} error={errors.minutes} /></Field>
+        <Field label="วันที่" error={errors.date}><Input type="date" value={v.date} onChange={set("date")} error={errors.date} /></Field>
+      </div>
+      <Field label="สอบกลับไปถึง" error={errors.tracedTo}><Area value={v.tracedTo} onChange={set("tracedTo")} error={errors.tracedTo} rows={2} /></Field>
+      <Field label="ผู้ทดสอบ" error={errors.by}><Choice value={v.by} onChange={set("by")} options={people()} /></Field>
+      <Actions onCancel={onCancel} label="บันทึกผลทดสอบ" />
+    </Form>
+  );
+}
+
+function TestForm({ code, onCancel, onDone }: { code: string; onCancel: () => void; onDone: () => void }) {
+  const c = contingencyByCode(code);
+  const [v, setV] = useState({ result: "ผ่าน" as "ผ่าน" | "ต้องปรับปรุง", note: "", by: c.owner, date: TODAY });
+  const [tried, setTried] = useState(false);
+  const errors = tried ? testErrors(code, v) : {};
+  return (
+    <Form onSubmit={() => { setTried(true); if (Object.keys(testErrors(code, v)).length) return; testContingency(code, v); notify(\`บันทึกผลทดสอบ \${code} แล้ว · \${v.result}\`, v.result === "ผ่าน" ? "ok" : "warn"); onDone(); }}>
+      <p className="text-[13px] text-slate-600 dark:text-slate-300">{c.scenario}</p>
+      <Field label="ผล"><Segmented options={["ผ่าน", "ต้องปรับปรุง"]} value={v.result} onChange={(x) => setV((s) => ({ ...s, result: x as "ผ่าน" | "ต้องปรับปรุง" }))} /></Field>
+      <Field label="วิธีทดสอบและสิ่งที่พบ" error={errors.note}><Area value={v.note} onChange={(x) => setV((s) => ({ ...s, note: x }))} error={errors.note} /></Field>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <Field label="ผู้ทดสอบ" error={errors.by}><Choice value={v.by} onChange={(x) => setV((s) => ({ ...s, by: x }))} options={people()} /></Field>
+        <Field label="วันที่" error={errors.date}><Input type="date" value={v.date} onChange={(x) => setV((s) => ({ ...s, date: x }))} error={errors.date} /></Field>
+      </div>
+      <Actions onCancel={onCancel} label="บันทึกผลทดสอบ" />
+    </Form>
+  );
+}
+
+function AuditForm({ vendor, onCancel, onDone }: { vendor?: string; onCancel: () => void; onDone: (no: string) => void }) {
+  const [v, setV] = useState({ vendor: vendor ?? VENDORS[0].code, planned: "", auditor: "ธนพล เจริญผล" });
+  const [tried, setTried] = useState(false);
+  const errors = tried ? supplierAuditErrors(v) : {};
+  const set = (k: keyof typeof v) => (x: string) => setV((s) => ({ ...s, [k]: x }));
+  return (
+    <Form onSubmit={() => { setTried(true); if (Object.keys(supplierAuditErrors(v)).length) return; const a = planSupplierAudit(v); notify(\`วางแผนตรวจ \${a.no} \${vendorName(a.vendor)} แล้ว\`); onDone(a.no); }}>
+      <Field label="ผู้ส่งมอบ" error={errors.vendor}><Choice value={v.vendor} onChange={set("vendor")} options={VENDORS.map((x) => ({ value: x.code, label: \`\${x.code} · \${x.name}\` }))} error={errors.vendor} /></Field>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <Field label="วันที่ตรวจ" error={errors.planned}><Input type="date" value={v.planned} onChange={set("planned")} error={errors.planned} /></Field>
+        <Field label="ผู้ตรวจ" error={errors.auditor} hint="ต้องผ่าน VDA 6.3 และ Core Tools"><Choice value={v.auditor} onChange={set("auditor")} options={people()} error={errors.auditor} /></Field>
+      </div>
+      <Actions onCancel={onCancel} label="วางแผนการตรวจ" />
+    </Form>
+  );
+}
+
+function CloseAuditForm({ no, onCancel, onDone }: { no: string; onCancel: () => void; onDone: () => void }) {
+  const [score, setScore] = useState("");
+  const [findings, setFindings] = useState("");
+  const [error, setError] = useState("");
+  return (
+    <Form error={error} onSubmit={() => tryRun(() => { const { car } = closeSupplierAudit(no, { score: Number(score), findings }); notify(car ? \`ปิด \${no} แล้ว · เกรด C เปิด \${car.no} ให้พัฒนาผู้ส่งมอบ\` : \`ปิด \${no} แล้ว\`, car ? "warn" : "ok"); onDone(); }, setError)}>
+      <p className="text-[13px] text-slate-600 dark:text-slate-300">{vendorName(supplierAuditByNo(no).vendor)}</p>
+      <Field label="คะแนน VDA 6.3 (%)" hint="90 ขึ้นไป A · 80–89 B · ต่ำกว่า 80 C เปิด 8D ให้ผู้ส่งมอบ"><Input type="number" value={score} onChange={setScore} /></Field>
+      <Field label="สิ่งที่พบ"><Area value={findings} onChange={setFindings} /></Field>
+      <Actions onCancel={onCancel} label="บันทึกผลตรวจ" />
+    </Form>
+  );
+}
+
+function ScorecardForm({ onCancel, onDone }: { onCancel: () => void; onDone: () => void }) {
+  const [v, setV] = useState({ month: TODAY.slice(0, 7), customer: automotiveCustomers()[0] ?? "", ppm: "0", delivery: "100", premiumFreight: "0", disruptions: "0" });
+  const [tried, setTried] = useState(false);
+  const input = { month: v.month, customer: v.customer, ppm: Number(v.ppm), delivery: Number(v.delivery), premiumFreight: Number(v.premiumFreight), disruptions: Number(v.disruptions) };
+  const errors = tried ? scorecardErrors(input) : {};
+  const set = (k: keyof typeof v) => (x: string) => setV((s) => ({ ...s, [k]: x }));
+  const r = rating(input);
+  return (
+    <Form onSubmit={() => { setTried(true); if (Object.keys(scorecardErrors(input)).length) return; const { car } = recordScorecard(input); notify(car ? \`ระดับแดง · เปิด \${car.no} (8D) แล้ว\` : \`บันทึก scorecard \${v.month} แล้ว · \${r}\`, car ? "warn" : "ok"); onDone(); }}>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <Field label="ลูกค้า" error={errors.customer}><Choice value={v.customer} onChange={set("customer")} options={automotiveCustomers().map((c) => ({ value: c, label: customerName(c) }))} /></Field>
+        <Field label="เดือน" error={errors.month}><Input type="month" value={v.month} onChange={set("month")} error={errors.month} /></Field>
+        <Field label="PPM ที่ลูกค้ารายงาน" error={errors.ppm}><Input type="number" value={v.ppm} onChange={set("ppm")} error={errors.ppm} /></Field>
+        <Field label="ส่งตรงเวลา (%)" error={errors.delivery}><Input type="number" value={v.delivery} onChange={set("delivery")} error={errors.delivery} /></Field>
+        <Field label="ขนส่งด่วนพิเศษ (ครั้ง)" error={errors.premiumFreight}><Input type="number" value={v.premiumFreight} onChange={set("premiumFreight")} error={errors.premiumFreight} /></Field>
+        <Field label="กระทบสายการผลิตลูกค้า (ครั้ง)" error={errors.disruptions}><Input type="number" value={v.disruptions} onChange={set("disruptions")} error={errors.disruptions} /></Field>
+      </div>
+      <Note tone={r === "เขียว" ? "ok" : r === "เหลือง" ? "warn" : "bad"}>ระดับ{r}{r === "แดง" ? " — จะเปิด 8D ให้ทันที" : ""}</Note>
+      <Actions onCancel={onCancel} label="บันทึก scorecard" />
+    </Form>
+  );
+}
+
+function VerifyForm({ code, shift: initial, onCancel, onDone }: { code: string; shift?: Shift; onCancel: () => void; onDone: () => void }) {
+  const d = deviceByCode(code);
+  const [v, setV] = useState({ shift: initial ?? ("เช้า" as Shift), ok: "จับได้", by: "อนุชา ทองดี", note: "" });
+  const [tried, setTried] = useState(false);
+  const input = { shift: v.shift, ok: v.ok === "จับได้", by: v.by, note: v.note };
+  const errors = tried ? verifyErrors(code, input) : {};
+  return (
+    <Form onSubmit={() => { setTried(true); if (Object.keys(verifyErrors(code, input)).length) return; const { car } = verifyDevice(code, input); notify(car ? \`\${code} ไม่จับชิ้นต้นแบบเสีย · หยุดใช้และเปิด \${car.no}\` : \`ทวนสอบ \${code} กะ\${v.shift}แล้ว\`, car ? "bad" : "ok"); onDone(); }}>
+      <p className="text-[13px] text-slate-600 dark:text-slate-300">{d.name} · ทดสอบด้วย {d.master}</p>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <Field label="กะ" error={errors.shift}><Segmented options={SHIFTS} value={v.shift} onChange={(x) => setV((s) => ({ ...s, shift: x as Shift }))} /></Field>
+        <Field label="ผล"><Segmented options={["จับได้", "ไม่จับ"]} value={v.ok} onChange={(x) => setV((s) => ({ ...s, ok: x }))} /></Field>
+      </div>
+      {v.ok === "ไม่จับ" && <Note tone="bad">อุปกรณ์จะหยุดใช้ ต้องตรวจ 100% ด้วยมือและกักชิ้นงานตั้งแต่ครั้งทวนสอบก่อน</Note>}
+      <Field label="หมายเหตุ" error={errors.note}><Area value={v.note} onChange={(x) => setV((s) => ({ ...s, note: x }))} error={errors.note} rows={2} /></Field>
+      <Field label="ผู้ทวนสอบ" error={errors.by}><Choice value={v.by} onChange={(x) => setV((s) => ({ ...s, by: x }))} options={people()} /></Field>
+      <Actions onCancel={onCancel} label="บันทึกการทวนสอบ" />
+    </Form>
+  );
+}
+
+export function IatfActions({ act, onAct, onOpen }: { act: Act | null; onAct: (a: Act | null) => void; onOpen: (kind: RecordKind, key: string) => void }) {
+  useData();
+  const close = () => onAct(null);
+  const pick = <K extends Act["kind"]>(kind: K) => (act?.kind === kind ? (act as Of<K>) : null);
+  const impl = pick("csr-implement");
+  const test = pick("contingency-test");
+  const aNew = pick("supplier-audit-new");
+  const aClose = pick("supplier-audit-close");
+  const verify = pick("device-verify");
+  const print = pick("print");
+  return (
+    <>
+      <FormModal open={act?.kind === "csr-new"} title="เพิ่มข้อกำหนดเฉพาะลูกค้า" subtitle="IATF 4.3.2" onClose={close}>
+        {act?.kind === "csr-new" && <CsrForm onCancel={close} onDone={close} />}
+      </FormModal>
+      <FormModal open={impl !== null} title="นำข้อกำหนดไปใช้" subtitle={impl ? \`ข้อ \${csrById(impl.id).clause} · \${customerName(csrById(impl.id).customer)}\` : undefined} onClose={close} size="sm">
+        {impl && <ImplementForm key={impl.id} id={impl.id} onCancel={close} onDone={close} />}
+      </FormModal>
+      <FormModal open={act?.kind === "trace-new"} title="ทดสอบการสอบกลับ" subtitle="จากชิ้นงานถึงล็อตวัตถุดิบ ภายในเวลาที่ลูกค้ากำหนด" onClose={close}>
+        {act?.kind === "trace-new" && <TraceForm onCancel={close} onDone={close} />}
+      </FormModal>
+      <FormModal open={test !== null} title="ทดสอบแผนฉุกเฉิน" subtitle={test?.code} onClose={close}>
+        {test && <TestForm key={test.code} code={test.code} onCancel={close} onDone={close} />}
+      </FormModal>
+      <FormModal open={aNew !== null} title="วางแผนตรวจประเมินผู้ส่งมอบ" subtitle="IATF 8.4.2.4.1 · ผู้ตรวจตาม 7.2.4" onClose={close} size="sm">
+        {aNew && <AuditForm vendor={aNew.vendor} onCancel={close} onDone={(no) => { close(); onOpen("supplier-audit", no); }} />}
+      </FormModal>
+      <FormModal open={aClose !== null} title="บันทึกผลตรวจผู้ส่งมอบ" subtitle={aClose?.no} onClose={close} size="sm">
+        {aClose && <CloseAuditForm key={aClose.no} no={aClose.no} onCancel={close} onDone={close} />}
+      </FormModal>
+      <FormModal open={act?.kind === "scorecard-new"} title="บันทึก scorecard จากลูกค้า" subtitle="IATF 9.1.2.1" onClose={close}>
+        {act?.kind === "scorecard-new" && <ScorecardForm onCancel={close} onDone={close} />}
+      </FormModal>
+      <FormModal open={verify !== null} title="ทวนสอบอุปกรณ์ป้องกันความผิดพลาด" subtitle={verify?.code} onClose={close} size="sm">
+        {verify && <VerifyForm key={\`\${verify.code}-\${verify.shift}\`} code={verify.code} shift={verify.shift} onCancel={close} onDone={close} />}
+      </FormModal>
+      <FormModal open={print !== null} title={print?.title ?? ""} subtitle="ตัวอย่างก่อนพิมพ์ — กระดาษ A4 พิมพ์เฉพาะเอกสาร" onClose={close} size="lg">
+        {print && (
+          <div className="space-y-3">
+            <div className="flex justify-end gap-2">
+              <Button variant="secondary" onClick={close}>ปิด</Button>
+              <Button icon={<Printer size={14} />} onClick={printDocument}>พิมพ์</Button>
+            </div>
+            <IatfPaper d={print.d} />
+          </div>
+        )}
+      </FormModal>
+    </>
+  );
+}
+
+`,
+
+  "iatf/screen.tsx": `import { useState } from "react";
+import type { ReactNode } from "react";
+import {
+  ClipboardCheck, FileSpreadsheet, Handshake, LifeBuoy, Plus, Printer, RotateCcw, Route, ScanLine, ShieldAlert,
+  TrendingUp,
+} from "lucide-react";
+import { TODAY, carOf } from "../ims/data";
+import { Body, Empty, Header, Line, Lines, run } from "../ims/parts";
+import {
+  CERTS, CONTINGENCIES, CSRS, DEVICES, PSR, SCORECARDS, SHIFTS, SUPPLIER_AUDITS, TRACE_DRILLS, TRACE_LIMIT_MINUTES, automotiveCustomers,
+  certOf, certified, contingencyByCode, coverage, customerName, deviceByCode, effective, grade, lastTest, missingChecks, ourPpm,
+  progressCsr, rating, restoreDevice, safetyChecks, safetyGaps, safetyParts, supplierAuditByNo, testDue, vendorName,
+} from "./data";
+import type { Contingency, Csr, Device, SupplierAudit } from "./data";
+import { IatfActions } from "./forms";
+import type { Act, RecordKind } from "./forms";
+import { VENDORS } from "../mm/data";
+import { Badge, Button, Card, Chip, Metric, Note, PageHead, Reveal } from "../ui";
+import type { Tone } from "../ui";
+import { DataTable, DetailModal, downloadCsv, notify, useData } from "../kit";
+import type { Column } from "../kit";
+
+const TABS = ["ข้อกำหนดเฉพาะลูกค้า", "ความปลอดภัยผลิตภัณฑ์", "แผนฉุกเฉินทางธุรกิจ", "ตรวจประเมินผู้ส่งมอบ", "ผลงานต่อลูกค้า (Scorecard)", "ป้องกันความผิดพลาด (Poka-Yoke)"];
+
+const exportIcon = <FileSpreadsheet size={14} />;
+const csv = (name: string, head: string[], rows: (string | number)[][]) => {
+  downloadCsv(name, head, rows);
+  notify(\`ส่งออก\${name} \${rows.length} รายการแล้ว\`);
+};
+const csrTone = (c: Csr): Tone => (effective(c) ? "ok" : c.status === "ยังไม่ได้ทำ" ? "bad" : "warn");
+const ratingTone = (r: string): Tone => (r === "เขียว" ? "ok" : r === "เหลือง" ? "warn" : "bad");
+const gradeTone = (g: string): Tone => (g === "A" ? "ok" : g === "B" ? "warn" : "bad");
+
+type Handlers = { onAct: (a: Act) => void; onOpen: (kind: RecordKind, key: string) => void };
+
+export default function IatfScreen({ section, onOpenSection }: { section?: string; onOpenSection?: (index: number) => void }) {
+  useData();
+  const tab = section && TABS.includes(section) ? section : undefined;
+  const [act, setAct] = useState<Act | null>(null);
+  const [record, setRecord] = useState<{ kind: RecordKind; key: string } | null>(null);
+  const open = (kind: RecordKind, key: string) => setRecord({ kind, key });
+
+  const keys: Record<RecordKind, string[]> = {
+    contingency: CONTINGENCIES.map((c) => c.code),
+    "supplier-audit": SUPPLIER_AUDITS.map((a) => a.no),
+    device: DEVICES.map((d) => d.code),
+  };
+  const list = record ? keys[record.kind] : [];
+  const at = record ? list.indexOf(record.key) : -1;
+  const TITLES: Record<RecordKind, string> = { contingency: "แผนฉุกเฉิน", "supplier-audit": "การตรวจประเมินผู้ส่งมอบ", device: "อุปกรณ์ป้องกันความผิดพลาด" };
+  const h: Handlers = { onAct: setAct, onOpen: open };
+  const planned = SUPPLIER_AUDITS.find((a) => a.status === "ตามแผน") ?? SUPPLIER_AUDITS[0];
+
+  const panels = (
+    <>
+      <DetailModal
+        open={record !== null && at >= 0}
+        title={record ? TITLES[record.kind] : ""}
+        onClose={() => setRecord(null)}
+        index={at}
+        total={list.length}
+        onStep={(d) => record && setRecord({ kind: record.kind, key: list[Math.min(list.length - 1, Math.max(0, at + d))] })}
+      >
+        {record && at >= 0 && <RecordView kind={record.kind} id={record.key} {...h} />}
+      </DetailModal>
+      <IatfActions act={act} onAct={setAct} onOpen={open} />
+    </>
+  );
+
+  const index = (
+    <div hidden data-fitt-index>
+      <button data-fitt-screen="ข้อกำหนด IATF 16949" />
+      <button data-fitt-screen="เพิ่มข้อกำหนดเฉพาะลูกค้า" data-fitt-modal onClick={() => setAct({ kind: "csr-new" })} />
+      <button data-fitt-screen="นำข้อกำหนดไปใช้" data-fitt-modal onClick={() => setAct({ kind: "csr-implement", id: (CSRS.find((c) => !effective(c)) ?? CSRS[0]).id })} />
+      <button data-fitt-screen="ทดสอบการสอบกลับ" data-fitt-modal onClick={() => setAct({ kind: "trace-new" })} />
+      <button data-fitt-screen="แผนฉุกเฉิน" data-fitt-modal onClick={() => open("contingency", CONTINGENCIES[0].code)} />
+      <button data-fitt-screen="ทดสอบแผนฉุกเฉิน" data-fitt-modal onClick={() => setAct({ kind: "contingency-test", code: CONTINGENCIES[1].code })} />
+      <button data-fitt-screen="การตรวจประเมินผู้ส่งมอบ" data-fitt-modal onClick={() => open("supplier-audit", SUPPLIER_AUDITS[0].no)} />
+      <button data-fitt-screen="วางแผนตรวจผู้ส่งมอบ" data-fitt-modal onClick={() => setAct({ kind: "supplier-audit-new" })} />
+      <button data-fitt-screen="บันทึกผลตรวจผู้ส่งมอบ" data-fitt-modal onClick={() => setAct({ kind: "supplier-audit-close", no: planned.no })} />
+      <button data-fitt-screen="บันทึก scorecard จากลูกค้า" data-fitt-modal onClick={() => setAct({ kind: "scorecard-new" })} />
+      <button data-fitt-screen="อุปกรณ์ป้องกันความผิดพลาด" data-fitt-modal onClick={() => open("device", DEVICES[0].code)} />
+      <button data-fitt-screen="ทวนสอบอุปกรณ์ประจำกะ" data-fitt-modal onClick={() => setAct({ kind: "device-verify", code: DEVICES[0].code })} />
+      <button data-fitt-screen="พิมพ์ตารางข้อกำหนดเฉพาะลูกค้า" data-fitt-modal onClick={() => setAct({ kind: "print", d: { doc: "csr", customer: automotiveCustomers()[0] }, title: "ตารางข้อกำหนดเฉพาะลูกค้า" })} />
+      <button data-fitt-screen="พิมพ์แผนฉุกเฉิน" data-fitt-modal onClick={() => setAct({ kind: "print", d: { doc: "contingency", code: CONTINGENCIES[0].code }, title: "แผนฉุกเฉินทางธุรกิจ" })} />
+      <button data-fitt-screen="พิมพ์รายงานตรวจผู้ส่งมอบ" data-fitt-modal onClick={() => setAct({ kind: "print", d: { doc: "supplier-audit", no: SUPPLIER_AUDITS[0].no }, title: "รายงานการตรวจประเมินผู้ส่งมอบ" })} />
+      <button data-fitt-screen="พิมพ์ใบทวนสอบ Poka-Yoke" data-fitt-modal onClick={() => setAct({ kind: "print", d: { doc: "device", code: DEVICES[0].code }, title: "ใบทวนสอบอุปกรณ์ป้องกันความผิดพลาด" })} />
+    </div>
+  );
+
+  if (!tab) {
+    return (
+      <>
+        <Overview onOpenSection={onOpenSection} {...h} />
+        {panels}
+        {index}
+      </>
+    );
+  }
+
+  return (
+    <div>
+      <PageHead title="ข้อกำหนด IATF 16949" meta={\`\${tab} · ข้อมูล ณ \${TODAY}\`} />
+      {tab === TABS[0] && <Csrs {...h} />}
+      {tab === TABS[1] && <Safety {...h} />}
+      {tab === TABS[2] && <Contingencies {...h} />}
+      {tab === TABS[3] && <SupplierAudits {...h} />}
+      {tab === TABS[4] && <Scorecards {...h} />}
+      {tab === TABS[5] && <Devices {...h} />}
+      {panels}
+      {index}
+    </div>
+  );
+}
+
+/* -------------------------------------------------------------- overview */
+
+function Overview({ onOpenSection, onAct, onOpen }: Handlers & { onOpenSection?: (i: number) => void }) {
+  const customers = automotiveCustomers();
+  const cov = customers.map(coverage).reduce((a, b) => ({ done: a.done + b.done, total: a.total + b.total }), { done: 0, total: 0 });
+  const last = SCORECARDS.at(-1);
+  const due = CONTINGENCIES.filter(testDue);
+  const missing = missingChecks();
+
+  const todo: { icon: ReactNode; text: string; sub: string; go: () => void; tone: Tone }[] = [
+    ...DEVICES.filter((d) => d.status === "หยุดใช้").map((d) => ({ icon: <ScanLine size={15} />, text: \`\${d.code} หยุดใช้\`, sub: \`\${d.name} · ตรวจ 100% ด้วยมือจนกว่าจะปิด CAR\`, go: () => onOpen("device", d.code), tone: "bad" as Tone })),
+    ...missing.map((m) => ({ icon: <ScanLine size={15} />, text: \`ทวนสอบ \${m.device} กะ\${m.shift}\`, sub: deviceByCode(m.device).name, go: () => onAct({ kind: "device-verify", code: m.device, shift: m.shift }), tone: "warn" as Tone })),
+    ...safetyGaps().map((g) => ({ icon: <ShieldAlert size={15} />, text: \`\${g.part} · \${g.item}\`, sub: "ความปลอดภัยผลิตภัณฑ์", go: () => onOpenSection?.(1), tone: "bad" as Tone })),
+    ...due.map((c) => ({ icon: <LifeBuoy size={15} />, text: \`\${c.code} \${c.scenario}\`, sub: lastTest(c) ? \`ทดสอบล่าสุด \${lastTest(c)!.date} \${lastTest(c)!.result}\` : "ยังไม่เคยทดสอบ", go: () => onAct({ kind: "contingency-test", code: c.code }), tone: "warn" as Tone })),
+    ...CSRS.filter((c) => !effective(c)).map((c) => ({ icon: <ClipboardCheck size={15} />, text: \`ข้อ \${c.clause} \${c.requirement}\`, sub: \`\${customerName(c.customer)} · \${c.status} · \${c.owner}\`, go: () => onAct({ kind: "csr-implement", id: c.id }), tone: (c.status === "ยังไม่ได้ทำ" ? "bad" : "warn") as Tone })),
+  ];
+
+  return (
+    <div>
+      <PageHead
+        title="ข้อกำหนด IATF 16949"
+        meta={\`ข้อกำหนดเฉพาะลูกค้า · ความปลอดภัยผลิตภัณฑ์ · แผนฉุกเฉิน · ผู้ส่งมอบ · Scorecard · Poka-Yoke · ข้อมูล ณ \${TODAY}\`}
+        right={<Button icon={<Printer size={14} />} variant="secondary" onClick={() => onAct({ kind: "print", d: { doc: "csr", customer: customers[0] }, title: "ตารางข้อกำหนดเฉพาะลูกค้า" })}>พิมพ์ตารางข้อกำหนดลูกค้า</Button>}
+      />
+      <Reveal>
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <Metric icon={<ClipboardCheck size={17} />} label="ข้อกำหนดเฉพาะลูกค้าที่นำไปใช้" value={\`\${cov.done} จาก \${cov.total}\`} deltaLabel="นับเฉพาะข้อที่มีเอกสารใช้งานอยู่" />
+          <Metric icon={<ShieldAlert size={17} />} label="ความปลอดภัยผลิตภัณฑ์ยังไม่ผ่าน" value={\`\${safetyGaps().length} ข้อ\`} deltaLabel={\`ผู้แทน \${PSR}\`} />
+          <Metric icon={<LifeBuoy size={17} />} label="แผนฉุกเฉินที่ต้องทดสอบ" value={\`\${due.length} จาก \${CONTINGENCIES.length}\`} deltaLabel="ทดสอบและผ่านอย่างน้อยปีละครั้ง" />
+          <Metric icon={<TrendingUp size={17} />} label="Scorecard ล่าสุด" value={last ? rating(last) : "—"} deltaLabel={last ? \`\${customerName(last.customer)} \${last.month}\` : "ยังไม่มี"} />
+        </div>
+      </Reveal>
+      <Reveal delay={0.05} className="mt-4 grid gap-4 lg:grid-cols-3">
+        <Card title="ต้องจัดการ" subtitle="กดรายการเพื่อเปิดงานนั้น" className="lg:col-span-2">
+          {todo.length === 0 ? <Empty>ไม่มีงานค้าง</Empty> : (
+            <ul className="divide-y divide-slate-100 dark:divide-slate-800">
+              {todo.slice(0, 9).map((t, i) => (
+                <li key={i}>
+                  <button onClick={t.go} className="flex w-full items-center gap-3 px-4 py-2.5 text-left transition hover:bg-slate-50 dark:hover:bg-slate-800/60">
+                    <span className={t.tone === "bad" ? "text-rose-500" : t.tone === "warn" ? "text-amber-500" : "text-sky-500"}>{t.icon}</span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-[13px] text-slate-800 dark:text-slate-100">{t.text}</span>
+                      <span className="block text-[11.5px] text-slate-500 dark:text-slate-400">{t.sub}</span>
+                    </span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Card>
+        <Card title="ผู้ส่งมอบ" subtitle="ใบรับรองระบบและผลตรวจล่าสุด" action={<Button variant="ghost" className="whitespace-nowrap" onClick={() => onOpenSection?.(3)}>ทั้งหมด</Button>}>
+          <Lines>
+            {VENDORS.map((v) => {
+              const a = SUPPLIER_AUDITS.filter((x) => x.vendor === v.code && x.score !== undefined).at(-1);
+              return <Line key={v.code} title={v.name} sub={\`\${certOf(v.code).standard}\${a ? \` · ตรวจ \${a.performedOn} \${a.score}%\` : ""}\`} right={certified(v.code) ? (a ? <Badge tone={gradeTone(grade(a.score!))}>เกรด {grade(a.score!)}</Badge> : <Badge tone="idle">ยังไม่ตรวจ</Badge>) : <Badge tone="bad">ไม่มีใบรับรอง</Badge>} />;
+            })}
+          </Lines>
+        </Card>
+      </Reveal>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------- csr */
+
+function Csrs({ onAct }: Handlers) {
+  const columns: Column<Csr>[] = [
+    { key: "clause", header: "ข้อ IATF", cell: (c) => <span className="whitespace-nowrap font-medium tabular-nums text-slate-800 dark:text-slate-100">{c.clause}</span> },
+    { key: "req", header: "ข้อกำหนดของลูกค้า", cell: (c) => <span className="block max-w-md">{c.requirement}</span> },
+    { key: "customer", header: "ลูกค้า", cell: (c) => customerName(c.customer) },
+    { key: "doc", header: "เอกสารของเรา", cell: (c) => c.doc ?? "—" },
+    { key: "owner", header: "ผู้รับผิดชอบ", cell: (c) => c.owner },
+    { key: "status", header: "สถานะ", cell: (c) => <Badge tone={csrTone(c)}>{c.status}</Badge> },
+    {
+      key: "act", header: "", cell: (c) => effective(c) ? null : (
+        <span className="flex gap-1.5">
+          {c.status === "ยังไม่ได้ทำ" && <Button variant="ghost" onClick={() => run(() => progressCsr(c.id), \`เริ่มดำเนินการข้อ \${c.clause} แล้ว\`)}>เริ่มทำ</Button>}
+          <Button variant="secondary" onClick={() => onAct({ kind: "csr-implement", id: c.id })}>นำไปใช้</Button>
+        </span>
+      ),
+    },
+  ];
+  return (
+    <div className="space-y-4">
+      <div className="grid gap-4 md:grid-cols-3">
+        {automotiveCustomers().map((c) => {
+          const cov = coverage(c);
+          return <Metric key={c} icon={<Handshake size={17} />} label={customerName(c)} value={\`\${cov.done} จาก \${cov.total}\`} deltaLabel="ข้อที่นำไปใช้ในเอกสารควบคุมแล้ว" />;
+        })}
+      </div>
+      <DataTable
+        rows={CSRS}
+        columns={columns}
+        getId={(c) => String(c.id)}
+        toolbar={
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="text-[12.5px] text-slate-500 dark:text-slate-400">ข้อกำหนดของลูกค้าต้องแปลงเป็นเอกสารควบคุมของเรา — นับว่านำไปใช้เมื่อเอกสารนั้นใช้งานอยู่ในทะเบียนกลางเท่านั้น</p>
+            <div className="ml-auto flex gap-2">
+              <Button variant="secondary" icon={exportIcon} onClick={() => csv("ข้อกำหนดเฉพาะลูกค้า", ["ลูกค้า", "ข้อ", "ข้อกำหนด", "เอกสาร", "สถานะ", "ผู้รับผิดชอบ"], CSRS.map((c) => [customerName(c.customer), c.clause, c.requirement, c.doc ?? "", c.status, c.owner]))}>ส่งออก Excel</Button>
+              <Button variant="secondary" icon={<Printer size={14} />} onClick={() => onAct({ kind: "print", d: { doc: "csr", customer: automotiveCustomers()[0] }, title: "ตารางข้อกำหนดเฉพาะลูกค้า" })}>พิมพ์</Button>
+              <Button icon={<Plus size={14} />} onClick={() => onAct({ kind: "csr-new" })}>เพิ่มข้อกำหนด</Button>
+            </div>
+          </div>
+        }
+      />
+    </div>
+  );
+}
+
+/* ---------------------------------------------------------------- safety */
+
+function Safety({ onAct }: Handlers) {
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center gap-2">
+        <p className="text-[12.5px] text-slate-500 dark:text-slate-400">ชิ้นส่วนที่เกี่ยวกับความปลอดภัย · ผู้แทนความปลอดภัยผลิตภัณฑ์ {PSR} · ทุกข้ออ่านจาก Core Tools และทะเบียนความสามารถ</p>
+        <Button className="ml-auto" icon={<Route size={14} />} onClick={() => onAct({ kind: "trace-new" })}>ทดสอบการสอบกลับ</Button>
+      </div>
+      {safetyParts().map((p) => {
+        const checks = safetyChecks(p.code);
+        const fail = checks.filter((c) => !c.ok).length;
+        return (
+          <Card key={p.code} title={\`\${p.code} · \${p.customerPart}\`} subtitle={\`\${customerName(p.customer)} · \${p.program}\`} action={fail ? <Badge tone="bad">ยังไม่ผ่าน {fail} ข้อ</Badge> : <Badge tone="ok">พร้อมส่งมอบ</Badge>}>
+            <Lines>
+              {checks.map((c) => <Line key={c.item} title={c.item} sub={c.why} subTone={c.ok ? undefined : "bad"} right={<Badge tone={c.ok ? "ok" : "bad"}>{c.ok ? "ผ่าน" : "ไม่ผ่าน"}</Badge>} />)}
+            </Lines>
+          </Card>
+        );
+      })}
+      <Card title="ทดสอบการสอบกลับ" subtitle={\`จากชิ้นงานถึงล็อตวัตถุดิบ ลูกค้ากำหนดไม่เกิน \${TRACE_LIMIT_MINUTES / 60} ชั่วโมง\`}>
+        {TRACE_DRILLS.length === 0 ? <Empty>ยังไม่เคยทดสอบ</Empty> : (
+          <Lines>
+            {[...TRACE_DRILLS].reverse().map((d) => <Line key={d.no} title={\`\${d.no} · \${d.lot}\`} sub={\`\${d.date} · \${d.tracedTo} · \${d.by}\`} right={<Badge tone={d.minutes <= TRACE_LIMIT_MINUTES ? "ok" : "bad"}>{d.minutes} นาที</Badge>} />)}
+          </Lines>
+        )}
+      </Card>
+    </div>
+  );
+}
+
+/* ----------------------------------------------------------- contingency */
+
+function Contingencies({ onAct, onOpen }: Handlers) {
+  const columns: Column<Contingency>[] = [
+    { key: "code", header: "รหัส", cell: (c) => <span className="whitespace-nowrap font-medium tabular-nums text-slate-800 dark:text-slate-100">{c.code}</span> },
+    { key: "scenario", header: "สถานการณ์", cell: (c) => c.scenario },
+    { key: "impact", header: "กระทบลูกค้าภายใน", align: "right", cell: (c) => <span className="tabular-nums">{c.impactDays} วัน</span> },
+    { key: "owner", header: "ผู้รับผิดชอบ", cell: (c) => c.owner },
+    { key: "test", header: "ทดสอบล่าสุด", cell: (c) => (lastTest(c) ? \`\${lastTest(c)!.date} \${lastTest(c)!.result}\` : "ยังไม่เคย") },
+    { key: "status", header: "สถานะ", cell: (c) => (testDue(c) ? <Badge tone="warn">ต้องทดสอบ</Badge> : <Badge tone="ok">พร้อม</Badge>) },
+  ];
+  return (
+    <DataTable
+      rows={CONTINGENCIES}
+      columns={columns}
+      getId={(c) => c.code}
+      onOpen={(c) => onOpen("contingency", c.code)}
+      toolbar={
+        <div className="flex flex-wrap items-center gap-2">
+          <p className="text-[12.5px] text-slate-500 dark:text-slate-400">แผนสำหรับเหตุที่ทำให้ส่งมอบลูกค้าไม่ได้ · ต้องทดสอบอย่างน้อยปีละครั้งและครั้งล่าสุดต้องผ่าน</p>
+          <Button className="ml-auto" variant="secondary" icon={<Printer size={14} />} onClick={() => onAct({ kind: "print", d: { doc: "contingency", code: CONTINGENCIES[0].code }, title: "แผนฉุกเฉินทางธุรกิจ" })}>พิมพ์</Button>
+        </div>
+      }
+    />
+  );
+}
+
+/* -------------------------------------------------------- supplier audit */
+
+function SupplierAudits({ onAct, onOpen }: Handlers) {
+  const columns: Column<SupplierAudit>[] = [
+    { key: "no", header: "เลขที่", cell: (a) => <span className="whitespace-nowrap font-medium tabular-nums text-slate-800 dark:text-slate-100">{a.no}</span> },
+    { key: "vendor", header: "ผู้ส่งมอบ", cell: (a) => vendorName(a.vendor) },
+    { key: "date", header: "วันที่", cell: (a) => a.performedOn ?? \`แผน \${a.planned}\` },
+    { key: "auditor", header: "ผู้ตรวจ", cell: (a) => a.auditor },
+    { key: "score", header: "คะแนน", align: "right", cell: (a) => (a.score !== undefined ? <span className="tabular-nums">{a.score}%</span> : "—") },
+    { key: "grade", header: "ผล", cell: (a) => (a.score !== undefined ? <span className="flex gap-1.5"><Badge tone={gradeTone(grade(a.score))}>เกรด {grade(a.score)}</Badge>{carOf(a.no) && <Badge tone="info">{carOf(a.no)!.no}</Badge>}</span> : <Badge tone="idle">{a.status}</Badge>) },
+  ];
+  return (
+    <div className="space-y-4">
+      <Card title="ใบรับรองระบบของผู้ส่งมอบ" subtitle="ผู้ส่งมอบต้องได้ ISO 9001 เป็นอย่างน้อยและมุ่งสู่ IATF 16949 (8.4.2.3)">
+        <Lines>
+          {CERTS.map((c) => <Line key={c.vendor} title={vendorName(c.vendor)} sub={c.standard === "ไม่มี" ? "ไม่มีใบรับรอง — ต้องตรวจประเมินและมีแผนพัฒนา" : \`\${c.standard} · \${c.certNo} · ถึง \${c.validUntil}\`} right={<Badge tone={certified(c.vendor) ? (c.standard === "IATF 16949" ? "ok" : "info") : "bad"}>{certified(c.vendor) ? c.standard : "ไม่ผ่าน"}</Badge>} />)}
+        </Lines>
+      </Card>
+      <DataTable
+        rows={SUPPLIER_AUDITS}
+        columns={columns}
+        getId={(a) => a.no}
+        onOpen={(a) => onOpen("supplier-audit", a.no)}
+        toolbar={
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="text-[12.5px] text-slate-500 dark:text-slate-400">ตรวจกระบวนการตาม VDA 6.3 · ผู้ตรวจต้องผ่าน VDA 6.3 และ Core Tools · เกรด C เปิด 8D ให้ผู้ส่งมอบพัฒนา</p>
+            <Button className="ml-auto" icon={<Plus size={14} />} onClick={() => onAct({ kind: "supplier-audit-new" })}>วางแผนตรวจ</Button>
+          </div>
+        }
+      />
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------- scorecard */
+
+function Scorecards({ onAct }: Handlers) {
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center gap-2">
+        <p className="text-[12.5px] text-slate-500 dark:text-slate-400">ตัวเลขที่ลูกค้ารายงานวางคู่กับที่ระบบคุณภาพนับเอง · เขียว PPM ≤ 50 ส่งตรงเวลา ≥ 98% · แดงเปิด 8D ทันที</p>
+        <div className="ml-auto flex gap-2">
+          <Button variant="secondary" icon={exportIcon} onClick={() => csv("Scorecard ลูกค้า", ["ลูกค้า", "เดือน", "PPM", "ส่งตรงเวลา", "ขนส่งด่วน", "กระทบสายการผลิต", "ระดับ"], SCORECARDS.map((s) => [customerName(s.customer), s.month, s.ppm, s.delivery, s.premiumFreight, s.disruptions, rating(s)]))}>ส่งออก Excel</Button>
+          <Button icon={<Plus size={14} />} onClick={() => onAct({ kind: "scorecard-new" })}>บันทึก scorecard</Button>
+        </div>
+      </div>
+      <Card title="Scorecard รายเดือน">
+        <Lines>
+          {[...SCORECARDS].reverse().map((s) => {
+            const ours = ourPpm(s.customer, s.month);
+            const car = carOf(\`SC \${s.customer} \${s.month}\`);
+            return (
+              <Line
+                key={\`\${s.customer}-\${s.month}\`}
+                title={\`\${s.month} · \${customerName(s.customer)}\`}
+                sub={\`PPM \${s.ppm} (\${ours.shipped ? \`ระบบเรานับ \${ours.ppm} จาก \${ours.shipped.toLocaleString()} ชิ้น\` : "ระบบขายไม่มีใบส่งของเดือนนี้"}) · ส่งตรงเวลา \${s.delivery}% · ขนส่งด่วน \${s.premiumFreight} · กระทบสายการผลิต \${s.disruptions}\${car ? \` · \${car.no}\` : ""}\`}
+                right={<Badge dot tone={ratingTone(rating(s))}>{rating(s)}</Badge>}
+              />
+            );
+          })}
+        </Lines>
+      </Card>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------- poka-yoke */
+
+function Devices({ onAct, onOpen }: Handlers) {
+  return (
+    <div className="space-y-4">
+      <p className="text-[12.5px] text-slate-500 dark:text-slate-400">ทวนสอบด้วยชิ้นต้นแบบเสียทุกกะก่อนผลิต (10.2.4) · ไม่จับคือหยุดใช้ ตรวจ 100% ด้วยมือ และเปิด CAR</p>
+      <div className="grid gap-4 lg:grid-cols-2">
+        {DEVICES.map((d) => (
+          <Card key={d.code} title={\`\${d.code} · \${d.name}\`} subtitle={\`\${d.part} ขั้นตอน \${d.op} · ป้องกัน\${d.prevents}\`} action={<Button variant="ghost" onClick={() => onOpen("device", d.code)}>เปิด</Button>}>
+            <div className="flex flex-wrap items-center gap-2 px-4 py-3">
+              <Badge dot tone={d.status === "ใช้งาน" ? "ok" : "bad"}>{d.status}</Badge>
+              {SHIFTS.map((s) => {
+                const c = d.checks.find((x) => x.date === TODAY && x.shift === s);
+                return c ? <Chip key={s}>กะ{s} {c.ok ? "จับได้" : "ไม่จับ"}</Chip> : d.status === "ใช้งาน" ? <Button key={s} variant="secondary" icon={<ScanLine size={14} />} onClick={() => onAct({ kind: "device-verify", code: d.code, shift: s })}>ทวนสอบกะ{s}</Button> : null;
+              })}
+            </div>
+          </Card>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* --------------------------------------------------------------- records */
+
+function RecordView({ kind, id, ...h }: { kind: RecordKind; id: string } & Handlers) {
+  if (kind === "contingency") return <ContingencyRecord c={contingencyByCode(id)} {...h} />;
+  if (kind === "supplier-audit") return <AuditRecord a={supplierAuditByNo(id)} {...h} />;
+  return <DeviceRecord d={deviceByCode(id)} {...h} />;
+}
+
+function ContingencyRecord({ c, onAct }: { c: Contingency } & Handlers) {
+  return (
+    <div className="flex h-full flex-col">
+      <Header
+        title={\`\${c.code} · \${c.scenario}\`}
+        meta={\`กระทบลูกค้าภายใน \${c.impactDays} วัน · \${c.owner}\${c.risk ? \` · \${c.risk}\` : ""}\`}
+        badges={testDue(c) ? <Badge tone="warn">ต้องทดสอบ</Badge> : <Badge tone="ok">ทดสอบผ่านในรอบปี</Badge>}
+        actions={
+          <>
+            <Button icon={<LifeBuoy size={14} />} onClick={() => onAct({ kind: "contingency-test", code: c.code })}>บันทึกผลทดสอบ</Button>
+            <Button variant="secondary" icon={<Printer size={14} />} onClick={() => onAct({ kind: "print", d: { doc: "contingency", code: c.code }, title: "แผนฉุกเฉินทางธุรกิจ" })}>พิมพ์</Button>
+          </>
+        }
+      />
+      <Body>
+        <Card title="สิ่งที่ต้องทำ"><Lines>{c.actions.map((a, i) => <Line key={a} title={\`\${i + 1}. \${a}\`} />)}</Lines></Card>
+        <Card title="ประวัติการทดสอบ">
+          {c.tests.length === 0 ? <Empty>ยังไม่เคยทดสอบ</Empty> : <Lines>{[...c.tests].reverse().map((t, i) => <Line key={i} title={\`\${t.date} · \${t.by}\`} sub={t.note} right={<Badge tone={t.result === "ผ่าน" ? "ok" : "warn"}>{t.result}</Badge>} />)}</Lines>}
+        </Card>
+      </Body>
+    </div>
+  );
+}
+
+function AuditRecord({ a, onAct }: { a: SupplierAudit } & Handlers) {
+  const car = carOf(a.no);
+  return (
+    <div className="flex h-full flex-col">
+      <Header
+        title={\`\${a.no} · \${vendorName(a.vendor)}\`}
+        meta={\`\${a.performedOn ?? \`แผน \${a.planned}\`} · ผู้ตรวจ \${a.auditor} · VDA 6.3\`}
+        badges={<>{a.score !== undefined ? <Badge tone={gradeTone(grade(a.score))}>{a.score}% เกรด {grade(a.score)}</Badge> : <Badge tone="idle">{a.status}</Badge>}{car && <Badge tone="info">{car.no} {car.status}</Badge>}</>}
+        actions={
+          <>
+            {a.status === "ตามแผน" && <Button icon={<ClipboardCheck size={14} />} onClick={() => onAct({ kind: "supplier-audit-close", no: a.no })}>บันทึกผลตรวจ</Button>}
+            <Button variant="secondary" icon={<Printer size={14} />} onClick={() => onAct({ kind: "print", d: { doc: "supplier-audit", no: a.no }, title: "รายงานการตรวจประเมินผู้ส่งมอบ" })}>พิมพ์</Button>
+          </>
+        }
+      />
+      <Body>
+        <Card title="ใบรับรองระบบ"><Lines><Line title={certOf(a.vendor).standard} sub={certOf(a.vendor).certNo ? \`\${certOf(a.vendor).certNo} ถึง \${certOf(a.vendor).validUntil}\` : "ไม่มีใบรับรอง"} right={<Badge tone={certified(a.vendor) ? "ok" : "bad"}>{certified(a.vendor) ? "ใช้ได้" : "ไม่ผ่าน"}</Badge>} /></Lines></Card>
+        <Card title="สิ่งที่พบ"><p className="px-4 py-3 text-[13px] text-slate-700 dark:text-slate-200">{a.findings ?? "ยังไม่ได้ตรวจ"}</p></Card>
+      </Body>
+    </div>
+  );
+}
+
+function DeviceRecord({ d, onAct }: { d: Device } & Handlers) {
+  const failed = [...d.checks].reverse().find((c) => !c.ok);
+  const car = failed ? carOf(\`\${d.code} \${failed.date} \${failed.shift}\`) : undefined;
+  return (
+    <div className="flex h-full flex-col">
+      <Header
+        title={\`\${d.code} · \${d.name}\`}
+        meta={\`\${d.part} ขั้นตอน \${d.op} · ชิ้นทดสอบ \${d.master}\`}
+        badges={<><Badge dot tone={d.status === "ใช้งาน" ? "ok" : "bad"}>{d.status}</Badge>{car && <Badge tone={car.status === "ปิดแล้ว" ? "ok" : "warn"}>{car.no} {car.status}</Badge>}</>}
+        actions={
+          <>
+            {d.status === "ใช้งาน" && <Button icon={<ScanLine size={14} />} onClick={() => onAct({ kind: "device-verify", code: d.code })}>ทวนสอบ</Button>}
+            {d.status === "หยุดใช้" && <Button icon={<RotateCcw size={14} />} onClick={() => run(() => restoreDevice(d.code), \`นำ \${d.code} กลับมาใช้แล้ว\`)}>นำกลับมาใช้</Button>}
+            <Button variant="secondary" icon={<Printer size={14} />} onClick={() => onAct({ kind: "print", d: { doc: "device", code: d.code }, title: "ใบทวนสอบอุปกรณ์ป้องกันความผิดพลาด" })}>พิมพ์</Button>
+          </>
+        }
+      />
+      <Body>
+        {d.status === "หยุดใช้" && <Note tone="bad">หยุดใช้ — ตรวจ 100% ด้วยมือแทน นำกลับมาใช้ได้เมื่อปิด {car?.no ?? "CAR"} แล้ว</Note>}
+        <Card title="ป้องกัน"><p className="px-4 py-3 text-[13px] text-slate-700 dark:text-slate-200">{d.prevents}</p></Card>
+        <Card title="ผลทวนสอบล่าสุด">
+          <Lines>
+            {[...d.checks].reverse().slice(0, 10).map((c, i) => <Line key={i} title={\`\${c.date} กะ\${c.shift}\`} sub={[c.by, c.note].filter(Boolean).join(" · ")} subTone={c.ok ? undefined : "bad"} right={<Badge tone={c.ok ? "ok" : "bad"}>{c.ok ? "จับได้" : "ไม่จับ"}</Badge>} />)}
+          </Lines>
+        </Card>
+      </Body>
+    </div>
+  );
+}
+
+`,
+
   "ims/data.ts": `import { commit } from "../kit";
 import { COMPANY, TODAY } from "../company";
 
@@ -9376,7 +12508,7 @@ export const COURSES = [
   { code: "TR-03", name: "ผู้ตรวจติดตามภายใน ISO 14001:2015" },
   { code: "TR-04", name: "ผู้ตรวจกระบวนการ VDA 6.3" },
   { code: "TR-05", name: "Core Tools: APQP PPAP FMEA SPC MSA" },
-  { code: "TR-06", name: "ข้อกำหนดเฉพาะลูกค้ายานยนต์ (CSR)" },
+  { code: "TR-06", name: "ข้อกำหนดเฉพาะลูกค้าและความปลอดภัยผลิตภัณฑ์ยานยนต์" },
   { code: "TR-07", name: "การจัดการสารเคมีและของเสียอันตราย" },
   { code: "TR-08", name: "ทดสอบฝีมือช่างเชื่อมตาม WPS", validYears: 2 },
   { code: "TR-09", name: "การใช้และอ่านค่าเครื่องมือวัด" },
@@ -9960,6 +13092,18 @@ export const DOCUMENTS: ControlledDoc[] = [
   issued("FM-18", "บัญชีของเสียและการส่งกำจัด", "แบบฟอร์ม", ENV, "ฝ่ายความปลอดภัยและสิ่งแวดล้อม", [["2025-03-02", FIRST]]),
   issued("FM-19", "รายงานผลการตรวจวัดสิ่งแวดล้อม", "แบบฟอร์ม", ENV, "ฝ่ายความปลอดภัยและสิ่งแวดล้อม", [["2025-03-02", FIRST]]),
   issued("FM-20", "รายงานการฝึกซ้อมแผนฉุกเฉิน", "แบบฟอร์ม", ["ISO 14001", "IATF 16949"], "ฝ่ายความปลอดภัยและสิ่งแวดล้อม", [["2025-03-02", FIRST]]),
+  issued("FM-21", "ใบรับรองการส่งชิ้นส่วน (PSW)", "แบบฟอร์ม", AUTO, "ฝ่ายประกันคุณภาพ", [["2026-07-01", FIRST]]),
+  issued("FM-22", "แบบฟอร์ม FMEA (AIAG-VDA)", "แบบฟอร์ม", AUTO, "ฝ่ายวิศวกรรม", [["2026-07-01", FIRST]]),
+  issued("FM-23", "แผนควบคุม", "แบบฟอร์ม", AUTO, "ฝ่ายวิศวกรรม", [["2026-07-01", FIRST]]),
+  issued("FM-24", "รายงานความสามารถของกระบวนการ", "แบบฟอร์ม", AUTO, "ฝ่ายประกันคุณภาพ", [["2026-07-01", FIRST]]),
+  issued("FM-25", "รายงานการวิเคราะห์ระบบการวัด (Gage R&R)", "แบบฟอร์ม", AUTO, "ฝ่ายประกันคุณภาพ", [["2026-07-01", FIRST]]),
+  issued("FM-26", "รายงานสถานะ APQP", "แบบฟอร์ม", AUTO, "ฝ่ายวิศวกรรม", [["2026-07-01", FIRST]]),
+  issued("FM-27", "ตารางข้อกำหนดเฉพาะลูกค้า", "แบบฟอร์ม", AUTO, "ฝ่ายประกันคุณภาพ", [["2026-07-01", FIRST]]),
+  issued("FM-28", "แผนฉุกเฉินทางธุรกิจ", "แบบฟอร์ม", AUTO, "ฝ่ายบริหาร", [["2026-07-01", FIRST]]),
+  issued("FM-29", "รายงานการตรวจประเมินผู้ส่งมอบ", "แบบฟอร์ม", AUTO, "ฝ่ายจัดซื้อ", [["2026-07-01", FIRST]]),
+  issued("FM-30", "ใบทวนสอบอุปกรณ์ป้องกันความผิดพลาดประจำกะ", "แบบฟอร์ม", AUTO, "ฝ่ายผลิต", [["2026-07-01", FIRST]]),
+  issued("FM-31", "ใบตรวจเช็คบำรุงรักษาเชิงป้องกัน", "แบบฟอร์ม", AUTO, "ฝ่ายซ่อมบำรุง", [["2026-07-01", FIRST]]),
+  issued("FM-32", "ใบแจ้งซ่อมและรายงานการซ่อม", "แบบฟอร์ม", AUTO, "ฝ่ายซ่อมบำรุง", [["2026-07-01", FIRST]]),
   {
     code: "WI-03", title: "วิธีการพ่นสีฝุ่นและอบ", level: "วิธีการทำงาน", standards: ["ISO 9001", "ISO 14001"], owner: "ฝ่ายผลิต",
     rev: -1, status: "รออนุมัติ", history: [],
@@ -14428,6 +17572,7 @@ export type Material = {
 export const MATERIALS: Material[] = [
   { code: "MAT-1001", name: "เหล็กแผ่นรีดร้อน 3 มม.", group: "วัตถุดิบ", unit: "แผ่น", price: 1850, stock: 240, reorder: 120, safety: 60, bin: "A-01-03" },
   { code: "MAT-1002", name: "เหล็กเส้นกลม 12 มม.", group: "วัตถุดิบ", unit: "เส้น", price: 420, stock: 86, reorder: 150, safety: 75, bin: "A-01-07" },
+  { code: "MAT-1004", name: "เหล็กแผ่น SAPH440 หนา 2.3 มม.", group: "วัตถุดิบ", unit: "แผ่น", price: 1450, stock: 180, reorder: 120, safety: 60, bin: "A-02-01" },
   { code: "MAT-1003", name: "สีพ่นอุตสาหกรรม สีเทา", group: "วัตถุดิบ", unit: "ถัง", price: 2400, stock: 34, reorder: 20, safety: 10, bin: "B-02-01" },
   { code: "MAT-2001", name: "น็อตหัวหกเหลี่ยม M8", group: "อะไหล่", unit: "กล่อง", price: 380, stock: 18, reorder: 40, safety: 20, bin: "C-01-12" },
   { code: "MAT-2002", name: "ตลับลูกปืน 6204", group: "อะไหล่", unit: "ตัว", price: 145, stock: 320, reorder: 100, safety: 50, bin: "C-02-04" },
@@ -14436,6 +17581,7 @@ export const MATERIALS: Material[] = [
   { code: "MAT-4001", name: "มอเตอร์ไฟฟ้า 1 แรงม้า", group: "อะไหล่", unit: "ตัว", price: 5600, stock: 6, reorder: 10, safety: 4, bin: "C-03-02" },
   { code: "FG-5001", name: "ชั้นวางเหล็ก 4 ชั้น", group: "สินค้าสำเร็จรูป", unit: "ชุด", price: 7976, stock: 34, reorder: 15, safety: 8, bin: "E-01-01" },
   { code: "FG-5002", name: "โต๊ะทำงานเหล็ก 120 ซม.", group: "สินค้าสำเร็จรูป", unit: "ตัว", price: 9381, stock: 12, reorder: 10, safety: 5, bin: "E-01-04" },
+  { code: "FG-5004", name: "ขายึดแบตเตอรี่ BK-220", group: "สินค้าสำเร็จรูป", unit: "ชิ้น", price: 26, stock: 0, reorder: 0, safety: 0, bin: "E-03-01" },
   { code: "FG-5003", name: "รถเข็นอุตสาหกรรม", group: "สินค้าสำเร็จรูป", unit: "คัน", price: 12990, stock: 5, reorder: 6, safety: 3, bin: "E-02-02" },
 ];
 
@@ -14476,6 +17622,7 @@ export const INFO_RECORDS: InfoRecord[] = [
   { material: "MAT-1001", vendor: "V-002", price: 1920, leadDays: 5 },
   { material: "MAT-1002", vendor: "V-001", price: 420, leadDays: 7 },
   { material: "MAT-1003", vendor: "V-003", price: 2400, leadDays: 3 },
+  { material: "MAT-1004", vendor: "V-001", price: 1450, leadDays: 10 },
   { material: "MAT-2001", vendor: "V-002", price: 380, leadDays: 10 },
   { material: "MAT-2002", vendor: "V-004", price: 145, leadDays: 14 },
   { material: "MAT-4001", vendor: "V-004", price: 5600, leadDays: 14 },
@@ -26342,6 +29489,8 @@ export const BOM: Record<string, BomLine[]> = {
     { material: "MAT-2001", qty: 0.4, scrap: 0 },
     { material: "MAT-1003", qty: 0.2, scrap: 0 },
   ],
+  // ชิ้นส่วนยานยนต์ ปั๊มจากแผ่นเดียว 40 ชิ้นต่อแผ่น เผื่อเศษจากแม่พิมพ์ 3%
+  "FG-5004": [{ material: "MAT-1004", qty: 0.025, scrap: 3 }],
   "FG-5003": [
     { material: "MAT-1001", qty: 1, scrap: 0 },
     { material: "MAT-1002", qty: 8, scrap: 0 },
@@ -26362,6 +29511,7 @@ export const WORK_CENTERS: WorkCenter[] = [
   { code: "WC-PAINT", name: "พ่นสีและอบ", kind: "พ่นสี", capacityHrs: 60, costPerHr: 380 },
   { code: "WC-ASM", name: "ประกอบขั้นสุดท้าย", kind: "ประกอบ", capacityHrs: 100, costPerHr: 350 },
   { code: "WC-WELD2", name: "เชื่อมประกอบ สาย 2", kind: "เชื่อม", capacityHrs: 40, costPerHr: 560 },
+  { code: "WC-PRESS", name: "ปั๊มขึ้นรูป 200 ตัน", kind: "ตัดและขึ้นรูป", capacityHrs: 80, costPerHr: 650 },
 ];
 
 export const WORK_KINDS = ["ตัดและขึ้นรูป", "เชื่อม", "พ่นสี", "ประกอบ"];
@@ -26382,6 +29532,11 @@ export const ROUTING: Record<string, RoutingOp[]> = {
     { op: "0020", wc: "WC-WELD", hrs: 1.5, text: "เชื่อมโครงโต๊ะ" },
     { op: "0030", wc: "WC-PAINT", hrs: 0.6, text: "พ่นสีฝุ่นและอบ" },
     { op: "0040", wc: "WC-ASM", hrs: 0.5, text: "ประกอบท็อปและบรรจุ" },
+  ],
+  "FG-5004": [
+    { op: "0010", wc: "WC-PRESS", hrs: 0.004, text: "ปั๊มขึ้นรูปและเจาะรูด้วยแม่พิมพ์ต่อเนื่อง DIE-BK220" },
+    { op: "0020", wc: "WC-PAINT", hrs: 0.003, text: "พ่นสีฝุ่นดำและอบ" },
+    { op: "0030", wc: "WC-ASM", hrs: 0.002, text: "ตรวจรูด้วยเกจ Go/No-Go ทุกชิ้นและบรรจุ" },
   ],
   "FG-5003": [
     { op: "0010", wc: "WC-CUT", hrs: 0.5, text: "ตัดแชสซี" },
@@ -36414,6 +39569,7 @@ export const CUSTOMERS: Customer[] = [
   { code: "C-102", name: "หจก. พาณิชย์ภัณฑ์", contact: "คุณกิตติ", channel: "ตัวแทนจำหน่าย", terms: "เครดิต 60 วัน", creditLimit: 1200000, taxId: "0103550000654", address: "ชลบุรี", branch: "สำนักงานใหญ่", billingAddress: "45/7 ถนนสุขุมวิท ตำบลบ้านสวน อำเภอเมืองชลบุรี จังหวัดชลบุรี 20000", phone: "038-274-310" },
   { code: "C-103", name: "บจก. สำนักงานทันสมัย", contact: "คุณพิมพ์", channel: "ขายตรง", terms: "เครดิต 30 วัน", creditLimit: 400000, taxId: "0105558000147", address: "กรุงเทพฯ", branch: "สำนักงานใหญ่", billingAddress: "1550 อาคารธนภูมิ ชั้น 12 ถนนเพชรบุรีตัดใหม่ แขวงมักกะสัน เขตราชเทวี กรุงเทพมหานคร 10400", phone: "02-652-7788" },
   { code: "C-104", name: "ร้านวัสดุบ้านสวน", contact: "คุณสมหญิง", channel: "ขายหน้าร้าน", terms: "เงินสด", creditLimit: 0, taxId: "3101200456789", address: "นครปฐม", branch: "สำนักงานใหญ่", billingAddress: "12 หมู่ 3 ถนนเพชรเกษม ตำบลสามพราน อำเภอสามพราน จังหวัดนครปฐม 73110", phone: "034-311-456" },
+  { code: "C-106", name: "บจก. ไทยออโต้พาร์ท", contact: "คุณวิทยา", channel: "ขายตรง", terms: "เครดิต 60 วัน", creditLimit: 2000000, taxId: "0105550000999", address: "ชลบุรี", branch: "สำนักงานใหญ่", billingAddress: "700/55 หมู่ 5 นิคมอุตสาหกรรมอมตะซิตี้ ชลบุรี ตำบลคลองตำหรุ อำเภอเมืองชลบุรี จังหวัดชลบุรี 20000", phone: "038-213-555" },
   { code: "C-105", name: "บจก. โลจิสติกส์ตะวันออก", contact: "คุณธนา", channel: "ตัวแทนจำหน่าย", terms: "เครดิต 60 วัน", creditLimit: 600000, taxId: "0105561000258", address: "ฉะเชิงเทรา", branch: "สาขาที่ 00001", billingAddress: "88 หมู่ 9 ถนนบางนา-ตราด ตำบลบางวัว อำเภอบางปะกง จังหวัดฉะเชิงเทรา 24130", phone: "038-531-900" },
 ];
 
@@ -36422,6 +39578,7 @@ export const PRICE_LIST: Record<string, number> = {
   "FG-5001": 11900,
   "FG-5002": 13900,
   "FG-5003": 18900,
+  "FG-5004": 38,
 };
 
 export const CHANNEL_DISCOUNT: Record<string, number> = {
@@ -45706,6 +48863,1094 @@ export function PrintModal({
       </div>
       <div className="rounded-xl bg-slate-100 p-3 dark:bg-slate-800/60">{children}</div>
     </FormModal>
+  );
+}
+`,
+
+  "tpm/data.ts": `import { commit } from "../kit";
+import { PEOPLE, TODAY, YEAR, addDays, assertValid, contributeReviewInput, isDate, nextNo } from "../ims/data";
+import type { Errors } from "../ims/data";
+import { MATERIALS, REQUISITIONS, createRequisition, postStockMove } from "../mm/data";
+import { CONFIRMATIONS, ORDERS, WORK_CENTERS } from "../pp/data";
+
+export { TODAY };
+export type { Errors };
+
+/**
+ * การบำรุงรักษาเชิงป้องกันแบบทั่วถึง (TPM) ตาม IATF 16949 ข้อ 8.5.1.5
+ *
+ * เครื่องจักรผูกกับศูนย์งานของระบบวางแผนการผลิต OEE จึงคำนวณจากการยืนยันงานจริงของฝ่ายผลิต
+ * กับเวลาหยุดจากใบแจ้งซ่อม อะไหล่ที่ใช้ซ่อมเบิกจากคลังวัสดุจริง และอะไหล่วิกฤตที่ต่ำกว่าขั้นต่ำ
+ * เปิดใบขอซื้อในระบบจัดซื้อให้ แม่พิมพ์นับรอบบำรุงรักษาตามจำนวนครั้งปั๊ม ไม่ใช่ตามวัน
+ */
+
+/* =============================================================== machines */
+
+export const KINDS = ["เครื่องจักร", "แม่พิมพ์", "ระบบสนับสนุน"] as const;
+export type Kind = (typeof KINDS)[number];
+export type MachineStatus = "ใช้งาน" | "รอซ่อม" | "กำลังซ่อม" | "หยุดใช้";
+
+export type Machine = {
+  code: string;
+  name: string;
+  kind: Kind;
+  /** ศูนย์งานในระบบวางแผนการผลิต — ระบบสนับสนุนไม่มี */
+  wc?: string;
+  /** เครื่องจักรหลักที่หยุดแล้วกระทบการส่งมอบลูกค้า (IATF 8.5.1.5) */
+  critical: boolean;
+  maker: string;
+  installed: string;
+  status: MachineStatus;
+  /** จำนวนครั้งปั๊มสะสมของแม่พิมพ์ */
+  shots?: number;
+};
+
+export const MACHINES: Machine[] = [
+  { code: "M-PR-01", name: "เครื่องปั๊ม 200 ตัน", kind: "เครื่องจักร", wc: "WC-PRESS", critical: true, maker: "Amada TP-200", installed: "2026-06-18", status: "ใช้งาน" },
+  { code: "DIE-BK220", name: "แม่พิมพ์ต่อเนื่อง BK-220", kind: "แม่พิมพ์", wc: "WC-PRESS", critical: true, maker: "ทำโดยผู้รับจ้างแม่พิมพ์", installed: "2026-06-20", status: "ใช้งาน", shots: 46200 },
+  { code: "M-LS-01", name: "เครื่องตัดเลเซอร์ไฟเบอร์", kind: "เครื่องจักร", wc: "WC-CUT", critical: true, maker: "Bodor i5", installed: "2024-03-11", status: "ใช้งาน" },
+  { code: "M-PB-01", name: "เครื่องพับไฮดรอลิก", kind: "เครื่องจักร", wc: "WC-CUT", critical: false, maker: "Durma AD-S", installed: "2023-08-02", status: "ใช้งาน" },
+  { code: "M-WD-01", name: "ตู้เชื่อม MIG สาย 1", kind: "เครื่องจักร", wc: "WC-WELD", critical: false, maker: "Panasonic YD-350", installed: "2022-05-16", status: "ใช้งาน" },
+  { code: "M-WD-02", name: "ตู้เชื่อม MIG สาย 2", kind: "เครื่องจักร", wc: "WC-WELD2", critical: false, maker: "Panasonic YD-350", installed: "2025-01-20", status: "ใช้งาน" },
+  { code: "M-OV-01", name: "เตาอบสีฝุ่น", kind: "เครื่องจักร", wc: "WC-PAINT", critical: true, maker: "ผลิตในประเทศ", installed: "2021-11-01", status: "รอซ่อม" },
+  { code: "M-AC-01", name: "ปั๊มลมสกรู 15 kW", kind: "ระบบสนับสนุน", critical: true, maker: "Atlas Copco GA15", installed: "2021-11-01", status: "ใช้งาน" },
+  { code: "M-FL-01", name: "รถยก 2.5 ตัน", kind: "ระบบสนับสนุน", critical: false, maker: "Toyota 8FD25", installed: "2023-02-14", status: "ใช้งาน" },
+];
+
+export const machineByCode = (code: string) => {
+  const m = MACHINES.find((x) => x.code === code);
+  if (!m) throw new Error(\`ไม่พบเครื่องจักร \${code}\`);
+  return m;
+};
+
+export const wcName = (code?: string) => (code ? WORK_CENTERS.find((w) => w.code === code)?.name ?? code : "ระบบสนับสนุน");
+
+export type MachineInput = Omit<Machine, "status" | "shots">;
+
+export function machineErrors(input: MachineInput): Errors {
+  const e: Errors = {};
+  if (!/^[A-Z]+-[A-Z0-9]+(-\\d+)?$/.test(input.code.trim())) e.code = "รหัสรูปแบบ M-XX-00 หรือ DIE-XXXX";
+  else if (MACHINES.some((m) => m.code === input.code.trim())) e.code = "รหัสนี้มีอยู่แล้ว";
+  if (input.name.trim().length < 3) e.name = "ใส่ชื่อเครื่อง";
+  if (input.kind !== "ระบบสนับสนุน" && !WORK_CENTERS.some((w) => w.code === input.wc)) e.wc = "เลือกศูนย์งานที่เครื่องนี้อยู่";
+  if (!isDate(input.installed) || input.installed > TODAY) e.installed = "วันที่ติดตั้งต้องไม่เกินวันนี้";
+  return e;
+}
+
+export function addMachine(input: MachineInput) {
+  assertValid(machineErrors(input));
+  return commit(() => {
+    const m: Machine = { ...input, code: input.code.trim(), name: input.name.trim(), wc: input.kind === "ระบบสนับสนุน" ? undefined : input.wc, status: "ใช้งาน", shots: input.kind === "แม่พิมพ์" ? 0 : undefined };
+    MACHINES.push(m);
+    return m;
+  });
+}
+
+/** อ่านมิเตอร์จำนวนครั้งปั๊มของแม่พิมพ์ — ลดลงไม่ได้ */
+export function recordShots(code: string, shots: number) {
+  const m = machineByCode(code);
+  if (m.kind !== "แม่พิมพ์") throw new Error(\`\${m.name} ไม่ใช่แม่พิมพ์\`);
+  if (!Number.isInteger(shots) || shots < (m.shots ?? 0)) throw new Error(\`มิเตอร์ต้องไม่น้อยกว่าเดิม \${(m.shots ?? 0).toLocaleString("th-TH")} ครั้ง\`);
+  return commit(() => {
+    m.shots = shots;
+    return m;
+  });
+}
+
+/* ============================================================== pm plans */
+
+export type PmPlan = {
+  code: string;
+  machine: string;
+  task: string;
+  /** PM ช่างซ่อมบำรุงทำ · AM ผู้ควบคุมเครื่องทำเองทุกกะ */
+  type: "PM" | "AM";
+  checklist: string[];
+  everyDays?: number;
+  everyShots?: number;
+  lastDone: string;
+  lastShots?: number;
+};
+
+export const PLANS: PmPlan[] = [
+  { code: "PM-PR-01", machine: "M-PR-01", task: "ตรวจระบบไฮดรอลิกและน้ำมันหล่อลื่น", type: "PM", checklist: ["ระดับและสีน้ำมันไฮดรอลิก", "รอยรั่วที่ข้อต่อ", "แรงดันระบบ 210 บาร์", "จาระบีแกนสไลด์"], everyDays: 30, lastDone: "2026-08-25" },
+  { code: "AM-PR-01", machine: "M-PR-01", task: "ทำความสะอาดและตรวจรอบเครื่องประจำกะ", type: "AM", checklist: ["เก็บเศษเหล็กใต้แม่พิมพ์", "ม่านแสงนิรภัยทำงาน", "ปุ่มหยุดฉุกเฉินทำงาน"], everyDays: 1, lastDone: "2026-09-22" },
+  { code: "PM-DIE-01", machine: "DIE-BK220", task: "เปลี่ยนไกด์พินและลับพันช์", type: "PM", checklist: ["เปลี่ยนไกด์พิน 4 ตัว", "ลับพันช์เจาะรู", "ตรวจระยะห่างพันช์กับดาย", "ปั๊มทดลองและวัดชิ้นแรก"], everyShots: 50000, lastDone: "2026-06-20", lastShots: 0 },
+  { code: "PM-LS-01", machine: "M-LS-01", task: "ทำความสะอาดเลนส์และตรวจหัวตัด", type: "PM", checklist: ["เลนส์ป้องกัน", "หัวฉีดก๊าซ", "ตั้งศูนย์ลำแสง"], everyDays: 14, lastDone: "2026-09-01" },
+  { code: "PM-OV-01", machine: "M-OV-01", task: "ตรวจหัวเผาและพัดลมหมุนเวียน", type: "PM", checklist: ["หัวเผาและระบบจุดไฟ", "ลูกปืนพัดลมหมุนเวียน", "เทอร์โมคัปเปิลเทียบค่า"], everyDays: 90, lastDone: "2026-07-10" },
+  { code: "PM-AC-01", machine: "M-AC-01", task: "เปลี่ยนไส้กรองและน้ำมันปั๊มลม", type: "PM", checklist: ["ไส้กรองอากาศ", "ไส้กรองน้ำมัน", "น้ำมันคอมเพรสเซอร์", "ถ่ายน้ำถังพัก"], everyDays: 60, lastDone: "2026-08-02" },
+  { code: "PM-WD-01", machine: "M-WD-01", task: "ตรวจสายเชื่อมและชุดป้อนลวด", type: "PM", checklist: ["สายเชื่อมและหัวทิพ", "ลูกกลิ้งป้อนลวด", "ระบบระบายความร้อน"], everyDays: 30, lastDone: "2026-09-05" },
+  { code: "PM-FL-01", machine: "M-FL-01", task: "ตรวจเช็คประจำเดือน", type: "PM", checklist: ["เบรกและพวงมาลัย", "โซ่และงายก", "แตรและไฟเตือน"], everyDays: 30, lastDone: "2026-09-01" },
+];
+
+export const planByCode = (code: string) => {
+  const p = PLANS.find((x) => x.code === code);
+  if (!p) throw new Error(\`ไม่พบแผน \${code}\`);
+  return p;
+};
+
+/** ครบรอบเมื่อไร — แผนตามวันบอกวัน แผนตามครั้งปั๊มบอกสัดส่วนที่ใช้ไป */
+export function pmDue(p: PmPlan) {
+  if (p.everyShots) {
+    const used = (machineByCode(p.machine).shots ?? 0) - (p.lastShots ?? 0);
+    const pct = Math.round((used / p.everyShots) * 100);
+    return { label: \`\${used.toLocaleString("th-TH")} จาก \${p.everyShots.toLocaleString("th-TH")} ครั้ง\`, late: used >= p.everyShots, soon: pct >= 90, pct };
+  }
+  const due = addDays(p.lastDone, p.everyDays!);
+  return { label: \`ครบกำหนด \${due}\`, late: due < TODAY, soon: due <= addDays(TODAY, 7), pct: 0, due };
+}
+
+export const pmOverdue = () => PLANS.filter((p) => p.type === "PM" && pmDue(p).late);
+export const pmSoon = () => PLANS.filter((p) => p.type === "PM" && !pmDue(p).late && pmDue(p).soon);
+
+export type PmRecord = { plan: string; date: string; by: string; checked: boolean[]; findings: string; shots?: number };
+
+export const PM_RECORDS: PmRecord[] = [
+  { plan: "PM-PR-01", date: "2026-08-25", by: "ประสิทธิ์ ขยันยิ่ง", checked: [true, true, true, true], findings: "" },
+  { plan: "PM-LS-01", date: "2026-09-01", by: "ประสิทธิ์ ขยันยิ่ง", checked: [true, true, true], findings: "" },
+  { plan: "PM-AC-01", date: "2026-08-02", by: "ประสิทธิ์ ขยันยิ่ง", checked: [true, true, true, true], findings: "ไส้กรองอากาศสกปรกเร็ว ย้ายช่องรับอากาศออกจากพื้นที่พ่นสี" },
+  { plan: "PM-DIE-01", date: "2026-06-20", by: "ประสิทธิ์ ขยันยิ่ง", checked: [true, true, true, true], findings: "ติดตั้งแม่พิมพ์ใหม่", shots: 0 },
+];
+
+export type PmInput = { by: string; checked: boolean[]; findings: string; date: string };
+
+export function pmErrors(code: string, input: PmInput): Errors {
+  const p = planByCode(code);
+  const e: Errors = {};
+  if (!PEOPLE.includes(input.by)) e.by = "เลือกผู้ทำ";
+  if (input.checked.length !== p.checklist.length) e.checked = "ตรวจให้ครบทุกข้อ";
+  else if (input.checked.some((c) => !c) && input.findings.trim().length < 10) e.findings = "ข้อที่ไม่ผ่านต้องบอกสิ่งที่พบและสิ่งที่ทำต่อ";
+  if (!isDate(input.date) || input.date > TODAY) e.date = "วันที่ต้องไม่เกินวันนี้";
+  if (machineByCode(p.machine).status === "หยุดใช้") e.by = "เครื่องหยุดใช้อยู่";
+  return e;
+}
+
+/** บันทึกผล PM — เริ่มรอบใหม่ แม่พิมพ์เริ่มนับครั้งปั๊มจากมิเตอร์ปัจจุบัน */
+export function recordPm(code: string, input: PmInput) {
+  assertValid(pmErrors(code, input));
+  const p = planByCode(code);
+  const m = machineByCode(p.machine);
+  return commit(() => {
+    const r: PmRecord = { plan: code, date: input.date, by: input.by, checked: [...input.checked], findings: input.findings.trim(), shots: m.shots };
+    PM_RECORDS.push(r);
+    p.lastDone = input.date;
+    if (p.everyShots) p.lastShots = m.shots ?? 0;
+    return r;
+  });
+}
+
+/* ========================================================== work requests */
+
+export type PartUsed = { material: string; qty: number; doc?: string };
+
+export type WorkRequest = {
+  no: string;
+  machine: string;
+  reportedOn: string;
+  reportedBy: string;
+  symptom: string;
+  status: "รอซ่อม" | "กำลังซ่อม" | "ซ่อมเสร็จ";
+  technician?: string;
+  startedOn?: string;
+  finishedOn?: string;
+  downtimeHrs?: number;
+  cause?: string;
+  fix?: string;
+  parts: PartUsed[];
+};
+
+export const REQUESTS: WorkRequest[] = [
+  { no: "WR-2569-028", machine: "M-LS-01", reportedOn: "2026-09-10", reportedBy: "อนุชา ทองดี", symptom: "หัวตัดชนแผ่นเหล็กที่บิดงอ", status: "ซ่อมเสร็จ", technician: "ประสิทธิ์ ขยันยิ่ง", startedOn: "2026-09-10", finishedOn: "2026-09-10", downtimeHrs: 6, cause: "แผ่นเหล็กบิดจากการวางซ้อนผิดวิธี", fix: "เปลี่ยนหัวฉีดและตั้งศูนย์ใหม่", parts: [] },
+  { no: "WR-2569-029", machine: "M-WD-01", reportedOn: "2026-09-12", reportedBy: "สมปอง ใจกล้า", symptom: "ลวดเชื่อมป้อนไม่สม่ำเสมอ", status: "ซ่อมเสร็จ", technician: "ประสิทธิ์ ขยันยิ่ง", startedOn: "2026-09-12", finishedOn: "2026-09-12", downtimeHrs: 3, cause: "ลูกกลิ้งป้อนลวดสึก", fix: "เปลี่ยนลูกกลิ้งป้อนลวด", parts: [] },
+  { no: "WR-2569-030", machine: "M-AC-01", reportedOn: "2026-09-16", reportedBy: "อนุชา ทองดี", symptom: "แรงดันลมตก มีเสียงดังที่มอเตอร์", status: "ซ่อมเสร็จ", technician: "ประสิทธิ์ ขยันยิ่ง", startedOn: "2026-09-16", finishedOn: "2026-09-16", downtimeHrs: 4, cause: "ตลับลูกปืนมอเตอร์แตก", fix: "เปลี่ยนตลับลูกปืน 2 ตัว", parts: [{ material: "MAT-2002", qty: 2 }] },
+  { no: "WR-2569-031", machine: "M-OV-01", reportedOn: "2026-09-21", reportedBy: "มานพ รุ่งเรือง", symptom: "พัดลมหมุนเวียนเสียงดังผิดปกติ", status: "รอซ่อม", parts: [] },
+];
+
+export const requestByNo = (no: string) => {
+  const r = REQUESTS.find((x) => x.no === no);
+  if (!r) throw new Error(\`ไม่พบ \${no}\`);
+  return r;
+};
+
+export const openRequests = () => REQUESTS.filter((r) => r.status !== "ซ่อมเสร็จ");
+
+export type BreakdownInput = { machine: string; symptom: string; reportedBy: string };
+
+export function breakdownErrors(input: BreakdownInput): Errors {
+  const e: Errors = {};
+  const m = MACHINES.find((x) => x.code === input.machine);
+  if (!m) e.machine = "เลือกเครื่องจักร";
+  else if (openRequests().some((r) => r.machine === m.code)) e.machine = \`\${m.name} มีใบแจ้งซ่อมค้างอยู่แล้ว\`;
+  if (input.symptom.trim().length < 5) e.symptom = "อาการที่พบ";
+  if (!PEOPLE.includes(input.reportedBy)) e.reportedBy = "เลือกผู้แจ้ง";
+  return e;
+}
+
+export function reportBreakdown(input: BreakdownInput) {
+  assertValid(breakdownErrors(input));
+  const m = machineByCode(input.machine);
+  return commit(() => {
+    const r: WorkRequest = { no: nextNo(REQUESTS.map((x) => x.no), \`WR-\${YEAR}-\`, 3), machine: m.code, reportedOn: TODAY, reportedBy: input.reportedBy, symptom: input.symptom.trim(), status: "รอซ่อม", parts: [] };
+    REQUESTS.push(r);
+    m.status = "รอซ่อม";
+    return r;
+  });
+}
+
+export function startRepair(no: string, technician: string) {
+  const r = requestByNo(no);
+  if (r.status !== "รอซ่อม") throw new Error(\`\${no} \${r.status}\`);
+  if (!PEOPLE.includes(technician)) throw new Error("เลือกช่างผู้ซ่อม");
+  return commit(() => {
+    r.status = "กำลังซ่อม";
+    r.technician = technician;
+    r.startedOn = TODAY;
+    machineByCode(r.machine).status = "กำลังซ่อม";
+    return r;
+  });
+}
+
+export type RepairInput = { cause: string; fix: string; hours: number; parts: { material: string; qty: number }[] };
+
+export function repairErrors(no: string, input: RepairInput): Errors {
+  const r = requestByNo(no);
+  const e: Errors = {};
+  if (r.status !== "กำลังซ่อม") e.cause = "เริ่มซ่อมก่อนปิดงาน";
+  if (input.cause.trim().length < 5) e.cause = e.cause ?? "สาเหตุที่พบ";
+  if (input.fix.trim().length < 5) e.fix = "สิ่งที่ทำ";
+  if (!(input.hours > 0)) e.hours = "เวลาเครื่องหยุด (ชั่วโมง)";
+  for (const p of input.parts) {
+    const m = MATERIALS.find((x) => x.code === p.material);
+    if (!m) e.parts = "เลือกอะไหล่จากคลังวัสดุ";
+    else if (!(p.qty > 0)) e.parts = "จำนวนอะไหล่มากกว่าศูนย์";
+    else if (p.qty > m.stock) e.parts = \`\${m.name} ในคลังเหลือ \${m.stock} \${m.unit}\`;
+  }
+  return e;
+}
+
+/** ปิดงานซ่อม — อะไหล่ที่ใช้เบิกจากคลังวัสดุจริงใต้เลขใบแจ้งซ่อม เครื่องกลับมาใช้งาน */
+export function completeRepair(no: string, input: RepairInput) {
+  assertValid(repairErrors(no, input));
+  const r = requestByNo(no);
+  const m = machineByCode(r.machine);
+  return commit(() => {
+    r.parts = input.parts.map((p) => {
+      const move = postStockMove({ kind: "เบิกใช้", material: p.material, qty: p.qty, department: "ฝ่ายซ่อมบำรุง", reason: \`ซ่อม \${m.name} ตาม \${r.no}\`, date: TODAY });
+      return { material: p.material, qty: p.qty, doc: move.doc };
+    });
+    r.status = "ซ่อมเสร็จ";
+    r.finishedOn = TODAY;
+    r.downtimeHrs = input.hours;
+    r.cause = input.cause.trim();
+    r.fix = input.fix.trim();
+    m.status = "ใช้งาน";
+    return r;
+  });
+}
+
+/* ============================================================ reliability */
+
+/** เวลาที่วางแผนให้เครื่องทำงาน สองกะต่อวัน */
+export const HOURS_PER_DAY = 16;
+export const WINDOW_DAYS = 90;
+
+/** MTBF MTTR ในช่วง 90 วัน — เวลาทำงานเฉลี่ยก่อนเสีย และเวลาซ่อมเฉลี่ย */
+export function reliability(code: string) {
+  const since = addDays(TODAY, -WINDOW_DAYS);
+  const done = REQUESTS.filter((r) => r.machine === code && r.status === "ซ่อมเสร็จ" && r.reportedOn >= since);
+  const down = done.reduce((n, r) => n + (r.downtimeHrs ?? 0), 0);
+  const scheduled = WINDOW_DAYS * HOURS_PER_DAY;
+  return {
+    failures: done.length,
+    downtime: down,
+    mttr: done.length ? Math.round((down / done.length) * 10) / 10 : undefined,
+    mtbf: done.length ? Math.round((scheduled - down) / done.length) : undefined,
+  };
+}
+
+/** OEE ของศูนย์งานใน 14 วัน — ความพร้อม × ประสิทธิภาพ × คุณภาพ จากการยืนยันงานจริงของฝ่ายผลิต */
+export function oee(wc: string) {
+  const since = addDays(TODAY, -14);
+  const center = WORK_CENTERS.find((w) => w.code === wc);
+  if (!center) throw new Error(\`ไม่พบศูนย์งาน \${wc}\`);
+  const machines = MACHINES.filter((m) => m.wc === wc).map((m) => m.code);
+  const downtime = REQUESTS.filter((r) => machines.includes(r.machine) && r.reportedOn >= since).reduce((n, r) => n + (r.downtimeHrs ?? 0), 0);
+  const confs = CONFIRMATIONS.filter((c) => c.wc === wc && c.date >= since);
+  const ideal = confs.reduce((n, c) => {
+    const op = ORDERS.find((o) => o.no === c.order)?.operations.find((x) => x.op === c.op);
+    return n + (op?.hrs ?? 0) * (c.yield + c.scrap);
+  }, 0);
+  const actual = confs.reduce((n, c) => n + c.hrs, 0);
+  const good = confs.reduce((n, c) => n + c.yield, 0);
+  const total = confs.reduce((n, c) => n + c.yield + c.scrap, 0);
+  const availability = Math.max(0, (center.capacityHrs - downtime) / center.capacityHrs);
+  const performance = actual ? Math.min(1, ideal / actual) : undefined;
+  const quality = total ? good / total : undefined;
+  const value = performance !== undefined && quality !== undefined ? availability * performance * quality : undefined;
+  const pct = (x?: number) => (x === undefined ? undefined : Math.round(x * 1000) / 10);
+  return { wc, name: center.name, availability: pct(availability)!, performance: pct(performance), quality: pct(quality), oee: pct(value), downtime, runs: confs.length };
+}
+
+/** OEE ทุกศูนย์งานที่มีเครื่องจักรในทะเบียน */
+export const oeeAll = () => [...new Set(MACHINES.map((m) => m.wc).filter((x): x is string => !!x))].map(oee);
+
+/* ================================================================ spares */
+
+export type Spare = { material: string; machine: string; min: number };
+
+/** อะไหล่วิกฤต — อ่านคงเหลือจากคลังวัสดุ ต่ำกว่าขั้นต่ำคือเสี่ยงเครื่องหยุดนาน */
+export const SPARES: Spare[] = [
+  { material: "MAT-2002", machine: "M-AC-01", min: 10 },
+  { material: "MAT-4001", machine: "M-OV-01", min: 2 },
+  { material: "MAT-2001", machine: "M-PR-01", min: 20 },
+];
+
+export const spareStock = (s: Spare) => MATERIALS.find((m) => m.code === s.material)?.stock ?? 0;
+export const spareName = (s: Spare) => MATERIALS.find((m) => m.code === s.material)?.name ?? s.material;
+export const openRequisition = (material: string) => REQUISITIONS.find((r) => r.lines.some((l) => l.material === material) && (r.status === "รออนุมัติ" || r.status === "อนุมัติแล้ว"));
+
+/** ความต้องการต่ออะไหล่ — อะไหล่ชิ้นเดียวอาจวิกฤตกับหลายเครื่อง ขั้นต่ำจึงรวมกันทุกเครื่อง */
+export const spareNeeds = () =>
+  [...new Set(SPARES.map((s) => s.material))].map((material) => {
+    const rows = SPARES.filter((s) => s.material === material);
+    return { material, name: spareName(rows[0]), machines: rows.map((r) => r.machine), min: rows.reduce((n, r) => n + r.min, 0), stock: spareStock(rows[0]) };
+  });
+
+export const sparesBelow = () => spareNeeds().filter((s) => s.stock < s.min);
+
+export function spareErrors(input: Spare): Errors {
+  const e: Errors = {};
+  const m = MATERIALS.find((x) => x.code === input.material);
+  if (!m) e.material = "เลือกอะไหล่จากคลังวัสดุ";
+  else if (SPARES.some((s) => s.material === input.material && s.machine === input.machine)) e.material = "อะไหล่นี้ผูกกับเครื่องนี้แล้ว";
+  if (!MACHINES.some((x) => x.code === input.machine)) e.machine = "เลือกเครื่องจักร";
+  if (!(Number.isInteger(input.min) && input.min > 0)) e.min = "ขั้นต่ำเป็นจำนวนเต็มมากกว่าศูนย์";
+  return e;
+}
+
+export function addSpare(input: Spare) {
+  assertValid(spareErrors(input));
+  return commit(() => {
+    SPARES.push({ ...input });
+    return input;
+  });
+}
+
+/** ขอซื้ออะไหล่วิกฤตที่ต่ำกว่าขั้นต่ำ — เปิดใบขอซื้อในระบบจัดซื้อ เติมให้ถึงสองเท่าของขั้นต่ำ */
+export function requestSpare(material: string) {
+  const need = spareNeeds().find((x) => x.material === material);
+  if (!need) throw new Error("ไม่ใช่อะไหล่วิกฤต");
+  if (need.stock >= need.min) throw new Error(\`\${need.name} ยังไม่ต่ำกว่าขั้นต่ำ \${need.min}\`);
+  const open = openRequisition(material);
+  if (open) throw new Error(\`มีใบขอซื้อ \${open.no} รออยู่แล้ว\`);
+  const m = MATERIALS.find((x) => x.code === material)!;
+  return createRequisition({
+    requester: "ฝ่ายซ่อมบำรุง", needBy: addDays(TODAY, 7), note: \`อะไหล่วิกฤตของ \${need.machines.map((c) => machineByCode(c).name).join(", ")} ต่ำกว่าขั้นต่ำ\`,
+    lines: [{ material, qty: need.min * 2 - need.stock, price: m.price }],
+  });
+}
+
+/* ======================================================== review inputs */
+
+const toneOf = (bad: boolean, warn = false) => (bad ? "bad" : warn ? "warn" : "ok") as "bad" | "warn" | "ok";
+
+contributeReviewInput({
+  key: "tpm-equipment", std: ["IATF 16949"], input: "IATF 9.3.2.1", title: "ประสิทธิผลของการบำรุงรักษา",
+  facts: () => {
+    const measured = oeeAll().filter((x) => x.oee !== undefined);
+    const avg = measured.length ? Math.round((measured.reduce((n, x) => n + x.oee!, 0) / measured.length) * 10) / 10 : undefined;
+    return [
+      { label: "OEE เฉลี่ย 14 วัน", value: avg === undefined ? "—" : \`\${avg}%\`, tone: avg === undefined ? "idle" : toneOf(avg < 60, avg < 75) },
+      { label: "PM เลยกำหนด", value: \`\${pmOverdue().length} แผน\`, tone: toneOf(pmOverdue().length > 0) },
+      { label: "อะไหล่วิกฤตต่ำกว่าขั้นต่ำ", value: \`\${sparesBelow().length} รายการ\`, tone: toneOf(sparesBelow().length > 0) },
+    ];
+  },
+});
+`,
+
+  "tpm/documents.tsx": `import { Paper } from "../kit";
+import { formNo } from "../ims/data";
+import { Block, Facts, Foot, PaperHead, PaperTable, Signatures } from "../ims/parts";
+import { MATERIALS } from "../mm/data";
+import { PM_RECORDS, machineByCode, planByCode, pmDue, requestByNo, wcName } from "./data";
+
+/** เอกสารที่พิมพ์ได้จากงานบำรุงรักษา — ทุกใบมีเลขแบบฟอร์มจากบัญชีรายชื่อเอกสาร */
+export type TpmDoc = { doc: "pm"; code: string } | { doc: "request"; no: string };
+
+const materialName = (code: string) => MATERIALS.find((m) => m.code === code)?.name ?? code;
+
+function PmSheet({ code }: { code: string }) {
+  const p = planByCode(code);
+  const m = machineByCode(p.machine);
+  const last = PM_RECORDS.filter((r) => r.plan === code).at(-1);
+  return (
+    <>
+      <PaperHead title="ใบตรวจเช็คบำรุงรักษาเชิงป้องกัน" number={p.code} form={formNo("FM-31")} />
+      <Facts
+        rows={[
+          ["เครื่องจักร", \`\${m.code} · \${m.name}\`],
+          ["ศูนย์งาน", wcName(m.wc)],
+          ["งาน", \`\${p.task} (\${p.type === "AM" ? "ผู้ควบคุมเครื่องทำเอง" : "ช่างซ่อมบำรุง"})\`],
+          ["รอบ", p.everyShots ? \`ทุก \${p.everyShots.toLocaleString("th-TH")} ครั้งปั๊ม\` : \`ทุก \${p.everyDays} วัน\`],
+          ["สถานะรอบ", pmDue(p).label],
+          ["ทำล่าสุด", last ? \`\${last.date} โดย \${last.by}\` : p.lastDone],
+        ]}
+      />
+      <PaperTable head={["#", "รายการตรวจ", "ผ่าน", "ไม่ผ่าน", "หมายเหตุ"]} rows={p.checklist.map((c, i) => [String(i + 1), c, "☐", "☐", ""])} />
+      <Block title="สิ่งที่พบและสิ่งที่ทำต่อ"><div className="h-16" /></Block>
+      <Signatures names={[["ผู้ทำ"], ["หัวหน้าซ่อมบำรุง"]]} />
+      <Foot system="IATF 16949:2016 ข้อ 8.5.1.5" />
+    </>
+  );
+}
+
+function RequestSheet({ no }: { no: string }) {
+  const r = requestByNo(no);
+  const m = machineByCode(r.machine);
+  return (
+    <>
+      <PaperHead title="ใบแจ้งซ่อมและรายงานการซ่อม" number={r.no} form={formNo("FM-32")} />
+      <Facts
+        rows={[
+          ["เครื่องจักร", \`\${m.code} · \${m.name}\${m.critical ? " (เครื่องหลัก)" : ""}\`],
+          ["ผู้แจ้ง", \`\${r.reportedBy} · \${r.reportedOn}\`],
+          ["อาการ", r.symptom],
+          ["ช่างผู้ซ่อม", r.technician ?? "—"],
+          ["ซ่อม", r.startedOn ? \`\${r.startedOn} ถึง \${r.finishedOn ?? "ยังไม่เสร็จ"}\` : "ยังไม่เริ่ม"],
+          ["เครื่องหยุด", r.downtimeHrs !== undefined ? \`\${r.downtimeHrs} ชั่วโมง\` : "—"],
+        ]}
+      />
+      <Block title="สาเหตุ">{r.cause ?? "—"}</Block>
+      <Block title="สิ่งที่ทำ">{r.fix ?? "—"}</Block>
+      <PaperTable head={["อะไหล่", "จำนวน", "เอกสารเบิก"]} rows={r.parts.length ? r.parts.map((p) => [\`\${p.material} · \${materialName(p.material)}\`, String(p.qty), p.doc ?? "—"]) : [["ไม่ได้ใช้อะไหล่", "", ""]]} />
+      <Signatures names={[["ผู้แจ้ง", r.reportedBy], ["ช่างผู้ซ่อม", r.technician], ["ผู้รับเครื่องคืน"]]} />
+      <Foot system="IATF 16949:2016 ข้อ 8.5.1.5" />
+    </>
+  );
+}
+
+export function TpmPaper({ d }: { d: TpmDoc }) {
+  return (
+    <Paper>
+      {d.doc === "pm" && <PmSheet code={d.code} />}
+      {d.doc === "request" && <RequestSheet no={d.no} />}
+    </Paper>
+  );
+}
+`,
+
+  "tpm/forms.tsx": `import { useState } from "react";
+import { Plus, Printer, Trash2 } from "lucide-react";
+import { TODAY } from "../ims/data";
+import { Actions, Area, Choice, Form, Input, people, tryRun } from "../ims/parts";
+import { MATERIALS } from "../mm/data";
+import { WORK_CENTERS } from "../pp/data";
+import {
+  KINDS, MACHINES, addMachine, addSpare, breakdownErrors, completeRepair, machineByCode, machineErrors, planByCode, pmErrors, recordPm,
+  recordShots, repairErrors, reportBreakdown, requestByNo, spareErrors, startRepair,
+} from "./data";
+import type { Kind } from "./data";
+import { TpmPaper } from "./documents";
+import type { TpmDoc } from "./documents";
+import { Button, Note, Segmented } from "../ui";
+import { Field, FormModal, notify, printDocument, useData } from "../kit";
+
+/** ทุกการกระทำของงานบำรุงรักษายกขึ้นแบบเดียวกันจากทุกหน้า */
+export type Act =
+  | { kind: "machine-new" }
+  | { kind: "shots"; code: string }
+  | { kind: "pm-record"; code: string }
+  | { kind: "breakdown"; machine?: string }
+  | { kind: "repair-start"; no: string }
+  | { kind: "repair-complete"; no: string }
+  | { kind: "spare-new" }
+  | { kind: "print"; d: TpmDoc; title: string };
+
+type Of<K extends Act["kind"]> = Extract<Act, { kind: K }>;
+export type RecordKind = "machine" | "request";
+
+const machineOptions = () => MACHINES.map((m) => ({ value: m.code, label: \`\${m.code} · \${m.name}\` }));
+const materialOptions = () => MATERIALS.map((m) => ({ value: m.code, label: \`\${m.code} · \${m.name} (คงเหลือ \${m.stock} \${m.unit})\` }));
+
+function MachineForm({ onCancel, onDone }: { onCancel: () => void; onDone: (code: string) => void }) {
+  const [v, setV] = useState({ code: "", name: "", kind: "เครื่องจักร" as Kind, wc: WORK_CENTERS[0].code, critical: "ไม่ใช่", maker: "", installed: TODAY });
+  const [tried, setTried] = useState(false);
+  const input = { code: v.code, name: v.name, kind: v.kind, wc: v.wc, critical: v.critical === "ใช่", maker: v.maker, installed: v.installed };
+  const errors = tried ? machineErrors(input) : {};
+  const set = (k: keyof typeof v) => (x: string) => setV((s) => ({ ...s, [k]: x }));
+  return (
+    <Form onSubmit={() => { setTried(true); if (Object.keys(machineErrors(input)).length) return; const m = addMachine(input); notify(\`ขึ้นทะเบียน \${m.code} แล้ว\`); onDone(m.code); }}>
+      <Field label="ประเภท"><Segmented options={KINDS} value={v.kind} onChange={(x) => setV((s) => ({ ...s, kind: x as Kind }))} /></Field>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <Field label="รหัส" error={errors.code}><Input value={v.code} onChange={set("code")} error={errors.code} placeholder={v.kind === "แม่พิมพ์" ? "DIE-XXXX" : "M-XX-00"} /></Field>
+        <Field label="ชื่อ" error={errors.name}><Input value={v.name} onChange={set("name")} error={errors.name} /></Field>
+        {v.kind !== "ระบบสนับสนุน" && <Field label="ศูนย์งาน" error={errors.wc}><Choice value={v.wc} onChange={set("wc")} options={WORK_CENTERS.map((w) => ({ value: w.code, label: \`\${w.code} · \${w.name}\` }))} error={errors.wc} /></Field>}
+        <Field label="ยี่ห้อและรุ่น"><Input value={v.maker} onChange={set("maker")} /></Field>
+        <Field label="วันที่ติดตั้ง" error={errors.installed}><Input type="date" value={v.installed} onChange={set("installed")} error={errors.installed} /></Field>
+        <Field label="เครื่องหลัก" hint="หยุดแล้วกระทบการส่งมอบลูกค้า"><Segmented options={["ไม่ใช่", "ใช่"]} value={v.critical} onChange={set("critical")} /></Field>
+      </div>
+      <Actions onCancel={onCancel} label="ขึ้นทะเบียน" />
+    </Form>
+  );
+}
+
+function ShotsForm({ code, onCancel, onDone }: { code: string; onCancel: () => void; onDone: () => void }) {
+  const m = machineByCode(code);
+  const [shots, setShots] = useState(String(m.shots ?? 0));
+  const [error, setError] = useState("");
+  return (
+    <Form error={error} onSubmit={() => tryRun(() => { recordShots(code, Number(shots)); notify(\`บันทึกมิเตอร์ \${code} แล้ว\`); onDone(); }, setError)}>
+      <p className="text-[13px] text-slate-600 dark:text-slate-300">{m.name} · มิเตอร์เดิม {(m.shots ?? 0).toLocaleString("th-TH")} ครั้ง</p>
+      <Field label="จำนวนครั้งปั๊มสะสม"><Input type="number" value={shots} onChange={setShots} /></Field>
+      <Actions onCancel={onCancel} label="บันทึกมิเตอร์" />
+    </Form>
+  );
+}
+
+function PmForm({ code, onCancel, onDone }: { code: string; onCancel: () => void; onDone: () => void }) {
+  const p = planByCode(code);
+  const [checked, setChecked] = useState<boolean[]>(p.checklist.map(() => true));
+  const [v, setV] = useState({ by: p.type === "AM" ? "อนุชา ทองดี" : "ประสิทธิ์ ขยันยิ่ง", findings: "", date: TODAY });
+  const [tried, setTried] = useState(false);
+  const input = { ...v, checked };
+  const errors = tried ? pmErrors(code, input) : {};
+  return (
+    <Form onSubmit={() => { setTried(true); if (Object.keys(pmErrors(code, input)).length) return; recordPm(code, input); notify(checked.every(Boolean) ? \`บันทึก \${code} แล้ว · เริ่มรอบใหม่\` : \`บันทึก \${code} แล้ว · มีข้อไม่ผ่าน\`, checked.every(Boolean) ? "ok" : "warn"); onDone(); }}>
+      <p className="text-[13px] text-slate-600 dark:text-slate-300">{machineByCode(p.machine).name} · {p.task}</p>
+      <Field label="รายการตรวจ" error={errors.checked}>
+        <div className="space-y-1.5">
+          {p.checklist.map((c, i) => (
+            <div key={c} className="flex items-center justify-between gap-3 rounded-lg bg-slate-50 px-3 py-1.5 dark:bg-slate-800/50">
+              <span className="text-[12.5px] text-slate-700 dark:text-slate-200">{c}</span>
+              <Segmented options={["ผ่าน", "ไม่ผ่าน"]} value={checked[i] ? "ผ่าน" : "ไม่ผ่าน"} onChange={(x) => setChecked((s) => s.map((y, j) => (j === i ? x === "ผ่าน" : y)))} />
+            </div>
+          ))}
+        </div>
+      </Field>
+      <Field label="สิ่งที่พบ" error={errors.findings}><Area value={v.findings} onChange={(x) => setV((s) => ({ ...s, findings: x }))} error={errors.findings} rows={2} /></Field>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <Field label="ผู้ทำ" error={errors.by}><Choice value={v.by} onChange={(x) => setV((s) => ({ ...s, by: x }))} options={people()} /></Field>
+        <Field label="วันที่" error={errors.date}><Input type="date" value={v.date} onChange={(x) => setV((s) => ({ ...s, date: x }))} error={errors.date} /></Field>
+      </div>
+      <Actions onCancel={onCancel} label="บันทึกผล" />
+    </Form>
+  );
+}
+
+function BreakdownForm({ machine, onCancel, onDone }: { machine?: string; onCancel: () => void; onDone: (no: string) => void }) {
+  const [v, setV] = useState({ machine: machine ?? MACHINES[0].code, symptom: "", reportedBy: "อนุชา ทองดี" });
+  const [tried, setTried] = useState(false);
+  const errors = tried ? breakdownErrors(v) : {};
+  const set = (k: keyof typeof v) => (x: string) => setV((s) => ({ ...s, [k]: x }));
+  return (
+    <Form onSubmit={() => { setTried(true); if (Object.keys(breakdownErrors(v)).length) return; const r = reportBreakdown(v); notify(\`แจ้งซ่อม \${r.no} แล้ว\`, "warn"); onDone(r.no); }}>
+      <Field label="เครื่องจักร" error={errors.machine}><Choice value={v.machine} onChange={set("machine")} options={machineOptions()} error={errors.machine} /></Field>
+      <Field label="อาการ" error={errors.symptom}><Area value={v.symptom} onChange={set("symptom")} error={errors.symptom} rows={2} /></Field>
+      <Field label="ผู้แจ้ง" error={errors.reportedBy}><Choice value={v.reportedBy} onChange={set("reportedBy")} options={people()} /></Field>
+      <Actions onCancel={onCancel} label="แจ้งซ่อม" />
+    </Form>
+  );
+}
+
+function StartForm({ no, onCancel, onDone }: { no: string; onCancel: () => void; onDone: () => void }) {
+  const [tech, setTech] = useState("ประสิทธิ์ ขยันยิ่ง");
+  const [error, setError] = useState("");
+  const r = requestByNo(no);
+  return (
+    <Form error={error} onSubmit={() => tryRun(() => { startRepair(no, tech); notify(\`เริ่มซ่อม \${no} แล้ว\`); onDone(); }, setError)}>
+      <p className="text-[13px] text-slate-600 dark:text-slate-300">{machineByCode(r.machine).name} · {r.symptom}</p>
+      <Field label="ช่างผู้ซ่อม"><Choice value={tech} onChange={setTech} options={people()} /></Field>
+      <Actions onCancel={onCancel} label="เริ่มซ่อม" />
+    </Form>
+  );
+}
+
+function CompleteForm({ no, onCancel, onDone }: { no: string; onCancel: () => void; onDone: () => void }) {
+  const r = requestByNo(no);
+  const [v, setV] = useState({ cause: "", fix: "", hours: "" });
+  const [parts, setParts] = useState<{ material: string; qty: string }[]>([]);
+  const [tried, setTried] = useState(false);
+  const input = { cause: v.cause, fix: v.fix, hours: Number(v.hours), parts: parts.map((p) => ({ material: p.material, qty: Number(p.qty) })) };
+  const errors = tried ? repairErrors(no, input) : {};
+  const set = (k: keyof typeof v) => (x: string) => setV((s) => ({ ...s, [k]: x }));
+  return (
+    <Form onSubmit={() => { setTried(true); if (Object.keys(repairErrors(no, input)).length) return; const done = completeRepair(no, input); notify(done.parts.length ? \`ปิด \${no} แล้ว · เบิกอะไหล่ \${done.parts.map((p) => p.doc).join(", ")}\` : \`ปิด \${no} แล้ว · เครื่องกลับมาใช้งาน\`); onDone(); }}>
+      <p className="text-[13px] text-slate-600 dark:text-slate-300">{machineByCode(r.machine).name} · {r.symptom}</p>
+      <Field label="สาเหตุ" error={errors.cause}><Area value={v.cause} onChange={set("cause")} error={errors.cause} rows={2} /></Field>
+      <Field label="สิ่งที่ทำ" error={errors.fix}><Area value={v.fix} onChange={set("fix")} error={errors.fix} rows={2} /></Field>
+      <Field label="เวลาเครื่องหยุด (ชั่วโมง)" error={errors.hours} hint="ใช้คำนวณ OEE MTBF และ MTTR"><Input type="number" value={v.hours} onChange={set("hours")} error={errors.hours} /></Field>
+      <Field label="อะไหล่ที่ใช้" error={errors.parts} hint="เบิกจากคลังวัสดุจริงใต้เลขใบแจ้งซ่อม">
+        <div className="space-y-2">
+          {parts.map((p, i) => (
+            <div key={i} className="flex gap-2">
+              <div className="min-w-0 flex-1"><Choice value={p.material} onChange={(x) => setParts((s) => s.map((y, j) => (j === i ? { ...y, material: x } : y)))} options={materialOptions()} /></div>
+              <div className="w-24"><Input type="number" value={p.qty} onChange={(x) => setParts((s) => s.map((y, j) => (j === i ? { ...y, qty: x } : y)))} /></div>
+              <Button variant="ghost" icon={<Trash2 size={14} />} onClick={() => setParts((s) => s.filter((_, j) => j !== i))}>ลบ</Button>
+            </div>
+          ))}
+          <Button variant="secondary" icon={<Plus size={14} />} onClick={() => setParts((s) => [...s, { material: MATERIALS[0].code, qty: "1" }])}>เพิ่มอะไหล่</Button>
+        </div>
+      </Field>
+      <Actions onCancel={onCancel} label="ปิดงานซ่อม" />
+    </Form>
+  );
+}
+
+function SpareForm({ onCancel, onDone }: { onCancel: () => void; onDone: () => void }) {
+  const [v, setV] = useState({ material: MATERIALS[0].code, machine: MACHINES[0].code, min: "1" });
+  const [tried, setTried] = useState(false);
+  const input = { material: v.material, machine: v.machine, min: Number(v.min) };
+  const errors = tried ? spareErrors(input) : {};
+  const set = (k: keyof typeof v) => (x: string) => setV((s) => ({ ...s, [k]: x }));
+  return (
+    <Form onSubmit={() => { setTried(true); if (Object.keys(spareErrors(input)).length) return; addSpare(input); notify("เพิ่มอะไหล่วิกฤตแล้ว"); onDone(); }}>
+      <Field label="อะไหล่จากคลังวัสดุ" error={errors.material}><Choice value={v.material} onChange={set("material")} options={materialOptions()} error={errors.material} /></Field>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <Field label="ใช้กับเครื่อง" error={errors.machine}><Choice value={v.machine} onChange={set("machine")} options={machineOptions()} error={errors.machine} /></Field>
+        <Field label="ขั้นต่ำที่ต้องมี" error={errors.min}><Input type="number" value={v.min} onChange={set("min")} error={errors.min} /></Field>
+      </div>
+      <Note tone="info">ถ้าอะไหล่ชิ้นเดียวใช้กับหลายเครื่อง ขั้นต่ำจะรวมกันทุกเครื่อง</Note>
+      <Actions onCancel={onCancel} label="เพิ่มอะไหล่วิกฤต" />
+    </Form>
+  );
+}
+
+export function TpmActions({ act, onAct, onOpen }: { act: Act | null; onAct: (a: Act | null) => void; onOpen: (kind: RecordKind, key: string) => void }) {
+  useData();
+  const close = () => onAct(null);
+  const pick = <K extends Act["kind"]>(kind: K) => (act?.kind === kind ? (act as Of<K>) : null);
+  const shots = pick("shots");
+  const pm = pick("pm-record");
+  const bd = pick("breakdown");
+  const start = pick("repair-start");
+  const complete = pick("repair-complete");
+  const print = pick("print");
+  return (
+    <>
+      <FormModal open={act?.kind === "machine-new"} title="ขึ้นทะเบียนเครื่องจักร" subtitle="เครื่องจักร แม่พิมพ์ หรือระบบสนับสนุน" onClose={close}>
+        {act?.kind === "machine-new" && <MachineForm onCancel={close} onDone={(code) => { close(); onOpen("machine", code); }} />}
+      </FormModal>
+      <FormModal open={shots !== null} title="บันทึกมิเตอร์แม่พิมพ์" subtitle={shots?.code} onClose={close} size="sm">
+        {shots && <ShotsForm key={shots.code} code={shots.code} onCancel={close} onDone={close} />}
+      </FormModal>
+      <FormModal open={pm !== null} title="บันทึกผลบำรุงรักษา" subtitle={pm?.code} onClose={close}>
+        {pm && <PmForm key={pm.code} code={pm.code} onCancel={close} onDone={close} />}
+      </FormModal>
+      <FormModal open={bd !== null} title="แจ้งซ่อม" subtitle="เครื่องจะเปลี่ยนสถานะเป็นรอซ่อม" onClose={close} size="sm">
+        {bd && <BreakdownForm machine={bd.machine} onCancel={close} onDone={(no) => { close(); onOpen("request", no); }} />}
+      </FormModal>
+      <FormModal open={start !== null} title="เริ่มซ่อม" subtitle={start?.no} onClose={close} size="sm">
+        {start && <StartForm key={start.no} no={start.no} onCancel={close} onDone={close} />}
+      </FormModal>
+      <FormModal open={complete !== null} title="ปิดงานซ่อม" subtitle={complete?.no} onClose={close}>
+        {complete && <CompleteForm key={complete.no} no={complete.no} onCancel={close} onDone={close} />}
+      </FormModal>
+      <FormModal open={act?.kind === "spare-new"} title="เพิ่มอะไหล่วิกฤต" subtitle="อ่านคงเหลือจากคลังวัสดุ" onClose={close} size="sm">
+        {act?.kind === "spare-new" && <SpareForm onCancel={close} onDone={close} />}
+      </FormModal>
+      <FormModal open={print !== null} title={print?.title ?? ""} subtitle="ตัวอย่างก่อนพิมพ์ — กระดาษ A4 พิมพ์เฉพาะเอกสาร" onClose={close} size="lg">
+        {print && (
+          <div className="space-y-3">
+            <div className="flex justify-end gap-2">
+              <Button variant="secondary" onClick={close}>ปิด</Button>
+              <Button icon={<Printer size={14} />} onClick={printDocument}>พิมพ์</Button>
+            </div>
+            <TpmPaper d={print.d} />
+          </div>
+        )}
+      </FormModal>
+    </>
+  );
+}
+`,
+
+  "tpm/screen.tsx": `import { useState } from "react";
+import type { ReactNode } from "react";
+import { AlertTriangle, CalendarClock, ClipboardCheck, Cog, FileSpreadsheet, Gauge, Hammer, PackageOpen, Plus, Printer, ShoppingCart, Wrench } from "lucide-react";
+import { TODAY } from "../ims/data";
+import { Body, Empty, Header, Line, Lines, run } from "../ims/parts";
+import { MATERIALS } from "../mm/data";
+import {
+  HOURS_PER_DAY, MACHINES, PLANS, PM_RECORDS, REQUESTS, SPARES, WINDOW_DAYS, machineByCode, oeeAll, openRequests, openRequisition,
+  planByCode, pmDue, pmOverdue, pmSoon, reliability, requestByNo, requestSpare, spareNeeds, sparesBelow, wcName,
+} from "./data";
+import type { Machine, PmPlan, WorkRequest } from "./data";
+import { TpmActions } from "./forms";
+import type { Act, RecordKind } from "./forms";
+import { Badge, Button, Card, Chip, Metric, Note, PageHead, Reveal } from "../ui";
+import type { Tone } from "../ui";
+import { DataTable, DetailModal, downloadCsv, notify, useData } from "../kit";
+import type { Column } from "../kit";
+
+const TABS = ["ทะเบียนเครื่องจักร", "แผนบำรุงรักษาเชิงป้องกัน", "แจ้งซ่อม", "ประสิทธิผลเครื่องจักร (OEE)", "อะไหล่วิกฤต"];
+
+const exportIcon = <FileSpreadsheet size={14} />;
+const csv = (name: string, head: string[], rows: (string | number)[][]) => {
+  downloadCsv(name, head, rows);
+  notify(\`ส่งออก\${name} \${rows.length} รายการแล้ว\`);
+};
+const statusTone = (s: string): Tone => (s === "ใช้งาน" || s === "ซ่อมเสร็จ" ? "ok" : s === "กำลังซ่อม" ? "info" : s === "หยุดใช้" ? "idle" : "bad");
+const oeeTone = (v?: number): Tone => (v === undefined ? "idle" : v >= 85 ? "ok" : v >= 60 ? "warn" : "bad");
+const pct = (v?: number) => (v === undefined ? "—" : \`\${v}%\`);
+const materialName = (code: string) => MATERIALS.find((m) => m.code === code)?.name ?? code;
+
+type Handlers = { onAct: (a: Act) => void; onOpen: (kind: RecordKind, key: string) => void };
+
+export default function TpmScreen({ section, onOpenSection }: { section?: string; onOpenSection?: (index: number) => void }) {
+  useData();
+  const tab = section && TABS.includes(section) ? section : undefined;
+  const [act, setAct] = useState<Act | null>(null);
+  const [record, setRecord] = useState<{ kind: RecordKind; key: string } | null>(null);
+  const open = (kind: RecordKind, key: string) => setRecord({ kind, key });
+
+  const keys: Record<RecordKind, string[]> = { machine: MACHINES.map((m) => m.code), request: REQUESTS.map((r) => r.no) };
+  const list = record ? keys[record.kind] : [];
+  const at = record ? list.indexOf(record.key) : -1;
+  const TITLES: Record<RecordKind, string> = { machine: "เครื่องจักร", request: "ใบแจ้งซ่อม" };
+  const h: Handlers = { onAct: setAct, onOpen: open };
+  const waiting = REQUESTS.find((r) => r.status === "รอซ่อม") ?? REQUESTS[REQUESTS.length - 1];
+  const die = MACHINES.find((m) => m.kind === "แม่พิมพ์") ?? MACHINES[0];
+
+  const panels = (
+    <>
+      <DetailModal
+        open={record !== null && at >= 0}
+        title={record ? TITLES[record.kind] : ""}
+        onClose={() => setRecord(null)}
+        index={at}
+        total={list.length}
+        onStep={(d) => record && setRecord({ kind: record.kind, key: list[Math.min(list.length - 1, Math.max(0, at + d))] })}
+      >
+        {record && at >= 0 && <RecordView kind={record.kind} id={record.key} {...h} />}
+      </DetailModal>
+      <TpmActions act={act} onAct={setAct} onOpen={open} />
+    </>
+  );
+
+  const index = (
+    <div hidden data-fitt-index>
+      <button data-fitt-screen="บำรุงรักษาเครื่องจักร" />
+      <button data-fitt-screen="เครื่องจักร" data-fitt-modal onClick={() => open("machine", MACHINES[0].code)} />
+      <button data-fitt-screen="ขึ้นทะเบียนเครื่องจักร" data-fitt-modal onClick={() => setAct({ kind: "machine-new" })} />
+      <button data-fitt-screen="บันทึกมิเตอร์แม่พิมพ์" data-fitt-modal onClick={() => setAct({ kind: "shots", code: die.code })} />
+      <button data-fitt-screen="บันทึกผลบำรุงรักษา" data-fitt-modal onClick={() => setAct({ kind: "pm-record", code: PLANS[0].code })} />
+      <button data-fitt-screen="ใบแจ้งซ่อม" data-fitt-modal onClick={() => open("request", REQUESTS[0].no)} />
+      <button data-fitt-screen="แจ้งซ่อม" data-fitt-modal onClick={() => setAct({ kind: "breakdown" })} />
+      <button data-fitt-screen="เริ่มซ่อม" data-fitt-modal onClick={() => setAct({ kind: "repair-start", no: waiting.no })} />
+      <button data-fitt-screen="ปิดงานซ่อม" data-fitt-modal onClick={() => setAct({ kind: "repair-complete", no: waiting.no })} />
+      <button data-fitt-screen="เพิ่มอะไหล่วิกฤต" data-fitt-modal onClick={() => setAct({ kind: "spare-new" })} />
+      <button data-fitt-screen="พิมพ์ใบตรวจเช็ค PM" data-fitt-modal onClick={() => setAct({ kind: "print", d: { doc: "pm", code: PLANS[0].code }, title: "ใบตรวจเช็คบำรุงรักษาเชิงป้องกัน" })} />
+      <button data-fitt-screen="พิมพ์ใบแจ้งซ่อม" data-fitt-modal onClick={() => setAct({ kind: "print", d: { doc: "request", no: REQUESTS[0].no }, title: "ใบแจ้งซ่อมและรายงานการซ่อม" })} />
+    </div>
+  );
+
+  if (!tab) {
+    return (
+      <>
+        <Overview onOpenSection={onOpenSection} {...h} />
+        {panels}
+        {index}
+      </>
+    );
+  }
+
+  return (
+    <div>
+      <PageHead title="บำรุงรักษาเครื่องจักร" meta={\`\${tab} · IATF 16949 ข้อ 8.5.1.5 · ข้อมูล ณ \${TODAY}\`} />
+      {tab === TABS[0] && <Machines {...h} />}
+      {tab === TABS[1] && <Plans {...h} />}
+      {tab === TABS[2] && <Requests {...h} />}
+      {tab === TABS[3] && <Oee />}
+      {tab === TABS[4] && <Spares {...h} />}
+      {panels}
+      {index}
+    </div>
+  );
+}
+
+/* -------------------------------------------------------------- overview */
+
+function Overview({ onOpenSection, onAct, onOpen }: Handlers & { onOpenSection?: (i: number) => void }) {
+  const measured = oeeAll().filter((x) => x.oee !== undefined);
+  const avg = measured.length ? Math.round((measured.reduce((n, x) => n + x.oee!, 0) / measured.length) * 10) / 10 : undefined;
+  const down = MACHINES.filter((m) => m.status === "รอซ่อม" || m.status === "กำลังซ่อม");
+
+  const todo: { icon: ReactNode; text: string; sub: string; go: () => void; tone: Tone }[] = [
+    ...openRequests().map((r) => ({ icon: <Hammer size={15} />, text: \`\${r.no} \${machineByCode(r.machine).name}\`, sub: \`\${r.status} · \${r.symptom}\`, go: () => onOpen("request", r.no), tone: (machineByCode(r.machine).critical ? "bad" : "warn") as Tone })),
+    ...pmOverdue().map((p) => ({ icon: <CalendarClock size={15} />, text: \`\${p.code} \${p.task}\`, sub: \`\${machineByCode(p.machine).name} · \${pmDue(p).label} · เลยกำหนด\`, go: () => onAct({ kind: "pm-record", code: p.code }), tone: "bad" as Tone })),
+    ...pmSoon().map((p) => ({ icon: <CalendarClock size={15} />, text: \`\${p.code} \${p.task}\`, sub: \`\${machineByCode(p.machine).name} · \${pmDue(p).label}\`, go: () => onAct({ kind: "pm-record", code: p.code }), tone: "warn" as Tone })),
+    ...sparesBelow().map((s) => ({ icon: <PackageOpen size={15} />, text: \`\${s.name} ต่ำกว่าขั้นต่ำ\`, sub: \`คงเหลือ \${s.stock} จากขั้นต่ำ \${s.min}\${openRequisition(s.material) ? \` · มี \${openRequisition(s.material)!.no} แล้ว\` : ""}\`, go: () => onOpenSection?.(4), tone: (openRequisition(s.material) ? "warn" : "bad") as Tone })),
+  ];
+
+  return (
+    <div>
+      <PageHead
+        title="บำรุงรักษาเครื่องจักร"
+        meta={\`ทะเบียน · PM · แจ้งซ่อม · OEE · อะไหล่วิกฤต · ข้อมูล ณ \${TODAY}\`}
+        right={<Button icon={<Wrench size={14} />} onClick={() => onAct({ kind: "breakdown" })}>แจ้งซ่อม</Button>}
+      />
+      <Reveal>
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <Metric icon={<Gauge size={17} />} label="OEE เฉลี่ย 14 วัน" value={pct(avg)} deltaLabel={\`\${measured.length} ศูนย์งานที่มีการผลิต\`} />
+          <Metric icon={<AlertTriangle size={17} />} label="เครื่องหยุดอยู่" value={\`\${down.length} เครื่อง\`} deltaLabel={down.filter((m) => m.critical).length ? \`เครื่องหลัก \${down.filter((m) => m.critical).length}\` : "ไม่มีเครื่องหลัก"} />
+          <Metric icon={<CalendarClock size={17} />} label="PM เลยกำหนด" value={\`\${pmOverdue().length} แผน\`} deltaLabel={\`ใกล้ถึง \${pmSoon().length} แผน\`} />
+          <Metric icon={<PackageOpen size={17} />} label="อะไหล่ต่ำกว่าขั้นต่ำ" value={\`\${sparesBelow().length} รายการ\`} deltaLabel={\`จาก \${spareNeeds().length} รายการวิกฤต\`} />
+        </div>
+      </Reveal>
+      <Reveal delay={0.05} className="mt-4 grid gap-4 lg:grid-cols-3">
+        <Card title="ต้องจัดการ" subtitle="กดรายการเพื่อเปิดงานนั้น" className="lg:col-span-2">
+          {todo.length === 0 ? <Empty>ไม่มีงานค้าง</Empty> : (
+            <ul className="divide-y divide-slate-100 dark:divide-slate-800">
+              {todo.slice(0, 9).map((t, i) => (
+                <li key={i}>
+                  <button onClick={t.go} className="flex w-full items-center gap-3 px-4 py-2.5 text-left transition hover:bg-slate-50 dark:hover:bg-slate-800/60">
+                    <span className={t.tone === "bad" ? "text-rose-500" : t.tone === "warn" ? "text-amber-500" : "text-sky-500"}>{t.icon}</span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-[13px] text-slate-800 dark:text-slate-100">{t.text}</span>
+                      <span className="block text-[11.5px] text-slate-500 dark:text-slate-400">{t.sub}</span>
+                    </span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Card>
+        <Card title="OEE ตามศูนย์งาน" subtitle="ความพร้อม × ประสิทธิภาพ × คุณภาพ" action={<Button variant="ghost" className="whitespace-nowrap" onClick={() => onOpenSection?.(3)}>รายละเอียด</Button>}>
+          <Lines>
+            {oeeAll().map((o) => <Line key={o.wc} title={o.name} sub={o.runs ? \`\${o.runs} การยืนยันงาน · หยุด \${o.downtime} ชม.\` : "ไม่มีการผลิตใน 14 วัน"} right={<Badge tone={oeeTone(o.oee)}>{pct(o.oee)}</Badge>} />)}
+          </Lines>
+        </Card>
+      </Reveal>
+    </div>
+  );
+}
+
+/* -------------------------------------------------------------- machines */
+
+function Machines({ onAct, onOpen }: Handlers) {
+  const columns: Column<Machine>[] = [
+    { key: "code", header: "รหัส", cell: (m) => <span className="whitespace-nowrap font-medium tabular-nums text-slate-800 dark:text-slate-100">{m.code}</span> },
+    { key: "name", header: "ชื่อ", cell: (m) => <span className="flex items-center gap-1.5">{m.name}{m.critical && <Chip>เครื่องหลัก</Chip>}</span> },
+    { key: "kind", header: "ประเภท", cell: (m) => m.kind },
+    { key: "wc", header: "ศูนย์งาน", cell: (m) => wcName(m.wc) },
+    { key: "mtbf", header: "MTBF", align: "right", cell: (m) => <span className="tabular-nums">{reliability(m.code).mtbf !== undefined ? \`\${reliability(m.code).mtbf} ชม.\` : "—"}</span> },
+    { key: "mttr", header: "MTTR", align: "right", cell: (m) => <span className="tabular-nums">{reliability(m.code).mttr !== undefined ? \`\${reliability(m.code).mttr} ชม.\` : "—"}</span> },
+    { key: "status", header: "สถานะ", cell: (m) => <Badge dot tone={statusTone(m.status)}>{m.status}</Badge> },
+  ];
+  return (
+    <DataTable
+      rows={MACHINES}
+      columns={columns}
+      getId={(m) => m.code}
+      onOpen={(m) => onOpen("machine", m.code)}
+      toolbar={
+        <div className="flex flex-wrap items-center gap-2">
+          <p className="text-[12.5px] text-slate-500 dark:text-slate-400">MTBF และ MTTR จากใบแจ้งซ่อม {WINDOW_DAYS} วัน วันละ {HOURS_PER_DAY} ชั่วโมง · เครื่องหลักคือหยุดแล้วกระทบการส่งมอบลูกค้า</p>
+          <div className="ml-auto flex gap-2">
+            <Button variant="secondary" icon={exportIcon} onClick={() => csv("ทะเบียนเครื่องจักร", ["รหัส", "ชื่อ", "ประเภท", "ศูนย์งาน", "เครื่องหลัก", "ยี่ห้อ", "ติดตั้ง", "สถานะ"], MACHINES.map((m) => [m.code, m.name, m.kind, wcName(m.wc), m.critical ? "ใช่" : "", m.maker, m.installed, m.status]))}>ส่งออก Excel</Button>
+            <Button icon={<Plus size={14} />} onClick={() => onAct({ kind: "machine-new" })}>ขึ้นทะเบียน</Button>
+          </div>
+        </div>
+      }
+    />
+  );
+}
+
+/* ----------------------------------------------------------------- plans */
+
+function PlanLines({ plans, onAct }: { plans: PmPlan[]; onAct: (a: Act) => void }) {
+  return (
+    <Lines>
+      {plans.map((p) => {
+        const due = pmDue(p);
+        return (
+          <Line
+            key={p.code}
+            title={\`\${p.code} · \${p.task}\`}
+            sub={\`\${machineByCode(p.machine).name} · \${p.everyShots ? \`ทุก \${p.everyShots.toLocaleString("th-TH")} ครั้งปั๊ม\` : \`ทุก \${p.everyDays} วัน\`} · \${due.label}\`}
+            subTone={due.late ? "bad" : undefined}
+            right={
+              <span className="flex items-center gap-2">
+                <Badge tone={due.late ? "bad" : due.soon ? "warn" : "ok"}>{due.late ? "เลยกำหนด" : due.soon ? "ใกล้ถึง" : "ปกติ"}</Badge>
+                <Button variant="secondary" icon={<ClipboardCheck size={14} />} onClick={() => onAct({ kind: "pm-record", code: p.code })}>บันทึกผล</Button>
+                <Button variant="ghost" icon={<Printer size={14} />} onClick={() => onAct({ kind: "print", d: { doc: "pm", code: p.code }, title: "ใบตรวจเช็คบำรุงรักษาเชิงป้องกัน" })}>พิมพ์</Button>
+              </span>
+            }
+          />
+        );
+      })}
+    </Lines>
+  );
+}
+
+function Plans({ onAct }: Handlers) {
+  return (
+    <div className="space-y-4">
+      <p className="text-[12.5px] text-slate-500 dark:text-slate-400">PM ช่างซ่อมบำรุงทำตามรอบวันหรือรอบครั้งปั๊ม · AM ผู้ควบคุมเครื่องทำเองทุกกะ · บันทึกผลแล้วเริ่มรอบใหม่</p>
+      <Card title="บำรุงรักษาเชิงป้องกัน (PM)" subtitle="ช่างซ่อมบำรุง"><PlanLines plans={PLANS.filter((p) => p.type === "PM")} onAct={onAct} /></Card>
+      <Card title="บำรุงรักษาด้วยตนเอง (AM)" subtitle="ผู้ควบคุมเครื่อง"><PlanLines plans={PLANS.filter((p) => p.type === "AM")} onAct={onAct} /></Card>
+    </div>
+  );
+}
+
+/* -------------------------------------------------------------- requests */
+
+function Requests({ onAct, onOpen }: Handlers) {
+  const columns: Column<WorkRequest>[] = [
+    { key: "no", header: "เลขที่", cell: (r) => <span className="whitespace-nowrap font-medium tabular-nums text-slate-800 dark:text-slate-100">{r.no}</span> },
+    { key: "machine", header: "เครื่องจักร", cell: (r) => machineByCode(r.machine).name },
+    { key: "symptom", header: "อาการ", cell: (r) => r.symptom },
+    { key: "date", header: "แจ้งเมื่อ", cell: (r) => r.reportedOn },
+    { key: "down", header: "หยุด", align: "right", cell: (r) => <span className="tabular-nums">{r.downtimeHrs !== undefined ? \`\${r.downtimeHrs} ชม.\` : "—"}</span> },
+    { key: "status", header: "สถานะ", cell: (r) => <Badge dot tone={statusTone(r.status)}>{r.status}</Badge> },
+  ];
+  return (
+    <DataTable
+      rows={[...REQUESTS].reverse()}
+      columns={columns}
+      getId={(r) => r.no}
+      onOpen={(r) => onOpen("request", r.no)}
+      toolbar={
+        <div className="flex flex-wrap items-center gap-2">
+          <p className="text-[12.5px] text-slate-500 dark:text-slate-400">แจ้งซ่อมแล้วเครื่องเปลี่ยนเป็นรอซ่อม · อะไหล่ที่ใช้เบิกจากคลังวัสดุ · เวลาหยุดเข้า OEE MTBF MTTR</p>
+          <div className="ml-auto flex gap-2">
+            <Button variant="secondary" icon={exportIcon} onClick={() => csv("ใบแจ้งซ่อม", ["เลขที่", "เครื่อง", "อาการ", "แจ้ง", "ช่าง", "หยุด (ชม.)", "สาเหตุ", "สิ่งที่ทำ", "สถานะ"], REQUESTS.map((r) => [r.no, r.machine, r.symptom, r.reportedOn, r.technician ?? "", r.downtimeHrs ?? "", r.cause ?? "", r.fix ?? "", r.status]))}>ส่งออก Excel</Button>
+            <Button icon={<Wrench size={14} />} onClick={() => onAct({ kind: "breakdown" })}>แจ้งซ่อม</Button>
+          </div>
+        </div>
+      }
+    />
+  );
+}
+
+/* ------------------------------------------------------------------- oee */
+
+function Oee() {
+  return (
+    <div className="space-y-4">
+      <p className="text-[12.5px] text-slate-500 dark:text-slate-400">14 วันล่าสุด · ความพร้อม = (กำลังการผลิต − เวลาหยุดจากใบแจ้งซ่อม) ÷ กำลังการผลิต · ประสิทธิภาพ = เวลามาตรฐาน ÷ เวลาจริงจากการยืนยันงาน · คุณภาพ = ของดี ÷ ทั้งหมด · ระดับโลก 85%</p>
+      <div className="grid gap-4 md:grid-cols-2">
+        {oeeAll().map((o) => (
+          <Card key={o.wc} title={o.name} subtitle={\`\${o.wc} · \${o.runs} การยืนยันงาน · หยุด \${o.downtime} ชม.\`} action={<Badge tone={oeeTone(o.oee)}>OEE {pct(o.oee)}</Badge>}>
+            <div className="grid grid-cols-3 gap-3 p-4">
+              {[["ความพร้อม", o.availability], ["ประสิทธิภาพ", o.performance], ["คุณภาพ", o.quality]].map(([k, v]) => (
+                <div key={k as string} className="rounded-xl bg-slate-50 px-3 py-2 dark:bg-slate-800/50">
+                  <p className="text-[11.5px] text-slate-500">{k}</p>
+                  <p className="text-[18px] font-semibold tabular-nums text-slate-900 dark:text-slate-50">{pct(v as number | undefined)}</p>
+                </div>
+              ))}
+            </div>
+          </Card>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ---------------------------------------------------------------- spares */
+
+function Spares({ onAct }: Handlers) {
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center gap-2">
+        <p className="text-[12.5px] text-slate-500 dark:text-slate-400">คงเหลืออ่านจากคลังวัสดุ · ขั้นต่ำรวมทุกเครื่องที่ใช้อะไหล่ชิ้นนั้น · ต่ำกว่าขั้นต่ำเปิดใบขอซื้อในระบบจัดซื้อได้ทันที</p>
+        <Button className="ml-auto" icon={<Plus size={14} />} onClick={() => onAct({ kind: "spare-new" })}>เพิ่มอะไหล่วิกฤต</Button>
+      </div>
+      <Card title="อะไหล่วิกฤต">
+        <Lines>
+          {spareNeeds().map((s) => {
+            const pr = openRequisition(s.material);
+            const low = s.stock < s.min;
+            return (
+              <Line
+                key={s.material}
+                title={\`\${s.material} · \${s.name}\`}
+                sub={\`ใช้กับ \${s.machines.map((c) => machineByCode(c).name).join(", ")} · คงเหลือ \${s.stock} ขั้นต่ำ \${s.min}\${pr ? \` · \${pr.no} \${pr.status}\` : ""}\`}
+                subTone={low && !pr ? "bad" : undefined}
+                right={
+                  <span className="flex items-center gap-2">
+                    <Badge tone={low ? (pr ? "warn" : "bad") : "ok"}>{low ? "ต่ำกว่าขั้นต่ำ" : "พอ"}</Badge>
+                    {low && !pr && <Button variant="secondary" icon={<ShoppingCart size={14} />} onClick={() => run(() => requestSpare(s.material), \`เปิดใบขอซื้อ\${s.name}ในระบบจัดซื้อแล้ว\`)}>ขอซื้อ</Button>}
+                  </span>
+                }
+              />
+            );
+          })}
+        </Lines>
+      </Card>
+    </div>
+  );
+}
+
+/* --------------------------------------------------------------- records */
+
+function RecordView({ kind, id, ...h }: { kind: RecordKind; id: string } & Handlers) {
+  if (kind === "machine") return <MachineRecord m={machineByCode(id)} {...h} />;
+  return <RequestRecord r={requestByNo(id)} {...h} />;
+}
+
+function MachineRecord({ m, onAct, onOpen }: { m: Machine } & Handlers) {
+  const rel = reliability(m.code);
+  const plans = PLANS.filter((p) => p.machine === m.code);
+  const history = REQUESTS.filter((r) => r.machine === m.code).reverse();
+  const spares = SPARES.filter((s) => s.machine === m.code);
+  const open = history.find((r) => r.status !== "ซ่อมเสร็จ");
+  return (
+    <div className="flex h-full flex-col">
+      <Header
+        title={\`\${m.code} · \${m.name}\`}
+        meta={\`\${m.kind} · \${wcName(m.wc)} · \${m.maker} · ติดตั้ง \${m.installed}\`}
+        badges={<><Badge dot tone={statusTone(m.status)}>{m.status}</Badge>{m.critical && <Badge tone="info">เครื่องหลัก</Badge>}{m.shots !== undefined && <Badge tone="idle">{m.shots.toLocaleString("th-TH")} ครั้งปั๊ม</Badge>}</>}
+        actions={
+          <>
+            {!open && <Button icon={<Wrench size={14} />} onClick={() => onAct({ kind: "breakdown", machine: m.code })}>แจ้งซ่อม</Button>}
+            {open && <Button icon={<Hammer size={14} />} onClick={() => onOpen("request", open.no)}>เปิด {open.no}</Button>}
+            {m.kind === "แม่พิมพ์" && <Button variant="secondary" icon={<Cog size={14} />} onClick={() => onAct({ kind: "shots", code: m.code })}>บันทึกมิเตอร์</Button>}
+          </>
+        }
+      />
+      <Body>
+        <div className="grid gap-3 sm:grid-cols-3">
+          <Metric label={\`เสีย \${WINDOW_DAYS} วัน\`} value={\`\${rel.failures} ครั้ง\`} deltaLabel={\`หยุดรวม \${rel.downtime} ชม.\`} />
+          <Metric label="MTBF" value={rel.mtbf !== undefined ? \`\${rel.mtbf} ชม.\` : "—"} />
+          <Metric label="MTTR" value={rel.mttr !== undefined ? \`\${rel.mttr} ชม.\` : "—"} />
+        </div>
+        <Card title="แผนบำรุงรักษา">{plans.length ? <PlanLines plans={plans} onAct={onAct} /> : <Empty>ยังไม่มีแผน</Empty>}</Card>
+        {spares.length > 0 && <Card title="อะไหล่วิกฤต"><Lines>{spares.map((s) => <Line key={s.material} title={\`\${s.material} · \${materialName(s.material)}\`} sub={\`ขั้นต่ำสำหรับเครื่องนี้ \${s.min}\`} />)}</Lines></Card>}
+        <Card title="ประวัติการซ่อม">
+          {history.length === 0 ? <Empty>ยังไม่เคยเสีย</Empty> : <Lines>{history.map((r) => <Line key={r.no} title={\`\${r.no} · \${r.symptom}\`} sub={\`\${r.reportedOn}\${r.cause ? \` · \${r.cause}\` : ""}\`} right={<Badge tone={statusTone(r.status)}>{r.status}</Badge>} />)}</Lines>}
+        </Card>
+        <Card title="บันทึก PM ล่าสุด">
+          <Lines>{PM_RECORDS.filter((x) => planByCode(x.plan).machine === m.code).reverse().slice(0, 5).map((x, i) => <Line key={i} title={\`\${x.plan} · \${x.date}\`} sub={[x.by, x.findings].filter(Boolean).join(" · ")} right={<Badge tone={x.checked.every(Boolean) ? "ok" : "warn"}>{x.checked.filter(Boolean).length}/{x.checked.length}</Badge>} />)}</Lines>
+        </Card>
+      </Body>
+    </div>
+  );
+}
+
+function RequestRecord({ r, onAct }: { r: WorkRequest } & Handlers) {
+  const m = machineByCode(r.machine);
+  return (
+    <div className="flex h-full flex-col">
+      <Header
+        title={\`\${r.no} · \${m.name}\`}
+        meta={\`แจ้งโดย \${r.reportedBy} \${r.reportedOn}\${r.technician ? \` · ช่าง \${r.technician}\` : ""}\`}
+        badges={<><Badge dot tone={statusTone(r.status)}>{r.status}</Badge>{m.critical && <Badge tone="info">เครื่องหลัก</Badge>}{r.downtimeHrs !== undefined && <Badge tone="idle">หยุด {r.downtimeHrs} ชม.</Badge>}</>}
+        actions={
+          <>
+            {r.status === "รอซ่อม" && <Button icon={<Hammer size={14} />} onClick={() => onAct({ kind: "repair-start", no: r.no })}>เริ่มซ่อม</Button>}
+            {r.status === "กำลังซ่อม" && <Button icon={<ClipboardCheck size={14} />} onClick={() => onAct({ kind: "repair-complete", no: r.no })}>ปิดงานซ่อม</Button>}
+            <Button variant="secondary" icon={<Printer size={14} />} onClick={() => onAct({ kind: "print", d: { doc: "request", no: r.no }, title: "ใบแจ้งซ่อมและรายงานการซ่อม" })}>พิมพ์</Button>
+          </>
+        }
+      />
+      <Body>
+        {r.status !== "ซ่อมเสร็จ" && m.critical && <Note tone="warn">เครื่องหลัก — หยุดนานกระทบการส่งมอบลูกค้า แจ้งฝ่ายวางแผนการผลิตให้จัดลำดับงานใหม่</Note>}
+        <Card title="อาการ"><p className="px-4 py-3 text-[13px] text-slate-700 dark:text-slate-200">{r.symptom}</p></Card>
+        {r.cause && <Card title="สาเหตุและสิ่งที่ทำ"><Lines><Line title={r.cause} sub={r.fix} /></Lines></Card>}
+        {r.parts.length > 0 && <Card title="อะไหล่ที่เบิก"><Lines>{r.parts.map((p) => <Line key={p.material} title={\`\${p.material} · \${materialName(p.material)}\`} sub={p.doc} right={<span className="tabular-nums">{p.qty}</span>} />)}</Lines></Card>}
+      </Body>
+    </div>
   );
 }
 `,

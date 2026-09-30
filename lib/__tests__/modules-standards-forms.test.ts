@@ -10,6 +10,15 @@ import type { QmDoc } from "../../demo/modules/qm/documents";
 import { DRILLS, MONITORINGS } from "../../demo/modules/em/data";
 import { EmPaper } from "../../demo/modules/em/documents";
 import type { EmDoc } from "../../demo/modules/em/documents";
+import { CHARTS, CONTROL_PLANS, FMEAS, PROJECTS, STUDIES, SUBMISSIONS } from "../../demo/modules/ct/data";
+import { CtPaper } from "../../demo/modules/ct/documents";
+import type { CtDoc } from "../../demo/modules/ct/documents";
+import { CONTINGENCIES, DEVICES, SUPPLIER_AUDITS } from "../../demo/modules/iatf/data";
+import { IatfPaper } from "../../demo/modules/iatf/documents";
+import type { IatfDoc } from "../../demo/modules/iatf/documents";
+import { PLANS, REQUESTS } from "../../demo/modules/tpm/data";
+import { TpmPaper } from "../../demo/modules/tpm/documents";
+import type { TpmDoc } from "../../demo/modules/tpm/documents";
 
 /**
  * ทุกใบที่ระบบมาตรฐานพิมพ์คือแบบฟอร์มควบคุม (ข้อ 7.5.3) ผู้ตรวจประเมินจะหยิบใบจริงมาเทียบกับ
@@ -42,6 +51,24 @@ const papers: [string, () => string][] = [
     { doc: "monitoring", no: MONITORINGS[0].no },
     { doc: "drill", no: DRILLS[0].no },
   ] as EmDoc[]).map((d) => [`สิ่งแวดล้อม ${d.doc}`, () => renderToStaticMarkup(createElement(EmPaper, { d }))] as [string, () => string]),
+  ...([
+    { doc: "psw", no: SUBMISSIONS[0].no },
+    { doc: "fmea", no: FMEAS[0].no },
+    { doc: "control-plan", no: CONTROL_PLANS[1].no },
+    { doc: "spc", code: CHARTS[0].code },
+    { doc: "msa", no: STUDIES[0].no },
+    { doc: "apqp", no: PROJECTS[0].no },
+  ] as CtDoc[]).map((d) => [`เครื่องมือหลักยานยนต์ ${d.doc}`, () => renderToStaticMarkup(createElement(CtPaper, { d }))] as [string, () => string]),
+  ...([
+    { doc: "csr", customer: "C-106" },
+    { doc: "contingency", code: CONTINGENCIES[0].code },
+    { doc: "supplier-audit", no: SUPPLIER_AUDITS[0].no },
+    { doc: "device", code: DEVICES[0].code },
+  ] as IatfDoc[]).map((d) => [`ข้อกำหนด IATF ${d.doc}`, () => renderToStaticMarkup(createElement(IatfPaper, { d }))] as [string, () => string]),
+  ...([
+    { doc: "pm", code: PLANS[0].code },
+    { doc: "request", no: REQUESTS[0].no },
+  ] as TpmDoc[]).map((d) => [`บำรุงรักษาเครื่องจักร ${d.doc}`, () => renderToStaticMarkup(createElement(TpmPaper, { d }))] as [string, () => string]),
 ];
 
 const formOn = (html: string) => {

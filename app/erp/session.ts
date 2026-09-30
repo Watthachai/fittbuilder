@@ -28,7 +28,7 @@ export const ROLES: Role[] = [
     name: "สมชาย รักดี",
     title: "ผู้ดูแลระบบ",
     email: "admin@demo.co.th",
-    modules: ["pa", "om", "tm", "py", "mm", "pp", "sd", "wm", "fi", "co", "ims", "qm", "em"],
+    modules: ["pa", "om", "tm", "py", "mm", "pp", "sd", "wm", "fi", "co", "ims", "qm", "em", "ct", "iatf", "tpm"],
   },
   {
     id: "hr",
@@ -51,7 +51,7 @@ export const ROLES: Role[] = [
     name: "ธีรศักดิ์ พูลทรัพย์",
     title: "ฝ่ายปฏิบัติการ",
     email: "ops@demo.co.th",
-    modules: ["mm", "pp", "sd", "wm"],
+    modules: ["mm", "pp", "sd", "wm", "tpm"],
   },
   {
     id: "acct",
@@ -67,7 +67,7 @@ export const ROLES: Role[] = [
     email: "qa@demo.co.th",
     // Quality inspects what purchasing received, production finished and sales
     // shipped, so it opens those to trace a lot — and nothing in HR or accounts.
-    modules: ["ims", "qm", "em", "mm", "pp", "sd"],
+    modules: ["ims", "qm", "em", "ct", "iatf", "tpm", "mm", "pp", "sd"],
   },
 ];
 

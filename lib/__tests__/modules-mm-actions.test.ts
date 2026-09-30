@@ -158,7 +158,7 @@ describe("stock", () => {
 describe("master data", () => {
   it("adds a finished good to the list sales and production read, not a copy of it", () => {
     const fg = addMaterial({ name: "ตู้เก็บเอกสารเหล็ก 4 ลิ้นชัก", group: "สินค้าสำเร็จรูป", unit: "ตัว", price: 6500, reorder: 8, safety: 4, bin: "E-02-05" });
-    expect(fg.code).toBe("FG-5004");
+    expect(fg.code).toBe("FG-5005");
     expect(fg.stock).toBe(0);
     expect(MATERIALS).toContain(fg);
     expect(FINISHED_GOODS).toContain(fg);

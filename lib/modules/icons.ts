@@ -1,4 +1,4 @@
-import { Banknote, Boxes, ChartPie, Clock, Factory, Landmark, Layers, Leaf, PanelsTopLeft, ShieldCheck, Ship, Users, Warehouse } from "lucide-react";
+import { BadgeCheck, Banknote, Boxes, Car, ChartPie, Clock, Factory, Landmark, Layers, Leaf, PanelsTopLeft, ShieldCheck, Ship, Users, Warehouse, Wrench } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
 /**
@@ -12,8 +12,10 @@ import type { LucideIcon } from "lucide-react";
  * for all ten modules.
  */
 export const MODULE_ICONS = {
+  BadgeCheck,
   Banknote,
   Boxes,
+  Car,
   ChartPie,
   Clock,
   Factory,
@@ -25,6 +27,7 @@ export const MODULE_ICONS = {
   Ship,
   Users,
   Warehouse,
+  Wrench,
 } satisfies Record<string, LucideIcon>;
 
 export type ModuleIconName = keyof typeof MODULE_ICONS;

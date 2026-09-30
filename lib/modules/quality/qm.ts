@@ -27,7 +27,7 @@ export const QM: Module = {
     "ความพึงพอใจลูกค้า",
   ],
   hasOverview: true,
-  provides: ["inspectionLot", "nonconformance"],
+  provides: ["inspectionLot", "nonconformance", "gauge"],
   needs: ["controlledDocument", "correctiveAction", "competence", "material", "vendor", "productionOrder", "customer"],
   effortDays: 14,
   maPerMonth: 5000,

@@ -13,6 +13,9 @@ import { CO } from "./finance/co";
 import { IMS } from "./quality/ims";
 import { QM } from "./quality/qm";
 import { EM } from "./quality/em";
+import { CT } from "./automotive/ct";
+import { IATF } from "./automotive/iatf";
+import { TPM } from "./automotive/tpm";
 
 /**
  * Every module, in catalogue order. Mirrors `lib/skills/registry.ts` — modules are
@@ -25,7 +28,7 @@ import { EM } from "./quality/em";
  */
 // Catalogue order follows how an HR team grows into the system: records first,
 // then the structure around them, then what people do with their time, then pay.
-export const MODULES: Module[] = [PA, OM, TM, PY, MM, PP, SD, WM, FI, CO, IMS, QM, EM];
+export const MODULES: Module[] = [PA, OM, TM, PY, MM, PP, SD, WM, FI, CO, IMS, QM, EM, CT, IATF, TPM];
 
 /** Buyer-facing name for each family, in catalogue order. */
 export const FAMILIES: { id: Module["family"]; name: string; blurb: string }[] = [
@@ -33,6 +36,7 @@ export const FAMILIES: { id: Module["family"]; name: string; blurb: string }[] =
   { id: "logistics", name: SYSTEM_NAMES.logistics, blurb: "แฟ้มวัสดุชุดเดียวเดินตั้งแต่ขอซื้อจนส่งของถึงลูกค้า" },
   { id: "finance", name: SYSTEM_NAMES.finance, blurb: "ลงบัญชีจากเอกสารที่ออกจริง จึงต้องมีฝั่งจัดซื้อและขายอยู่ด้วย" },
   { id: "quality", name: SYSTEM_NAMES.quality, blurb: "ISO 9001 และ ISO 14001 บนระบบบริหารบูรณาการชุดเดียว ตรวจของและสิ่งแวดล้อมจากงานจริงของฝั่งจัดซื้อ ผลิต และขาย" },
+  { id: "automotive", name: SYSTEM_NAMES.automotive, blurb: "Core Tools ข้อกำหนดเพิ่มเติมของ IATF 16949 และการบำรุงรักษาเครื่องจักร ผูกกับการผลิตจริง ต่อยอดจากระบบมาตรฐาน ISO จึงต้องมีระบบนั้นและฝั่งจัดซื้อ ผลิต ขาย" },
 ];
 
 export function getModule(id: string | null | undefined): Module | undefined {

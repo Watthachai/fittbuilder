@@ -16,7 +16,7 @@ import type { ModuleIconName } from "./icons";
  * composer only has to answer "is this satisfied", and a type system for types is
  * a cost with no buyer.
  */
-export type ModuleFamily = "hr" | "logistics" | "finance" | "quality";
+export type ModuleFamily = "hr" | "logistics" | "finance" | "quality" | "automotive";
 
 /**
  * Catalogue order of the families, and the order their tabs appear in.
@@ -24,7 +24,7 @@ export type ModuleFamily = "hr" | "logistics" | "finance" | "quality";
  * It must stay dependency-safe: no family may need an entity a later family owns,
  * because the composer uses this ahead of data flow when breaking ties.
  */
-export const FAMILY_ORDER: ModuleFamily[] = ["hr", "logistics", "finance", "quality"];
+export const FAMILY_ORDER: ModuleFamily[] = ["hr", "logistics", "finance", "quality", "automotive"];
 
 /**
  * What a family is called when it faces a buyer: a system, of which the modules
@@ -35,6 +35,7 @@ export const SYSTEM_NAMES: Record<ModuleFamily, string> = {
   logistics: "จัดซื้อ ผลิต ขาย คลัง",
   finance: "บัญชีและต้นทุน",
   quality: "มาตรฐาน ISO",
+  automotive: "ยานยนต์ IATF 16949",
 };
 
 export interface Module {

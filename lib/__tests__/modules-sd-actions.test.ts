@@ -229,7 +229,7 @@ describe("customers and credit", () => {
     expect(customerErrors({ ...base, taxId: CUSTOMERS[0].taxId }).taxId).toBeDefined();
     expect(customerErrors({ ...base, terms: "เงินสด" }).creditLimit).toBeDefined();
     const c = createCustomer(base);
-    expect(c.code).toBe("C-106");
+    expect(c.code).toBe("C-107");
     expect(CUSTOMERS).toContain(c);
   });
 

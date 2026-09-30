@@ -38,6 +38,7 @@ export type Material = {
 export const MATERIALS: Material[] = [
   { code: "MAT-1001", name: "เหล็กแผ่นรีดร้อน 3 มม.", group: "วัตถุดิบ", unit: "แผ่น", price: 1850, stock: 240, reorder: 120, safety: 60, bin: "A-01-03" },
   { code: "MAT-1002", name: "เหล็กเส้นกลม 12 มม.", group: "วัตถุดิบ", unit: "เส้น", price: 420, stock: 86, reorder: 150, safety: 75, bin: "A-01-07" },
+  { code: "MAT-1004", name: "เหล็กแผ่น SAPH440 หนา 2.3 มม.", group: "วัตถุดิบ", unit: "แผ่น", price: 1450, stock: 180, reorder: 120, safety: 60, bin: "A-02-01" },
   { code: "MAT-1003", name: "สีพ่นอุตสาหกรรม สีเทา", group: "วัตถุดิบ", unit: "ถัง", price: 2400, stock: 34, reorder: 20, safety: 10, bin: "B-02-01" },
   { code: "MAT-2001", name: "น็อตหัวหกเหลี่ยม M8", group: "อะไหล่", unit: "กล่อง", price: 380, stock: 18, reorder: 40, safety: 20, bin: "C-01-12" },
   { code: "MAT-2002", name: "ตลับลูกปืน 6204", group: "อะไหล่", unit: "ตัว", price: 145, stock: 320, reorder: 100, safety: 50, bin: "C-02-04" },
@@ -46,6 +47,7 @@ export const MATERIALS: Material[] = [
   { code: "MAT-4001", name: "มอเตอร์ไฟฟ้า 1 แรงม้า", group: "อะไหล่", unit: "ตัว", price: 5600, stock: 6, reorder: 10, safety: 4, bin: "C-03-02" },
   { code: "FG-5001", name: "ชั้นวางเหล็ก 4 ชั้น", group: "สินค้าสำเร็จรูป", unit: "ชุด", price: 7976, stock: 34, reorder: 15, safety: 8, bin: "E-01-01" },
   { code: "FG-5002", name: "โต๊ะทำงานเหล็ก 120 ซม.", group: "สินค้าสำเร็จรูป", unit: "ตัว", price: 9381, stock: 12, reorder: 10, safety: 5, bin: "E-01-04" },
+  { code: "FG-5004", name: "ขายึดแบตเตอรี่ BK-220", group: "สินค้าสำเร็จรูป", unit: "ชิ้น", price: 26, stock: 0, reorder: 0, safety: 0, bin: "E-03-01" },
   { code: "FG-5003", name: "รถเข็นอุตสาหกรรม", group: "สินค้าสำเร็จรูป", unit: "คัน", price: 12990, stock: 5, reorder: 6, safety: 3, bin: "E-02-02" },
 ];
 
@@ -86,6 +88,7 @@ export const INFO_RECORDS: InfoRecord[] = [
   { material: "MAT-1001", vendor: "V-002", price: 1920, leadDays: 5 },
   { material: "MAT-1002", vendor: "V-001", price: 420, leadDays: 7 },
   { material: "MAT-1003", vendor: "V-003", price: 2400, leadDays: 3 },
+  { material: "MAT-1004", vendor: "V-001", price: 1450, leadDays: 10 },
   { material: "MAT-2001", vendor: "V-002", price: 380, leadDays: 10 },
   { material: "MAT-2002", vendor: "V-004", price: 145, leadDays: 14 },
   { material: "MAT-4001", vendor: "V-004", price: 5600, leadDays: 14 },

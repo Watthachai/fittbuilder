@@ -30,6 +30,8 @@ export const BOM: Record<string, BomLine[]> = {
     { material: "MAT-2001", qty: 0.4, scrap: 0 },
     { material: "MAT-1003", qty: 0.2, scrap: 0 },
   ],
+  // ชิ้นส่วนยานยนต์ ปั๊มจากแผ่นเดียว 40 ชิ้นต่อแผ่น เผื่อเศษจากแม่พิมพ์ 3%
+  "FG-5004": [{ material: "MAT-1004", qty: 0.025, scrap: 3 }],
   "FG-5003": [
     { material: "MAT-1001", qty: 1, scrap: 0 },
     { material: "MAT-1002", qty: 8, scrap: 0 },
@@ -50,6 +52,7 @@ export const WORK_CENTERS: WorkCenter[] = [
   { code: "WC-PAINT", name: "พ่นสีและอบ", kind: "พ่นสี", capacityHrs: 60, costPerHr: 380 },
   { code: "WC-ASM", name: "ประกอบขั้นสุดท้าย", kind: "ประกอบ", capacityHrs: 100, costPerHr: 350 },
   { code: "WC-WELD2", name: "เชื่อมประกอบ สาย 2", kind: "เชื่อม", capacityHrs: 40, costPerHr: 560 },
+  { code: "WC-PRESS", name: "ปั๊มขึ้นรูป 200 ตัน", kind: "ตัดและขึ้นรูป", capacityHrs: 80, costPerHr: 650 },
 ];
 
 export const WORK_KINDS = ["ตัดและขึ้นรูป", "เชื่อม", "พ่นสี", "ประกอบ"];
@@ -70,6 +73,11 @@ export const ROUTING: Record<string, RoutingOp[]> = {
     { op: "0020", wc: "WC-WELD", hrs: 1.5, text: "เชื่อมโครงโต๊ะ" },
     { op: "0030", wc: "WC-PAINT", hrs: 0.6, text: "พ่นสีฝุ่นและอบ" },
     { op: "0040", wc: "WC-ASM", hrs: 0.5, text: "ประกอบท็อปและบรรจุ" },
+  ],
+  "FG-5004": [
+    { op: "0010", wc: "WC-PRESS", hrs: 0.004, text: "ปั๊มขึ้นรูปและเจาะรูด้วยแม่พิมพ์ต่อเนื่อง DIE-BK220" },
+    { op: "0020", wc: "WC-PAINT", hrs: 0.003, text: "พ่นสีฝุ่นดำและอบ" },
+    { op: "0030", wc: "WC-ASM", hrs: 0.002, text: "ตรวจรูด้วยเกจ Go/No-Go ทุกชิ้นและบรรจุ" },
   ],
   "FG-5003": [
     { op: "0010", wc: "WC-CUT", hrs: 0.5, text: "ตัดแชสซี" },

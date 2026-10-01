@@ -31,6 +31,7 @@ import {
 import { clientIp, rateLimit } from "@/lib/rate-limit";
 import { PRESET_IDS } from "@/lib/presets";
 import { KIT_SOURCES } from "@/lib/modules/sources";
+import { fixKitImports, kitOf } from "@/lib/kit-imports";
 import { getProjectOrgDnaContext } from "@/lib/org-context";
 import { resolveSkillForProject } from "@/lib/skills/org-resolve";
 import { createClient } from "@/lib/supabase/server";
@@ -156,6 +157,15 @@ export async function POST(request: Request) {
   const kit = !iteration && skill?.kit ? KIT_SOURCES : undefined;
   /** The kit's files are this turn's to write, not the model's. */
   const shipped = (path: string) => kit !== undefined && path in kit;
+  /** The kit this project has: shipped this turn, or already in the project on an edit. */
+  const kitFiles = kitOf(kit ?? body.previousFiles ?? {});
+  /** A model file as the project receives it. */
+  const prepare = (path: string, content: string) => {
+    if (path.endsWith(".css")) return sanitizeCss(content);
+    const fixed = fixKitImports(path, content, kitFiles);
+    if (fixed !== content) console.info(`[generate] moved kit imports to the file that exports them in ${path}`);
+    return fixed;
+  };
   const baseSystem = iteration
     ? buildIterationSystemPrompt(persona)
     : buildGenerationSystemPrompt(
@@ -302,8 +312,7 @@ export async function POST(request: Request) {
               const path = normalizePath(file.path);
               if (RESERVED_PATHS.has(path) || !isSafePath(path) || shipped(path)) continue;
               fileCount++;
-              const content = path.endsWith(".css") ? sanitizeCss(file.content) : file.content;
-              send({ type: "file", path, content });
+              send({ type: "file", path, content: prepare(path, file.content) });
             }
             for (const target of deletes) {
               const path = normalizePath(target);
@@ -349,11 +358,7 @@ export async function POST(request: Request) {
               const path = normalizePath(file.path);
               if (RESERVED_PATHS.has(path) || !isSafePath(path) || shipped(path)) continue;
               fileCount++;
-              send({
-                type: "file",
-                path,
-                content: path.endsWith(".css") ? sanitizeCss(file.content) : file.content,
-              });
+              send({ type: "file", path, content: prepare(path, file.content) });
             }
             for (const target of salvaged.deletes) {
               const path = normalizePath(target);

@@ -23,6 +23,17 @@ export const CHANGE_BADGE: Record<ChangeType, { label: string; className: string
 // Newest first. SemVer: fix → PATCH, feature → MINOR, breaking → MAJOR.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.92.1",
+    date: "2026-10-01",
+    title: "เดโมที่สร้างใหม่ไม่ค้างที่ DetailModal อีก",
+    items: [
+      {
+        type: "fix",
+        text: "เดโมที่สร้างด้วยชุดหน้าจอของสตูดิโอเปิดได้ทันที ไม่ขึ้น \"does not provide an export named 'DetailModal'\" อีก เมื่อ AI นำเข้าชิ้นส่วนอย่าง DetailModal FormModal หรือ ConfirmDialog ผิดไฟล์ ระบบย้ายไปไฟล์ที่ถูกต้องให้เองก่อนส่งถึงหน้าจอ ทั้งตอนสร้างครั้งแรกและตอนแก้ไข",
+      },
+    ],
+  },
+  {
     version: "0.92.0",
     date: "2026-09-30",
     title: "บันทึก BRD และ PRD เป็น PDF",

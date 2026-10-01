@@ -16,7 +16,7 @@ const SOURCE_FILE = /\.(tsx?|jsx?)$/;
 const IMPORT_RE = /(?:^|[\s;])(?:import|export)\s[^'"]*?from\s*["'](\.[^"']+)["']|(?:^|[\s;])import\s*["'](\.[^"']+)["']|\bimport\(\s*["'](\.[^"']+)["']\s*\)/g;
 
 /** Resolve "src/a/b.tsx" + "../c/d" → "src/c/d" (no leading ./ or ../ left). */
-function resolveFrom(fromPath: string, spec: string): string {
+export function resolveFrom(fromPath: string, spec: string): string {
   const base = fromPath.split("/").slice(0, -1);
   const parts = spec.split("/");
   for (const part of parts) {

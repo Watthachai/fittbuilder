@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import {
   CornerDownRight,
@@ -33,7 +33,7 @@ import {
 } from "@/lib/quote";
 import { loadQuote, saveQuote } from "@/lib/quote-store";
 import { marketMidpoint, type QuoteAdvice } from "@/lib/quote-advice";
-import { getOrg, nextDocNumber } from "@/lib/orgs";
+import { getProjectLetterhead, nextProjectDocNumber } from "@/lib/orgs";
 import { loadUserBrand } from "@/lib/user-brand";
 import { listShots, type Shot } from "@/lib/shots";
 import { docFileName, formatDocNo } from "@/lib/doc-number";
@@ -45,6 +45,8 @@ import QuotationPrint from "./QuotationPrint";
 import QuoteBrandBar from "./QuoteBrandBar";
 import QuoteTerms from "./QuoteTerms";
 import { Field, inputCls, Total } from "./QuoteFields";
+import { useSharedDoc } from "./useSharedDoc";
+import { CoEditMarks, CoEditors } from "./CoEditMarks";
 
 /**
  * Phase 2 of the inventory: turn captured screens into a priced quotation.
@@ -79,7 +81,6 @@ export default function Quotation({
   files: ProjectFiles | null;
   readOnly: boolean;
 }) {
-  const [doc, setDoc] = useState<QuoteDoc | null>(null);
   const [loading, setLoading] = useState(true);
   /**
    * The shots the printed sheet is currently rendering — null when not
@@ -98,10 +99,18 @@ export default function Quotation({
   // The advisor's proposal, held OUTSIDE the document until it is accepted:
   // the sender signs their name to the price, so nothing here edits it for them.
   const [advice, setAdvice] = useState<QuoteAdvice | null>(null);
-  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Today is read once, on mount: a document's issue date must not change
   // under the user because they left the tab open past midnight.
   const today = useMemo(() => new Date().toISOString().slice(0, 10), []);
+  // Everyone with this quotation open edits one document — see useSharedDoc.
+  const { doc, load, edit, editors, focusProps } = useSharedDoc<QuoteDoc>({
+    channel: `quote:${projectId}:${version}`,
+    readOnly,
+    save: (d) => saveQuote(projectId, version, d),
+    reload: () => loadQuote(projectId, version, today),
+    saveError: "บันทึกใบเสนอราคาไม่สำเร็จ",
+  });
+  const rootRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     let alive = true;
@@ -115,8 +124,8 @@ export default function Quotation({
     // to one, else the personal default (migration 0040). Null when neither.
     const defaultBrand = async () => {
       if (orgId) {
-        const org = await getOrg(orgId).catch(() => null);
-        return org ? brandFromOrg(org.brand, org.isPartner) : null;
+        const letterhead = await getProjectLetterhead(projectId).catch(() => null);
+        return letterhead ? brandFromOrg(letterhead.brand, letterhead.isPartner) : null;
       }
       return (await loadUserBrand().catch(() => null)) ?? null;
     };
@@ -142,7 +151,7 @@ export default function Quotation({
     };
     void seed().then((d) => {
       if (!alive) return;
-      setDoc(d);
+      load(d);
       setLoading(false);
     });
     return () => {
@@ -154,34 +163,6 @@ export default function Quotation({
     // not clobber edited prices within a version.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectId, version]);
-
-  /** Debounced autosave — the panel is a form, not a document with a Save button. */
-  const edit = useCallback(
-    (patch: (d: QuoteDoc) => QuoteDoc) => {
-      if (readOnly) return;
-      setDoc((prev) => {
-        if (!prev) return prev;
-        const next = patch(prev);
-        if (saveTimer.current) clearTimeout(saveTimer.current);
-        saveTimer.current = setTimeout(() => {
-          void saveQuote(projectId, version, next).catch((e) =>
-            toast.error("บันทึกใบเสนอราคาไม่สำเร็จ", {
-              description: e instanceof Error ? e.message : undefined,
-            })
-          );
-        }, 600);
-        return next;
-      });
-    },
-    [projectId, version, readOnly]
-  );
-
-  useEffect(
-    () => () => {
-      if (saveTimer.current) clearTimeout(saveTimer.current);
-    },
-    []
-  );
 
   /**
    * Fill in what each screen does, read off the source.
@@ -314,9 +295,9 @@ export default function Quotation({
       let docNo = doc.quoteNo;
       if (orgId && !docNo.startsWith("SQP")) {
         try {
-          const org = await getOrg(orgId);
-          const seq = await nextDocNumber(orgId);
-          docNo = formatDocNo("quotation", org?.docCode ?? "", seq);
+          const letterhead = await getProjectLetterhead(projectId);
+          const seq = await nextProjectDocNumber(projectId);
+          docNo = formatDocNo("quotation", letterhead?.docCode ?? "", seq);
           edit((d) => ({ ...d, quoteNo: docNo }));
         } catch (e) {
           toast.error("ออกเลขที่เอกสารไม่สำเร็จ", {
@@ -358,11 +339,14 @@ export default function Quotation({
     edit((d) => ({ ...d, rows: d.rows.map((r) => (r.id === id ? { ...r, ...patch } : r)) }));
 
   return (
-    <div className="scroll-thin min-h-0 flex-1 overflow-y-auto px-5 py-4">
+    <div ref={rootRef} {...focusProps} className="scroll-thin relative min-h-0 flex-1 overflow-y-auto px-5 py-4">
+      <CoEditMarks root={rootRef} editors={editors} layout={doc} />
+      <CoEditors editors={editors} />
       {/* Letterhead — whose paper this is */}
       <div className="mb-3">
         <QuoteBrandBar
           brand={doc.brand}
+          projectId={projectId}
           orgId={orgId}
           readOnly={readOnly}
           onChange={(patch) => edit((d) => ({ ...d, brand: { ...d.brand, ...patch } }))}
@@ -510,7 +494,7 @@ export default function Quotation({
           </thead>
           <tbody>
             {doc.rows.map((r, i) => (
-              <tr key={r.id} className="group border-b border-night-edge/60 last:border-0">
+              <tr key={r.id} data-coedit-row={r.id} className="group border-b border-night-edge/60 last:border-0">
                 <td className="px-2 py-1.5 text-right font-mono text-[12.5px] text-chalk-dim">
                   {i + 1}
                 </td>

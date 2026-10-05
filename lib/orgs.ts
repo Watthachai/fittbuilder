@@ -119,15 +119,40 @@ export async function updateOrgDocCode(id: string, docCode: string): Promise<voi
 }
 
 /**
- * Claim the next running number for this workspace — atomic, one per call.
+ * The workspace letterhead as a project's editors see it — null when the project
+ * belongs to no workspace.
  *
- * Assigned on a document's first export and then frozen into the document, so
- * a reprint keeps the same number. The DB function bumps a per-workspace
- * counter under a membership check (migration 0041).
+ * Read through the project rather than the workspace row (migration 0044): a
+ * person the project was shared with may edit its quotation without belonging to
+ * the workspace, and the paper they edit is still the workspace's paper.
+ * `canManage` is whether this person may also change the workspace's own
+ * letterhead and document code — the workspace owner only.
  */
-export async function nextDocNumber(orgId: string): Promise<number> {
+export interface ProjectLetterhead {
+  brand: OrgBrand;
+  isPartner: boolean;
+  docCode: string;
+  canManage: boolean;
+}
+
+export async function getProjectLetterhead(projectId: string): Promise<ProjectLetterhead | null> {
   const supabase = createClient();
-  const { data, error } = await supabase.rpc("fittbuilder_next_doc_number", { oid: orgId });
+  const { data, error } = await supabase.rpc("fittbuilder_project_letterhead", { pid: projectId });
+  if (error) throw error;
+  if (!data || typeof data !== "object" || Array.isArray(data)) return null;
+  const row = data as { brand?: unknown; is_partner?: boolean; doc_code?: string | null; can_manage?: boolean };
+  return {
+    brand: (row.brand && typeof row.brand === "object" ? row.brand : {}) as OrgBrand,
+    isPartner: row.is_partner === true,
+    docCode: row.doc_code ?? "",
+    canManage: row.can_manage === true,
+  };
+}
+
+/** The next running number for a document of this project's workspace. */
+export async function nextProjectDocNumber(projectId: string): Promise<number> {
+  const supabase = createClient();
+  const { data, error } = await supabase.rpc("fittbuilder_next_project_doc_number", { pid: projectId });
   if (error) throw error;
   return data as number;
 }

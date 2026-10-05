@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { FileText, Loader2, Plus, Printer, Sparkles, Trash2 } from "lucide-react";
 import {
@@ -20,7 +20,7 @@ import {
 import { loadProposal, saveProposal } from "@/lib/proposal-store";
 import { loadQuote } from "@/lib/quote-store";
 import { brandFromOrg, type QuoteDoc } from "@/lib/quote";
-import { getOrg, nextDocNumber } from "@/lib/orgs";
+import { getProjectLetterhead, nextProjectDocNumber } from "@/lib/orgs";
 import { loadUserBrand } from "@/lib/user-brand";
 import { listShots, type Shot } from "@/lib/shots";
 import { docFileName, formatDocNo } from "@/lib/doc-number";
@@ -31,6 +31,8 @@ import { printSheet } from "@/lib/print-sheet";
 import ProposalPrint from "./ProposalPrint";
 import QuoteBrandBar from "./QuoteBrandBar";
 import { Field, inputCls, SectionToggle } from "./QuoteFields";
+import { useSharedDoc } from "./useSharedDoc";
+import { CoEditMarks, CoEditors } from "./CoEditMarks";
 
 /**
  * The proposal panel: the argument that goes in front of the quotation.
@@ -64,14 +66,21 @@ export default function Proposal({
   readOnly: boolean;
 }) {
   void files;
-  const [doc, setDoc] = useState<ProposalDoc | null>(null);
   const [quote, setQuote] = useState<QuoteDoc | null>(null);
   const [loading, setLoading] = useState(true);
   const [sheet, setSheet] = useState<Shot[] | null>(null);
   const [printing, setPrinting] = useState(false);
   const [writing, setWriting] = useState(false);
-  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const today = useMemo(() => new Date().toISOString().slice(0, 10), []);
+  // Everyone with this proposal open edits one document — see useSharedDoc.
+  const { doc, load, edit, editors, focusProps } = useSharedDoc<ProposalDoc>({
+    channel: `proposal:${projectId}:${version}`,
+    readOnly,
+    save: (d) => saveProposal(projectId, version, d),
+    reload: () => loadProposal(projectId, version, today),
+    saveError: "บันทึกข้อเสนอไม่สำเร็จ",
+  });
+  const rootRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     let alive = true;
@@ -79,8 +88,8 @@ export default function Proposal({
     // personal default (migration 0040). Null when neither is set.
     const defaultBrand = async () => {
       if (orgId) {
-        const org = await getOrg(orgId).catch(() => null);
-        return org ? brandFromOrg(org.brand, org.isPartner) : null;
+        const letterhead = await getProjectLetterhead(projectId).catch(() => null);
+        return letterhead ? brandFromOrg(letterhead.brand, letterhead.isPartner) : null;
       }
       return (await loadUserBrand().catch(() => null)) ?? null;
     };
@@ -116,8 +125,8 @@ export default function Proposal({
         fresh.brand = savedQuote.brand;
         fresh.quoteNo = savedQuote.quoteNo;
       } else if (orgId) {
-        const org = await getOrg(orgId).catch(() => null);
-        if (org) fresh.brand = brandFromOrg(org.brand, org.isPartner);
+        const letterhead = await getProjectLetterhead(projectId).catch(() => null);
+        if (letterhead) fresh.brand = brandFromOrg(letterhead.brand, letterhead.isPartner);
       } else {
         // No quotation to inherit from and no workspace → the personal default.
         const mine = await loadUserBrand().catch(() => null);
@@ -127,7 +136,7 @@ export default function Proposal({
     };
     void seed().then((r) => {
       if (!alive) return;
-      setDoc(r.doc);
+      load(r.doc);
       setQuote(r.quote);
       setLoading(false);
     });
@@ -138,34 +147,6 @@ export default function Proposal({
     // (migration 0042), so switching swaps both.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectId, version]);
-
-  /** Debounced autosave — a form, not a document with a Save button. */
-  const edit = useCallback(
-    (patch: (d: ProposalDoc) => ProposalDoc) => {
-      if (readOnly) return;
-      setDoc((prev) => {
-        if (!prev) return prev;
-        const next = patch(prev);
-        if (saveTimer.current) clearTimeout(saveTimer.current);
-        saveTimer.current = setTimeout(() => {
-          void saveProposal(projectId, version, next).catch((e) =>
-            toast.error("บันทึกข้อเสนอไม่สำเร็จ", {
-              description: e instanceof Error ? e.message : undefined,
-            })
-          );
-        }, 600);
-        return next;
-      });
-    },
-    [projectId, version, readOnly]
-  );
-
-  useEffect(
-    () => () => {
-      if (saveTimer.current) clearTimeout(saveTimer.current);
-    },
-    []
-  );
 
   const steps = useMemo(() => proposalSteps(shots, quote), [shots, quote]);
   const time = proposalTimeline(quote);
@@ -255,9 +236,9 @@ export default function Proposal({
       let docNo = doc.proposalNo;
       if (orgId && !docNo.startsWith("PRP")) {
         try {
-          const org = await getOrg(orgId);
-          const seq = await nextDocNumber(orgId);
-          docNo = formatDocNo("proposal", org?.docCode ?? "", seq);
+          const letterhead = await getProjectLetterhead(projectId);
+          const seq = await nextProjectDocNumber(projectId);
+          docNo = formatDocNo("proposal", letterhead?.docCode ?? "", seq);
           edit((d) => ({ ...d, proposalNo: docNo }));
         } catch (e) {
           toast.error("ออกเลขที่เอกสารไม่สำเร็จ", {
@@ -294,7 +275,9 @@ export default function Proposal({
     }));
 
   return (
-    <div className="scroll-thin min-h-0 flex-1 overflow-y-auto px-5 py-4">
+    <div ref={rootRef} {...focusProps} className="scroll-thin relative min-h-0 flex-1 overflow-y-auto px-5 py-4">
+      <CoEditMarks root={rootRef} editors={editors} layout={doc} />
+      <CoEditors editors={editors} />
       {/* Full width, same as the quotation panel — the narrow centered column
           read as a form floating in a void once the modal grew this wide. */}
       <div className="flex flex-col gap-3">
@@ -310,6 +293,7 @@ export default function Proposal({
 
         <QuoteBrandBar
           brand={doc.brand}
+          projectId={projectId}
           orgId={orgId}
           readOnly={readOnly}
           onChange={(patch) => edit((d) => ({ ...d, brand: { ...d.brand, ...patch } }))}
@@ -419,7 +403,7 @@ export default function Proposal({
           <p className={`mt-4 ${label}`}>ปัญหา → สิ่งที่ระบบทำให้ → ผลที่ได้</p>
           <div className="mt-2 flex flex-col gap-2.5">
             {doc.points.map((p, i) => (
-              <div key={p.id} className="rounded-lg border border-night-edge p-2.5">
+              <div key={p.id} data-coedit-row={p.id} className="rounded-lg border border-night-edge p-2.5">
                 <div className="flex items-start gap-2">
                   <span className="mt-1 shrink-0 font-mono text-[11.5px] text-chalk-dim">
                     {i + 1}.

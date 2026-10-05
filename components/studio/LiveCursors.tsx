@@ -25,7 +25,7 @@ interface Peer {
 }
 
 /** Deterministic, legible hue from a client id. */
-function colorFor(id: string): string {
+export function colorFor(id: string): string {
   let h = 0;
   for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) % 360;
   return `hsl(${h} 75% 58%)`;

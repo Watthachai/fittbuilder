@@ -714,6 +714,10 @@ export interface Database {
     Functions: {
       /** Claim the next running document number for a workspace (migration 0041). */
       fittbuilder_next_doc_number: { Args: { oid: string }; Returns: number };
+      /** The workspace letterhead for a project's editors, or null without a workspace (migration 0044). */
+      fittbuilder_project_letterhead: { Args: { pid: string }; Returns: Json };
+      /** Claim the next document number for a project's workspace — gated on editing the project (0044). */
+      fittbuilder_next_project_doc_number: { Args: { pid: string }; Returns: number };
       /** Read a shared demo snapshot by token — public, {name, files} or null (migration 0043). */
       fittbuilder_shared_demo: { Args: { share_token: string }; Returns: Json };
       fittbuilder_accept_invites: { Args: { uid: string; mail: string }; Returns: undefined };

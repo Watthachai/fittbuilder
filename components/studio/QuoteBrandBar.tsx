@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { BadgeCheck, Building2, Download, Loader2, Save, Trash2, Upload } from "lucide-react";
-import { getOrg, updateOrgBrand, updateOrgDocCode, uploadOrgLogo } from "@/lib/orgs";
+import { getProjectLetterhead, updateOrgBrand, updateOrgDocCode, uploadOrgLogo } from "@/lib/orgs";
 import { loadUserBrand, saveUserBrand, uploadUserLogo } from "@/lib/user-brand";
 import { useFileDrop } from "@/lib/useFileDrop";
 import DropOverlay from "@/components/ui/DropOverlay";
@@ -21,11 +21,14 @@ import { Field, inputCls } from "./QuoteFields";
  */
 export default function QuoteBrandBar({
   brand,
+  projectId,
   orgId,
   readOnly,
   onChange,
 }: {
   brand: QuoteBrand;
+  /** The workspace letterhead is read through the project — see getProjectLetterhead. */
+  projectId: string;
   /** The workspace this project belongs to — null when it belongs to none. */
   orgId: string | null;
   readOnly: boolean;
@@ -37,25 +40,27 @@ export default function QuoteBrandBar({
   // Loaded and saved here rather than passed as a prop — it is a workspace
   // setting, and this is the one place the letterhead is edited.
   const [docCode, setDocCode] = useState("");
-  const [docCodeLoaded, setDocCodeLoaded] = useState(false);
+  // Whether this person may change the workspace's own letterhead and code — the
+  // workspace owner. A project editor from outside uses them but does not set them.
+  const [canManage, setCanManage] = useState(false);
   useEffect(() => {
     if (!orgId) return;
     let alive = true;
-    void getOrg(orgId)
-      .then((org) => {
-        if (alive && org) {
-          setDocCode(org.docCode);
-          setDocCodeLoaded(true);
+    void getProjectLetterhead(projectId)
+      .then((letterhead) => {
+        if (alive && letterhead) {
+          setDocCode(letterhead.docCode);
+          setCanManage(letterhead.canManage);
         }
       })
       .catch(() => {});
     return () => {
       alive = false;
     };
-  }, [orgId]);
+  }, [projectId, orgId]);
 
   const saveDocCode = async () => {
-    if (!orgId || readOnly || !docCodeLoaded) return;
+    if (!orgId || readOnly || !canManage) return;
     try {
       await updateOrgDocCode(orgId, docCode);
     } catch (e) {
@@ -105,16 +110,16 @@ export default function QuoteBrandBar({
     setBusy("pull");
     try {
       if (orgId) {
-        const org = await getOrg(orgId);
-        if (!org) {
+        const letterhead = await getProjectLetterhead(projectId);
+        if (!letterhead) {
           toast.error("อ่านข้อมูล workspace ไม่ได้");
           return;
         }
         // White-label is granted to the workspace, so `poweredBy` is derived
         // there — never typed into a document by whoever is editing it.
-        onChange(brandFromOrg(org.brand, org.isPartner));
+        onChange(brandFromOrg(letterhead.brand, letterhead.isPartner));
         toast.success(
-          org.isPartner ? "ดึงข้อมูลบริษัทแล้ว — พิมพ์ในนามบริษัทคุณ" : "ดึงข้อมูลบริษัทแล้ว"
+          letterhead.isPartner ? "ดึงข้อมูลบริษัทแล้ว — พิมพ์ในนามบริษัทคุณ" : "ดึงข้อมูลบริษัทแล้ว"
         );
         return;
       }
@@ -194,20 +199,23 @@ export default function QuoteBrandBar({
             </button>
             {/* "บันทึกเป็นค่าเริ่มต้น" is the one someone sets up once and every
                 new project reuses — the primary action, so it gets the filled
-                accent that says "press me". */}
-            <button
-              onClick={() => void push()}
-              disabled={busy !== null}
-              title={
-                orgId
-                  ? "ทำให้หัวกระดาษนี้เป็นค่าเริ่มต้นของ workspace — ใบเสนอราคาใบถัดไปจะขึ้นให้เอง"
-                  : "ทำให้หัวกระดาษนี้เป็นค่าเริ่มต้นของคุณ — โปรเจกต์ใหม่ทุกโปรเจกต์จะขึ้นให้เอง"
-              }
-              className="inline-flex items-center gap-1.5 rounded-lg bg-shine px-3 py-1.5 font-display text-[12.5px] font-semibold text-night transition hover:brightness-110 disabled:opacity-40"
-            >
-              {busy === "push" ? <Loader2 size={11} className="animate-spin" /> : <Save size={11} />}
-              บันทึกเป็นค่าเริ่มต้น
-            </button>
+                accent that says "press me". A workspace's default is its
+                owner's to set, so it is not offered to anyone else. */}
+            {(!orgId || canManage) && (
+              <button
+                onClick={() => void push()}
+                disabled={busy !== null}
+                title={
+                  orgId
+                    ? "ทำให้หัวกระดาษนี้เป็นค่าเริ่มต้นของ workspace — ใบเสนอราคาใบถัดไปจะขึ้นให้เอง"
+                    : "ทำให้หัวกระดาษนี้เป็นค่าเริ่มต้นของคุณ — โปรเจกต์ใหม่ทุกโปรเจกต์จะขึ้นให้เอง"
+                }
+                className="inline-flex items-center gap-1.5 rounded-lg bg-shine px-3 py-1.5 font-display text-[12.5px] font-semibold text-night transition hover:brightness-110 disabled:opacity-40"
+              >
+                {busy === "push" ? <Loader2 size={11} className="animate-spin" /> : <Save size={11} />}
+                บันทึกเป็นค่าเริ่มต้น
+              </button>
+            )}
           </div>
         )}
       </div>
@@ -342,12 +350,13 @@ export default function QuoteBrandBar({
             onChange={(e) => setDocCode(e.target.value)}
             onBlur={() => void saveDocCode()}
             placeholder="เช่น 12605"
-            disabled={readOnly || !docCodeLoaded}
+            disabled={readOnly || !canManage}
             className="w-28 rounded-md border border-night-edge bg-night px-2 py-1 font-mono text-[13px] text-chalk outline-none focus:border-shine/60 disabled:opacity-50"
           />
           <span className="font-mono text-[11.5px] text-chalk-dim">
             เลขที่จะออกเป็น <span className="text-shine">SQP{docCode.trim() || "…"}-0001</span> ·
             ข้อเสนอเป็น <span className="text-shine">PRP{docCode.trim() || "…"}-…</span> — ออกเลขอัตโนมัติตอนพิมพ์ครั้งแรก นับต่อกันทั้ง workspace
+            {!canManage && " · รหัสและหัวกระดาษเริ่มต้นของ workspace เปลี่ยนได้เฉพาะเจ้าของ workspace"}
           </span>
         </div>
       )}

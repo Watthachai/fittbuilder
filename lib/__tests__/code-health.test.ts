@@ -33,7 +33,7 @@ describe("buildIterationUserPrompt", () => {
   it("feeds measured structure debt back to the model", () => {
     const prompt = buildIterationUserPrompt("เปลี่ยนปุ่มเป็นสีเขียว", {
       "src/App.tsx": lines(2628),
-    });
+    }, []);
     expect(prompt).toContain("STRUCTURE DEBT");
     expect(prompt).toContain("src/App.tsx — 2628 lines");
     expect(prompt).toContain("USER REQUEST: เปลี่ยนปุ่มเป็นสีเขียว");
@@ -42,7 +42,19 @@ describe("buildIterationUserPrompt", () => {
   it("stays silent on a healthy project", () => {
     const prompt = buildIterationUserPrompt("เพิ่มหน้า about", {
       "src/App.tsx": lines(90),
-    });
+    }, []);
     expect(prompt).not.toContain("STRUCTURE DEBT");
+    expect(prompt).not.toContain("LARGER THAN WHAT IS SHOWN");
+  });
+
+  it("names the files a large project could not show, so none is written twice", () => {
+    const prompt = buildIterationUserPrompt("แก้ชื่อเมนู", { "src/components/layout/Sidebar.tsx": lines(80) }, [
+      "src/pages/OrdersPage.tsx",
+      "src/data/canonicalOrders.ts",
+    ]);
+    expect(prompt).toContain("--- src/components/layout/Sidebar.tsx ---");
+    expect(prompt).toContain("These 2 other files also exist");
+    expect(prompt).toContain("- src/data/canonicalOrders.ts");
+    expect(prompt).not.toContain("--- src/pages/OrdersPage.tsx ---");
   });
 });

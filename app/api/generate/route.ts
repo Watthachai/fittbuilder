@@ -32,6 +32,8 @@ import { clientIp, rateLimit } from "@/lib/rate-limit";
 import { PRESET_IDS } from "@/lib/presets";
 import { KIT_SOURCES } from "@/lib/modules/sources";
 import { fixKitImports, kitOf } from "@/lib/kit-imports";
+import { contextFor, namedIn, overBudget } from "@/lib/iteration-context";
+import { pickFiles } from "@/lib/pick-files";
 import { getProjectOrgDnaContext } from "@/lib/org-context";
 import { resolveSkillForProject } from "@/lib/skills/org-resolve";
 import { createClient } from "@/lib/supabase/server";
@@ -183,14 +185,24 @@ export async function POST(request: Request) {
   // Workspace Org DNA shapes the build (flow/structure/roles) when present.
   const orgCtx = ctxProjectId ? await getProjectOrgDnaContext(ctxProjectId) : "";
   const system = orgCtx ? `${baseSystem}\n\n${orgCtx}` : baseSystem;
-  let user = iteration
-    ? buildIterationUserPrompt(body.prompt, body.previousFiles!)
-    : body.prompt;
-  if (body.attachments?.length) {
-    user +=
-      "\n\n(ผู้ใช้แนบรูป/ไฟล์อ้างอิงมาด้วย เช่น ภาพหน้าจอ prototype — ดูประกอบแล้วทำตามที่ผู้ใช้ขอ" +
-      " โดยให้เข้ากับโครงสร้างและสไตล์ของโปรเจกต์ปัจจุบัน)";
-  }
+  const attachmentNote = body.attachments?.length
+    ? "\n\n(ผู้ใช้แนบรูป/ไฟล์อ้างอิงมาด้วย เช่น ภาพหน้าจอ prototype — ดูประกอบแล้วทำตามที่ผู้ใช้ขอ" +
+      " โดยให้เข้ากับโครงสร้างและสไตล์ของโปรเจกต์ปัจจุบัน)"
+    : "";
+  /**
+   * What the model is asked. An edit carries the project's files: all of them,
+   * or — past the context budget — the ones this request needs (lib/iteration-context).
+   */
+  const buildUser = async (status: (message: string) => void) => {
+    if (!iteration) return body.prompt + attachmentNote;
+    const files = body.previousFiles!;
+    if (!overBudget(files)) return buildIterationUserPrompt(body.prompt, files, []) + attachmentNote;
+    status("โปรเจกต์ใหญ่ — เลือกไฟล์ที่เกี่ยวกับคำสั่งนี้ก่อนแก้");
+    const wanted = [...namedIn(body.prompt, Object.keys(files)), ...(await pickFiles(body.prompt, files))];
+    const { shown, omitted } = contextFor(files, wanted);
+    console.info(`[generate] large project: showing ${Object.keys(shown).length} of ${Object.keys(files).length} files`);
+    return buildIterationUserPrompt(body.prompt, shown, omitted) + attachmentNote;
+  };
 
   let usage: TokenUsage | null = null;
   after(() =>
@@ -290,6 +302,7 @@ export async function POST(request: Request) {
           for (const [path, content] of Object.entries(kit)) send({ type: "file", path, content });
         }
 
+        const user = await buildUser((message) => send({ type: "status", message }));
         const abort = AbortSignal.timeout(ATTEMPT_TIMEOUT_MS);
         try {
           for await (const part of streamParts({

@@ -44,6 +44,23 @@ function candidates(path: string): string[] {
   ];
 }
 
+/** The relative specifiers a source file imports, as written. */
+export function relativeImports(content: string): string[] {
+  const specs: string[] = [];
+  IMPORT_RE.lastIndex = 0;
+  let m: RegExpExecArray | null;
+  while ((m = IMPORT_RE.exec(content)) !== null) {
+    const spec = m[1] ?? m[2] ?? m[3];
+    if (spec) specs.push(spec);
+  }
+  return specs;
+}
+
+/** The project file a relative import lands on, if the project has it. */
+export function resolveImport(from: string, spec: string, paths: ReadonlySet<string>): string | undefined {
+  return candidates(resolveFrom(from, spec)).find((c) => paths.has(c));
+}
+
 export interface MissingImport {
   /** File that contains the import. */
   from: string;
@@ -62,13 +79,9 @@ export function missingImports(files: ProjectFiles | null | undefined): MissingI
 
   for (const [from, content] of Object.entries(files)) {
     if (!SOURCE_FILE.test(from) || typeof content !== "string") continue;
-    IMPORT_RE.lastIndex = 0;
-    let m: RegExpExecArray | null;
-    while ((m = IMPORT_RE.exec(content)) !== null) {
-      const spec = m[1] ?? m[2] ?? m[3];
-      if (!spec) continue;
+    for (const spec of relativeImports(content)) {
+      if (resolveImport(from, spec, paths)) continue;
       const expected = resolveFrom(from, spec);
-      if (candidates(expected).some((c) => paths.has(c))) continue;
       const key = `${from}→${spec}`;
       if (seen.has(key)) continue;
       seen.add(key);

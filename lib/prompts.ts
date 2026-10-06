@@ -315,11 +315,22 @@ Do NOT make them longer. Apply iteration rule 6: extract the region you touch in
 `;
 }
 
-export function buildIterationUserPrompt(prompt: string, files: Record<string, string>): string {
+/**
+ * `omitted` is every file not shown — non-empty only for a project too large to
+ * send whole (lib/iteration-context). Listing them by path keeps the model from
+ * writing a second Sidebar because it could not see the first.
+ */
+export function buildIterationUserPrompt(prompt: string, files: Record<string, string>, omitted: string[]): string {
   const fileDump = Object.entries(files)
     .map(([path, contents]) => `--- ${path} ---\n${contents}`)
     .join("\n\n");
-  return `CURRENT PROJECT FILES:\n\n${fileDump}\n\n${renderStructureAudit(files)}USER REQUEST: ${prompt}`;
+  const rest = omitted.length
+    ? `THE PROJECT IS LARGER THAN WHAT IS SHOWN. Above are the files this request needs. These ${omitted.length} other files also exist, unchanged — do not recreate, rename or delete them, and do not send them back. Import from them by path when you need to:
+${omitted.map((p) => `- ${p}`).join("\n")}
+
+`
+    : "";
+  return `CURRENT PROJECT FILES:\n\n${fileDump}\n\n${rest}${renderStructureAudit(files)}USER REQUEST: ${prompt}`;
 }
 
 /* ——— Conversational phase agents (define/plan/verify/review/ship) ——— */

@@ -2,8 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import { BadgeCheck, Building2, Download, Loader2, Save, Trash2, Upload } from "lucide-react";
-import { getProjectLetterhead, updateOrgBrand, updateOrgDocCode, uploadOrgLogo } from "@/lib/orgs";
-import { loadUserBrand, saveUserBrand, uploadUserLogo } from "@/lib/user-brand";
+import { getProjectLetterhead, updateOrgBrand, updateOrgDocCode, uploadDocumentLogo } from "@/lib/orgs";
+import { loadUserBrand, saveUserBrand } from "@/lib/user-brand";
 import { useFileDrop } from "@/lib/useFileDrop";
 import DropOverlay from "@/components/ui/DropOverlay";
 import { toast } from "@/lib/toast";
@@ -78,24 +78,21 @@ export default function QuoteBrandBar({
     }
     setBusy("upload");
     try {
-      // A workspace project stores its logo under the workspace; a personal
-      // project under the person. Same bucket, different owner.
-      onChange({ logoUrl: orgId ? await uploadOrgLogo(orgId, file) : await uploadUserLogo(file) });
+      // Stored under the project (migration 0046): it goes on this project's
+      // documents, and anyone who may edit the project may put it there. The
+      // workspace's default logo changes only through "บันทึกเป็นค่าเริ่มต้น".
+      onChange({ logoUrl: await uploadDocumentLogo(projectId, file) });
       toast.success("อัปโหลดโลโก้แล้ว", {
-        description: "กด “บันทึกเป็นค่าเริ่มต้น” ถ้าอยากให้ใบเสนอราคาใบถัดไปใช้โลโก้นี้ด้วย",
+        description:
+          !orgId || canManage
+            ? "กด “บันทึกเป็นค่าเริ่มต้น” ถ้าอยากให้ใบเสนอราคาใบถัดไปใช้โลโก้นี้ด้วย"
+            : "ใช้กับเอกสารของโปรเจกต์นี้",
       });
     } catch (e) {
-      // The storage policy gates the letterhead on being an ADMIN of the
-      // workspace, not merely a member (migration 0029) — a company's identity
-      // on a document a customer signs is not something any member may change.
-      // That is the right rule, but it surfaces as "new row violates row-level
-      // security policy", which tells the person nothing about what to do.
       const raw = e instanceof Error ? e.message : "";
       const denied = /row-level security|violates|not authorized|403/i.test(raw);
-      toast.error(denied ? "คุณไม่มีสิทธิ์เปลี่ยนโลโก้ของ workspace นี้" : "อัปโหลดโลโก้ไม่สำเร็จ", {
-        description: denied
-          ? "โลโก้บนหัวกระดาษแก้ได้เฉพาะเจ้าของ workspace หรือสมาชิกระดับแอดมิน — ขอสิทธิ์แอดมิน หรือให้เจ้าของอัปโหลดให้ครั้งเดียว แล้วทุกใบจะใช้ร่วมกัน"
-          : raw || undefined,
+      toast.error("อัปโหลดโลโก้ไม่สำเร็จ", {
+        description: denied ? "ต้องมีสิทธิ์แก้ไขโปรเจกต์นี้จึงจะใส่โลโก้ได้" : raw || undefined,
       });
     } finally {
       setBusy(null);

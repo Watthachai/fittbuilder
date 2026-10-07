@@ -23,6 +23,17 @@ export const CHANGE_BADGE: Record<ChangeType, { label: string; className: string
 // Newest first. SemVer: fix → PATCH, feature → MINOR, breaking → MAJOR.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.94.1",
+    date: "2026-10-07",
+    title: "ผู้ร่วมแก้ไขใส่โลโก้บนใบเสนอราคาและข้อเสนอได้",
+    items: [
+      {
+        type: "fix",
+        text: "คนที่ได้รับสิทธิ์แก้ไขโปรเจกต์ใส่โลโก้บนใบเสนอราคาและข้อเสนอโครงการของโปรเจกต์นั้นได้แล้ว แม้ไม่ได้อยู่ใน workspace เดิมขึ้นว่าไม่มีสิทธิ์เปลี่ยนโลโก้ของ workspace ส่วนโลโก้เริ่มต้นของ workspace ยังเปลี่ยนได้เฉพาะเจ้าของ workspace",
+      },
+    ],
+  },
+  {
     version: "0.94.0",
     date: "2026-10-07",
     title: "รับข้อมูลสัมภาษณ์ลูกค้าจาก FITT Voice",

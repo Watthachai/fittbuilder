@@ -57,15 +57,6 @@ export async function saveUserBrand(brand: UserBrand): Promise<void> {
 }
 
 /**
- * Personal logo, same public bucket as workspace logos — the first path
- * segment is the uploader's own user id, which is what the storage policy
- * checks (0040 explains why it must be a bare uuid).
- */
-export async function uploadUserLogo(file: File): Promise<string> {
-  return uploadUserImage(file, "logo");
-}
-
-/**
  * Any personal image that needs a public, permanent URL — template slots use
  * this to turn a file on disk into something generated code can reference.
  * Bucket rules (0029): png/jpeg/webp only, 2MB cap — surfaced here as a clear

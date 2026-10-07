@@ -158,18 +158,25 @@ export async function nextProjectDocNumber(projectId: string): Promise<number> {
 }
 
 /**
- * Upload a logo and return the URL to print.
+ * Upload a logo for a project's documents and return the URL to print.
  *
- * The name carries a timestamp rather than overwriting a fixed key: quotations
+ * Stored under the project (migration 0046), so anyone who may edit the project
+ * can put a logo on its quotation and proposal — an editor invited from outside
+ * the workspace included — without being able to touch the workspace's own.
+ *
+ * The name carries a timestamp rather than overwriting a fixed key: documents
  * copy this URL in, and reusing the key would silently reprint every past
  * document with the new logo — including ones a customer has already signed.
  *
  * The bucket is public, so this URL needs no signing and never expires.
  */
-export async function uploadOrgLogo(orgId: string, file: File): Promise<string> {
+export async function uploadDocumentLogo(projectId: string, file: File): Promise<string> {
+  // Same rules the bucket enforces (0029), said in words before the round trip.
+  if (!/^image\/(png|jpe?g|webp)$/.test(file.type)) throw new Error("รองรับเฉพาะ PNG · JPG · WebP");
+  if (file.size > 2 * 1024 * 1024) throw new Error("ไฟล์ใหญ่เกิน 2MB — ย่อรูปก่อนอัปโหลด");
   const supabase = createClient();
   const ext = file.name.split(".").pop()?.toLowerCase() || "png";
-  const path = `${orgId}/logo-${Date.now()}.${ext}`;
+  const path = `${projectId}/logo-${Date.now()}.${ext}`;
   const { error } = await supabase.storage
     .from(LOGO_BUCKET)
     .upload(path, file, { contentType: file.type, upsert: false });

@@ -24,6 +24,8 @@ import {
   presetUat,
   quoteTotals,
   REVIEW_DAYS,
+  discountRate,
+  switchDiscountKind,
   rowsFromShots,
   SIZE_DAYS,
   thaiDate,
@@ -130,7 +132,7 @@ describe("quoteTotals", () => {
   });
 
   it("takes the discount off before VAT — the order tax is actually charged in", () => {
-    const t = quoteTotals(base({ discountPercent: 10 }));
+    const t = quoteTotals(base({ discount: { kind: "percent", value: 10 } }));
     expect(t.discount).toBe(4_800);
     expect(t.net).toBe(43_200);
     expect(t.vat).toBe(3_024);
@@ -151,7 +153,32 @@ describe("quoteTotals", () => {
 
   it("ignores a nonsense percentage instead of inventing money", () => {
     expect(quoteTotals(base({ vatPercent: NaN })).vat).toBe(0);
-    expect(quoteTotals(base({ discountPercent: 900 })).discount).toBe(48_000);
+    expect(quoteTotals(base({ discount: { kind: "percent", value: 900 } })).discount).toBe(48_000);
+  });
+
+  it("takes a fixed amount off before VAT, the same way a percentage is", () => {
+    const t = quoteTotals(base({ discount: { kind: "amount", value: 5_000 } }));
+    expect(t.discount).toBe(5_000);
+    expect(t.net).toBe(43_000);
+    expect(t.vat).toBe(3_010);
+    expect(t.grand).toBe(46_010);
+  });
+
+  it("never discounts more than the price, nor a negative amount", () => {
+    expect(quoteTotals(base({ discount: { kind: "amount", value: 100_000 } })).discount).toBe(48_000);
+    expect(quoteTotals(base({ discount: { kind: "amount", value: -500 } })).discount).toBe(0);
+  });
+
+  it("keeps the money when switching between percent and baht", () => {
+    const tenPercent = base({ discount: { kind: "percent", value: 10 } });
+    expect(switchDiscountKind(tenPercent, "amount")).toEqual({ kind: "amount", value: 4_800 });
+    expect(switchDiscountKind(base({ discount: { kind: "amount", value: 4_800 } }), "percent")).toEqual({ kind: "percent", value: 10 });
+    expect(switchDiscountKind(tenPercent, "percent")).toEqual({ kind: "percent", value: 10 });
+  });
+
+  it("labels a percentage with its rate and a fixed amount without one", () => {
+    expect(discountRate({ kind: "percent", value: 10 })).toBe("10%");
+    expect(discountRate({ kind: "amount", value: 5_000 })).toBe("");
   });
 
   /**
@@ -206,6 +233,12 @@ describe("newDoc", () => {
 
 describe("parseDoc", () => {
   const round = (d: unknown) => parseDoc(d, "2026-08-05");
+
+  it("reads a quotation saved with the old percent-only discount", () => {
+    expect(round({ rows: [], discountPercent: 10 })!.discount).toEqual({ kind: "percent", value: 10 });
+    expect(round({ rows: [], discount: { kind: "amount", value: 2_500 } })!.discount).toEqual({ kind: "amount", value: 2_500 });
+    expect(round({ rows: [] })!.discount).toEqual({ kind: "percent", value: 0 });
+  });
 
   it("round-trips a document it wrote", () => {
     const doc = newDoc(INVENTORY, "Pace", "2026-08-05");
@@ -477,7 +510,7 @@ describe("marketComparison", () => {
   });
 
   it("compares against the price after discount, which is what is charged", () => {
-    const c = marketComparison(withMarket(12_000, { discountPercent: 10 }))!;
+    const c = marketComparison(withMarket(12_000, { discount: { kind: "percent", value: 10 } }))!;
     expect(c.quoted).toBe(43_200);
     expect(c.saved).toBe(28_800);
   });

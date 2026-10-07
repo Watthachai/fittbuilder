@@ -14,6 +14,7 @@ import {
   validUntil,
   type QuoteDoc,
   lumpSumScope,
+  discountRate,
 } from "@/lib/quote";
 import { acceptanceClauses } from "@/lib/quote-clauses";
 import type { Shot } from "@/lib/shots";
@@ -204,7 +205,7 @@ export default function QuotationPrint({ doc, shots }: { doc: QuoteDoc; shots: S
                   </tr>
                   {t.discount > 0 && (
                     <tr>
-                      <th>ส่วนลด / Discount {doc.discountPercent}%</th>
+                      <th>ส่วนลด / Discount {discountRate(doc.discount)}</th>
                       <td>−{formatTHB(t.discount)}</td>
                     </tr>
                   )}

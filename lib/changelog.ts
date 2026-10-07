@@ -23,6 +23,17 @@ export const CHANGE_BADGE: Record<ChangeType, { label: string; className: string
 // Newest first. SemVer: fix → PATCH, feature → MINOR, breaking → MAJOR.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.95.0",
+    date: "2026-10-07",
+    title: "ส่วนลดเป็นจำนวนเงินในใบเสนอราคา",
+    items: [
+      {
+        type: "feature",
+        text: "ใส่ส่วนลดในใบเสนอราคาเป็นจำนวนเงิน (บาท) ได้ นอกจากเป็นเปอร์เซ็นต์ สลับไปมาแล้วยอดส่วนลดเท่าเดิม ส่วนลดหักก่อนคิด VAT และไม่เกินราคารวม ใบที่พิมพ์แสดงอัตราเฉพาะส่วนลดแบบเปอร์เซ็นต์",
+      },
+    ],
+  },
+  {
     version: "0.94.1",
     date: "2026-10-07",
     title: "ผู้ร่วมแก้ไขใส่โลโก้บนใบเสนอราคาและข้อเสนอได้",

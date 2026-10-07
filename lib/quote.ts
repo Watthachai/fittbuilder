@@ -230,6 +230,17 @@ export function lumpSumSystemCount(doc: QuoteDoc): number {
   return doc.rows.filter((r) => !r.sub).length;
 }
 
+/**
+ * A discount as the sender gives it: "10%" or "฿5,000 off". Kept as what was
+ * typed rather than converted to one form, so the paper prints the discount the
+ * way it was offered — a fixed amount stays a round number, a rate stays a rate.
+ */
+export interface QuoteDiscount {
+  kind: "percent" | "amount";
+  /** Percent of the subtotal (0–100), or baht. */
+  value: number;
+}
+
 export interface QuoteDoc {
   /** What the job is, on the paper's subject line. */
   subject: string;
@@ -255,8 +266,8 @@ export interface QuoteDoc {
   ratePerDay: number;
   /** Percent. 0 turns the VAT line off entirely. */
   vatPercent: number;
-  /** Percent off the subtotal, before VAT. */
-  discountPercent: number;
+  /** Off the subtotal, before VAT — a percentage of it or a fixed amount in baht. */
+  discount: QuoteDiscount;
   /**
    * Market rate per man-day to compare against on the paper; 0 hides the
    * comparison entirely.
@@ -458,7 +469,7 @@ export function newDoc(shots: Shot[], projectName: string, today: string): Quote
     rows: rowsFromShots(shots),
     ratePerDay: DEFAULT_RATE,
     vatPercent: DEFAULT_VAT,
-    discountPercent: 0,
+    discount: { kind: "percent", value: 0 },
     marketRatePerDay: 0,
     marketNote: "",
     payment: presetUat(),
@@ -479,6 +490,19 @@ export function newDoc(shots: Shot[], projectName: string, today: string): Quote
  * quietly price the whole job at zero. Anything unrecognisable returns null and
  * the caller seeds a fresh document rather than rendering a broken one.
  */
+/** The stored discount; a quotation saved before baht discounts carries only discountPercent. */
+function parseDiscount(o: Record<string, unknown>): QuoteDiscount {
+  const d = o.discount;
+  if (d && typeof d === "object" && !Array.isArray(d)) {
+    const { kind, value } = d as Record<string, unknown>;
+    if ((kind === "percent" || kind === "amount") && typeof value === "number" && Number.isFinite(value)) {
+      return { kind, value };
+    }
+  }
+  const legacy = o.discountPercent;
+  return { kind: "percent", value: typeof legacy === "number" && Number.isFinite(legacy) ? legacy : 0 };
+}
+
 export function parseDoc(payload: unknown, fallbackDate: string): QuoteDoc | null {
   if (!payload || typeof payload !== "object" || Array.isArray(payload)) return null;
   const o = payload as Record<string, unknown>;
@@ -532,7 +556,7 @@ export function parseDoc(payload: unknown, fallbackDate: string): QuoteDoc | nul
     rows,
     ratePerDay: n(o.ratePerDay, DEFAULT_RATE),
     vatPercent: n(o.vatPercent, DEFAULT_VAT),
-    discountPercent: n(o.discountPercent, 0),
+    discount: parseDiscount(o),
     marketRatePerDay: n(o.marketRatePerDay, 0),
     marketNote: str(o.marketNote),
     // An empty array is a real state — someone deleted every instalment — so
@@ -639,10 +663,31 @@ export function quoteTotals(doc: QuoteDoc): QuoteTotals {
   const subtotal = doc.lumpSum.enabled
     ? round2(num(doc.lumpSum.amount))
     : round2(doc.rows.reduce((sum, r) => sum + round2(lineTotal(r, doc.ratePerDay)), 0));
-  const discount = round2((subtotal * clampPercent(doc.discountPercent)) / 100);
+  const discount = discountOf(doc.discount, subtotal);
   const net = round2(subtotal - discount);
   const vat = round2((net * clampPercent(doc.vatPercent)) / 100);
   return { days, subtotal, discount, net, vat, grand: round2(net + vat) };
+}
+
+/** Baht off this subtotal: a rate of it, or a fixed amount — never below 0 or above the subtotal. */
+function discountOf(d: QuoteDiscount, subtotal: number): number {
+  if (d.kind === "percent") return round2((subtotal * clampPercent(d.value)) / 100);
+  return round2(Math.min(subtotal, Math.max(0, num(d.value))));
+}
+
+/** "10%" beside a percentage discount; nothing beside a fixed amount, whose figure is the line itself. */
+export const discountRate = (d: QuoteDiscount): string => (d.kind === "percent" ? `${num(d.value)}%` : "");
+
+/**
+ * Switch between percent and baht keeping the money the same: 10% of ฿48,000
+ * becomes ฿4,800 and back, so flipping the toggle never changes the price.
+ */
+export function switchDiscountKind(doc: QuoteDoc, kind: QuoteDiscount["kind"]): QuoteDiscount {
+  if (kind === doc.discount.kind) return doc.discount;
+  const { subtotal, discount } = quoteTotals(doc);
+  return kind === "amount"
+    ? { kind, value: discount }
+    : { kind, value: subtotal > 0 ? round2((discount / subtotal) * 100) : 0 };
 }
 
 /**

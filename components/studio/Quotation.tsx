@@ -27,6 +27,8 @@ import {
   SIZE_DAYS,
   SIZE_HINT,
   SIZE_LABEL,
+  discountRate,
+  switchDiscountKind,
   type QuoteDoc,
   type QuoteRow,
   type Size,
@@ -687,16 +689,38 @@ export default function Quotation({
               disabled={readOnly}
             />
           </Field>
-          <Field label="ส่วนลด (%)">
-            <input
-              type="number"
-              min={0}
-              max={100}
-              value={doc.discountPercent}
-              onChange={(e) => edit((d) => ({ ...d, discountPercent: Number(e.target.value) }))}
-              className={inputCls}
-              disabled={readOnly}
-            />
+          <Field label="ส่วนลด">
+            <div className="flex items-center gap-1.5">
+              <input
+                type="number"
+                min={0}
+                max={doc.discount.kind === "percent" ? 100 : undefined}
+                step={doc.discount.kind === "amount" ? 500 : 1}
+                value={doc.discount.value}
+                onChange={(e) =>
+                  edit((d) => ({ ...d, discount: { ...d.discount, value: Number(e.target.value) } }))
+                }
+                className={inputCls}
+                disabled={readOnly}
+              />
+              {/* Percent or baht. Switching keeps the money: 10% of ฿48,000 becomes ฿4,800. */}
+              <div className="flex shrink-0 items-center gap-0.5 rounded-lg border border-night-edge bg-night p-0.5">
+                {(["percent", "amount"] as const).map((kind) => (
+                  <button
+                    key={kind}
+                    type="button"
+                    onClick={() => edit((d) => ({ ...d, discount: switchDiscountKind(d, kind) }))}
+                    disabled={readOnly}
+                    aria-pressed={doc.discount.kind === kind}
+                    className={`rounded-md px-2 py-1 text-xs font-medium transition disabled:opacity-50 ${
+                      doc.discount.kind === kind ? "bg-shine text-night" : "text-chalk-dim hover:text-chalk"
+                    }`}
+                  >
+                    {kind === "percent" ? "%" : "บาท"}
+                  </button>
+                ))}
+              </div>
+            </div>
           </Field>
           <Field label="VAT (%) — ใส่ 0 ถ้าไม่คิด">
             <input
@@ -747,7 +771,7 @@ export default function Quotation({
         <div className="h-fit rounded-xl border border-night-edge bg-night p-4">
           <Total label={`แรงงานรวม ${t.days} วัน`} value={formatTHB(t.subtotal)} />
           {t.discount > 0 && (
-            <Total label={`ส่วนลด ${doc.discountPercent}%`} value={`−${formatTHB(t.discount)}`} />
+            <Total label={`ส่วนลด ${discountRate(doc.discount)}`.trim()} value={`−${formatTHB(t.discount)}`} />
           )}
           {doc.vatPercent > 0 && (
             <>

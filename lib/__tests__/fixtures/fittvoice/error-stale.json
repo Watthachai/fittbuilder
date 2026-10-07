@@ -1,0 +1,8 @@
+{
+  "schemaVersion": "fittbuilder.error.v1",
+  "code": "STALE_REVISION",
+  "message": "มีฉบับใหม่กว่าแล้ว",
+  "retryable": false,
+  "requestId": "request_synthetic_1",
+  "latestSnapshotRevision": 3
+}

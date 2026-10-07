@@ -8,6 +8,7 @@ import { MissingApiKeyError, streamParts, type TokenUsage } from "@/lib/gemini";
 import { isBuildPhase, isPhaseId, type PhaseId } from "@/lib/phases";
 import { DOC_PATHS } from "@/lib/define";
 import { buildAgentSystemPrompt } from "@/lib/prompts";
+import { getProjectVoiceContext } from "@/lib/fittvoice/agent-context";
 import { getProjectOrgDnaContext } from "@/lib/org-context";
 import { resolveSkill } from "@/lib/skills/db";
 import { createClient } from "@/lib/supabase/server";
@@ -138,7 +139,10 @@ export async function POST(request: Request) {
   const citeRule = orgCtx
     ? '\n\nเมื่อคุณใช้ข้อมูลจาก ORG DNA ข้างต้นในการตอบ/สร้างเอกสาร ให้ปิดท้ายข้อความด้วยบล็อกอ้างอิงหนึ่งบรรทัด:\n```cite\n{"aspects":["structure","decisionRights"]}\n```\nโดย aspects เลือกจาก [decisionRights, information, motivators, structure, archetype] เฉพาะด้านที่ใช้จริง (ถ้าไม่ได้ใช้ Org DNA เลย ไม่ต้องใส่บล็อกนี้)'
     : "";
-  const system = orgCtx ? `${baseSystem}\n\n${orgCtx}${useDnaRule}${citeRule}` : baseSystem;
+  // A project that came from FITT Voice carries its interview summary as source.
+  const voiceCtx = ctxProjectId ? await getProjectVoiceContext(ctxProjectId) : "";
+  const withDna = orgCtx ? `${baseSystem}\n\n${orgCtx}${useDnaRule}${citeRule}` : baseSystem;
+  const system = voiceCtx ? `${withDna}\n\n${voiceCtx}` : withDna;
   // Each agent used to see only its own phase's turns — a sensible economy when
   // the context window was small. At 1,048,576 input tokens it is just blindness:
   // the spec-writer wrote a PRD without ever reading the interview its BRD was

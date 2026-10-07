@@ -1,0 +1,1295 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "exportSessionId",
+    "deliveryId",
+    "snapshotRevision",
+    "operation",
+    "builderProjectId",
+    "stage",
+    "sentAt",
+    "source",
+    "review",
+    "content",
+    "evidence",
+    "contentHash"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "fittbuilder.delivery.v1"
+    },
+    "exportSessionId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200
+    },
+    "deliveryId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200
+    },
+    "snapshotRevision": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 9007199254740991
+    },
+    "operation": {
+      "enum": [
+        "CREATE_PROJECT",
+        "UPDATE_PROJECT"
+      ]
+    },
+    "builderProjectId": {
+      "anyOf": [
+        {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "stage": {
+      "enum": [
+        "DRAFT",
+        "REVIEWED"
+      ]
+    },
+    "sentAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "recordingId",
+        "transcriptVersionId",
+        "transcriptKind",
+        "summaryId",
+        "requirementId",
+        "requirementRevision",
+        "capturedAt"
+      ],
+      "properties": {
+        "recordingId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        "transcriptVersionId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        "transcriptKind": {
+          "enum": [
+            "CLEANED",
+            "LIVE_STABLE"
+          ]
+        },
+        "summaryId": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "requirementId": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "requirementRevision": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "capturedAt": {
+          "anyOf": [
+            {
+              "type": "string",
+              "format": "date-time"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "requirementId": {
+                "type": "null"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "requirementRevision": {
+                "type": "null"
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "requirementRevision": {
+                "type": "integer",
+                "minimum": 1
+              }
+            }
+          }
+        }
+      ]
+    },
+    "review": {
+      "anyOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "reviewerRef",
+            "reviewedAt",
+            "approvalId"
+          ],
+          "properties": {
+            "reviewerRef": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            },
+            "reviewedAt": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "approvalId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            }
+          }
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "content": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "projectTitle",
+        "summaryMarkdown",
+        "discovery"
+      ],
+      "properties": {
+        "projectTitle": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 300
+        },
+        "summaryMarkdown": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 20000
+        },
+        "discovery": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "businessContext",
+            "goals",
+            "actors",
+            "asIsWorkflow",
+            "painPoints",
+            "functionalRequirements",
+            "nonFunctionalRequirements",
+            "toBeWorkflow",
+            "businessRules",
+            "dataEntities",
+            "integrations",
+            "constraints",
+            "acceptanceCriteria",
+            "openQuestions",
+            "outOfScope"
+          ],
+          "properties": {
+            "businessContext": {
+              "$ref": "#/$defs/category"
+            },
+            "goals": {
+              "$ref": "#/$defs/category"
+            },
+            "actors": {
+              "$ref": "#/$defs/category"
+            },
+            "asIsWorkflow": {
+              "$ref": "#/$defs/workflowCategory"
+            },
+            "painPoints": {
+              "$ref": "#/$defs/category"
+            },
+            "functionalRequirements": {
+              "$ref": "#/$defs/category"
+            },
+            "nonFunctionalRequirements": {
+              "$ref": "#/$defs/category"
+            },
+            "toBeWorkflow": {
+              "$ref": "#/$defs/workflowCategory"
+            },
+            "businessRules": {
+              "$ref": "#/$defs/category"
+            },
+            "dataEntities": {
+              "$ref": "#/$defs/category"
+            },
+            "integrations": {
+              "$ref": "#/$defs/category"
+            },
+            "constraints": {
+              "$ref": "#/$defs/category"
+            },
+            "acceptanceCriteria": {
+              "$ref": "#/$defs/category"
+            },
+            "openQuestions": {
+              "$ref": "#/$defs/category"
+            },
+            "outOfScope": {
+              "$ref": "#/$defs/category"
+            }
+          }
+        }
+      }
+    },
+    "evidence": {
+      "type": "array",
+      "maxItems": 1000,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "segmentId",
+          "startMs",
+          "endMs",
+          "speaker",
+          "text"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "segmentId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "startMs": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "endMs": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "speaker": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "text": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000
+          }
+        }
+      }
+    },
+    "contentHash": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    }
+  },
+  "$id": "urn:fittvoice:fittbuilder:delivery:v1",
+  "$defs": {
+    "item": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "text",
+        "assertion",
+        "evidenceIds",
+        "priority"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        "text": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 6000
+        },
+        "assertion": {
+          "enum": [
+            "CUSTOMER_STATED",
+            "USER_CONFIRMED",
+            "AI_PROPOSED"
+          ]
+        },
+        "evidenceIds": {
+          "type": "array",
+          "maxItems": 100,
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "uniqueItems": true
+        },
+        "priority": {
+          "enum": [
+            "P0",
+            "P1",
+            "P2",
+            "UNSPECIFIED"
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "assertion": {
+                "const": "CUSTOMER_STATED"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "evidenceIds": {
+                "minItems": 1
+              }
+            }
+          }
+        }
+      ]
+    },
+    "workflowItem": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "text",
+        "assertion",
+        "evidenceIds",
+        "priority",
+        "actorId",
+        "tool",
+        "input",
+        "output",
+        "nextStepId"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        "text": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 6000
+        },
+        "assertion": {
+          "enum": [
+            "CUSTOMER_STATED",
+            "USER_CONFIRMED",
+            "AI_PROPOSED"
+          ]
+        },
+        "evidenceIds": {
+          "type": "array",
+          "maxItems": 100,
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "uniqueItems": true
+        },
+        "priority": {
+          "enum": [
+            "P0",
+            "P1",
+            "P2",
+            "UNSPECIFIED"
+          ]
+        },
+        "actorId": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "tool": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "input": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "output": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "nextStepId": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "assertion": {
+                "const": "CUSTOMER_STATED"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "evidenceIds": {
+                "minItems": 1
+              }
+            }
+          }
+        }
+      ]
+    },
+    "category": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "knowledgeStatus",
+        "items"
+      ],
+      "properties": {
+        "knowledgeStatus": {
+          "enum": [
+            "CAPTURED",
+            "NOT_CAPTURED",
+            "CONFIRMED_NONE"
+          ]
+        },
+        "items": {
+          "type": "array",
+          "maxItems": 200,
+          "items": {
+            "$ref": "#/$defs/item"
+          }
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "knowledgeStatus": {
+                "const": "CAPTURED"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "items": {
+                "minItems": 1
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "items": {
+                "maxItems": 0
+              }
+            }
+          }
+        }
+      ]
+    },
+    "workflowCategory": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "knowledgeStatus",
+        "items"
+      ],
+      "properties": {
+        "knowledgeStatus": {
+          "enum": [
+            "CAPTURED",
+            "NOT_CAPTURED",
+            "CONFIRMED_NONE"
+          ]
+        },
+        "items": {
+          "type": "array",
+          "maxItems": 200,
+          "items": {
+            "$ref": "#/$defs/workflowItem"
+          }
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "knowledgeStatus": {
+                "const": "CAPTURED"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "items": {
+                "minItems": 1
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "items": {
+                "maxItems": 0
+              }
+            }
+          }
+        }
+      ]
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "operation": {
+            "const": "CREATE_PROJECT"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "builderProjectId": {
+            "type": "null"
+          },
+          "snapshotRevision": {
+            "const": 1
+          }
+        }
+      },
+      "else": {
+        "properties": {
+          "builderProjectId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "stage": {
+            "const": "REVIEWED"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "review": {
+            "type": "object"
+          },
+          "source": {
+            "properties": {
+              "transcriptKind": {
+                "const": "CLEANED"
+              },
+              "summaryId": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200
+              },
+              "requirementId": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200
+              },
+              "requirementRevision": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 9007199254740991
+              }
+            }
+          },
+          "content": {
+            "properties": {
+              "discovery": {
+                "properties": {
+                  "businessContext": {
+                    "properties": {
+                      "items": {
+                        "items": {
+                          "properties": {
+                            "assertion": {
+                              "enum": [
+                                "CUSTOMER_STATED",
+                                "USER_CONFIRMED"
+                              ]
+                            }
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "goals": {
+                    "properties": {
+                      "items": {
+                        "items": {
+                          "properties": {
+                            "assertion": {
+                              "enum": [
+                                "CUSTOMER_STATED",
+                                "USER_CONFIRMED"
+                              ]
+                            }
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "actors": {
+                    "properties": {
+                      "items": {
+                        "items": {
+                          "properties": {
+                            "assertion": {
+                              "enum": [
+                                "CUSTOMER_STATED",
+                                "USER_CONFIRMED"
+                              ]
+                            }
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "asIsWorkflow": {
+                    "properties": {
+                      "items": {
+                        "items": {
+                          "properties": {
+                            "assertion": {
+                              "enum": [
+                                "CUSTOMER_STATED",
+                                "USER_CONFIRMED"
+                              ]
+                            }
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "painPoints": {
+                    "properties": {
+                      "items": {
+                        "items": {
+                          "properties": {
+                            "assertion": {
+                              "enum": [
+                                "CUSTOMER_STATED",
+                                "USER_CONFIRMED"
+                              ]
+                            }
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "functionalRequirements": {
+                    "properties": {
+                      "items": {
+                        "items": {
+                          "properties": {
+                            "assertion": {
+                              "enum": [
+                                "CUSTOMER_STATED",
+                                "USER_CONFIRMED"
+                              ]
+                            }
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "nonFunctionalRequirements": {
+                    "properties": {
+                      "items": {
+                        "items": {
+                          "properties": {
+                            "assertion": {
+                              "enum": [
+                                "CUSTOMER_STATED",
+                                "USER_CONFIRMED"
+                              ]
+                            }
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "toBeWorkflow": {
+                    "properties": {
+                      "items": {
+                        "items": {
+                          "properties": {
+                            "assertion": {
+                              "enum": [
+                                "CUSTOMER_STATED",
+                                "USER_CONFIRMED"
+                              ]
+                            }
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "businessRules": {
+                    "properties": {
+                      "items": {
+                        "items": {
+                          "properties": {
+                            "assertion": {
+                              "enum": [
+                                "CUSTOMER_STATED",
+                                "USER_CONFIRMED"
+                              ]
+                            }
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "dataEntities": {
+                    "properties": {
+                      "items": {
+                        "items": {
+                          "properties": {
+                            "assertion": {
+                              "enum": [
+                                "CUSTOMER_STATED",
+                                "USER_CONFIRMED"
+                              ]
+                            }
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "integrations": {
+                    "properties": {
+                      "items": {
+                        "items": {
+                          "properties": {
+                            "assertion": {
+                              "enum": [
+                                "CUSTOMER_STATED",
+                                "USER_CONFIRMED"
+                              ]
+                            }
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "constraints": {
+                    "properties": {
+                      "items": {
+                        "items": {
+                          "properties": {
+                            "assertion": {
+                              "enum": [
+                                "CUSTOMER_STATED",
+                                "USER_CONFIRMED"
+                              ]
+                            }
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "acceptanceCriteria": {
+                    "properties": {
+                      "items": {
+                        "items": {
+                          "properties": {
+                            "assertion": {
+                              "enum": [
+                                "CUSTOMER_STATED",
+                                "USER_CONFIRMED"
+                              ]
+                            }
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "outOfScope": {
+                    "properties": {
+                      "items": {
+                        "items": {
+                          "properties": {
+                            "assertion": {
+                              "enum": [
+                                "CUSTOMER_STATED",
+                                "USER_CONFIRMED"
+                              ]
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "else": {
+        "properties": {
+          "review": {
+            "type": "null"
+          },
+          "content": {
+            "properties": {
+              "discovery": {
+                "properties": {
+                  "businessContext": {
+                    "properties": {
+                      "knowledgeStatus": {
+                        "enum": [
+                          "CAPTURED",
+                          "NOT_CAPTURED"
+                        ]
+                      },
+                      "items": {
+                        "items": {
+                          "properties": {
+                            "assertion": {
+                              "enum": [
+                                "CUSTOMER_STATED",
+                                "AI_PROPOSED"
+                              ]
+                            }
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "goals": {
+                    "properties": {
+                      "knowledgeStatus": {
+                        "enum": [
+                          "CAPTURED",
+                          "NOT_CAPTURED"
+                        ]
+                      },
+                      "items": {
+                        "items": {
+                          "properties": {
+                            "assertion": {
+                              "enum": [
+                                "CUSTOMER_STATED",
+                                "AI_PROPOSED"
+                              ]
+                            }
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "actors": {
+                    "properties": {
+                      "knowledgeStatus": {
+                        "enum": [
+                          "CAPTURED",
+                          "NOT_CAPTURED"
+                        ]
+                      },
+                      "items": {
+                        "items": {
+                          "properties": {
+                            "assertion": {
+                              "enum": [
+                                "CUSTOMER_STATED",
+                                "AI_PROPOSED"
+                              ]
+                            }
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "asIsWorkflow": {
+                    "properties": {
+                      "knowledgeStatus": {
+                        "enum": [
+                          "CAPTURED",
+                          "NOT_CAPTURED"
+                        ]
+                      },
+                      "items": {
+                        "items": {
+                          "properties": {
+                            "assertion": {
+                              "enum": [
+                                "CUSTOMER_STATED",
+                                "AI_PROPOSED"
+                              ]
+                            }
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "painPoints": {
+                    "properties": {
+                      "knowledgeStatus": {
+                        "enum": [
+                          "CAPTURED",
+                          "NOT_CAPTURED"
+                        ]
+                      },
+                      "items": {
+                        "items": {
+                          "properties": {
+                            "assertion": {
+                              "enum": [
+                                "CUSTOMER_STATED",
+                                "AI_PROPOSED"
+                              ]
+                            }
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "functionalRequirements": {
+                    "properties": {
+                      "knowledgeStatus": {
+                        "enum": [
+                          "CAPTURED",
+                          "NOT_CAPTURED"
+                        ]
+                      },
+                      "items": {
+                        "items": {
+                          "properties": {
+                            "assertion": {
+                              "enum": [
+                                "CUSTOMER_STATED",
+                                "AI_PROPOSED"
+                              ]
+                            }
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "nonFunctionalRequirements": {
+                    "properties": {
+                      "knowledgeStatus": {
+                        "enum": [
+                          "CAPTURED",
+                          "NOT_CAPTURED"
+                        ]
+                      },
+                      "items": {
+                        "items": {
+                          "properties": {
+                            "assertion": {
+                              "enum": [
+                                "CUSTOMER_STATED",
+                                "AI_PROPOSED"
+                              ]
+                            }
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "toBeWorkflow": {
+                    "properties": {
+                      "knowledgeStatus": {
+                        "enum": [
+                          "CAPTURED",
+                          "NOT_CAPTURED"
+                        ]
+                      },
+                      "items": {
+                        "items": {
+                          "properties": {
+                            "assertion": {
+                              "enum": [
+                                "CUSTOMER_STATED",
+                                "AI_PROPOSED"
+                              ]
+                            }
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "businessRules": {
+                    "properties": {
+                      "knowledgeStatus": {
+                        "enum": [
+                          "CAPTURED",
+                          "NOT_CAPTURED"
+                        ]
+                      },
+                      "items": {
+                        "items": {
+                          "properties": {
+                            "assertion": {
+                              "enum": [
+                                "CUSTOMER_STATED",
+                                "AI_PROPOSED"
+                              ]
+                            }
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "dataEntities": {
+                    "properties": {
+                      "knowledgeStatus": {
+                        "enum": [
+                          "CAPTURED",
+                          "NOT_CAPTURED"
+                        ]
+                      },
+                      "items": {
+                        "items": {
+                          "properties": {
+                            "assertion": {
+                              "enum": [
+                                "CUSTOMER_STATED",
+                                "AI_PROPOSED"
+                              ]
+                            }
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "integrations": {
+                    "properties": {
+                      "knowledgeStatus": {
+                        "enum": [
+                          "CAPTURED",
+                          "NOT_CAPTURED"
+                        ]
+                      },
+                      "items": {
+                        "items": {
+                          "properties": {
+                            "assertion": {
+                              "enum": [
+                                "CUSTOMER_STATED",
+                                "AI_PROPOSED"
+                              ]
+                            }
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "constraints": {
+                    "properties": {
+                      "knowledgeStatus": {
+                        "enum": [
+                          "CAPTURED",
+                          "NOT_CAPTURED"
+                        ]
+                      },
+                      "items": {
+                        "items": {
+                          "properties": {
+                            "assertion": {
+                              "enum": [
+                                "CUSTOMER_STATED",
+                                "AI_PROPOSED"
+                              ]
+                            }
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "acceptanceCriteria": {
+                    "properties": {
+                      "knowledgeStatus": {
+                        "enum": [
+                          "CAPTURED",
+                          "NOT_CAPTURED"
+                        ]
+                      },
+                      "items": {
+                        "items": {
+                          "properties": {
+                            "assertion": {
+                              "enum": [
+                                "CUSTOMER_STATED",
+                                "AI_PROPOSED"
+                              ]
+                            }
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "openQuestions": {
+                    "properties": {
+                      "knowledgeStatus": {
+                        "enum": [
+                          "CAPTURED",
+                          "NOT_CAPTURED"
+                        ]
+                      },
+                      "items": {
+                        "items": {
+                          "properties": {
+                            "assertion": {
+                              "enum": [
+                                "CUSTOMER_STATED",
+                                "AI_PROPOSED"
+                              ]
+                            }
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "outOfScope": {
+                    "properties": {
+                      "knowledgeStatus": {
+                        "enum": [
+                          "CAPTURED",
+                          "NOT_CAPTURED"
+                        ]
+                      },
+                      "items": {
+                        "items": {
+                          "properties": {
+                            "assertion": {
+                              "enum": [
+                                "CUSTOMER_STATED",
+                                "AI_PROPOSED"
+                              ]
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
+}

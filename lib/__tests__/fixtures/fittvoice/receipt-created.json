@@ -1,0 +1,10 @@
+{
+  "exportSessionId": "exp_synthetic_batch_1",
+  "deliveryId": "del_synthetic_batch_1",
+  "snapshotRevision": 1,
+  "contentHash": "e9adb6e7f88d0bc9a35691b34fbc8c68dad609bdbf91bd965faea40f7e7b4f8c",
+  "schemaVersion": "fittbuilder.receipt.v1",
+  "builderProjectId": "project_synthetic_batch_1",
+  "outcome": "APPLIED",
+  "acceptedAt": "2026-10-04T04:00:01Z"
+}

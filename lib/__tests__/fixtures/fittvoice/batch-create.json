@@ -1,0 +1,154 @@
+{
+  "schemaVersion": "fittbuilder.delivery.v1",
+  "exportSessionId": "exp_synthetic_batch_1",
+  "deliveryId": "del_synthetic_batch_1",
+  "snapshotRevision": 1,
+  "operation": "CREATE_PROJECT",
+  "builderProjectId": null,
+  "stage": "REVIEWED",
+  "sentAt": "2026-10-04T03:00:00Z",
+  "source": {
+    "recordingId": "rec_synthetic_1",
+    "transcriptVersionId": "cleaned_synthetic_1",
+    "transcriptKind": "CLEANED",
+    "summaryId": "summary_synthetic_1",
+    "requirementId": "requirement_synthetic_1",
+    "requirementRevision": 1,
+    "capturedAt": "2026-10-04T02:00:00Z"
+  },
+  "review": {
+    "reviewerRef": "user_synthetic_1",
+    "reviewedAt": "2026-10-04T02:59:00Z",
+    "approvalId": "approval_synthetic_del_synthetic_batch_1"
+  },
+  "content": {
+    "projectTitle": "ระบบคำสั่งซื้อ — ตัวอย่างสังเคราะห์",
+    "summaryMarkdown": "ลูกค้ารับคำสั่งซื้อผ่านแชตแล้วลงตาราง ต้องคัดลอกข้อมูลซ้ำและค้นสถานะยาก ต้องการบันทึกคำสั่งซื้อและค้นสถานะในหน้าเดียว",
+    "discovery": {
+      "businessContext": {
+        "knowledgeStatus": "NOT_CAPTURED",
+        "items": []
+      },
+      "goals": {
+        "knowledgeStatus": "NOT_CAPTURED",
+        "items": []
+      },
+      "actors": {
+        "knowledgeStatus": "CAPTURED",
+        "items": [
+          {
+            "id": "actor_sales",
+            "text": "พนักงานขายรับคำสั่งซื้อ",
+            "assertion": "CUSTOMER_STATED",
+            "evidenceIds": [
+              "ev_1"
+            ],
+            "priority": "UNSPECIFIED"
+          }
+        ]
+      },
+      "asIsWorkflow": {
+        "knowledgeStatus": "CAPTURED",
+        "items": [
+          {
+            "id": "step_1",
+            "text": "รับคำสั่งซื้อผ่านแชตแล้วลงตาราง",
+            "assertion": "CUSTOMER_STATED",
+            "evidenceIds": [
+              "ev_1"
+            ],
+            "priority": "UNSPECIFIED",
+            "actorId": "actor_sales",
+            "tool": "แชตและตาราง",
+            "input": "คำสั่งซื้อ",
+            "output": "รายการคำสั่งซื้อ",
+            "nextStepId": null
+          }
+        ]
+      },
+      "painPoints": {
+        "knowledgeStatus": "CAPTURED",
+        "items": [
+          {
+            "id": "pain_1",
+            "text": "ต้องคัดลอกข้อมูลซ้ำและค้นสถานะยาก",
+            "assertion": "CUSTOMER_STATED",
+            "evidenceIds": [
+              "ev_1"
+            ],
+            "priority": "UNSPECIFIED"
+          }
+        ]
+      },
+      "functionalRequirements": {
+        "knowledgeStatus": "CAPTURED",
+        "items": [
+          {
+            "id": "req_1",
+            "text": "บันทึกคำสั่งซื้อและค้นสถานะในหน้าเดียว",
+            "assertion": "CUSTOMER_STATED",
+            "evidenceIds": [
+              "ev_1"
+            ],
+            "priority": "UNSPECIFIED"
+          }
+        ]
+      },
+      "nonFunctionalRequirements": {
+        "knowledgeStatus": "NOT_CAPTURED",
+        "items": []
+      },
+      "toBeWorkflow": {
+        "knowledgeStatus": "NOT_CAPTURED",
+        "items": []
+      },
+      "businessRules": {
+        "knowledgeStatus": "NOT_CAPTURED",
+        "items": []
+      },
+      "dataEntities": {
+        "knowledgeStatus": "NOT_CAPTURED",
+        "items": []
+      },
+      "integrations": {
+        "knowledgeStatus": "NOT_CAPTURED",
+        "items": []
+      },
+      "constraints": {
+        "knowledgeStatus": "NOT_CAPTURED",
+        "items": []
+      },
+      "acceptanceCriteria": {
+        "knowledgeStatus": "NOT_CAPTURED",
+        "items": []
+      },
+      "openQuestions": {
+        "knowledgeStatus": "CAPTURED",
+        "items": [
+          {
+            "id": "question_1",
+            "text": "ผู้ใดมีสิทธิ์แก้สถานะคำสั่งซื้อ?",
+            "assertion": "AI_PROPOSED",
+            "evidenceIds": [],
+            "priority": "UNSPECIFIED"
+          }
+        ]
+      },
+      "outOfScope": {
+        "knowledgeStatus": "NOT_CAPTURED",
+        "items": []
+      }
+    }
+  },
+  "evidence": [
+    {
+      "id": "ev_1",
+      "segmentId": "seg_synthetic_1",
+      "startMs": 1000,
+      "endMs": 12000,
+      "speaker": "ลูกค้า (สังเคราะห์)",
+      "text": "ตอนนี้พนักงานขายรับออร์เดอร์ทางแชตแล้วลงตาราง ต้องคัดลอกซ้ำและค้นสถานะยาก อยากบันทึกกับดูสถานะในหน้าเดียว"
+    }
+  ],
+  "contentHash": "e9adb6e7f88d0bc9a35691b34fbc8c68dad609bdbf91bd965faea40f7e7b4f8c"
+}

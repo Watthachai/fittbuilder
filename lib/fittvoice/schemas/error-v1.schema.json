@@ -1,0 +1,59 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "code",
+    "message",
+    "retryable",
+    "requestId",
+    "latestSnapshotRevision"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "fittbuilder.error.v1"
+    },
+    "code": {
+      "enum": [
+        "INVALID_PAYLOAD",
+        "HASH_MISMATCH",
+        "UNAUTHORIZED",
+        "FORBIDDEN",
+        "PROJECT_NOT_FOUND",
+        "STALE_REVISION",
+        "IDEMPOTENCY_CONFLICT",
+        "REVISION_CONFLICT",
+        "SESSION_FINALIZED",
+        "PAYLOAD_TOO_LARGE",
+        "RATE_LIMITED",
+        "TEMPORARILY_UNAVAILABLE"
+      ]
+    },
+    "message": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2000
+    },
+    "retryable": {
+      "type": "boolean"
+    },
+    "requestId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200
+    },
+    "latestSnapshotRevision": {
+      "anyOf": [
+        {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        },
+        {
+          "type": "null"
+        }
+      ]
+    }
+  }
+}

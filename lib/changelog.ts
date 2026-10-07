@@ -23,6 +23,21 @@ export const CHANGE_BADGE: Record<ChangeType, { label: string; className: string
 // Newest first. SemVer: fix → PATCH, feature → MINOR, breaking → MAJOR.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.94.0",
+    date: "2026-10-07",
+    title: "รับข้อมูลสัมภาษณ์ลูกค้าจาก FITT Voice",
+    items: [
+      {
+        type: "feature",
+        text: "FITT Voice ส่งสรุปการสัมภาษณ์ลูกค้าที่ผู้ใช้ตรวจแล้วเข้ามาเป็นโปรเจกต์ใหม่ในเฟส Define ของ workspace ได้ ส่งฉบับใหม่แล้วอัปเดตโปรเจกต์เดิม ส่งซ้ำไม่สร้างโปรเจกต์ซ้ำ และการรับข้อมูลไม่สั่งสร้าง BRD หรือ Prototype เอง",
+      },
+      {
+        type: "feature",
+        text: "ปุ่ม FITT Voice บนโปรเจกต์เปิดเอกสารต้นทาง แยกชัดว่าแต่ละรายการลูกค้าระบุ ผู้ตรวจยืนยัน หรือ AI เสนอและยังไม่ยืนยัน พร้อมข้อความอ้างอิงและเวลาในการสัมภาษณ์ AI ของเฟส Define ใช้เอกสารนี้เมื่อผู้ใช้ขอให้ร่าง BRD",
+      },
+    ],
+  },
+  {
     version: "0.93.1",
     date: "2026-10-06",
     title: "โปรเจกต์ใหญ่สั่งแก้ได้อีกครั้ง",

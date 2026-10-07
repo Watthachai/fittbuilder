@@ -30,6 +30,9 @@ const PUBLIC_PREFIXES = [
   // The relay is reached from inside the preview, which runs on
   // *.webcontainer-api.io and carries none of our cookies.
   "/api/asset",
+  // Backend-to-backend integrations (FITT Voice). They carry a service
+  // credential, not a session; each route checks it before anything else.
+  "/v1/integrations",
 ];
 
 export async function updateSession(request: NextRequest) {

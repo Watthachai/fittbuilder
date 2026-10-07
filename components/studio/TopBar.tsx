@@ -29,6 +29,7 @@ import FittcoreExportModal from "./FittcoreExportModal";
 import type { VersionKey } from "@/lib/versions";
 import ProjectPresence from "./ProjectPresence";
 import TeamChat from "./TeamChat";
+import VoiceSource from "./VoiceSource";
 
 interface TopBarProps {
   project: ProjectRecord;
@@ -142,6 +143,7 @@ export default function TopBar({
         <DnaMark size={16} bars={6} rainbow className="shrink-0" />
         <span className="truncate">{org ? `${org.name} · DNA` : "Org DNA"}</span>
       </button>
+      <VoiceSource projectId={project.id} />
 
       <div className="mx-auto flex shrink-0 items-center rounded-sm border border-night-edge p-0.5">
         <button

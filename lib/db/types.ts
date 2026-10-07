@@ -129,6 +129,32 @@ export interface Database {
         };
         Relationships: [];
       };
+      /** A service credential (stored as its SHA-256) bound to one workspace (migration 0045). */
+      fittbuilder_integration_bindings: {
+        Row: {
+          id: string;
+          org_id: string;
+          producer: string;
+          token_hash: string;
+          label: string;
+          created_at: string;
+          revoked_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          org_id: string;
+          producer: string;
+          token_hash: string;
+          label?: string;
+          created_at?: string;
+          revoked_at?: string | null;
+        };
+        Update: {
+          revoked_at?: string | null;
+          label?: string;
+        };
+        Relationships: [];
+      };
       fittbuilder_user_brand: {
         Row: {
           user_id: string;
@@ -718,6 +744,10 @@ export interface Database {
       fittbuilder_project_letterhead: { Args: { pid: string }; Returns: Json };
       /** Claim the next document number for a project's workspace — gated on editing the project (0044). */
       fittbuilder_next_project_doc_number: { Args: { pid: string }; Returns: number };
+      /** Apply one FITT Voice delivery atomically; {status, body} (migration 0045). Service role only. */
+      fittbuilder_fittvoice_apply: { Args: { p_binding: string; p_payload: Json }; Returns: Json };
+      /** A project's latest FITT Voice snapshot for its readers, or null (migration 0045). */
+      fittbuilder_fittvoice_source: { Args: { pid: string }; Returns: Json };
       /** Read a shared demo snapshot by token — public, {name, files} or null (migration 0043). */
       fittbuilder_shared_demo: { Args: { share_token: string }; Returns: Json };
       fittbuilder_accept_invites: { Args: { uid: string; mail: string }; Returns: undefined };

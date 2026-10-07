@@ -1,0 +1,54 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "exportSessionId",
+    "deliveryId",
+    "builderProjectId",
+    "snapshotRevision",
+    "contentHash",
+    "outcome",
+    "acceptedAt"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "fittbuilder.receipt.v1"
+    },
+    "exportSessionId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200
+    },
+    "deliveryId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200
+    },
+    "builderProjectId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200
+    },
+    "snapshotRevision": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 9007199254740991
+    },
+    "contentHash": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "outcome": {
+      "enum": [
+        "APPLIED",
+        "DUPLICATE"
+      ]
+    },
+    "acceptedAt": {
+      "type": "string",
+      "format": "date-time"
+    }
+  }
+}

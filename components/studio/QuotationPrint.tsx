@@ -43,6 +43,8 @@ export default function QuotationPrint({ doc, shots }: { doc: QuoteDoc; shots: S
   const t = quoteTotals(doc);
   const market = marketComparison(doc);
   const plan = paymentSchedule(doc);
+  // Each instalment is a share of the price before VAT, with VAT added on it.
+  const withVat = doc.vatPercent > 0;
   const ma = maintenanceTotals(doc.ma);
   const clauses = acceptanceClauses(doc);
   const brand = doc.brand;
@@ -258,7 +260,15 @@ export default function QuotationPrint({ doc, shots }: { doc: QuoteDoc; shots: S
                         <th className="q-n">งวด</th>
                         <th>เงื่อนไขการชำระ</th>
                         <th className="q-c">สัดส่วน</th>
-                        <th className="q-r">จำนวนเงิน</th>
+                        {withVat ? (
+                          <>
+                            <th className="q-r">ก่อนภาษี</th>
+                            <th className="q-r">VAT {doc.vatPercent}%</th>
+                            <th className="q-r">รวม</th>
+                          </>
+                        ) : (
+                          <th className="q-r">จำนวนเงิน</th>
+                        )}
                       </tr>
                     </thead>
                     <tbody>
@@ -274,6 +284,12 @@ export default function QuotationPrint({ doc, shots }: { doc: QuoteDoc; shots: S
                             )}
                           </td>
                           <td className="q-c">{line.term.percent}%</td>
+                          {withVat && (
+                            <>
+                              <td className="q-r">{formatTHB(line.beforeVat)}</td>
+                              <td className="q-r">{formatTHB(line.vat)}</td>
+                            </>
+                          )}
                           <td className="q-r">{formatTHB(line.amount)}</td>
                         </tr>
                       ))}
@@ -282,6 +298,12 @@ export default function QuotationPrint({ doc, shots }: { doc: QuoteDoc; shots: S
                       <tr>
                         <td colSpan={2} />
                         <td className="q-c">{plan.percentSum}%</td>
+                        {withVat && (
+                          <>
+                            <td className="q-r">{formatTHB(plan.rows.reduce((s, r) => s + r.beforeVat, 0))}</td>
+                            <td className="q-r">{formatTHB(plan.rows.reduce((s, r) => s + r.vat, 0))}</td>
+                          </>
+                        )}
                         <td className="q-r">
                           {formatTHB(plan.rows.reduce((s, r) => s + r.amount, 0))}
                         </td>

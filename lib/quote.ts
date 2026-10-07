@@ -712,6 +712,11 @@ export function marketComparison(
 
 export interface PaymentLine {
   term: PaymentTerm;
+  /** This instalment's share of the price before VAT. */
+  beforeVat: number;
+  /** VAT charged on this instalment. */
+  vat: number;
+  /** What the customer pays for it: beforeVat + vat. */
   amount: number;
 }
 
@@ -723,29 +728,38 @@ export interface PaymentPlan {
 }
 
 /**
- * The instalment table: each share turned into money.
+ * The instalment table: each share of the price BEFORE VAT, with VAT charged on
+ * that instalment — the way a tax invoice is issued for each one.
  *
- * The remainder left by rounding lands on the last instalment, so the column
- * adds up to the grand total exactly — the same discipline `quoteTotals` uses
- * on the line items, for the same reason.
+ * Each column adds up to its own total exactly: the remainder rounding leaves
+ * lands on the last instalment, for the price before VAT and for the VAT alike,
+ * so the before-VAT column reaches the net price, the VAT column the document's
+ * VAT and the totals the grand total — the same discipline `quoteTotals` uses on
+ * the line items, for the same reason.
  *
  * It does that ONLY when the shares sum to 100. When they do not, the gap is
  * real, and folding it into the last row would hide a schedule that bills less
  * (or more) than the price agreed above it. The panel warns instead.
  */
 export function paymentSchedule(doc: QuoteDoc): PaymentPlan {
-  const { grand } = quoteTotals(doc);
+  const { net, vat } = quoteTotals(doc);
+  const rate = clampPercent(doc.vatPercent);
   const percentSum = round2(doc.payment.reduce((sum, t) => sum + num(t.percent), 0));
   const balanced = percentSum === 100;
-  const rows: PaymentLine[] = doc.payment.map((term) => ({
-    term,
-    amount: round2((grand * num(term.percent)) / 100),
-  }));
-  if (balanced && rows.length > 0) {
-    const printed = round2(rows.reduce((sum, r) => sum + r.amount, 0));
-    const last = rows[rows.length - 1];
-    rows[rows.length - 1] = { ...last, amount: round2(last.amount + (grand - printed)) };
+  const parts = doc.payment.map((term) => {
+    const beforeVat = round2((net * num(term.percent)) / 100);
+    return { term, beforeVat, vat: round2((beforeVat * rate) / 100) };
+  });
+  if (balanced && parts.length > 0) {
+    const others = parts.slice(0, -1);
+    const last = parts[parts.length - 1];
+    parts[parts.length - 1] = {
+      ...last,
+      beforeVat: round2(net - others.reduce((sum, p) => sum + p.beforeVat, 0)),
+      vat: round2(vat - others.reduce((sum, p) => sum + p.vat, 0)),
+    };
   }
+  const rows: PaymentLine[] = parts.map((p) => ({ ...p, amount: round2(p.beforeVat + p.vat) }));
   return { rows, percentSum, balanced };
 }
 

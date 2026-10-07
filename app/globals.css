@@ -1060,6 +1060,14 @@ body {
   background: #f6f7f8;
   font-weight: 600;
 }
+/* The cell rule above is more specific than .q-r / .q-c, so this table states
+   them again: the before-VAT, VAT and total columns line up on the right. */
+.fitt-paper .q-pay .q-r {
+  text-align: right;
+}
+.fitt-paper .q-pay .q-c {
+  text-align: center;
+}
 .fitt-paper .q-ma th {
   font-weight: 400;
   color: var(--ink-dim);

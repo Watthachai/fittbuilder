@@ -130,6 +130,8 @@ export default function QuoteTerms({
       },
     }));
   const { grand } = quoteTotals(doc);
+  // Each instalment is a share of the price before VAT, with VAT added on it.
+  const withVat = doc.vatPercent > 0;
   const scheduled = Math.round(plan.rows.reduce((s, r) => s + r.amount, 0) * 100) / 100;
   const baht = (n: number) => `฿${formatTHB(n)}`;
 
@@ -182,7 +184,15 @@ export default function QuoteTerms({
                 <th className="px-2 py-1.5 font-display font-medium">เงื่อนไขการชำระ</th>
                 <th className="w-16 px-2 py-1.5 text-right font-display font-medium">%</th>
                 <th className="w-20 px-2 py-1.5 text-right font-display font-medium">ภายใน (วัน)</th>
-                <th className="w-28 px-2 py-1.5 text-right font-display font-medium">จำนวนเงิน</th>
+                {withVat ? (
+                  <>
+                    <th className="w-28 px-2 py-1.5 text-right font-display font-medium">ก่อน VAT</th>
+                    <th className="w-24 px-2 py-1.5 text-right font-display font-medium">VAT {doc.vatPercent}%</th>
+                    <th className="w-28 px-2 py-1.5 text-right font-display font-medium">รวม</th>
+                  </>
+                ) : (
+                  <th className="w-28 px-2 py-1.5 text-right font-display font-medium">จำนวนเงิน</th>
+                )}
                 <th className="w-8" />
               </tr>
             </thead>
@@ -223,6 +233,12 @@ export default function QuoteTerms({
                       className="w-full rounded-md bg-transparent px-1.5 py-1 text-right font-mono text-chalk outline-none focus:bg-night"
                     />
                   </td>
+                  {withVat && (
+                    <>
+                      <td className="px-2 py-1 text-right font-mono text-chalk-dim">{formatTHB(line.beforeVat)}</td>
+                      <td className="px-2 py-1 text-right font-mono text-chalk-dim">{formatTHB(line.vat)}</td>
+                    </>
+                  )}
                   <td className="px-2 py-1 text-right font-mono text-chalk">
                     {formatTHB(line.amount)}
                   </td>
@@ -243,7 +259,7 @@ export default function QuoteTerms({
               ))}
               {plan.rows.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="px-3 py-6 text-center text-chalk-dim">
+                  <td colSpan={withVat ? 8 : 6} className="px-3 py-6 text-center text-chalk-dim">
                     ไม่มีงวดชำระ — ใบเสนอราคาจะไม่พิมพ์ตารางงวด
                   </td>
                 </tr>

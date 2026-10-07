@@ -376,6 +376,34 @@ describe("paymentSchedule", () => {
   });
 
   /**
+   * Each instalment is a share of the price BEFORE VAT, and VAT is charged on
+   * that instalment — the way a tax invoice is issued per instalment.
+   */
+  it("splits the price before VAT, then adds VAT to each instalment", () => {
+    const rows = paymentSchedule(base()).rows;
+    expect(rows.map((r) => r.beforeVat)).toEqual([28_800, 19_200]);
+    expect(rows.map((r) => r.vat)).toEqual([2_016, 1_344]);
+    expect(rows.map((r) => r.amount)).toEqual([30_816, 20_544]);
+  });
+
+  it("keeps each column adding up to its own total when shares do not divide evenly", () => {
+    const doc = base({ payment: presetEqual(3), rows: [{ ...emptyRow(0), name: "x", days: 1.37 }] });
+    const t = quoteTotals(doc);
+    const rows = paymentSchedule(doc).rows;
+    const total = (pick: (r: (typeof rows)[number]) => number) => Math.round(rows.reduce((s, r) => s + pick(r), 0) * 100) / 100;
+    expect(total((r) => r.beforeVat)).toBe(t.net);
+    expect(total((r) => r.vat)).toBe(t.vat);
+    expect(total((r) => r.amount)).toBe(t.grand);
+    for (const r of rows) expect(Math.round((r.beforeVat + r.vat) * 100) / 100).toBe(r.amount);
+  });
+
+  it("charges no VAT on any instalment when the quotation has none", () => {
+    const rows = paymentSchedule(base({ vatPercent: 0 })).rows;
+    expect(rows.map((r) => r.vat)).toEqual([0, 0]);
+    expect(rows.map((r) => r.amount)).toEqual([28_800, 19_200]);
+  });
+
+  /**
    * The instalment column is checked by hand by whoever signs it. Rounding each
    * share and letting the last one absorb the remainder is what guarantees it
    * reaches the grand total — three thirds of an odd number otherwise land a

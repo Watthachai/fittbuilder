@@ -23,6 +23,21 @@ export const CHANGE_BADGE: Record<ChangeType, { label: string; className: string
 // Newest first. SemVer: fix → PATCH, feature → MINOR, breaking → MAJOR.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.95.1",
+    date: "2026-10-07",
+    title: "งวดชำระคิดจากราคาก่อนภาษีแล้วบวก VAT ทีละงวด",
+    items: [
+      {
+        type: "fix",
+        text: "งวดชำระในใบเสนอราคาคิดสัดส่วนจากราคาก่อนภาษี แล้วบวก VAT ของแต่ละงวด ตารางงวดแสดงก่อนภาษี · VAT · รวม ทั้งในหน้าแก้ไขและใบที่พิมพ์ แต่ละคอลัมน์รวมได้ตรงกับยอดของใบ และข้อสัญญาระบุยอดก่อนภาษีกับ VAT ของงวดด้วย",
+      },
+      {
+        type: "improvement",
+        text: "ตัวเลขเงินในตารางงวดชำระของใบที่พิมพ์ชิดขวาให้หลักตรงกัน",
+      },
+    ],
+  },
+  {
     version: "0.95.0",
     date: "2026-10-07",
     title: "ส่วนลดเป็นจำนวนเงินในใบเสนอราคา",

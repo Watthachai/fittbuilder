@@ -45,6 +45,15 @@ describe("acceptanceClauses", () => {
     expect(text).toContain(formatTHB(rows[1].amount));
   });
 
+  it("says the share is of the price before VAT and names the VAT on it", () => {
+    const d = doc();
+    const { rows } = paymentSchedule(d);
+    const text = acceptanceClauses(d).join("\n");
+    expect(text).toContain(`เป็นเงิน ฿${formatTHB(rows[0].beforeVat)} บวก VAT ${d.vatPercent}% ฿${formatTHB(rows[0].vat)} รวม ฿${formatTHB(rows[0].amount)}`);
+    const noVat = { ...d, vatPercent: 0 };
+    expect(acceptanceClauses(noVat).join("\n")).not.toContain("บวก VAT");
+  });
+
   it("follows the schedule when it changes", () => {
     const d = doc({
       payment: [

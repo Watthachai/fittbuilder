@@ -15,6 +15,7 @@ import {
   type QuoteDoc,
   lumpSumScope,
   discountRate,
+  percentText,
 } from "@/lib/quote";
 import { acceptanceClauses } from "@/lib/quote-clauses";
 import type { Shot } from "@/lib/shots";
@@ -283,7 +284,7 @@ export default function QuotationPrint({ doc, shots }: { doc: QuoteDoc; shots: S
                               </span>
                             )}
                           </td>
-                          <td className="q-c">{line.term.percent}%</td>
+                          <td className="q-c">{percentText(line.term.percent)}%</td>
                           {withVat && (
                             <>
                               <td className="q-r">{formatTHB(line.beforeVat)}</td>

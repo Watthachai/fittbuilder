@@ -2,6 +2,7 @@ import {
   formatTHB,
   maintenanceTotals,
   paymentSchedule,
+  percentText,
   type PaymentLine,
   type QuoteDoc,
 } from "./quote";
@@ -32,7 +33,7 @@ const baht = (n: number) => `฿${formatTHB(n)}`;
  * leaves "60% of what?" to be argued later.
  */
 function money(index: number, line: PaymentLine, vatPercent: number): string {
-  const head = `งวดที่ ${index + 1} จำนวน ${line.term.percent}% เป็นเงิน `;
+  const head = `งวดที่ ${index + 1} จำนวน ${percentText(line.term.percent)}% เป็นเงิน `;
   return vatPercent > 0
     ? `${head}${baht(line.beforeVat)} บวก VAT ${vatPercent}% ${baht(line.vat)} รวม ${baht(line.amount)}`
     : `${head}${baht(line.amount)}`;

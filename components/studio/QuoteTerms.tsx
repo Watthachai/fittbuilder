@@ -14,6 +14,8 @@ import {
   quoteTotals,
   type PaymentTerm,
   type QuoteDoc,
+  percentOfNet,
+  percentText,
 } from "@/lib/quote";
 import { generatedClauses, overriddenIndexes } from "@/lib/quote-clauses";
 import { Field, inputCls, SectionToggle } from "./QuoteFields";
@@ -129,7 +131,7 @@ export default function QuoteTerms({
         extra: (d.acceptance.extra ?? []).filter((_, j) => j !== i),
       },
     }));
-  const { grand } = quoteTotals(doc);
+  const { grand, net } = quoteTotals(doc);
   // Each instalment is a share of the price before VAT, with VAT added on it.
   const withVat = doc.vatPercent > 0;
   const scheduled = Math.round(plan.rows.reduce((s, r) => s + r.amount, 0) * 100) / 100;
@@ -141,6 +143,12 @@ export default function QuoteTerms({
       payment: d.payment.map((t) => (t.id === id ? { ...t, ...patch } : t)),
     }));
   const setPayment = (payment: PaymentTerm[]) => onEdit((d) => ({ ...d, payment }));
+  /** An instalment set by its amount before VAT: the % is worked out from the price. */
+  const setTermAmount = (id: string, amount: number) =>
+    onEdit((d) => ({
+      ...d,
+      payment: d.payment.map((t) => (t.id === id ? { ...t, percent: percentOfNet(d, amount) } : t)),
+    }));
 
   return (
     <div className="mt-5 space-y-4">
@@ -182,7 +190,7 @@ export default function QuoteTerms({
               <tr className="border-b border-night-edge bg-night/60 text-left text-chalk-dim">
                 <th className="w-8 px-2 py-1.5 text-right font-display font-medium">งวด</th>
                 <th className="px-2 py-1.5 font-display font-medium">เงื่อนไขการชำระ</th>
-                <th className="w-16 px-2 py-1.5 text-right font-display font-medium">%</th>
+                <th className="w-20 px-2 py-1.5 text-right font-display font-medium">%</th>
                 <th className="w-20 px-2 py-1.5 text-right font-display font-medium">ภายใน (วัน)</th>
                 {withVat ? (
                   <>
@@ -217,7 +225,7 @@ export default function QuoteTerms({
                       min={0}
                       max={100}
                       step={5}
-                      value={line.term.percent}
+                      value={Number(percentText(line.term.percent))}
                       onChange={(e) => setTerm(line.term.id, { percent: Number(e.target.value) })}
                       disabled={readOnly}
                       className="w-full rounded-md bg-transparent px-1.5 py-1 text-right font-mono text-chalk outline-none focus:bg-night"
@@ -233,15 +241,26 @@ export default function QuoteTerms({
                       className="w-full rounded-md bg-transparent px-1.5 py-1 text-right font-mono text-chalk outline-none focus:bg-night"
                     />
                   </td>
+                  {/* The amount before VAT is typed as well as the %: either one sets
+                      the other, so "฿10,000 a month" is entered as ฿10,000. */}
+                  <td className="px-2 py-1">
+                    <input
+                      type="number"
+                      min={0}
+                      step={1000}
+                      value={line.beforeVat}
+                      onChange={(e) => setTermAmount(line.term.id, Number(e.target.value))}
+                      disabled={readOnly || net <= 0}
+                      title="พิมพ์ยอดก่อน VAT ของงวดนี้ ระบบคำนวณ % ให้"
+                      className="w-full rounded-md bg-transparent px-1.5 py-1 text-right font-mono text-chalk outline-none focus:bg-night"
+                    />
+                  </td>
                   {withVat && (
                     <>
-                      <td className="px-2 py-1 text-right font-mono text-chalk-dim">{formatTHB(line.beforeVat)}</td>
                       <td className="px-2 py-1 text-right font-mono text-chalk-dim">{formatTHB(line.vat)}</td>
+                      <td className="px-2 py-1 text-right font-mono text-chalk">{formatTHB(line.amount)}</td>
                     </>
                   )}
-                  <td className="px-2 py-1 text-right font-mono text-chalk">
-                    {formatTHB(line.amount)}
-                  </td>
                   <td className="px-1">
                     {!readOnly && (
                       <button

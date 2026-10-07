@@ -23,6 +23,21 @@ export const CHANGE_BADGE: Record<ChangeType, { label: string; className: string
 // Newest first. SemVer: fix → PATCH, feature → MINOR, breaking → MAJOR.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.95.2",
+    date: "2026-10-07",
+    title: "พิมพ์ยอดค่างวดเองได้ ระบบคิด % ให้",
+    items: [
+      {
+        type: "fix",
+        text: "แบ่งงวดเท่ากันได้ยอดตรงเป๊ะ เช่น 120,000 แบ่ง 12 งวดได้งวดละ 10,000 ไม่ใช่ 9,996 จากการปัด 8.33% ก่อนคูณ",
+      },
+      {
+        type: "improvement",
+        text: "ช่องยอดก่อน VAT ของแต่ละงวดพิมพ์แก้ได้ ระบบคำนวณ % ของงวดนั้นให้เอง ส่วน % แสดงทศนิยม 2 ตำแหน่ง",
+      },
+    ],
+  },
+  {
     version: "0.95.1",
     date: "2026-10-07",
     title: "งวดชำระคิดจากราคาก่อนภาษีแล้วบวก VAT ทีละงวด",

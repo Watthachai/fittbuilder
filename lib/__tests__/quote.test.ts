@@ -21,6 +21,8 @@ import {
   PAY_NET_DAYS,
   presetEqual,
   presetSigning,
+  percentOfNet,
+  percentText,
   presetUat,
   quoteTotals,
   REVIEW_DAYS,
@@ -413,10 +415,32 @@ describe("paymentSchedule", () => {
     const doc = base({ payment: presetEqual(3), rows: [{ ...emptyRow(0), name: "x", days: 1 }] });
     const { grand } = quoteTotals(doc);
     expect(sum(doc)).toBe(grand);
-    // Thirds of 8,560: two at 33.33% and a fatter last one carrying the rest.
+    // Thirds of 8,560: equal shares, the last one carrying whatever rounding left.
     const amounts = paymentSchedule(doc).rows.map((r) => r.amount);
     expect(amounts[0]).toBe(amounts[1]);
-    expect(amounts[2]).toBeGreaterThan(amounts[1]);
+    expect(Math.abs(amounts[2] - amounts[1])).toBeLessThanOrEqual(0.02);
+  });
+
+  /**
+   * ฿120,000 in twelve is ฿10,000 each. Rounding each share to 8.33% first
+   * made it ฿9,996 eleven times and ฿10,044 once — not what anyone agreed.
+   */
+  it("splits a price into equal instalments without rounding the shares first", () => {
+    const doc = base({ rows: [{ ...emptyRow(0), name: "x", days: 15 }], payment: presetEqual(12) });
+    expect(quoteTotals(doc).net).toBe(120_000);
+    const rows = paymentSchedule(doc).rows;
+    expect(new Set(rows.map((r) => r.beforeVat))).toEqual(new Set([10_000]));
+    expect(new Set(rows.map((r) => r.amount))).toEqual(new Set([10_700]));
+  });
+
+  it("turns a typed instalment amount into its share of the price before VAT", () => {
+    const doc = base({ rows: [{ ...emptyRow(0), name: "x", days: 15 }] });
+    const percent = percentOfNet(doc, 10_000);
+    const withTyped = { ...doc, payment: [{ id: "a", when: "งวดแรก", percent, netDays: 7 }] };
+    expect(paymentSchedule(withTyped).rows[0].beforeVat).toBe(10_000);
+    expect(percentText(percent)).toBe("8.33");
+    expect(percentText(40)).toBe("40");
+    expect(percentOfNet(base({ rows: [] }), 10_000)).toBe(0);
   });
 
   it("keeps twelve instalments adding up to the whole price", () => {

@@ -324,20 +324,34 @@ export function presetSigning(): PaymentTerm[] {
 /**
  * n equal instalments.
  *
- * Each share is rounded DOWN to two decimals and the remainder lands on the last
- * one, so the column still sums to exactly 100% — twelve rows of 8.33 add up to
- * 99.96, and a schedule that does not reach 100 is a schedule that under-bills.
+ * Each share is exactly 100/n, NOT rounded to two decimals first: ฿120,000 in
+ * twelve is ฿10,000 each. Rounding the share to 8.33% made it ฿9,996 eleven
+ * times and ฿10,044 once. The money is rounded where it is printed
+ * (paymentSchedule), and the percentage where it is shown (percentText).
  */
 export function presetEqual(count: number): PaymentTerm[] {
   const n = Math.max(1, Math.floor(num(count)));
-  const each = Math.floor(10_000 / n) / 100;
+  const each = 100 / n;
   return Array.from({ length: n }, (_, i) => ({
     id: `pay-${i + 1}`,
     when: i === 0 ? "งวดแรก — เมื่อลงนามในสัญญา" : `งวดที่ ${i + 1}`,
-    percent: i === n - 1 ? round2(100 - each * (n - 1)) : each,
+    percent: i === n - 1 ? 100 - each * (n - 1) : each,
     netDays: PAY_NET_DAYS,
   }));
 }
+
+/**
+ * The share of the price before VAT that `amount` baht is — what an instalment
+ * amount typed by hand becomes. Kept unrounded so the instalment prints back as
+ * exactly the amount typed. 0 while there is no price to take a share of.
+ */
+export function percentOfNet(doc: QuoteDoc, amount: number): number {
+  const { net } = quoteTotals(doc);
+  return net > 0 ? (Math.max(0, num(amount)) / net) * 100 : 0;
+}
+
+/** A share as people read it: at most two decimals, no trailing zeros — "8.33", "40". */
+export const percentText = (p: number): string => String(round2(num(p)));
 
 export function emptyTerm(index: number): PaymentTerm {
   return { id: `pay-${index + 1}-${index}`, when: "", percent: 0, netDays: PAY_NET_DAYS };

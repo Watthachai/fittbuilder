@@ -133,6 +133,7 @@ import {
   type TurnOutcome,
 } from "@/lib/tasks";
 import { splitTasks } from "@/lib/tasks-client";
+import { brokenNamedImports, restoreExportsPrompt } from "@/lib/named-imports";
 
 const MAX_TERMINAL_LINES = 400;
 // Cap the reasoning text persisted per assistant message — it's a collapsed
@@ -1069,20 +1070,43 @@ export default function Studio({ projectId }: { projectId: string }) {
    * from the files it wrote. The cut is our ceiling (lib/tasks TurnCut), not
    * something the person should pay for by sending the message again.
    */
+  /**
+   * After a turn: a name another file imports that its module no longer exports
+   * (lib/named-imports) is a white screen waiting to be reported — case #2 was
+   * a restyle of ui.tsx that dropped Skeleton. One more turn puts the names
+   * back, by name, before anyone has to report it.
+   */
+  const restoreExports = useCallback(
+    async (myEpoch: number, out: TurnOutcome) => {
+      if (myEpoch !== epochRef.current || (out.status !== "done" && out.status !== "cut")) return;
+      const broken = brokenNamedImports(projectRef.current?.files);
+      if (broken.length === 0) return;
+      pushTerminal(`⚠ export ที่ยังมีคนใช้หายไป: ${broken.map((b) => `${b.name} ← ${b.target}`).join(", ")}`);
+      await generate(restoreExportsPrompt(broken), undefined, undefined, undefined, {
+        quiet: true,
+        label: "เติม export ที่ไฟล์อื่นยังใช้อยู่",
+      });
+    },
+    [generate, pushTerminal]
+  );
+
   const runTurn = useCallback(
     async (text: string, attachments?: ChatAttachmentInput[]): Promise<TurnOutcome> => {
       const myEpoch = epochRef.current;
-      const first = await generate(text, undefined, undefined, attachments);
-      if (first.status !== "cut" || myEpoch !== epochRef.current) return first;
-      return generate(
-        continuationPrompt(text, first.cut ?? "error", first.written),
-        undefined,
-        undefined,
-        attachments,
-        { quiet: true, label: "ทำต่อจากรอบที่หยุดกลางทาง" }
-      );
+      let out = await generate(text, undefined, undefined, attachments);
+      if (out.status === "cut" && myEpoch === epochRef.current) {
+        out = await generate(
+          continuationPrompt(text, out.cut ?? "error", out.written),
+          undefined,
+          undefined,
+          attachments,
+          { quiet: true, label: "ทำต่อจากรอบที่หยุดกลางทาง" }
+        );
+      }
+      await restoreExports(myEpoch, out);
+      return out;
     },
-    [generate]
+    [generate, restoreExports]
   );
 
   /**
@@ -1131,6 +1155,7 @@ export default function Studio({ projectId }: { projectId: string }) {
             label: `${label} (รอบที่ 2)`,
           });
         }
+        await restoreExports(myEpoch, out);
         setTask(task.id, taskOutcome(out));
         if (out.status === "cancelled" || out.status === "busy") return;
       }
@@ -1147,7 +1172,7 @@ export default function Studio({ projectId }: { projectId: string }) {
               .join(", ")} กด "ทำข้อที่ค้างต่อ" ในรายการงานเพื่อทำต่อ`;
       persist(appendMessage(cur, newMessage("assistant", summary, cur.phase)));
     },
-    [generate, persist]
+    [generate, persist, restoreExports]
   );
 
   /**

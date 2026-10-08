@@ -23,6 +23,17 @@ export const CHANGE_BADGE: Record<ChangeType, { label: string; className: string
 // Newest first. SemVer: fix → PATCH, feature → MINOR, breaking → MAJOR.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.97.1",
+    date: "2026-10-08",
+    title: "แก้ดีไซน์แล้วแอปไม่พังเพราะ export หาย",
+    items: [
+      {
+        type: "fix",
+        text: "สั่งแก้สีหรือดีไซน์แล้ว AI เขียนไฟล์ส่วนกลางใหม่จนบางคอมโพเนนต์หายไป (เช่น Skeleton) ทั้งแอปเลยขึ้น error does not provide an export named หลังแก้ทุกรอบระบบตรวจว่ามีชื่อที่ไฟล์อื่นยังใช้อยู่หายไปไหม ถ้ามีจะให้ AI เติมกลับให้ทันทีอีกหนึ่งรอบ",
+      },
+    ],
+  },
+  {
     version: "0.97.0",
     date: "2026-10-08",
     title: "สั่งหลายข้อในข้อความเดียว ได้ครบทุกข้อ",

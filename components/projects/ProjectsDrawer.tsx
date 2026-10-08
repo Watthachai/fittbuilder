@@ -37,6 +37,7 @@ import { confirm } from "@/lib/confirm";
 import { openCreateWorkspace } from "@/lib/workspace-modal";
 import { WorkspaceIcon } from "@/lib/workspace-style";
 import { encodeShareUrl } from "@/lib/share";
+import { fileProjects } from "@/lib/project-folders";
 import type { OrgRecord, ProjectSummary } from "@/lib/types";
 
 type Tab = "mine" | "shared";
@@ -177,12 +178,10 @@ export default function ProjectsDrawer({
     return () => clearTimeout(t);
   }, [toast]);
 
+  const myWorkspaceIds = useMemo(() => new Set(orgs.map((o) => o.id)), [orgs]);
   const { mine, shared } = useMemo(
-    () => ({
-      mine: projects.filter((p) => p.access === "owner"),
-      shared: projects.filter((p) => p.access === "member"),
-    }),
-    [projects],
+    () => fileProjects(projects, myWorkspaceIds),
+    [projects, myWorkspaceIds],
   );
   const visible = useMemo(() => {
     const base = tab === "mine" ? mine : shared;
@@ -205,7 +204,7 @@ export default function ProjectsDrawer({
       icon: string | null;
       items: ProjectSummary[];
     }[] = [];
-    const personal = match(mine.filter((p) => !p.orgId));
+    const personal = match(mine.filter((p) => !p.orgId || !myWorkspaceIds.has(p.orgId)));
     if (personal.length > 0) {
       out.push({
         key: "__personal",
@@ -227,7 +226,7 @@ export default function ProjectsDrawer({
       });
     }
     return out;
-  }, [mine, orgs, query]);
+  }, [mine, orgs, query, myWorkspaceIds]);
 
   const openProject = (id: string) => {
     onClose();

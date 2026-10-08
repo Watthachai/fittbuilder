@@ -58,6 +58,7 @@ const CITE_LABELS: Record<string, string> = {
 import DiffViewer from "./DiffViewer";
 import DnaCaptureChip from "./DnaCaptureChip";
 import Markdown from "./Markdown";
+import TaskChecklist from "./TaskChecklist";
 
 /** Grouped action kinds → header icon + a count-aware Thai header label. */
 const GROUP_META: Record<string, { icon: LucideIcon; header: (n: number) => string }> = {
@@ -108,6 +109,8 @@ interface ChatPanelProps {
   onDnaAdd?: () => void;
   onDnaDismiss?: () => void;
   dnaSaving?: boolean;
+  /** Carry on with a task list's open tasks (the message holding the list). */
+  onResumeTasks?: (messageId: string) => void;
 }
 
 /**
@@ -243,6 +246,7 @@ export default function ChatPanel({
   onDnaAdd,
   onDnaDismiss,
   dnaSaving = false,
+  onResumeTasks,
 }: ChatPanelProps) {
   const [draft, setDraft] = useState("");
   const [picked, setPicked] = useState<string[]>([]);
@@ -511,6 +515,13 @@ export default function ChatPanel({
             <div className="mt-2 min-w-0 break-words [overflow-wrap:anywhere] rounded-lg border border-night-edge border-l-2 border-l-shine bg-shine/[0.05] px-3.5 py-2.5 text-chalk">
               <Markdown>{message.content}</Markdown>
             </div>
+            {message.role === "assistant" && message.tasks && (
+              <TaskChecklist
+                tasks={message.tasks}
+                working={busy || streaming}
+                onResume={readOnly || !onResumeTasks ? undefined : () => onResumeTasks(message.id)}
+              />
+            )}
             {message.role === "assistant" &&
               message.hasDoc &&
               message.phase &&

@@ -63,6 +63,8 @@ export interface StreamTextOptions {
   attachments?: ChatAttachmentInput[];
   /** Called once with the final token usage when the stream ends. */
   onUsage?: (usage: TokenUsage) => void;
+  /** Called once with why the model stopped ("STOP", "MAX_TOKENS", …) when the stream ends normally. */
+  onFinish?: (reason: string | null) => void;
 }
 
 // Backstop only. The browser already trims a long text file and marks where it
@@ -129,8 +131,13 @@ export async function* streamParts(options: StreamTextOptions): AsyncGenerator<S
     },
   });
   let usage: TokenUsage | null = null;
+  let finishReason: string | null = null;
   try {
     for await (const chunk of stream) {
+      // Like usage, the reason arrives on the last chunk. Without it a turn cut
+      // at the output ceiling looks exactly like one that finished.
+      const reason = chunk.candidates?.[0]?.finishReason;
+      if (reason) finishReason = reason;
       // usageMetadata arrives on (typically) the last chunk; keep the latest.
       const m = chunk.usageMetadata;
       if (m) {
@@ -151,6 +158,7 @@ export async function* streamParts(options: StreamTextOptions): AsyncGenerator<S
         }
       }
     }
+    options.onFinish?.(finishReason);
   } finally {
     if (usage && options.onUsage) options.onUsage(usage);
   }

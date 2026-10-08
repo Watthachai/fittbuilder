@@ -67,6 +67,7 @@ import {
 import type {
   AgentTurn,
   ChatAttachmentInput,
+  ChatMessage,
   DocKind,
   GenerationPhase,
   LiveMessage,
@@ -120,6 +121,18 @@ import StatusBar from "./StatusBar";
 import TopBar from "./TopBar";
 import ReportCaseModal, { type CaseReportPreset } from "@/components/cases/ReportCaseModal";
 import type { CaseKind } from "@/lib/cases";
+import {
+  continuationPrompt,
+  looksMultiTask,
+  nextAttempt,
+  taskOutcome,
+  taskProgress,
+  taskTurnPrompt,
+  type BuildTask,
+  type TurnCut,
+  type TurnOutcome,
+} from "@/lib/tasks";
+import { splitTasks } from "@/lib/tasks-client";
 
 const MAX_TERMINAL_LINES = 400;
 // Cap the reasoning text persisted per assistant message — it's a collapsed
@@ -160,7 +173,11 @@ function originalBrief(project: ProjectRecord | null | undefined): string | unde
 
 type LastAction =
   | { kind: "generate"; prompt: string; spec?: SpecPayload }
-  | { kind: "agent"; text: string | null };
+  | { kind: "agent"; text: string | null }
+  /** Splitting a many-item request failed before any task existed. */
+  | { kind: "split"; text: string }
+  /** A task list is under way — retrying carries on with its open tasks. */
+  | { kind: "plan"; planId: string };
 
 /** Names assigned automatically at project creation (see createProject callers in
  *  LaunchPad): a placeholder, the spec/define labels, or the raw prompt prefix.
@@ -778,10 +795,16 @@ export default function Studio({ projectId }: { projectId: string }) {
       prompt: string,
       spec?: SpecPayload,
       base?: ProjectRecord,
-      attachments?: ChatAttachmentInput[]
-    ) => {
+      attachments?: ChatAttachmentInput[],
+      /**
+       * quiet: a turn the studio started on the person's behalf — the next task
+       * of a list, or carrying on after a cut — so no new bubble in their name.
+       * label: what the turn's reply bubble says it was for.
+       */
+      turn?: { quiet?: boolean; label?: string }
+    ): Promise<TurnOutcome> => {
       const current = base ?? projectRef.current;
-      if (!current || !prompt.trim()) return;
+      if (!current || !prompt.trim()) return { status: "failed", note: "", cut: null, written: [] };
       /**
        * One turn at a time — the precondition every entry point funnels through.
        *
@@ -802,18 +825,23 @@ export default function Studio({ projectId }: { projectId: string }) {
         toast.info("กำลังแก้ไขอยู่ครับ", {
           description: "รอรอบนี้เสร็จก่อน หรือกด “หยุด” เพื่อยกเลิกรอบที่กำลังทำอยู่",
         });
-        return;
+        return { status: "busy", note: "", cut: null, written: [] };
       }
 
-      lastActionRef.current = { kind: "generate", prompt, spec };
+      // A quiet turn belongs to a list or a continuation, which keep their own
+      // retry (runTaskList / runTurn) — retrying the inner prompt would post it
+      // as if the person had typed it.
+      if (!turn?.quiet) lastActionRef.current = { kind: "generate", prompt, spec };
       const runnable = hasRunnableApp(current.files);
       const isIteration = runnable && !spec;
 
-      let working = appendMessage(current, {
-        ...newMessage("user", prompt, current.phase),
-        media: mediaOf(attachments),
-        author: { name: nameRef.current, avatar: avatarRef.current },
-      });
+      let working = turn?.quiet
+        ? current
+        : appendMessage(current, {
+            ...newMessage("user", prompt, current.phase),
+            media: mediaOf(attachments),
+            author: { name: nameRef.current, avatar: avatarRef.current },
+          });
       // Snapshot the pre-generation files into history NOW (not only at the end)
       // so a turn interrupted by navigating away is still undoable — paired with
       // the abort-path save below, partial work survives leaving the studio.
@@ -856,6 +884,11 @@ export default function Studio({ projectId }: { projectId: string }) {
        * this runs the complete set is already on disk and clearing is safe.
        */
 
+      // What this turn wrote and whether it was cut — the outcome a task list or
+      // an automatic continuation decides on.
+      const written: string[] = [];
+      let cut: TurnCut | null = null;
+
       try {
         let note = "";
         let deleted: string[] = [];
@@ -892,6 +925,7 @@ export default function Studio({ projectId }: { projectId: string }) {
             pushTerminal(`… ${event.message}`);
           } else if (event.type === "file") {
             streamed[event.path] = event.content;
+            written.push(event.path);
             pushTerminal(`📝 ${event.path}`);
             appendLive((p) => ({ ...p, actions: [...p.actions, { icon: "file", label: event.path }] }));
             if (liveContainer && myEpoch === epochRef.current) {
@@ -913,6 +947,7 @@ export default function Studio({ projectId }: { projectId: string }) {
           } else if (event.type === "done") {
             note = event.note;
             deleted = event.deleted;
+            cut = event.cut;
           }
         }
         for (const path of deleted) delete streamed[path];
@@ -937,7 +972,8 @@ export default function Studio({ projectId }: { projectId: string }) {
           const productName = deriveProductName(files);
           if (productName) working = { ...working, name: productName };
         }
-        const assistantMsg = newMessage("assistant", note || "สร้างเรียบร้อยแล้ว", current.phase);
+        const reply = note || "สร้างเรียบร้อยแล้ว";
+        const assistantMsg = newMessage("assistant", turn?.label ? `**${turn.label}**\n\n${reply}` : reply, current.phase);
         const snap = liveRef.current;
         if (snap?.thinking.trim())
           assistantMsg.thinking = snap.thinking.trim().slice(0, THINKING_STORE_LIMIT);
@@ -946,7 +982,7 @@ export default function Studio({ projectId }: { projectId: string }) {
         // Checkpoint the result so the chat bubble can offer a rollback. Fire
         // and forget: a failed checkpoint must never cost the user the build.
         if (changes.length) {
-          const label = prompt.trim().slice(0, 80);
+          const label = (turn?.label ?? prompt).trim().slice(0, 80);
           void commitRevision({ projectId, files, label, kind: "ai" }).then((sha) => {
             setRevisionTick((t) => t + 1);
             if (!sha) return;
@@ -983,6 +1019,7 @@ export default function Studio({ projectId }: { projectId: string }) {
             await boot(files); // first run with no server → boot it now
           }
         }
+        return { status: cut ? "cut" : "done", note, cut, written };
       } catch (error) {
         if (controller.signal.aborted) {
           // Cancelled mid-stream: keep the PRE-generation files as the saved
@@ -1003,7 +1040,7 @@ export default function Studio({ projectId }: { projectId: string }) {
           } else {
             setPhase(runnable || liveContainer ? "ready" : "idle");
           }
-          return;
+          return { status: "cancelled", note: "", cut: null, written };
         }
         const message = error instanceof Error ? error.message : "เกิดข้อผิดพลาด";
         setErrorMessage(message);
@@ -1011,6 +1048,7 @@ export default function Studio({ projectId }: { projectId: string }) {
         if (!liveContainer) setPhase("error");
         pushTerminal(`✖ ${message}`);
         toast.error("สร้างไม่สำเร็จ", { description: message });
+        return { status: "failed", note: message, cut: null, written };
       } finally {
         // If this ran detached (in the background), flush the final state now so
         // a studio re-opening this project reads the result, not a stale save.
@@ -1026,6 +1064,152 @@ export default function Studio({ projectId }: { projectId: string }) {
     [appendLive, boot, bootScaffold, persist, previewSupported, previewUrl, pushTerminal, setLiveBoth, projectId]
   );
 
+  /**
+   * One message, one turn — and one more when the turn was cut, carrying on
+   * from the files it wrote. The cut is our ceiling (lib/tasks TurnCut), not
+   * something the person should pay for by sending the message again.
+   */
+  const runTurn = useCallback(
+    async (text: string, attachments?: ChatAttachmentInput[]): Promise<TurnOutcome> => {
+      const myEpoch = epochRef.current;
+      const first = await generate(text, undefined, undefined, attachments);
+      if (first.status !== "cut" || myEpoch !== epochRef.current) return first;
+      return generate(
+        continuationPrompt(text, first.cut ?? "error", first.written),
+        undefined,
+        undefined,
+        attachments,
+        { quiet: true, label: "ทำต่อจากรอบที่หยุดกลางทาง" }
+      );
+    },
+    [generate]
+  );
+
+  /**
+   * Work a task list one task per turn (lib/tasks). Each task gets up to two
+   * turns — a cut one continues from what it wrote, a failed one tries again,
+   * one that reported itself incomplete is told what it said it lacks — and
+   * the checklist message is updated as it goes, so a reload shows where the
+   * list got to and its open tasks can be picked up again.
+   */
+  const runTaskList = useCallback(
+    async (planId: string, attachments?: ChatAttachmentInput[]) => {
+      const myEpoch = epochRef.current;
+      const planOf = () => projectRef.current?.messages.find((m) => m.id === planId);
+      const request = planOf()?.taskRequest;
+      const count = planOf()?.tasks?.length ?? 0;
+      if (!request || count === 0) return;
+      lastActionRef.current = { kind: "plan", planId };
+      // The person may have moved to another project; never write this list's
+      // progress into whatever project is open now.
+      const setTask = (taskId: string, patch: Partial<BuildTask>) => {
+        const cur = projectRef.current;
+        if (!cur || myEpoch !== epochRef.current) return;
+        persist({
+          ...cur,
+          messages: cur.messages.map((m) =>
+            m.id === planId && m.tasks
+              ? { ...m, tasks: m.tasks.map((t) => (t.id === taskId ? { ...t, ...patch } : t)) }
+              : m
+          ),
+        });
+      };
+
+      for (let i = 0; i < count; i++) {
+        const tasks = planOf()?.tasks;
+        if (!tasks || myEpoch !== epochRef.current) return;
+        const task = tasks[i];
+        if (task.status === "done") continue;
+        setTask(task.id, { status: "running", note: undefined });
+        const label = `ข้อ ${i + 1}/${count} · ${task.title}`;
+        const prompt = taskTurnPrompt(request, tasks, i);
+        let out = await generate(prompt, undefined, undefined, attachments, { quiet: true, label });
+        const again = nextAttempt(prompt, out);
+        if (again !== null && myEpoch === epochRef.current) {
+          out = await generate(again, undefined, undefined, attachments, {
+            quiet: true,
+            label: `${label} (รอบที่ 2)`,
+          });
+        }
+        setTask(task.id, taskOutcome(out));
+        if (out.status === "cancelled" || out.status === "busy") return;
+      }
+
+      const finished = planOf()?.tasks;
+      const cur = projectRef.current;
+      if (!finished || !cur || myEpoch !== epochRef.current) return;
+      const { done, total, open } = taskProgress(finished);
+      const summary =
+        done === total
+          ? `ทำครบ ${total}/${total} ข้อแล้ว`
+          : `ทำได้ ${done}/${total} ข้อ — ยังค้าง ${open
+              .map((t) => `ข้อ ${finished.indexOf(t) + 1}`)
+              .join(", ")} กด "ทำข้อที่ค้างต่อ" ในรายการงานเพื่อทำต่อ`;
+      persist(appendMessage(cur, newMessage("assistant", summary, cur.phase)));
+    },
+    [generate, persist]
+  );
+
+  /**
+   * A many-item request: split it into tasks first, then work them one turn
+   * each. A request the splitter reads as one change runs as one turn.
+   */
+  const runTasks = useCallback(
+    async (request: string, attachments?: ChatAttachmentInput[]) => {
+      const current = projectRef.current;
+      if (!current) return;
+      if (abortRef.current) {
+        toast.info("กำลังแก้ไขอยู่ครับ", {
+          description: "รอรอบนี้เสร็จก่อน หรือกด “หยุด” เพื่อยกเลิกรอบที่กำลังทำอยู่",
+        });
+        return;
+      }
+      lastActionRef.current = { kind: "split", text: request };
+      setErrorMessage(null);
+      setChatStreaming(true);
+      setLiveBoth({ thinking: "", content: "กำลังแตกคำสั่งเป็นข้อ…", actions: [] });
+      pushTerminal(`▸ แตกคำสั่งเป็นข้อ: ${request.slice(0, 80)}`);
+      let parts: { title: string; detail: string }[];
+      try {
+        parts = await splitTasks(request, current.id);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "แตกงานเป็นข้อไม่สำเร็จ";
+        setErrorMessage(message);
+        setErrorKind("generation");
+        pushTerminal(`✖ ${message}`);
+        toast.error("แตกงานไม่สำเร็จ", { description: message });
+        return;
+      } finally {
+        setChatStreaming(false);
+        setLiveBoth(null);
+      }
+
+      if (parts.length < 2) {
+        await runTurn(request, attachments);
+        return;
+      }
+      const base = projectRef.current;
+      if (!base) return;
+      const asked = appendMessage(base, {
+        ...newMessage("user", request, base.phase),
+        media: mediaOf(attachments),
+        author: { name: nameRef.current, avatar: avatarRef.current },
+      });
+      const plan: ChatMessage = {
+        ...newMessage(
+          "assistant",
+          `แตกเป็น ${parts.length} ข้อ ทำทีละข้อ แต่ละข้อได้รอบของตัวเอง และตรวจว่าครบก่อนไปข้อถัดไป`,
+          base.phase
+        ),
+        taskRequest: request,
+        tasks: parts.map((p, i) => ({ id: `t${i + 1}`, title: p.title, detail: p.detail, status: "pending" })),
+      };
+      persist(appendMessage(asked, plan));
+      await runTaskList(plan.id, attachments);
+    },
+    [persist, pushTerminal, runTaskList, runTurn, setLiveBoth]
+  );
+
   /** Resume the build after the user picks a design (or skips → no directive). */
   const resolveDesign = useCallback(
     (option: DesignOption | null) => {
@@ -1034,9 +1218,9 @@ export default function Studio({ projectId }: { projectId: string }) {
       setDesignOptions(null);
       setDesignBusy(false);
       if (!prompt) return;
-      void generate(option ? `${prompt}\n\n${designStyleDirective(option)}` : prompt);
+      void runTurn(option ? `${prompt}\n\n${designStyleDirective(option)}` : prompt);
     },
-    [generate]
+    [runTurn]
   );
 
   /**
@@ -1048,7 +1232,10 @@ export default function Studio({ projectId }: { projectId: string }) {
     (text: string, attachments?: ChatAttachmentInput[]) => {
       const firstBuild = !hasRunnableApp(projectRef.current?.files ?? null) && previewSupported;
       if (!firstBuild) {
-        void generate(text, undefined, undefined, attachments);
+        // Many items in one message: one turn each, with a checklist, instead of
+        // one turn that runs out half way (lib/tasks).
+        if (looksMultiTask(text)) void runTasks(text, attachments);
+        else void runTurn(text, attachments);
         return;
       }
       setErrorMessage(null);
@@ -1068,7 +1255,7 @@ export default function Studio({ projectId }: { projectId: string }) {
           resolveDesign(null); // graceful fallback: build with no directive
         });
     },
-    [generate, previewSupported, resolveDesign]
+    [previewSupported, resolveDesign, runTasks, runTurn]
   );
 
   /** Build phase auto-kickoff: generate the demo from the approved BRD/PRD. */
@@ -1410,8 +1597,10 @@ export default function Studio({ projectId }: { projectId: string }) {
     const last = lastActionRef.current;
     if (!last) return;
     if (last.kind === "generate") void generate(last.prompt, last.spec);
+    else if (last.kind === "split") void runTasks(last.text);
+    else if (last.kind === "plan") void runTaskList(last.planId);
     else void runAgent(last.text);
-  }, [generate, runAgent]);
+  }, [generate, runAgent, runTaskList, runTasks]);
 
   const fixWithAi = useCallback(() => {
     const recentErrors = terminal.slice(-12).join("\n").slice(0, 400);
@@ -2740,6 +2929,7 @@ export default function Studio({ projectId }: { projectId: string }) {
             onDnaAdd={() => void addDnaCapture()}
             onDnaDismiss={() => setDnaCapture(null)}
             dnaSaving={dnaSaving}
+            onResumeTasks={(planId) => void runTaskList(planId)}
           />
         </div>
 

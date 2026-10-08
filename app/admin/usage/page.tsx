@@ -53,6 +53,7 @@ const KIND_LABELS: Record<string, string> = {
   code_suggestion: "เติมโค้ดอัตโนมัติ",
   generate_skill: "สร้าง Skill Template (AI)",
   org_dna: "ร่าง Org DNA (AI)",
+  split_tasks: "แตกคำสั่งเป็นข้อ",
 };
 
 const num = (n: number | null | undefined) => Number(n ?? 0).toLocaleString("en-US");

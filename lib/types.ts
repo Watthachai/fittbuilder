@@ -1,4 +1,5 @@
 import type { PhaseId } from "./phases";
+import type { BuildTask, TurnCut } from "./tasks";
 
 /** Flat map of file path → file contents for a generated project. */
 export type ProjectFiles = Record<string, string>;
@@ -63,6 +64,10 @@ export interface ChatMessage {
   /** Who wrote this turn. A shared project has many typists — without this the
    *  transcript wears the reader's own face on everyone's messages. */
   author?: { name?: string; avatar?: string | null };
+  /** A many-item request split into tasks, one turn each — rendered as a checklist (lib/tasks). */
+  tasks?: BuildTask[];
+  /** The request those tasks came from, which every task turn is given in full. */
+  taskRequest?: string;
 }
 
 /** One of the 7 Org DNA archetypes (Strategy& / PwC). */
@@ -340,7 +345,8 @@ export type GenerateEvent =
   | { type: "file"; path: string; content: string }
   | { type: "delete"; path: string }
   | { type: "deps"; packages: string[] }
-  | { type: "done"; note: string; deleted: string[] }
+  /** `cut`: the turn stopped before the model finished (lib/tasks TurnCut); null when it ran to the end. */
+  | { type: "done"; note: string; deleted: string[]; cut: TurnCut | null }
   | { type: "error"; message: string };
 
 export interface SpecAnswers {

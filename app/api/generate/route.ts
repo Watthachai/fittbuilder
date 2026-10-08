@@ -38,6 +38,7 @@ import { getProjectOrgDnaContext } from "@/lib/org-context";
 import { resolveSkillForProject } from "@/lib/skills/org-resolve";
 import { createClient } from "@/lib/supabase/server";
 import type { GenerateEvent } from "@/lib/types";
+import { TURN_CUT_LABEL, type TurnCut } from "@/lib/tasks";
 
 // Generation streams file-by-file, so a longer single pass is fine — partial
 // output is still written live, and there's no all-or-nothing JSON parse.
@@ -304,6 +305,11 @@ export async function POST(request: Request) {
 
         const user = await buildUser((message) => send({ type: "status", message }));
         const abort = AbortSignal.timeout(ATTEMPT_TIMEOUT_MS);
+        // Why the turn stopped before the model said it was done, if it did.
+        // Partial output is still kept below; this is what stops the chat from
+        // calling it "เรียบร้อย" and lets the studio carry on from where it cut.
+        // `as`: assigned inside a callback, which TypeScript's narrowing cannot see.
+        let cut = null as TurnCut | null;
         try {
           for await (const part of streamParts({
             system,
@@ -314,6 +320,9 @@ export async function POST(request: Request) {
             level: "medium",
             onUsage: (u) => {
               usage = u;
+            },
+            onFinish: (reason) => {
+              if (reason === "MAX_TOKENS") cut = "tokens";
             },
           })) {
             if (part.thought) {
@@ -349,7 +358,13 @@ export async function POST(request: Request) {
           // Partial output is usable (files were already streamed/written live);
           // only a total failure (nothing produced) is a hard error.
           if (fileCount === 0) throw streamError;
+          cut = streamError instanceof Error && streamError.name === "TimeoutError" ? "time" : "error";
           console.error("[generate] stream ended early, using partial output:", streamError);
+        }
+        if (cut) {
+          console.warn(
+            `[generate] turn cut (${cut}) after ${fileCount} file(s) in ${Math.round((Date.now() - startedAt) / 1000)}s`
+          );
         }
 
         // No <file> block streamed. Before treating that as "nothing to change",
@@ -387,8 +402,13 @@ export async function POST(request: Request) {
         if (fileCount === 0) {
           send({
             type: "done",
-            note: parser.getReply() || "ไม่มีไฟล์ที่ต้องเปลี่ยน — ลองอธิบายสิ่งที่อยากได้ให้ชัดขึ้นได้ครับ",
+            // Cut before the first file: the model spent the turn thinking, which
+            // is not the same thing as there being nothing to change.
+            note: cut
+              ? `ยังไม่ได้แก้ไฟล์ — AI หยุดกลางทางเพราะ${TURN_CUT_LABEL[cut]}`
+              : parser.getReply() || "ไม่มีไฟล์ที่ต้องเปลี่ยน — ลองอธิบายสิ่งที่อยากได้ให้ชัดขึ้นได้ครับ",
             deleted: [],
+            cut,
           });
           close();
           return;
@@ -517,9 +537,16 @@ export async function POST(request: Request) {
               "ซึ่งเป็นไฟล์ที่ประกอบทุกอย่างเข้าด้วยกันและเป็นจุดเริ่มของแอป " +
               "หน้าตัวอย่างจึงยังไม่ใช่สิ่งที่เพิ่งสร้าง กดปุ่มในหน้าตัวอย่างเพื่อให้เขียนสองไฟล์นี้ให้ครบ" +
               assetNote
-            : ((fromJson ? salvagedNote : parser.getReply()) ||
-                (iteration ? "แก้ไขเรียบร้อยแล้ว" : "สร้างระบบเรียบร้อยแล้ว")) + assetNote,
+            : cut
+              ? // Never "เรียบร้อย" for a turn that stopped half way — that line is
+                // what had people sending the same ten-item message again and again.
+                `ยังไม่ครบ — AI หยุดกลางทางเพราะ${TURN_CUT_LABEL[cut]} เขียนไปได้ ${fileCount} ไฟล์` +
+                (parser.getReply() ? `\n\n${parser.getReply()}` : "") +
+                assetNote
+              : ((fromJson ? salvagedNote : parser.getReply()) ||
+                  (iteration ? "แก้ไขเรียบร้อยแล้ว" : "สร้างระบบเรียบร้อยแล้ว")) + assetNote,
           deleted,
+          cut,
         });
         close();
       } catch (error) {

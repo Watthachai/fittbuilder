@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useRef } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { currentUser } from "@/lib/current-user";
 import { storageName } from "@/lib/team-chat";
@@ -74,4 +75,33 @@ export function replyToCase(
 export async function caseAlerts(): Promise<number> {
   const { count } = await call<{ count: number }>("/api/cases/alerts");
   return count;
+}
+
+/** The topic the database pings when a case changes (migration 0048). */
+const CASES_TOPIC = "fittbuilder:cases";
+
+/**
+ * Hear about every change to a case as it happens — a new case, a reply, a
+ * status move — whether it came from the app or straight from the database.
+ * The ping is only an id; refetch through /api/cases to see what changed.
+ */
+export function useCaseChanges(onChange: (caseId: string) => void, enabled = true): void {
+  const latest = useRef(onChange);
+  useEffect(() => {
+    latest.current = onChange;
+  }, [onChange]);
+
+  useEffect(() => {
+    if (!enabled) return;
+    const supabase = createClient();
+    const channel = supabase
+      .channel(CASES_TOPIC)
+      .on("broadcast", { event: "changed" }, ({ payload }) => {
+        latest.current((payload as { caseId: string }).caseId);
+      })
+      .subscribe();
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [enabled]);
 }

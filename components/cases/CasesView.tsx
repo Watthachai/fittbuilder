@@ -6,7 +6,7 @@ import { ChevronDown, ChevronRight, Inbox, Loader2, Plus, Search, Send } from "l
 import ImageLightbox from "@/components/ui/ImageLightbox";
 import { useFileDrop } from "@/lib/useFileDrop";
 import { CASE_STATUS, CASE_STATUSES, type CaseDetail, type CaseStatus, type CaseSummary } from "@/lib/cases";
-import { getCase, listCases, replyToCase } from "@/lib/cases-client";
+import { getCase, listCases, replyToCase, useCaseChanges } from "@/lib/cases-client";
 import ReportCaseModal, { ContextRows } from "./ReportCaseModal";
 import {
   ago,
@@ -59,12 +59,18 @@ export default function CasesView({ initialId }: { initialId: string | null }) {
     void loadList();
   }, [loadList]);
 
-  // Coming back to the tab is when someone wants to know if the team answered.
-  useEffect(() => {
-    const onFocus = () => void loadList();
-    window.addEventListener("focus", onFocus);
-    return () => window.removeEventListener("focus", onFocus);
-  }, [loadList]);
+  // Live: a new case, a reply or a status move anywhere refreshes the list, and
+  // the open thread when it is the one that moved.
+  const [threadTick, setThreadTick] = useState(0);
+  useCaseChanges(
+    useCallback(
+      (caseId: string) => {
+        void loadList();
+        if (caseId === selected) setThreadTick((t) => t + 1);
+      },
+      [loadList, selected]
+    )
+  );
 
   const open = (id: string) => {
     setSelected(id);
@@ -194,7 +200,7 @@ export default function CasesView({ initialId }: { initialId: string | null }) {
 
       <section className="flex min-w-0 flex-1 flex-col">
         {selected ? (
-          <CaseThread key={selected} id={selected} onChanged={() => void loadList()} />
+          <CaseThread key={selected} id={selected} tick={threadTick} onChanged={() => void loadList()} />
         ) : (
           <div className="flex flex-1 flex-col items-center justify-center gap-2 px-8 text-center text-chalk-dim">
             <Inbox size={28} className="text-chalk-dim/60" />
@@ -221,7 +227,7 @@ export default function CasesView({ initialId }: { initialId: string | null }) {
   );
 }
 
-function CaseThread({ id, onChanged }: { id: string; onChanged: () => void }) {
+function CaseThread({ id, tick, onChanged }: { id: string; tick: number; onChanged: () => void }) {
   const [team, setTeam] = useState(false);
   const [detail, setDetail] = useState<CaseDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -245,9 +251,10 @@ function CaseThread({ id, onChanged }: { id: string; onChanged: () => void }) {
     }
   }, [id]);
 
+  // `tick`: the database said this case moved (a reply, a status) — read it again.
   useEffect(() => {
     void load();
-  }, [load]);
+  }, [load, tick]);
 
   const send = async () => {
     setSending(true);

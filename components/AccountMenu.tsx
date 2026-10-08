@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -10,7 +10,7 @@ import { createClient } from "@/lib/supabase/client";
 import { currentUser, type CurrentUser } from "@/lib/current-user";
 import { firstOrg } from "@/lib/orgs";
 import { acceptMyInvite, listMyInvites, type MyInvite } from "@/lib/invites-inbox";
-import { caseAlerts } from "@/lib/cases-client";
+import { caseAlerts, useCaseChanges } from "@/lib/cases-client";
 import { openCreateWorkspace } from "@/lib/workspace-modal";
 import { toast } from "@/lib/toast";
 import { useDismiss } from "@/lib/useDismiss";
@@ -148,25 +148,25 @@ export default function AccountMenu() {
   }, [account]);
 
   // Cases waiting on this person: a team answer they have not read, or — for the
-  // team — a case nobody has opened yet. Re-read on focus, which is when someone
-  // comes back to see whether anything happened.
+  // team — a case nobody has opened yet. Re-read whenever any case moves, live.
+  const [caseTick, setCaseTick] = useState(0);
+  useCaseChanges(
+    useCallback(() => setCaseTick((t) => t + 1), []),
+    Boolean(account)
+  );
   useEffect(() => {
     // Signed out, the chip is not rendered at all; signing in as someone else reloads below.
     if (!account) return;
     let cancelled = false;
-    const load = () =>
-      void caseAlerts()
-        .then((n) => {
-          if (!cancelled) setCaseCount(n);
-        })
-        .catch(() => {});
-    load();
-    window.addEventListener("focus", load);
+    void caseAlerts()
+      .then((n) => {
+        if (!cancelled) setCaseCount(n);
+      })
+      .catch(() => {});
     return () => {
       cancelled = true;
-      window.removeEventListener("focus", load);
     };
-  }, [account]);
+  }, [account, caseTick]);
 
   // Pending invites addressed to this user (project + workspace) — drives the
   // chip's notification dot and the inbox section in the dropdown.

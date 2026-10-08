@@ -424,7 +424,7 @@ export default function PreviewPanel({
             <button
               onClick={() => onReport(problem.report!.kind, problem.report!.error)}
               title="ส่งเรื่องนี้ให้ทีมดูแล พร้อมข้อความ error และล็อก"
-              className="inline-flex shrink-0 items-center gap-1 rounded-md border border-night-edge px-2 py-1 font-display text-[12px] text-chalk-dim transition hover:border-chalk/30 hover:text-chalk"
+              className="inline-flex shrink-0 items-center gap-1 rounded-md bg-red-600 px-2.5 py-1 font-display text-[12px] font-semibold text-white transition hover:bg-red-500"
             >
               <Flag size={12} /> รายงาน
             </button>
@@ -529,7 +529,7 @@ export default function PreviewPanel({
                 )}
                 <button
                   onClick={() => onReport(failedAt, null)}
-                  className="inline-flex items-center gap-1.5 rounded-full border border-night-edge px-4 py-2 font-display text-[13px] text-chalk transition hover:bg-chalk/5"
+                  className="inline-flex items-center gap-1.5 rounded-full bg-red-600 px-4 py-2 font-display text-[13px] font-semibold text-white transition hover:bg-red-500"
                 >
                   <Flag size={14} /> รายงานปัญหา
                 </button>

@@ -8,18 +8,30 @@ import { toast } from "@/lib/toast";
 
 /** Pills, people and pictures shared by the report dialog and the cases page. */
 
+/**
+ * Every status and kind has its own colour, so a list of cases reads at a
+ * glance: orange waits on the team, violet waits on the reporter, blue is being
+ * worked, green is fixed.
+ */
 const STATUS_TONE: Record<CaseStatus, string> = {
-  new: "border-chalk/25 bg-chalk/5 text-chalk-dim",
-  investigating: "border-shine/40 bg-shine/10 text-shine",
-  need_info: "border-amber-400/50 bg-amber-400/10 text-amber-300 light:text-amber-700",
-  fixed: "border-go/40 bg-go/10 text-go",
-  released: "border-go/60 bg-go/20 text-go",
+  new: "border-orange-400/50 bg-orange-400/10 text-orange-300 light:text-orange-700",
+  investigating: "border-sky-400/50 bg-sky-400/10 text-sky-300 light:text-sky-700",
+  need_info: "border-violet-400/50 bg-violet-400/10 text-violet-300 light:text-violet-700",
+  fixed: "border-emerald-400/50 bg-emerald-400/10 text-emerald-300 light:text-emerald-700",
+  released: "border-emerald-500 bg-emerald-500 text-night light:text-white",
+};
+
+const KIND_TONE: Record<CaseKind, string> = {
+  preview: "border-amber-400/50 bg-amber-400/10 text-amber-300 light:text-amber-700",
+  runtime: "border-rose-400/50 bg-rose-400/10 text-rose-300 light:text-rose-700",
+  generation: "border-fuchsia-400/50 bg-fuchsia-400/10 text-fuchsia-300 light:text-fuchsia-700",
+  other: "border-chalk/25 bg-chalk/5 text-chalk-dim",
 };
 
 export function StatusPill({ status }: { status: CaseStatus }) {
   return (
     <span
-      className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border px-2 py-0.5 font-display text-[11px] font-medium ${STATUS_TONE[status]}`}
+      className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border px-2 py-0.5 font-display text-[11px] font-semibold ${STATUS_TONE[status]}`}
     >
       <span className="h-1.5 w-1.5 rounded-full bg-current" />
       {CASE_STATUS[status].label}
@@ -29,17 +41,35 @@ export function StatusPill({ status }: { status: CaseStatus }) {
 
 export function KindPill({ kind }: { kind: CaseKind }) {
   return (
-    <span className="whitespace-nowrap rounded-full border border-night-edge px-2 py-0.5 font-display text-[11px] text-chalk-dim">
+    <span
+      className={`whitespace-nowrap rounded-full border px-2 py-0.5 font-display text-[11px] font-medium ${KIND_TONE[kind]}`}
+    >
       {CASE_KIND[kind]}
     </span>
   );
+}
+
+/** A person keeps one colour across the list and the thread. */
+const PERSON_TONES = [
+  "bg-amber-400/20 text-amber-300 light:text-amber-700",
+  "bg-violet-400/20 text-violet-300 light:text-violet-700",
+  "bg-sky-400/20 text-sky-300 light:text-sky-700",
+  "bg-emerald-400/20 text-emerald-300 light:text-emerald-700",
+  "bg-rose-400/20 text-rose-300 light:text-rose-700",
+  "bg-orange-400/20 text-orange-300 light:text-orange-700",
+];
+
+function toneOf(name: string): string {
+  let h = 0;
+  for (const ch of name) h = (h * 31 + ch.codePointAt(0)!) >>> 0;
+  return PERSON_TONES[h % PERSON_TONES.length];
 }
 
 export function Initial({ name, team = false }: { name: string; team?: boolean }) {
   return (
     <span
       className={`grid h-8 w-8 shrink-0 place-items-center rounded-full font-display text-[13px] font-semibold ${
-        team ? "bg-shine text-night" : "bg-chalk/10 text-chalk/80"
+        team ? "bg-shine text-night" : toneOf(name)
       }`}
     >
       {(name.trim().charAt(0) || "?").toUpperCase()}

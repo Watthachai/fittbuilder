@@ -39,6 +39,7 @@ import { resolveSkillForProject } from "@/lib/skills/org-resolve";
 import { createClient } from "@/lib/supabase/server";
 import type { GenerateEvent } from "@/lib/types";
 import { TURN_CUT_LABEL, type TurnCut } from "@/lib/tasks";
+import { missingDefaultExports } from "@/lib/default-exports";
 
 // Generation streams file-by-file, so a longer single pass is fine — partial
 // output is still written live, and there's no all-or-nothing JSON parse.
@@ -522,6 +523,17 @@ export async function POST(request: Request) {
             }
             shellGap = shellGap.filter((f) => !produced[f]);
           }
+        }
+
+        // A page imported as a default that only exports its name is a white
+        // screen (lib/default-exports). Checked against the whole project once
+        // every file is in — the importer and the page are rarely written
+        // together, and the shell retry above may be what wrote App.tsx.
+        const project: Record<string, string> = { ...(iteration ? body.previousFiles ?? {} : {}), ...produced };
+        for (const path of deleted) delete project[path];
+        for (const [path, content] of Object.entries(missingDefaultExports(project))) {
+          console.info(`[generate] added the default export that ${path}'s importers expect`);
+          send({ type: "file", path, content });
         }
 
         // One park marks completeness, and it lands after every file this turn

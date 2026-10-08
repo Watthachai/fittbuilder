@@ -118,6 +118,8 @@ import ScreenInventory from "./ScreenInventory";
 import SpecFlow, { type SpecResult } from "./SpecFlow";
 import StatusBar from "./StatusBar";
 import TopBar from "./TopBar";
+import ReportCaseModal, { type CaseReportPreset } from "@/components/cases/ReportCaseModal";
+import type { CaseKind } from "@/lib/cases";
 
 const MAX_TERMINAL_LINES = 400;
 // Cap the reasoning text persisted per assistant message — it's a collapsed
@@ -218,6 +220,10 @@ export default function Studio({ projectId }: { projectId: string }) {
   const [notFound, setNotFound] = useState(false);
   const [phase, setPhase] = useState<GenerationPhase>("idle");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  // Where errorMessage came from — the preview pipeline or an AI turn — so the
+  // error screen and a case about it name the right failure.
+  const [errorKind, setErrorKind] = useState<"preview" | "generation">("preview");
+  const [reportPreset, setReportPreset] = useState<CaseReportPreset | null>(null);
   const [terminal, setTerminal] = useState<string[]>([]);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [previewKey, setPreviewKey] = useState(0);
@@ -572,6 +578,7 @@ export default function Studio({ projectId }: { projectId: string }) {
       },
       onError: (message: string) => {
         setErrorMessage(message);
+        setErrorKind("preview");
         setPhase("error");
         pushTerminal(`✖ ${message}`);
       },
@@ -749,6 +756,7 @@ export default function Studio({ projectId }: { projectId: string }) {
         }
         const message = error instanceof Error ? error.message : "เกิดข้อผิดพลาด";
         setErrorMessage(message);
+        setErrorKind("generation");
         pushTerminal(`✖ ${message}`);
         toast.error("AI สะดุด", { description: message });
         return null;
@@ -999,6 +1007,7 @@ export default function Studio({ projectId }: { projectId: string }) {
         }
         const message = error instanceof Error ? error.message : "เกิดข้อผิดพลาด";
         setErrorMessage(message);
+        setErrorKind("generation");
         if (!liveContainer) setPhase("error");
         pushTerminal(`✖ ${message}`);
         toast.error("สร้างไม่สำเร็จ", { description: message });
@@ -1420,6 +1429,31 @@ export default function Studio({ projectId }: { projectId: string }) {
       `ช่วยแก้ error นี้ใน demo:\n\n${err.message}${err.stack ? `\n\nstack:\n${err.stack.slice(0, 1500)}` : ""}`
     );
   }, [generate, previewRuntimeError]);
+
+  /** Open a case for the team, carrying what this studio knows right now. */
+  const openReport = useCallback(
+    (kind: CaseKind, error: string | null) => {
+      const current = projectRef.current;
+      setReportPreset({
+        kind,
+        error: error ?? errorMessage,
+        projectId: current?.id ?? null,
+        projectName: current?.name ?? null,
+        phase,
+        log: terminal,
+        fileCount: current?.files ? Object.keys(current.files).length : null,
+      });
+    },
+    [errorMessage, phase, terminal]
+  );
+
+  /** Boot the preview again from what is saved — the error screen's "ลองเปิดใหม่". */
+  const restartPreview = useCallback(() => {
+    const files = projectRef.current?.files ?? null;
+    setErrorMessage(null);
+    if (hasRunnableApp(files)) void boot(files!);
+    else void bootScaffold();
+  }, [boot, bootScaffold]);
 
   /** Split an oversized file set into the standard layout (Code panel banner). */
   const reorganizeCode = useCallback(() => {
@@ -2780,6 +2814,11 @@ export default function Studio({ projectId }: { projectId: string }) {
                 missingShell={missingShell}
                 onRebuildShell={readOnly ? undefined : rebuildShell}
                 onBridge={takeBridge}
+                failedAt={errorKind}
+                savedFiles={project.files ? Object.keys(project.files).length : 0}
+                onRestart={readOnly ? undefined : restartPreview}
+                onShowCode={() => setView("code")}
+                onReport={openReport}
               />
             ) : view === "history" ? (
               <HistoryPanel
@@ -2809,6 +2848,7 @@ export default function Studio({ projectId }: { projectId: string }) {
             onRetry={retry}
             onFixWithAi={fixWithAi}
             canFix={hasApp}
+            onReport={() => openReport(errorMessage ? errorKind : "other", null)}
           />
         </div>
       </div>
@@ -2816,6 +2856,8 @@ export default function Studio({ projectId }: { projectId: string }) {
       {specOpen && (
         <SpecFlow onClose={() => setSpecOpen(false)} onComplete={handleSpecComplete} />
       )}
+
+      {reportPreset && <ReportCaseModal preset={reportPreset} onClose={() => setReportPreset(null)} />}
 
       <DraftRecovery
         draft={draft?.complete ? null : draft}

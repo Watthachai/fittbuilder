@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { ChevronDown, ChevronUp, Sparkles, Terminal } from "lucide-react";
+import { ChevronDown, ChevronUp, Flag, Sparkles, Terminal } from "lucide-react";
 import type { GenerationPhase } from "@/lib/types";
 import TerminalPanel from "./TerminalPanel";
 
@@ -19,6 +19,8 @@ interface StatusBarProps {
   canFix: boolean;
   onRetry: () => void;
   onFixWithAi: () => void;
+  /** Open a case for the team — about the error shown, or anything else. */
+  onReport: () => void;
 }
 
 export default function StatusBar({
@@ -28,6 +30,7 @@ export default function StatusBar({
   canFix,
   onRetry,
   onFixWithAi,
+  onReport,
 }: StatusBarProps) {
   const [terminalOpen, setTerminalOpen] = useState(false);
   const [tab, setTab] = useState<"output" | "shell">("output");
@@ -122,8 +125,21 @@ export default function StatusBar({
         )}
 
         <button
+          onClick={onReport}
+          title="ส่งเรื่องให้ทีมดูแล พร้อมข้อความ error และล็อกล่าสุด"
+          className={`ml-auto inline-flex shrink-0 items-center gap-1.5 text-[11px] transition ${
+            errorMessage
+              ? "rounded-sm border border-halt/40 px-2 py-0.5 text-halt hover:bg-halt/10"
+              : "text-chalk-dim hover:text-chalk"
+          }`}
+        >
+          <Flag size={11} />
+          {errorMessage ? "รายงานปัญหา" : "แจ้งปัญหา"}
+        </button>
+
+        <button
           onClick={() => setTerminalOpen((open) => !open)}
-          className="ml-auto inline-flex items-center gap-1.5 font-mono text-[11px] text-chalk-dim transition hover:text-chalk"
+          className="inline-flex items-center gap-1.5 font-mono text-[11px] text-chalk-dim transition hover:text-chalk"
         >
           <Terminal size={12} />
           terminal

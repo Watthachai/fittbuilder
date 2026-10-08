@@ -2,9 +2,10 @@
 
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import {
-  ExternalLink, Loader2, Maximize2, Minimize2, Monitor, RotateCw, Smartphone, Tablet, Wand2,
+  Code2, ExternalLink, Flag, Loader2, Maximize2, Minimize2, Monitor, RotateCw, Smartphone, Tablet, Wand2,
 } from "lucide-react";
 import type { AgentAction, GenerationPhase } from "@/lib/types";
+import type { CaseKind } from "@/lib/cases";
 import type { PhaseId } from "@/lib/phases";
 import type { WandTarget } from "@/lib/wand";
 import type { MissingImport } from "@/lib/import-check";
@@ -58,6 +59,15 @@ interface PreviewPanelProps {
   onRebuildShell?: () => void;
   /** Hands the studio a channel into the preview (screen capture drives it). */
   onBridge?: (send: (msg: Record<string, unknown>) => void) => void;
+  /** What put the panel in its error phase: the preview pipeline, or an AI turn. */
+  failedAt: "preview" | "generation";
+  /** Files the project has saved — the preview failing does not mean they are gone. */
+  savedFiles: number;
+  /** Boot the preview again from the saved files (absent for read-only viewers). */
+  onRestart?: () => void;
+  onShowCode: () => void;
+  /** Open a case for the team about what this panel is showing. */
+  onReport: (kind: CaseKind, error: string | null) => void;
 }
 
 export default function PreviewPanel({
@@ -82,6 +92,11 @@ export default function PreviewPanel({
   missingShell = [],
   onRebuildShell,
   onBridge,
+  failedAt,
+  savedFiles,
+  onRestart,
+  onShowCode,
+  onReport,
 }: PreviewPanelProps) {
   const frameRef = useRef<HTMLIFrameElement>(null);
   const [viewport, setViewport] = useState<Viewport>("desktop");
@@ -207,6 +222,8 @@ export default function PreviewPanel({
     detail?: string;
     also?: string;
     action?: { label: string; run: () => void };
+    /** What a case about this problem should say (absent for a network hint — nothing to fix on our side). */
+    report?: { kind: CaseKind; error: string };
     dismiss?: () => void;
   } | null = missingShell.length
     ? {
@@ -229,6 +246,7 @@ export default function PreviewPanel({
         } — สั่ง AI ให้เขียนให้ครบ`,
         detail: missingShell.join("\n"),
         action: onRebuildShell ? { label: "เขียนไฟล์หลักให้ครบ", run: onRebuildShell } : undefined,
+        report: { kind: "preview", error: `ยังไม่มีไฟล์หลักของแอป: ${missingShell.join(", ")}` },
       }
     : missingFiles.length
     ? {
@@ -240,6 +258,12 @@ export default function PreviewPanel({
         action: onCreateMissingFiles
           ? { label: "สร้างไฟล์ที่ขาด", run: onCreateMissingFiles }
           : undefined,
+        report: {
+          kind: "preview",
+          error: `ไฟล์หาย: ${missingFiles.map((m) => `${m.expected} ← ${m.from}`).join(", ")}${
+            liveError ? `\n${liveError.message}` : ""
+          }`,
+        },
       }
     : liveError
       ? {
@@ -248,6 +272,7 @@ export default function PreviewPanel({
           body: liveError.message,
           detail: liveError.message,
           action: onFixError ? { label: "ให้ AI แก้เลย", run: onFixError } : undefined,
+          report: { kind: "runtime", error: liveError.message },
           dismiss: onDismissError,
         }
       : netHint
@@ -395,6 +420,15 @@ export default function PreviewPanel({
               ✦ {problem.action.label}
             </button>
           )}
+          {problem.report && (
+            <button
+              onClick={() => onReport(problem.report!.kind, problem.report!.error)}
+              title="ส่งเรื่องนี้ให้ทีมดูแล พร้อมข้อความ error และล็อก"
+              className="inline-flex shrink-0 items-center gap-1 rounded-md border border-night-edge px-2 py-1 font-display text-[12px] text-chalk-dim transition hover:border-chalk/30 hover:text-chalk"
+            >
+              <Flag size={12} /> รายงาน
+            </button>
+          )}
           {problem.dismiss && (
             <button
               onClick={problem.dismiss}
@@ -462,7 +496,46 @@ export default function PreviewPanel({
             )}
           </div>
         ) : phase === "error" ? (
-          <CenterNote title="เกิดข้อผิดพลาด — ดูรายละเอียดที่แถบด้านล่าง" />
+          /*
+            The build saves its files BEFORE the preview boots, so this screen
+            usually means the preview failed (an install, the dev server), not
+            the work. Saying so is the difference between "my work is gone" and
+            "the preview needs another go".
+          */
+          <CenterNote
+            title={failedAt === "preview" ? "เปิด preview ไม่ขึ้น" : "สร้างไม่สำเร็จ"}
+            body={
+              savedFiles > 0
+                ? `งานไม่ได้หาย ไฟล์ ${savedFiles} ไฟล์บันทึกไว้แล้ว — ดูสาเหตุได้ที่แถบด้านล่าง ลองเปิดใหม่ หรือส่งเรื่องให้ทีม`
+                : "ดูสาเหตุได้ที่แถบด้านล่าง ลองเปิดใหม่ หรือส่งเรื่องให้ทีม"
+            }
+            action={
+              <div className="mt-4 flex flex-wrap justify-center gap-2">
+                {onRestart && (
+                  <button
+                    onClick={onRestart}
+                    className="inline-flex items-center gap-1.5 rounded-full bg-shine px-4 py-2 font-display text-[13px] font-semibold text-night transition hover:brightness-110"
+                  >
+                    <RotateCw size={14} /> ลองเปิดใหม่
+                  </button>
+                )}
+                {savedFiles > 0 && (
+                  <button
+                    onClick={onShowCode}
+                    className="inline-flex items-center gap-1.5 rounded-full border border-night-edge px-4 py-2 font-display text-[13px] text-chalk transition hover:bg-chalk/5"
+                  >
+                    <Code2 size={14} /> ดูโค้ด
+                  </button>
+                )}
+                <button
+                  onClick={() => onReport(failedAt, null)}
+                  className="inline-flex items-center gap-1.5 rounded-full border border-night-edge px-4 py-2 font-display text-[13px] text-chalk transition hover:bg-chalk/5"
+                >
+                  <Flag size={14} /> รายงานปัญหา
+                </button>
+              </div>
+            }
+          />
         ) : (
           <BuildFlow
             phase={phase}

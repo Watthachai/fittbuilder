@@ -3,7 +3,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { ArrowLeft, BarChart3, Handshake, Loader2, Plus, ShieldCheck } from "lucide-react";
+import { ArrowLeft, BarChart3, Handshake, LifeBuoy, Loader2, Plus, ShieldCheck } from "lucide-react";
 import { currentUser } from "@/lib/current-user";
 import { listOrgs } from "@/lib/orgs";
 import { openCreateWorkspace } from "@/lib/workspace-modal";
@@ -16,9 +16,9 @@ interface Account {
   avatar: string | null;
 }
 
-/** Shared chrome for the account/settings pages (Org DNA, Skill Templates, AI
- *  usage): a left sidebar with the user's profile + section nav, so the pages feel
- *  like one place instead of three disconnected screens. */
+/** Shared chrome for the account/settings pages (Org DNA, cases, Skill Templates,
+ *  AI usage): a left sidebar with the user's profile + section nav, so the pages
+ *  feel like one place instead of disconnected screens. */
 export default function SettingsShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
@@ -129,6 +129,17 @@ export default function SettingsShell({ children }: { children: ReactNode }) {
               <Plus size={15} className="shrink-0" /> สร้าง workspace ใหม่
             </button>
           </div>
+
+          <p className="mt-5 px-3 pb-1.5 font-display text-[11px] font-semibold uppercase tracking-wide text-chalk-dim/60">
+            ช่วยเหลือ
+          </p>
+          <NavLink
+            href="/cases"
+            active={pathname === "/cases"}
+            icon={<LifeBuoy size={15} className="shrink-0" />}
+          >
+            แจ้งเคส / ติดตามปัญหา
+          </NavLink>
 
           {isAdmin && (
             <>

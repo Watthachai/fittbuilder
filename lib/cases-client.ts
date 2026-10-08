@@ -1,0 +1,77 @@
+"use client";
+
+import { createClient } from "@/lib/supabase/client";
+import { currentUser } from "@/lib/current-user";
+import { storageName } from "@/lib/team-chat";
+import type {
+  CaseAttachment,
+  CaseContext,
+  CaseDetail,
+  CaseKind,
+  CaseStatus,
+  CaseSummary,
+} from "@/lib/cases";
+
+/** The browser side of cases: pictures go straight to storage, everything else through /api/cases. */
+
+const BUCKET = "case-files";
+const MAX_FILE_BYTES = 5 * 1024 * 1024;
+export const CASE_IMAGE_ACCEPT = "image/png,image/jpeg,image/webp,image/gif";
+
+async function call<T>(url: string, init?: RequestInit): Promise<T> {
+  const res = await fetch(url, init);
+  const data = (await res.json()) as T & { error?: string };
+  if (!res.ok) throw new Error(data.error ?? `คำขอไม่สำเร็จ (${res.status})`);
+  return data;
+}
+
+const post = (body: unknown): RequestInit => ({
+  method: "POST",
+  headers: { "content-type": "application/json" },
+  body: JSON.stringify(body),
+});
+
+/** Upload one picture into the signed-in person's own folder of the case bucket. */
+export async function uploadCaseImage(file: File): Promise<CaseAttachment> {
+  if (!/^image\/(png|jpeg|webp|gif)$/.test(file.type)) throw new Error("แนบได้เฉพาะรูป PNG · JPG · WebP · GIF");
+  if (file.size > MAX_FILE_BYTES) throw new Error(`${file.name} ใหญ่เกิน 5MB`);
+  const user = await currentUser();
+  if (!user) throw new Error("ยังไม่ได้เข้าสู่ระบบ");
+  const path = `${user.id}/${crypto.randomUUID()}-${storageName(file.name)}`;
+  const { error } = await createClient()
+    .storage.from(BUCKET)
+    .upload(path, file, { contentType: file.type, upsert: false });
+  if (error) throw error;
+  return { path, name: file.name, type: file.type, size: file.size };
+}
+
+export function listCases(scope: "all" | "mine"): Promise<{ team: boolean; cases: CaseSummary[] }> {
+  return call(`/api/cases?scope=${scope}`);
+}
+
+export function getCase(id: string): Promise<{ team: boolean; case: CaseDetail }> {
+  return call(`/api/cases/${id}`);
+}
+
+export function createCase(input: {
+  title: string;
+  kind: CaseKind;
+  body: string;
+  projectId: string | null;
+  context: CaseContext;
+  attachments: CaseAttachment[];
+}): Promise<{ id: string; number: number }> {
+  return call("/api/cases", post(input));
+}
+
+export function replyToCase(
+  id: string,
+  input: { body: string; attachments: CaseAttachment[]; status: CaseStatus | null; fixedIn: string | null }
+): Promise<{ ok: true }> {
+  return call(`/api/cases/${id}`, post(input));
+}
+
+export async function caseAlerts(): Promise<number> {
+  const { count } = await call<{ count: number }>("/api/cases/alerts");
+  return count;
+}

@@ -5,11 +5,12 @@ import { createPortal } from "react-dom";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "motion/react";
-import { BarChart3, Check, Dna, FileCode, Loader2, LogOut, ShieldCheck, Stethoscope, Users, X } from "lucide-react";
+import { BarChart3, Check, Dna, FileCode, LifeBuoy, Loader2, LogOut, ShieldCheck, Stethoscope, Users, X } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { currentUser, type CurrentUser } from "@/lib/current-user";
 import { firstOrg } from "@/lib/orgs";
 import { acceptMyInvite, listMyInvites, type MyInvite } from "@/lib/invites-inbox";
+import { caseAlerts } from "@/lib/cases-client";
 import { openCreateWorkspace } from "@/lib/workspace-modal";
 import { toast } from "@/lib/toast";
 import { useDismiss } from "@/lib/useDismiss";
@@ -38,6 +39,7 @@ export default function AccountMenu() {
   const [signingOut, setSigningOut] = useState(false);
   const [openingOrg, setOpeningOrg] = useState(false);
   const [invites, setInvites] = useState<MyInvite[]>([]);
+  const [caseCount, setCaseCount] = useState(0);
   const [accepting, setAccepting] = useState<string | null>(null);
   const [theme, setTheme] = useTheme();
 
@@ -145,6 +147,27 @@ export default function AccountMenu() {
     };
   }, [account]);
 
+  // Cases waiting on this person: a team answer they have not read, or — for the
+  // team — a case nobody has opened yet. Re-read on focus, which is when someone
+  // comes back to see whether anything happened.
+  useEffect(() => {
+    // Signed out, the chip is not rendered at all; signing in as someone else reloads below.
+    if (!account) return;
+    let cancelled = false;
+    const load = () =>
+      void caseAlerts()
+        .then((n) => {
+          if (!cancelled) setCaseCount(n);
+        })
+        .catch(() => {});
+    load();
+    window.addEventListener("focus", load);
+    return () => {
+      cancelled = true;
+      window.removeEventListener("focus", load);
+    };
+  }, [account]);
+
   // Pending invites addressed to this user (project + workspace) — drives the
   // chip's notification dot and the inbox section in the dropdown.
   useEffect(() => {
@@ -192,12 +215,12 @@ export default function AccountMenu() {
             Admin
           </span>
         )}
-        {invites.length > 0 && (
+        {invites.length + caseCount > 0 && (
           <span
-            aria-label={`มีคำเชิญ ${invites.length} รายการ`}
+            aria-label={`มีคำเชิญ ${invites.length} รายการ และเคสที่รอดู ${caseCount} เคส`}
             className="absolute -right-0.5 -top-0.5 grid h-4 min-w-4 place-items-center rounded-full bg-shine px-1 font-mono text-[9px] font-bold text-night"
           >
-            {invites.length}
+            {invites.length + caseCount}
           </span>
         )}
       </button>
@@ -328,6 +351,18 @@ export default function AccountMenu() {
                   </span>
                 </Link>
               )}
+              <Link
+                href="/cases"
+                onClick={() => setOpen(false)}
+                className="flex w-full items-center justify-center gap-2 rounded-full border border-chalk/15 py-2.5 font-display text-sm text-chalk/85 transition hover:bg-chalk/5 hover:text-chalk"
+              >
+                <LifeBuoy size={15} className="text-shine" /> แจ้งเคส / ติดตามปัญหา
+                {caseCount > 0 && (
+                  <span className="grid h-5 min-w-5 place-items-center rounded-full bg-shine px-1.5 font-mono text-[10px] font-bold text-night">
+                    {caseCount}
+                  </span>
+                )}
+              </Link>
               <button
                 onClick={() => void openOrgDna()}
                 disabled={openingOrg}

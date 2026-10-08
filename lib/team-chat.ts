@@ -170,7 +170,7 @@ export async function fileUrls(paths: string[]): Promise<Record<string, string>>
  * OS, so a library of ten of them is unreadable — generic names get the date
  * and time appended, which is the only thing that actually distinguishes them.
  */
-function storageName(original: string): string {
+export function storageName(original: string): string {
   const safe = original.replace(/[^\w.\-]/g, "_");
   const dot = safe.lastIndexOf(".");
   const base = dot > 0 ? safe.slice(0, dot) : safe;

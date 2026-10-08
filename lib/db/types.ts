@@ -105,6 +105,74 @@ export interface Database {
         };
         Relationships: [];
       };
+      /** RLS on, no policies (migration 0047) — /api/cases only, via the service role. */
+      fittbuilder_cases: {
+        Row: {
+          id: string;
+          number: number;
+          reporter_id: string;
+          project_id: string | null;
+          title: string;
+          kind: "preview" | "runtime" | "generation" | "other";
+          status: "new" | "investigating" | "need_info" | "fixed" | "released";
+          context: Json;
+          fixed_in: string | null;
+          last_reporter_at: string;
+          last_team_at: string | null;
+          reporter_seen_at: string;
+          team_seen_at: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          reporter_id: string;
+          project_id?: string | null;
+          title: string;
+          kind: "preview" | "runtime" | "generation" | "other";
+          status?: "new" | "investigating" | "need_info" | "fixed" | "released";
+          context?: Json;
+          fixed_in?: string | null;
+          last_reporter_at?: string;
+          last_team_at?: string | null;
+          reporter_seen_at?: string;
+          team_seen_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          reporter_seen_at?: string;
+          team_seen_at?: string | null;
+        };
+        Relationships: [];
+      };
+      /** RLS on, no policies (migration 0047). Inserting one moves its case (trigger). */
+      fittbuilder_case_messages: {
+        Row: {
+          id: string;
+          case_id: string;
+          author_id: string | null;
+          author_kind: "reporter" | "team";
+          body: string;
+          attachments: Json;
+          status_to: "new" | "investigating" | "need_info" | "fixed" | "released" | null;
+          fixed_in: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          case_id: string;
+          author_id?: string | null;
+          author_kind: "reporter" | "team";
+          body?: string;
+          attachments?: Json;
+          status_to?: "new" | "investigating" | "need_info" | "fixed" | "released" | null;
+          fixed_in?: string | null;
+          created_at?: string;
+        };
+        Update: Record<string, never>;
+        Relationships: [];
+      };
       fittbuilder_project_quotes: {
         Row: {
           project_id: string;

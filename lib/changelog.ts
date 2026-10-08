@@ -23,6 +23,25 @@ export const CHANGE_BADGE: Record<ChangeType, { label: string; className: string
 // Newest first. SemVer: fix → PATCH, feature → MINOR, breaking → MAJOR.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.96.0",
+    date: "2026-10-08",
+    title: "แจ้งเคส / ติดตามปัญหา",
+    items: [
+      {
+        type: "feature",
+        text: "กดรายงานปัญหาได้จากหน้าที่เห็น error ทั้งหน้า preview เปิดไม่ขึ้น แถบ แอปมี error และแถบสถานะใต้ preview ระบบแนบข้อความ error ล็อกช่วงท้าย โปรเจกต์ และเวอร์ชันให้เอง ผู้แจ้งเล่าเพิ่มและแนบภาพหน้าจอได้",
+      },
+      {
+        type: "feature",
+        text: "หน้า แจ้งเคส / ติดตามปัญหา เก็บประวัติทุกเคส คุยกับทีมต่อในเคสเดิมได้ เห็นสถานะตั้งแต่ รอตรวจสอบ จนถึง ปล่อยแล้ว และมีตัวเลขที่ปุ่มบัญชีเมื่อทีมตอบ",
+      },
+      {
+        type: "improvement",
+        text: "หน้า error หลังสร้างเสร็จบอกว่างานไม่ได้หาย ไฟล์บันทึกไว้กี่ไฟล์ พร้อมปุ่มลองเปิดใหม่ ดูโค้ด และรายงานปัญหา",
+      },
+    ],
+  },
+  {
     version: "0.95.2",
     date: "2026-10-07",
     title: "พิมพ์ยอดค่างวดเองได้ ระบบคิด % ให้",

@@ -23,6 +23,21 @@ export const CHANGE_BADGE: Record<ChangeType, { label: string; className: string
 // Newest first. SemVer: fix → PATCH, feature → MINOR, breaking → MAJOR.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.97.2",
+    date: "2026-10-08",
+    title: "หน้ารายงานการใช้ AI แบ่งหน้า",
+    items: [
+      {
+        type: "improvement",
+        text: "ตารางต่อ Chat และต่อผู้ใช้ในหน้ารายงานการใช้ AI แบ่งหน้าละ 20 แถว มีปุ่มก่อนหน้า ถัดไป และเลขหน้า ไม่ต้องเลื่อนยาวเมื่อข้อมูลเยอะ",
+      },
+      {
+        type: "fix",
+        text: "ข้อความที่ผู้แจ้งเพิ่มในเคสของตัวเองนับเป็นของผู้แจ้งเสมอ แม้ผู้แจ้งเป็นทีมดูแล เดิมระบบนับเป็นคำตอบของทีมจนเคสดูเหมือนตอบแล้ว",
+      },
+    ],
+  },
+  {
     version: "0.97.1",
     date: "2026-10-08",
     title: "แก้ดีไซน์แล้วแอปไม่พังเพราะ export หาย",

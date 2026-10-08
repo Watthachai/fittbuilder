@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
+  authorKindFor,
   CASE_STATUSES,
   ownsAttachmentPath,
   type CaseAttachment,
@@ -48,7 +49,8 @@ async function markSeen(viewer: CaseViewer, row: CaseRow): Promise<void> {
   const now = new Date().toISOString();
   const update = {
     ...(row.reporter_id === viewer.id ? { reporter_seen_at: now } : {}),
-    ...(viewer.team ? { team_seen_at: now } : {}),
+    // Seen BY THE TEAM only when someone on it opens another person's case.
+    ...(authorKindFor(viewer, row.reporter_id) === "team" ? { team_seen_at: now } : {}),
   };
   const { error } = await createAdminClient().from("fittbuilder_cases").update(update).eq("id", row.id);
   if (error) throw error;
@@ -98,7 +100,8 @@ export async function GET(_request: Request, ctx: { params: Promise<{ id: string
     context: row.context as CaseContext,
     messages,
   };
-  return Response.json({ team: viewer.team, case: detail });
+  // `team`: may answer as the team here — not on a case of your own.
+  return Response.json({ team: authorKindFor(viewer, row.reporter_id) === "team", case: detail });
 }
 
 const replySchema = z.object({
@@ -123,7 +126,8 @@ export async function POST(request: Request, ctx: { params: Promise<{ id: string
 
   const row = await loadCase(id);
   if (!row || !mayOpen(viewer, row)) return Response.json({ error: "ไม่พบเคสนี้" }, { status: 404 });
-  if (!viewer.team && (input.status !== null || input.fixedIn !== null)) {
+  const authorKind = authorKindFor(viewer, row.reporter_id);
+  if (authorKind === "reporter" && (input.status !== null || input.fixedIn !== null)) {
     return Response.json({ error: "เปลี่ยนสถานะได้เฉพาะทีมดูแล" }, { status: 403 });
   }
   if (!input.attachments.every((a) => ownsAttachmentPath(viewer.id, a.path))) {
@@ -137,7 +141,7 @@ export async function POST(request: Request, ctx: { params: Promise<{ id: string
   const { error } = await createAdminClient().from("fittbuilder_case_messages").insert({
     case_id: id,
     author_id: viewer.id,
-    author_kind: viewer.team ? "team" : "reporter",
+    author_kind: authorKind,
     body: input.body,
     attachments: input.attachments as Json,
     status_to: statusTo,

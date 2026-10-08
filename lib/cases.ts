@@ -145,6 +145,15 @@ export interface CaseActivity {
   team_seen_at: string | null;
 }
 
+/**
+ * Who a message speaks for. On your own case you are the reporter, even when
+ * you are also on the team — case #3's follow-up from an admin was filed as a
+ * team answer, so the case looked answered and nobody picked it up.
+ */
+export function authorKindFor(viewer: { id: string; team: boolean }, reporterId: string): "reporter" | "team" {
+  return viewer.id === reporterId || !viewer.team ? "reporter" : "team";
+}
+
 /** The team answered since the reporter last opened the case. */
 export function unreadForReporter(c: CaseActivity): boolean {
   return c.last_team_at !== null && Date.parse(c.last_team_at) > Date.parse(c.reporter_seen_at);

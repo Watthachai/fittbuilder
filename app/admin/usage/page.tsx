@@ -1,9 +1,11 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import SettingsShell from "@/components/settings/SettingsShell";
 import { getAdminUser } from "@/lib/admin-server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { estimateCostUsd } from "@/lib/ai-usage";
 import { GEMINI_MODEL } from "@/lib/gemini";
+import { pageOf, type Page } from "@/lib/paging";
 
 export const metadata = { title: "Admin · รายงานการใช้ AI" };
 
@@ -61,9 +63,12 @@ const usd = (n: number) => `$${n.toFixed(4)}`;
 const compact = (n: number) =>
   n >= 1e6 ? `${(n / 1e6).toFixed(1)}M` : n >= 1e3 ? `${(n / 1e3).toFixed(1)}k` : `${n}`;
 
-export default async function AdminUsagePage() {
+export default async function AdminUsagePage(props: PageProps<"/admin/usage">) {
   const user = await getAdminUser();
   if (!user) redirect("/");
+  // Each long table pages on its own (?chats= · ?users=), so moving through one
+  // keeps the other where it was.
+  const query = await props.searchParams;
 
   const admin = createAdminClient();
   const { data, error } = await admin.rpc("fittbuilder_ai_usage_report");
@@ -107,6 +112,9 @@ export default async function AdminUsagePage() {
   }
   const daily = [...byDay.entries()].map(([key, tokens]) => ({ key, tokens, label: key.slice(5) }));
   const maxDaily = Math.max(1, ...daily.map((d) => d.tokens));
+
+  const chats = pageOf(report.by_project, query.chats);
+  const people = pageOf(report.by_user, query.users);
 
   const topUsers = [...report.by_user]
     .sort((a, b) => Number(b.total_tokens) - Number(a.total_tokens))
@@ -236,8 +244,8 @@ export default async function AdminUsagePage() {
 
         <Section title="ต่อ Chat (โปรเจกต์)">
           <Table head={["Chat", "เจ้าของ", "เรียก", "Input", "Output", "รวม tokens", "ประมาณค่าใช้จ่าย", "ล่าสุด"]}>
-            {report.by_project.length === 0 && <Empty cols={8} />}
-            {report.by_project.map((r, i) => (
+            {chats.total === 0 && <Empty cols={8} />}
+            {chats.items.map((r, i) => (
               <tr key={r.project_id ?? `none-${i}`} className="border-t border-night-edge">
                 <Td>{r.project_name ?? <span className="text-chalk-dim">— ไม่ผูกกับ chat —</span>}</Td>
                 <Td className="text-chalk-dim">{r.owner_email ?? "—"}</Td>
@@ -250,12 +258,13 @@ export default async function AdminUsagePage() {
               </tr>
             ))}
           </Table>
+          <Pager page={chats} href={(n) => `?chats=${n}&users=${people.page}`} />
         </Section>
 
         <Section title="ต่อผู้ใช้">
           <Table head={["ผู้ใช้", "เรียก", "Input", "Output", "รวม tokens", "ประมาณค่าใช้จ่าย"]}>
-            {report.by_user.length === 0 && <Empty cols={6} />}
-            {report.by_user.map((r, i) => (
+            {people.total === 0 && <Empty cols={6} />}
+            {people.items.map((r, i) => (
               <tr key={r.user_id ?? `none-${i}`} className="border-t border-night-edge">
                 <Td>{r.email ?? <span className="text-chalk-dim">— ไม่ระบุ —</span>}</Td>
                 <Td>{num(r.calls)}</Td>
@@ -266,6 +275,7 @@ export default async function AdminUsagePage() {
               </tr>
             ))}
           </Table>
+          <Pager page={people} href={(n) => `?chats=${chats.page}&users=${n}`} />
         </Section>
       </div>
     </SettingsShell>
@@ -323,6 +333,48 @@ function Table({ head, children }: { head: string[]; children: React.ReactNode }
       </thead>
       <tbody>{children}</tbody>
     </table>
+  );
+}
+
+/** Where a long table is, and the way to the rest of it. Hidden while one page holds everything. */
+function Pager<T>({ page, href }: { page: Page<T>; href: (n: number) => string }) {
+  if (page.pages <= 1) return null;
+  // First, last, and two either side of the current page — enough to jump without a wall of numbers.
+  const shown = Array.from({ length: page.pages }, (_, i) => i + 1).filter(
+    (n) => n === 1 || n === page.pages || Math.abs(n - page.page) <= 2
+  );
+  const link = "grid h-7 min-w-7 place-items-center rounded-md px-2 font-mono text-[12px] transition";
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-2 border-t border-night-edge px-3 py-2.5">
+      <span className="text-[12px] text-chalk-dim">
+        แสดง {page.from}–{page.to} จาก {page.total} · หน้า {page.page}/{page.pages}
+      </span>
+      <nav className="flex items-center gap-1" aria-label="เปลี่ยนหน้า">
+        {page.page > 1 && (
+          <Link href={href(page.page - 1)} scroll={false} className={`${link} text-chalk-dim hover:bg-chalk/5 hover:text-chalk`}>
+            ก่อนหน้า
+          </Link>
+        )}
+        {shown.map((n, i) => (
+          <span key={n} className="flex items-center gap-1">
+            {i > 0 && n - shown[i - 1] > 1 && <span className="px-1 text-chalk-dim">…</span>}
+            <Link
+              href={href(n)}
+              scroll={false}
+              aria-current={n === page.page ? "page" : undefined}
+              className={`${link} ${n === page.page ? "bg-shine font-semibold text-night" : "text-chalk-dim hover:bg-chalk/5 hover:text-chalk"}`}
+            >
+              {n}
+            </Link>
+          </span>
+        ))}
+        {page.page < page.pages && (
+          <Link href={href(page.page + 1)} scroll={false} className={`${link} text-chalk-dim hover:bg-chalk/5 hover:text-chalk`}>
+            ถัดไป
+          </Link>
+        )}
+      </nav>
+    </div>
   );
 }
 

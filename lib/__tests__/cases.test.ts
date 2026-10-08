@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  authorKindFor,
   buildCaseContext,
   needsTeam,
   ownsAttachmentPath,
@@ -84,6 +85,20 @@ describe("ownsAttachmentPath", () => {
   it("refuses a path that climbs or nests", () => {
     expect(ownsAttachmentPath(ME, `${ME}/../${SOMEONE}/a.png`)).toBe(false);
     expect(ownsAttachmentPath(ME, `${ME}/sub/a.png`)).toBe(false);
+  });
+});
+
+describe("authorKindFor", () => {
+  it("files a message on your own case as the reporter's, even from the team (case #3)", () => {
+    expect(authorKindFor({ id: ME, team: true }, ME)).toBe("reporter");
+  });
+
+  it("files the team's answer on someone else's case as the team's", () => {
+    expect(authorKindFor({ id: ME, team: true }, SOMEONE)).toBe("team");
+  });
+
+  it("files a non-team reporter as the reporter", () => {
+    expect(authorKindFor({ id: SOMEONE, team: false }, SOMEONE)).toBe("reporter");
   });
 });
 

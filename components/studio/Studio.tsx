@@ -547,6 +547,16 @@ export default function Studio({ projectId }: { projectId: string }) {
   const wcBusy = phase === "generating" || phase === "installing" || phase === "starting";
   const busy = wcBusy || chatStreaming || taskRun !== null;
 
+  // A task list is worked by this tab: closing or reloading it — the "มีเวอร์ชันใหม่"
+  // bar after a deploy included — stops the list at the task in flight. The
+  // server finishes that one turn, and nothing starts the next (case #10).
+  useEffect(() => {
+    if (taskRun === null) return;
+    const onBeforeUnload = (event: BeforeUnloadEvent) => event.preventDefault();
+    window.addEventListener("beforeunload", onBeforeUnload);
+    return () => window.removeEventListener("beforeunload", onBeforeUnload);
+  }, [taskRun]);
+
   const pushTerminal = useCallback((line: string) => {
     setTerminal((prev) => [...prev.slice(-MAX_TERMINAL_LINES), line]);
   }, []);

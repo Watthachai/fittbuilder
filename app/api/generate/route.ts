@@ -40,17 +40,28 @@ import { createClient } from "@/lib/supabase/server";
 import type { GenerateEvent } from "@/lib/types";
 import { TURN_CUT_LABEL, type TurnCut } from "@/lib/tasks";
 import { missingDefaultExports } from "@/lib/default-exports";
+import { outcomeOf, type RecordedTurn } from "@/lib/generate-outcome";
 
 // Generation streams file-by-file, so a longer single pass is fine — partial
 // output is still written live, and there's no all-or-nothing JSON parse.
-export const maxDuration = 300;
-const ATTEMPT_TIMEOUT_MS = 240_000;
+// 900s is Cloud Run's request timeout (`--timeout` in cloudbuild.*.yaml), the
+// cap that actually ends the request; this states it for the build output.
+export const maxDuration = 900;
 
 /**
- * The wall clock the whole route has, kept a little under maxDuration so the
- * shell retry below can still answer instead of being cut off mid-write.
+ * One pass of the model. It was 240s, and on large projects (prompts of 300k+
+ * tokens) about one turn in six ran into it: median turns took ~2 minutes and
+ * the slow tail sat right at the cap, so the clock — not the work — decided
+ * where a turn ended. 540s leaves the shell retry and the 60s margin below
+ * inside Cloud Run's 900s.
  */
-const DEADLINE_MS = 285_000;
+const ATTEMPT_TIMEOUT_MS = 540_000;
+
+/**
+ * The wall clock the whole route has, kept under maxDuration so the shell
+ * retry below can still answer instead of being cut off mid-write.
+ */
+const DEADLINE_MS = 840_000;
 
 /** How often the server parks what it has produced. Mirrors the studio's own
  *  cadence — see DRAFT_INTERVAL_MS in Studio.tsx. */
@@ -207,8 +218,11 @@ export async function POST(request: Request) {
   };
 
   let usage: TokenUsage | null = null;
+  // How the turn ended and how long it ran: what the admin report counts cut
+  // and failed builds from. Set where the turn ends, read once the response is done.
+  let turn: RecordedTurn | null = null;
   after(() =>
-    void recordUsage({ userId, projectId: ctxProjectId, kind: "generate", usage })
+    void recordUsage({ userId, projectId: ctxProjectId, kind: "generate", usage, turn })
   );
 
   const stream = new ReadableStream<Uint8Array>({
@@ -545,6 +559,7 @@ export async function POST(request: Request) {
 
         const shellMissing = !iteration && wroteScreens && shellGap.length > 0;
 
+        turn = { outcome: outcomeOf(cut), durationMs: Date.now() - startedAt, error: null };
         send({
           type: "done",
           note: shellMissing
@@ -572,6 +587,11 @@ export async function POST(request: Request) {
               ? "AI ใช้เวลานานเกินไป กรุณาลองใหม่"
               : "สร้างไม่สำเร็จ กรุณาลองใหม่อีกครั้ง";
         console.error("[generate] failed:", error);
+        turn = {
+          outcome: "failed",
+          durationMs: Date.now() - startedAt,
+          error: (error instanceof Error ? error.message : String(error)).slice(0, 500),
+        };
         send({ type: "error", message });
         close();
       }

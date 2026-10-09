@@ -2,6 +2,7 @@ import "server-only";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { GEMINI_MODEL, type TokenUsage } from "@/lib/gemini";
+import type { RecordedTurn } from "@/lib/generate-outcome";
 
 /** Which AI endpoint produced the call (grouped in the admin report). */
 export type UsageKind =
@@ -83,14 +84,18 @@ export async function currentUserId(): Promise<string | null> {
  * Persist one AI call's token usage (service-role insert — the table is RLS
  * deny-all; only this trusted server path and the admin report touch it). Never
  * throws: usage logging must not break an AI response. Call inside `after()`.
+ *
+ * A build turn also records how it ended (`turn`), and is written even with no
+ * usage: a turn that failed before the model reported any is still a turn.
  */
 export async function recordUsage(params: {
   userId: string | null;
   projectId: string | null;
   kind: UsageKind;
   usage: TokenUsage | null;
+  turn?: RecordedTurn | null;
 }): Promise<void> {
-  if (!params.usage) return;
+  if (!params.usage && !params.turn) return;
   try {
     const admin = createAdminClient();
     const { error } = await admin.from("fittbuilder_ai_usage").insert({
@@ -98,9 +103,12 @@ export async function recordUsage(params: {
       project_id: params.projectId,
       kind: params.kind,
       model: GEMINI_MODEL,
-      prompt_tokens: params.usage.promptTokens,
-      output_tokens: params.usage.outputTokens,
-      total_tokens: params.usage.totalTokens,
+      prompt_tokens: params.usage?.promptTokens ?? 0,
+      output_tokens: params.usage?.outputTokens ?? 0,
+      total_tokens: params.usage?.totalTokens ?? 0,
+      outcome: params.turn?.outcome ?? null,
+      duration_ms: params.turn?.durationMs ?? null,
+      error: params.turn?.error ?? null,
     });
     if (error) console.error("[ai-usage] insert failed:", error.message);
   } catch (e) {

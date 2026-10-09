@@ -556,6 +556,9 @@ export interface Database {
           output_tokens: number;
           total_tokens: number;
           created_at: string;
+          outcome: string | null;
+          duration_ms: number | null;
+          error: string | null;
         };
         Insert: {
           id?: string;
@@ -567,6 +570,9 @@ export interface Database {
           output_tokens?: number;
           total_tokens?: number;
           created_at?: string;
+          outcome?: string | null;
+          duration_ms?: number | null;
+          error?: string | null;
         };
         Update: {
           id?: string;
@@ -578,6 +584,9 @@ export interface Database {
           output_tokens?: number;
           total_tokens?: number;
           created_at?: string;
+          outcome?: string | null;
+          duration_ms?: number | null;
+          error?: string | null;
         };
         Relationships: [];
       };
@@ -833,6 +842,7 @@ export interface Database {
       /** Pop the newest snapshot into `files` and return it (null when empty). */
       fittbuilder_history_pop: { Args: { pid: string }; Returns: Json | null };
       fittbuilder_ai_usage_report: { Args: Record<string, never>; Returns: Json };
+      fittbuilder_turn_report: { Args: { since: string }; Returns: Json };
       fittbuilder_shared_project_owners: {
         Args: Record<string, never>;
         Returns: {

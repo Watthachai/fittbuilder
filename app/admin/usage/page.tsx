@@ -6,6 +6,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { estimateCostUsd } from "@/lib/ai-usage";
 import { GEMINI_MODEL } from "@/lib/gemini";
 import { pageOf, type Page } from "@/lib/paging";
+import { GENERATE_OUTCOME_LABEL, GENERATE_OUTCOMES, type GenerateOutcome } from "@/lib/generate-outcome";
 
 export const metadata = { title: "Admin · รายงานการใช้ AI" };
 
@@ -38,6 +39,21 @@ interface UserRow {
   output_tokens: number;
   total_tokens: number;
 }
+/** fittbuilder_turn_report: how build turns ended (migration 0052). */
+interface TurnReport {
+  counts: Partial<Record<GenerateOutcome, number>>;
+  p50_ms: number | null;
+  p90_ms: number | null;
+  unfinished: {
+    created_at: string;
+    outcome: GenerateOutcome;
+    duration_ms: number;
+    error: string | null;
+    project_id: string | null;
+    project_name: string | null;
+    email: string | null;
+  }[];
+}
 interface Report {
   totals: Totals;
   by_project: ProjectRow[];
@@ -58,7 +74,16 @@ const KIND_LABELS: Record<string, string> = {
   split_tasks: "แตกคำสั่งเป็นข้อ",
 };
 
+const OUTCOME_TONE: Record<GenerateOutcome, string> = {
+  done: "bg-go",
+  cut_time: "bg-amber-400",
+  cut_tokens: "bg-amber-600",
+  cut_error: "bg-halt/70",
+  failed: "bg-halt",
+};
+
 const num = (n: number | null | undefined) => Number(n ?? 0).toLocaleString("en-US");
+const secs = (ms: number | null) => (ms === null ? "—" : `${Math.round(ms / 1000)} วิ`);
 const usd = (n: number) => `$${n.toFixed(4)}`;
 const compact = (n: number) =>
   n >= 1e6 ? `${(n / 1e6).toFixed(1)}M` : n >= 1e3 ? `${(n / 1e3).toFixed(1)}k` : `${n}`;
@@ -111,6 +136,11 @@ export default async function AdminUsagePage(props: PageProps<"/admin/usage">) {
     if (byDay.has(key)) byDay.set(key, byDay.get(key)! + Number(r.total_tokens ?? 0));
   }
   const daily = [...byDay.entries()].map(([key, tokens]) => ({ key, tokens, label: key.slice(5) }));
+
+  // How build turns ended over the same 14 days — recorded from 0.103.0 on.
+  const { data: turnData } = await admin.rpc("fittbuilder_turn_report", { since: since.toISOString() });
+  const turns = (turnData as unknown as TurnReport | null) ?? { counts: {}, p50_ms: null, p90_ms: null, unfinished: [] };
+  const turnTotal = GENERATE_OUTCOMES.reduce((sum, o) => sum + Number(turns.counts[o] ?? 0), 0);
   const maxDaily = Math.max(1, ...daily.map((d) => d.tokens));
 
   const chats = pageOf(report.by_project, query.chats);
@@ -194,6 +224,63 @@ export default async function AdminUsagePage(props: PageProps<"/admin/usage">) {
             </div>
           </Card>
         </div>
+
+        <Card title="รอบสร้าง/แก้โค้ด 14 วันล่าสุด — จบเองหรือถูกตัด" className="mb-8">
+          {turnTotal === 0 ? (
+            <p className="text-sm text-chalk-dim">ยังไม่มีข้อมูล เริ่มบันทึกผลของแต่ละรอบตั้งแต่เวอร์ชัน 0.103.0</p>
+          ) : (
+            <>
+              <p className="mb-3 text-[12px] text-chalk-dim">
+                {num(turnTotal)} รอบ · ครึ่งหนึ่งจบภายใน {secs(turns.p50_ms)} · 90% จบภายใน {secs(turns.p90_ms)}
+              </p>
+              <div className="space-y-2.5">
+                {GENERATE_OUTCOMES.map((o) => {
+                  const n = Number(turns.counts[o] ?? 0);
+                  return (
+                    <div key={o}>
+                      <div className="flex items-center justify-between text-[12px]">
+                        <span className="text-chalk/85">{GENERATE_OUTCOME_LABEL[o]}</span>
+                        <span className="font-mono text-chalk-dim">
+                          {num(n)} · {((n / turnTotal) * 100).toFixed(1)}%
+                        </span>
+                      </div>
+                      <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-chalk/10">
+                        <div className={`h-full rounded-full ${OUTCOME_TONE[o]}`} style={{ width: `${(n / turnTotal) * 100}%` }} />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              {turns.unfinished.length > 0 && (
+                <div className="scroll-thin mt-5 overflow-x-auto">
+                  <p className="mb-1 text-[12px] font-semibold text-chalk-dim">รอบที่ไม่จบเอง ล่าสุด {turns.unfinished.length} รอบ</p>
+                  <Table head={["เวลา", "Chat", "ผู้ใช้", "ผล", "ใช้เวลา", "error"]}>
+                    {turns.unfinished.map((r) => (
+                      <tr key={`${r.created_at}-${r.project_id}`} className="border-t border-night-edge">
+                        <Td className="whitespace-nowrap text-chalk-dim">{new Date(r.created_at).toLocaleString("th-TH")}</Td>
+                        <Td>
+                          {r.project_id ? (
+                            <Link href={`/project/${r.project_id}`} className="hover:text-shine">
+                              {r.project_name ?? r.project_id.slice(0, 8)}
+                            </Link>
+                          ) : (
+                            "—"
+                          )}
+                        </Td>
+                        <Td className="text-chalk-dim">{r.email ?? "—"}</Td>
+                        <Td>{GENERATE_OUTCOME_LABEL[r.outcome]}</Td>
+                        <Td className="font-mono">{secs(r.duration_ms)}</Td>
+                        <Td className="max-w-xs truncate text-chalk-dim" title={r.error ?? undefined}>
+                          {r.error ?? "—"}
+                        </Td>
+                      </tr>
+                    ))}
+                  </Table>
+                </div>
+              )}
+            </>
+          )}
+        </Card>
 
         {/* User ranking */}
         <Card title="อันดับผู้ใช้ (ตาม tokens)" className="mb-8">
@@ -378,8 +465,12 @@ function Pager<T>({ page, href }: { page: Page<T>; href: (n: number) => string }
   );
 }
 
-function Td({ children, className = "" }: { children: React.ReactNode; className?: string }) {
-  return <td className={`px-3 py-2 ${className}`}>{children}</td>;
+function Td({ children, className = "", title }: { children: React.ReactNode; className?: string; title?: string }) {
+  return (
+    <td className={`px-3 py-2 ${className}`} title={title}>
+      {children}
+    </td>
+  );
 }
 
 function Empty({ cols }: { cols: number }) {

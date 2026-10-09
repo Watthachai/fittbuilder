@@ -20,25 +20,30 @@ export default function TaskChecklist({
   tasks,
   working,
   onResume,
+  header = true,
 }: {
   tasks: BuildTask[];
   /** A turn is running right now (this list's or anything else's). */
   working: boolean;
   /** Carry on with the open tasks (absent for read-only viewers). */
   onResume?: () => void;
+  /** Its own title and progress row — off where the list sits under a bar that shows both. */
+  header?: boolean;
 }) {
   const { done, total, open } = taskProgress(tasks);
   return (
     <div className="mt-2 overflow-hidden rounded-lg border border-night-edge bg-night-panel">
-      <div className="flex items-center gap-3 border-b border-night-edge px-3.5 py-2.5">
-        <span className="font-display text-[13px] font-semibold text-chalk">รายการงาน</span>
-        <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-chalk/10">
-          <div className="h-full rounded-full bg-go transition-all" style={{ width: `${(done / total) * 100}%` }} />
+      {header && (
+        <div className="flex items-center gap-3 border-b border-night-edge px-3.5 py-2.5">
+          <span className="font-display text-[13px] font-semibold text-chalk">รายการงาน</span>
+          <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-chalk/10">
+            <div className="h-full rounded-full bg-go transition-all" style={{ width: `${(done / total) * 100}%` }} />
+          </div>
+          <span className="font-mono text-[11px] text-chalk-dim">
+            เสร็จ {done}/{total}
+          </span>
         </div>
-        <span className="font-mono text-[11px] text-chalk-dim">
-          เสร็จ {done}/{total}
-        </span>
-      </div>
+      )}
       <ol className="divide-y divide-night-edge">
         {tasks.map((task, i) => {
           // "running" with no turn running is a task whose turn ended with its tab.

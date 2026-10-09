@@ -60,6 +60,7 @@ import DiffViewer from "./DiffViewer";
 import DnaCaptureChip from "./DnaCaptureChip";
 import Markdown from "./Markdown";
 import TaskChecklist from "./TaskChecklist";
+import TaskRunBar from "./TaskRunBar";
 
 /** Grouped action kinds → header icon + a count-aware Thai header label. */
 const GROUP_META: Record<string, { icon: LucideIcon; header: (n: number) => string }> = {
@@ -77,6 +78,8 @@ interface ChatPanelProps {
   busy: boolean;
   /** The agent/model is actively producing this phase's output. */
   streaming: boolean;
+  /** The task list being worked now (its message's id), across the gaps between its turns. */
+  taskRun: string | null;
   /** Current workflow phase (define → … → ship). */
   workflowPhase: PhaseId;
   /** Display name of the agent that owns the current phase. */
@@ -120,9 +123,16 @@ interface ChatPanelProps {
  * Collapsible "ความคิด" block, Markdown-rendered. `expanded` forces it open (used
  * while the live turn is still thinking, i.e. no answer text yet) — it
  * auto-collapses once the answer starts; the user can always toggle.
+ * Its height is capped and it scrolls inside: a long think pushed everything
+ * else in the chat out of sight.
  */
 function Thinking({ text, expanded }: { text: string; expanded: boolean }) {
   const [open, setOpen] = useState(false);
+  const body = useRef<HTMLDivElement>(null);
+  // Live: follow the newest line, as the chat below it does.
+  useEffect(() => {
+    if (expanded) body.current?.scrollTo({ top: body.current.scrollHeight });
+  }, [text, expanded]);
   if (!text) return null;
   const show = open || expanded;
   return (
@@ -136,7 +146,7 @@ function Thinking({ text, expanded }: { text: string; expanded: boolean }) {
         {show ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
       </button>
       {show && (
-        <div className="mt-1.5">
+        <div ref={body} className="scroll-thin mt-1.5 max-h-48 overflow-y-auto pr-1">
           <Markdown muted>{text}</Markdown>
         </div>
       )}
@@ -230,6 +240,7 @@ export default function ChatPanel({
   messages,
   busy,
   streaming,
+  taskRun,
   workflowPhase,
   agentName,
   live,
@@ -396,20 +407,37 @@ export default function ChatPanel({
   };
 
   const inBuild = isBuildPhase(workflowPhase);
-  const placeholder = activeAsk
-    ? activeAsk.allowText === false
-      ? "เลือกตัวเลือกด้านบน หรือพิมพ์เพิ่มเติม…"
-      : "หรือพิมพ์คำตอบเอง…"
-    : inBuild
-      ? hasApp
-        ? 'แก้ด้วยภาษาธรรมดา เช่น "เปลี่ยนสีปุ่มเป็นน้ำเงิน"'
-        : 'อยากได้เว็บแบบไหน? เช่น "landing page ร้านกาแฟ"'
-      : `พิมพ์ข้อความถึง ${agentName}…`;
+  // Pinned above the chat: the list being worked, else the latest list while it still has open tasks.
+  const lastPlan = messages.findLast((m) => m.tasks);
+  const pinned = taskRun
+    ? messages.find((m) => m.id === taskRun)
+    : lastPlan?.tasks?.some((t) => t.status !== "done")
+      ? lastPlan
+      : undefined;
+  const placeholder = taskRun
+    ? "กำลังทำรายการงานทีละข้อ ระบบทำต่อเองจนครบ ไม่ต้องส่งซ้ำ"
+    : activeAsk
+      ? activeAsk.allowText === false
+        ? "เลือกตัวเลือกด้านบน หรือพิมพ์เพิ่มเติม…"
+        : "หรือพิมพ์คำตอบเอง…"
+      : inBuild
+        ? hasApp
+          ? 'แก้ด้วยภาษาธรรมดา เช่น "เปลี่ยนสีปุ่มเป็นน้ำเงิน"'
+          : 'อยากได้เว็บแบบไหน? เช่น "landing page ร้านกาแฟ"'
+        : `พิมพ์ข้อความถึง ${agentName}…`;
   const sendLabel = inBuild ? (hasApp ? "แก้ไข" : "สร้าง") : "ส่ง";
 
   return (
     <div className="relative flex min-h-0 flex-1 flex-col bg-night-panel" {...dropHandlers}>
       {dragging && !readOnly && <DropOverlay />}
+      {pinned?.tasks && (
+        <TaskRunBar
+          tasks={pinned.tasks}
+          running={pinned.id === taskRun}
+          working={busy || streaming}
+          onResume={readOnly || !onResumeTasks ? undefined : () => onResumeTasks(pinned.id)}
+        />
+      )}
       <div
         ref={scrollRef}
         className="scroll-thin min-h-0 flex-1 space-y-4 overflow-y-auto px-4 py-4"

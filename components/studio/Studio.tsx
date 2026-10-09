@@ -330,6 +330,11 @@ export default function Studio({ projectId }: { projectId: string }) {
   const [leftWidth, setLeftWidth] = useState(400);
   const [previewSupported, setPreviewSupported] = useState(true);
   const [chatStreaming, setChatStreaming] = useState(false);
+  // The task list being worked (its plan message's id). A list is one job: the
+  // studio stays busy across the gaps between its turns, where chatStreaming is
+  // false — a message sent in such a gap took the next task's slot and ended
+  // the list, after people saw only the first task finish and asked again.
+  const [taskRun, setTaskRun] = useState<string | null>(null);
   // The in-progress assistant turn (thinking/text/actions), rendered live and
   // committed to project.messages once at done. React state only — not persisted
   // per token. liveRef mirrors it so the streaming loop can read the latest.
@@ -404,6 +409,8 @@ export default function Studio({ projectId }: { projectId: string }) {
   } | null>(null);
 
   const abortRef = useRef<AbortController | null>(null);
+  // "หยุด" during a task list: also stops it between turns, where there is no turn to abort.
+  const stopTasksRef = useRef(false);
   // Generation "epoch", bumped on every unmount / project switch (the [projectId]
   // effect cleanup below). A generate/agent loop snapshots the epoch when it
   // starts and re-compares at each WebContainer checkpoint: if it changed, this
@@ -538,7 +545,7 @@ export default function Studio({ projectId }: { projectId: string }) {
   // conversational agent turn. Both can run at once — the live scaffold installs
   // while the Define interview streams — so they are kept as separate signals.
   const wcBusy = phase === "generating" || phase === "installing" || phase === "starting";
-  const busy = wcBusy || chatStreaming;
+  const busy = wcBusy || chatStreaming || taskRun !== null;
 
   const pushTerminal = useCallback((line: string) => {
     setTerminal((prev) => [...prev.slice(-MAX_TERMINAL_LINES), line]);
@@ -1146,25 +1153,32 @@ export default function Studio({ projectId }: { projectId: string }) {
         });
       };
 
-      for (let i = 0; i < count; i++) {
-        const tasks = planOf()?.tasks;
-        if (!tasks || myEpoch !== epochRef.current) return;
-        const task = tasks[i];
-        if (task.status === "done") continue;
-        setTask(task.id, { status: "running", note: undefined });
-        const label = `ข้อ ${i + 1}/${count} · ${task.title}`;
-        const prompt = taskTurnPrompt(request, tasks, i);
-        let out = await generate(prompt, undefined, undefined, attachments, { quiet: true, label });
-        const again = nextAttempt(prompt, out);
-        if (again !== null && myEpoch === epochRef.current) {
-          out = await generate(again, undefined, undefined, attachments, {
-            quiet: true,
-            label: `${label} (รอบที่ 2)`,
-          });
+      stopTasksRef.current = false;
+      setTaskRun(planId);
+      try {
+        for (let i = 0; i < count; i++) {
+          const tasks = planOf()?.tasks;
+          if (!tasks || myEpoch !== epochRef.current || stopTasksRef.current) return;
+          const task = tasks[i];
+          if (task.status === "done") continue;
+          setTask(task.id, { status: "running", note: undefined });
+          const label = `ข้อ ${i + 1}/${count} · ${task.title}`;
+          const prompt = taskTurnPrompt(request, tasks, i);
+          let out = await generate(prompt, undefined, undefined, attachments, { quiet: true, label });
+          const again = nextAttempt(prompt, out);
+          if (again !== null && myEpoch === epochRef.current && !stopTasksRef.current) {
+            out = await generate(again, undefined, undefined, attachments, {
+              quiet: true,
+              label: `${label} (รอบที่ 2)`,
+            });
+          }
+          await restoreExports(myEpoch, out);
+          setTask(task.id, taskOutcome(out));
+          if (out.status === "cancelled" || out.status === "busy") return;
         }
-        await restoreExports(myEpoch, out);
-        setTask(task.id, taskOutcome(out));
-        if (out.status === "cancelled" || out.status === "busy") return;
+      } finally {
+        // Only this list's own flag: a list started in the project opened since may hold it now.
+        setTaskRun((cur) => (cur === planId ? null : cur));
       }
 
       const finished = planOf()?.tasks;
@@ -1625,6 +1639,7 @@ export default function Studio({ projectId }: { projectId: string }) {
   }, [busy, readOnly, persist, reviseDoc]);
 
   const cancel = useCallback(() => {
+    stopTasksRef.current = true;
     abortRef.current?.abort();
   }, []);
 
@@ -2623,7 +2638,7 @@ export default function Studio({ projectId }: { projectId: string }) {
   // the WebContainer; conversational → the chat agent (so a background scaffold
   // install never disables the interview or the approve button).
   // readOnly viewers see all controls disabled.
-  const phaseBusy = readOnly || (inBuild ? wcBusy || chatStreaming : chatStreaming);
+  const phaseBusy = readOnly || taskRun !== null || (inBuild ? wcBusy || chatStreaming : chatStreaming);
   const streamingNow = chatStreaming;
   // Code tab: show the real app once built; before that, show the live scaffold
   // (what's actually running in the container) merged with any phase docs.
@@ -2683,8 +2698,9 @@ export default function Studio({ projectId }: { projectId: string }) {
     // chatStreaming only, NOT `busy`: that also covers the container booting or
     // installing, which writes nothing to project.files and has no bearing on
     // which version the result lands in. Blocking on it made the switch silently
-    // refuse for the first half-minute after a build.
-    if (chatStreaming) {
+    // refuse for the first half-minute after a build. A running task list counts:
+    // its next task's turn would land on the version switched to.
+    if (chatStreaming || taskRun !== null) {
       toast.info("รอรอบนี้เสร็จก่อนนะครับ", {
         description: "สลับเวอร์ชันระหว่างที่ AI กำลังเขียนอยู่ จะทำให้ผลลัพธ์ไปลงผิดเวอร์ชัน",
       });
@@ -2924,6 +2940,7 @@ export default function Studio({ projectId }: { projectId: string }) {
             messages={project.messages}
             busy={phaseBusy}
             streaming={streamingNow}
+            taskRun={taskRun}
             workflowPhase={project.phase}
             agentName={phaseDef(project.phase).name}
             live={live}

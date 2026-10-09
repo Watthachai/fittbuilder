@@ -104,8 +104,9 @@ describe("a switch must not move files onto the wrong version", () => {
     const fn = studioSrc.slice(studioSrc.indexOf("const changeVersion = async"));
     // chatStreaming, not `busy` — the latter also covers the container booting,
     // which writes nothing to project.files. Guarding on it made the switch
-    // refuse silently for the first half-minute after every build.
-    expect(fn.slice(0, 1000)).toMatch(/if \(chatStreaming\)/);
+    // refuse silently for the first half-minute after every build. A running
+    // task list also refuses: its next turn would write into the other version.
+    expect(fn.slice(0, 1000)).toMatch(/if \(chatStreaming \|\| taskRun !== null\)/);
     expect(fn.slice(0, 1000)).not.toMatch(/if \(busy \|\| chatStreaming\)/);
   });
 });

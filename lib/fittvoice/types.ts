@@ -92,6 +92,30 @@ export interface Delivery {
   contentHash: string;
 }
 
+/**
+ * Contract fittbuilder.summary-delivery.v1 (schemas/summary-delivery-v1.schema.json):
+ * only the summary the user reviewed in FITT Voice — no discovery, no evidence,
+ * never a draft. The credential, idempotency, hash and revision rules are the
+ * same as Delivery's.
+ */
+export interface SummaryDelivery {
+  schemaVersion: "fittbuilder.summary-delivery.v1";
+  exportSessionId: string;
+  deliveryId: string;
+  snapshotRevision: number;
+  operation: "CREATE_PROJECT" | "UPDATE_PROJECT";
+  builderProjectId: string | null;
+  stage: "REVIEWED";
+  sentAt: string;
+  source: { summaryId: string };
+  review: { approvalId: string; reviewedAt: string };
+  content: { projectTitle: string; summaryMarkdown: string };
+  contentHash: string;
+}
+
+/** Either contract, told apart by schemaVersion. */
+export type VoiceDelivery = Delivery | SummaryDelivery;
+
 export type ErrorCode =
   | "INVALID_PAYLOAD"
   | "HASH_MISMATCH"

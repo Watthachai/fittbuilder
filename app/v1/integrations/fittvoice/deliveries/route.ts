@@ -6,7 +6,8 @@ import type { ErrorCode } from "@/lib/fittvoice/types";
 import type { Json } from "@/lib/db/types";
 
 /**
- * FITT Voice → FITT Builder deliveries (contract fittbuilder.delivery.v1).
+ * FITT Voice → FITT Builder deliveries (contracts fittbuilder.delivery.v1 and
+ * fittbuilder.summary-delivery.v1, told apart by schemaVersion in checkDelivery).
  *
  * Backend to backend: FITT Voice's server sends the summary of a customer
  * interview its user reviewed; the first delivery of an export session creates a

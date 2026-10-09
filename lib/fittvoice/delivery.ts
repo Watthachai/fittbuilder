@@ -3,14 +3,19 @@ import addFormats from "ajv-formats";
 import canonicalize from "canonicalize";
 import { createHash } from "node:crypto";
 import deliverySchema from "./schemas/delivery-v1.schema.json";
+import summarySchema from "./schemas/summary-delivery-v1.schema.json";
 import { parseStrictJson } from "./strict-json";
-import { CATEGORIES, WORKFLOWS, type Delivery, type ErrorCode } from "./types";
+import { CATEGORIES, WORKFLOWS, type Delivery, type ErrorCode, type SummaryDelivery, type VoiceDelivery } from "./types";
 
 /**
  * Everything the receiver checks before it writes anything (contract rule 1):
  * the JSON itself, the published schema, the Idempotency-Key, the hash, and the
  * reference rules a JSON Schema cannot express. The database function then
  * decides create / update / duplicate / stale atomically.
+ *
+ * Two contracts arrive at the same URL, told apart by schemaVersion: the full
+ * delivery (discovery + evidence) and the summary-only one FITT Voice moved to
+ * on 9 Oct 2026. Everything after the schema is shared.
  */
 
 /** 1 MiB of UTF-8 JSON as sent — the contract's limit, checked before parsing. */
@@ -52,9 +57,14 @@ export function contentHashOf(payload: object): string {
 
 const ajv = new Ajv2020({ allErrors: true, strict: false });
 addFormats(ajv);
-const validateSchema = ajv.compile<Delivery>(deliverySchema);
+const VALIDATORS = {
+  "fittbuilder.delivery.v1": ajv.compile<Delivery>(deliverySchema),
+  "fittbuilder.summary-delivery.v1": ajv.compile<SummaryDelivery>(summarySchema),
+};
+type SchemaVersion = keyof typeof VALIDATORS;
+const isSupported = (v: unknown): v is SchemaVersion => typeof v === "string" && Object.hasOwn(VALIDATORS, v);
 
-type Check = { ok: true; delivery: Delivery } | { ok: false; code: ErrorCode; message: string };
+type Check = { ok: true; delivery: VoiceDelivery } | { ok: false; code: ErrorCode; message: string };
 
 const invalid = (message: string): Check => ({ ok: false, code: "INVALID_PAYLOAD", message });
 
@@ -99,16 +109,24 @@ export function checkDelivery(raw: string, idempotencyKey: string | null): Check
   } catch (e) {
     return invalid(`JSON ไม่ถูกต้อง: ${e instanceof Error ? e.message : "อ่านไม่ได้"}`);
   }
-  if (!validateSchema(parsed)) {
-    const where = (validateSchema.errors ?? []).slice(0, 5).map((e) => `${e.instancePath || "/"} ${e.message}`);
-    return invalid(`ไม่ตรง schema fittbuilder.delivery.v1: ${where.join("; ")}`);
+  const version = (parsed as { schemaVersion?: unknown } | null)?.schemaVersion;
+  if (!isSupported(version)) {
+    return invalid(`schemaVersion ไม่รองรับ: ${String(version)} — รับ ${Object.keys(VALIDATORS).join(" และ ")}`);
   }
-  const delivery = parsed;
+  const validate = VALIDATORS[version];
+  if (!validate(parsed)) {
+    const where = (validate.errors ?? []).slice(0, 5).map((e) => `${e.instancePath || "/"} ${e.message}`);
+    return invalid(`ไม่ตรง schema ${version}: ${where.join("; ")}`);
+  }
+  const delivery = parsed as VoiceDelivery;
   if (idempotencyKey !== delivery.deliveryId) return invalid("Idempotency-Key ต้องเท่ากับ deliveryId ใน body");
   if (contentHashOf(delivery) !== delivery.contentHash) {
     return { ok: false, code: "HASH_MISMATCH", message: "contentHash ไม่ตรงกับเนื้อหา (RFC 8785 + SHA-256 ไม่รวม contentHash)" };
   }
-  const problems = referenceProblems(delivery);
-  if (problems.length) return invalid(problems.slice(0, 10).join("; "));
+  // Only the full contract carries references between its parts.
+  if (delivery.schemaVersion === "fittbuilder.delivery.v1") {
+    const problems = referenceProblems(delivery);
+    if (problems.length) return invalid(problems.slice(0, 10).join("; "));
+  }
   return { ok: true, delivery };
 }

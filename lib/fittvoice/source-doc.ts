@@ -1,4 +1,14 @@
-import { CATEGORIES, WORKFLOWS, type Assertion, type CategoryKey, type Delivery, type Item, type WorkflowItem } from "./types";
+import {
+  CATEGORIES,
+  WORKFLOWS,
+  type Assertion,
+  type CategoryKey,
+  type Delivery,
+  type Item,
+  type SummaryDelivery,
+  type VoiceDelivery,
+  type WorkflowItem,
+} from "./types";
 
 /**
  * A FITT Voice delivery as the document people read in the studio and the
@@ -47,7 +57,22 @@ function clock(ms: number): string {
 /** Markdown text from the payload stays text — it cannot open a heading or a list here. */
 const inline = (s: string) => s.replace(/\s*\n\s*/g, " ").trim();
 
-export function sourceMarkdown(d: Delivery): string {
+export function sourceMarkdown(d: VoiceDelivery): string {
+  return d.schemaVersion === "fittbuilder.summary-delivery.v1" ? summarySource(d) : fullSource(d);
+}
+
+/** Summary-only: the text the user reviewed in FITT Voice, as they approved it. */
+function summarySource(d: SummaryDelivery): string {
+  return [
+    `# ${inline(d.content.projectTitle)}`,
+    `> ตรวจแล้วใน FITT Voice เมื่อ ${d.review.reviewedAt}`,
+    `ข้อมูลจาก FITT Voice · ฉบับที่ ${d.snapshotRevision} · ส่งเมื่อ ${d.sentAt}`,
+    "## สรุป",
+    d.content.summaryMarkdown,
+  ].join("\n\n");
+}
+
+function fullSource(d: Delivery): string {
   const discovery = d.content.discovery;
   const actorText = new Map(discovery.actors.items.map((a) => [a.id, a.text]));
   const isWorkflow = (key: CategoryKey) => (WORKFLOWS as readonly string[]).includes(key);

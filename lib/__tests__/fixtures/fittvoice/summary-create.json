@@ -1,0 +1,22 @@
+{
+  "schemaVersion": "fittbuilder.summary-delivery.v1",
+  "exportSessionId": "exp_synthetic_summary_1",
+  "deliveryId": "del_synthetic_summary_1",
+  "snapshotRevision": 1,
+  "operation": "CREATE_PROJECT",
+  "builderProjectId": null,
+  "stage": "REVIEWED",
+  "sentAt": "2026-10-09T04:00:00Z",
+  "source": {
+    "summaryId": "sum_synthetic_1"
+  },
+  "review": {
+    "approvalId": "approval_synthetic_1",
+    "reviewedAt": "2026-10-09T03:59:00Z"
+  },
+  "content": {
+    "projectTitle": "ระบบรับคำสั่งซื้อ — ตัวอย่างสังเคราะห์",
+    "summaryMarkdown": "## ภาพรวม\nพนักงานรับคำสั่งซื้อผ่านแชตและลงข้อมูลซ้ำในตาราง\n\n## ปัญหา\nค้นหาสถานะคำสั่งซื้อได้ยาก\n\n## ความต้องการ\nต้องการระบบบันทึกคำสั่งซื้อและค้นสถานะได้ในหน้าเดียว"
+  },
+  "contentHash": "b8d575240dbe711819041a08f14a39d6ac260c1d338944d924274dbc48513364"
+}

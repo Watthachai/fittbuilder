@@ -6,7 +6,7 @@ import { join } from "node:path";
 import { parseStrictJson } from "../fittvoice/strict-json";
 import { checkDelivery, contentHashOf, errorBody } from "../fittvoice/delivery";
 import { sourceMarkdown } from "../fittvoice/source-doc";
-import type { Delivery } from "../fittvoice/types";
+import type { Delivery, SummaryDelivery } from "../fittvoice/types";
 import receiptSchema from "../fittvoice/schemas/receipt-v1.schema.json";
 import errorSchema from "../fittvoice/schemas/error-v1.schema.json";
 
@@ -148,5 +148,84 @@ describe("sourceMarkdown", () => {
     d.stage = "DRAFT";
     d.review = null;
     expect(sourceMarkdown(d)).toContain("ร่างระหว่างคุย — ยังไม่ตรวจ");
+  });
+});
+
+/**
+ * Contract fittbuilder.summary-delivery.v1 (proposed by FITT Voice, 9 Oct 2026):
+ * only the summary the user reviewed — no discovery, no evidence. Same URL,
+ * credential, idempotency and hash rules; the schemaVersion picks the schema.
+ */
+describe("summary-only deliveries", () => {
+  const summary = fixture("summary-create.json");
+  const sbase = (): SummaryDelivery => JSON.parse(summary);
+  const ssign = (d: SummaryDelivery): string => JSON.stringify({ ...d, contentHash: contentHashOf(d) });
+  const scheck = (d: SummaryDelivery, key: string | null = d.deliveryId) => checkDelivery(ssign(d), key);
+
+  it("hashes FITT Voice's summary example to the test vector they computed", () => {
+    expect(contentHashOf(sbase())).toBe("b8d575240dbe711819041a08f14a39d6ac260c1d338944d924274dbc48513364");
+  });
+
+  it("accepts the published summary example as it is", () => {
+    expect(checkDelivery(summary, "del_synthetic_summary_1")).toMatchObject({ ok: true });
+  });
+
+  it("accepts an update of a later revision to the project it created", () => {
+    const d = sbase();
+    d.operation = "UPDATE_PROJECT";
+    d.builderProjectId = "451e4da3-ee23-4deb-8b90-00faa3bc8ad1";
+    d.snapshotRevision = 2;
+    expect(scheck(d)).toMatchObject({ ok: true });
+  });
+
+  it("rejects a create that is not revision 1 or already names a project", () => {
+    const revision = sbase();
+    revision.snapshotRevision = 2;
+    expect(codeOf(scheck(revision))).toBe("INVALID_PAYLOAD");
+
+    const named = sbase();
+    named.builderProjectId = "451e4da3-ee23-4deb-8b90-00faa3bc8ad1";
+    expect(codeOf(scheck(named))).toBe("INVALID_PAYLOAD");
+  });
+
+  it("rejects an update that does not name its project", () => {
+    const d = sbase();
+    d.operation = "UPDATE_PROJECT";
+    d.snapshotRevision = 2;
+    expect(codeOf(scheck(d))).toBe("INVALID_PAYLOAD");
+  });
+
+  it("rejects anything beyond the reviewed summary: discovery, a draft, an unknown field", () => {
+    const discovery = { ...sbase(), content: { ...sbase().content, discovery: {} } } as unknown as SummaryDelivery;
+    expect(codeOf(scheck(discovery))).toBe("INVALID_PAYLOAD");
+
+    const draft = { ...sbase(), stage: "DRAFT" } as unknown as SummaryDelivery;
+    expect(codeOf(scheck(draft))).toBe("INVALID_PAYLOAD");
+
+    expect(codeOf(scheck({ ...sbase(), transcript: "…" } as unknown as SummaryDelivery))).toBe("INVALID_PAYLOAD");
+  });
+
+  it("keeps the hash and Idempotency-Key rules", () => {
+    const d = sbase();
+    d.content.summaryMarkdown = "แก้หลังคำนวณ hash";
+    expect(codeOf(checkDelivery(JSON.stringify(d), d.deliveryId))).toBe("HASH_MISMATCH");
+    expect(codeOf(scheck(sbase(), "del_other"))).toBe("INVALID_PAYLOAD");
+  });
+
+  it("rejects a schemaVersion it does not support, naming the ones it does", () => {
+    const d = { ...sbase(), schemaVersion: "fittbuilder.summary-delivery.v2" } as unknown as SummaryDelivery;
+    expect(scheck(d)).toMatchObject({
+      code: "INVALID_PAYLOAD",
+      message: expect.stringContaining("fittbuilder.summary-delivery.v1"),
+    });
+  });
+
+  it("shows the reviewed summary as the source document, without discovery or evidence sections", () => {
+    const md = sourceMarkdown(sbase());
+    expect(md).toContain("# ระบบรับคำสั่งซื้อ — ตัวอย่างสังเคราะห์");
+    expect(md).toContain("ตรวจแล้วใน FITT Voice");
+    expect(md).toContain("ค้นหาสถานะคำสั่งซื้อได้ยาก");
+    expect(md).not.toContain("ข้อมูลธุรกิจ");
+    expect(md).not.toContain("หลักฐาน");
   });
 });

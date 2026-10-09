@@ -1,0 +1,164 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://fittvoice.fittbsa.com/schemas/fittbuilder.summary-delivery.v1.schema.json",
+  "title": "FITT Voice reviewed summary delivery V1",
+  "description": "A human-reviewed summary sent by FITT Voice to create or update one FITT Builder project.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "exportSessionId",
+    "deliveryId",
+    "snapshotRevision",
+    "operation",
+    "builderProjectId",
+    "stage",
+    "sentAt",
+    "source",
+    "review",
+    "content",
+    "contentHash"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "fittbuilder.summary-delivery.v1"
+    },
+    "exportSessionId": {
+      "$ref": "#/$defs/opaqueId"
+    },
+    "deliveryId": {
+      "$ref": "#/$defs/opaqueId"
+    },
+    "snapshotRevision": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 9007199254740991
+    },
+    "operation": {
+      "enum": [
+        "CREATE_PROJECT",
+        "UPDATE_PROJECT"
+      ]
+    },
+    "builderProjectId": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "minLength": 1,
+      "maxLength": 200
+    },
+    "stage": {
+      "const": "REVIEWED"
+    },
+    "sentAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "summaryId"
+      ],
+      "properties": {
+        "summaryId": {
+          "$ref": "#/$defs/opaqueId"
+        }
+      }
+    },
+    "review": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "approvalId",
+        "reviewedAt"
+      ],
+      "properties": {
+        "approvalId": {
+          "$ref": "#/$defs/opaqueId"
+        },
+        "reviewedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
+    "content": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "projectTitle",
+        "summaryMarkdown"
+      ],
+      "properties": {
+        "projectTitle": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 300
+        },
+        "summaryMarkdown": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 20000
+        }
+      }
+    },
+    "contentHash": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "operation": {
+            "const": "CREATE_PROJECT"
+          }
+        },
+        "required": [
+          "operation"
+        ]
+      },
+      "then": {
+        "properties": {
+          "snapshotRevision": {
+            "const": 1
+          },
+          "builderProjectId": {
+            "type": "null"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "operation": {
+            "const": "UPDATE_PROJECT"
+          }
+        },
+        "required": [
+          "operation"
+        ]
+      },
+      "then": {
+        "properties": {
+          "builderProjectId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "opaqueId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200
+    }
+  }
+}

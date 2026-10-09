@@ -55,6 +55,17 @@
 8. ไม่ปฏิเสธ `CUSTOMER_STATED` ที่หลักฐานไม่ระบุผู้พูด ถือเป็นหน้าที่ฝั่ง Voice ตามสัญญา และไม่อยู่ในเกณฑ์รับงานร่วม
 9. V1 ไม่มี route สำหรับลบ
 
+## สัญญา Summary-only (`fittbuilder.summary-delivery.v1`)
+
+ทีม FITT Voice เสนอเมื่อ 9 ต.ค. 2026 ให้ส่งเฉพาะบทสรุปที่ผู้ใช้ตรวจและยืนยันแล้ว แทน discovery 15 หมวด schema ต้นฉบับอยู่ที่ `lib/fittvoice/schemas/summary-delivery-v1.schema.json` และตัวอย่างสังเคราะห์อยู่ที่ `lib/__tests__/fixtures/fittvoice/summary-create.json` (hash ตรงกับ test vector ของทีม Voice)
+
+- ปลายทาง credential `Idempotency-Key` ขนาด rate limit และ receipt/error เหมือนสัญญาเดิมทุกอย่าง
+- ตัวรับดู `schemaVersion` แล้วเลือก schema ให้เอง รับทั้งสองสัญญาที่ URL เดิมระหว่างช่วงเปลี่ยน `schemaVersion` อื่นตอบ `INVALID_PAYLOAD` พร้อมบอกว่ารับรุ่นไหนบ้าง
+- ข้อ 1–7 ของลำดับการตรวจใช้เหมือนเดิม ข้อ 8 (กฎอ้างอิง) ใช้กับสัญญาเดิมเท่านั้น เพราะ Summary-only ไม่มี item หรือหลักฐาน
+- ฟังก์ชัน `fittbuilder_fittvoice_apply` ใช้ตัวเดิมได้ทั้งหมด ไม่ต้องมี migration เพราะใช้แค่ field ที่ทั้งสองสัญญามี `stage` เป็น `REVIEWED` เสมอ จึงไม่มีร่าง
+- ปุ่ม "FITT Voice" แสดงชื่อโปรเจกต์ เวลาที่ตรวจ และบทสรุปตามที่ผู้ใช้ยืนยัน ผ่าน renderer ที่ไม่รัน HTML ดิบ AI เฟส Define/Plan ได้รับบทสรุปนี้เป็นข้อมูลที่ไม่ใช่คำสั่ง การรับข้อมูลไม่สร้าง BRD หรือ Prototype เอง
+- `review` ของสัญญานี้ไม่มี `reviewerRef` เอกสารต้นทางจึงแสดงเฉพาะเวลาที่ตรวจ
+
 ## ตั้งค่า Sandbox
 
 1. Deploy build นี้แยกจาก production พร้อมฐานข้อมูล Supabase แยก

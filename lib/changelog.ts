@@ -23,6 +23,17 @@ export const CHANGE_BADGE: Record<ChangeType, { label: string; className: string
 // Newest first. SemVer: fix → PATCH, feature → MINOR, breaking → MAJOR.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.99.0",
+    date: "2026-10-09",
+    title: "รับบทสรุปจาก FITT Voice แบบสั้นลง",
+    items: [
+      {
+        type: "feature",
+        text: "รับข้อมูลจาก FITT Voice แบบบทสรุปที่ผู้ใช้ตรวจและยืนยันแล้วอย่างเดียว ไม่ต้องมีข้อมูลแยก 15 หมวด สร้างหรืออัปเดตโปรเจกต์ในเฟส Define และเปิดอ่านบทสรุปได้จากปุ่ม FITT Voice เหมือนเดิม",
+      },
+    ],
+  },
+  {
     version: "0.98.0",
     date: "2026-10-09",
     title: "แจ้งปัญหาจากข้อความที่ AI ตอบ",

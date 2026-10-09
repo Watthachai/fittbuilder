@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { Mic, X } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { DRAFT_LABEL, sourceMarkdown } from "@/lib/fittvoice/source-doc";
-import type { Delivery } from "@/lib/fittvoice/types";
+import type { VoiceDelivery } from "@/lib/fittvoice/types";
 import Overlay from "@/components/ui/Overlay";
 import GlassSurface from "@/components/ui/GlassSurface";
 import Markdown from "./Markdown";
@@ -18,7 +18,7 @@ import Markdown from "./Markdown";
  * when someone asks for them in the chat.
  */
 export default function VoiceSource({ projectId }: { projectId: string }) {
-  const [source, setSource] = useState<{ payload: Delivery; receivedAt: string } | null>(null);
+  const [source, setSource] = useState<{ payload: VoiceDelivery; receivedAt: string } | null>(null);
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
@@ -26,7 +26,7 @@ export default function VoiceSource({ projectId }: { projectId: string }) {
     void createClient()
       .rpc("fittbuilder_fittvoice_source", { pid: projectId })
       .then(({ data }) => {
-        if (alive) setSource((data as { payload: Delivery; receivedAt: string } | null) ?? null);
+        if (alive) setSource((data as { payload: VoiceDelivery; receivedAt: string } | null) ?? null);
       });
     return () => {
       alive = false;

@@ -451,16 +451,33 @@ export function buildDnaCaptureSystem(): string {
  * time. This asks for two small files against the tree that already exists, so
  * the second attempt is a fraction of the first and cannot fail the same way.
  */
-export function buildShellPrompt(missing: string[], written: string[]): string {
+/** How much of each layout file the shell retry sees — enough for its props, not a context budget. */
+const SHELL_LAYOUT_CHARS = 4_000;
+
+export function buildShellPrompt(missing: string[], files: Record<string, string>): string {
+  const written = Object.keys(files);
   const pages = written.filter((p) => p.startsWith("src/pages/"));
   const parts = written.filter(
     (p) => p.startsWith("src/components/") || p.startsWith("src/lib/") || p.startsWith("src/data/")
   );
+  /**
+   * The shell renders the layout and the pages, so it has to know what they take.
+   * Given file names alone it wrote <TopBar /> without the currentUser TopBar
+   * reads, and the first screen opened on "Cannot read properties of undefined
+   * (reading 'fullName')" (Central Home, 8 Oct). Layout files whole, pages by
+   * their export line.
+   */
+  const layout = parts
+    .filter((p) => p.startsWith("src/components/layout/"))
+    .map((p) => `--- ${p} ---\n${files[p].slice(0, SHELL_LAYOUT_CHARS)}`)
+    .join("\n\n");
+  const pageLine = (p: string) => files[p].split("\n").find((l) => /^export\s/.test(l))?.trim() ?? "";
   return `รอบที่แล้วเขียนหน้าจอและคอมโพเนนต์ไว้ครบแล้ว แต่ยังขาดไฟล์หลักของแอป: ${missing.join(", ")}
 
 ไฟล์ที่มีอยู่แล้วในโปรเจกต์ (ห้ามเขียนทับ ห้ามสร้างใหม่):
-${pages.map((p) => `- ${p}`).join("\n")}
+${pages.map((p) => `- ${p}${pageLine(p) ? ` — ${pageLine(p)}` : ""}`).join("\n")}
 ${parts.length ? parts.map((p) => `- ${p}`).join("\n") : ""}
+${layout ? `\nคอมโพเนนต์ layout ที่ App.tsx ต้องใช้ — ส่ง props ให้ครบตามที่แต่ละตัวรับ:\n\n${layout}\n` : ""}
 
 เขียนเฉพาะ ${missing.join(" และ ")} เท่านั้น:
 - src/main.tsx mount <App /> เข้า #root ด้วย react-dom/client createRoot และ import "./index.css"

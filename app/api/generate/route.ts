@@ -359,7 +359,10 @@ export async function POST(request: Request) {
           // Partial output is usable (files were already streamed/written live);
           // only a total failure (nothing produced) is a hard error.
           if (fileCount === 0) throw streamError;
-          cut = streamError instanceof Error && streamError.name === "TimeoutError" ? "time" : "error";
+          // Our own deadline, read from our own signal: the SDK surfaces an abort
+          // under whatever name it likes, and a build cut by the clock was being
+          // reported as "การเชื่อมต่อกับ AI หลุดกลางทาง" (Central Home, 8 Oct).
+          cut = abort.aborted ? "time" : "error";
           console.error("[generate] stream ended early, using partial output:", streamError);
         }
         if (cut) {
@@ -500,7 +503,7 @@ export async function POST(request: Request) {
             try {
               for await (const part of streamParts({
                 system,
-                user: buildShellPrompt(shellGap, Object.keys(produced)),
+                user: buildShellPrompt(shellGap, produced),
                 thinking: false,
                 abortSignal: AbortSignal.timeout(Math.min(left - 5_000, 90_000)),
                 level: "medium",

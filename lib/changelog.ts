@@ -23,6 +23,25 @@ export const CHANGE_BADGE: Record<ChangeType, { label: string; className: string
 // Newest first. SemVer: fix → PATCH, feature → MINOR, breaking → MAJOR.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.97.4",
+    date: "2026-10-09",
+    title: "สร้างจากเอกสาร BRD/PRD ได้ครบ ไม่ค้างครึ่งทาง",
+    items: [
+      {
+        type: "fix",
+        text: "สร้างเว็บจาก BRD/PRD แล้วหมดเวลากลางทาง ระบบทำต่อให้เองอีกรอบ เดิมค้างไว้แค่ไฟล์ที่เขียนทัน บางเมนูเป็นหน้าว่าง ต้องสั่งซ้ำ 2–3 รอบ",
+      },
+      {
+        type: "fix",
+        text: "รอบที่หยุดเพราะหมดเวลา บอกว่าหมดเวลาของรอบ ไม่ใช่ การเชื่อมต่อกับ AI หลุดกลางทาง",
+      },
+      {
+        type: "fix",
+        text: "ตอนเขียนไฟล์หลักของแอปที่ขาด AI เห็น props ของแถบเมนูและหัวหน้าจอด้วย จึงไม่ขึ้น error แบบ Cannot read properties of undefined (reading 'fullName') ทันทีที่เปิด",
+      },
+    ],
+  },
+  {
     version: "0.97.3",
     date: "2026-10-09",
     title: "สถานะเคส ไม่ใช่บั๊ก และกันแอปพังตอนลาก",

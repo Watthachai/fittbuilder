@@ -1091,9 +1091,15 @@ export default function Studio({ projectId }: { projectId: string }) {
   );
 
   const runTurn = useCallback(
-    async (text: string, attachments?: ChatAttachmentInput[]): Promise<TurnOutcome> => {
+    async (
+      text: string,
+      attachments?: ChatAttachmentInput[],
+      /** A first build from approved documents carries them; the continuation is an edit of what it wrote. */
+      spec?: SpecPayload,
+      base?: ProjectRecord
+    ): Promise<TurnOutcome> => {
       const myEpoch = epochRef.current;
-      let out = await generate(text, undefined, undefined, attachments);
+      let out = await generate(text, spec, base, attachments);
       if (out.status === "cut" && myEpoch === epochRef.current) {
         out = await generate(
           continuationPrompt(text, out.cut ?? "error", out.written),
@@ -1294,8 +1300,12 @@ export default function Studio({ projectId }: { projectId: string }) {
       const dataHint = attachments?.length
         ? " ผู้ใช้แนบไฟล์ข้อมูลจริงมาด้วย — ใช้โครงสร้างคอลัมน์จริงทั้งหมดและข้อมูลตัวอย่างจริงจากไฟล์ในตาราง/กราฟของระบบ"
         : "";
-      void generate(
+      // runTurn, not generate: a whole app from a PRD is the build most likely to
+      // run out of time, and one that stopped after 18 of its files used to be
+      // left that way — missing screens, blank menus — until someone typed again.
+      void runTurn(
         `สร้าง web demo ตามเอกสาร BRD/PRD ที่แนบมา ให้ครบทุกหน้าจอและตรง design direction ที่ระบุ${dataHint}`,
+        attachments,
         {
           // The brief rides along with the documents, never instead of them: the
           // BRD/PRD carry the scope, the brief carries the specifics they had no
@@ -1304,11 +1314,10 @@ export default function Studio({ projectId }: { projectId: string }) {
           brd: docs.brd?.slice(0, 50_000),
           prd: docs.prd?.slice(0, 50_000),
         },
-        proj ?? undefined,
-        attachments
+        proj ?? undefined
       );
     },
-    [generate]
+    [runTurn]
   );
 
   /**

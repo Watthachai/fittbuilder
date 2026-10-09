@@ -23,6 +23,17 @@ export const CHANGE_BADGE: Record<ChangeType, { label: string; className: string
 // Newest first. SemVer: fix → PATCH, feature → MINOR, breaking → MAJOR.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.101.0",
+    date: "2026-10-09",
+    title: "เปิดเคสซ้อนบนหน้าที่ทำงานอยู่",
+    items: [
+      {
+        type: "feature",
+        text: "กดเคสจากกระดิ่ง จากข้อความเด้ง หรือหลังแจ้งเคสเสร็จ หน้าเคสจะเปิดเต็มจอซ้อนบนหน้าที่ทำงานอยู่ อ่านเธรด ตอบกลับ และแนบรูปได้ในนั้นเลย ปิดแล้วกลับมาที่เดิม ไม่ต้องออกจากสตูดิโอระหว่างแก้งาน",
+      },
+    ],
+  },
+  {
     version: "0.100.0",
     date: "2026-10-09",
     title: "ติดตามเคสได้จากทุกหน้า พร้อมแจ้งเตือน",

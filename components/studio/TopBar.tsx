@@ -285,8 +285,7 @@ export default function TopBar({
         )}
       </div>
 
-      {/* Cases open in a new tab: a build may be running here. */}
-      <CaseBell newTab />
+      <CaseBell />
 
       <div className="relative shrink-0">
         <button

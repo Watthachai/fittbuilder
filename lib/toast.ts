@@ -15,14 +15,14 @@ export interface Toast {
   description?: string;
   /** ms before auto-dismiss; 0 = sticky (e.g. loading until updated). */
   duration: number;
-  /** A link to where the thing the toast is about lives (e.g. the case that was answered). */
+  /** One thing to do about it right there (e.g. open the case that was answered). */
   action?: ToastAction;
   leaving?: boolean;
 }
 
 export interface ToastAction {
   label: string;
-  href: string;
+  run: () => void;
 }
 
 export interface ToastOptions {

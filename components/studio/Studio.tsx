@@ -120,6 +120,7 @@ import SpecFlow, { type SpecResult } from "./SpecFlow";
 import StatusBar from "./StatusBar";
 import TopBar from "./TopBar";
 import ReportCaseModal, { type CaseReportPreset } from "@/components/cases/ReportCaseModal";
+import { useCaseInbox } from "@/components/cases/inbox-context";
 import type { CaseAiReply, CaseKind } from "@/lib/cases";
 import {
   continuationPrompt,
@@ -1653,6 +1654,8 @@ export default function Studio({ projectId }: { projectId: string }) {
     );
   }, [generate, previewRuntimeError]);
 
+  const { openCases } = useCaseInbox();
+
   /** Open a case for the team, carrying what this studio knows right now —
    *  and the chat reply it was reported from, when there is one. */
   const openReport = useCallback(
@@ -3084,7 +3087,17 @@ export default function Studio({ projectId }: { projectId: string }) {
         <SpecFlow onClose={() => setSpecOpen(false)} onComplete={handleSpecComplete} />
       )}
 
-      {reportPreset && <ReportCaseModal preset={reportPreset} onClose={() => setReportPreset(null)} />}
+      {reportPreset && (
+        <ReportCaseModal
+          preset={reportPreset}
+          onClose={() => setReportPreset(null)}
+          // The new case opens over the studio — whatever is building here keeps going.
+          onOpenCase={(id) => {
+            setReportPreset(null);
+            openCases(id);
+          }}
+        />
+      )}
 
       <DraftRecovery
         draft={draft?.complete ? null : draft}

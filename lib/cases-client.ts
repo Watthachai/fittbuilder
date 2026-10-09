@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import type { RealtimeChannel } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/client";
 import { currentUser } from "@/lib/current-user";
 import { storageName } from "@/lib/team-chat";
@@ -81,6 +82,35 @@ export function caseInbox(): Promise<{ signedIn: boolean; alerts: CaseAlert[] }>
 /** The topic the database pings when a case changes (migration 0048). */
 const CASES_TOPIC = "fittbuilder:cases";
 
+// One subscription for the whole page, fanned out to every listener. supabase-js
+// hands back the same channel for the same topic, so a listener that removed
+// "its" channel on unmount (the cases overlay closing) used to cut off every
+// other listener with it — the bell stopped hearing new answers.
+const listeners = new Set<(caseId: string) => void>();
+let live: { client: ReturnType<typeof createClient>; channel: RealtimeChannel } | null = null;
+
+function listen(fn: (caseId: string) => void): () => void {
+  listeners.add(fn);
+  if (!live) {
+    const client = createClient();
+    const channel = client
+      .channel(CASES_TOPIC)
+      .on("broadcast", { event: "changed" }, ({ payload }) => {
+        const { caseId } = payload as { caseId: string };
+        for (const l of listeners) l(caseId);
+      })
+      .subscribe();
+    live = { client, channel };
+  }
+  return () => {
+    listeners.delete(fn);
+    if (listeners.size === 0 && live) {
+      void live.client.removeChannel(live.channel);
+      live = null;
+    }
+  };
+}
+
 /**
  * Hear about every change to a case as it happens — a new case, a reply, a
  * status move — whether it came from the app or straight from the database.
@@ -94,15 +124,6 @@ export function useCaseChanges(onChange: (caseId: string) => void, enabled = tru
 
   useEffect(() => {
     if (!enabled) return;
-    const supabase = createClient();
-    const channel = supabase
-      .channel(CASES_TOPIC)
-      .on("broadcast", { event: "changed" }, ({ payload }) => {
-        latest.current((payload as { caseId: string }).caseId);
-      })
-      .subscribe();
-    return () => {
-      void supabase.removeChannel(channel);
-    };
+    return listen((caseId) => latest.current(caseId));
   }, [enabled]);
 }

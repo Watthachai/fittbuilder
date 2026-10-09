@@ -1,12 +1,11 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import Link from "next/link";
 import { Bell, BellRing, Loader2, Plus } from "lucide-react";
 import { isClosed, type CaseSummary } from "@/lib/cases";
 import { listCases } from "@/lib/cases-client";
 import { useDismiss } from "@/lib/useDismiss";
-import { useCaseInbox } from "./CaseInbox";
+import { useCaseInbox } from "./inbox-context";
 import { StatusPill } from "./CaseBits";
 import ReportCaseModal from "./ReportCaseModal";
 
@@ -17,11 +16,12 @@ type Permission = NotificationPermission | "unsupported";
 /**
  * "เคสของฉัน" from any page: the number of cases waiting on you, and a panel
  * with your open cases, a way to report a new one, and desktop notifications.
- * `newTab` opens cases in a new tab — the studio may be in the middle of a build.
+ * A case opens over the current page (CaseInboxProvider's overlay), so someone
+ * mid-build in the studio reads and answers it without leaving.
  * `align` is the edge the panel opens from: "left" in the settings sidebar, which sits at the screen's left.
  */
-export default function CaseBell({ newTab = false, align = "right" }: { newTab?: boolean; align?: "left" | "right" }) {
-  const { signedIn, alerts } = useCaseInbox();
+export default function CaseBell({ align = "right" }: { align?: "left" | "right" }) {
+  const { signedIn, alerts, openCases } = useCaseInbox();
   const [open, setOpen] = useState(false);
   const [cases, setCases] = useState<CaseSummary[] | null>(null);
   const [team, setTeam] = useState(false);
@@ -71,7 +71,6 @@ export default function CaseBell({ newTab = false, align = "right" }: { newTab?:
     .filter((c) => !isClosed(c.status) || c.unread)
     .sort((a, b) => Number(b.unread) - Number(a.unread) || Date.parse(b.updatedAt) - Date.parse(a.updatedAt))
     .slice(0, SHOWN);
-  const target = newTab ? { target: "_blank", rel: "noreferrer" } : {};
 
   const allow = async () => setPermission(await Notification.requestPermission());
 
@@ -112,12 +111,13 @@ export default function CaseBell({ newTab = false, align = "right" }: { newTab?:
                 </p>
               ) : (
                 shown.map((c) => (
-                  <Link
+                  <button
                     key={c.id}
-                    href={`/cases?id=${c.id}`}
-                    {...target}
-                    onClick={() => setOpen(false)}
-                    className="flex items-start gap-2.5 px-3.5 py-2.5 transition hover:bg-chalk/5"
+                    onClick={() => {
+                      setOpen(false);
+                      openCases(c.id);
+                    }}
+                    className="flex w-full items-start gap-2.5 px-3.5 py-2.5 text-left transition hover:bg-chalk/5"
                   >
                     <span
                       className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${c.unread ? "bg-red-500" : "bg-transparent"}`}
@@ -131,7 +131,7 @@ export default function CaseBell({ newTab = false, align = "right" }: { newTab?:
                         <StatusPill status={c.status} />
                       </span>
                     </span>
-                  </Link>
+                  </button>
                 ))
               )}
             </div>
@@ -146,14 +146,15 @@ export default function CaseBell({ newTab = false, align = "right" }: { newTab?:
               >
                 <Plus size={13} /> แจ้งเคสใหม่
               </button>
-              <Link
-                href="/cases"
-                {...target}
-                onClick={() => setOpen(false)}
+              <button
+                onClick={() => {
+                  setOpen(false);
+                  openCases();
+                }}
                 className="font-display text-[12px] text-chalk-dim transition hover:text-chalk"
               >
                 ดูเคสทั้งหมด
-              </Link>
+              </button>
             </div>
 
             {permission !== "unsupported" && (
@@ -173,7 +174,16 @@ export default function CaseBell({ newTab = false, align = "right" }: { newTab?:
         </>
       )}
 
-      {reporting && <ReportCaseModal preset={{ kind: "other" }} onClose={() => setReporting(false)} />}
+      {reporting && (
+        <ReportCaseModal
+          preset={{ kind: "other" }}
+          onClose={() => setReporting(false)}
+          onOpenCase={(id) => {
+            setReporting(false);
+            openCases(id);
+          }}
+        />
+      )}
     </div>
   );
 }

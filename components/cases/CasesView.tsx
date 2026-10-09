@@ -8,7 +8,7 @@ import { useFileDrop } from "@/lib/useFileDrop";
 import { CASE_STATUS, CASE_STATUSES, isClosed, type CaseDetail, type CaseStatus, type CaseSummary } from "@/lib/cases";
 import { getCase, listCases, replyToCase, useCaseChanges } from "@/lib/cases-client";
 import ReportCaseModal, { ContextRows } from "./ReportCaseModal";
-import { useCaseInbox } from "./CaseInbox";
+import { useCaseInbox, useViewingCase } from "./inbox-context";
 import {
   ago,
   ImagePickButton,
@@ -32,8 +32,11 @@ const FILTERS: { key: Filter; label: string }[] = [
  * แจ้งเคส / ติดตามปัญหา — the list of cases on the left, the open one's thread
  * on the right. The team sees every case and can switch to their own; everyone
  * else sees the cases they reported.
+ *
+ * `embedded`: shown over another page (the cases overlay), so picking a case
+ * must not rewrite that page's address.
  */
-export default function CasesView({ initialId }: { initialId: string | null }) {
+export default function CasesView({ initialId, embedded = false }: { initialId: string | null; embedded?: boolean }) {
   const [team, setTeam] = useState(false);
   const [scope, setScope] = useState<"all" | "mine">("all");
   const [cases, setCases] = useState<CaseSummary[] | null>(null);
@@ -76,7 +79,7 @@ export default function CasesView({ initialId }: { initialId: string | null }) {
   const open = (id: string) => {
     setSelected(id);
     setCases((prev) => prev?.map((c) => (c.id === id ? { ...c, unread: false } : c)) ?? prev);
-    window.history.replaceState(null, "", `/cases?id=${id}`);
+    if (!embedded) window.history.replaceState(null, "", `/cases?id=${id}`);
   };
 
   const shown = useMemo(() => {
@@ -241,8 +244,10 @@ function CaseThread({ id, tick, onChanged }: { id: string; tick: number; onChang
   const images = useCaseImages();
   const { dragging, dropHandlers } = useFileDrop((files) => void images.add(Array.from(files)));
 
-  // Opening a case marks it seen: the bell's count follows.
+  // Opening a case marks it seen: the bell's count follows. While it is on
+  // screen, its news is not announced again as a toast.
   const { refresh: refreshInbox } = useCaseInbox();
+  useViewingCase(id);
   const load = useCallback(async () => {
     try {
       const res = await getCase(id);

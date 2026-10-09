@@ -1,5 +1,6 @@
 "use client";
 
+import AppVersion from "@/components/AppVersion";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -246,6 +247,7 @@ export default function ConsultShell() {
           <span className="rounded-full bg-shine/15 px-1.5 py-0.5 font-mono text-[9px] font-bold uppercase tracking-wider text-shine">
             alpha
           </span>
+          <AppVersion />
         </div>
 
         {org && (

@@ -23,6 +23,17 @@ export const CHANGE_BADGE: Record<ChangeType, { label: string; className: string
 // Newest first. SemVer: fix → PATCH, feature → MINOR, breaking → MAJOR.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.97.5",
+    date: "2026-10-09",
+    title: "เห็นเวอร์ชันทุกหน้า",
+    items: [
+      {
+        type: "improvement",
+        text: "เลขเวอร์ชันขึ้นข้างชื่อ FITT Builder ทุกหน้า ทั้งหน้าแรก หน้าเข้าสู่ระบบ สตูดิโอ หน้าตั้งค่าและแจ้งเคส และ FITT Consult กดแล้วเปิดดูว่ามีอะไรใหม่",
+      },
+    ],
+  },
+  {
     version: "0.97.4",
     date: "2026-10-09",
     title: "สร้างจากเอกสาร BRD/PRD ได้ครบ ไม่ค้างครึ่งทาง",

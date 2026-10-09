@@ -1,3 +1,4 @@
+import AppVersion from "@/components/AppVersion";
 import Link from "next/link";
 import MainframeHero from "@/components/landing/MainframeHero";
 import ScrollStory from "@/components/landing/ScrollStory";
@@ -27,13 +28,16 @@ const STEPS = [
 
 function Logo() {
   return (
-    <Link href="/" className="inline-flex items-center gap-2.5">
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src="/logo.png" alt="" className="h-8 w-8 rounded-lg" />
-      <span className="font-display text-base font-semibold tracking-tight text-chalk">
-        FITT Builder
-      </span>
-    </Link>
+    <div className="inline-flex items-baseline gap-2.5">
+      <Link href="/" className="inline-flex items-center gap-2.5 self-center">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/logo.png" alt="" className="h-8 w-8 rounded-lg" />
+        <span className="font-display text-base font-semibold tracking-tight text-chalk">
+          FITT Builder
+        </span>
+      </Link>
+      <AppVersion />
+    </div>
   );
 }
 

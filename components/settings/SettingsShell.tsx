@@ -1,5 +1,6 @@
 "use client";
 
+import AppVersion from "@/components/AppVersion";
 import { useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -66,12 +67,15 @@ export default function SettingsShell({ children }: { children: ReactNode }) {
   return (
     <div className="flex h-screen bg-night text-chalk">
       <aside className="flex h-full w-60 shrink-0 flex-col border-r border-night-edge px-3 py-5">
-        <Link
-          href="/"
-          className="flex items-center gap-2 px-2 font-display text-base font-semibold tracking-tight text-chalk"
-        >
-          FITT <span className="text-shine">Builder</span>
-        </Link>
+        <div className="flex items-baseline gap-2 px-2">
+          <Link
+            href="/"
+            className="flex items-center gap-2 font-display text-base font-semibold tracking-tight text-chalk"
+          >
+            FITT <span className="text-shine">Builder</span>
+          </Link>
+          <AppVersion />
+        </div>
 
         <div className="mt-6 flex items-center gap-2.5 rounded-xl border border-night-edge bg-night-panel px-3 py-2.5">
           {account?.avatar ? (

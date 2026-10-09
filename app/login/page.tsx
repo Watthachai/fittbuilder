@@ -1,5 +1,6 @@
 "use client";
 
+import AppVersion from "@/components/AppVersion";
 import { useState } from "react";
 import Link from "next/link";
 import { ArrowRight, Mail } from "lucide-react";
@@ -65,13 +66,16 @@ export default function LoginPage() {
     <main className="grid min-h-screen lg:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)]">
       {/* ── Left: brand + sign-in ─────────────────────────────────────── */}
       <section className="flex flex-col justify-between bg-night px-6 py-8 sm:px-10 lg:px-14">
-        <Link href="/" className="inline-flex w-fit items-center gap-2.5">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/logo.png" alt="" className="h-8 w-8 rounded-lg" />
-          <span className="font-display text-base font-semibold tracking-tight text-chalk">
-            FITT Builder
-          </span>
-        </Link>
+        <div className="inline-flex w-fit items-center gap-2.5">
+          <Link href="/" className="inline-flex items-center gap-2.5">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/logo.png" alt="" className="h-8 w-8 rounded-lg" />
+            <span className="font-display text-base font-semibold tracking-tight text-chalk">
+              FITT Builder
+            </span>
+          </Link>
+          <AppVersion />
+        </div>
 
         <div className="mx-auto w-full max-w-sm py-10">
           <p className="mb-4 font-mono text-[11px] uppercase tracking-[0.22em] text-shine">

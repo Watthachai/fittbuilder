@@ -1,5 +1,6 @@
 "use client";
 
+import AppVersion from "@/components/AppVersion";
 import Link from "next/link";
 import { useState } from "react";
 import {
@@ -110,6 +111,7 @@ export default function TopBar({
         <img src="/logo.png" alt="" className="h-6 w-6 rounded-md" />
         FITT <span className="text-shine">Builder</span>
       </Link>
+      <AppVersion />
       <span className="shrink-0 text-night-edge">/</span>
       <input
         defaultValue={project.name}

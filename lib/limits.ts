@@ -17,6 +17,19 @@ export const MESSAGE_MAX_CHARS = 20_000;
 export const MESSAGE_WARN_CHARS = Math.floor(MESSAGE_MAX_CHARS * 0.9);
 
 /**
+ * How long the prompt of one build turn (/api/generate) may be.
+ *
+ * Not the message limit: the studio wraps the person's message before sending
+ * it. A task turn carries the whole request, the list, its own item (which the
+ * splitter copies from the request) and the rules; a continuation wraps that
+ * again with the files already written. Checked against MESSAGE_MAX_CHARS, a
+ * request near the limit made every task prompt "คำขอไม่ถูกต้อง" (case #11).
+ * Three messages' worth holds the largest wrap with room to spare, and is still
+ * a ceiling on what one request can ask the model.
+ */
+export const TURN_PROMPT_MAX_CHARS = MESSAGE_MAX_CHARS * 3;
+
+/**
  * How much of one attached TEXT file the model is given.
  *
  * Five times the typed limit, because attaching a document is the answer to

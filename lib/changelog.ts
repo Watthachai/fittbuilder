@@ -23,6 +23,17 @@ export const CHANGE_BADGE: Record<ChangeType, { label: string; className: string
 // Newest first. SemVer: fix → PATCH, feature → MINOR, breaking → MAJOR.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.102.2",
+    date: "2026-10-09",
+    title: "สั่งงานยาว ๆ แบบหลายข้อ ไม่ขึ้นคำขอไม่ถูกต้อง (เคส #11)",
+    items: [
+      {
+        type: "fix",
+        text: "คำสั่งยาวใกล้เพดาน 20,000 ตัวอักษรที่แตกเป็นหลายข้อ ทุกข้อขึ้น “คำขอไม่ถูกต้อง” แล้วลองซ้ำจนติด “คำขอถี่เกินไป” เพราะแต่ละข้อแนบคำสั่งเต็มไปพร้อมรายการงานจนยาวเกินที่ระบบรับ ตอนนี้รับความยาวส่วนที่ระบบเติมให้แล้ว คำสั่งยาวสุดก็ทำได้ครบทุกข้อ",
+      },
+    ],
+  },
+  {
     version: "0.102.1",
     date: "2026-10-09",
     title: "รายการงานไม่หยุดกลางทางเพราะโหลดหน้าใหม่ (เคส #10)",

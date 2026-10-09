@@ -1,4 +1,6 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
+import { MESSAGE_MAX_CHARS, TURN_PROMPT_MAX_CHARS } from "@/lib/limits";
 import {
   continuationPrompt,
   looksMultiTask,
@@ -76,6 +78,32 @@ describe("prompts", () => {
     expect(prompt).toContain("หมดเวลาของรอบ");
     expect(prompt).toContain("src/pages/Report.tsx");
     expect(prompt).toContain("เพิ่มหน้ารายงาน");
+  });
+
+  /**
+   * Case #11: a task turn wraps the whole request — plus the list, its own
+   * item and the rules — so a request near the message limit made every task
+   * prompt longer than /api/generate accepted. Each was refused as
+   * "คำขอไม่ถูกต้อง", twice per task, until the rate limit cut in.
+   */
+  it("fits what /api/generate accepts even for the longest message, continued once", () => {
+    const request = "ก".repeat(MESSAGE_MAX_CHARS);
+    // The splitter copies the request's detail into the tasks, at most 15 of them.
+    const share = Math.floor(MESSAGE_MAX_CHARS / 15);
+    const many = Array.from({ length: 15 }, (_, i) => ({
+      ...task(`t${i}`, "ห".repeat(120)),
+      detail: "ด".repeat(share),
+    }));
+    const turn = taskTurnPrompt(request, many, 14);
+    const written = Array.from({ length: 60 }, (_, i) => `src/components/feature/Component${i}.tsx`);
+    const continued = continuationPrompt(turn, "time", written);
+    expect(turn.length).toBeGreaterThan(MESSAGE_MAX_CHARS);
+    expect(continued.length).toBeLessThanOrEqual(TURN_PROMPT_MAX_CHARS);
+  });
+
+  it("is checked against the turn limit in /api/generate, not the message limit", () => {
+    const route = readFileSync("app/api/generate/route.ts", "utf8");
+    expect(route).toMatch(/prompt: z\.string\(\)\.trim\(\)\.min\(1\)\.max\(TURN_PROMPT_MAX_CHARS\)/);
   });
 });
 

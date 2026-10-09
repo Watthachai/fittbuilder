@@ -1,6 +1,6 @@
 import { after } from "next/server";
 import { z } from "zod";
-import { DOC_MAX_CHARS, MESSAGE_MAX_CHARS } from "@/lib/limits";
+import { DOC_MAX_CHARS, MESSAGE_MAX_CHARS, TURN_PROMPT_MAX_CHARS } from "@/lib/limits";
 import {
   blockedAssets,
   blockedAssetsNote,
@@ -68,7 +68,7 @@ function isValidPackageName(name: string): boolean {
 }
 
 const bodySchema = z.object({
-  prompt: z.string().trim().min(1).max(MESSAGE_MAX_CHARS),
+  prompt: z.string().trim().min(1).max(TURN_PROMPT_MAX_CHARS),
   /** The user's own words that started the project, carried through verbatim. */
   brief: z.string().max(MESSAGE_MAX_CHARS).optional(),
   previousFiles: z.record(z.string().max(200), z.string().max(200_000)).optional(),

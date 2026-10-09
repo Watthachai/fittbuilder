@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/client";
 import { currentUser } from "@/lib/current-user";
 import { storageName } from "@/lib/team-chat";
 import type {
+  CaseAlert,
   CaseAttachment,
   CaseContext,
   CaseDetail,
@@ -72,9 +73,9 @@ export function replyToCase(
   return call(`/api/cases/${id}`, post(input));
 }
 
-export async function caseAlerts(): Promise<number> {
-  const { count } = await call<{ count: number }>("/api/cases/alerts");
-  return count;
+/** The cases waiting on the signed-in person, newest first (empty and signedIn=false when signed out). */
+export function caseInbox(): Promise<{ signedIn: boolean; alerts: CaseAlert[] }> {
+  return call("/api/cases/alerts");
 }
 
 /** The topic the database pings when a case changes (migration 0048). */

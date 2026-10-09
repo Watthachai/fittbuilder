@@ -7,6 +7,7 @@ import VersionWatcher from "@/components/VersionWatcher";
 import Toaster from "@/components/ui/Toaster";
 import ConfirmHost from "@/components/ui/ConfirmHost";
 import CreateWorkspaceHost from "@/components/org/CreateWorkspaceHost";
+import { CaseInboxProvider } from "@/components/cases/CaseInbox";
 
 // Inter is the theme's typeface (docs/brief-plans/design.md); it has no Thai
 // glyphs, so Anuphan sits behind it in the stack for Thai text.
@@ -65,7 +66,7 @@ export default function RootLayout({
         />
       </head>
       <body className="min-h-full flex flex-col">
-        {children}
+        <CaseInboxProvider>{children}</CaseInboxProvider>
         <FloatingThemeToggle />
         <GlobalGenerationIndicator />
         <VersionWatcher />

@@ -15,12 +15,20 @@ export interface Toast {
   description?: string;
   /** ms before auto-dismiss; 0 = sticky (e.g. loading until updated). */
   duration: number;
+  /** A link to where the thing the toast is about lives (e.g. the case that was answered). */
+  action?: ToastAction;
   leaving?: boolean;
+}
+
+export interface ToastAction {
+  label: string;
+  href: string;
 }
 
 export interface ToastOptions {
   description?: string;
   duration?: number;
+  action?: ToastAction;
 }
 
 const DEFAULT_DURATION: Record<ToastType, number> = {
@@ -57,7 +65,7 @@ function scheduleAutoDismiss(id: string, duration: number) {
 function add(type: ToastType, title: string, opts?: ToastOptions): string {
   const id = `toast-${++counter}`;
   const duration = opts?.duration ?? DEFAULT_DURATION[type];
-  toasts = [...toasts, { id, type, title, description: opts?.description, duration }];
+  toasts = [...toasts, { id, type, title, description: opts?.description, duration, action: opts?.action }];
   emit();
   scheduleAutoDismiss(id, duration);
   return id;

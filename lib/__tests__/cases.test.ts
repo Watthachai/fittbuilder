@@ -1,7 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
+  alertFor,
+  alertKey,
+  alertMessage,
   authorKindFor,
   buildCaseContext,
+  freshAlerts,
   isClosed,
   needsTeam,
   ownsAttachmentPath,
@@ -160,5 +164,60 @@ describe("unread", () => {
     expect(unreadForReporter(activity({}))).toBe(false);
     expect(unreadForReporter(activity({ last_team_at: at(7) }))).toBe(true);
     expect(unreadForReporter(activity({ last_team_at: at(7), reporter_seen_at: at(8) }))).toBe(false);
+  });
+});
+
+describe("case alerts", () => {
+  const row = (over: Partial<CaseActivity & { reporter_id: string }>) => ({
+    id: "c-8",
+    number: 8,
+    title: "สร้างไม่สำเร็จ: Failed to fetch",
+    reporter_id: SOMEONE,
+    ...activity({}),
+    ...over,
+  });
+
+  it("tells a reporter the team answered, at the time of the answer", () => {
+    expect(alertFor({ id: SOMEONE, team: false }, row({ last_team_at: at(7) }))).toMatchObject({
+      reason: "answered",
+      at: at(7),
+      number: 8,
+    });
+    expect(alertFor({ id: SOMEONE, team: false }, row({ last_team_at: at(7), reporter_seen_at: at(8) }))).toBeNull();
+  });
+
+  it("tells the team about a case nobody opened, and about the reporter writing again", () => {
+    expect(alertFor({ id: ME, team: true }, row({}))).toMatchObject({ reason: "new", at: at(0) });
+    expect(alertFor({ id: ME, team: true }, row({ team_seen_at: at(5), last_reporter_at: at(9) }))).toMatchObject({
+      reason: "reporter",
+      at: at(9),
+    });
+    expect(alertFor({ id: ME, team: true }, row({ team_seen_at: at(5) }))).toBeNull();
+  });
+
+  it("treats the team's own case like any reporter's", () => {
+    expect(alertFor({ id: ME, team: true }, row({ reporter_id: ME, last_team_at: at(7) }))).toMatchObject({
+      reason: "answered",
+    });
+    expect(alertFor({ id: ME, team: true }, row({ reporter_id: ME }))).toBeNull();
+  });
+
+  it("never alerts someone outside the team about another person's case", () => {
+    expect(alertFor({ id: ME, team: false }, row({}))).toBeNull();
+  });
+
+  it("calls an alert fresh once per event: a second answer on the same case is new again", () => {
+    const first = alertFor({ id: SOMEONE, team: false }, row({ last_team_at: at(7) }))!;
+    const seen = new Set([alertKey(first)]);
+    expect(freshAlerts(seen, [first])).toEqual([]);
+    const second = alertFor({ id: SOMEONE, team: false }, row({ last_team_at: at(12) }))!;
+    expect(freshAlerts(seen, [second])).toEqual([second]);
+  });
+
+  it("words each alert by what happened", () => {
+    const base = { id: "c-8", number: 8, title: "หน้าค้าง", status: "investigating" as const };
+    expect(alertMessage({ ...base, reason: "answered", at: at(1) })).toEqual({ title: "ทีมตอบเคส #8 แล้ว", body: "หน้าค้าง" });
+    expect(alertMessage({ ...base, reason: "new", at: at(1) })).toEqual({ title: "มีเคสใหม่ #8", body: "หน้าค้าง" });
+    expect(alertMessage({ ...base, reason: "reporter", at: at(1) })).toEqual({ title: "ผู้แจ้งตอบในเคส #8", body: "หน้าค้าง" });
   });
 });

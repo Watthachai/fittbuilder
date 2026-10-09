@@ -1,6 +1,7 @@
 "use client";
 
 import AppVersion from "@/components/AppVersion";
+import CaseBell from "@/components/cases/CaseBell";
 import { useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -75,6 +76,9 @@ export default function SettingsShell({ children }: { children: ReactNode }) {
             FITT <span className="text-shine">Builder</span>
           </Link>
           <AppVersion />
+          <div className="ml-auto self-center">
+            <CaseBell align="left" />
+          </div>
         </div>
 
         <div className="mt-6 flex items-center gap-2.5 rounded-xl border border-night-edge bg-night-panel px-3 py-2.5">

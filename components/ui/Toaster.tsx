@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import {
   AlertTriangle,
   CheckCircle2,
@@ -60,6 +61,15 @@ export default function Toaster() {
                 <p className="mt-0.5 break-words text-[12px] leading-relaxed text-chalk-dim">
                   {t.description}
                 </p>
+              )}
+              {t.action && (
+                <Link
+                  href={t.action.href}
+                  onClick={() => dismiss(t.id)}
+                  className="mt-1.5 inline-block font-display text-[12px] font-semibold text-shine transition hover:underline"
+                >
+                  {t.action.label}
+                </Link>
               )}
             </div>
             {t.type !== "loading" && (

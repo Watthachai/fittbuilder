@@ -1,6 +1,7 @@
 "use client";
 
 import AppVersion from "@/components/AppVersion";
+import CaseBell from "@/components/cases/CaseBell";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -287,6 +288,9 @@ export default function ConsultShell() {
             )}
           </div>
         )}
+        <div className={org ? "" : "ml-auto"}>
+          <CaseBell />
+        </div>
       </header>
 
       {orgs === null ? (

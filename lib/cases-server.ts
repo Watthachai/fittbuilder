@@ -4,10 +4,8 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { isAdminEmail } from "@/lib/admin";
 import {
   AI_REPLY_CHARS,
+  alertFor,
   CASE_LOG_LINES,
-  needsTeam,
-  unreadForReporter,
-  type CaseActivity,
   type CaseAttachment,
   type CaseKind,
   type CasePerson,
@@ -89,9 +87,9 @@ export function mayOpen(viewer: CaseViewer, row: Pick<CaseRow, "reporter_id">): 
   return viewer.team || row.reporter_id === viewer.id;
 }
 
-/** Something new on this viewer's side of the case. */
-export function unreadFor(viewer: CaseViewer, row: Pick<CaseRow, "reporter_id"> & CaseActivity): boolean {
-  return row.reporter_id === viewer.id ? unreadForReporter(row) : needsTeam(row);
+/** Something new on this viewer's side of the case — the same rule the bell alerts on. */
+export function unreadFor(viewer: CaseViewer, row: CaseRow): boolean {
+  return alertFor(viewer, row) !== null;
 }
 
 /** Names for a set of people, from their profiles. */

@@ -7,6 +7,7 @@ import Link from "next/link";
 import { PanelLeft } from "lucide-react";
 import LaunchPad from "./LaunchPad";
 import AccountMenu from "@/components/AccountMenu";
+import CaseBell from "@/components/cases/CaseBell";
 import ProjectsDrawer from "@/components/projects/ProjectsDrawer";
 
 const VIDEO_SRC =
@@ -261,7 +262,13 @@ export default function MainframeHero() {
           >
             ผลงานของฉัน
           </button>
+          <CaseBell />
           <AccountMenu />
+        </div>
+
+        {/* Mobile: the case bell stays reachable without opening the menu. */}
+        <div className="ml-auto mr-4 md:hidden">
+          <CaseBell />
         </div>
 
         {/* Mobile hamburger */}

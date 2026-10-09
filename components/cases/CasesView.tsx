@@ -8,6 +8,7 @@ import { useFileDrop } from "@/lib/useFileDrop";
 import { CASE_STATUS, CASE_STATUSES, isClosed, type CaseDetail, type CaseStatus, type CaseSummary } from "@/lib/cases";
 import { getCase, listCases, replyToCase, useCaseChanges } from "@/lib/cases-client";
 import ReportCaseModal, { ContextRows } from "./ReportCaseModal";
+import { useCaseInbox } from "./CaseInbox";
 import {
   ago,
   ImagePickButton,
@@ -240,16 +241,19 @@ function CaseThread({ id, tick, onChanged }: { id: string; tick: number; onChang
   const images = useCaseImages();
   const { dragging, dropHandlers } = useFileDrop((files) => void images.add(Array.from(files)));
 
+  // Opening a case marks it seen: the bell's count follows.
+  const { refresh: refreshInbox } = useCaseInbox();
   const load = useCallback(async () => {
     try {
       const res = await getCase(id);
       setTeam(res.team);
       setDetail(res.case);
       setError(null);
+      refreshInbox();
     } catch (e) {
       setError(e instanceof Error ? e.message : "โหลดเคสไม่สำเร็จ");
     }
-  }, [id]);
+  }, [id, refreshInbox]);
 
   // `tick`: the database said this case moved (a reply, a status) — read it again.
   useEffect(() => {

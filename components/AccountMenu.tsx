@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -10,7 +10,7 @@ import { createClient } from "@/lib/supabase/client";
 import { currentUser, type CurrentUser } from "@/lib/current-user";
 import { firstOrg } from "@/lib/orgs";
 import { acceptMyInvite, listMyInvites, type MyInvite } from "@/lib/invites-inbox";
-import { caseAlerts, useCaseChanges } from "@/lib/cases-client";
+import { useCaseInbox } from "@/components/cases/CaseInbox";
 import { openCreateWorkspace } from "@/lib/workspace-modal";
 import { toast } from "@/lib/toast";
 import { useDismiss } from "@/lib/useDismiss";
@@ -39,7 +39,8 @@ export default function AccountMenu() {
   const [signingOut, setSigningOut] = useState(false);
   const [openingOrg, setOpeningOrg] = useState(false);
   const [invites, setInvites] = useState<MyInvite[]>([]);
-  const [caseCount, setCaseCount] = useState(0);
+  // Cases waiting on this person, kept live for every page by CaseInboxProvider.
+  const caseCount = useCaseInbox().alerts.length;
   const [accepting, setAccepting] = useState<string | null>(null);
   const [theme, setTheme] = useTheme();
 
@@ -147,26 +148,6 @@ export default function AccountMenu() {
     };
   }, [account]);
 
-  // Cases waiting on this person: a team answer they have not read, or — for the
-  // team — a case nobody has opened yet. Re-read whenever any case moves, live.
-  const [caseTick, setCaseTick] = useState(0);
-  useCaseChanges(
-    useCallback(() => setCaseTick((t) => t + 1), []),
-    Boolean(account)
-  );
-  useEffect(() => {
-    // Signed out, the chip is not rendered at all; signing in as someone else reloads below.
-    if (!account) return;
-    let cancelled = false;
-    void caseAlerts()
-      .then((n) => {
-        if (!cancelled) setCaseCount(n);
-      })
-      .catch(() => {});
-    return () => {
-      cancelled = true;
-    };
-  }, [account, caseTick]);
 
   // Pending invites addressed to this user (project + workspace) — drives the
   // chip's notification dot and the inbox section in the dropdown.
@@ -215,12 +196,13 @@ export default function AccountMenu() {
             Admin
           </span>
         )}
-        {invites.length + caseCount > 0 && (
+        {/* Cases have their own bell beside this chip; the chip counts invites. */}
+        {invites.length > 0 && (
           <span
-            aria-label={`มีคำเชิญ ${invites.length} รายการ และเคสที่รอดู ${caseCount} เคส`}
+            aria-label={`มีคำเชิญ ${invites.length} รายการ`}
             className="absolute -right-0.5 -top-0.5 grid h-4 min-w-4 place-items-center rounded-full bg-shine px-1 font-mono text-[9px] font-bold text-night"
           >
-            {invites.length + caseCount}
+            {invites.length}
           </span>
         )}
       </button>

@@ -27,6 +27,7 @@ import { downloadZip } from "@/lib/zip";
 import { downloadFittcoreSpec, type GatewayIngestResult } from "@/lib/fittcore";
 import { useOrgSkillName } from "@/lib/skills/use-org-skill";
 import FittcoreExportModal from "./FittcoreExportModal";
+import CaseBell from "@/components/cases/CaseBell";
 import type { VersionKey } from "@/lib/versions";
 import ProjectPresence from "./ProjectPresence";
 import TeamChat from "./TeamChat";
@@ -283,6 +284,9 @@ export default function TopBar({
           </>
         )}
       </div>
+
+      {/* Cases open in a new tab: a build may be running here. */}
+      <CaseBell newTab />
 
       <div className="relative shrink-0">
         <button

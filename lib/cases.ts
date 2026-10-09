@@ -185,3 +185,51 @@ export function needsTeam(c: CaseActivity): boolean {
   if (c.team_seen_at === null) return true;
   return Date.parse(c.last_reporter_at) > Date.parse(c.team_seen_at);
 }
+
+/** Why a case wants this person now: the team answered them, or — for the team — a new case or a reporter's reply. */
+export type CaseAlertReason = "answered" | "new" | "reporter";
+
+/** One case waiting on the viewer — the bell's count, a toast, a desktop notification. */
+export interface CaseAlert {
+  id: string;
+  number: number;
+  title: string;
+  status: CaseStatus;
+  reason: CaseAlertReason;
+  /** When the thing the alert is about happened; with the id, it names the event. */
+  at: string;
+}
+
+/**
+ * What a case wants from this viewer, or null. The same rule as the unread
+ * count: on your own case you hear when the team answers; on anyone else's,
+ * only the team hears, about a case nobody opened or a reporter writing again.
+ */
+export function alertFor(
+  viewer: { id: string; team: boolean },
+  row: { id: string; number: number; title: string; reporter_id: string } & CaseActivity
+): CaseAlert | null {
+  const base = { id: row.id, number: row.number, title: row.title, status: row.status };
+  if (row.reporter_id === viewer.id) {
+    return unreadForReporter(row) ? { ...base, reason: "answered", at: row.last_team_at! } : null;
+  }
+  if (!viewer.team || !needsTeam(row)) return null;
+  return { ...base, reason: row.team_seen_at === null ? "new" : "reporter", at: row.last_reporter_at };
+}
+
+export const alertKey = (a: CaseAlert): string => `${a.id}@${a.at}`;
+
+/** The alerts not shown yet — a second answer on the same case counts as new again. */
+export function freshAlerts(seen: ReadonlySet<string>, alerts: readonly CaseAlert[]): CaseAlert[] {
+  return alerts.filter((a) => !seen.has(alertKey(a)));
+}
+
+const ALERT_TITLE: Record<CaseAlertReason, (n: number) => string> = {
+  answered: (n) => `ทีมตอบเคส #${n} แล้ว`,
+  new: (n) => `มีเคสใหม่ #${n}`,
+  reporter: (n) => `ผู้แจ้งตอบในเคส #${n}`,
+};
+
+export function alertMessage(a: CaseAlert): { title: string; body: string } {
+  return { title: ALERT_TITLE[a.reason](a.number), body: a.title };
+}

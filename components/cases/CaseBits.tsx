@@ -11,7 +11,7 @@ import { toast } from "@/lib/toast";
 /**
  * Every status and kind has its own colour, so a list of cases reads at a
  * glance: orange waits on the team, violet waits on the reporter, blue is being
- * worked, green is fixed.
+ * worked, green is fixed, grey was not ours to fix.
  */
 const STATUS_TONE: Record<CaseStatus, string> = {
   new: "border-orange-400/50 bg-orange-400/10 text-orange-300 light:text-orange-700",
@@ -19,6 +19,7 @@ const STATUS_TONE: Record<CaseStatus, string> = {
   need_info: "border-violet-400/50 bg-violet-400/10 text-violet-300 light:text-violet-700",
   fixed: "border-emerald-400/50 bg-emerald-400/10 text-emerald-300 light:text-emerald-700",
   released: "border-emerald-500 bg-emerald-500 text-night light:text-white",
+  not_bug: "border-slate-400/50 bg-slate-400/10 text-slate-300 light:text-slate-600",
 };
 
 const KIND_TONE: Record<CaseKind, string> = {

@@ -23,6 +23,21 @@ export const CHANGE_BADGE: Record<ChangeType, { label: string; className: string
 // Newest first. SemVer: fix → PATCH, feature → MINOR, breaking → MAJOR.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.97.3",
+    date: "2026-10-09",
+    title: "สถานะเคส ไม่ใช่บั๊ก และกันแอปพังตอนลาก",
+    items: [
+      {
+        type: "feature",
+        text: "เคสปิดได้ด้วยสถานะ ไม่ใช่บั๊ก สำหรับเรื่องที่ตรวจแล้วไม่ใช่ปัญหาของระบบ ตัวกรองในหน้าแจ้งเคสเปลี่ยนเป็น ยังไม่ปิด / ปิดแล้ว / ทั้งหมด",
+      },
+      {
+        type: "fix",
+        text: "กำหนดให้ AI ไม่อ่านค่าจาก ref ข้างในคำสั่งอัปเดต state ต้นเหตุของแอปพังด้วย Cannot read properties of null ตอนลากหรือเลื่อนแผนผัง (เคส #5)",
+      },
+    ],
+  },
+  {
     version: "0.97.2",
     date: "2026-10-08",
     title: "หน้ารายงานการใช้ AI แบ่งหน้า",

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   authorKindFor,
   buildCaseContext,
+  isClosed,
   needsTeam,
   ownsAttachmentPath,
   suggestCaseTitle,
@@ -85,6 +86,22 @@ describe("ownsAttachmentPath", () => {
   it("refuses a path that climbs or nests", () => {
     expect(ownsAttachmentPath(ME, `${ME}/../${SOMEONE}/a.png`)).toBe(false);
     expect(ownsAttachmentPath(ME, `${ME}/sub/a.png`)).toBe(false);
+  });
+});
+
+describe("isClosed", () => {
+  it("closes a case that shipped or turned out not to be a bug", () => {
+    expect(isClosed("released")).toBe(true);
+    expect(isClosed("not_bug")).toBe(true);
+  });
+
+  it("keeps every other status open", () => {
+    expect(["new", "investigating", "need_info", "fixed"].map((s) => isClosed(s as "new"))).toEqual([
+      false,
+      false,
+      false,
+      false,
+    ]);
   });
 });
 

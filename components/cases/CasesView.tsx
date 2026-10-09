@@ -5,7 +5,7 @@ import Link from "next/link";
 import { ChevronDown, ChevronRight, Inbox, Loader2, Plus, Search, Send } from "lucide-react";
 import ImageLightbox from "@/components/ui/ImageLightbox";
 import { useFileDrop } from "@/lib/useFileDrop";
-import { CASE_STATUS, CASE_STATUSES, type CaseDetail, type CaseStatus, type CaseSummary } from "@/lib/cases";
+import { CASE_STATUS, CASE_STATUSES, isClosed, type CaseDetail, type CaseStatus, type CaseSummary } from "@/lib/cases";
 import { getCase, listCases, replyToCase, useCaseChanges } from "@/lib/cases-client";
 import ReportCaseModal, { ContextRows } from "./ReportCaseModal";
 import {
@@ -20,10 +20,10 @@ import {
   when,
 } from "./CaseBits";
 
-type Filter = "open" | "released" | "all";
+type Filter = "open" | "closed" | "all";
 const FILTERS: { key: Filter; label: string }[] = [
   { key: "open", label: "ยังไม่ปิด" },
-  { key: "released", label: "ปล่อยแล้ว" },
+  { key: "closed", label: "ปิดแล้ว" },
   { key: "all", label: "ทั้งหมด" },
 ];
 
@@ -81,8 +81,8 @@ export default function CasesView({ initialId }: { initialId: string | null }) {
   const shown = useMemo(() => {
     const q = query.trim().toLowerCase();
     return (cases ?? []).filter((c) => {
-      if (filter === "open" && c.status === "released") return false;
-      if (filter === "released" && c.status !== "released") return false;
+      if (filter === "open" && isClosed(c.status)) return false;
+      if (filter === "closed" && !isClosed(c.status)) return false;
       if (!q) return true;
       return [`#${c.number}`, c.title, c.reporter.name, c.reporter.email, c.project?.name]
         .filter(Boolean)

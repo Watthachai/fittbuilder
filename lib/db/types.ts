@@ -114,7 +114,7 @@ export interface Database {
           project_id: string | null;
           title: string;
           kind: "preview" | "runtime" | "generation" | "other";
-          status: "new" | "investigating" | "need_info" | "fixed" | "released";
+          status: "new" | "investigating" | "need_info" | "fixed" | "released" | "not_bug";
           context: Json;
           fixed_in: string | null;
           last_reporter_at: string;
@@ -130,7 +130,7 @@ export interface Database {
           project_id?: string | null;
           title: string;
           kind: "preview" | "runtime" | "generation" | "other";
-          status?: "new" | "investigating" | "need_info" | "fixed" | "released";
+          status?: "new" | "investigating" | "need_info" | "fixed" | "released" | "not_bug";
           context?: Json;
           fixed_in?: string | null;
           last_reporter_at?: string;
@@ -155,7 +155,7 @@ export interface Database {
           author_kind: "reporter" | "team";
           body: string;
           attachments: Json;
-          status_to: "new" | "investigating" | "need_info" | "fixed" | "released" | null;
+          status_to: "new" | "investigating" | "need_info" | "fixed" | "released" | "not_bug" | null;
           fixed_in: string | null;
           created_at: string;
         };
@@ -166,7 +166,7 @@ export interface Database {
           author_kind: "reporter" | "team";
           body?: string;
           attachments?: Json;
-          status_to?: "new" | "investigating" | "need_info" | "fixed" | "released" | null;
+          status_to?: "new" | "investigating" | "need_info" | "fixed" | "released" | "not_bug" | null;
           fixed_in?: string | null;
           created_at?: string;
         };

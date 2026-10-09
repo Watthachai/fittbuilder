@@ -7,8 +7,13 @@
  * it and move its status. Everyone else sees only the cases they reported.
  */
 
-export const CASE_STATUSES = ["new", "investigating", "need_info", "fixed", "released"] as const;
+export const CASE_STATUSES = ["new", "investigating", "need_info", "fixed", "released", "not_bug"] as const;
 export type CaseStatus = (typeof CASE_STATUSES)[number];
+
+/** Nothing left to do: shipped, or looked at and found not to be ours to fix. */
+export function isClosed(status: CaseStatus): boolean {
+  return status === "released" || status === "not_bug";
+}
 
 export const CASE_KINDS = ["preview", "runtime", "generation", "other"] as const;
 export type CaseKind = (typeof CASE_KINDS)[number];
@@ -19,6 +24,7 @@ export const CASE_STATUS: Record<CaseStatus, { label: string; hint: string }> = 
   need_info: { label: "รอข้อมูลเพิ่ม", hint: "ทีมต้องการข้อมูลเพิ่มจากผู้แจ้ง ตอบในเคสนี้ได้เลย" },
   fixed: { label: "แก้แล้ว รอปล่อย", hint: "แก้ในระบบแล้ว รอขึ้นเวอร์ชันใหม่" },
   released: { label: "ปล่อยแล้ว", hint: "ขึ้นเวอร์ชันใหม่แล้ว โหลดหน้าใหม่แล้วลองอีกครั้ง" },
+  not_bug: { label: "ไม่ใช่บั๊ก", hint: "ตรวจแล้วไม่ใช่ปัญหาของระบบ ไม่ต้องแก้ ดูเหตุผลในเคส" },
 };
 
 export const CASE_KIND: Record<CaseKind, string> = {

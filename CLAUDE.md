@@ -71,7 +71,8 @@ Stack as implemented: Google Gemini (`@google/genai`) for code generation, WebCo
 Users report problems from the studio's error screens or `/cases`; the team (ADMIN_EMAILS) answers there. Schema: `supabase/migrations/0047_cases.sql`. To work a case from the database:
 
 - Open ones: `select number, title, kind, status, project_id, context, created_at from fittbuilder_cases where status <> 'released' order by updated_at desc;` — `context` holds the error, the last 40 log lines, the preview phase and the app version; the thread is `fittbuilder_case_messages` by `case_id`. The project's files are in `fittbuilder_projects`.
-- Answer as the team by inserting a message: `insert into fittbuilder_case_messages (case_id, author_kind, body, status_to, fixed_in) values (<case id>, 'team', '<Thai answer>', 'fixed', '<version>');` — the trigger moves the case's status and marks it unread for the reporter. Statuses: `new → investigating → need_info → fixed → released`.
+- Answer as the team by inserting a message: `insert into fittbuilder_case_messages (case_id, author_kind, body, status_to, fixed_in) values (<case id>, 'team', '<Thai answer>', 'fixed', '<version>');` — the trigger moves the case's status and marks it unread for the reporter. Statuses: `new → investigating → need_info → fixed → released`, or `not_bug` to close one that is not ours to fix (both `released` and `not_bug` count as closed).
+- Fixing a project's files in the database: only while nobody is working in it (`updated_at` older than ~5 minutes) — an open studio saves its whole file set after every turn and silently overwrites the fix. After the update, tell open studios to pull it in: `select realtime.send(jsonb_build_object('from','claude','name','ทีม FITT Builder','updatedAt', to_char(now() at time zone 'utc','YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')), 'updated', 'rt:project:<project id>', false);` (ISO time — the studio compares it as a string).
 
 ## graphify
 

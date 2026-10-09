@@ -48,7 +48,20 @@ describe("buildCaseContext", () => {
       appVersion: "0.96.0",
       userAgent: "Chrome",
       page: "/project/16ec9f11",
+      aiReply: null,
     });
+  });
+
+  it("keeps the AI reply a case is about, cut to 2,000 characters", () => {
+    const ctx = buildCaseContext({
+      aiReply: { id: "m-42", text: `  ${"ข".repeat(5_000)}  ` },
+      appVersion: "0.98.0",
+      userAgent: "UA",
+      page: "/project/p",
+    });
+    expect(ctx.aiReply?.id).toBe("m-42");
+    expect(ctx.aiReply?.text).toHaveLength(2_000);
+    expect(ctx.aiReply?.text.startsWith("ข")).toBe(true);
   });
 });
 
@@ -61,6 +74,10 @@ describe("suggestCaseTitle", () => {
 
   it("falls back to the kind alone when there is no error", () => {
     expect(suggestCaseTitle("preview", null)).toBe("Preview เปิดไม่ขึ้น");
+  });
+
+  it("names a report about an AI reply after its kind", () => {
+    expect(suggestCaseTitle("ai_reply", null)).toBe("AI ตอบผิดปกติ");
   });
 
   it("leaves a general report for the reporter to name", () => {

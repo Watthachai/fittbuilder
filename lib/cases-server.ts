@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isAdminEmail } from "@/lib/admin";
 import {
+  AI_REPLY_CHARS,
   CASE_LOG_LINES,
   needsTeam,
   unreadForReporter,
@@ -42,6 +43,11 @@ export const contextSchema = z.object({
   appVersion: z.string().max(40),
   userAgent: z.string().max(400),
   page: z.string().max(300),
+  // Defaulted: a studio tab opened before 0.98.0 still sends the old shape.
+  aiReply: z
+    .object({ id: z.string().max(100), text: z.string().max(AI_REPLY_CHARS) })
+    .nullable()
+    .default(null),
 });
 
 export const CASE_COLUMNS =

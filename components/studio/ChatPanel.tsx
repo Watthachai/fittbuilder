@@ -10,6 +10,7 @@ import {
   Eye,
   FilePenLine,
   FileText,
+  Flag,
   GitCompare,
   History,
   ImagePlus,
@@ -111,6 +112,8 @@ interface ChatPanelProps {
   dnaSaving?: boolean;
   /** Carry on with a task list's open tasks (the message holding the list). */
   onResumeTasks?: (messageId: string) => void;
+  /** Report an AI reply to the team (a wrong answer, an error, something off). */
+  onReportReply: (message: ChatMessage) => void;
 }
 
 /**
@@ -247,6 +250,7 @@ export default function ChatPanel({
   onDnaDismiss,
   dnaSaving = false,
   onResumeTasks,
+  onReportReply,
 }: ChatPanelProps) {
   const [draft, setDraft] = useState("");
   const [picked, setPicked] = useState<string[]>([]);
@@ -579,6 +583,17 @@ export default function ChatPanel({
                   })}
                 </div>
               )}
+            {/* The reply itself is the evidence: AI errored, stopped short, or
+                said something off — send it to the team from right here. */}
+            <div className="mt-1.5 flex justify-end">
+              <button
+                onClick={() => onReportReply(message)}
+                title="ส่งข้อความนี้ให้ทีมดูแล พร้อมล็อกล่าสุด"
+                className="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 font-display text-[11px] text-chalk-dim/70 transition hover:bg-red-600/10 hover:text-red-500"
+              >
+                <Flag size={11} /> แจ้งปัญหา
+              </button>
+            </div>
           </div>
           )
         )}

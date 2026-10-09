@@ -15,7 +15,7 @@ export function isClosed(status: CaseStatus): boolean {
   return status === "released" || status === "not_bug";
 }
 
-export const CASE_KINDS = ["preview", "runtime", "generation", "other"] as const;
+export const CASE_KINDS = ["preview", "runtime", "generation", "ai_reply", "other"] as const;
 export type CaseKind = (typeof CASE_KINDS)[number];
 
 export const CASE_STATUS: Record<CaseStatus, { label: string; hint: string }> = {
@@ -31,6 +31,7 @@ export const CASE_KIND: Record<CaseKind, string> = {
   preview: "Preview เปิดไม่ขึ้น",
   runtime: "แอปมี error",
   generation: "สร้างไม่สำเร็จ",
+  ai_reply: "AI ตอบผิดปกติ",
   other: "อื่น ๆ",
 };
 
@@ -38,7 +39,15 @@ export const CASE_KIND: Record<CaseKind, string> = {
 export const CASE_LOG_LINES = 40;
 const LOG_LINE_CHARS = 400;
 const ERROR_CHARS = 4_000;
+export const AI_REPLY_CHARS = 2_000;
 const TITLE_CHARS = 120;
+
+/** The chat reply a case was reported from — which turn, and what it said. */
+export interface CaseAiReply {
+  /** ChatMessage id, to find the turn in the project's chat. */
+  id: string;
+  text: string;
+}
 
 /**
  * What the reporter's screen knew when they pressed the button. Everything a
@@ -54,6 +63,8 @@ export interface CaseContext {
   appVersion: string;
   userAgent: string;
   page: string;
+  /** Reported from an AI reply in the chat (absent on cases from before 0.98.0). */
+  aiReply?: CaseAiReply | null;
 }
 
 export function buildCaseContext(input: {
@@ -64,6 +75,7 @@ export function buildCaseContext(input: {
   appVersion: string;
   userAgent: string;
   page: string;
+  aiReply?: CaseAiReply | null;
 }): CaseContext {
   const error = input.error?.trim();
   return {
@@ -74,6 +86,9 @@ export function buildCaseContext(input: {
     appVersion: input.appVersion,
     userAgent: input.userAgent,
     page: input.page,
+    aiReply: input.aiReply
+      ? { id: input.aiReply.id, text: input.aiReply.text.trim().slice(0, AI_REPLY_CHARS) }
+      : null,
   };
 }
 

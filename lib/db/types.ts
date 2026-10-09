@@ -113,7 +113,7 @@ export interface Database {
           reporter_id: string;
           project_id: string | null;
           title: string;
-          kind: "preview" | "runtime" | "generation" | "other";
+          kind: "preview" | "runtime" | "generation" | "ai_reply" | "other";
           status: "new" | "investigating" | "need_info" | "fixed" | "released" | "not_bug";
           context: Json;
           fixed_in: string | null;
@@ -129,7 +129,7 @@ export interface Database {
           reporter_id: string;
           project_id?: string | null;
           title: string;
-          kind: "preview" | "runtime" | "generation" | "other";
+          kind: "preview" | "runtime" | "generation" | "ai_reply" | "other";
           status?: "new" | "investigating" | "need_info" | "fixed" | "released" | "not_bug";
           context?: Json;
           fixed_in?: string | null;

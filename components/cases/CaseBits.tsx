@@ -26,6 +26,7 @@ const KIND_TONE: Record<CaseKind, string> = {
   preview: "border-amber-400/50 bg-amber-400/10 text-amber-300 light:text-amber-700",
   runtime: "border-rose-400/50 bg-rose-400/10 text-rose-300 light:text-rose-700",
   generation: "border-fuchsia-400/50 bg-fuchsia-400/10 text-fuchsia-300 light:text-fuchsia-700",
+  ai_reply: "border-violet-400/50 bg-violet-400/10 text-violet-300 light:text-violet-700",
   other: "border-chalk/25 bg-chalk/5 text-chalk-dim",
 };
 

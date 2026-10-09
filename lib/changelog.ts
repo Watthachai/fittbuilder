@@ -23,6 +23,21 @@ export const CHANGE_BADGE: Record<ChangeType, { label: string; className: string
 // Newest first. SemVer: fix → PATCH, feature → MINOR, breaking → MAJOR.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.98.0",
+    date: "2026-10-09",
+    title: "แจ้งปัญหาจากข้อความที่ AI ตอบ",
+    items: [
+      {
+        type: "feature",
+        text: "ใต้ข้อความที่ AI ตอบในแชทมีปุ่ม แจ้งปัญหา เมื่อ AI error ทำงานไม่ครบ หรือตอบอะไรแปลก ๆ กดแล้วส่งข้อความนั้นพร้อมล็อกล่าสุดให้ทีมได้ทันที ไม่ต้องคัดลอกเอง",
+      },
+      {
+        type: "improvement",
+        text: "เพิ่มประเภทเคส AI ตอบผิดปกติ ทีมแยกเคสจากแชทออกจากเคส Preview เปิดไม่ขึ้นหรือแอปมี error ได้",
+      },
+    ],
+  },
+  {
     version: "0.97.5",
     date: "2026-10-09",
     title: "เห็นเวอร์ชันทุกหน้า",

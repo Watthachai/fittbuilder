@@ -10,6 +10,7 @@ import {
   CASE_KIND,
   CASE_KINDS,
   suggestCaseTitle,
+  type CaseAiReply,
   type CaseContext,
   type CaseKind,
 } from "@/lib/cases";
@@ -27,6 +28,8 @@ export interface CaseReportPreset {
   phase?: string | null;
   log?: readonly string[];
   fileCount?: number | null;
+  /** Reported from this AI reply in the chat. */
+  aiReply?: CaseAiReply | null;
 }
 
 /**
@@ -52,7 +55,8 @@ export default function ReportCaseModal({
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [created, setCreated] = useState<{ id: string; number: number } | null>(null);
-  const [showContext, setShowContext] = useState(false);
+  // Opened from a chat reply: show which reply is being sent right away.
+  const [showContext, setShowContext] = useState(Boolean(preset.aiReply));
   const images = useCaseImages();
   const { dragging, dropHandlers } = useFileDrop((files) => void images.add(Array.from(files)));
 
@@ -65,6 +69,7 @@ export default function ReportCaseModal({
       appVersion: latestVersion(),
       userAgent: navigator.userAgent,
       page: location.pathname,
+      aiReply: preset.aiReply,
     })
   );
 
@@ -270,6 +275,14 @@ export function ContextRows({ context, projectName }: { context: CaseContext; pr
   ];
   return (
     <div className="flex flex-col gap-2 border-t border-night-edge px-3 py-3 text-[12px]">
+      {context.aiReply && (
+        <div className="flex flex-col gap-1">
+          <span className="text-chalk-dim">ข้อความที่ AI ตอบ</span>
+          <div className="scroll-thin max-h-40 overflow-auto whitespace-pre-wrap break-words rounded-md border border-night-edge border-l-2 border-l-shine bg-shine/[0.05] px-2.5 py-2 text-[12px] leading-relaxed text-chalk">
+            {context.aiReply.text}
+          </div>
+        </div>
+      )}
       {context.error && (
         <pre className="scroll-thin max-h-32 overflow-auto whitespace-pre-wrap break-words rounded-md border border-halt/30 bg-halt/5 px-2.5 py-2 font-mono text-[11px] leading-relaxed text-halt">
           {context.error}

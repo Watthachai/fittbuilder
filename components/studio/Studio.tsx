@@ -120,7 +120,7 @@ import SpecFlow, { type SpecResult } from "./SpecFlow";
 import StatusBar from "./StatusBar";
 import TopBar from "./TopBar";
 import ReportCaseModal, { type CaseReportPreset } from "@/components/cases/ReportCaseModal";
-import type { CaseKind } from "@/lib/cases";
+import type { CaseAiReply, CaseKind } from "@/lib/cases";
 import {
   continuationPrompt,
   looksMultiTask,
@@ -1653,9 +1653,10 @@ export default function Studio({ projectId }: { projectId: string }) {
     );
   }, [generate, previewRuntimeError]);
 
-  /** Open a case for the team, carrying what this studio knows right now. */
+  /** Open a case for the team, carrying what this studio knows right now —
+   *  and the chat reply it was reported from, when there is one. */
   const openReport = useCallback(
-    (kind: CaseKind, error: string | null) => {
+    (kind: CaseKind, error: string | null, aiReply: CaseAiReply | null = null) => {
       const current = projectRef.current;
       setReportPreset({
         kind,
@@ -1665,6 +1666,7 @@ export default function Studio({ projectId }: { projectId: string }) {
         phase,
         log: terminal,
         fileCount: current?.files ? Object.keys(current.files).length : null,
+        aiReply,
       });
     },
     [errorMessage, phase, terminal]
@@ -2964,6 +2966,7 @@ export default function Studio({ projectId }: { projectId: string }) {
             onDnaDismiss={() => setDnaCapture(null)}
             dnaSaving={dnaSaving}
             onResumeTasks={(planId) => void runTaskList(planId)}
+            onReportReply={(m) => openReport("ai_reply", null, { id: m.id, text: m.content })}
           />
         </div>
 

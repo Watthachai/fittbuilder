@@ -23,6 +23,17 @@ export const CHANGE_BADGE: Record<ChangeType, { label: string; className: string
 // Newest first. SemVer: fix → PATCH, feature → MINOR, breaking → MAJOR.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.103.1",
+    date: "2026-10-10",
+    title: "AI ไม่ใส่เครื่องหมาย > ลงในข้อความจนแอปพัง (เคส #12)",
+    items: [
+      {
+        type: "fix",
+        text: "หน้าที่ยกตัวอย่างโค้ดหรือการเปรียบเทียบเป็นข้อความ เช่น if (parsed.length > 0) ทำให้แอปขึ้น error ว่าเครื่องหมาย > ใช้ในข้อความไม่ได้ และกดแก้ด้วย AI ก็ไม่หาย ตอนนี้ AI รู้กติกานี้ทั้งตอนสร้างและตอนแก้ และเวลาแก้ error นี้จะแก้ที่ตัวอักษรนั้นโดยตรง",
+      },
+    ],
+  },
+  {
     version: "0.103.0",
     date: "2026-10-09",
     title: "แต่ละรอบสร้าง/แก้โค้ดมีเวลามากขึ้น",

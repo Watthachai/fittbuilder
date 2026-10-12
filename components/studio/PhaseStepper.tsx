@@ -10,7 +10,7 @@ import { PHASES, phaseDef, phaseIndex, type PhaseId } from "@/lib/phases";
 /** Review phases whose advance gate needs an AI-generated report doc. */
 const REPORT_PHASES: PhaseId[] = ["verify", "review"];
 
-/** Why the current phase can't advance yet (shown as the disabled tooltip). */
+/** Why the current phase can't advance yet — printed beside the grey button and in its tooltip. */
 function gateHint(phase: PhaseId): string {
   switch (phase) {
     case "define":
@@ -238,6 +238,15 @@ export default function PhaseStepper({
         >
           <FileText size={12} /> สร้างรายงาน {phaseDef(phase).user}
         </button>
+      )}
+
+      {/* The reason the approve button is grey, in the open: a tooltip alone left
+          people asking whether the button was broken (a FITT Voice project lands
+          in Define with no BRD yet). */}
+      {!isLast && !canAdvance && (
+        <span className="hidden min-w-0 max-w-[260px] shrink truncate text-[11px] text-chalk-dim md:block">
+          {gateHint(phase)}
+        </span>
       )}
 
       {/* Shared projects: this stays clickable even after you've approved, so you

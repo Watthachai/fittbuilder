@@ -23,6 +23,17 @@ export const CHANGE_BADGE: Record<ChangeType, { label: string; className: string
 // Newest first. SemVer: fix → PATCH, feature → MINOR, breaking → MAJOR.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.104.1",
+    date: "2026-10-12",
+    title: "บอกเหตุผลข้างปุ่มอนุมัติที่ยังกดไม่ได้",
+    items: [
+      {
+        type: "improvement",
+        text: "เมื่อปุ่ม “อนุมัติ & ไปต่อ” ยังกดไม่ได้ จะมีข้อความบอกข้างปุ่มว่ายังขาดอะไร เช่น “ยังไม่มี BRD — คุยกับ AI ให้ช่วยร่างก่อน” เดิมต้องเอาเมาส์ไปชี้ปุ่มถึงจะเห็น",
+      },
+    ],
+  },
+  {
     version: "0.104.0",
     date: "2026-10-12",
     title: "เชื่อมบัญชี FITT Voice กับ FITT Builder",

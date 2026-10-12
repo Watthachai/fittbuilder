@@ -207,6 +207,9 @@ export interface Database {
           label: string;
           created_at: string;
           revoked_at: string | null;
+          user_id: string | null;
+          client_id: string | null;
+          last_used_at: string | null;
         };
         Insert: {
           id?: string;
@@ -216,10 +219,66 @@ export interface Database {
           label?: string;
           created_at?: string;
           revoked_at?: string | null;
+          user_id?: string | null;
+          client_id?: string | null;
+          last_used_at?: string | null;
         };
         Update: {
           revoked_at?: string | null;
           label?: string;
+          last_used_at?: string | null;
+        };
+        Relationships: [];
+      };
+      fittbuilder_integration_clients: {
+        Row: {
+          id: string;
+          producer: string;
+          name: string;
+          redirect_uris: string[];
+          created_at: string;
+          disabled_at: string | null;
+        };
+        Insert: {
+          id: string;
+          producer: string;
+          name: string;
+          redirect_uris: string[];
+          created_at?: string;
+          disabled_at?: string | null;
+        };
+        Update: {
+          name?: string;
+          redirect_uris?: string[];
+          disabled_at?: string | null;
+        };
+        Relationships: [];
+      };
+      fittbuilder_integration_codes: {
+        Row: {
+          code_hash: string;
+          client_id: string;
+          user_id: string;
+          org_id: string;
+          redirect_uri: string;
+          code_challenge: string;
+          created_at: string;
+          expires_at: string;
+          used_at: string | null;
+        };
+        Insert: {
+          code_hash: string;
+          client_id: string;
+          user_id: string;
+          org_id: string;
+          redirect_uri: string;
+          code_challenge: string;
+          created_at?: string;
+          expires_at: string;
+          used_at?: string | null;
+        };
+        Update: {
+          used_at?: string | null;
         };
         Relationships: [];
       };

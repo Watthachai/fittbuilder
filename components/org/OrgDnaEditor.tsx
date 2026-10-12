@@ -20,6 +20,7 @@ import DomainSkillStudio from "./DomainSkillStudio";
 import PainPointResult from "./PainPointResult";
 import SourceViewer from "./SourceViewer";
 import WorkspaceMembers from "./WorkspaceMembers";
+import WorkspaceConnections from "./WorkspaceConnections";
 
 const MAX_VERSIONS = 12;
 
@@ -318,6 +319,9 @@ export default function OrgDnaEditor({ orgId }: { orgId: string }) {
 
         {/* Team members + invites */}
         <WorkspaceMembers orgId={orgId} />
+
+        {/* FITT Voice and other apps connected to this person's account */}
+        <WorkspaceConnections orgId={orgId} />
 
         {/* Domain specialist for this workspace */}
         <DomainSkillStudio orgId={orgId} />

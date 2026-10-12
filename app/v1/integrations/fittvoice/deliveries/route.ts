@@ -1,6 +1,7 @@
-import { createHash, randomUUID } from "node:crypto";
+import { randomUUID } from "node:crypto";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { rateLimit } from "@/lib/rate-limit";
+import { authenticate } from "@/lib/fittvoice/authenticate";
 import { HTTP_STATUS, MAX_BODY_BYTES, checkDelivery, errorBody } from "@/lib/fittvoice/delivery";
 import type { ErrorCode } from "@/lib/fittvoice/types";
 import type { Json } from "@/lib/db/types";
@@ -11,8 +12,9 @@ import type { Json } from "@/lib/db/types";
  *
  * Backend to backend: FITT Voice's server sends the summary of a customer
  * interview its user reviewed; the first delivery of an export session creates a
- * project in the Define phase of the workspace the credential is bound to, later
- * ones update that project. Nothing here starts a generation.
+ * project in the Define phase of the workspace the token is bound to — a service
+ * credential, or a person's account connection (lib/fittvoice/connect.ts) — and
+ * later ones update that project. Nothing here starts a generation.
  *
  * Order matters and follows the contract: the credential, then the rate, then
  * the size, the JSON, the schema, the hash and the references — all before
@@ -24,8 +26,6 @@ import type { Json } from "@/lib/db/types";
 
 /** Per credential. The figure offered to FITT Voice for the Sandbox. */
 const RATE_PER_MINUTE = 60;
-
-const sha256 = (s: string) => createHash("sha256").update(s, "utf8").digest("hex");
 
 /** The body as UTF-8 text, or null past `max` bytes — counted while reading, not trusted from a header. */
 async function readCapped(request: Request, max: number): Promise<string | null> {
@@ -54,21 +54,13 @@ export async function POST(request: Request) {
     return Response.json(errorBody(code, message, requestId, latest), { status: HTTP_STATUS[code], headers });
   };
 
-  const token = /^Bearer\s+(\S+)$/i.exec(request.headers.get("authorization") ?? "")?.[1];
-  if (!token) return fail("UNAUTHORIZED", "ต้องส่ง Authorization: Bearer <service credential>");
-  const admin = createAdminClient();
-  const { data: binding, error: bindingError } = await admin
-    .from("fittbuilder_integration_bindings")
-    .select("id")
-    .eq("token_hash", sha256(token))
-    .eq("producer", "FITT_VOICE")
-    .is("revoked_at", null)
-    .maybeSingle();
-  if (bindingError) {
-    console.error(`[fittvoice] ${requestId} binding lookup failed: ${bindingError.message}`);
-    return fail("TEMPORARILY_UNAVAILABLE", "ระบบรับข้อมูลไม่พร้อมชั่วคราว ส่งชุดเดิมซ้ำได้");
+  const auth = await authenticate(request.headers.get("authorization"));
+  if (!auth.ok) return fail(auth.code, auth.message);
+  const { binding } = auth;
+  // A connection speaks for a person; once they leave the workspace it stops.
+  if (binding.user_id && !auth.role) {
+    return fail("FORBIDDEN", "ผู้ใช้ที่เชื่อมบัญชีไม่ได้อยู่ใน workspace นี้แล้ว ให้ผู้ใช้เชื่อมใหม่กับ workspace ที่มีสิทธิ์");
   }
-  if (!binding) return fail("UNAUTHORIZED", "credential ไม่ถูกต้องหรือถูกเพิกถอนแล้ว");
 
   const limit = await rateLimit(`fittvoice:${binding.id}`, RATE_PER_MINUTE, 60_000);
   if (!limit.ok) {
@@ -91,7 +83,7 @@ export async function POST(request: Request) {
   const checked = checkDelivery(raw, request.headers.get("idempotency-key"));
   if (!checked.ok) return fail(checked.code, checked.message);
 
-  const { data, error } = await admin.rpc("fittbuilder_fittvoice_apply", {
+  const { data, error } = await createAdminClient().rpc("fittbuilder_fittvoice_apply", {
     p_binding: binding.id,
     p_payload: checked.delivery as unknown as Json,
   });

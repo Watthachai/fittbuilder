@@ -9,16 +9,21 @@ import { join } from "node:path";
  * against Postgres separately; here its answers are given.
  */
 
-const binding = { data: { id: "binding_1" } as { id: string } | null, error: null as { message: string } | null };
-const apply = vi.fn();
-vi.mock("@/lib/supabase/admin", () => ({
-  createAdminClient: () => ({
-    from: () => ({
-      select: () => ({ eq: () => ({ eq: () => ({ is: () => ({ maybeSingle: async () => binding }) }) }) }),
-    }),
-    rpc: apply,
-  }),
+type Binding = { id: string; org_id: string; user_id: string | null; client_id: string | null; created_at: string; last_used_at: string | null };
+const SERVICE: Binding = { id: "binding_1", org_id: "org_1", user_id: null, client_id: null, created_at: "2026-10-01T00:00:00Z", last_used_at: null };
+const binding = { data: SERVICE as Binding | null, error: null as { message: string } | null };
+const role = { value: "MEMBER" as string | null };
+const touched = vi.fn();
+vi.mock("@/lib/fittvoice/connection-store", () => ({
+  findBinding: async () => {
+    if (binding.error) throw new Error(binding.error.message);
+    return binding.data;
+  },
+  roleOf: async () => role.value,
+  touchBinding: async (id: string) => touched(id),
 }));
+const apply = vi.fn();
+vi.mock("@/lib/supabase/admin", () => ({ createAdminClient: () => ({ rpc: apply }) }));
 const limit = { ok: true, retryAfter: 0 };
 vi.mock("@/lib/rate-limit", () => ({ rateLimit: async () => limit }));
 
@@ -32,8 +37,10 @@ const post = (opts: { auth?: string | null; key?: string; type?: string; raw?: s
 };
 
 beforeEach(() => {
-  binding.data = { id: "binding_1" };
+  binding.data = SERVICE;
   binding.error = null;
+  role.value = "MEMBER";
+  touched.mockReset();
   limit.ok = true;
   apply.mockReset();
 });
@@ -87,6 +94,48 @@ describe("POST /v1/integrations/fittvoice/deliveries", () => {
 
   it("answers 503, retryable, when the database cannot be reached", async () => {
     apply.mockResolvedValue({ data: null, error: { message: "connection refused" } });
+    const res = await post();
+    expect(res.status).toBe(503);
+    expect(await res.json()).toMatchObject({ code: "TEMPORARILY_UNAVAILABLE", retryable: true });
+  });
+  describe("a FITT Voice account connection", () => {
+    const connection = (lastUsed: string): Binding => ({
+      ...SERVICE,
+      id: "binding_c",
+      user_id: "user_1",
+      client_id: "fittvoice-sandbox",
+      last_used_at: lastUsed,
+    });
+
+    it("sends while its person is in the workspace, and counts as use", async () => {
+      binding.data = connection(new Date().toISOString());
+      apply.mockResolvedValue({ data: { status: 201, body: { outcome: "APPLIED" } }, error: null });
+      expect((await post()).status).toBe(201);
+      expect(apply).toHaveBeenCalledWith("fittbuilder_fittvoice_apply", expect.objectContaining({ p_binding: "binding_c" }));
+      expect(touched).toHaveBeenCalledWith("binding_c");
+    });
+
+    it("answers 403 FORBIDDEN once its person has left the workspace", async () => {
+      binding.data = connection(new Date().toISOString());
+      role.value = null;
+      const res = await post();
+      expect(res.status).toBe(403);
+      expect(await res.json()).toMatchObject({ code: "FORBIDDEN", retryable: false });
+      expect(apply).not.toHaveBeenCalled();
+      expect(touched).not.toHaveBeenCalled();
+    });
+
+    it("answers 401 after 90 days without use", async () => {
+      binding.data = connection(new Date(Date.now() - 91 * 86_400_000).toISOString());
+      const res = await post();
+      expect(res.status).toBe(401);
+      expect(await res.json()).toMatchObject({ code: "UNAUTHORIZED" });
+      expect(apply).not.toHaveBeenCalled();
+    });
+  });
+
+  it("answers 503, retryable, when the credential cannot be looked up", async () => {
+    binding.error = { message: "timeout" };
     const res = await post();
     expect(res.status).toBe(503);
     expect(await res.json()).toMatchObject({ code: "TEMPORARILY_UNAVAILABLE", retryable: true });

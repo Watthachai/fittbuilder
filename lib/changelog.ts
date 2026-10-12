@@ -23,6 +23,21 @@ export const CHANGE_BADGE: Record<ChangeType, { label: string; className: string
 // Newest first. SemVer: fix → PATCH, feature → MINOR, breaking → MAJOR.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.104.0",
+    date: "2026-10-12",
+    title: "เชื่อมบัญชี FITT Voice กับ FITT Builder",
+    items: [
+      {
+        type: "feature",
+        text: "ผู้ใช้ FITT Voice เชื่อมบัญชี FITT Builder ของตัวเองได้: login ตามปกติ เลือก workspace ที่ตนเป็นสมาชิก แล้วกดอนุญาต บทสรุปที่ส่งจาก FITT Voice จะเข้า workspace นั้น และโปรเจกต์มีเจ้าของเป็นผู้ใช้ที่เชื่อม",
+      },
+      {
+        type: "feature",
+        text: "หน้า workspace มีส่วน “แอปที่เชื่อมกับบัญชีของคุณ” ไว้ดูและถอนการเชื่อม การเชื่อมหมดอายุเองเมื่อไม่ได้ใช้ 90 วัน และใช้ไม่ได้ทันทีเมื่อผู้ใช้ออกจาก workspace",
+      },
+    ],
+  },
+  {
     version: "0.103.9",
     date: "2026-10-12",
     title: "เวลาในเอกสาร FITT Voice เป็นเวลาไทย",

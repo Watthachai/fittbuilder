@@ -12,6 +12,7 @@
     "modules:sync": "node scripts/sync-module-sources.mjs"
   },
   "dependencies": {
+    "@babel/parser": "^7.29.9",
     "@google/genai": "^2.22.0",
     "@monaco-editor/react": "^4.7.0",
     "@supabase/ssr": "^0.12.7",

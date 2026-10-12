@@ -40,6 +40,7 @@ import { createClient } from "@/lib/supabase/server";
 import type { GenerateEvent } from "@/lib/types";
 import { TURN_CUT_LABEL, type TurnCut } from "@/lib/tasks";
 import { missingDefaultExports } from "@/lib/default-exports";
+import { escapeJsxText } from "@/lib/jsx-text";
 import { outcomeOf, type RecordedTurn } from "@/lib/generate-outcome";
 
 // Generation streams file-by-file, so a longer single pass is fine — partial
@@ -540,6 +541,16 @@ export async function POST(request: Request) {
             }
             shellGap = shellGap.filter((f) => !produced[f]);
           }
+        }
+
+        // A bare > or } in JSX text stops the whole app under esbuild (lib/jsx-text,
+        // cases #12 and #14). Only this turn's files: the rest already compiled.
+        for (const [path, content] of Object.entries(produced)) {
+          if (!/\.[jt]sx$/.test(path)) continue;
+          const escaped = escapeJsxText(content);
+          if (!escaped) continue;
+          console.info(`[generate] escaped > or } in the JSX text of ${path}`);
+          send({ type: "file", path, content: escaped });
         }
 
         // A page imported as a default that only exports its name is a white

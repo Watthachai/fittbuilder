@@ -23,6 +23,17 @@ export const CHANGE_BADGE: Record<ChangeType, { label: string; className: string
 // Newest first. SemVer: fix → PATCH, feature → MINOR, breaking → MAJOR.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.103.8",
+    date: "2026-10-12",
+    title: "Preview ที่ใช้ 3 มิติหรือแผนที่เปิดได้ (เคส #20)",
+    items: [
+      {
+        type: "fix",
+        text: "โปรเจกต์ที่ AI ใช้ @react-three/fiber, @react-three/drei หรือ react-leaflet ติดตั้งไม่ผ่าน (npm install ล้มเหลว ERESOLVE) เพราะรุ่นล่าสุดของแพ็กเกจเหล่านี้ต้องใช้ React 19 แต่ Preview ใช้ React 18 ตอนนี้ระบบติดตั้งรุ่นล่าสุดที่ยังรองรับ React 18 ให้เอง โปรเจกต์ที่ติดอยู่จะหายในรอบแก้ถัดไป",
+      },
+    ],
+  },
+  {
     version: "0.103.7",
     date: "2026-10-12",
     title: "ใบเสนอราคาพิมพ์ได้โดยไม่แนบภาพหน้าจอ (เคส #19)",

@@ -1663,13 +1663,34 @@ export function extraDepsOf(packageJson?: string): Record<string, string> {
 }
 
 /**
+ * Packages whose latest major dropped React 18, held at the last major whose
+ * peers accept it. The demo runs React 18, and "latest" of these stops npm
+ * install at ERESOLVE before anything renders (case #20: @react-three/fiber 9
+ * needs react >=19). Peer ranges checked on npm on 12 Oct 2026.
+ */
+const REACT18_RANGES: Record<string, string> = {
+  "@react-three/fiber": "^8.18.0",
+  "@react-three/drei": "^9.122.0",
+  "@react-three/postprocessing": "^2.19.1",
+  "@react-three/rapier": "^1.5.0",
+  "react-leaflet": "^4.2.1",
+};
+
+/**
  * Canonical package.json plus any extra (user-installed npm) dependencies.
  * With no extras it returns the scaffold copy byte-for-byte so the WebContainer
  * install cache still hits; with extras it diverges — a deliberate reinstall.
+ * An extra at "latest" that would need React 19 goes in at its React 18 range.
  */
 export function packageJsonWithDeps(extra: Record<string, string>): string {
   if (Object.keys(extra).length === 0) return DEMO_PACKAGE_JSON;
   const pkg = JSON.parse(DEMO_PACKAGE_JSON);
-  pkg.dependencies = { ...pkg.dependencies, ...extra };
+  const ranged = Object.fromEntries(
+    Object.entries(extra).map(([name, version]) => [
+      name,
+      version === "latest" ? (REACT18_RANGES[name] ?? version) : version,
+    ])
+  );
+  pkg.dependencies = { ...pkg.dependencies, ...ranged };
   return JSON.stringify(pkg, null, 2);
 }

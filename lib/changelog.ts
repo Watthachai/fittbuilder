@@ -23,6 +23,17 @@ export const CHANGE_BADGE: Record<ChangeType, { label: string; className: string
 // Newest first. SemVer: fix → PATCH, feature → MINOR, breaking → MAJOR.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.103.7",
+    date: "2026-10-12",
+    title: "ใบเสนอราคาพิมพ์ได้โดยไม่แนบภาพหน้าจอ (เคส #19)",
+    items: [
+      {
+        type: "feature",
+        text: "ในแท็บใบเสนอราคา เหนือปุ่มพิมพ์ มีสวิตช์ “แนบภาพหน้าจอท้ายเอกสาร” ปิดแล้วจะพิมพ์เฉพาะใบเสนอราคา ไม่มีภาคผนวกภาพหน้าจอต่อท้าย เดิมแนบภาพทุกหน้าเสมอ",
+      },
+    ],
+  },
+  {
     version: "0.103.6",
     date: "2026-10-12",
     title: "ข้อเสนอโครงการพิมพ์ได้โดยไม่มีภาพหน้าจอ (เคส #19)",

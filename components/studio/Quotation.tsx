@@ -46,7 +46,7 @@ import { printSheet } from "@/lib/print-sheet";
 import QuotationPrint from "./QuotationPrint";
 import QuoteBrandBar from "./QuoteBrandBar";
 import QuoteTerms from "./QuoteTerms";
-import { Field, inputCls, Total } from "./QuoteFields";
+import { Field, inputCls, SectionToggle, Total } from "./QuoteFields";
 import { useSharedDoc } from "./useSharedDoc";
 import { CoEditMarks, CoEditors } from "./CoEditMarks";
 
@@ -803,6 +803,20 @@ export default function Quotation({
               </p>
             </div>
           )}
+          {/* The appendix is most of the paper on a large system (case #19). */}
+          <div className="mt-3">
+            <SectionToggle
+              title="แนบภาพหน้าจอท้ายเอกสาร"
+              hint={
+                doc.showShots
+                  ? "ภาพหน้าจอทั้งหมดจะไปเป็นภาคผนวกท้ายเอกสาร"
+                  : "ไม่แนบภาพ — พิมพ์เฉพาะใบเสนอราคา"
+              }
+              on={doc.showShots}
+              onChange={(on) => edit((d) => ({ ...d, showShots: on }))}
+              disabled={readOnly}
+            />
+          </div>
           <button
             onClick={() => void print()}
             disabled={printing}
@@ -819,7 +833,7 @@ export default function Quotation({
             )}
           </button>
           <p className="mt-1.5 text-center text-[11.5px] leading-relaxed text-chalk-dim">
-            ในหน้าต่างพิมพ์ เลือกปลายทางเป็น “Save as PDF” · ภาพหน้าจอทั้งหมดจะไปเป็นภาคผนวกท้ายเอกสาร
+            ในหน้าต่างพิมพ์ เลือกปลายทางเป็น “Save as PDF”
           </p>
         </div>
       </div>

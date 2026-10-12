@@ -383,7 +383,7 @@ export default function QuotationPrint({ doc, shots }: { doc: QuoteDoc; shots: S
                 </div>
               </section>
 
-              {gallery.length > 0 && (
+              {doc.showShots && gallery.length > 0 && (
                 <section className="q-shots">
                   <h2>ภาคผนวก — หน้าจอที่เสนอราคา ({gallery.length})</h2>
                   <div className="q-grid">

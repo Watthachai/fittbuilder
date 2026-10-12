@@ -287,6 +287,8 @@ export interface QuoteDoc {
   /** Print one line at one agreed figure instead of pricing row by row. */
   lumpSum: LumpSum;
   terms: string;
+  /** Print every captured screen as an appendix behind the signatures. */
+  showShots: boolean;
 }
 
 // Payment now has its own table and its own generated clauses, so the free-text
@@ -492,6 +494,7 @@ export function newDoc(shots: Shot[], projectName: string, today: string): Quote
     brand: emptyBrand(),
     lumpSum: emptyLumpSum(),
     terms: DEFAULT_TERMS,
+    showShots: true,
   };
 }
 
@@ -629,6 +632,8 @@ export function parseDoc(payload: unknown, fallbackDate: string): QuoteDoc | nul
       title: str(lump.title),
     },
     terms: str(o.terms, DEFAULT_TERMS),
+    // On for every document written before this existed — they all printed it.
+    showShots: bool(o.showShots, true),
   };
 }
 

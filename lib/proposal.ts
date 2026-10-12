@@ -133,6 +133,8 @@ export interface ProposalDoc {
   excluded: string[];
   /** Print the demonstrated walk with its screenshots. */
   showSteps: boolean;
+  /** Within the walk: the screenshots. Off prints the route and manual alone. */
+  showShots: boolean;
   /**
    * Per-screen documentation, keyed by screen name. What each captured page
    * does, how it is used, and what it produces — the part of the proposal
@@ -191,6 +193,7 @@ export function newProposal(projectName: string, today: string): ProposalDoc {
     points: [],
     excluded: [],
     showSteps: true,
+    showShots: true,
     screenDocs: {},
     closing: DEFAULT_CLOSING,
     quoteNo: "",
@@ -326,6 +329,7 @@ export function parseProposal(payload: unknown, fallbackDate: string): ProposalD
     }),
     excluded: strs(o.excluded),
     showSteps: bool(o.showSteps, true),
+    showShots: bool(o.showShots, true),
     screenDocs: Object.fromEntries(
       Object.entries(obj(o.screenDocs)).flatMap(([name, raw]) => {
         const d = obj(raw);

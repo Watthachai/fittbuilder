@@ -529,6 +529,24 @@ export default function Proposal({
             disabled={readOnly}
           />
 
+          {/* The pictures alone: 53 screenshots is most of the paper, and the
+              manual below is often what the reader needs (case #19). */}
+          {doc.showSteps && steps.length > 0 && (
+            <div className="ml-11 mt-3">
+              <SectionToggle
+                title="ใส่ภาพหน้าจอ"
+                hint={
+                  doc.showShots
+                    ? "ปิดไว้ถ้าต้องการเฉพาะเส้นทางและคำอธิบายแต่ละหน้า เอกสารจะสั้นลงมาก"
+                    : "ไม่พิมพ์ภาพ — พิมพ์เฉพาะเส้นทางและคำอธิบายแต่ละหน้า"
+                }
+                on={doc.showShots}
+                onChange={(on) => edit((d) => ({ ...d, showShots: on }))}
+                disabled={readOnly}
+              />
+            </div>
+          )}
+
           {/* The manual: what each captured screen does, how it is used, what
               comes out. One entry per unique screen name — a screen recaptured
               five times is still one screen. Filled by the AI pass, owned by

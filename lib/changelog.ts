@@ -23,6 +23,17 @@ export const CHANGE_BADGE: Record<ChangeType, { label: string; className: string
 // Newest first. SemVer: fix → PATCH, feature → MINOR, breaking → MAJOR.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.103.6",
+    date: "2026-10-12",
+    title: "ข้อเสนอโครงการพิมพ์ได้โดยไม่มีภาพหน้าจอ (เคส #19)",
+    items: [
+      {
+        type: "feature",
+        text: "ในส่วน “การใช้งานจริงพร้อมภาพ” ของข้อเสนอโครงการ มีสวิตช์ “ใส่ภาพหน้าจอ” เพิ่มมา ปิดแล้วเอกสารยังพิมพ์เส้นทางและคำอธิบายของทุกหน้าครบ แต่ไม่ใส่ภาพ เอกสารจึงสั้นลงมาก เดิมปิดได้ทั้งส่วนเท่านั้น คำอธิบายที่เขียนไว้จึงหายไปด้วย",
+      },
+    ],
+  },
+  {
     version: "0.103.5",
     date: "2026-10-12",
     title: "งานใหญ่ทำต่อเองได้หลายรอบ (เคส #18)",

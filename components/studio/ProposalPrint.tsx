@@ -170,10 +170,13 @@ export default function ProposalPrint({
                     const manual = screenDocFor(doc, s.name);
                     return (
                       <div key={s.id} className="p-step">
-                        <div className="p-shot">
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img src={s.url} alt={s.name} />
-                        </div>
+                        {/* Off, the manual takes the full width (.p-doc is flex: 1). */}
+                        {doc.showShots && (
+                          <div className="p-shot">
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img src={s.url} alt={s.name} />
+                          </div>
+                        )}
                         <div className="p-doc">
                           <p className="p-doc-head">
                             <span className="p-n">ขั้นตอนที่ {i + 1}</span> ·{" "}

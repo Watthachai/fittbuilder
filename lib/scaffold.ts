@@ -1386,13 +1386,48 @@ const fittBridge = {
 // Stamps data-fitt-loc="src/…/File.tsx:line:col" on every JSX host element so a
 // click in the preview resolves to an exact line of source. Dev only — the
 // exported/built app never carries it.
+//
+// Only elements that become DOM nodes: HTML and SVG tag names (html-tag-names
+// 2.1.0 + svg-tag-names 3.0.1). @react-three/fiber's <mesh>, <boxGeometry> are
+// lowercase JSX too, and fiber reads a dashed prop as a path into the object —
+// data-fitt-loc → data.fitt.loc — so stamping them crashed every 3D demo with
+// "reading 'fitt'" (case #21). audio, line, path and source are both a tag and
+// a three.js class; they stay stamped, as DOM is where they almost always are.
+const DOM_TAGS = new Set([
+  "a", "abbr", "acronym", "address", "altGlyph", "altGlyphDef", "altGlyphItem", "animate",
+  "animateColor", "animateMotion", "animateTransform", "animation", "applet", "area", "article",
+  "aside", "audio", "b", "base", "basefont", "bdi", "bdo", "bgsound", "big", "blink", "blockquote",
+  "body", "br", "button", "canvas", "caption", "center", "circle", "cite", "clipPath", "code",
+  "col", "colgroup", "color-profile", "command", "content", "cursor", "data", "datalist", "dd",
+  "defs", "del", "desc", "details", "dfn", "dialog", "dir", "discard", "div", "dl", "dt",
+  "element", "ellipse", "em", "embed", "feBlend", "feColorMatrix", "feComponentTransfer",
+  "feComposite", "feConvolveMatrix", "feDiffuseLighting", "feDisplacementMap", "feDistantLight",
+  "feDropShadow", "feFlood", "feFuncA", "feFuncB", "feFuncG", "feFuncR", "feGaussianBlur",
+  "feImage", "feMerge", "feMergeNode", "feMorphology", "feOffset", "fePointLight",
+  "feSpecularLighting", "feSpotLight", "feTile", "feTurbulence", "fieldset", "figcaption",
+  "figure", "filter", "font", "font-face", "font-face-format", "font-face-name", "font-face-src",
+  "font-face-uri", "footer", "foreignObject", "form", "frame", "frameset", "g", "glyph",
+  "glyphRef", "h1", "h2", "h3", "h4", "h5", "h6", "handler", "head", "header", "hgroup", "hkern",
+  "hr", "html", "i", "iframe", "image", "img", "input", "ins", "isindex", "kbd", "keygen", "label",
+  "legend", "li", "line", "linearGradient", "link", "listener", "listing", "main", "map", "mark",
+  "marker", "marquee", "mask", "math", "menu", "menuitem", "meta", "metadata", "meter",
+  "missing-glyph", "mpath", "multicol", "nav", "nextid", "nobr", "noembed", "noframes", "noscript",
+  "object", "ol", "optgroup", "option", "output", "p", "param", "path", "pattern", "picture",
+  "plaintext", "polygon", "polyline", "pre", "prefetch", "progress", "q", "radialGradient", "rb",
+  "rbc", "rect", "rp", "rt", "rtc", "ruby", "s", "samp", "script", "search", "section", "select",
+  "set", "shadow", "slot", "small", "solidColor", "source", "spacer", "span", "stop", "strike",
+  "strong", "style", "sub", "summary", "sup", "svg", "switch", "symbol", "table", "tbody",
+  "tbreak", "td", "template", "text", "textArea", "textPath", "textarea", "tfoot", "th", "thead",
+  "time", "title", "tr", "track", "tref", "tspan", "tt", "u", "ul", "unknown", "use", "var",
+  "video", "view", "vkern", "wbr", "xmp",
+]);
 const fittLoc = ({ types: t }) => ({
   name: "fitt-loc",
   visitor: {
     JSXOpeningElement(path, state) {
       const name = path.node.name;
-      // Host elements only (<div>, <button>); a component's own props are its API.
-      if (name.type !== "JSXIdentifier" || !/^[a-z]/.test(name.name)) return;
+      // DOM elements only (<div>, <path>); a component's own props are its API.
+      if (name.type !== "JSXIdentifier" || !DOM_TAGS.has(name.name)) return;
       if (!path.node.loc || !state.filename) return;
       if (path.node.attributes.some((a) => a.type === "JSXAttribute" && a.name.name === "data-fitt-loc")) return;
       const rel = state.filename.split("/src/")[1];

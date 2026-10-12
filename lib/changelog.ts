@@ -23,6 +23,17 @@ export const CHANGE_BADGE: Record<ChangeType, { label: string; className: string
 // Newest first. SemVer: fix → PATCH, feature → MINOR, breaking → MAJOR.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.104.2",
+    date: "2026-10-12",
+    title: "เดโม 3 มิติไม่พังใน Preview อีก (เคส #21)",
+    items: [
+      {
+        type: "fix",
+        text: "เดโมที่ใช้ @react-three/fiber พังใน Preview ด้วย “Cannot read properties of undefined (reading 'fitt')” เพราะ Preview ติดป้ายตำแหน่งโค้ดให้ Wand ลงทุก element รวมถึงวัตถุ 3 มิติ ซึ่ง fiber อ่านป้ายนั้นผิด ตอนนี้ติดเฉพาะ element ของหน้าเว็บ (HTML/SVG) เดโมเดิมหายเองเมื่อรีเฟรช",
+      },
+    ],
+  },
+  {
     version: "0.104.1",
     date: "2026-10-12",
     title: "บอกเหตุผลข้างปุ่มอนุมัติที่ยังกดไม่ได้",

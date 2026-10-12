@@ -13,6 +13,7 @@ import { getProjectOrgDnaContext } from "@/lib/org-context";
 import { resolveSkill } from "@/lib/skills/db";
 import { createClient } from "@/lib/supabase/server";
 import { clientIp, rateLimit } from "@/lib/rate-limit";
+import { priorWithin } from "@/lib/agent-history";
 import type { AgentEvent, DocKind } from "@/lib/types";
 
 export const maxDuration = 300;
@@ -44,6 +45,9 @@ const bodySchema = z.object({
   // shared 20k cap 400'd every following turn of that phase, permanently.
   // `phase` is optional so a client still running the previous bundle — which
   // pre-filtered to one phase and sent no phase field — keeps working unchanged.
+  // No count cap: the studio sends the whole journey, and a 400-message cap
+  // refused every document action on long projects outright (case #15). How
+  // much of it the model reads is bounded below (lib/agent-history).
   messages: z
     .array(
       z.discriminatedUnion("role", [
@@ -58,8 +62,7 @@ const bodySchema = z.object({
           phase: z.string().optional(),
         }),
       ])
-    )
-    .max(400),
+    ),
   // partialRecord: the client sends only the docs that exist so far (often none
   // on the first turn). z.record with an enum key is exhaustive in Zod v4 and
   // would reject any partial set — including {} — which 400s every agent call.
@@ -150,12 +153,12 @@ export async function POST(request: Request) {
   // phase stays the live conversation.
   const speak = (m: { role: string; content: string }) =>
     `${m.role === "user" ? "ผู้ใช้" : "FITT"}: ${m.content}`;
-  const prior = body.messages.filter((m) => m.phase && m.phase !== body.phase);
+  const { kept: prior, dropped } = priorWithin(body.messages.filter((m) => m.phase && m.phase !== body.phase));
   const current = body.messages.filter((m) => !m.phase || m.phase === body.phase);
   const priorBlock = prior.length
-    ? `บทสนทนาจากเฟสก่อนหน้า (บริบทอ้างอิงเท่านั้น — ห้ามตอบซ้ำ ใช้เพื่อเข้าใจที่มาและรายละเอียดที่เอกสารสรุปอาจตกหล่น):\n\n${prior
-        .map(speak)
-        .join("\n\n")}\n\n---\n\nบทสนทนาของเฟสปัจจุบัน:\n\n`
+    ? `บทสนทนาจากเฟสก่อนหน้า (บริบทอ้างอิงเท่านั้น — ห้ามตอบซ้ำ ใช้เพื่อเข้าใจที่มาและรายละเอียดที่เอกสารสรุปอาจตกหล่น)${
+        dropped ? ` — ละ ${dropped} ข้อความที่เก่าที่สุดไว้` : ""
+      }:\n\n${prior.map(speak).join("\n\n")}\n\n---\n\nบทสนทนาของเฟสปัจจุบัน:\n\n`
     : "";
   let user =
     priorBlock +

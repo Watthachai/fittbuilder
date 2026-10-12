@@ -23,6 +23,17 @@ export const CHANGE_BADGE: Record<ChangeType, { label: string; className: string
 // Newest first. SemVer: fix → PATCH, feature → MINOR, breaking → MAJOR.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.103.3",
+    date: "2026-10-12",
+    title: "โปรเจกต์ที่คุยยาวมาก ใช้งานเอกสารได้ (เคส #15)",
+    items: [
+      {
+        type: "fix",
+        text: "โปรเจกต์ที่มีข้อความในแชทเกิน 400 ข้อความ กดอัปเดตเอกสารจากของจริง แก้ BRD/PRD หรือคุยในเฟสเอกสารแล้วขึ้น “คำขอไม่ถูกต้อง” ทุกครั้ง ตอนนี้ใช้ได้ตามปกติ บทสนทนาเก่ามาก ๆ จะส่งให้ AI อ่านเฉพาะส่วนล่าสุดที่พอดีกับความยาวที่อ่านได้",
+      },
+    ],
+  },
+  {
     version: "0.103.2",
     date: "2026-10-12",
     title: "ระบบซ่อมเครื่องหมาย > ในข้อความให้เอง (เคส #14)",

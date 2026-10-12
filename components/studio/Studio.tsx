@@ -124,6 +124,7 @@ import { useCaseInbox } from "@/components/cases/inbox-context";
 import type { CaseAiReply, CaseKind } from "@/lib/cases";
 import {
   continuationPrompt,
+  keepGoing,
   looksMultiTask,
   nextAttempt,
   taskOutcome,
@@ -1084,8 +1085,9 @@ export default function Studio({ projectId }: { projectId: string }) {
   );
 
   /**
-   * One message, one turn — and one more when the turn was cut, carrying on
-   * from the files it wrote. The cut is our ceiling (lib/tasks TurnCut), not
+   * One message, one turn — and more when the turn was cut, carrying on from
+   * the files every round so far wrote, for as long as rounds keep writing
+   * (lib/tasks keepGoing). The cut is our ceiling (lib/tasks TurnCut), not
    * something the person should pay for by sending the message again.
    */
   /**
@@ -1118,14 +1120,16 @@ export default function Studio({ projectId }: { projectId: string }) {
     ): Promise<TurnOutcome> => {
       const myEpoch = epochRef.current;
       let out = await generate(text, spec, base, attachments);
-      if (out.status === "cut" && myEpoch === epochRef.current) {
+      const written = [...out.written];
+      for (let round = 0; keepGoing(out, round) && myEpoch === epochRef.current; round++) {
         out = await generate(
-          continuationPrompt(text, out.cut ?? "error", out.written),
+          continuationPrompt(text, out.cut ?? "error", written),
           undefined,
           undefined,
           attachments,
-          { quiet: true, label: "ทำต่อจากรอบที่หยุดกลางทาง" }
+          { quiet: true, label: `ทำต่อจากรอบที่หยุดกลางทาง (ครั้งที่ ${round + 1})` }
         );
+        for (const path of out.written) if (!written.includes(path)) written.push(path);
       }
       await restoreExports(myEpoch, out);
       return out;

@@ -23,6 +23,17 @@ export const CHANGE_BADGE: Record<ChangeType, { label: string; className: string
 // Newest first. SemVer: fix → PATCH, feature → MINOR, breaking → MAJOR.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.103.5",
+    date: "2026-10-12",
+    title: "งานใหญ่ทำต่อเองได้หลายรอบ (เคส #18)",
+    items: [
+      {
+        type: "fix",
+        text: "งานใหญ่ที่หมดเวลาของรอบหลายครั้ง เช่น เพิ่มดัชนีหน้าจอในโปรเจกต์ที่มีหลายร้อยไฟล์ ระบบทำต่อให้เองได้สูงสุด 4 รอบ ตราบที่แต่ละรอบยังเขียนไฟล์เพิ่มได้ และบอก AI ว่าไฟล์ไหนทำไปแล้วทุกรอบ จะได้ไม่ทำซ้ำ เดิมทำต่อให้แค่รอบเดียว",
+      },
+    ],
+  },
+  {
     version: "0.103.4",
     date: "2026-10-12",
     title: "ทุกปุ่มที่สั่ง AI ทำต่อให้เองเมื่อหมดเวลา (เคส #17)",

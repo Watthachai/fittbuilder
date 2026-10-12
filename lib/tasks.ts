@@ -115,6 +115,22 @@ export interface TurnOutcome {
 }
 
 /**
+ * How many times one request carries on by itself after being cut. A large
+ * mechanical job — "เพิ่มดัชนีหน้าจอ" across 290 files — outlasts two nine-minute
+ * rounds (cases #17, #18), and every stop reads to the person as a failure.
+ */
+export const MAX_CONTINUATIONS = 4;
+
+/**
+ * Carry on after this round? The first cut always does — even one that wrote
+ * nothing, which is usually a dropped connection. After that only while each
+ * round still writes files: a round that wrote nothing is stuck, not slow.
+ */
+export function keepGoing(out: TurnOutcome, round: number): boolean {
+  return out.status === "cut" && round < MAX_CONTINUATIONS && (round === 0 || out.written.length > 0);
+}
+
+/**
  * The prompt for one more turn on a task, or null when there is nothing more
  * to try: the task is done, or the person stopped it. A cut turn continues
  * from what it wrote, a failed one tries again, and one that said it was not

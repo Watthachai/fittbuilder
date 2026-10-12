@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { MESSAGE_MAX_CHARS, TURN_PROMPT_MAX_CHARS } from "@/lib/limits";
 import {
   continuationPrompt,
+  keepGoing,
   looksMultiTask,
   nextAttempt,
   parseTaskVerdict,
@@ -113,6 +114,32 @@ const outcome = (over: Partial<TurnOutcome>): TurnOutcome => ({
   cut: null,
   written: [],
   ...over,
+});
+
+/**
+ * Cases #17 and #18: "เพิ่มดัชนีหน้าจอ" on a 290-file project needs dozens of
+ * modals touched. One automatic continuation after a cut was not enough — two
+ * nine-minute rounds wrote 29 files and stopped, and the person reported each
+ * stop as a case.
+ */
+describe("carrying on after a cut", () => {
+  const cut = (written: string[]): TurnOutcome => ({ status: "cut", note: "", cut: "time", written });
+
+  it("always carries on after the first cut, even one that wrote nothing", () => {
+    expect(keepGoing(cut([]), 0)).toBe(true);
+  });
+
+  it("keeps carrying on while each round still writes files", () => {
+    expect(keepGoing(cut(["src/a.tsx"]), 1)).toBe(true);
+    expect(keepGoing(cut(["src/b.tsx"]), 3)).toBe(true);
+  });
+
+  it("stops at the cap, when a later round wrote nothing, or when the turn was not cut", () => {
+    expect(keepGoing(cut(["src/c.tsx"]), 4)).toBe(false);
+    expect(keepGoing(cut([]), 1)).toBe(false);
+    expect(keepGoing({ status: "done", note: "", cut: null, written: ["src/d.tsx"] }, 0)).toBe(false);
+    expect(keepGoing({ status: "cancelled", note: "", cut: null, written: [] }, 0)).toBe(false);
+  });
 });
 
 describe("after a task turn", () => {

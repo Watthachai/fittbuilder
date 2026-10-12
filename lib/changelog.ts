@@ -23,6 +23,17 @@ export const CHANGE_BADGE: Record<ChangeType, { label: string; className: string
 // Newest first. SemVer: fix → PATCH, feature → MINOR, breaking → MAJOR.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.104.3",
+    date: "2026-10-12",
+    title: "เพิ่มรายการในใบเสนอราคาไม่ทับรายการเดิม (เคส #22)",
+    items: [
+      {
+        type: "fix",
+        text: "ใบเสนอราคาที่เคยลบรายการไปแล้วกด “เพิ่มรายการ” รายการใหม่อาจผูกกับรายการเดิมจนพิมพ์ช่องหนึ่งแล้วอีกช่องเปลี่ยนตาม ทำให้ข้อมูลเดิมถูกทับ ตอนนี้รายการใหม่แยกจากรายการเดิมเสมอ และใบเสนอราคาที่มีรายการผูกกันอยู่แล้วจะแยกให้เองเมื่อเปิด",
+      },
+    ],
+  },
+  {
     version: "0.104.2",
     date: "2026-10-12",
     title: "เดโม 3 มิติไม่พังใน Preview อีก (เคส #21)",

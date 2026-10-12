@@ -589,7 +589,7 @@ export default function Quotation({
       {!readOnly && (
         <div className="mt-2 flex flex-wrap items-center gap-2">
           <button
-            onClick={() => edit((d) => ({ ...d, rows: [...d.rows, emptyRow(d.rows.length)] }))}
+            onClick={() => edit((d) => ({ ...d, rows: [...d.rows, emptyRow()] }))}
             className="inline-flex items-center gap-1.5 rounded-lg border border-night-edge px-2.5 py-1.5 font-display text-[14px] text-chalk-dim transition hover:border-shine/60 hover:text-chalk"
           >
             <Plus size={12} /> เพิ่มรายการ

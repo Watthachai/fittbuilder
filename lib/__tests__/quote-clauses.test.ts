@@ -138,7 +138,7 @@ describe("acceptanceClauses", () => {
 
   // A half-typed line item must not put "NaN" in a document going to a customer.
   it("never prints NaN", () => {
-    const d = doc({ rows: [{ ...emptyRow(0), name: "x", days: NaN }] });
+    const d = doc({ rows: [{ ...emptyRow(), name: "x", days: NaN }] });
     expect(quoteTotals(d).grand).toBe(0);
     expect(acceptanceClauses(d).join("\n")).not.toContain("NaN");
   });

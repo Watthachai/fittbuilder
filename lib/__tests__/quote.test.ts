@@ -149,7 +149,7 @@ describe("quoteTotals", () => {
 
   // A row someone half-typed must not turn the whole total into NaN.
   it("treats an unparseable day count as zero", () => {
-    const doc = base({ rows: [{ ...emptyRow(0), name: "x", days: NaN }] });
+    const doc = base({ rows: [{ ...emptyRow(), name: "x", days: NaN }] });
     expect(quoteTotals(doc).grand).toBe(0);
   });
 
@@ -192,7 +192,7 @@ describe("quoteTotals", () => {
   it("sums the rounded lines, so the column adds up on paper", () => {
     const doc = base({
       ratePerDay: 3_333.33,
-      rows: [0.33, 0.33, 0.34].map((days, i) => ({ ...emptyRow(i), name: `r${i}`, days })),
+      rows: [0.33, 0.33, 0.34].map((days, i) => ({ ...emptyRow(), name: `r${i}`, days })),
     });
     const t = quoteTotals(doc);
     const printed = doc.rows.reduce(
@@ -389,7 +389,7 @@ describe("paymentSchedule", () => {
   });
 
   it("keeps each column adding up to its own total when shares do not divide evenly", () => {
-    const doc = base({ payment: presetEqual(3), rows: [{ ...emptyRow(0), name: "x", days: 1.37 }] });
+    const doc = base({ payment: presetEqual(3), rows: [{ ...emptyRow(), name: "x", days: 1.37 }] });
     const t = quoteTotals(doc);
     const rows = paymentSchedule(doc).rows;
     const total = (pick: (r: (typeof rows)[number]) => number) => Math.round(rows.reduce((s, r) => s + pick(r), 0) * 100) / 100;
@@ -412,7 +412,7 @@ describe("paymentSchedule", () => {
    * satang short.
    */
   it("puts the rounding remainder on the last instalment so the column adds up", () => {
-    const doc = base({ payment: presetEqual(3), rows: [{ ...emptyRow(0), name: "x", days: 1 }] });
+    const doc = base({ payment: presetEqual(3), rows: [{ ...emptyRow(), name: "x", days: 1 }] });
     const { grand } = quoteTotals(doc);
     expect(sum(doc)).toBe(grand);
     // Thirds of 8,560: equal shares, the last one carrying whatever rounding left.
@@ -426,7 +426,7 @@ describe("paymentSchedule", () => {
    * made it ฿9,996 eleven times and ฿10,044 once — not what anyone agreed.
    */
   it("splits a price into equal instalments without rounding the shares first", () => {
-    const doc = base({ rows: [{ ...emptyRow(0), name: "x", days: 15 }], payment: presetEqual(12) });
+    const doc = base({ rows: [{ ...emptyRow(), name: "x", days: 15 }], payment: presetEqual(12) });
     expect(quoteTotals(doc).net).toBe(120_000);
     const rows = paymentSchedule(doc).rows;
     expect(new Set(rows.map((r) => r.beforeVat))).toEqual(new Set([10_000]));
@@ -434,7 +434,7 @@ describe("paymentSchedule", () => {
   });
 
   it("turns a typed instalment amount into its share of the price before VAT", () => {
-    const doc = base({ rows: [{ ...emptyRow(0), name: "x", days: 15 }] });
+    const doc = base({ rows: [{ ...emptyRow(), name: "x", days: 15 }] });
     const percent = percentOfNet(doc, 10_000);
     const withTyped = { ...doc, payment: [{ id: "a", when: "งวดแรก", percent, netDays: 7 }] };
     expect(paymentSchedule(withTyped).rows[0].beforeVat).toBe(10_000);
@@ -707,5 +707,33 @@ describe("lump sum", () => {
     delete before.lumpSum;
     const reopened = parseDoc(before, "2026-08-18");
     expect(reopened?.lumpSum.enabled).toBe(false);
+  });
+});
+
+/**
+ * Case #22: a quotation with a row deleted, then one added — "เพิ่มรายการ"
+ * named the new row after the row count, which had just come back down to a
+ * number a hand-added row already carried. Two rows on one id, and typing in
+ * the new one rewrote the old one with it.
+ */
+describe("rows added by hand", () => {
+  it("never share an id, even after a row was deleted", () => {
+    const rows = [emptyRow(), emptyRow(), emptyRow()];
+    rows.splice(1, 1);
+    rows.push(emptyRow());
+    expect(new Set(rows.map((r) => r.id)).size).toBe(rows.length);
+  });
+
+  it("a saved quotation with two rows on one id loads as two rows, the first keeping it", () => {
+    const saved = JSON.parse(JSON.stringify(newDoc([], "Pace", "2026-10-12")));
+    saved.rows = [
+      { id: "12:custom", name: "องค์กรและสิทธิ์" },
+      { id: "12:custom", name: "องค์กรและสิทธิ์" },
+      { id: "13:custom", name: "รายงาน" },
+    ];
+    const doc = parseDoc(saved, "2026-10-12")!;
+    expect(doc.rows[0].id).toBe("12:custom");
+    expect(doc.rows[2].id).toBe("13:custom");
+    expect(new Set(doc.rows.map((r) => r.id)).size).toBe(3);
   });
 });

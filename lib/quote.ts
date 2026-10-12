@@ -529,11 +529,17 @@ export function parseDoc(payload: unknown, fallbackDate: string): QuoteDoc | nul
   const bool = (v: unknown, d: boolean) => (typeof v === "boolean" ? v : d);
   const obj = (v: unknown): Record<string, unknown> =>
     v && typeof v === "object" && !Array.isArray(v) ? (v as Record<string, unknown>) : {};
+  // Saved before case #22's fix, a quotation can hold two rows on one id; the
+  // later one gets its own, or editing either still rewrites both.
+  const seen = new Set<string>();
   const rows: QuoteRow[] = o.rows.map((raw, i) => {
     const r = (raw ?? {}) as Record<string, unknown>;
     const size: Size = r.size === "S" || r.size === "L" ? r.size : "M";
+    const given = str(r.id) || rowId("row", i);
+    const id = seen.has(given) ? `${given}#${i}` : given;
+    seen.add(id);
     return {
-      id: str(r.id) || rowId("row", i),
+      id,
       name: str(r.name),
       size,
       days: n(r.days, SIZE_DAYS[size]),
@@ -637,9 +643,14 @@ export function parseDoc(payload: unknown, fallbackDate: string): QuoteDoc | nul
   };
 }
 
-export function emptyRow(index: number): QuoteRow {
+/**
+ * A row added by hand. Its id is random, not the row count: after a deletion
+ * the count comes back to a number an earlier hand-added row already carries,
+ * and two rows on one id edit as one (case #22).
+ */
+export function emptyRow(): QuoteRow {
   return {
-    id: rowId("custom", index),
+    id: `custom:${crypto.randomUUID()}`,
     name: "",
     size: "M",
     days: SIZE_DAYS.M,

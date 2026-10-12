@@ -57,6 +57,12 @@ function clock(ms: number): string {
 /** Markdown text from the payload stays text — it cannot open a heading or a list here. */
 const inline = (s: string) => s.replace(/\s*\n\s*/g, " ").trim();
 
+// Bangkok time, set explicitly: the same document is rendered in the browser
+// and on the server (the agent's context), which do not share a time zone.
+const THAI_TIME = new Intl.DateTimeFormat("th-TH", { dateStyle: "medium", timeStyle: "short", timeZone: "Asia/Bangkok" });
+/** "9 ต.ค. 2569 10:59" — the payload's ISO timestamps were shown raw. */
+const when = (iso: string) => THAI_TIME.format(new Date(iso));
+
 export function sourceMarkdown(d: VoiceDelivery): string {
   return d.schemaVersion === "fittbuilder.summary-delivery.v1" ? summarySource(d) : fullSource(d);
 }
@@ -65,8 +71,8 @@ export function sourceMarkdown(d: VoiceDelivery): string {
 function summarySource(d: SummaryDelivery): string {
   return [
     `# ${inline(d.content.projectTitle)}`,
-    `> ตรวจแล้วใน FITT Voice เมื่อ ${d.review.reviewedAt}`,
-    `ข้อมูลจาก FITT Voice · ฉบับที่ ${d.snapshotRevision} · ส่งเมื่อ ${d.sentAt}`,
+    `> ตรวจแล้วใน FITT Voice เมื่อ ${when(d.review.reviewedAt)}`,
+    `ข้อมูลจาก FITT Voice · ฉบับที่ ${d.snapshotRevision} · ส่งเมื่อ ${when(d.sentAt)}`,
     "## สรุป",
     d.content.summaryMarkdown,
   ].join("\n\n");
@@ -95,7 +101,7 @@ function fullSource(d: Delivery): string {
   const status =
     d.stage === "DRAFT"
       ? `> **${DRAFT_LABEL}** — ข้อความลื่นไหลไม่ได้แปลว่ายืนยันแล้ว`
-      : `> ตรวจแล้วโดย ${d.review!.reviewerRef} เมื่อ ${d.review!.reviewedAt}`;
+      : `> ตรวจแล้วโดย ${d.review!.reviewerRef} เมื่อ ${when(d.review!.reviewedAt)}`;
 
   const captured = CATEGORIES.filter((c) => discovery[c].knowledgeStatus === "CAPTURED");
   const notCaptured = CATEGORIES.filter((c) => discovery[c].knowledgeStatus === "NOT_CAPTURED");
@@ -108,7 +114,7 @@ function fullSource(d: Delivery): string {
   return [
     `# ${inline(d.content.projectTitle)}`,
     status,
-    `ข้อมูลจาก FITT Voice · ฉบับที่ ${d.snapshotRevision} · ส่งเมื่อ ${d.sentAt}`,
+    `ข้อมูลจาก FITT Voice · ฉบับที่ ${d.snapshotRevision} · ส่งเมื่อ ${when(d.sentAt)}`,
     `## สรุป${d.stage === "DRAFT" ? ` (${DRAFT_LABEL})` : ""}`,
     d.content.summaryMarkdown,
     "## ข้อมูลธุรกิจ",

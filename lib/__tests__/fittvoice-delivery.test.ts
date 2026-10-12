@@ -228,4 +228,12 @@ describe("summary-only deliveries", () => {
     expect(md).not.toContain("ข้อมูลธุรกิจ");
     expect(md).not.toContain("หลักฐาน");
   });
+
+  it("states when it was reviewed and sent in Thai time, not as a raw timestamp", () => {
+    // FITT Voice's first Sandbox test read "เมื่อ 2026-10-10T11:04:35.591435Z".
+    const md = sourceMarkdown(sbase());
+    expect(md).toContain("ตรวจแล้วใน FITT Voice เมื่อ 9 ต.ค. 2569 10:59");
+    expect(md).toContain("ส่งเมื่อ 9 ต.ค. 2569 11:00");
+    expect(md).not.toContain("2026-10-09T");
+  });
 });

@@ -23,6 +23,17 @@ export const CHANGE_BADGE: Record<ChangeType, { label: string; className: string
 // Newest first. SemVer: fix → PATCH, feature → MINOR, breaking → MAJOR.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.103.9",
+    date: "2026-10-12",
+    title: "เวลาในเอกสาร FITT Voice เป็นเวลาไทย",
+    items: [
+      {
+        type: "improvement",
+        text: "เอกสารต้นทางจาก FITT Voice บอกเวลาที่ตรวจและเวลาที่ส่งเป็นวันเวลาไทย เช่น 10 ต.ค. 2569 18:04 แทนรูปแบบเครื่องอย่าง 2026-10-10T11:04:35Z",
+      },
+    ],
+  },
+  {
     version: "0.103.8",
     date: "2026-10-12",
     title: "Preview ที่ใช้ 3 มิติหรือแผนที่เปิดได้ (เคส #20)",

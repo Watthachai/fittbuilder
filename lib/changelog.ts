@@ -23,6 +23,17 @@ export const CHANGE_BADGE: Record<ChangeType, { label: string; className: string
 // Newest first. SemVer: fix → PATCH, feature → MINOR, breaking → MAJOR.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.103.4",
+    date: "2026-10-12",
+    title: "ทุกปุ่มที่สั่ง AI ทำต่อให้เองเมื่อหมดเวลา (เคส #17)",
+    items: [
+      {
+        type: "fix",
+        text: "งานที่สั่งจากปุ่ม เช่น เพิ่มดัชนีหน้าจอ ให้ AI แก้ error, Wand, ลองใหม่ หรือจัดโครงสร้างโค้ด ถ้าหมดเวลาของรอบกลางทาง ระบบจะทำต่อจากไฟล์ที่เขียนไปแล้วให้เองหนึ่งรอบ เหมือนข้อความที่พิมพ์ในแชท ไม่ต้องพิมพ์สั่งต่อเอง",
+      },
+    ],
+  },
+  {
     version: "0.103.3",
     date: "2026-10-12",
     title: "โปรเจกต์ที่คุยยาวมาก ใช้งานเอกสารได้ (เคส #15)",

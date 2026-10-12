@@ -1656,16 +1656,16 @@ export default function Studio({ projectId }: { projectId: string }) {
   const retry = useCallback(() => {
     const last = lastActionRef.current;
     if (!last) return;
-    if (last.kind === "generate") void generate(last.prompt, last.spec);
+    if (last.kind === "generate") void runTurn(last.prompt, undefined, last.spec);
     else if (last.kind === "split") void runTasks(last.text);
     else if (last.kind === "plan") void runTaskList(last.planId);
     else void runAgent(last.text);
-  }, [generate, runAgent, runTaskList, runTasks]);
+  }, [runAgent, runTaskList, runTasks, runTurn]);
 
   const fixWithAi = useCallback(() => {
     const recentErrors = terminal.slice(-12).join("\n").slice(0, 400);
-    void generate(`แก้ error นี้ให้หน่อย:\n${recentErrors}`);
-  }, [generate, terminal]);
+    void runTurn(`แก้ error นี้ให้หน่อย:\n${recentErrors}`);
+  }, [runTurn, terminal]);
 
   /** Feed the iframe-reported runtime error (message + stack) into an AI fix
    *  turn — the model gets the real error instead of guessing from a white
@@ -1674,10 +1674,10 @@ export default function Studio({ projectId }: { projectId: string }) {
     const err = previewRuntimeError;
     if (!err) return;
     setPreviewRuntimeError(null);
-    void generate(
+    void runTurn(
       `ช่วยแก้ error นี้ใน demo:\n\n${err.message}${err.stack ? `\n\nstack:\n${err.stack.slice(0, 1500)}` : ""}`
     );
-  }, [generate, previewRuntimeError]);
+  }, [runTurn, previewRuntimeError]);
 
   const { openCases } = useCaseInbox();
 
@@ -1710,8 +1710,8 @@ export default function Studio({ projectId }: { projectId: string }) {
 
   /** Split an oversized file set into the standard layout (Code panel banner). */
   const reorganizeCode = useCallback(() => {
-    void generate(REORGANIZE_PROMPT);
-  }, [generate]);
+    void runTurn(REORGANIZE_PROMPT);
+  }, [runTurn]);
 
   /* ——— Wand: point at an element in the demo and edit exactly it ——— */
 
@@ -1780,7 +1780,7 @@ export default function Studio({ projectId }: { projectId: string }) {
         return;
       }
       setWandBusy(true);
-      void generate(buildWandPrompt(picked, instruction), undefined, undefined, attachments).finally(
+      void runTurn(buildWandPrompt(picked, instruction), attachments).finally(
         () => {
           setWandBusy(false);
           // A finished cast leaves wand mode. It used to drop only the
@@ -1794,7 +1794,7 @@ export default function Studio({ projectId }: { projectId: string }) {
         }
       );
     },
-    [exitWand, generate, wandTarget]
+    [exitWand, runTurn, wandTarget]
   );
 
   /**
@@ -1804,15 +1804,15 @@ export default function Studio({ projectId }: { projectId: string }) {
    */
   const addScreenIndex = useCallback(() => {
     setScreensOpen(false);
-    void generate(buildScreenIndexPrompt(projectRef.current?.files ?? null));
-  }, [generate]);
+    void runTurn(buildScreenIndexPrompt(projectRef.current?.files ?? null));
+  }, [runTurn]);
 
   /** Create the files the app imports but never got (white-screen root cause). */
   const createMissingFiles = useCallback(() => {
     const missing = missingImports(projectRef.current?.files ?? null);
     if (missing.length === 0) return;
-    void generate(buildMissingFilesPrompt(missing));
-  }, [generate]);
+    void runTurn(buildMissingFilesPrompt(missing));
+  }, [runTurn]);
 
   /**
    * Ask for the shell alone.
@@ -1826,13 +1826,13 @@ export default function Studio({ projectId }: { projectId: string }) {
     const files = projectRef.current?.files ?? {};
     const pages = Object.keys(files).filter((p) => p.startsWith("src/pages/"));
     if (pages.length === 0) return;
-    void generate(
+    void runTurn(
       "เขียน src/App.tsx และ src/main.tsx ที่ยังขาดอยู่ ให้ประกอบหน้าจอที่มีอยู่แล้วเข้าด้วยกัน: " +
         pages.join(", ") +
         " · App.tsx เป็นเชลล์อย่างเดียว คือแถบเมนู แถบบน และ useState ว่าหน้าไหนกำลังแสดง " +
         "แล้ว render <XxxPage /> ตามนั้น พร้อม data-fitt-index ครบทุกหน้า · ห้ามเขียนไฟล์หน้าจอใหม่ ใช้ของเดิม"
     );
-  }, [generate]);
+  }, [runTurn]);
 
   const handleUndo = useCallback(async () => {
     const current = projectRef.current;
@@ -2112,8 +2112,9 @@ export default function Studio({ projectId }: { projectId: string }) {
       if (spec.brd) files[DOC_PATHS.brd] = spec.brd;
       if (spec.prd) files[DOC_PATHS.prd] = spec.prd;
       const working = persist({ ...base, files, phase: "build" });
-      void generate(
+      void runTurn(
         spec.prompt,
+        undefined,
         {
           brief: spec.prompt,
           brd: spec.brd,
@@ -2124,7 +2125,7 @@ export default function Studio({ projectId }: { projectId: string }) {
         working
       );
     },
-    [generate, persist]
+    [persist, runTurn]
   );
 
   /** Rewrite package.json's extra deps and reinstall in the container. */
@@ -2688,7 +2689,7 @@ export default function Studio({ projectId }: { projectId: string }) {
       projectRef.current = switched;
       setProject(switched);
       setActiveVersion("premium");
-      void generate(buildPremiumContext(chosen));
+      void runTurn(buildPremiumContext(chosen));
     } catch (e) {
       toast.error("สร้างเวอร์ชัน Premium ไม่สำเร็จ", {
         description: e instanceof Error ? e.message : undefined,
@@ -2765,7 +2766,7 @@ export default function Studio({ projectId }: { projectId: string }) {
           confirmLabel: "ให้ AI รวมให้",
         });
         if (merge) {
-          void generate(
+          void runTurn(
             [
               "ไฟล์เหล่านี้ในเวอร์ชัน Premium ถูกเขียนทับไว้ ทำให้การแก้ไขล่าสุดที่ทำในเวอร์ชันปกติหายไป:",
               ...shadowed.map((f) => `- ${f}`),

@@ -23,6 +23,21 @@ export const CHANGE_BADGE: Record<ChangeType, { label: string; className: string
 // Newest first. SemVer: fix → PATCH, feature → MINOR, breaking → MAJOR.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.104.4",
+    date: "2026-10-12",
+    title: "ผู้ใช้ใหม่จาก FITT Voice เชื่อมบัญชีได้ครบ และลิงก์โปรเจกต์พากลับหลังเข้าสู่ระบบ",
+    items: [
+      {
+        type: "improvement",
+        text: "หน้าเชื่อมบัญชีกับ FITT Voice ให้สร้าง workspace แรกได้ทันทีเมื่อบัญชียังไม่มี เดิมบัญชีใหม่ติดอยู่ที่ข้อความว่ายังไม่มี workspace และกลับไป FITT Voice ไม่ได้",
+      },
+      {
+        type: "fix",
+        text: "เปิดลิงก์ของหน้าใดก็ตาม เช่นลิงก์โปรเจกต์ ตอนยังไม่ได้เข้าสู่ระบบ หลังเข้าสู่ระบบจะกลับไปที่หน้านั้น เดิมไปหน้าแรกเสมอ",
+      },
+    ],
+  },
+  {
     version: "0.104.3",
     date: "2026-10-12",
     title: "เพิ่มรายการในใบเสนอราคาไม่ทับรายการเดิม (เคส #22)",

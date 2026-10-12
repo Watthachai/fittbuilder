@@ -69,3 +69,29 @@ export async function denyConnection(formData: FormData): Promise<void> {
     })
   );
 }
+
+/**
+ * A first workspace, made from the consent page. A new Builder account has
+ * none (there is no default), and a FITT Voice user who signed up on the way
+ * here would otherwise stop at "no workspace". Created as the person, through
+ * RLS — they own it — exactly as the workspace page would.
+ */
+export async function createWorkspace(
+  _prev: { error: string } | { workspace: { id: string; name: string } } | null,
+  formData: FormData
+): Promise<{ error: string } | { workspace: { id: string; name: string } }> {
+  const name = String(formData.get("workspace_name") ?? "").trim();
+  if (!name) return { error: "ตั้งชื่อ workspace ก่อน" };
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "หมดเวลาเข้าสู่ระบบ เปิดลิงก์จาก FITT Voice ใหม่อีกครั้ง" };
+  const { data, error } = await supabase
+    .from("fittbuilder_orgs")
+    .insert({ name: name.slice(0, 80) })
+    .select("id, name")
+    .single();
+  if (error || !data) return { error: "สร้าง workspace ไม่สำเร็จ ลองอีกครั้ง" };
+  return { workspace: data };
+}

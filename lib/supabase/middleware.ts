@@ -62,6 +62,9 @@ export async function updateSession(request: NextRequest) {
   if (!user && !isPublic) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
+    // The page they wanted rides along, so a shared link — a project opened
+    // from FITT Voice — lands on that page after signing in, not on home.
+    url.search = `?next=${encodeURIComponent(pathname + request.nextUrl.search)}`;
     const redirect = NextResponse.redirect(url);
     // Carry over any auth cookies refreshed by getUser() — a bare redirect drops
     // them, desyncing browser/server and forcing a second login (Supabase SSR).

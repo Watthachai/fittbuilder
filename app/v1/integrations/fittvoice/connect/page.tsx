@@ -76,10 +76,6 @@ export default async function ConnectPage({
             เข้าสู่ระบบ FITT Builder เพื่อเชื่อม
             <ArrowRight size={16} className="transition-transform group-hover:translate-x-0.5" />
           </Link>
-        ) : workspaces.length === 0 ? (
-          <p className="mt-6 text-sm leading-relaxed text-halt">
-            บัญชี {user.email} ยังไม่มี workspace ที่ส่งงานเข้าได้ — สร้าง workspace ใน FITT Builder ก่อน
-          </p>
         ) : (
           <>
             <p className="mt-5 text-xs text-chalk-dim">เข้าสู่ระบบเป็น {user.email}</p>

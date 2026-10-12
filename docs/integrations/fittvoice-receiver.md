@@ -96,6 +96,10 @@
 - พารามิเตอร์อื่นผิด: `redirect_uri?error=invalid_request|unsupported_response_type&error_description=…&state=…`
 - `client_id` ไม่รู้จักหรือถูกปิด หรือ `redirect_uri` ไม่ตรง: หยุดที่หน้า Builder และไม่ redirect
 
+ผู้ใช้ที่ยังไม่มีบัญชี Builder กด "เข้าสู่ระบบ FITT Builder เพื่อเชื่อม" แล้วสมัครได้ในหน้าเดียวกันด้วย Google หรืออีเมล (Builder ไม่มีหน้าสมัครแยก การเข้าสู่ระบบครั้งแรกคือการสมัคร) จากนั้นระบบพากลับมาหน้าอนุมัติเอง ถ้าใช้ลิงก์ทางอีเมล ต้องเปิดลิงก์ในเบราว์เซอร์เดียวกับที่ขอ ไม่อย่างนั้นจะไปหน้าแรกของ Builder และต้องกดเชื่อมจาก Voice ใหม่ ถ้ามีคนเชิญอีเมลนี้เข้า workspace ไว้แล้ว จะเข้า workspace ให้อัตโนมัติตอนเข้าสู่ระบบครั้งแรก
+
+บัญชีที่ยังไม่มี workspace (บัญชีใหม่ทุกบัญชี Builder ไม่สร้างให้) สร้าง workspace ได้ในหน้าอนุมัติเลย แล้วเชื่อมต่อได้ทันที ทุก workspace ที่แสดงในหน้าอนุมัติส่งงานได้ เพราะสมาชิกทุกบทบาทส่งได้ ปุ่ม "ไม่อนุญาต" มีให้เสมอ
+
 ### 2. แลก code เป็น token (backend ของ Voice)
 
 `POST {BASE_URL}/v1/integrations/fittvoice/token` แบบ `application/x-www-form-urlencoded`
@@ -148,6 +152,14 @@ code ที่ส่งมาแลกถือว่าใช้แล้วท
 - ผู้ใช้ออกจาก workspace แล้ว: 403 `FORBIDDEN` (`retryable: false`) ให้ผู้ใช้เชื่อมใหม่กับ workspace ที่มีสิทธิ์
 
 ตัวตนของโปรเจกต์ยังเป็น `(workspace, exportSessionId)` เชื่อมใหม่ใน workspace เดิมแล้วส่ง `UPDATE_PROJECT` ต่อได้
+
+### เปิดโปรเจกต์ใน Builder
+
+receipt (`fittbuilder.receipt.v1`) ไม่มีลิงก์ เพราะ schema ไม่รับ property เพิ่ม ให้ประกอบ URL เองเป็น `{BASE_URL}/project/{builderProjectId}` URL นี้รองรับถาวร
+
+- ต้องเข้าสู่ระบบ ถ้ายังไม่ได้เข้า Builder จะพาไปหน้า login แล้วกลับมาที่โปรเจกต์ให้
+- เปิดได้เฉพาะคนที่มีสิทธิ์ในโปรเจกต์ คือสมาชิก workspace นั้นทุกบทบาท หรือคนที่ถูกเชิญเข้าโปรเจกต์โดยตรง
+- Sandbox กับ Production ใช้ฐานข้อมูลเดียวกัน `builderProjectId` เดียวกันจึงเปิดได้ทั้งสองที่
 
 ### 5. ถอนการเชื่อม
 

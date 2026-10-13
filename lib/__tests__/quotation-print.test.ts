@@ -58,3 +58,41 @@ describe("a row priced by the unit on the paper", () => {
     expect(html).not.toContain(" วัน × ");
   });
 });
+
+/**
+ * Case #25: the sender wants the customer to see each line's price, not the
+ * arithmetic behind it — "ใหญ่ · 4.5 วัน × 100,000" tells the customer the day
+ * rate, and "1 × 450,000" says nothing. Off, the paper prints the line total
+ * alone; the arithmetic stays in the panel.
+ */
+describe("what each line's price is made of, on the paper", () => {
+  const rows = [
+    { ...emptyRow(), name: "ค่าพัฒนาระบบ", size: "L" as const, days: 4.5 },
+    { ...emptyRow(), name: "ค่าบริการรายปี", pricing: "unit" as const, qty: 12, unit: "เดือน", unitPrice: 12_500 },
+  ];
+  const paper = (showBasis: boolean) => {
+    const doc = { ...newDoc([], "Mabuchi", "2026-10-13"), ratePerDay: 100_000, rows, showBasis };
+    return renderToStaticMarkup(createElement(QuotationPrint, { doc, shots: [] }));
+  };
+
+  it("is left off when the switch is off, and each line keeps its total", () => {
+    const html = paper(false);
+    expect(html).not.toContain("q-basis");
+    expect(html).not.toContain("4.5 วัน");
+    expect(html).toContain("450,000");
+    expect(html).toContain("150,000");
+  });
+
+  it("prints when the switch is on", () => {
+    const html = paper(true);
+    expect(html).toContain("ใหญ่ · 4.5 วัน × 100,000");
+    expect(html).toContain("12 เดือน × 12,500");
+  });
+
+  it("stays on for a quotation saved before the switch existed", () => {
+    const saved = JSON.parse(JSON.stringify(newDoc([], "Mabuchi", "2026-10-13")));
+    delete saved.showBasis;
+    expect(parseDoc(saved, "2026-10-13")!.showBasis).toBe(true);
+    expect(parseDoc({ ...saved, showBasis: false }, "2026-10-13")!.showBasis).toBe(false);
+  });
+});

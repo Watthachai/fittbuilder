@@ -23,6 +23,17 @@ export const CHANGE_BADGE: Record<ChangeType, { label: string; className: string
 // Newest first. SemVer: fix → PATCH, feature → MINOR, breaking → MAJOR.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.105.1",
+    date: "2026-10-13",
+    title: "ซ่อนที่มาของราคาในใบเสนอราคาได้",
+    items: [
+      {
+        type: "improvement",
+        text: "ใบเสนอราคามีสวิตช์ “แสดงที่มาของราคาใต้รายการ” ข้างปุ่มพิมพ์ ปิดแล้วกระดาษไม่พิมพ์ขนาดงาน จำนวนวัน ราคาต่อวัน หรือจำนวน × ราคาต่อหน่วยใต้ชื่อรายการ เหลือแค่ราคารวมของแต่ละรายการ ส่วนการคำนวณยังอยู่ในหน้าแก้ไขเหมือนเดิม ใบที่ทำไว้ก่อนหน้ายังพิมพ์แบบเดิม",
+      },
+    ],
+  },
+  {
     version: "0.105.0",
     date: "2026-10-13",
     title: "ใบเสนอราคาใส่จำนวนกับราคาต่อหน่วยเองได้ และรายการยาวไม่ดันหน้าแรกให้ว่าง",

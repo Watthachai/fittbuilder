@@ -301,6 +301,12 @@ export interface QuoteDoc {
   terms: string;
   /** Print every captured screen as an appendix behind the signatures. */
   showShots: boolean;
+  /**
+   * Print what each line's price is made of — "ใหญ่ · 4.5 วัน × 100,000" or
+   * "12 เดือน × 12,500" — under its name. Off, the customer sees line totals
+   * only; the day rate is the sender's to disclose, not ours (case #25).
+   */
+  showBasis: boolean;
 }
 
 // Payment now has its own table and its own generated clauses, so the free-text
@@ -512,6 +518,7 @@ export function newDoc(shots: Shot[], projectName: string, today: string): Quote
     lumpSum: emptyLumpSum(),
     terms: DEFAULT_TERMS,
     showShots: true,
+    showBasis: true,
   };
 }
 
@@ -662,6 +669,8 @@ export function parseDoc(payload: unknown, fallbackDate: string): QuoteDoc | nul
     terms: str(o.terms, DEFAULT_TERMS),
     // On for every document written before this existed — they all printed it.
     showShots: bool(o.showShots, true),
+    // On for every document written before this existed — they all printed it.
+    showBasis: bool(o.showBasis, true),
   };
 }
 

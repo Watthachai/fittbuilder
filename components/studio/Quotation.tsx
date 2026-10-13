@@ -865,6 +865,20 @@ export default function Quotation({
               </p>
             </div>
           )}
+          {/* The arithmetic is the sender's; the customer may only get the price (case #25). */}
+          <div className="mt-3">
+            <SectionToggle
+              title="แสดงที่มาของราคาใต้รายการ"
+              hint={
+                doc.showBasis
+                  ? "พิมพ์ขนาดงาน · วัน × ราคาต่อวัน หรือ จำนวน × ราคาต่อหน่วย ใต้ชื่อรายการ"
+                  : "ไม่แสดง — กระดาษพิมพ์แค่ราคารวมของแต่ละรายการ"
+              }
+              on={doc.showBasis}
+              onChange={(on) => edit((d) => ({ ...d, showBasis: on }))}
+              disabled={readOnly}
+            />
+          </div>
           {/* The appendix is most of the paper on a large system (case #19). */}
           <div className="mt-3">
             <SectionToggle

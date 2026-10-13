@@ -23,6 +23,17 @@ export const CHANGE_BADGE: Record<ChangeType, { label: string; className: string
 // Newest first. SemVer: fix → PATCH, feature → MINOR, breaking → MAJOR.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.104.5",
+    date: "2026-10-13",
+    title: "แก้วันที่ของข้อเสนอโครงการได้",
+    items: [
+      {
+        type: "fix",
+        text: "หน้าข้อเสนอโครงการมีช่อง “วันที่” ข้างเลขที่เอกสาร วันที่นี้พิมพ์ที่หัวเอกสารและใต้ลายเซ็นผู้เสนอ เดิมค้างเป็นวันที่สร้างข้อเสนอและแก้ไม่ได้",
+      },
+    ],
+  },
+  {
     version: "0.104.4",
     date: "2026-10-12",
     title: "ผู้ใช้ใหม่จาก FITT Voice เชื่อมบัญชีได้ครบ และลิงก์โปรเจกต์พากลับหลังเข้าสู่ระบบ",

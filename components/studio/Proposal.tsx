@@ -310,15 +310,29 @@ export default function Proposal({
                 disabled={readOnly}
               />
             </Field>
-            <Field label="เลขที่เอกสาร">
-              <input
-                value={doc.proposalNo}
-                onChange={(e) => edit((d) => ({ ...d, proposalNo: e.target.value }))}
-                placeholder={`P-${today.replace(/-/g, "")}`}
-                className={inputCls}
-                disabled={readOnly}
-              />
-            </Field>
+            <div className="grid grid-cols-2 gap-2.5">
+              <Field label="เลขที่เอกสาร">
+                <input
+                  value={doc.proposalNo}
+                  onChange={(e) => edit((d) => ({ ...d, proposalNo: e.target.value }))}
+                  placeholder={`P-${today.replace(/-/g, "")}`}
+                  className={inputCls}
+                  disabled={readOnly}
+                />
+              </Field>
+              {/* Printed in the header and under the sender's signature. It was
+                  set once, when the proposal was first opened, with no field to
+                  move it to the day the paper actually goes out. */}
+              <Field label="วันที่">
+                <input
+                  type="date"
+                  value={doc.issuedAt}
+                  onChange={(e) => edit((d) => ({ ...d, issuedAt: e.target.value }))}
+                  className={inputCls}
+                  disabled={readOnly}
+                />
+              </Field>
+            </div>
             <Field label="เรียน (ตำแหน่ง/ฝ่าย)">
               <input
                 value={doc.customerAttn}

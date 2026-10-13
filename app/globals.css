@@ -1428,8 +1428,7 @@ body {
   }
   /* A clause split across a page break is a real problem on paper, not a
      cosmetic one: the half a reader skims is the half that binds them. Each
-     clause, each row and each terms table stays whole. */
-  .fitt-paper .q-items tbody tr,
+     clause, each payment row and each terms table stays whole. */
   .fitt-paper .q-pay tbody tr,
   .fitt-paper .q-market,
   .fitt-paper .q-sum,
@@ -1442,13 +1441,22 @@ body {
   .fitt-paper .p-excl li {
     break-inside: avoid;
   }
-  /* …except the one row that IS the whole scope. Keeping a row whole is right
-     when a row is a line item; the lump-sum row is a document, routinely taller
-     than the page it sits on. Told to stay whole it cannot fit anywhere, so the
-     printer pushes it to the next page — leaving page one empty and breaking it
-     across pages anyway. Let it flow. */
-  .fitt-paper .q-items tbody tr.q-lump {
-    break-inside: auto;
+  /* A line item is NOT kept whole as a block: its description can be a whole
+     scope, taller than the page. Told to stay whole, such a row fits nowhere —
+     the printer pushes it to the next page, leaving page one empty under the
+     letterhead, and breaks it across pages anyway (the lump-sum row first,
+     then case #24). It is held together by its own lines instead: the heading
+     never parts from its text, and a description breaks only with three lines
+     on each side, so a short row still moves to the next page in one piece. */
+  .fitt-paper .q-of,
+  .fitt-paper .q-name,
+  .fitt-paper .q-basis {
+    display: block;
+    break-after: avoid;
+  }
+  .fitt-paper .q-note {
+    orphans: 3;
+    widows: 3;
   }
   .fitt-paper .q-block h2,
   .fitt-paper .q-shots h2 {

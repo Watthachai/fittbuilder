@@ -611,19 +611,29 @@ describe("printed scope", () => {
   });
 
   /**
-   * Keeping a row whole is right when a row is a line item. The lump-sum row is
-   * a document — routinely taller than the page it sits on — and a row that
-   * cannot fit anywhere gets pushed to the next page, leaving the first one
-   * blank and breaking across pages regardless. Reported with a screenshot of
-   * exactly that empty first page.
+   * A row is kept whole only by its own lines, never as a block. Told to stay
+   * whole, a row taller than the page fits nowhere: the printer pushes it to
+   * the next page, leaving page one empty under the letterhead, and breaks it
+   * across pages anyway. Reported first for the lump-sum row, then (case #24)
+   * for an ordinary row whose description was a full 74-line scope.
    */
-  it("lets the one-line scope flow across pages instead of blanking one", () => {
+  it("lets a long row flow across pages instead of blanking one", () => {
     const css = readFileSync("app/globals.css", "utf8");
     const print = css.slice(css.indexOf("@media print"));
-    const rule = print.slice(print.indexOf("tr.q-lump"));
-    expect(rule.slice(0, 60)).toContain("break-inside: auto");
-    // And it has to be more specific than the blanket row rule it overrides.
-    expect(print).toContain(".fitt-paper .q-items tbody tr.q-lump");
+    const avoid = print.slice(0, print.indexOf("break-inside: avoid"));
+    expect(avoid).not.toContain(".q-items tbody tr");
+  });
+
+  it("still keeps a short row together: its heading with its text, no line stranded", () => {
+    const css = readFileSync("app/globals.css", "utf8");
+    const print = css.slice(css.indexOf("@media print"));
+    const rule = (selector: string) => {
+      const at = print.indexOf(selector);
+      expect(at, selector).toBeGreaterThan(-1);
+      return print.slice(at, print.indexOf("}", at));
+    };
+    expect(rule(".fitt-paper .q-basis")).toContain("break-after: avoid");
+    expect(rule(".fitt-paper .q-note")).toMatch(/orphans: 3;[\s\S]*widows: 3;/);
   });
 });
 

@@ -144,6 +144,12 @@ export interface ProposalDoc {
   closing: string;
   /** The quotation this proposal accompanies — the only place a price is named. */
   quoteNo: string;
+  /**
+   * Print the reference to that quotation: the header's "อ้างถึงใบเสนอราคา" and
+   * the price section that points at it. Off for a proposal handed over on its
+   * own, with no quotation in the envelope (case #26).
+   */
+  showQuoteRef: boolean;
 }
 
 export const DEFAULT_CLOSING =
@@ -197,6 +203,7 @@ export function newProposal(projectName: string, today: string): ProposalDoc {
     screenDocs: {},
     closing: DEFAULT_CLOSING,
     quoteNo: "",
+    showQuoteRef: true,
   };
 }
 
@@ -340,5 +347,7 @@ export function parseProposal(payload: unknown, fallbackDate: string): ProposalD
     ),
     closing: str(o.closing, DEFAULT_CLOSING),
     quoteNo: str(o.quoteNo),
+    // On for every proposal written before this existed — they all printed it.
+    showQuoteRef: bool(o.showQuoteRef, true),
   };
 }

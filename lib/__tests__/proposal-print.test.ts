@@ -3,6 +3,7 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import ProposalPrint from "@/components/studio/ProposalPrint";
 import { newProposal, parseProposal } from "@/lib/proposal";
+import { emptyRow, newDoc } from "@/lib/quote";
 import type { Shot } from "@/lib/shots";
 
 /**
@@ -43,5 +44,54 @@ describe("the proposal's walk without its pictures", () => {
   it("keeps the pictures for a document saved before the switch existed", () => {
     expect(parseProposal({ points: [] }, "2026-01-01")!.showShots).toBe(true);
     expect(parseProposal({ points: [], showShots: false }, "2026-01-01")!.showShots).toBe(false);
+  });
+});
+
+/**
+ * Case #26: the proposal names the quotation twice — "อ้างถึงใบเสนอราคา" in the
+ * header and "ตามใบเสนอราคาเลขที่ … ที่แนบมา" under the price — and a sender
+ * who hands the proposal over on its own has no quotation to point at.
+ */
+describe("the proposal's reference to the quotation", () => {
+  const quote = { ...newDoc([], "Mabuchi", "2026-10-13"), quoteNo: "SQP-0001" };
+  const paper = (showQuoteRef: boolean) =>
+    renderToStaticMarkup(
+      createElement(ProposalPrint, { doc: { ...newProposal("Mabuchi", "2026-10-13"), showQuoteRef }, quote, shots: [] })
+    );
+
+  it("is left off when the switch is off — header and price section both", () => {
+    const html = paper(false);
+    expect(html).not.toContain("SQP-0001");
+    expect(html).not.toContain("อ้างถึงใบเสนอราคา");
+    expect(html).not.toContain("ราคาและเงื่อนไขการชำระเงิน");
+  });
+
+  it("prints when the switch is on", () => {
+    const html = paper(true);
+    expect(html).toContain("อ้างถึงใบเสนอราคา :");
+    expect(html).toContain("ตามใบเสนอราคาเลขที่ SQP-0001");
+  });
+
+  it("stays on for a proposal saved before the switch existed", () => {
+    const saved = JSON.parse(JSON.stringify(newProposal("Mabuchi", "2026-10-13")));
+    delete saved.showQuoteRef;
+    expect(parseProposal(saved, "2026-10-13")!.showQuoteRef).toBe(true);
+    expect(parseProposal({ ...saved, showQuoteRef: false }, "2026-10-13")!.showQuoteRef).toBe(false);
+  });
+});
+
+/**
+ * Also case #26: a quotation priced entirely by the unit (case #23) has no
+ * man-days, and the schedule printed "0 วันทำการ" as the build time.
+ */
+describe("the schedule when the quotation counts no man-days", () => {
+  it("leaves the build-time box out and keeps the review window", () => {
+    const quote = newDoc([], "Mabuchi", "2026-10-13");
+    quote.rows = [{ ...emptyRow(), name: "ค่าพัฒนาระบบ", pricing: "unit", qty: 1, unitPrice: 450_000 }];
+    const html = renderToStaticMarkup(
+      createElement(ProposalPrint, { doc: newProposal("Mabuchi", "2026-10-13"), quote, shots: [] })
+    );
+    expect(html).not.toContain("วันทำการ");
+    expect(html).toContain("ตรวจรับหลังส่งมอบ");
   });
 });

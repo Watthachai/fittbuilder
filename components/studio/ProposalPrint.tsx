@@ -68,7 +68,7 @@ export default function ProposalPrint({
                         <th>วันที่ :</th>
                         <td>{thaiDateShort(doc.issuedAt)}</td>
                       </tr>
-                      {quoteNo && (
+                      {doc.showQuoteRef && quoteNo && (
                         <tr>
                           <th>อ้างถึงใบเสนอราคา :</th>
                           <td>{quoteNo}</td>
@@ -238,10 +238,13 @@ export default function ProposalPrint({
                 <section className="q-block">
                   <h2>ขั้นตอนและระยะเวลา</h2>
                   <div className="p-time">
-                    <div>
-                      <strong>{time.buildDays}</strong> วันทำการ
-                      <p>พัฒนาและติดตั้งตามขอบเขต</p>
-                    </div>
+                    {/* A quotation priced by the unit counts no man-days; "0 วันทำการ" is not a schedule. */}
+                    {time.buildDays > 0 && (
+                      <div>
+                        <strong>{time.buildDays}</strong> วันทำการ
+                        <p>พัฒนาและติดตั้งตามขอบเขต</p>
+                      </div>
+                    )}
                     <div>
                       <strong>{time.reviewDays}</strong> วัน
                       <p>ตรวจรับหลังส่งมอบ</p>
@@ -267,14 +270,16 @@ export default function ProposalPrint({
                 </section>
               )}
 
-              <section className="q-block p-price">
-                <h2>ราคาและเงื่อนไขการชำระเงิน</h2>
-                <p>
-                  {quoteNo
-                    ? `ตามใบเสนอราคาเลขที่ ${quoteNo} ที่แนบมาพร้อมเอกสารฉบับนี้`
-                    : "ตามใบเสนอราคาที่แนบมาพร้อมเอกสารฉบับนี้"}
-                </p>
-              </section>
+              {doc.showQuoteRef && (
+                <section className="q-block p-price">
+                  <h2>ราคาและเงื่อนไขการชำระเงิน</h2>
+                  <p>
+                    {quoteNo
+                      ? `ตามใบเสนอราคาเลขที่ ${quoteNo} ที่แนบมาพร้อมเอกสารฉบับนี้`
+                      : "ตามใบเสนอราคาที่แนบมาพร้อมเอกสารฉบับนี้"}
+                  </p>
+                </section>
+              )}
 
               {doc.closing.trim() && <p className="p-close">{doc.closing}</p>}
 

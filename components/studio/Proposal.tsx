@@ -625,7 +625,13 @@ export default function Proposal({
           <h3 className="font-display text-[14px] text-chalk">ตัวเลขที่ดึงจากใบเสนอราคา</h3>
           {time.known ? (
             <p className="mt-1.5 text-[12.5px] leading-relaxed text-chalk-dim">
-              พัฒนา <span className="font-mono text-chalk">{time.buildDays}</span> วันทำการ ·
+              {time.buildDays > 0 ? (
+                <>
+                  พัฒนา <span className="font-mono text-chalk">{time.buildDays}</span> วันทำการ ·
+                </>
+              ) : (
+                "ใบเสนอราคาไม่มีรายการที่คิดเป็นวันทำงาน จึงไม่พิมพ์ระยะเวลาพัฒนา ·"
+              )}{" "}
               ตรวจรับภายใน <span className="font-mono text-chalk">{time.reviewDays}</span> วัน
               {time.includedMonths > 0 && (
                 <>
@@ -641,17 +647,32 @@ export default function Proposal({
               ยังไม่มีใบเสนอราคา — ส่วนระยะเวลาจะเว้นไว้ ไม่เดาตัวเลขให้ ไปที่แท็บใบเสนอราคาก่อน
             </p>
           )}
-          <div className="mt-2.5 max-w-xs">
-            <Field label="อ้างถึงใบเสนอราคาเลขที่">
-              <input
-                value={doc.quoteNo}
-                onChange={(e) => edit((d) => ({ ...d, quoteNo: e.target.value }))}
-                placeholder={quote?.quoteNo || "Q-…"}
-                className={inputCls}
-                disabled={readOnly}
-              />
-            </Field>
+          <div className="mt-3">
+            <SectionToggle
+              title="อ้างถึงใบเสนอราคา"
+              hint={
+                doc.showQuoteRef
+                  ? "พิมพ์เลขที่ใบเสนอราคาที่หัวเอกสาร และหัวข้อ “ราคาและเงื่อนไขการชำระเงิน” ที่ชี้ไปที่ใบนั้น"
+                  : "ไม่อ้างถึง — ไม่พิมพ์เลขที่ใบเสนอราคาและหัวข้อราคา ใช้เมื่อส่งข้อเสนอนี้ไปโดยไม่แนบใบเสนอราคา"
+              }
+              on={doc.showQuoteRef}
+              onChange={(on) => edit((d) => ({ ...d, showQuoteRef: on }))}
+              disabled={readOnly}
+            />
           </div>
+          {doc.showQuoteRef && (
+            <div className="mt-2.5 max-w-xs">
+              <Field label="อ้างถึงใบเสนอราคาเลขที่">
+                <input
+                  value={doc.quoteNo}
+                  onChange={(e) => edit((d) => ({ ...d, quoteNo: e.target.value }))}
+                  placeholder={quote?.quoteNo || "Q-…"}
+                  className={inputCls}
+                  disabled={readOnly}
+                />
+              </Field>
+            </div>
+          )}
         </div>
 
         <button

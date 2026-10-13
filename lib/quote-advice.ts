@@ -49,7 +49,10 @@ export interface QuoteAdvice {
 
 /** What the model needs: the scope as quoted, plus what each line actually is. */
 export function buildQuoteAdviceUser(doc: QuoteDoc): string {
-  const lines = doc.rows
+  // A unit-priced row (a yearly service, a licence) is not labour: it has no
+  // man-days to review, and its price was typed by the sender on purpose.
+  const labour = doc.rows.filter((r) => r.pricing === "days");
+  const lines = labour
     .map((r, i) => {
       const where = r.parent ? ` (modal ของ “${r.parent}”)` : "";
       const detail = r.note.trim() ? `\n   รายละเอียด: ${r.note.trim()}` : "";
@@ -59,7 +62,7 @@ export function buildQuoteAdviceUser(doc: QuoteDoc): string {
   return `งาน: ${doc.subject || "พัฒนาระบบตามขอบเขตหน้าจอด้านล่าง"}
 เรตต่อวันที่ตั้งไว้ตอนนี้: ${doc.ratePerDay} บาท
 
-รายการทั้งหมด ${doc.rows.length} รายการ:
+รายการทั้งหมด ${labour.length} รายการ:
 ${lines}`;
 }
 

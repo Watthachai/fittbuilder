@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import QuotationPrint from "@/components/studio/QuotationPrint";
-import { newDoc, parseDoc } from "@/lib/quote";
+import { emptyRow, newDoc, parseDoc } from "@/lib/quote";
 import type { Shot } from "@/lib/shots";
 
 /**
@@ -39,5 +39,22 @@ describe("the quotation's screenshot appendix", () => {
     delete saved.showShots;
     expect(parseDoc(saved, "2026-10-12")!.showShots).toBe(true);
     expect(parseDoc({ ...saved, showShots: false }, "2026-10-12")!.showShots).toBe(false);
+  });
+});
+
+/**
+ * Case #23: a line that is not labour prints what it is made of — quantity,
+ * unit and unit price — not a size and a day count it never had.
+ */
+describe("a row priced by the unit on the paper", () => {
+  it("prints quantity × unit price and its own total", () => {
+    const doc = newDoc([], "Mabuchi", "2026-10-13");
+    doc.rows = [
+      { ...emptyRow(), name: "ค่าบริการรายปี", pricing: "unit", qty: 12, unit: "เดือน", unitPrice: 12_500 },
+    ];
+    const html = renderToStaticMarkup(createElement(QuotationPrint, { doc, shots: [] }));
+    expect(html).toContain("12 เดือน × 12,500");
+    expect(html).toContain("150,000");
+    expect(html).not.toContain(" วัน × ");
   });
 });

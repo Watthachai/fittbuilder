@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { newDoc, quoteTotals, type QuoteDoc } from "@/lib/quote";
+import { emptyRow, newDoc, quoteTotals, type QuoteDoc } from "@/lib/quote";
 import {
   DEFAULT_CLOSING,
   hasJourney,
@@ -40,7 +40,7 @@ describe("proposalSteps", () => {
   it("borrows what a screen does from the quotation instead of describing it twice", () => {
     const q = quote({
       rows: [
-        { id: "r1", name: "รายการสินค้า", size: "M", days: 3, note: "ดูสต๊อกคงเหลือทุกสาขา", sub: false, parent: "" },
+        { ...emptyRow(), id: "r1", name: "รายการสินค้า", size: "M", days: 3, note: "ดูสต๊อกคงเหลือทุกสาขา", sub: false, parent: "" },
       ],
     });
     const [step] = proposalSteps([shot({ name: "รายการสินค้า", index: 1 })], q);
@@ -134,8 +134,8 @@ describe("proposalTimeline", () => {
   it("takes the working days from the priced scope, never from its own field", () => {
     const q = quote({
       rows: [
-        { id: "a", name: "ก", size: "M", days: 4, note: "", sub: false, parent: "" },
-        { id: "b", name: "ข", size: "M", days: 6, note: "", sub: false, parent: "" },
+        { ...emptyRow(), id: "a", name: "ก", size: "M", days: 4, note: "", sub: false, parent: "" },
+        { ...emptyRow(), id: "b", name: "ข", size: "M", days: 6, note: "", sub: false, parent: "" },
       ],
     });
     expect(proposalTimeline(q).buildDays).toBe(quoteTotals(q).days);

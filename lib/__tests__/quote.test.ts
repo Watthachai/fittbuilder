@@ -28,6 +28,8 @@ import {
   REVIEW_DAYS,
   discountRate,
   switchDiscountKind,
+  priceBySize,
+  priceByUnit,
   rowsFromShots,
   SIZE_DAYS,
   thaiDate,
@@ -635,9 +637,9 @@ describe("lump sum", () => {
   const doc = (): QuoteDoc => ({
     ...newDoc([], "ทดสอบ", "2026-08-18"),
     rows: [
-      { id: "a", name: "ระบบเข้าใช้งาน", size: "M", days: 5, note: "Login / Logout", sub: false, parent: "" },
-      { id: "b", name: "ยืนยันตัวตน", size: "S", days: 1, note: "OTP", sub: true, parent: "ระบบเข้าใช้งาน" },
-      { id: "c", name: "Dashboard", size: "L", days: 8, note: "สรุปยอดขาย", sub: false, parent: "" },
+      { ...emptyRow(), id: "a", name: "ระบบเข้าใช้งาน", size: "M", days: 5, note: "Login / Logout", sub: false, parent: "" },
+      { ...emptyRow(), id: "b", name: "ยืนยันตัวตน", size: "S", days: 1, note: "OTP", sub: true, parent: "ระบบเข้าใช้งาน" },
+      { ...emptyRow(), id: "c", name: "Dashboard", size: "L", days: 8, note: "สรุปยอดขาย", sub: false, parent: "" },
     ],
     vatPercent: 7,
   });
@@ -685,6 +687,7 @@ describe("lump sum", () => {
       ...newDoc([], "ทดสอบ", "2026-08-18"),
       rows: [
         {
+          ...emptyRow(),
           id: "a",
           name: "ระบบบริหารจัดการร้านโซฟา",
           size: "L",
@@ -735,5 +738,64 @@ describe("rows added by hand", () => {
     expect(doc.rows[0].id).toBe("12:custom");
     expect(doc.rows[2].id).toBe("13:custom");
     expect(new Set(doc.rows.map((r) => r.id)).size).toBe(3);
+  });
+});
+
+/**
+ * Case #23: a quotation holds lines that are not labour — "ค่าบริการรายปี
+ * 12,500 บาท/เดือน × 12 เดือน" — and the man-day arithmetic had no way to say
+ * that. The sender set the rate to 0 and typed the figure into the note, where
+ * it added up to nothing.
+ */
+describe("rows priced by the unit", () => {
+  const base = (over: Partial<QuoteDoc> = {}): QuoteDoc => ({
+    ...newDoc(INVENTORY, "d", "2026-08-05"),
+    ...over,
+  });
+  const service = { ...emptyRow(), name: "ค่าบริการรายปี", pricing: "unit" as const, qty: 12, unit: "เดือน", unitPrice: 12_500 };
+
+  it("bill quantity × unit price, whatever the rate per day", () => {
+    expect(lineTotal(service, 8_000)).toBe(150_000);
+    expect(lineTotal(service, 0)).toBe(150_000);
+  });
+
+  it("add their money to the total but no man-days", () => {
+    // INVENTORY alone: 6 days × 8,000 = 48,000.
+    const t = quoteTotals(base({ rows: [...rowsFromShots(INVENTORY), service] }));
+    expect(t.days).toBe(6);
+    expect(t.subtotal).toBe(198_000);
+  });
+
+  it("switching a row to unit pricing keeps its money", () => {
+    const row = { ...emptyRow(), size: "L" as const, days: 5 };
+    const unit = priceByUnit(row, 8_000);
+    expect(unit).toMatchObject({ pricing: "unit", qty: 1, unitPrice: 40_000 });
+    expect(lineTotal(unit, 8_000)).toBe(40_000);
+  });
+
+  it("switching back to a size prices by man-days again", () => {
+    const back = priceBySize(service, "S");
+    expect(back).toMatchObject({ pricing: "days", size: "S", days: SIZE_DAYS.S });
+    expect(lineTotal(back, 8_000)).toBe(8_000);
+  });
+
+  it("survive a save and reopen; rows saved before it existed stay man-day rows", () => {
+    const saved = JSON.parse(JSON.stringify(base({ rows: [service] })));
+    expect(parseDoc(saved, "2026-10-13")!.rows[0]).toMatchObject({
+      pricing: "unit",
+      qty: 12,
+      unit: "เดือน",
+      unitPrice: 12_500,
+    });
+    const old = JSON.parse(JSON.stringify(newDoc(INVENTORY, "d", "2026-08-05")));
+    for (const r of old.rows) {
+      delete r.pricing;
+      delete r.qty;
+      delete r.unit;
+      delete r.unitPrice;
+    }
+    const reopened = parseDoc(old, "2026-10-13")!;
+    expect(reopened.rows.every((r) => r.pricing === "days")).toBe(true);
+    expect(quoteTotals(reopened).subtotal).toBe(48_000);
   });
 });

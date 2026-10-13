@@ -28,8 +28,9 @@ export async function POST(request: Request) {
   }
 
   const doc = parseDoc(body.doc, new Date().toISOString().slice(0, 10));
-  if (!doc || doc.rows.length === 0) {
-    return Response.json({ error: "ยังไม่มีรายการให้ตั้งราคา" }, { status: 400 });
+  // Unit-priced rows carry their own typed price; the advisor only reviews man-days.
+  if (!doc || !doc.rows.some((r) => r.pricing === "days")) {
+    return Response.json({ error: "ยังไม่มีรายการที่คิดเป็นวันทำงานให้ตั้งราคา" }, { status: 400 });
   }
 
   let usage: TokenUsage | null = null;

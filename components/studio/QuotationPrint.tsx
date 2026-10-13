@@ -7,8 +7,8 @@ import {
   paymentSchedule,
   quoteTotals,
   lineTotal,
+  rowBasis,
   safeAccent,
-  SIZE_LABEL,
   thaiDate,
   thaiDateShort,
   validUntil,
@@ -181,9 +181,7 @@ export default function QuotationPrint({ doc, shots }: { doc: QuoteDoc; shots: S
                           <span className="q-name">{r.name || "—"}</span>
                           {/* What the price is made of. Small and grey — it
                               justifies the number without competing with it. */}
-                          <span className="q-basis">
-                            {SIZE_LABEL[r.size]} · {r.days} วัน × {formatTHB(doc.ratePerDay)}
-                          </span>
+                          <span className="q-basis">{rowBasis(r, doc.ratePerDay)}</span>
                           {r.note && <span className="q-note">{r.note}</span>}
                         </div>
                       </td>

@@ -48,12 +48,24 @@ export const MA_DEFAULT_ANNUAL = 90_000;
 /** Months of maintenance already paid for inside the project price. */
 export const MA_INCLUDED_MONTHS = 12;
 
+/**
+ * How a row is priced. "days" is the man-day arithmetic every screen gets;
+ * "unit" is a line that is not labour — a yearly service, a licence, hosting —
+ * priced as quantity × unit price, both typed by hand (case #23).
+ */
+export type RowPricing = "days" | "unit";
+
 export interface QuoteRow {
   id: string;
   name: string;
+  pricing: RowPricing;
   size: Size;
   /** Man-days. Seeded from the size, then owned by whoever edits it. */
   days: number;
+  /** "unit" rows only: how many, of what ("เดือน", "ชุด"), at what price each. */
+  qty: number;
+  unit: string;
+  unitPrice: number;
   /**
    * What the screen does, in the customer's words. Written by hand or by
    * "เขียนรายละเอียดด้วย AI", which reads the source — a price with the scope
@@ -427,6 +439,9 @@ export function emptyBrand(): QuoteBrand {
 /** A stable id per row — the shot path when it came from one, else a counter. */
 const rowId = (seed: string, i: number) => `${i}:${seed}`;
 
+/** The unit fields of a row that is priced by man-days. */
+const NO_UNIT = { qty: 1, unit: "", unitPrice: 0 };
+
 /**
  * Seed rows from the inventory.
  *
@@ -448,8 +463,10 @@ export function rowsFromShots(shots: Shot[]): QuoteRow[] {
       // the table can group and the paper can indent, and a customer reading a
       // line item wants the modal's name, not a breadcrumb.
       name: s.name,
+      pricing: "days" as const,
       size: s.parent ? ("S" as Size) : ("M" as Size),
       days: s.parent ? SIZE_DAYS.S : SIZE_DAYS.M,
+      ...NO_UNIT,
       note: "",
       sub: Boolean(s.parent),
       parent: s.parent ?? "",
@@ -541,8 +558,13 @@ export function parseDoc(payload: unknown, fallbackDate: string): QuoteDoc | nul
     return {
       id,
       name: str(r.name),
+      // Every row saved before unit pricing existed was a man-day row.
+      pricing: r.pricing === "unit" ? "unit" : "days",
       size,
       days: n(r.days, SIZE_DAYS[size]),
+      qty: n(r.qty, NO_UNIT.qty),
+      unit: str(r.unit),
+      unitPrice: n(r.unitPrice, NO_UNIT.unitPrice),
       note: str(r.note),
       sub: r.sub === true,
       parent: str(r.parent),
@@ -652,12 +674,31 @@ export function emptyRow(): QuoteRow {
   return {
     id: `custom:${crypto.randomUUID()}`,
     name: "",
+    pricing: "days",
     size: "M",
     days: SIZE_DAYS.M,
+    ...NO_UNIT,
     note: "",
     sub: false,
     parent: "",
   };
+}
+
+/** Price a row by man-days at this size, the day count reset to the size's default. */
+export const priceBySize = (row: QuoteRow, size: Size): QuoteRow => ({
+  ...row,
+  pricing: "days",
+  size,
+  days: SIZE_DAYS[size],
+});
+
+/**
+ * Price a row as quantity × unit price. Switching keeps the money: one unit at
+ * what the row costs now, so the total does not jump until someone types.
+ */
+export function priceByUnit(row: QuoteRow, ratePerDay: number): QuoteRow {
+  if (row.pricing === "unit") return row;
+  return { ...row, pricing: "unit", qty: 1, unitPrice: lineTotal(row, ratePerDay) };
 }
 
 /**
@@ -668,7 +709,19 @@ export function emptyRow(): QuoteRow {
 const num = (n: number) => (Number.isFinite(n) ? n : 0);
 
 export const lineTotal = (row: QuoteRow, ratePerDay: number): number =>
-  num(row.days) * num(ratePerDay);
+  row.pricing === "unit" ? num(row.qty) * num(row.unitPrice) : num(row.days) * num(ratePerDay);
+
+/** What a row's price is made of, as the paper prints it under the name. */
+export function rowBasis(row: QuoteRow, ratePerDay: number): string {
+  if (row.pricing === "unit") {
+    const unit = row.unit.trim();
+    return `${num(row.qty).toLocaleString("th-TH")}${unit ? ` ${unit}` : ""} × ${formatTHB(num(row.unitPrice))}`;
+  }
+  return `${SIZE_LABEL[row.size]} · ${row.days} วัน × ${formatTHB(ratePerDay)}`;
+}
+
+/** Man-days this row is estimated at; a unit-priced row is not labour and has none. */
+export const rowDays = (row: QuoteRow): number => (row.pricing === "days" ? num(row.days) : 0);
 
 export interface QuoteTotals {
   days: number;
@@ -685,7 +738,7 @@ export interface QuoteTotals {
  * add up to the printed total and the customer is right to ask why.
  */
 export function quoteTotals(doc: QuoteDoc): QuoteTotals {
-  const days = round2(doc.rows.reduce((sum, r) => sum + num(r.days), 0));
+  const days = round2(doc.rows.reduce((sum, r) => sum + rowDays(r), 0));
   // A lump sum REPLACES the arithmetic, it does not adjust it: the agreed figure
   // is the subtotal, and discount and VAT run from there exactly as they would
   // otherwise. Man-days stay counted because the market comparison and the MA

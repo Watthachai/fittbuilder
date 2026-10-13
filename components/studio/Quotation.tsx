@@ -19,12 +19,13 @@ import {
   formatTHB,
   lineTotal,
   missingRows,
+  priceBySize,
+  priceByUnit,
   newDoc,
   marketComparison,
   lumpSumSystemCount,
   quoteTotals,
   rowCounts,
-  SIZE_DAYS,
   SIZE_HINT,
   SIZE_LABEL,
   discountRate,
@@ -337,8 +338,10 @@ export default function Quotation({
   const counts = rowCounts(doc);
   const market = marketComparison(doc);
   const baht = (n: number) => `฿${formatTHB(n)}`;
-  const setRow = (id: string, patch: Partial<QuoteRow>) =>
-    edit((d) => ({ ...d, rows: d.rows.map((r) => (r.id === id ? { ...r, ...patch } : r)) }));
+  /** Rewrite one row from its current state — not the rendered one, which a co-editor may have moved on. */
+  const mapRow = (id: string, f: (r: QuoteRow, d: QuoteDoc) => QuoteRow) =>
+    edit((d) => ({ ...d, rows: d.rows.map((r) => (r.id === id ? f(r, d) : r)) }));
+  const setRow = (id: string, patch: Partial<QuoteRow>) => mapRow(id, (r) => ({ ...r, ...patch }));
 
   return (
     <div ref={rootRef} {...focusProps} className="scroll-thin relative min-h-0 flex-1 overflow-y-auto px-5 py-4">
@@ -488,7 +491,7 @@ export default function Quotation({
             <tr className="border-b border-night-edge bg-night/60 text-left text-chalk-dim">
               <th className="w-8 px-2 py-2 text-right font-display font-medium">#</th>
               <th className="px-2 py-2 font-display font-medium">รายการ / รายละเอียดการทำงาน</th>
-              <th className="w-[150px] px-2 py-2 text-center font-display font-medium">ขนาดงาน</th>
+              <th className="w-[200px] px-2 py-2 text-center font-display font-medium">ขนาดงาน</th>
               <th className="w-24 px-2 py-2 text-right font-display font-medium">วัน</th>
               <th className="w-28 px-2 py-2 text-right font-display font-medium">รวม</th>
               <th className="w-8" />
@@ -527,8 +530,11 @@ export default function Quotation({
                     />
                   </div>
                 </td>
-                <td className="px-2 py-1.5">
-                  <div className="flex justify-center rounded-lg border border-night-edge p-0.5">
+                {/* A man-day row fills the size and day cells; a unit-priced
+                    row (case #23) spans both with its own three numbers. */}
+                <td className="px-2 py-1.5" colSpan={r.pricing === "unit" ? 2 : 1}>
+                  {/* The size column's own width, so the picker lines up row to row. */}
+                  <div className="flex w-[184px] justify-center rounded-lg border border-night-edge p-0.5">
                     {SIZES.map((s) => (
                       <button
                         key={s}
@@ -537,28 +543,76 @@ export default function Quotation({
                         // default: picking a size IS the estimate, and leaving a
                         // stale number under a new label is the quiet way to
                         // send a wrong price.
-                        onClick={() => setRow(r.id, { size: s, days: SIZE_DAYS[s] })}
+                        onClick={() => mapRow(r.id, (x) => priceBySize(x, s))}
                         title={SIZE_HINT[s]}
                         className={`flex-1 rounded-md px-1.5 py-0.5 font-display text-[12.5px] transition ${
-                          r.size === s ? "bg-shine text-night" : "text-chalk-dim hover:text-chalk"
+                          r.pricing === "days" && r.size === s
+                            ? "bg-shine text-night"
+                            : "text-chalk-dim hover:text-chalk"
                         }`}
                       >
                         {SIZE_LABEL[s]}
                       </button>
                     ))}
+                    <button
+                      disabled={readOnly}
+                      onClick={() => mapRow(r.id, (x, d) => priceByUnit(x, d.ratePerDay))}
+                      title="ใส่จำนวนกับราคาต่อหน่วยเอง ไม่คิดเป็นวันทำงาน — เช่น ค่าบริการรายเดือน ค่าไลเซนส์"
+                      className={`flex-1 whitespace-nowrap rounded-md px-1.5 py-0.5 font-display text-[12.5px] transition ${
+                        r.pricing === "unit" ? "bg-shine text-night" : "text-chalk-dim hover:text-chalk"
+                      }`}
+                    >
+                      กำหนดเอง
+                    </button>
                   </div>
+                  {r.pricing === "unit" && (
+                    <div className="mt-1.5 flex items-center gap-1.5">
+                      <input
+                        type="number"
+                        min={0}
+                        value={r.qty}
+                        onChange={(e) => setRow(r.id, { qty: Number(e.target.value) })}
+                        aria-label="จำนวน"
+                        title="จำนวน"
+                        disabled={readOnly}
+                        className="w-14 rounded-md border border-night-edge bg-transparent px-1.5 py-1 text-right font-mono text-chalk outline-none focus:bg-night"
+                      />
+                      <input
+                        value={r.unit}
+                        onChange={(e) => setRow(r.id, { unit: e.target.value })}
+                        placeholder="หน่วย"
+                        aria-label="หน่วย"
+                        disabled={readOnly}
+                        className="w-16 rounded-md border border-night-edge bg-transparent px-1.5 py-1 text-chalk outline-none placeholder:text-chalk-dim/40 focus:bg-night"
+                      />
+                      <span className="text-chalk-dim">×</span>
+                      <input
+                        type="number"
+                        min={0}
+                        step={500}
+                        value={r.unitPrice}
+                        onChange={(e) => setRow(r.id, { unitPrice: Number(e.target.value) })}
+                        aria-label="ราคาต่อหน่วย (บาท)"
+                        title="ราคาต่อหน่วย (บาท)"
+                        disabled={readOnly}
+                        className="min-w-0 flex-1 rounded-md border border-night-edge bg-transparent px-1.5 py-1 text-right font-mono text-chalk outline-none focus:bg-night"
+                      />
+                    </div>
+                  )}
                 </td>
-                <td className="px-2 py-1.5">
-                  <input
-                    type="number"
-                    min={0}
-                    step={0.5}
-                    value={r.days}
-                    onChange={(e) => setRow(r.id, { days: Number(e.target.value) })}
-                    disabled={readOnly}
-                    className="w-full rounded-md bg-transparent px-1.5 py-1 text-right font-mono text-chalk outline-none focus:bg-night"
-                  />
-                </td>
+                {r.pricing === "days" && (
+                  <td className="px-2 py-1.5">
+                    <input
+                      type="number"
+                      min={0}
+                      step={0.5}
+                      value={r.days}
+                      onChange={(e) => setRow(r.id, { days: Number(e.target.value) })}
+                      disabled={readOnly}
+                      className="w-full rounded-md bg-transparent px-1.5 py-1 text-right font-mono text-chalk outline-none focus:bg-night"
+                    />
+                  </td>
+                )}
                 <td className="px-2 py-1.5 text-right font-mono text-chalk">
                   {formatTHB(lineTotal(r, doc.ratePerDay))}
                 </td>
@@ -769,7 +823,15 @@ export default function Quotation({
         </div>
 
         <div className="h-fit rounded-xl border border-night-edge bg-night p-4">
-          <Total label={`แรงงานรวม ${t.days} วัน`} value={formatTHB(t.subtotal)} />
+          {/* With a unit-priced line in it, the subtotal is no longer all labour. */}
+          <Total
+            label={
+              doc.rows.some((r) => r.pricing === "unit")
+                ? `ราคารวม · แรงงาน ${t.days} วัน`
+                : `แรงงานรวม ${t.days} วัน`
+            }
+            value={formatTHB(t.subtotal)}
+          />
           {t.discount > 0 && (
             <Total label={`ส่วนลด ${discountRate(doc.discount)}`.trim()} value={`−${formatTHB(t.discount)}`} />
           )}

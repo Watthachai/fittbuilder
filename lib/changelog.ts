@@ -23,6 +23,17 @@ export const CHANGE_BADGE: Record<ChangeType, { label: string; className: string
 // Newest first. SemVer: fix → PATCH, feature → MINOR, breaking → MAJOR.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.105.0",
+    date: "2026-10-13",
+    title: "ใบเสนอราคาใส่จำนวนกับราคาต่อหน่วยเองได้",
+    items: [
+      {
+        type: "feature",
+        text: "แต่ละรายการในใบเสนอราคาเลือก “กำหนดเอง” ได้ ต่อจาก เล็ก/กลาง/ใหญ่ แล้วใส่จำนวน หน่วย และราคาต่อหน่วยเอง เช่น ค่าบริการ 12 เดือน × 12,500 บาท รายการแบบนี้ไม่นับเป็นวันทำงาน และกระดาษพิมพ์ “12 เดือน × 12,500” ใต้ชื่อรายการ ส่วน AI ช่วยตั้งราคาไม่แตะราคาที่กำหนดเอง",
+      },
+    ],
+  },
+  {
     version: "0.104.5",
     date: "2026-10-13",
     title: "แก้วันที่ของข้อเสนอโครงการได้",

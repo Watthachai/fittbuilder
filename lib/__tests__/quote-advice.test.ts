@@ -1,14 +1,14 @@
 import { describe, expect, it } from "vitest";
 import { buildQuoteAdviceUser, marketMidpoint, parseQuoteAdvice } from "../quote-advice";
-import { newDoc, type QuoteDoc } from "../quote";
+import { emptyRow, newDoc, type QuoteDoc } from "../quote";
 
 const DOC: QuoteDoc = {
   ...newDoc([], "Pace", "2026-08-05"),
   subject: "พัฒนาระบบวิ่ง",
   ratePerDay: 8_000,
   rows: [
-    { id: "1", name: "หน้าหลัก", size: "M", days: 2.5, note: "สรุปสถิติการวิ่ง", sub: false, parent: "" },
-    { id: "2", name: "บันทึกการวิ่ง", size: "S", days: 1, note: "", sub: true, parent: "หน้าหลัก" },
+    { ...emptyRow(), id: "1", name: "หน้าหลัก", size: "M", days: 2.5, note: "สรุปสถิติการวิ่ง", sub: false, parent: "" },
+    { ...emptyRow(), id: "2", name: "บันทึกการวิ่ง", size: "S", days: 1, note: "", sub: true, parent: "หน้าหลัก" },
   ],
 };
 
@@ -21,6 +21,15 @@ describe("buildQuoteAdviceUser", () => {
     expect(user).toContain("สรุปสถิติการวิ่ง");
     // A modal has to be recognisable as one, or it gets estimated as a screen.
     expect(user).toContain('modal ของ “หน้าหลัก”');
+  });
+
+  // Case #23: a yearly service has no man-days to review, and its price was
+  // typed on purpose — the advisor must not hand back days for it.
+  it("leaves out rows priced by the unit", () => {
+    const service = { ...emptyRow(), name: "ค่าบริการรายปี", pricing: "unit" as const, qty: 12, unitPrice: 12_500 };
+    const user = buildQuoteAdviceUser({ ...DOC, rows: [...DOC.rows, service] });
+    expect(user).not.toContain("ค่าบริการรายปี");
+    expect(user).toContain("รายการทั้งหมด 2 รายการ");
   });
 });
 

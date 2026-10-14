@@ -23,6 +23,21 @@ export const CHANGE_BADGE: Record<ChangeType, { label: string; className: string
 // Newest first. SemVer: fix → PATCH, feature → MINOR, breaking → MAJOR.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.107.0",
+    date: "2026-10-14",
+    title: "เลือกรอบชำระ MA ในใบเสนอราคา และเชื่อมข้อมูลโปรเจกต์ให้ FITT Billing",
+    items: [
+      {
+        type: "feature",
+        text: "ส่วนค่าบำรุงรักษาระบบ (MA) ในใบเสนอราคาเลือกรอบชำระได้ว่า รายเดือน หรือ รายปี และพิมพ์รอบชำระในใบเสนอราคา ไฟล์ Word และเงื่อนไข MA",
+      },
+      {
+        type: "feature",
+        text: "FITT Billing ดึงข้อมูลโปรเจกต์ ลูกค้า ใบเสนอราคาพร้อมยอด รอบชำระ MA ข้อเสนอโครงการ และ BRD/PRD ได้ผ่าน API ที่ต้องใช้ token ของ workspace",
+      },
+    ],
+  },
+  {
     version: "0.106.2",
     date: "2026-10-14",
     title: "แท็บ แชร์กับฉัน บอกว่าโปรเจกต์ของ workspace อยู่ที่ไหน",

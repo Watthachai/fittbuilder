@@ -18,3 +18,15 @@ export function fileProjects(
     shared: projects.filter((p) => p.access === "member" && !inMyWorkspace(p)),
   };
 }
+
+/**
+ * The workspaces in which someone else created a project I see under "ของฉัน".
+ * Members used to find those under "แชร์กับฉัน"; once they moved, people took
+ * them for gone, so the shared tab names where they went.
+ */
+export function workspacesWithOthersProjects<W extends { id: string }>(
+  workspaces: W[],
+  mine: ProjectSummary[]
+): W[] {
+  return workspaces.filter((w) => mine.some((p) => p.access === "member" && p.orgId === w.id));
+}

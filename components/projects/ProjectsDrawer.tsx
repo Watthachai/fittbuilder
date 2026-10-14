@@ -37,7 +37,7 @@ import { confirm } from "@/lib/confirm";
 import { openCreateWorkspace } from "@/lib/workspace-modal";
 import { WorkspaceIcon } from "@/lib/workspace-style";
 import { encodeShareUrl } from "@/lib/share";
-import { fileProjects } from "@/lib/project-folders";
+import { fileProjects, workspacesWithOthersProjects } from "@/lib/project-folders";
 import type { OrgRecord, ProjectSummary } from "@/lib/types";
 
 type Tab = "mine" | "shared";
@@ -227,6 +227,11 @@ export default function ProjectsDrawer({
     }
     return out;
   }, [mine, orgs, query, myWorkspaceIds]);
+
+  const othersWorkspaces = useMemo(
+    () => workspacesWithOthersProjects(orgs, mine),
+    [orgs, mine],
+  );
 
   const openProject = (id: string) => {
     onClose();
@@ -471,6 +476,22 @@ export default function ProjectsDrawer({
                 ใหม่
               </span>
             </button>
+
+            {tab === "shared" && othersWorkspaces.length > 0 && (
+              <div className="mx-3 mt-3 rounded-xl border border-shine/30 bg-shine/10 px-3 py-2.5 text-[12px] leading-relaxed text-chalk/85">
+                <p>
+                  โปรเจกต์ใน workspace ที่คุณเป็นสมาชิก (
+                  {othersWorkspaces.map((o) => o.name).join(", ")}) อยู่ในแท็บ
+                  “ของฉัน” ในโฟลเดอร์ของ workspace นั้น
+                </p>
+                <button
+                  onClick={() => setTab("mine")}
+                  className="mt-1 font-medium text-shine hover:underline"
+                >
+                  เปิดแท็บ “ของฉัน”
+                </button>
+              </div>
+            )}
 
             <div className="scroll-thin mt-3 min-h-0 flex-1 overflow-y-auto px-2 pb-4">
               {loading ? (

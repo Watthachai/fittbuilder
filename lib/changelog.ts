@@ -23,6 +23,17 @@ export const CHANGE_BADGE: Record<ChangeType, { label: string; className: string
 // Newest first. SemVer: fix → PATCH, feature → MINOR, breaking → MAJOR.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.106.2",
+    date: "2026-10-14",
+    title: "แท็บ แชร์กับฉัน บอกว่าโปรเจกต์ของ workspace อยู่ที่ไหน",
+    items: [
+      {
+        type: "improvement",
+        text: "ตั้งแต่ 8 ต.ค. โปรเจกต์ใน workspace ที่คุณเป็นสมาชิก (แม้คนอื่นสร้าง) อยู่ในแท็บ “ของฉัน” ในโฟลเดอร์ของ workspace ไม่ได้อยู่ใน “แชร์กับฉัน” แล้ว คนที่เคยเปิดจาก “แชร์กับฉัน” จึงหาไม่เจอ ตอนนี้แท็บ “แชร์กับฉัน” บอกชื่อ workspace ที่มีโปรเจกต์แบบนี้ พร้อมปุ่มพาไปแท็บ “ของฉัน”",
+      },
+    ],
+  },
+  {
     version: "0.106.1",
     date: "2026-10-14",
     title: "อนุมัติครบแล้วไปขั้นถัดไปได้เสมอ แม้ลบสมาชิกออกหลังกดอนุมัติ",

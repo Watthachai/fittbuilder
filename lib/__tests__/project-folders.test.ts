@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { fileProjects } from "@/lib/project-folders";
+import { fileProjects, workspacesWithOthersProjects } from "@/lib/project-folders";
 import type { ProjectSummary } from "@/lib/types";
 
 const WORKSPACE = "09d2e921-b783-47e1-8291-9e55aa432a5d";
@@ -40,5 +40,22 @@ describe("fileProjects", () => {
     const { mine, shared } = fileProjects([personal, inWorkspace], new Set([WORKSPACE]));
     expect(ids(mine)).toEqual(["personal", "in-workspace"]);
     expect(shared).toEqual([]);
+  });
+});
+
+describe("workspacesWithOthersProjects", () => {
+  const workspace = { id: WORKSPACE, name: "Paphungkorn Rice" };
+  const other = { id: OTHER_WORKSPACE, name: "Digitalvalue" };
+
+  it("names a workspace where someone else created a project I see under mine", () => {
+    const fromColleague = project("erp", { orgId: WORKSPACE, access: "member" });
+    const { mine } = fileProjects([fromColleague], new Set([WORKSPACE, OTHER_WORKSPACE]));
+    expect(workspacesWithOthersProjects([workspace, other], mine)).toEqual([workspace]);
+  });
+
+  it("names none when every workspace project is mine", () => {
+    const own = project("own", { orgId: WORKSPACE });
+    const { mine } = fileProjects([own], new Set([WORKSPACE]));
+    expect(workspacesWithOthersProjects([workspace], mine)).toEqual([]);
   });
 });

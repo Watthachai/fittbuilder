@@ -230,6 +230,54 @@ export interface Database {
         };
         Relationships: [];
       };
+      /** A project's billing status, set by FITT Billing (migration 0054). No row = active. */
+      fittbuilder_project_billing: {
+        Row: {
+          project_id: string;
+          status: string;
+          reason: string;
+          license_key_hash: string | null;
+          changed_at: string;
+          changed_by: string | null;
+        };
+        Insert: {
+          project_id: string;
+          status?: string;
+          reason?: string;
+          license_key_hash?: string | null;
+          changed_at?: string;
+          changed_by?: string | null;
+        };
+        Update: {
+          status?: string;
+          reason?: string;
+          license_key_hash?: string | null;
+          changed_at?: string;
+          changed_by?: string | null;
+        };
+        Relationships: [];
+      };
+      /** Every billing status change (migration 0054). */
+      fittbuilder_project_billing_events: {
+        Row: {
+          id: string;
+          project_id: string;
+          status: string;
+          reason: string;
+          binding_id: string | null;
+          at: string;
+        };
+        Insert: {
+          id?: string;
+          project_id: string;
+          status: string;
+          reason?: string;
+          binding_id?: string | null;
+          at?: string;
+        };
+        Update: Record<string, never>;
+        Relationships: [];
+      };
       fittbuilder_integration_clients: {
         Row: {
           id: string;

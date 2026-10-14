@@ -33,11 +33,10 @@ export function formatDocNo(type: DocType, docCode: string, seq: number): string
  *
  * Characters that break a filename on Windows/macOS (\ / : * ? " < > |) are
  * stripped; Thai and spaces are kept, since every OS in use here allows them.
- * Returns the number alone when there is no customer yet.
+ * Either part alone when the other is missing: the number when there is no
+ * customer yet, the customer when a personal project has issued no number.
  */
 export function docFileName(docNo: string, customerName: string): string {
   const safe = (s: string) => s.replace(/[\\/:*?"<>|]/g, "").replace(/\s+/g, " ").trim();
-  const no = safe(docNo);
-  const who = safe(customerName);
-  return who ? `${no}-${who}` : no;
+  return [safe(docNo), safe(customerName)].filter(Boolean).join("-");
 }

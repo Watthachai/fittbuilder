@@ -23,6 +23,21 @@ export const CHANGE_BADGE: Record<ChangeType, { label: string; className: string
 // Newest first. SemVer: fix → PATCH, feature → MINOR, breaking → MAJOR.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.106.0",
+    date: "2026-10-14",
+    title: "บันทึกใบเสนอราคาและข้อเสนอโครงการเป็นไฟล์ Word ได้",
+    items: [
+      {
+        type: "feature",
+        text: "ใต้ปุ่มพิมพ์ของใบเสนอราคาและข้อเสนอโครงการมีปุ่ม “บันทึกเป็น Word (.docx)” ได้ไฟล์หน้าตาเดียวกับกระดาษที่พิมพ์ ทั้งหัวกระดาษที่ซ้ำทุกหน้า ตาราง เงื่อนไข ช่องลงนาม และภาพหน้าจอ เปิดแก้ต่อใน Word หรือ Google Docs ได้ทุกส่วน สวิตช์ที่ปิดไว้ในหน้าจอก็มีผลกับไฟล์ Word ด้วย",
+      },
+      {
+        type: "fix",
+        text: "โปรเจกต์ที่ยังไม่มีเลขที่เอกสาร ไฟล์ที่บันทึกเคยขึ้นต้นชื่อด้วยขีด “-ชื่อลูกค้า” ตอนนี้ใช้ชื่อลูกค้าอย่างเดียว",
+      },
+    ],
+  },
+  {
     version: "0.105.2",
     date: "2026-10-13",
     title: "ข้อเสนอโครงการปิดการอ้างถึงใบเสนอราคาได้",

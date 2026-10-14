@@ -41,4 +41,9 @@ describe("docFileName", () => {
     expect(docFileName("SQP12605-0002", "")).toBe("SQP12605-0002");
     expect(docFileName("SQP12605-0002", "   ")).toBe("SQP12605-0002");
   });
+
+  // A personal project issues no number: the file was "-บริษัท … จำกัด.docx".
+  it("names the file after the customer alone when there is no number yet", () => {
+    expect(docFileName("", "บริษัท พิธานไลฟ์ จำกัด")).toBe("บริษัท พิธานไลฟ์ จำกัด");
+  });
 });

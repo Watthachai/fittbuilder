@@ -47,7 +47,7 @@ import { printSheet } from "@/lib/print-sheet";
 import QuotationPrint from "./QuotationPrint";
 import QuoteBrandBar from "./QuoteBrandBar";
 import QuoteTerms from "./QuoteTerms";
-import { Field, inputCls, SectionToggle, Total } from "./QuoteFields";
+import { Field, inputCls, SectionToggle, Total, WordButton } from "./QuoteFields";
 import { useSharedDoc } from "./useSharedDoc";
 import { CoEditMarks, CoEditors } from "./CoEditMarks";
 
@@ -92,11 +92,12 @@ export default function Quotation({
    */
   const [sheet, setSheet] = useState<Shot[] | null>(null);
   /**
-   * The print ACTION is running — which starts before the paper exists, because
-   * the URLs are re-signed first. Separate from `sheet` on purpose: one answers
-   * "what is on the paper", this one answers "is the button working".
+   * Which export is running — it starts before the paper exists, because the
+   * URLs are re-signed first. Separate from `sheet` on purpose: one answers
+   * "what is on the paper", this one answers "is the button working". One value
+   * for both buttons, so a PDF and a Word file are never issued at once.
    */
-  const [printing, setPrinting] = useState(false);
+  const [exporting, setExporting] = useState<"pdf" | "word" | null>(null);
   const [writing, setWriting] = useState(false);
   const [pricing, setPricing] = useState(false);
   // The advisor's proposal, held OUTSIDE the document until it is accepted:
@@ -283,45 +284,70 @@ export default function Quotation({
   };
 
   /**
+   * What both exports need first: the document number and fresh picture URLs.
+   * Returns the number rather than reading it back off `doc`, because the edit
+   * that freezes it in has not re-rendered yet.
+   */
+  const prepareExport = async (current: QuoteDoc): Promise<{ docNo: string; shots: Shot[] }> => {
+    // Issue the running document number on first export, then freeze it into
+    // the doc so a reprint keeps the same one (SQP12605-0002). Only for a
+    // workspace project — a personal one keeps whatever is in the field.
+    let docNo = current.quoteNo;
+    if (orgId && !docNo.startsWith("SQP")) {
+      try {
+        const letterhead = await getProjectLetterhead(projectId);
+        const seq = await nextProjectDocNumber(projectId);
+        docNo = formatDocNo("quotation", letterhead?.docCode ?? "", seq);
+        edit((d) => ({ ...d, quoteNo: docNo }));
+      } catch (e) {
+        toast.error("ออกเลขที่เอกสารไม่สำเร็จ", {
+          description: e instanceof Error ? e.message : undefined,
+        });
+      }
+    }
+    // Shot URLs are signed for 8 hours (lib/shots.ts). A studio tab left open
+    // overnight holds a doc full of expired links, and the appendix prints as
+    // a grid of broken boxes — so re-sign right before mounting the sheet.
+    // Falling back to the props on failure keeps a network blip from turning
+    // "picture might be stale" into "cannot print at all".
+    const fresh = await listShots(projectId, version).catch(() => [] as Shot[]);
+    return { docNo, shots: fresh.length > 0 ? fresh : shots };
+  };
+
+  /**
    * Print through the browser: a portal onto document.body plus a print
    * stylesheet that hides every sibling. No PDF library, no server render —
    * ⌘P → "Save as PDF" is a route every OS already has, and it prints exactly
    * what the preview shows.
    */
   const print = async () => {
-    if (printing || !doc) return;
-    setPrinting(true);
+    if (exporting || !doc) return;
+    setExporting("pdf");
     try {
-      // Issue the running document number on first export, then freeze it into
-      // the doc so a reprint keeps the same one (SQP12605-0002). Only for a
-      // workspace project — a personal one keeps whatever is in the field.
-      let docNo = doc.quoteNo;
-      if (orgId && !docNo.startsWith("SQP")) {
-        try {
-          const letterhead = await getProjectLetterhead(projectId);
-          const seq = await nextProjectDocNumber(projectId);
-          docNo = formatDocNo("quotation", letterhead?.docCode ?? "", seq);
-          edit((d) => ({ ...d, quoteNo: docNo }));
-        } catch (e) {
-          toast.error("ออกเลขที่เอกสารไม่สำเร็จ", {
-            description: e instanceof Error ? e.message : undefined,
-          });
-        }
-      }
-      // Shot URLs are signed for 8 hours (lib/shots.ts). A studio tab left open
-      // overnight holds a doc full of expired links, and the appendix prints as
-      // a grid of broken boxes — so re-sign right before mounting the sheet.
-      // Falling back to the props on failure keeps a network blip from turning
-      // "picture might be stale" into "cannot print at all".
-      const fresh = await listShots(projectId, version).catch(() => [] as Shot[]);
-      const printable = fresh.length > 0 ? fresh : shots;
+      const { docNo, shots: printable } = await prepareExport(doc);
       await printSheet(
         () => setSheet(printable),
         () => setSheet(null),
         { fileName: docFileName(docNo, doc.customerName) }
       );
     } finally {
-      setPrinting(false);
+      setExporting(null);
+    }
+  };
+
+  /** The same paper as a .docx the sender can keep editing in Word (case #27). */
+  const saveWord = async () => {
+    if (exporting || !doc) return;
+    setExporting("word");
+    try {
+      const { docNo, shots: fresh } = await prepareExport(doc);
+      const { saveQuotationWord } = await import("@/lib/word-export");
+      const { missing } = await saveQuotationWord({ ...doc, quoteNo: docNo }, fresh, docFileName(docNo, doc.customerName));
+      if (missing > 0) toast.warning(`ไฟล์ Word ขาดภาพ ${missing} ภาพ`, { description: "โหลดภาพไม่สำเร็จ ลองบันทึกอีกครั้ง" });
+    } catch (e) {
+      toast.error("บันทึกไฟล์ Word ไม่สำเร็จ", { description: e instanceof Error ? e.message : undefined });
+    } finally {
+      setExporting(null);
     }
   };
 
@@ -895,10 +921,10 @@ export default function Quotation({
           </div>
           <button
             onClick={() => void print()}
-            disabled={printing}
+            disabled={exporting !== null}
             className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-lg bg-shine px-3 py-2 font-display text-[14px] font-semibold text-night transition hover:brightness-110 disabled:opacity-60"
           >
-            {printing ? (
+            {exporting === "pdf" ? (
               <>
                 <Loader2 size={13} className="animate-spin" /> กำลังเตรียมภาพ…
               </>
@@ -911,6 +937,7 @@ export default function Quotation({
           <p className="mt-1.5 text-center text-[11.5px] leading-relaxed text-chalk-dim">
             ในหน้าต่างพิมพ์ เลือกปลายทางเป็น “Save as PDF”
           </p>
+          <WordButton busy={exporting === "word"} disabled={exporting !== null} onClick={() => void saveWord()} />
         </div>
       </div>
 

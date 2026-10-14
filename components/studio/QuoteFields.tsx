@@ -1,5 +1,7 @@
 "use client";
 
+import { FileDown, Loader2 } from "lucide-react";
+
 /**
  * The quotation panel's shared form primitives.
  *
@@ -70,5 +72,44 @@ export function SectionToggle({
         <p className="mt-0.5 text-[12.5px] leading-relaxed text-chalk-dim">{hint}</p>
       </div>
     </div>
+  );
+}
+
+/**
+ * Save the paper as a Word file (case #27). Sits under the print button in the
+ * quotation and the proposal alike; quieter than it, because the PDF is still
+ * the copy that goes to the customer and the .docx is the one that gets edited.
+ */
+export function WordButton({
+  busy,
+  disabled,
+  onClick,
+}: {
+  busy: boolean;
+  disabled: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <>
+      <button
+        type="button"
+        onClick={onClick}
+        disabled={disabled}
+        className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-lg border border-shine/50 px-3 py-2 font-display text-[14px] text-shine transition hover:bg-shine/10 disabled:opacity-60"
+      >
+        {busy ? (
+          <>
+            <Loader2 size={13} className="animate-spin" /> กำลังสร้างไฟล์ Word…
+          </>
+        ) : (
+          <>
+            <FileDown size={13} /> บันทึกเป็น Word (.docx)
+          </>
+        )}
+      </button>
+      <p className="mt-1.5 text-center text-[11.5px] leading-relaxed text-chalk-dim">
+        เปิดแก้ต่อใน Word หรือ Google Docs ได้
+      </p>
+    </>
   );
 }

@@ -30,7 +30,7 @@ import { toast } from "@/lib/toast";
 import { printSheet } from "@/lib/print-sheet";
 import ProposalPrint from "./ProposalPrint";
 import QuoteBrandBar from "./QuoteBrandBar";
-import { Field, inputCls, SectionToggle } from "./QuoteFields";
+import { Field, inputCls, SectionToggle, WordButton } from "./QuoteFields";
 import { useSharedDoc } from "./useSharedDoc";
 import { CoEditMarks, CoEditors } from "./CoEditMarks";
 
@@ -69,7 +69,8 @@ export default function Proposal({
   const [quote, setQuote] = useState<QuoteDoc | null>(null);
   const [loading, setLoading] = useState(true);
   const [sheet, setSheet] = useState<Shot[] | null>(null);
-  const [printing, setPrinting] = useState(false);
+  // Which export is running; one value for both buttons — see Quotation.
+  const [exporting, setExporting] = useState<"pdf" | "word" | null>(null);
   const [writing, setWriting] = useState(false);
   const today = useMemo(() => new Date().toISOString().slice(0, 10), []);
   // Everyone with this proposal open edits one document — see useSharedDoc.
@@ -227,36 +228,62 @@ export default function Proposal({
     }
   };
 
-  const print = async () => {
-    if (printing || !doc) return;
-    setPrinting(true);
-    try {
-      // Issue the running number on first export and freeze it in (PRP12605-…);
-      // a reprint reuses it. Workspace projects only — see Quotation.print.
-      let docNo = doc.proposalNo;
-      if (orgId && !docNo.startsWith("PRP")) {
-        try {
-          const letterhead = await getProjectLetterhead(projectId);
-          const seq = await nextProjectDocNumber(projectId);
-          docNo = formatDocNo("proposal", letterhead?.docCode ?? "", seq);
-          edit((d) => ({ ...d, proposalNo: docNo }));
-        } catch (e) {
-          toast.error("ออกเลขที่เอกสารไม่สำเร็จ", {
-            description: e instanceof Error ? e.message : undefined,
-          });
-        }
+  /** What both exports need first — see Quotation.prepareExport. */
+  const prepareExport = async (current: ProposalDoc): Promise<{ docNo: string; shots: Shot[] }> => {
+    // Issue the running number on first export and freeze it in (PRP12605-…);
+    // a reprint reuses it. Workspace projects only — see Quotation.prepareExport.
+    let docNo = current.proposalNo;
+    if (orgId && !docNo.startsWith("PRP")) {
+      try {
+        const letterhead = await getProjectLetterhead(projectId);
+        const seq = await nextProjectDocNumber(projectId);
+        docNo = formatDocNo("proposal", letterhead?.docCode ?? "", seq);
+        edit((d) => ({ ...d, proposalNo: docNo }));
+      } catch (e) {
+        toast.error("ออกเลขที่เอกสารไม่สำเร็จ", {
+          description: e instanceof Error ? e.message : undefined,
+        });
       }
-      // Re-sign the shot URLs first — same 8-hour-expiry problem the quotation
-      // prints around, same fix (lib/print-sheet.ts).
-      const fresh = await listShots(projectId, version).catch(() => [] as Shot[]);
-      const printable = fresh.length > 0 ? fresh : shots;
+    }
+    // Re-sign the shot URLs first — same 8-hour-expiry problem the quotation
+    // prints around, same fix (lib/print-sheet.ts).
+    const fresh = await listShots(projectId, version).catch(() => [] as Shot[]);
+    return { docNo, shots: fresh.length > 0 ? fresh : shots };
+  };
+
+  const print = async () => {
+    if (exporting || !doc) return;
+    setExporting("pdf");
+    try {
+      const { docNo, shots: printable } = await prepareExport(doc);
       await printSheet(
         () => setSheet(printable),
         () => setSheet(null),
         { fileName: docFileName(docNo, doc.customerName) }
       );
     } finally {
-      setPrinting(false);
+      setExporting(null);
+    }
+  };
+
+  /** The same paper as a .docx the sender can keep editing in Word (case #27). */
+  const saveWord = async () => {
+    if (exporting || !doc) return;
+    setExporting("word");
+    try {
+      const { docNo, shots: fresh } = await prepareExport(doc);
+      const { saveProposalWord } = await import("@/lib/word-export");
+      const { missing } = await saveProposalWord(
+        { ...doc, proposalNo: docNo },
+        quote,
+        fresh,
+        docFileName(docNo, doc.customerName)
+      );
+      if (missing > 0) toast.warning(`ไฟล์ Word ขาดภาพ ${missing} ภาพ`, { description: "โหลดภาพไม่สำเร็จ ลองบันทึกอีกครั้ง" });
+    } catch (e) {
+      toast.error("บันทึกไฟล์ Word ไม่สำเร็จ", { description: e instanceof Error ? e.message : undefined });
+    } finally {
+      setExporting(null);
     }
   };
 
@@ -677,10 +704,10 @@ export default function Proposal({
 
         <button
           onClick={() => void print()}
-          disabled={printing}
+          disabled={exporting !== null}
           className="flex w-full items-center justify-center gap-1.5 rounded-lg bg-shine px-3 py-2 font-display text-[14px] font-semibold text-night transition hover:brightness-110 disabled:opacity-60"
         >
-          {printing ? (
+          {exporting === "pdf" ? (
             <>
               <Loader2 size={13} className="animate-spin" /> กำลังเตรียมภาพ…
             </>
@@ -693,6 +720,9 @@ export default function Proposal({
         <p className="-mt-2 text-center text-[11.5px] leading-relaxed text-chalk-dim">
           ในหน้าต่างพิมพ์ เลือกปลายทางเป็น “Save as PDF” — ส่งคู่กับใบเสนอราคาเป็นชุดเดียว
         </p>
+        <div className="-mt-3">
+          <WordButton busy={exporting === "word"} disabled={exporting !== null} onClick={() => void saveWord()} />
+        </div>
       </div>
 
       {sheet &&

@@ -4,6 +4,8 @@ FITT Billing App ดึงข้อมูลโปรเจกต์ลูกค
 
 Spec: `docs/superpowers/specs/2026-10-14-fitt-billing-integration-design.md`
 
+**OpenAPI 3.1:** `GET https://fitt-builder.fittbsa.com/v1/integrations/billing/openapi.json` (ไม่ต้องใช้ token) เปิดใน Swagger Editor เพื่อดูและลองเรียก หรือใช้สร้าง client ฝั่ง Billing ได้ · ต้นฉบับอยู่ที่ `lib/billing/openapi.ts` และมี test ตรวจว่าตรงกับข้อมูลที่ API ส่งจริงทุกช่อง
+
 ## การเชื่อมต่อ
 
 | เรื่อง | ค่า |
@@ -31,7 +33,7 @@ Spec: `docs/superpowers/specs/2026-10-14-fitt-billing-integration-design.md`
 | `limit` | 1–100 · ค่าเริ่มต้น 50 |
 | `cursor` | ค่า `nextCursor` จากหน้าก่อน |
 
-ตอบ `{ "items": [...], "nextCursor": "<string>" | null }` แต่ละรายการมี `id`, `name`, `phase`, `orgId`, `orgName`, `ownerId`, `ownerName`, `updatedAt`, `customerName`, `quoteNo`, `billingStatus`
+ตอบ `{ "items": [...], "nextCursor": "<string>" | null }` แต่ละรายการมี `id`, `name`, `phase`, `orgId`, `orgName`, `ownerId`, `ownerName`, `buildSentAt`, `updatedAt`, `customerName`, `quoteNo`, `billingStatus`
 
 **วิธีซิงก์ที่แนะนำ:** เก็บ `updatedAt` ล่าสุดที่เห็น แล้วรอบถัดไปส่ง `updatedSince` = ค่านั้นลบ 2 นาที และตัดรายการซ้ำด้วย `id` · การแก้ที่บันทึกพร้อมกับตอนที่ Billing ดึงข้อมูลอาจได้เวลาที่เก่ากว่าค่าล่าสุดที่เห็นเล็กน้อย การถามย้อนจึงกันไม่ให้พลาด ส่วนรายการซ้ำไม่เป็นปัญหา
 
@@ -44,6 +46,7 @@ Spec: `docs/superpowers/specs/2026-10-14-fitt-billing-integration-design.md`
   "schemaVersion": "fittbuilder.billing.project.v1",
   "project": { "id": "uuid", "name": "", "phase": "build", "orgId": "uuid หรือ null", "orgName": "ชื่อ workspace หรือ null", "ownerId": "uuid", "ownerName": "ชื่อ หรือ null", "ownerEmail": "อีเมล หรือ null", "activeVersion": "standard", "createdAt": "", "updatedAt": "" },
   "customer": { "name": "", "attn": "", "address": "", "phone": "" },
+  "build": { "sentAt": "2026-10-10T02:00:00.000Z", "jobId": "", "buildNo": null },
   "billing": { "status": "active", "reason": "", "changedAt": null, "licenseKeyIssued": false },
   "quotes": {
     "standard": {
@@ -69,6 +72,8 @@ Spec: `docs/superpowers/specs/2026-10-14-fitt-billing-integration-design.md`
 กติกา:
 
 - โปรเจกต์ส่วนตัวไม่อยู่ใน workspace ไหน `orgId` และ `orgName` จึงเป็น `null` · ใช้ `ownerId` / `ownerName` / `ownerEmail` ดูว่าเป็นของใคร (เจ้าของคือคนในทีมที่สร้างโปรเจกต์ ไม่ใช่ลูกค้า ลูกค้าดูที่ `customer`) · `ownerName` เป็น `null` ถ้าเจ้าของไม่ได้ตั้งชื่อ
+- `build` = การส่งไป Code Runner เพื่อ build ครั้งล่าสุด (`null` = ยังไม่เคยส่ง) บอกว่าส่งไปแล้ว ไม่ได้บอกว่า build ผ่านหรือส่งมอบแล้ว ผล build ดูที่ Code Runner ด้วย `jobId` · `buildNo` มีเฉพาะการส่งรุ่นเก่า ปกติเป็น `null` · ในรายการแบบย่อคือ `buildSentAt`
+- ข้อมูลการจ่ายเงินที่มีคือเงื่อนไขในใบเสนอราคา (`paymentSchedule`, `maintenance.billingCycle`) FITT Builder ไม่ได้บันทึกว่าลูกค้าจ่ายเงินแล้วหรือยัง
 - `customer` มาจากใบเสนอราคาของ `activeVersion` ถ้าไม่มีใช้ข้อเสนอโครงการ ถ้าไม่มีทั้งคู่เป็น `null`
 - แพ็กเกจที่ไม่มีใบเสนอราคาหรือข้อเสนอโครงการเป็น `null` · โปรเจกต์ที่ยังไม่มีเอกสารเลยก็ตอบ 200 ได้ปกติ
 - `quoteNo` / `proposalNo` เป็นค่าว่างจนกว่าจะ export เอกสารครั้งแรก (ระบบออกเลขตอน export)

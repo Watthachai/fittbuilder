@@ -78,10 +78,13 @@ describe("projectDetail", () => {
     const b = bundle();
     const sent = { jobId: "job-1", state: "QUEUED", tag: "alpha-test", sentAt: "2026-10-10T02:00:00Z" };
     expect(projectDetail({ ...b, project: { ...b.project, runner_last: sent } }, TODAY).build).toEqual({
-      sentAt: "2026-10-10T02:00:00Z",
+      sentAt: "2026-10-10T02:00:00.000Z",
       jobId: "job-1",
       buildNo: null,
     });
+    // Always sent as UTC ISO 8601, however it was stored.
+    const local = { ...sent, sentAt: "2026-10-10T09:00:00+07:00" };
+    expect(projectDetail({ ...b, project: { ...b.project, runner_last: local } }, TODAY).build?.sentAt).toBe("2026-10-10T02:00:00.000Z");
     // Rows saved before the Gateway migration carry a build number.
     expect(projectDetail({ ...b, project: { ...b.project, runner_last: { ...sent, buildNo: 12 } } }, TODAY).build?.buildNo).toBe(12);
   });
@@ -156,7 +159,7 @@ describe("projectSummaries and paging", () => {
   it("says when each project was last sent to build", () => {
     const s = projectSummaries(snapshot, TODAY);
     expect(s.find((x) => x.id === "a")?.buildSentAt).toBeNull();
-    expect(s.find((x) => x.id === "b")?.buildSentAt).toBe("2026-10-01T12:00:00Z");
+    expect(s.find((x) => x.id === "b")?.buildSentAt).toBe("2026-10-01T12:00:00.000Z");
   });
 
   it("takes the latest change across the project and its documents, oldest first", () => {

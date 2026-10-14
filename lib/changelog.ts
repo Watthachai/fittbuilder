@@ -23,6 +23,21 @@ export const CHANGE_BADGE: Record<ChangeType, { label: string; className: string
 // Newest first. SemVer: fix → PATCH, feature → MINOR, breaking → MAJOR.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.108.0",
+    date: "2026-10-14",
+    title: "FITT Billing เห็นว่าโปรเจกต์ไหนส่งไป build แล้ว และมีเอกสาร OpenAPI",
+    items: [
+      {
+        type: "feature",
+        text: "API ของ FITT Billing บอกว่าแต่ละโปรเจกต์ส่งไป Code Runner เพื่อ build ครั้งล่าสุดเมื่อไร",
+      },
+      {
+        type: "feature",
+        text: "เอกสาร API ของ FITT Billing แบบ OpenAPI 3.1 เปิดดูหรือลองเรียกใน Swagger ได้ที่ /v1/integrations/billing/openapi.json",
+      },
+    ],
+  },
+  {
     version: "0.107.0",
     date: "2026-10-14",
     title: "เลือกรอบชำระ MA ในใบเสนอราคา และเชื่อมข้อมูลโปรเจกต์ให้ FITT Billing",

@@ -99,7 +99,7 @@ function buildOf(runner: Json | null): BillingBuild | null {
   if (!runner || typeof runner !== "object" || Array.isArray(runner)) return null;
   const { sentAt, jobId, buildNo } = runner;
   if (typeof sentAt !== "string" || !Number.isFinite(Date.parse(sentAt)) || typeof jobId !== "string") return null;
-  return { sentAt, jobId, buildNo: typeof buildNo === "number" ? buildNo : null };
+  return { sentAt: iso(Date.parse(sentAt)), jobId, buildNo: typeof buildNo === "number" ? buildNo : null };
 }
 
 /** The customer as the chosen tier's quotation names them, else its proposal; null when neither does. */

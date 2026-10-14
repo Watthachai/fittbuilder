@@ -38,12 +38,13 @@ FITT Billing App (ตังทำหน้าระบบเสร็จแล�
 - `Maintenance` (`lib/quote.ts`) เพิ่ม `billingCycle: "monthly" | "yearly" | null` ค่าเริ่มต้น `null` (ยังไม่เลือก)
 - `parseDoc` อ่านค่าที่ไม่รู้จักหรือไม่มีเป็น `null` ใบเสนอราคาเก่าจึงไม่พัง
 - แผง MA ในหน้าใบเสนอราคาเพิ่มตัวเลือก "ชำระ: รายเดือน / รายปี"
-- เงื่อนไข MA ที่พิมพ์ (`lib/quote-clauses.ts`) ระบุรอบการชำระเมื่อเลือกแล้ว
+- เงื่อนไข MA ที่พิมพ์ (`lib/quote-clauses.ts`) และไฟล์ Word (`lib/quotation-word.ts`) ระบุรอบการชำระเมื่อเลือกแล้ว
 - ไม่ต้องแก้ฐานข้อมูล (อยู่ใน `payload jsonb` เดิม)
 
 ### 2. ฐานข้อมูล (migration ใหม่)
 
-- `fittbuilder_integration_bindings.producer` รับ `'FITT_BILLING'` เพิ่ม
+- migration เลข `0054` (ล่าสุดใน repo และฐานจริงคือ `0053_fittvoice_connections` ตรวจด้วย `git fetch` ก่อนใช้)
+- `fittbuilder_integration_bindings.producer` รับ `'FITT_BILLING'` เพิ่ม โดยแถวของ `'FITT_VOICE'` ที่มีอยู่ต้องยังผ่าน constraint
 - `fittbuilder_project_billing`
   - `project_id uuid primary key references fittbuilder_projects on delete cascade`
   - `status text not null default 'active' check (status in ('active','suspended'))`
@@ -138,7 +139,7 @@ FITT Billing App (ตังทำหน้าระบบเสร็จแล�
 | 16–17 ต.ค. | ข้อ 1 (ประเภทการจ่าย) + ข้อ 2–3 ส่วนอ่านข้อมูล บน sandbox |
 | ภายใน 23 ต.ค. | ข้อ 3 ส่วนสถานะ/license + ข้อ 4 + ข้อ 5 (CRN) ทันรอบ build ใหม่ 24 ต.ค. |
 
-deploy production ของ FITT Builder และ CRN ต้องได้รับอนุมัติก่อนทุกครั้ง · งานข้อ 5 ใช้ขั้นตรวจตัวเดียวกับงาน A1/B5 ของ CRN (23 ต.ค.) จะทำต่อกัน
+deploy production ของ FITT Builder และ CRN ต้องได้รับอนุมัติก่อนทุกครั้ง · FITT Builder deploy production เมื่อ push เข้า `main` การ merge จึงเท่ากับ deploy · ก่อน merge ต้อง rebase บน `origin/main` (เคสจากผู้ใช้แก้ `lib/quote.ts` และแผงใบเสนอราคาบ่อย คาดว่าจะมี conflict ตรง `Maintenance`/`parseDoc`, แผง MA และ `lib/changelog.ts`) และขยับเวอร์ชันใน `lib/changelog.ts` เป็นเลขถัดจากบน `main` · งานข้อ 5 ใช้ขั้นตรวจตัวเดียวกับงาน A1/B5 ของ CRN (23 ต.ค.) จะทำต่อกัน
 
 ## คำถามสำหรับประชุมกับตัง (15 ต.ค.)
 

@@ -81,3 +81,16 @@ describe("the quotation's switches in the Word file", () => {
     expect(pictures.header).toBe(1);
   });
 });
+
+describe("the Word MA table", () => {
+  it("carries the billing cycle when one is chosen", async () => {
+    const doc = quote();
+    const withCycle = await readWord(
+      quotationDocx({ ...doc, ma: { ...doc.ma, enabled: true, billingCycle: "monthly" } }, [], NO_ART)
+    );
+    expect(withCycle.body).toContain("รอบการชำระ");
+    expect(withCycle.body).toContain("รายเดือน");
+    const without = await readWord(quotationDocx({ ...doc, ma: { ...doc.ma, enabled: true, billingCycle: null } }, [], NO_ART));
+    expect(without.body).not.toContain("รอบการชำระ");
+  });
+});

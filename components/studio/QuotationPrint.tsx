@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  BILLING_CYCLE_LABEL,
   formatTHB,
   maintenanceTotals,
   marketComparison,
@@ -336,6 +337,12 @@ export default function QuotationPrint({ doc, shots }: { doc: QuoteDoc; shots: S
                         <tr>
                           <th>{ma.includedMonths} เดือนแรกนับจากวันตรวจรับ</th>
                           <td className="q-r">รวมอยู่ในราคาโครงการแล้ว</td>
+                        </tr>
+                      )}
+                      {doc.ma.billingCycle && (
+                        <tr>
+                          <th>รอบการชำระ</th>
+                          <td className="q-r">{BILLING_CYCLE_LABEL[doc.ma.billingCycle]}</td>
                         </tr>
                       )}
                       <tr className="q-ma-year2">

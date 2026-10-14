@@ -581,6 +581,25 @@ export default function QuoteTerms({
               </Field>
             </div>
 
+            <div className="mt-2.5 grid gap-2.5 sm:grid-cols-4">
+              <Field label="รอบชำระ MA">
+                <select
+                  value={doc.ma.billingCycle ?? ""}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    const billingCycle = v === "monthly" || v === "yearly" ? v : null;
+                    onEdit((d) => ({ ...d, ma: { ...d.ma, billingCycle } }));
+                  }}
+                  className={inputCls}
+                  disabled={readOnly}
+                >
+                  <option value="">ยังไม่เลือก</option>
+                  <option value="monthly">รายเดือน</option>
+                  <option value="yearly">รายปี</option>
+                </select>
+              </Field>
+            </div>
+
             {ma.clamped && (
               <p className="mt-2 flex items-start gap-1.5 rounded-lg border border-shine/40 bg-shine/[0.08] px-2.5 py-1.5 text-[12.5px] leading-relaxed text-chalk">
                 <Wrench size={12} className="mt-0.5 shrink-0 text-shine" />

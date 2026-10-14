@@ -96,3 +96,16 @@ describe("what each line's price is made of, on the paper", () => {
     expect(parseDoc({ ...saved, showBasis: false }, "2026-10-13")!.showBasis).toBe(false);
   });
 });
+
+describe("the printed MA table", () => {
+  it("prints the billing cycle row only when one is chosen", () => {
+    const base = newDoc([], "Pace", "2026-10-12");
+    const render = (billingCycle: "monthly" | "yearly" | null) =>
+      renderToStaticMarkup(
+        createElement(QuotationPrint, { doc: { ...base, ma: { ...base.ma, enabled: true, billingCycle } }, shots: [] })
+      );
+    expect(render("yearly")).toContain("รอบการชำระ");
+    expect(render("yearly")).toContain("รายปี");
+    expect(render(null)).not.toContain("รอบการชำระ");
+  });
+});

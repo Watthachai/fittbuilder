@@ -1,5 +1,6 @@
 import { AlignmentType, ShadingType, TableRow, TabStopType, type Document, type Paragraph, type Table } from "docx";
 import {
+  BILLING_CYCLE_LABEL,
   discountRate,
   formatTHB,
   lineTotal,
@@ -15,6 +16,7 @@ import {
   validUntil,
   type QuoteDoc,
   type QuoteRow,
+  type BillingCycle,
 } from "@/lib/quote";
 import { acceptanceClauses } from "@/lib/quote-clauses";
 import type { Shot } from "@/lib/shots";
@@ -75,7 +77,7 @@ export function quotationDocx(doc: QuoteDoc, shots: Shot[], art: WordArt): Docum
   }
 
   if (doc.ma.enabled) {
-    body.push(heading("ค่าบำรุงรักษาระบบ (MA) — ไม่รวมในราคาข้างต้น", accent), maintenance(ma));
+    body.push(heading("ค่าบำรุงรักษาระบบ (MA) — ไม่รวมในราคาข้างต้น", accent), maintenance(ma, doc.ma.billingCycle));
     if (doc.ma.note) body.push(para(typed(doc.ma.note, { color: NOTE }), { spacing: { before: px(5) } }));
   }
 
@@ -343,7 +345,7 @@ function payments(doc: QuoteDoc, plan: ReturnType<typeof paymentSchedule>): Tabl
 
 // ---- maintenance: priced beside the project, never inside its total ----
 
-function maintenance(ma: ReturnType<typeof maintenanceTotals>): Table {
+function maintenance(ma: ReturnType<typeof maintenanceTotals>, cycle: BillingCycle | null): Table {
   const value = px(260);
   const label = CONTENT - value;
   const pad = { top: px(4), bottom: px(4), left: px(8), right: px(8) };
@@ -352,6 +354,7 @@ function maintenance(ma: ReturnType<typeof maintenanceTotals>): Table {
     ["รวมต่อเดือน", formatTHB(ma.monthly), false],
   ];
   if (ma.includedMonths > 0) lines.push([`${ma.includedMonths} เดือนแรกนับจากวันตรวจรับ`, "รวมอยู่ในราคาโครงการแล้ว", false]);
+  if (cycle) lines.push(["รอบการชำระ", BILLING_CYCLE_LABEL[cycle], false]);
   lines.push(["ปีที่ 2 เป็นต้นไป", `${formatTHB(ma.annual)} / ปี`, true]);
   return grid(
     [label, value],

@@ -142,6 +142,13 @@ describe("acceptanceClauses", () => {
     expect(quoteTotals(d).grand).toBe(0);
     expect(acceptanceClauses(d).join("\n")).not.toContain("NaN");
   });
+  it("names the MA billing cycle once one is chosen", () => {
+    const clause = (billingCycle: "monthly" | "yearly" | null) =>
+      acceptanceClauses(doc({ ma: { ...defaultMaintenance(), enabled: true, billingCycle } })).join("\n");
+    expect(clause("monthly")).toContain("ชำระเป็นรายเดือน");
+    expect(clause("yearly")).toContain("ชำระเป็นรายปี");
+    expect(clause(null)).not.toContain("ชำระเป็น");
+  });
 });
 
 describe("hand-edited clauses", () => {

@@ -1,5 +1,6 @@
 import {
   formatTHB,
+  BILLING_CYCLE_LABEL,
   maintenanceTotals,
   paymentSchedule,
   percentText,
@@ -104,9 +105,10 @@ export function generatedClauses(doc: QuoteDoc): string[] {
       t.includedValue > 0
         ? `ค่าบำรุงรักษาระบบ ${t.includedMonths} เดือนแรกนับจากวันตรวจรับ รวมอยู่ในราคาตามเอกสารนี้แล้ว `
         : "";
+    const cycle = doc.ma.billingCycle ? ` ชำระเป็น${BILLING_CYCLE_LABEL[doc.ma.billingCycle]}` : "";
     out.push(
       `${included}หลังจากนั้นคิดค่าบำรุงรักษา ${baht(t.annual)} ต่อปี ` +
-        `(อัตราขั้นต่ำ ${baht(t.monthly)} ต่อเดือน สำหรับ ${t.modules} module)`
+        `(อัตราขั้นต่ำ ${baht(t.monthly)} ต่อเดือน สำหรับ ${t.modules} module)${cycle}`
     );
   }
 

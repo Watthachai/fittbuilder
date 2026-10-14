@@ -1471,10 +1471,13 @@ export default function Studio({ projectId }: { projectId: string }) {
     if (!current || readOnly || !gateSatisfied(current)) return;
     const state = approval ?? (await getApprovalState(projectId, current.phase));
     // Announce the approval in the team chat — parity for solo + shared, so the
-    // activity ("who approved") is visible to everyone in the room.
-    const user = await currentUser();
-    const who = user?.name ?? user?.email ?? "สมาชิก";
-    emitSystemLog(projectId, `✅ ${who} อนุมัติขั้น “${phaseDef(current.phase).user}” แล้ว`);
+    // activity ("who approved") is visible to everyone in the room. Not again
+    // when this user approved earlier and is only moving the phase on (case #28).
+    if (!state.approved.includes(state.me)) {
+      const user = await currentUser();
+      const who = user?.name ?? user?.email ?? "สมาชิก";
+      emitSystemLog(projectId, `✅ ${who} อนุมัติขั้น “${phaseDef(current.phase).user}” แล้ว`);
+    }
     // Solo (only the owner approves) → no multi-party gate; just advance.
     if (state.approvers.length <= 1) {
       setApproveOpen(false);

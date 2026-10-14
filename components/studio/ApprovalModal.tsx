@@ -1,18 +1,19 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Check, Clock, Send, Users, X } from "lucide-react";
+import { ArrowRight, Check, Clock, Send, Users, X } from "lucide-react";
 import Overlay from "@/components/ui/Overlay";
 import GlassSurface from "@/components/ui/GlassSurface";
-import { fetchApprovalRoster, type ApprovalPerson } from "@/lib/approval-roster";
+import { approvalStep, fetchApprovalRoster, type ApprovalPerson } from "@/lib/approval-roster";
 import type { PhaseId } from "@/lib/phases";
 
 /**
  * Confirm-before-approve modal for shared projects. Opening it shows WHO has
  * already approved this phase (✓) and who is still pending (⏳); confirming
  * records the current user's approval (the phase advances once everyone has).
- * If the user has already approved, it's a read-only "waiting on N others" view.
- * Roster is fetched fresh each open.
+ * If the user has already approved, it's a "waiting on N others" view, or, once
+ * nobody is left to wait for, the button that moves the phase on (see
+ * approvalStep). Roster is fetched fresh each open.
  */
 export default function ApprovalModal({
   open,
@@ -27,7 +28,7 @@ export default function ApprovalModal({
   projectId: string;
   phase: PhaseId;
   phaseLabel: string;
-  /** Records this user's approval + advances if everyone has approved. */
+  /** Records this user's approval (idempotent) + advances if everyone has approved. */
   onConfirm: () => void | Promise<void>;
 }) {
   const [people, setPeople] = useState<ApprovalPerson[] | null>(null);
@@ -47,7 +48,7 @@ export default function ApprovalModal({
 
   if (!open) return null;
 
-  const mineApproved = people?.some((p) => p.isMe && p.approved) ?? false;
+  const step = people === null ? "approve" : approvalStep(people);
   const approvedCount = people?.filter((p) => p.approved).length ?? 0;
   const total = people?.length ?? 0;
   const remaining = total - approvedCount;
@@ -129,19 +130,36 @@ export default function ApprovalModal({
         {/* Footer */}
         <div className="flex items-center justify-between gap-3 border-t border-night-edge bg-night px-5 py-3">
           <p className="text-[11px] text-chalk-dim">
-            {mineApproved
-              ? remaining > 0
-                ? `คุณอนุมัติแล้ว — รออีก ${remaining} คน`
-                : "อนุมัติครบทุกคนแล้ว"
-              : "เฟสจะไปต่อเมื่อทุกคนอนุมัติครบ"}
+            {step === "wait"
+              ? `คุณอนุมัติแล้ว — รออีก ${remaining} คน`
+              : step === "advance"
+                ? "อนุมัติครบทุกคนแล้ว"
+                : "เฟสจะไปต่อเมื่อทุกคนอนุมัติครบ"}
           </p>
-          {mineApproved ? (
+          {step === "wait" ? (
             <button
               onClick={onClose}
               className="rounded-lg border border-night-edge px-4 py-2 text-sm text-chalk-dim transition hover:border-shine hover:text-chalk"
             >
               ปิด
             </button>
+          ) : step === "advance" ? (
+            <div className="flex items-center gap-2">
+              <button
+                onClick={onClose}
+                disabled={submitting}
+                className="rounded-lg border border-night-edge px-4 py-2 text-sm text-chalk-dim transition hover:border-shine hover:text-chalk disabled:opacity-40"
+              >
+                ปิด
+              </button>
+              <button
+                onClick={() => void confirm()}
+                disabled={submitting}
+                className="inline-flex items-center gap-1.5 rounded-lg bg-shine px-4 py-2 font-display text-sm font-semibold text-night transition hover:bg-shine-soft disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                {submitting ? "กำลังไปต่อ…" : "ไปขั้นถัดไป"} <ArrowRight size={14} />
+              </button>
+            </div>
           ) : (
             <div className="flex items-center gap-2">
               <button

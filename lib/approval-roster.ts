@@ -38,3 +38,19 @@ export async function fetchApprovalRoster(
   list.sort((a, b) => Number(a.approved) - Number(b.approved));
   return list;
 }
+
+/**
+ * What the approval modal offers the person looking at it.
+ *
+ * "advance" is its own step because a roster can become complete without an
+ * approval: approve while a member is still pending, then remove that member
+ * (case #28). The phase moves on only when someone confirms, so an
+ * all-approved roster has to offer the move. A modal showing only "ปิด" left
+ * the project stuck for good.
+ */
+export type ApprovalStep = "approve" | "wait" | "advance";
+
+export function approvalStep(people: ApprovalPerson[]): ApprovalStep {
+  if (!people.some((p) => p.isMe && p.approved)) return "approve";
+  return people.every((p) => p.approved) ? "advance" : "wait";
+}

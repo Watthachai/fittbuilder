@@ -23,6 +23,17 @@ export const CHANGE_BADGE: Record<ChangeType, { label: string; className: string
 // Newest first. SemVer: fix → PATCH, feature → MINOR, breaking → MAJOR.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.106.1",
+    date: "2026-10-14",
+    title: "อนุมัติครบแล้วไปขั้นถัดไปได้เสมอ แม้ลบสมาชิกออกหลังกดอนุมัติ",
+    items: [
+      {
+        type: "fix",
+        text: "อนุมัติเฟสไว้ตอนที่ยังมีสมาชิกรออนุมัติ แล้วลบสมาชิกคนนั้นออก (หรือเปลี่ยนเป็นผู้ชม) รายชื่อจะขึ้นว่าอนุมัติครบ แต่เฟสไม่ไปต่อ และกล่องอนุมัติมีแค่ปุ่ม “ปิด” ตอนนี้เมื่ออนุมัติครบทุกคน กล่องอนุมัติจะมีปุ่ม “ไปขั้นถัดไป”",
+      },
+    ],
+  },
+  {
     version: "0.106.0",
     date: "2026-10-14",
     title: "บันทึกใบเสนอราคาและข้อเสนอโครงการเป็นไฟล์ Word ได้",

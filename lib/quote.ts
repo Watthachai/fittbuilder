@@ -139,6 +139,18 @@ export interface Acceptance {
   excluded?: number[];
 }
 
+/**
+ * How the customer pays for maintenance once it starts being billed. FITT
+ * Billing reads it to set up the invoice cycle; null until someone picks, so a
+ * quotation never claims a cycle nobody agreed.
+ */
+export type BillingCycle = "monthly" | "yearly";
+
+export const BILLING_CYCLE_LABEL: Record<BillingCycle, string> = {
+  monthly: "รายเดือน",
+  yearly: "รายปี",
+};
+
 /** Maintenance: quoted with the build, billed separately, never inside `grand`. */
 export interface Maintenance {
   enabled: boolean;
@@ -150,6 +162,8 @@ export interface Maintenance {
   /** The annual fee from year 2 on. */
   annualFromYear2: number;
   note: string;
+  /** Null until chosen. Printed with the MA terms and sent to FITT Billing. */
+  billingCycle: BillingCycle | null;
 }
 
 /**
@@ -404,6 +418,7 @@ export function defaultMaintenance(): Maintenance {
     includedMonths: MA_INCLUDED_MONTHS,
     annualFromYear2: MA_DEFAULT_ANNUAL,
     note: "",
+    billingCycle: null,
   };
 }
 
@@ -646,6 +661,9 @@ export function parseDoc(payload: unknown, fallbackDate: string): QuoteDoc | nul
       includedMonths: n(ma.includedMonths, fallbackMa.includedMonths),
       annualFromYear2: n(ma.annualFromYear2, fallbackMa.annualFromYear2),
       note: str(ma.note),
+      // Quotations saved before the field existed have none; a value we don't
+      // know is treated the same rather than printed.
+      billingCycle: ma.billingCycle === "monthly" || ma.billingCycle === "yearly" ? ma.billingCycle : null,
     },
     brand: {
       logoUrl: str(brand.logoUrl),

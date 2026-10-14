@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import {
+  BILLING_CYCLE_LABEL,
   DEFAULT_ACCENT,
   DEFAULT_RATE,
   defaultMaintenance,
@@ -807,5 +808,25 @@ describe("rows priced by the unit", () => {
     const reopened = parseDoc(old, "2026-10-13")!;
     expect(reopened.rows.every((r) => r.pricing === "days")).toBe(true);
     expect(quoteTotals(reopened).subtotal).toBe(48_000);
+  });
+});
+
+describe("MA billing cycle (FITT Billing reads it)", () => {
+  it("starts unchosen", () => {
+    expect(defaultMaintenance().billingCycle).toBeNull();
+  });
+
+  it("keeps monthly and yearly, and reads old or junk values as unchosen", () => {
+    const base = { rows: [] };
+    const cycle = (ma: unknown) => parseDoc({ ...base, ma }, "2026-10-14")!.ma.billingCycle;
+    expect(cycle({ enabled: true, billingCycle: "monthly" })).toBe("monthly");
+    expect(cycle({ enabled: true, billingCycle: "yearly" })).toBe("yearly");
+    expect(cycle({ enabled: true })).toBeNull();
+    expect(cycle({ enabled: true, billingCycle: "weekly" })).toBeNull();
+    expect(cycle(undefined)).toBeNull();
+  });
+
+  it("labels each cycle in Thai", () => {
+    expect(BILLING_CYCLE_LABEL).toEqual({ monthly: "รายเดือน", yearly: "รายปี" });
   });
 });

@@ -20,6 +20,8 @@ export interface ProjectRecord {
   /** null for a personal project, which belongs to no workspace. */
   org_id: string | null;
   owner_id: string;
+  /** The last hand-off to Code Runner (lib/types.ts RunnerSend), or null. */
+  runner_last: Json | null;
   created_at: string;
   updated_at: string;
   files?: Json | null;
@@ -69,6 +71,14 @@ export interface ProjectBundle {
   quotes: DocRecord[];
   proposals: DocRecord[];
   billing: BillingRow | null;
+}
+
+export interface BillingBuild {
+  sentAt: string;
+  /** Code Runner's job id, to trace the build there. */
+  jobId: string;
+  /** Known only on hand-offs saved before the Gateway migration. */
+  buildNo: number | null;
 }
 
 export interface BillingCustomer {
@@ -137,6 +147,8 @@ export interface BillingProjectSummary {
   ownerId: string;
   /** null when the owner set no name. */
   ownerName: string | null;
+  /** When the project was last sent to Code Runner to build; null when never. */
+  buildSentAt: string | null;
   updatedAt: string;
   customerName: string | null;
   quoteNo: string | null;
@@ -166,6 +178,8 @@ export interface BillingProjectDetail {
     updatedAt: string;
   };
   customer: BillingCustomer | null;
+  /** The last time the project was sent to Code Runner to build — not whether that build passed. */
+  build: BillingBuild | null;
   billing: { status: BillingStatus; reason: string; changedAt: string | null; licenseKeyIssued: boolean };
   quotes: { standard: BillingQuote | null; premium: BillingQuote | null };
   proposals: { standard: BillingProposal | null; premium: BillingProposal | null };

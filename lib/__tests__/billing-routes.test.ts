@@ -35,7 +35,7 @@ beforeEach(() => {
   auth.result = { ok: true, binding: { id: "bind_1" } };
   data.snapshot = {
     projects: [
-      { id: PROJECT_ID, name: "A", phase: "build", active_version: "standard", org_id: null, owner_id: "u1", created_at: "2026-09-01T00:00:00Z", updated_at: "2026-10-01T00:00:00Z" },
+      { id: PROJECT_ID, name: "A", phase: "build", active_version: "standard", org_id: null, owner_id: "u1", runner_last: null, created_at: "2026-09-01T00:00:00Z", updated_at: "2026-10-01T00:00:00Z" },
     ],
     quotes: [],
     proposals: [],
@@ -105,7 +105,7 @@ describe("GET /v1/integrations/billing/projects/{id}", () => {
 
   it("returns the project detail", async () => {
     data.bundle = {
-      project: { id: PROJECT_ID, name: "A", phase: "build", active_version: "standard", org_id: "org_1", owner_id: "u1", created_at: "2026-09-01T00:00:00Z", updated_at: "2026-10-01T00:00:00Z", files: null },
+      project: { id: PROJECT_ID, name: "A", phase: "build", active_version: "standard", org_id: "org_1", owner_id: "u1", runner_last: null, created_at: "2026-09-01T00:00:00Z", updated_at: "2026-10-01T00:00:00Z", files: null },
       org: { id: "org_1", name: "Digital Value" },
       owner: { id: "u1", name: "อั๋น", email: "a@example.com" },
       quotes: [],

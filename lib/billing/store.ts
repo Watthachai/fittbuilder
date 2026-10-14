@@ -45,7 +45,7 @@ export async function touchBillingBinding(id: string, now: Date): Promise<void> 
 
 /** PostgREST answers at most this many rows per request (Supabase's default max_rows). */
 const PAGE = 1000;
-const PROJECT = "id, name, phase, active_version, org_id, owner_id, created_at, updated_at";
+const PROJECT = "id, name, phase, active_version, org_id, owner_id, runner_last, created_at, updated_at";
 const BILLING = "project_id, status, reason, changed_at, license_key_hash";
 
 /** Every project in FITT Builder, without its files, plus what is needed to list them. */

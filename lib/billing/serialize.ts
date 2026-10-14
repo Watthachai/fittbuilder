@@ -3,7 +3,9 @@ import { parseProposal, type ProposalDoc } from "@/lib/proposal";
 import { docsFromFiles } from "@/lib/define";
 import { VERSION_KEYS } from "@/lib/versions";
 import type { ProjectFiles } from "@/lib/types";
+import type { Json } from "@/lib/db/types";
 import type {
+  BillingBuild,
   BillingCustomer,
   BillingPage,
   BillingProjectDetail,
@@ -92,6 +94,14 @@ function serializeProposal(doc: ProposalDoc, updatedAt: string): BillingProposal
   };
 }
 
+/** The last Code Runner hand-off (lib/types.ts RunnerSend); null when never sent or unreadable. */
+function buildOf(runner: Json | null): BillingBuild | null {
+  if (!runner || typeof runner !== "object" || Array.isArray(runner)) return null;
+  const { sentAt, jobId, buildNo } = runner;
+  if (typeof sentAt !== "string" || !Number.isFinite(Date.parse(sentAt)) || typeof jobId !== "string") return null;
+  return { sentAt, jobId, buildNo: typeof buildNo === "number" ? buildNo : null };
+}
+
 /** The customer as the chosen tier's quotation names them, else its proposal; null when neither does. */
 function customerOf(...docs: (QuoteDoc | ProposalDoc | null)[]): BillingCustomer | null {
   for (const d of docs) {
@@ -143,6 +153,7 @@ export function projectDetail(b: ProjectBundle, today: string): BillingProjectDe
       updatedAt: b.project.updated_at,
     },
     customer: customerOf(quoteDocs[active] ?? null, proposalDocs[active] ?? null),
+    build: buildOf(b.project.runner_last),
     billing: {
       status: statusOf(b.billing),
       reason: b.billing?.reason ?? "",
@@ -177,6 +188,7 @@ export function projectSummaries(s: BillingSnapshot, today: string): BillingProj
       orgName: p.org_id ? (orgName.get(p.org_id) ?? null) : null,
       ownerId: p.owner_id,
       ownerName: ownerName.get(p.owner_id) ?? null,
+      buildSentAt: buildOf(p.runner_last)?.sentAt ?? null,
       updatedAt: iso(latest.get(p.id) ?? Date.parse(p.updated_at)),
       customerName: qd?.customerName.trim() || null,
       quoteNo: qd?.quoteNo || null,

@@ -27,6 +27,7 @@ function bundle(over: Partial<ProjectBundle> = {}): ProjectBundle {
       active_version: "standard",
       org_id: "org_1",
       owner_id: "u1",
+      runner_last: null,
       created_at: "2026-09-01T03:00:00Z",
       updated_at: "2026-10-13T09:12:00Z",
       files: { "docs/BRD.md": "# BRD", "docs/PRD.md": "# PRD" },
@@ -72,6 +73,26 @@ describe("projectDetail", () => {
     expect(d.project).toMatchObject({ ownerId: "u1", ownerName: null, ownerEmail: null });
   });
 
+  it("says when the project was last sent to Code Runner to build, and null when never", () => {
+    expect(projectDetail(bundle(), TODAY).build).toBeNull();
+    const b = bundle();
+    const sent = { jobId: "job-1", state: "QUEUED", tag: "alpha-test", sentAt: "2026-10-10T02:00:00Z" };
+    expect(projectDetail({ ...b, project: { ...b.project, runner_last: sent } }, TODAY).build).toEqual({
+      sentAt: "2026-10-10T02:00:00Z",
+      jobId: "job-1",
+      buildNo: null,
+    });
+    // Rows saved before the Gateway migration carry a build number.
+    expect(projectDetail({ ...b, project: { ...b.project, runner_last: { ...sent, buildNo: 12 } } }, TODAY).build?.buildNo).toBe(12);
+  });
+
+  it("treats an unreadable build hand-off as never sent", () => {
+    const b = bundle();
+    for (const bad of ["sent", [], { jobId: "job-1" }, { sentAt: "not a time", jobId: "job-1" }]) {
+      expect(projectDetail({ ...b, project: { ...b.project, runner_last: bad } }, TODAY).build).toBeNull();
+    }
+  });
+
   it("sends the MA billing cycle", () => {
     const q = quote();
     const d = projectDetail(
@@ -111,9 +132,9 @@ describe("projectDetail", () => {
 describe("projectSummaries and paging", () => {
   const snapshot: BillingSnapshot = {
     projects: [
-      { id: "a", name: "A", phase: "define", active_version: "standard", org_id: "org_1", owner_id: "u1", created_at: "2026-09-01T00:00:00Z", updated_at: "2026-10-01T00:00:00Z" },
+      { id: "a", name: "A", phase: "define", active_version: "standard", org_id: "org_1", owner_id: "u1", runner_last: null, created_at: "2026-09-01T00:00:00Z", updated_at: "2026-10-01T00:00:00Z" },
       // A personal project: no workspace.
-      { id: "b", name: "B", phase: "build", active_version: "standard", org_id: null, owner_id: "u2", created_at: "2026-09-01T00:00:00Z", updated_at: "2026-10-02T00:00:00Z" },
+      { id: "b", name: "B", phase: "build", active_version: "standard", org_id: null, owner_id: "u2", runner_last: { jobId: "job-b", state: "QUEUED", tag: "alpha-test", sentAt: "2026-10-01T12:00:00Z" }, created_at: "2026-09-01T00:00:00Z", updated_at: "2026-10-02T00:00:00Z" },
     ],
     // A quotation edited later than its project moves the project's updatedAt.
     quotes: [{ project_id: "a", version: "standard", payload: quote() as unknown as Json, updated_at: "2026-10-05T00:00:00Z" }],
@@ -130,6 +151,12 @@ describe("projectSummaries and paging", () => {
     const s = projectSummaries(snapshot, TODAY);
     expect(s.find((x) => x.id === "a")).toMatchObject({ orgId: "org_1", orgName: "Digital Value", ownerId: "u1", ownerName: "อั๋น" });
     expect(s.find((x) => x.id === "b")).toMatchObject({ orgId: null, orgName: null, ownerId: "u2", ownerName: null });
+  });
+
+  it("says when each project was last sent to build", () => {
+    const s = projectSummaries(snapshot, TODAY);
+    expect(s.find((x) => x.id === "a")?.buildSentAt).toBeNull();
+    expect(s.find((x) => x.id === "b")?.buildSentAt).toBe("2026-10-01T12:00:00Z");
   });
 
   it("takes the latest change across the project and its documents, oldest first", () => {

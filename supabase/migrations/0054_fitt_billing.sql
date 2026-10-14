@@ -3,7 +3,10 @@
 -- obeys (written in phase 2). See docs/integrations/fitt-billing.md.
 
 -- The producer check was declared inline in 0045, so its name is Postgres's
--- choice. Drop whatever check mentions `producer`, then name the new one.
+-- choice. Drop the check whose expression compares `producer` — stored as
+-- `producer = 'FITT_VOICE'::text` while it held one value, `producer = ANY
+-- (ARRAY[...])` once it holds several — then name the new one. Nothing else
+-- that merely mentions producer is touched when this file is re-run.
 do $$
 declare c record;
 begin
@@ -11,7 +14,7 @@ begin
     select conname from pg_constraint
     where conrelid = 'fittbuilder_integration_bindings'::regclass
       and contype = 'c'
-      and pg_get_constraintdef(oid) ilike '%producer%'
+      and pg_get_constraintdef(oid) ~* '^check \(\(producer = '
   loop
     execute format('alter table fittbuilder_integration_bindings drop constraint %I', c.conname);
   end loop;
@@ -44,3 +47,5 @@ create index if not exists fittbuilder_project_billing_events_project_idx
   on fittbuilder_project_billing_events (project_id, at desc);
 alter table fittbuilder_project_billing_events enable row level security;
 -- No policies: both tables are read and written by the service role only.
+
+notify pgrst, 'reload schema';

@@ -42,16 +42,29 @@ export async function touchBillingBinding(id: string, now: Date): Promise<void> 
   must(r, "billing binding touch");
 }
 
+/** PostgREST answers at most this many rows per request (Supabase's default max_rows). */
+const PAGE = 1000;
+
 /** Every project of the workspace, without its files, plus what is needed to list them. */
 export async function loadOrgSnapshot(orgId: string): Promise<OrgSnapshot> {
   const db = createAdminClient();
-  const projects: ProjectRecord[] = must(
-    await db
-      .from("fittbuilder_projects")
-      .select("id, name, phase, active_version, created_at, updated_at")
-      .eq("org_id", orgId),
-    "billing projects"
-  ) ?? [];
+  // Paged by id: an unpaged read stops silently at PAGE rows, and Billing would
+  // never learn the rest of a large workspace exists.
+  const projects: ProjectRecord[] = [];
+  for (let from = 0; ; from += PAGE) {
+    const page =
+      must(
+        await db
+          .from("fittbuilder_projects")
+          .select("id, name, phase, active_version, created_at, updated_at")
+          .eq("org_id", orgId)
+          .order("id")
+          .range(from, from + PAGE - 1),
+        "billing projects"
+      ) ?? [];
+    projects.push(...page);
+    if (page.length < PAGE) break;
+  }
   const snapshot: OrgSnapshot = { projects, quotes: [], proposals: [], billing: [] };
   for (const ids of batches(projects.map((p) => p.id))) {
     const [quotes, proposals, billing] = await Promise.all([

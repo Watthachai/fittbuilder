@@ -124,6 +124,13 @@ describe("projectSummaries and paging", () => {
     expect(pageOf(all, since).items.map((x) => x.id)).toEqual(["a"]);
   });
 
+  it("includes a change stamped exactly at updatedSince, so a re-query from the last seen time misses nothing", () => {
+    const all = projectSummaries(snapshot, TODAY);
+    const q = parseListQuery(new URLSearchParams({ updatedSince: "2026-10-02T00:00:00Z" }));
+    if (!q.ok) throw new Error(q.message);
+    expect(pageOf(all, q).items.map((x) => x.id)).toEqual(["b", "a"]);
+  });
+
   it("refuses malformed parameters", () => {
     const bads: Record<string, string>[] = [{ limit: "abc" }, { limit: "0" }, { limit: "500" }, { cursor: "garbage" }, { updatedSince: "yesterday" }];
     for (const bad of bads) {

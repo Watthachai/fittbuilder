@@ -209,7 +209,11 @@ export function parseListQuery(params: URLSearchParams): ({ ok: true } & ListQue
 export function pageOf(items: BillingProjectSummary[], q: ListQuery): BillingPage {
   const after = (x: BillingProjectSummary) =>
     !q.cursor || x.updatedAt > q.cursor.updatedAt || (x.updatedAt === q.cursor.updatedAt && x.id > q.cursor.id);
-  const eligible = items.filter((x) => (q.updatedSince === null || Date.parse(x.updatedAt) > q.updatedSince) && after(x));
+  // Inclusive: a row stamped at the very millisecond Billing last saw — or saved
+  // by a transaction that started earlier but committed later — must come back
+  // on the next pull. Billing re-asks from a little before its last updatedAt
+  // and de-duplicates by id; a repeat is harmless, a miss is a stale invoice.
+  const eligible = items.filter((x) => (q.updatedSince === null || Date.parse(x.updatedAt) >= q.updatedSince) && after(x));
   const page = eligible.slice(0, q.limit);
   const last = page[page.length - 1];
   const more = eligible.length > page.length;

@@ -6,8 +6,8 @@ import { loadProjectBundle } from "@/lib/billing/store";
 import { projectDetail } from "@/lib/billing/serialize";
 
 /**
- * FITT Billing → FITT Builder: one project in full. A project outside the
- * token's workspace answers exactly like one that doesn't exist.
+ * FITT Billing → FITT Builder: one project in full, whichever workspace it is
+ * in, or none.
  */
 
 const RATE_PER_MINUTE = 120;
@@ -22,7 +22,7 @@ export async function GET(request: Request, ctx: { params: Promise<{ id: string 
   const { id } = await ctx.params;
   if (!UUID.test(id)) return billingError("not_found", "ไม่พบโปรเจกต์", requestId);
   try {
-    const bundle = await loadProjectBundle(auth.binding.org_id, id);
+    const bundle = await loadProjectBundle(id);
     if (!bundle) return billingError("not_found", "ไม่พบโปรเจกต์", requestId);
     const today = new Date().toISOString().slice(0, 10);
     return Response.json(projectDetail(bundle, today), { headers: { "cache-control": "no-store" } });

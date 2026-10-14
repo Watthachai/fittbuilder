@@ -1,22 +1,22 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { OrgSnapshot, ProjectBundle } from "@/lib/billing/types";
+import type { BillingSnapshot, ProjectBundle } from "@/lib/billing/types";
 
-const auth = { result: { ok: true, binding: { id: "bind_1", org_id: "org_1" } } as unknown };
+const auth = { result: { ok: true, binding: { id: "bind_1" } } as unknown };
 vi.mock("@/lib/billing/authenticate", () => ({ authenticateBilling: async () => auth.result }));
 
 const data = {
-  snapshot: { projects: [], quotes: [], proposals: [], billing: [] } as OrgSnapshot,
+  snapshot: { projects: [], quotes: [], proposals: [], billing: [], orgs: [], owners: [] } as BillingSnapshot,
   bundle: null as ProjectBundle | null,
   fail: false,
-  bundleArgs: [] as [string, string][],
+  bundleArgs: [] as unknown[][],
 };
 vi.mock("@/lib/billing/store", () => ({
-  loadOrgSnapshot: async () => {
+  loadSnapshot: async () => {
     if (data.fail) throw new Error("db down");
     return data.snapshot;
   },
-  loadProjectBundle: async (orgId: string, projectId: string) => {
-    data.bundleArgs.push([orgId, projectId]);
+  loadProjectBundle: async (...args: unknown[]) => {
+    data.bundleArgs.push(args);
     if (data.fail) throw new Error("db down");
     return data.bundle;
   },
@@ -32,12 +32,16 @@ const get = (path: string) => new Request(`http://builder.test/v1/integrations/b
 const getDetail = (id: string) => detail.GET(get(`/projects/${id}`), { params: Promise.resolve({ id }) });
 
 beforeEach(() => {
-  auth.result = { ok: true, binding: { id: "bind_1", org_id: "org_1" } };
+  auth.result = { ok: true, binding: { id: "bind_1" } };
   data.snapshot = {
-    projects: [{ id: PROJECT_ID, name: "A", phase: "build", active_version: "standard", created_at: "2026-09-01T00:00:00Z", updated_at: "2026-10-01T00:00:00Z" }],
+    projects: [
+      { id: PROJECT_ID, name: "A", phase: "build", active_version: "standard", org_id: null, owner_id: "u1", created_at: "2026-09-01T00:00:00Z", updated_at: "2026-10-01T00:00:00Z" },
+    ],
     quotes: [],
     proposals: [],
     billing: [],
+    orgs: [],
+    owners: [{ id: "u1", name: "อั๋น", email: "a@example.com" }],
   };
   data.bundle = null;
   data.fail = false;
@@ -46,10 +50,13 @@ beforeEach(() => {
 });
 
 describe("GET /v1/integrations/billing/projects", () => {
-  it("lists the workspace's projects", async () => {
+  it("lists every project, a personal one included", async () => {
     const res = await list.GET(get("/projects"));
     expect(res.status).toBe(200);
-    expect(await res.json()).toMatchObject({ items: [{ id: PROJECT_ID, name: "A", billingStatus: "active" }], nextCursor: null });
+    expect(await res.json()).toMatchObject({
+      items: [{ id: PROJECT_ID, name: "A", orgId: null, ownerName: "อั๋น", billingStatus: "active" }],
+      nextCursor: null,
+    });
   });
 
   it("refuses a bad token with the error envelope", async () => {
@@ -84,10 +91,10 @@ describe("GET /v1/integrations/billing/projects", () => {
 });
 
 describe("GET /v1/integrations/billing/projects/{id}", () => {
-  it("reads only within the token's workspace and answers 404 outside it", async () => {
+  it("looks the project up by its id alone and answers 404 when there is none", async () => {
     const res = await getDetail(PROJECT_ID);
     expect(res.status).toBe(404);
-    expect(data.bundleArgs).toEqual([["org_1", PROJECT_ID]]);
+    expect(data.bundleArgs).toEqual([[PROJECT_ID]]);
   });
 
   it("answers 404 for an id that is not a UUID, without asking the database", async () => {
@@ -98,9 +105,9 @@ describe("GET /v1/integrations/billing/projects/{id}", () => {
 
   it("returns the project detail", async () => {
     data.bundle = {
-      project: { id: PROJECT_ID, name: "A", phase: "build", active_version: "standard", created_at: "2026-09-01T00:00:00Z", updated_at: "2026-10-01T00:00:00Z", files: null },
-      orgId: "org_1",
-      orgName: "Digital Value",
+      project: { id: PROJECT_ID, name: "A", phase: "build", active_version: "standard", org_id: "org_1", owner_id: "u1", created_at: "2026-09-01T00:00:00Z", updated_at: "2026-10-01T00:00:00Z", files: null },
+      org: { id: "org_1", name: "Digital Value" },
+      owner: { id: "u1", name: "อั๋น", email: "a@example.com" },
       quotes: [],
       proposals: [],
       billing: null,

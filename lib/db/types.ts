@@ -201,7 +201,8 @@ export interface Database {
       fittbuilder_integration_bindings: {
         Row: {
           id: string;
-          org_id: string;
+          /** null only for a FITT_BILLING credential, which reads every project (migration 0054). */
+          org_id: string | null;
           producer: string;
           token_hash: string;
           label: string;
@@ -213,7 +214,7 @@ export interface Database {
         };
         Insert: {
           id?: string;
-          org_id: string;
+          org_id?: string | null;
           producer: string;
           token_hash: string;
           label?: string;

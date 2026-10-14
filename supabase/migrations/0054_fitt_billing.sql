@@ -1,6 +1,7 @@
--- FITT Billing App: a service credential per workspace (producer FITT_BILLING)
--- that pulls project data, and the billing status a project's deployed app
--- obeys (written in phase 2). See docs/integrations/fitt-billing.md.
+-- FITT Billing App: a service credential (producer FITT_BILLING) that pulls
+-- every project's data — every workspace's and everyone's personal ones — and
+-- the billing status a project's deployed app obeys (written in phase 2). See
+-- docs/integrations/fitt-billing.md.
 
 -- The producer check was declared inline in 0045, so its name is Postgres's
 -- choice. Drop the check whose expression compares `producer` — stored as
@@ -22,6 +23,18 @@ end $$;
 alter table fittbuilder_integration_bindings
   add constraint fittbuilder_integration_bindings_producer_check
   check (producer in ('FITT_VOICE', 'FITT_BILLING'));
+
+-- A Billing credential reads every project, personal ones included, so it names
+-- no workspace; and it is the Billing service's, not a person's connection.
+-- Every other binding still names its workspace, so FITT Voice — which takes
+-- the workspace from the binding and joins through org_id — is unchanged.
+alter table fittbuilder_integration_bindings alter column org_id drop not null;
+alter table fittbuilder_integration_bindings
+  drop constraint if exists fittbuilder_integration_bindings_scope_check;
+alter table fittbuilder_integration_bindings
+  add constraint fittbuilder_integration_bindings_scope_check
+  check (case when producer = 'FITT_BILLING' then org_id is null and user_id is null
+              else org_id is not null end);
 
 -- A project without a row here is active.
 create table if not exists fittbuilder_project_billing (

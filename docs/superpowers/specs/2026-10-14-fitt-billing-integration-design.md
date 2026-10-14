@@ -57,7 +57,9 @@ FITT Billing App (ตังทำหน้าระบบเสร็จแล�
 
 ### 3. API ให้ Billing (`/v1/integrations/billing/*`)
 
-**ยืนยันตัวตน:** `Authorization: Bearer <token>` · token ออกด้วย `node scripts/billing-binding.mjs create <org-id>` แสดงครั้งเดียว เก็บแค่ hash · token ผูกกับ workspace (org) เดียว เห็นเฉพาะโปรเจกต์ใน org นั้น โปรเจกต์อื่นตอบ `404` · ยกเลิกได้ (`revoked_at`)
+**ยืนยันตัวตน:** `Authorization: Bearer <token>` · token ออกด้วย `node scripts/billing-binding.mjs create "<label>"` แสดงครั้งเดียว เก็บแค่ hash · ยกเลิกได้ (`revoked_at`)
+
+**ขอบเขต (เปลี่ยน 14 ต.ค. 2026):** token เดียวเห็นทุกโปรเจกต์ ทั้งทุก workspace และโปรเจกต์ส่วนตัว (`org_id` เป็น null) · เดิมออกแบบไว้ 1 token ต่อ 1 workspace แต่ข้อมูลจริงมี 31 workspace / 63 โปรเจกต์ และโปรเจกต์ส่วนตัว 55 โปรเจกต์ (7 โปรเจกต์มีใบเสนอราคา) ซึ่ง token ต่อ workspace มองไม่เห็นเลย ผู้ใช้ทุกคนเป็นคนในบริษัท · แลกกับ: ถ้า token หลุด อ่านได้ทุกโปรเจกต์ และใน phase 2 token เดียวกันสั่งระงับแอปได้ทุกราย · binding ของ FITT_BILLING จึงไม่มี `org_id` และไม่ผูกกับคน (check `fittbuilder_integration_bindings_scope_check`) ส่วน binding อื่นต้องมี `org_id` เหมือนเดิม
 
 **Endpoint:**
 
@@ -68,14 +70,14 @@ FITT Billing App (ตังทำหน้าระบบเสร็จแล�
 | PUT | `/projects/{id}/status` | ตั้ง `active` / `suspended` พร้อม `reason` · ส่งซ้ำได้ผลเท่าเดิม · บันทึกลงประวัติทุกครั้ง |
 | POST | `/projects/{id}/license-key` | ออก license key ใหม่ให้แอปของโปรเจกต์นี้ (แสดงครั้งเดียว key เดิมใช้ไม่ได้ทันที) |
 
-**รายการแบบย่อ:** `{ items: [{ id, name, phase, updatedAt, customerName, quoteNo, billingStatus }], nextCursor }`
+**รายการแบบย่อ:** `{ items: [{ id, name, phase, orgId, orgName, ownerId, ownerName, updatedAt, customerName, quoteNo, billingStatus }], nextCursor }` · โปรเจกต์ส่วนตัว `orgId`/`orgName` เป็น null
 
 **ข้อมูลครบชุด** (`schemaVersion: "fittbuilder.billing.project.v1"`):
 
 ```json
 {
   "schemaVersion": "fittbuilder.billing.project.v1",
-  "project": { "id": "uuid", "name": "", "phase": "build", "orgId": "uuid", "orgName": "", "activeVersion": "standard", "createdAt": "", "updatedAt": "" },
+  "project": { "id": "uuid", "name": "", "phase": "build", "orgId": "uuid | null", "orgName": "string | null", "ownerId": "uuid", "ownerName": "string | null", "ownerEmail": "string | null", "activeVersion": "standard", "createdAt": "", "updatedAt": "" },
   "customer": { "name": "", "attn": "", "address": "", "phone": "" },
   "billing": { "status": "active", "reason": "", "changedAt": "", "licenseKeyIssued": false },
   "quotes": {
@@ -127,7 +129,7 @@ FITT Billing App (ตังทำหน้าระบบเสร็จแล�
 ## Testing
 
 - Unit (vitest): แปลงข้อมูลโปรเจกต์ → JSON (ยอดเงินตรงกับ `quoteTotals`), `parseDoc` กับ `billingCycle` ทั้งค่าเก่าและค่าใหม่, ตรวจ token, ตอบ error ตาม envelope
-- Route: token ผิด/ยกเลิก → 401 · โปรเจกต์นอก org → 404 · ตั้งสถานะซ้ำได้ผลเท่าเดิมและมีประวัติ · ออก key ใหม่แล้ว key เก่าใช้ไม่ได้
+- Route: token ผิด/ยกเลิก → 401 · ไม่มีโปรเจกต์ → 404 · เห็นโปรเจกต์ส่วนตัว · ตั้งสถานะซ้ำได้ผลเท่าเดิมและมีประวัติ · ออก key ใหม่แล้ว key เก่าใช้ไม่ได้
 - Migration: รันบนฐาน sandbox ก่อน production
 - CRN: unit test ของ `service-status.mjs` และขั้นตรวจตอน build ตามข้อ 5
 
@@ -149,4 +151,4 @@ deploy production ของ FITT Builder และ CRN ต้องได้ร�
 4. ใครเป็นคนส่ง license key ให้ทีมที่ติดตั้งแอป (Billing หรือ FTCDV)
 5. เงินเข้าจริงบันทึกที่ระบบไหน (คำถามเดียวกับ DIG-2885)
 6. ระงับเมื่อไร: ค้างจ่าย subscription กี่วัน · ไม่ต่อ MA ระงับทั้งแอปหรือแค่หยุดดูแล
-7. Billing ต้องดูกี่ workspace (org) — ออก token ต่อ org
+7. ~~Billing ต้องดูกี่ workspace (org)~~ — ตัดสินแล้ว 14 ต.ค.: token เดียวเห็นทุกโปรเจกต์ · Billing ต้องการชื่อเจ้าของโปรเจกต์ (`ownerName`) แบบนี้พอไหม หรือต้องการข้อมูลอื่นเพื่อรู้ว่าจะออกบิลให้ใคร

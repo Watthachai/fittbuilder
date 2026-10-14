@@ -16,6 +16,12 @@ describe("migration 0054", () => {
     expect(sql).toContain("~* '^check \\(\\(producer = '");
   });
 
+  it("lets a FITT Billing credential, and only it, name no workspace and no person", () => {
+    expect(sql).toMatch(/alter table fittbuilder_integration_bindings alter column org_id drop not null;/i);
+    const scope = /add constraint fittbuilder_integration_bindings_scope_check\s+check \(([\s\S]*?)\);/i.exec(sql)?.[1].replace(/\s+/g, " ");
+    expect(scope).toBe("case when producer = 'FITT_BILLING' then org_id is null and user_id is null else org_id is not null end");
+  });
+
   it("tells the API to reload its schema, like 0045 and 0053", () => {
     expect(sql).toMatch(/notify\s+pgrst,\s*'reload schema';/i);
   });

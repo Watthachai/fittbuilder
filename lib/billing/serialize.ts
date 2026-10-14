@@ -11,9 +11,9 @@ import type {
   BillingProposal,
   BillingQuote,
   BillingRow,
+  BillingSnapshot,
   BillingStatus,
   DocRecord,
-  OrgSnapshot,
   ProjectBundle,
 } from "./types";
 
@@ -133,8 +133,11 @@ export function projectDetail(b: ProjectBundle, today: string): BillingProjectDe
       id: b.project.id,
       name: b.project.name,
       phase: b.project.phase,
-      orgId: b.orgId,
-      orgName: b.orgName,
+      orgId: b.project.org_id,
+      orgName: b.project.org_id ? (b.org?.name ?? null) : null,
+      ownerId: b.project.owner_id,
+      ownerName: b.owner?.name ?? null,
+      ownerEmail: b.owner?.email ?? null,
       activeVersion: active,
       createdAt: b.project.created_at,
       updatedAt: b.project.updated_at,
@@ -152,7 +155,9 @@ export function projectDetail(b: ProjectBundle, today: string): BillingProjectDe
   };
 }
 
-export function projectSummaries(s: OrgSnapshot, today: string): BillingProjectSummary[] {
+export function projectSummaries(s: BillingSnapshot, today: string): BillingProjectSummary[] {
+  const orgName = new Map(s.orgs.map((o) => [o.id, o.name]));
+  const ownerName = new Map(s.owners.map((o) => [o.id, o.name]));
   const latest = new Map<string, number>();
   const bump = (id: string, at: string) => {
     const t = Date.parse(at);
@@ -168,6 +173,10 @@ export function projectSummaries(s: OrgSnapshot, today: string): BillingProjectS
       id: p.id,
       name: p.name,
       phase: p.phase,
+      orgId: p.org_id,
+      orgName: p.org_id ? (orgName.get(p.org_id) ?? null) : null,
+      ownerId: p.owner_id,
+      ownerName: ownerName.get(p.owner_id) ?? null,
       updatedAt: iso(latest.get(p.id) ?? Date.parse(p.updated_at)),
       customerName: qd?.customerName.trim() || null,
       quoteNo: qd?.quoteNo || null,

@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createHash } from "node:crypto";
 
 const store = {
-  binding: { id: "bind_1", org_id: "org_1" } as { id: string; org_id: string } | null,
+  binding: { id: "bind_1" } as { id: string } | null,
   fail: false,
   lookedUp: [] as string[],
 };
@@ -19,7 +19,7 @@ vi.mock("@/lib/billing/store", () => ({
 const { authenticateBilling } = await import("@/lib/billing/authenticate");
 
 beforeEach(() => {
-  store.binding = { id: "bind_1", org_id: "org_1" };
+  store.binding = { id: "bind_1" };
   store.fail = false;
   store.lookedUp = [];
   touched.mockReset();
@@ -28,7 +28,7 @@ beforeEach(() => {
 describe("authenticateBilling", () => {
   it("looks the token up by its SHA-256 and counts the use", async () => {
     const r = await authenticateBilling("Bearer fbb_secret");
-    expect(r).toEqual({ ok: true, binding: { id: "bind_1", org_id: "org_1" } });
+    expect(r).toEqual({ ok: true, binding: { id: "bind_1" } });
     expect(store.lookedUp).toEqual([createHash("sha256").update("fbb_secret", "utf8").digest("hex")]);
     expect(touched).toHaveBeenCalledWith("bind_1");
   });

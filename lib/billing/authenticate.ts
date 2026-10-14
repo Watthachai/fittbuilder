@@ -9,7 +9,7 @@ export type BillingAuth =
 const sha256hex = (s: string) => createHash("sha256").update(s, "utf8").digest("hex");
 
 /**
- * Which workspace a FITT Billing bearer token speaks for. Only FITT_BILLING
+ * Whether a bearer token is a live FITT Billing credential. Only FITT_BILLING
  * credentials match (a FITT Voice token is refused), revoked ones never do,
  * and a database failure is "try again", not "you are not allowed".
  */

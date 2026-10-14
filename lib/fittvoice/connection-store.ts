@@ -42,7 +42,8 @@ export async function findBinding(tokenHash: string): Promise<BindingRow | null>
     .eq("producer", PRODUCER)
     .is("revoked_at", null)
     .maybeSingle();
-  return must(r, "binding lookup");
+  // Only a FITT_BILLING credential may name no workspace (0054's scope check).
+  return must(r, "binding lookup") as BindingRow | null;
 }
 
 export async function touchBinding(id: string, now: Date): Promise<void> {

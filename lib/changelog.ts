@@ -33,7 +33,7 @@ export const CHANGELOG: ChangelogEntry[] = [
       },
       {
         type: "feature",
-        text: "FITT Billing ดึงข้อมูลโปรเจกต์ ลูกค้า ใบเสนอราคาพร้อมยอด รอบชำระ MA ข้อเสนอโครงการ และ BRD/PRD ได้ผ่าน API ที่ต้องใช้ token ของ workspace",
+        text: "FITT Billing ดึงข้อมูลโปรเจกต์ ลูกค้า ใบเสนอราคาพร้อมยอด รอบชำระ MA ข้อเสนอโครงการ และ BRD/PRD ได้ทุกโปรเจกต์ ทั้งใน workspace และโปรเจกต์ส่วนตัว ผ่าน API ที่ต้องใช้ token ของ FITT Billing",
       },
     ],
   },

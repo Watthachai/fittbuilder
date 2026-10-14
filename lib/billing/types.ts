@@ -6,9 +6,9 @@ import type { BillingCycle, PaymentTerm } from "@/lib/quote";
 export type BillingErrorCode = "unauthorized" | "not_found" | "invalid_request" | "rate_limited" | "internal";
 export type BillingStatus = "active" | "suspended";
 
+/** A Billing credential reads every project, so it carries no workspace. */
 export interface BillingBinding {
   id: string;
-  org_id: string;
 }
 
 /** A project as the store reads it. `files` is present only in a bundle. */
@@ -17,9 +17,23 @@ export interface ProjectRecord {
   name: string;
   phase: string;
   active_version: string;
+  /** null for a personal project, which belongs to no workspace. */
+  org_id: string | null;
+  owner_id: string;
   created_at: string;
   updated_at: string;
   files?: Json | null;
+}
+
+export interface OrgRecord {
+  id: string;
+  name: string;
+}
+
+export interface OwnerRecord {
+  id: string;
+  name: string | null;
+  email: string;
 }
 
 /** A stored quotation or proposal. `payload` is absent where the store didn't read it. */
@@ -38,17 +52,20 @@ export interface BillingRow {
   license_key_hash: string | null;
 }
 
-export interface OrgSnapshot {
+/** Every project in FITT Builder, with what listing them needs. */
+export interface BillingSnapshot {
   projects: ProjectRecord[];
   quotes: DocRecord[];
   proposals: DocRecord[];
   billing: BillingRow[];
+  orgs: OrgRecord[];
+  owners: OwnerRecord[];
 }
 
 export interface ProjectBundle {
   project: ProjectRecord;
-  orgId: string;
-  orgName: string;
+  org: OrgRecord | null;
+  owner: OwnerRecord | null;
   quotes: DocRecord[];
   proposals: DocRecord[];
   billing: BillingRow | null;
@@ -114,6 +131,12 @@ export interface BillingProjectSummary {
   id: string;
   name: string;
   phase: string;
+  /** null for a personal project, which belongs to no workspace. */
+  orgId: string | null;
+  orgName: string | null;
+  ownerId: string;
+  /** null when the owner set no name. */
+  ownerName: string | null;
   updatedAt: string;
   customerName: string | null;
   quoteNo: string | null;
@@ -131,8 +154,13 @@ export interface BillingProjectDetail {
     id: string;
     name: string;
     phase: string;
-    orgId: string;
-    orgName: string;
+    /** null for a personal project, which belongs to no workspace. */
+    orgId: string | null;
+    orgName: string | null;
+    ownerId: string;
+    /** null when the owner set no name, or their profile is gone. */
+    ownerName: string | null;
+    ownerEmail: string | null;
     activeVersion: string;
     createdAt: string;
     updatedAt: string;

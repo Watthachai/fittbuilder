@@ -682,6 +682,8 @@ export interface Database {
           error: string | null;
           /** How far into the turn its browser stopped listening (0057); null if it stayed. */
           client_left_ms: number | null;
+          /** How an edit turn's edits went (0058, lib/apply-edit); null on a first build. */
+          edit_stats: Json | null;
         };
         Insert: {
           id?: string;
@@ -697,6 +699,7 @@ export interface Database {
           duration_ms?: number | null;
           error?: string | null;
           client_left_ms?: number | null;
+          edit_stats?: Json | null;
         };
         Update: {
           id?: string;

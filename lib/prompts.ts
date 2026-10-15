@@ -60,22 +60,47 @@ ${skill.designHints}`
 export const PACKAGE_JSON_TEMPLATE = DEMO_PACKAGE_JSON;
 
 const OUTPUT_CONTRACT = `OUTPUT FORMAT — STRICT (stream files one at a time):
-0. NEVER answer with JSON. There is no {"files": …}, no "content" key, no "deleted" array — a JSON payload is silently discarded, so the user is told the edit succeeded while nothing changed. Files exist ONLY inside <file> blocks.
+0. NEVER answer with JSON. There is no {"files": …}, no "content" key, no "deleted" array — a JSON payload is silently discarded, so the user is told the edit succeeded while nothing changed. Files exist ONLY inside <file> blocks (and, on an edit turn, <edit> blocks).
 1. Go straight to the file blocks. At most ONE short lead-in line before them — save the real explanation for the final summary (rule 8).
 2. Output EACH file as its own block in this EXACT shape — no markdown code fences, no commentary between blocks:
 <file path="src/App.tsx">
 <full, complete file contents here>
 </file>
-3. Write COMPLETE file contents every time — never placeholders, "...", or partial files. Do NOT wrap blocks in \`\`\`.
+3. A <file> block always holds the COMPLETE file contents — never placeholders, "...", or partial files. Do NOT wrap blocks in \`\`\`.
 4. When practical, output a file BEFORE the files that import it, so the live preview stays valid while it streams.
 4b. EVERY relative import must have a real file behind it. If src/App.tsx imports "./components/Sidebar", then src/components/Sidebar.tsx must either already exist or be emitted in THIS SAME turn — an import with no file is not a small mistake, it is a white screen for the whole app (Vite refuses to serve the entry module). Before you finish, re-read your own imports and confirm every one of them resolves.
 5. Use relative paths only (e.g. "src/components/Header.tsx") — never ".." or absolute paths. Do NOT output package.json, vite.config.js, or tsconfig.json (they are provided automatically).
-6. (iteration only) Output ONLY the files that change. To remove a file, output a self-closing tag: <delete path="src/Old.tsx"/>
+6. (iteration only) Touch ONLY the files that change — an existing one through an <edit> block (EDITING AN EXISTING FILE), a new one as a <file> block. To remove a file, output a self-closing tag: <delete path="src/Old.tsx"/>
 7. If your code imports an npm package other than react/react-dom, declare it with a directive: <deps>package-name another-package</deps> (names ONLY, no versions). It is installed automatically. NEVER write "npm install …" or tell the user to run any command — just declare <deps> and import it.
-8. AFTER the last </file>, write a polished Markdown summary for the user — this is the ONLY text they read in chat, so make it genuinely useful and well-formatted, in the SAME language as the request:
+8. AFTER the last block, write a polished Markdown summary for the user — this is the ONLY text they read in chat, so make it genuinely useful and well-formatted, in the SAME language as the request:
    - A 1-2 sentence intro of what you built/changed.
    - Then bullet points grouped by area, each starting with a **bold label**, e.g. **ดีไซน์ (Theme):** …, **ฟังก์ชัน:** …, **โครงสร้างโค้ด:** …, **ส่วนที่แก้ (iteration):** …
    - Be concrete (mention the actual components, colors, libraries, interactions). Use real Markdown (bold, bullet lists). Do NOT restate the file list (the UI already shows it) and do NOT include code fences here.`;
+
+/**
+ * How an edit turn changes a file it already has: by naming the lines, not by
+ * writing the file again (lib/apply-edit). Three quarters of what edit turns
+ * wrote was code they only copied — the turn took as long as the copying, and
+ * every copied line was one the model could quietly change.
+ *
+ * First builds never see this: there is nothing to edit yet.
+ */
+const EDIT_CONTRACT = `EDITING AN EXISTING FILE — STRICT:
+- A file that already exists is changed with an <edit> block, NEVER written again as a <file> block. Inside it, one or more <find>/<replace> pairs:
+<edit path="src/pages/Dashboard.tsx">
+<find>
+      <h1 className="text-2xl font-bold">ภาพรวม</h1>
+</find>
+<replace>
+      <h1 className="text-3xl font-bold tracking-tight">ภาพรวมวันนี้</h1>
+</replace>
+</edit>
+- Copy each <find> CHARACTER FOR CHARACTER from the current file shown above — whole lines, the same indentation, quotes and spacing. Never retype it from memory, never shorten it with "...", never add line numbers.
+- Each <find> must match exactly ONE place in the file. If those lines appear more than once, take in a neighbouring line or two until they are unique. Otherwise keep it short: the lines that change, and no more.
+- The server swaps exactly that text and nothing else; every character outside your <find> stays as it is. A <find> that does not match changes nothing — the whole <edit> for that file is dropped — so copy it exactly.
+- Pairs apply top to bottom, each against the file as the pair before left it. Use ONE <edit> block per file, with all of that file's pairs inside it.
+- To remove lines, leave <replace> empty. To add lines, <find> the line next to where they go and repeat it in <replace> together with the new lines.
+- <file> is for a NEW file only — or an existing file the user explicitly asked to rebuild from scratch.`;
 
 /**
  * The rules that hold on EVERY turn — writing the project from scratch or
@@ -283,22 +308,24 @@ The user has an existing generated project and wants a modification described in
 CLARIFY BEFORE BUILDING — only when you genuinely must:
 - If the request is too vague to produce a good result — e.g. "ไม่สวย" / "ทำให้ดีขึ้น" / "แก้หน่อย" with no specifics, or an attached screenshot with only a vague comment — DO NOT output any files. Instead reply in the user's language with 1-3 SHORT, specific questions, and for each offer a few concrete options to pick from (e.g. "ไม่ชอบตรงไหนสุด: สี / เลย์เอาต์ / ฟอนต์-ระยะห่าง / ทั้งหมด?" · "อยากได้ฟีลแบบไหน: มินิมอล / หรูหรา / สนุก-สดใส?"). Ask only what you truly need — never a long interview.
 - If the request IS clear enough to act on well (e.g. "เปลี่ยนปุ่มเป็นสีเขียว", "ลบ footer", "เพิ่มหน้า about") — just build it, do NOT ask.
-- When you ask, output ONLY the questions as your reply — no <file> blocks, no code.
+- When you ask, output ONLY the questions as your reply — no <file> or <edit> blocks, no code.
 
 ITERATION RULES:
 1. You receive the current project files (a Vite + React + TypeScript app). Apply ONLY the requested change.
-2. Emit a <file> block ONLY for files whose contents change (full new contents), plus any new file you add. An unchanged file must NOT be emitted at all. Touch the SMALLEST file that owns the change — rewriting a big file to alter ten lines of it wastes the turn and risks truncating it.
+2. Change an existing file with an <edit> block holding only the lines that change; write a <file> block only for a file you add. An unchanged file must NOT appear at all. Touch the SMALLEST file that owns the change.
 3. Remove a file with a self-closing <delete path="src/Old.tsx"/> tag.
 4. Keep the existing stack: TypeScript (.tsx) only; NEVER change package.json/vite.config.js/tsconfig.json or add dependencies via files. A new npm package installs ITSELF: declare <deps>package-name</deps> in the same turn you import it and it is installed automatically before the app runs (lucide-react and motion are ALREADY INSTALLED — import them freely, never declare them; safe extra picks: recharts · date-fns · clsx · sonner — plus "three" + "@types/three" ONLY when the user explicitly asks for 3D/WebGL, never on ordinary business screens). Never tell the user to run a command, and never work around a missing library by hand. Packages already in package.json need no directive. Use relative imports without file extensions.
 5. Preserve the existing design language and data unless the request says otherwise — including its motion and its kit: if the project has an entrance timeline (<motion.div> with a delay, or opacity-0 markup with CSS keyframes and animationDelay — whichever this project uses), a new element joins that ladder at the right place instead of appearing instantly beside it, and an edited one keeps its delay. A new card, badge, pill or avatar uses the project's existing components/ui primitive; a new category takes its colour from the project's existing palette mapping. Writing a second card style, or picking a fresh colour for a category the app already colours, is how an app that looked designed stops looking designed.
-6. STRUCTURE IS PART OF THE DELIVERABLE. Never grow a file past ~200 lines to fit the change, and never move page/feature code up into App.tsx. If the code you must touch sits inside an already-oversized file, extract exactly that region into a properly-named new file (pages/, components/, hooks/, data/, lib/), import it back, and make your change there — leave the rest of that file untouched. Split as you go; do not rewrite the whole project unless the user asked for it.
-7. A file you rewrite keeps EVERY export it had. Other files import those names — a restyle of components/ui/ui.tsx that drops Skeleton leaves kit.tsx importing nothing, and the whole app stops on "does not provide an export named 'Skeleton'". Restyle an export; never remove or rename one that another file imports.
+6. STRUCTURE IS PART OF THE DELIVERABLE. Never grow a file past ~200 lines to fit the change, and never move page/feature code up into App.tsx. If the code you must touch sits inside an already-oversized file, extract exactly that region into a properly-named new file (pages/, components/, hooks/, data/, lib/) — a <file> block — and <edit> the old file to drop that region and import it back; make your change in the new file and leave the rest of the old one untouched. Split as you go; do not rewrite the whole project unless the user asked for it.
+7. A file you edit keeps EVERY export it had. Other files import those names — a restyle of components/ui/ui.tsx that drops Skeleton leaves kit.tsx importing nothing, and the whole app stops on "does not provide an export named 'Skeleton'". Restyle an export; never remove or rename one that another file imports.
 
 ${RUNTIME_RULES}
 
 ${ARCHITECTURE}
 
-${OUTPUT_CONTRACT}`;
+${OUTPUT_CONTRACT}
+
+${EDIT_CONTRACT}`;
 }
 
 /**

@@ -131,8 +131,8 @@ describe("the generate route", () => {
   });
 
   it("keeps the model from overwriting or deleting the kit in that turn", () => {
-    // Stream files and deletes, salvaged files and deletes.
-    expect(route.match(/!isSafePath\(path\) \|\| shipped\(path\)\) continue;/g)).toHaveLength(4);
+    // Stream files, edits and deletes, salvaged files and deletes.
+    expect(route.match(/!isSafePath\(path\) \|\| shipped\(path\)\) continue;/g)).toHaveLength(5);
   });
 
   it("does not mistake the kit for screens the model wrote", () => {

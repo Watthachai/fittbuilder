@@ -5,6 +5,7 @@ import {
   continuationPrompt,
   keepGoing,
   looksMultiTask,
+  markIncomplete,
   nextAttempt,
   parseTaskVerdict,
   taskOutcome,
@@ -59,6 +60,32 @@ describe("parseTaskVerdict", () => {
 
   it("says nothing when the model gave no verdict", () => {
     expect(parseTaskVerdict("แก้แล้ว")).toEqual({ complete: null, reason: "", note: "แก้แล้ว" });
+  });
+});
+
+/**
+ * A task turn whose edit could not be placed has not done its task, whatever
+ * the model said about it — it wrote "ครบ" before the server found its <find>
+ * text missing. The server's word goes in the verdict line, so the task list
+ * runs the item again instead of ticking it off (lib/apply-edit).
+ */
+describe("markIncomplete", () => {
+  it("turns a verdict of done into not done, with the server's reason", () => {
+    const reply = markIncomplete("เปลี่ยนสีปุ่มแล้ว\nสถานะงาน: ครบ", "แก้ src/App.tsx ไม่ลง");
+    expect(parseTaskVerdict(reply)).toEqual({
+      complete: false,
+      reason: "แก้ src/App.tsx ไม่ลง",
+      note: "เปลี่ยนสีปุ่มแล้ว",
+    });
+  });
+
+  it("keeps what the model said was still missing, and adds the server's reason", () => {
+    const reply = markIncomplete("ใส่ได้ 12 คน\nสถานะงาน: ไม่ครบ — ยังขาดอีก 8 คน", "แก้ src/App.tsx ไม่ลง");
+    expect(parseTaskVerdict(reply).reason).toBe("ยังขาดอีก 8 คน · แก้ src/App.tsx ไม่ลง");
+  });
+
+  it("leaves a reply with no verdict alone — it was not a task turn", () => {
+    expect(markIncomplete("แก้แล้ว", "แก้ src/App.tsx ไม่ลง")).toBe("แก้แล้ว");
   });
 });
 

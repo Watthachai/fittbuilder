@@ -38,10 +38,11 @@ import { getProjectOrgDnaContext } from "@/lib/org-context";
 import { resolveSkillForProject } from "@/lib/skills/org-resolve";
 import { createClient } from "@/lib/supabase/server";
 import type { GenerateEvent } from "@/lib/types";
-import { TURN_CUT_LABEL, type TurnCut } from "@/lib/tasks";
+import { markIncomplete, TURN_CUT_LABEL, type TurnCut } from "@/lib/tasks";
+import { applyEdit, buildEditRepairPrompt, unplacedNote, type EditPair, type FailedEdit } from "@/lib/apply-edit";
 import { missingDefaultExports } from "@/lib/default-exports";
 import { escapeJsxText } from "@/lib/jsx-text";
-import { outcomeOf, type RecordedTurn } from "@/lib/generate-outcome";
+import { outcomeOf, type EditStats, type RecordedTurn } from "@/lib/generate-outcome";
 import type { TurnResult } from "@/lib/turn-result";
 
 // Generation streams file-by-file, so a longer single pass is fine — partial
@@ -238,6 +239,18 @@ export async function POST(request: Request) {
   };
 
   let usage: TokenUsage | null = null;
+  /** A second call's tokens on top of the turn's — the turn costs both. */
+  const addUsage = (u: TokenUsage) => {
+    usage = usage
+      ? {
+          promptTokens: usage.promptTokens + u.promptTokens,
+          outputTokens: usage.outputTokens + u.outputTokens,
+          totalTokens: usage.totalTokens + u.totalTokens,
+        }
+      : u;
+  };
+  /** How this turn's edits went (lib/apply-edit), recorded with it. */
+  const editStats: EditStats = { applied: 0, repaired: 0, failed: 0, rewritten: 0 };
   // How the turn ended and how long it ran: what the admin report counts cut
   // and failed builds from. Set where the turn ends, read once the response is done.
   let turn: RecordedTurn | null = null;
@@ -255,6 +268,7 @@ export async function POST(request: Request) {
     durationMs: Date.now() - startedAt,
     error,
     clientLeftMs: clientLeftAt === null ? null : clientLeftAt - startedAt,
+    edits: iteration ? editStats : null,
   });
 
   const stream = new ReadableStream<Uint8Array>({
@@ -375,6 +389,25 @@ export async function POST(request: Request) {
       const parser = new FileStreamParser();
       let fileCount = 0;
       const deleted: string[] = [];
+      /** The file as this turn has left it so far: written this turn, else the project's — unless deleted. */
+      const current = (path: string): string | undefined =>
+        path in produced ? produced[path] : deleted.includes(path) ? undefined : body.previousFiles?.[path];
+      /** Edits that could not be placed, given one more try once the turn is written. */
+      let unplaced: FailedEdit[] = [];
+      /**
+       * Place an edit into the file and send the whole file on, exactly as a
+       * written file goes out — the preview, the draft and history never see an
+       * edit, only its result. Null when placed; what went wrong when not.
+       */
+      const placeEdit = (path: string, pairs: EditPair[]): FailedEdit | null => {
+        const before = current(path);
+        if (before === undefined) return { path, pairs, pair: 0, reason: "missing" };
+        const out = applyEdit(before, pairs);
+        if (!out.ok) return { path, pairs, pair: out.pair, reason: out.reason };
+        fileCount++;
+        send({ type: "file", path, content: prepare(path, out.content) });
+        return null;
+      };
       // Extra packages already in the project (installed on an earlier turn or
       // from the package UI) — the base for this turn's package.json AND the
       // filter that keeps a re-declared package from triggering a reinstall.
@@ -437,12 +470,22 @@ export async function POST(request: Request) {
               send({ type: "thought", content: part.text });
               continue;
             }
-            const { files, deletes, deps } = parser.push(part.text);
+            const { files, edits, deletes, deps } = parser.push(part.text);
             for (const file of files) {
               const path = normalizePath(file.path);
               if (RESERVED_PATHS.has(path) || !isSafePath(path) || shipped(path)) continue;
+              // An edit turn writing out a file it already has, whole: what the
+              // edit path exists to stop, counted to see how often it still happens.
+              if (iteration && body.previousFiles && path in body.previousFiles) editStats.rewritten++;
               fileCount++;
               send({ type: "file", path, content: prepare(path, file.content) });
+            }
+            for (const edit of edits) {
+              const path = normalizePath(edit.path);
+              if (RESERVED_PATHS.has(path) || !isSafePath(path) || shipped(path)) continue;
+              const miss = placeEdit(path, edit.pairs);
+              if (miss) unplaced.push(miss);
+              else editStats.applied++;
             }
             for (const target of deletes) {
               const path = normalizePath(target);
@@ -508,6 +551,56 @@ export async function POST(request: Request) {
           }
         }
 
+        /**
+         * One more try for the edits that could not be placed: the model sees
+         * what it sent, which <find> missed, and the file as it is now, and
+         * answers with edits to those files only. No thinking — it is copying
+         * text it has in front of it, not deciding anything. A file with no
+         * such path is not retried: there is nothing to copy from.
+         */
+        const retry = unplaced.filter((miss) => miss.reason !== "missing");
+        const retryLeft = DEADLINE_MS - (Date.now() - startedAt);
+        if (retry.length > 0 && retryLeft > 20_000) {
+          const paths = [...new Set(retry.map((miss) => miss.path))];
+          send({ type: "status", message: `หาตำแหน่งที่จะแก้ใหม่ใน ${paths.join(", ")}` });
+          const now = Object.fromEntries(paths.map((path) => [path, current(path) ?? ""]));
+          const retryParser = new FileStreamParser();
+          const placed = new Set<string>();
+          try {
+            for await (const part of streamParts({
+              system,
+              user: buildEditRepairPrompt(retry, now),
+              thinking: false,
+              abortSignal: AbortSignal.timeout(Math.min(retryLeft - 5_000, 90_000)),
+              level: "medium",
+              onUsage: (u) => addUsage(u),
+            })) {
+              if (part.thought) continue;
+              for (const edit of retryParser.push(part.text).edits) {
+                const path = normalizePath(edit.path);
+                if (!paths.includes(path) || placed.has(path)) continue;
+                if (!placeEdit(path, edit.pairs)) placed.add(path);
+              }
+            }
+          } catch (retryError) {
+            console.error("[generate] edit retry failed:", retryError);
+          }
+          editStats.repaired = unplaced.filter((miss) => placed.has(miss.path)).length;
+          unplaced = unplaced.filter((miss) => !placed.has(miss.path));
+        }
+        editStats.failed = unplaced.length;
+        if (unplaced.length > 0) {
+          console.warn(`[generate] ${unplaced.length} edit(s) not placed: ${unplaced.map((m) => `${m.path} (${m.reason})`).join(", ")}`);
+        }
+        const unplacedPaths = [...new Set(unplaced.map((miss) => miss.path))];
+        /** Files left exactly as they were, named — never a "เรียบร้อย" over them. */
+        const editGap = unplacedPaths.length > 0 ? unplacedNote(unplacedPaths) : "";
+        // A task turn that said "ครบ" before its edit failed to land has not
+        // done its task; the task list runs it again (lib/tasks).
+        const reply = editGap
+          ? markIncomplete(parser.getReply(), `แก้ ${unplacedPaths.join(", ")} ไม่ลง`)
+          : parser.getReply();
+
         // The model answered without emitting any files (e.g. it explained a
         // limitation). Surface its note as a normal reply instead of an error.
         if (fileCount === 0) {
@@ -515,7 +608,9 @@ export async function POST(request: Request) {
             ? // Cut before the first file: the model spent the turn thinking, which
               // is not the same thing as there being nothing to change.
               `ยังไม่ได้แก้ไฟล์ — AI หยุดกลางทางเพราะ${TURN_CUT_LABEL[cut]}`
-            : parser.getReply() || "ไม่มีไฟล์ที่ต้องเปลี่ยน — ลองอธิบายสิ่งที่อยากได้ให้ชัดขึ้นได้ครับ";
+            : editGap
+              ? `${editGap}${reply ? `\n\n${reply}` : ""}`
+              : reply || "ไม่มีไฟล์ที่ต้องเปลี่ยน — ลองอธิบายสิ่งที่อยากได้ให้ชัดขึ้นได้ครับ";
           turn = ended(outcomeOf(cut), null);
           await finish({ note, deleted: [], cut });
           return;
@@ -667,10 +762,13 @@ export async function POST(request: Request) {
               ? // Never "เรียบร้อย" for a turn that stopped half way — that line is
                 // what had people sending the same ten-item message again and again.
                 `ยังไม่ครบ — AI หยุดกลางทางเพราะ${TURN_CUT_LABEL[cut]} เขียนไปได้ ${fileCount} ไฟล์` +
-                (parser.getReply() ? `\n\n${parser.getReply()}` : "") +
+                (editGap ? `\n\n${editGap}` : "") +
+                (reply ? `\n\n${reply}` : "") +
                 assetNote
-              : ((fromJson ? salvagedNote : parser.getReply()) ||
-                  (iteration ? "แก้ไขเรียบร้อยแล้ว" : "สร้างระบบเรียบร้อยแล้ว")) + assetNote,
+              : editGap
+                ? `${editGap}${reply ? `\n\n${reply}` : ""}${assetNote}`
+                : ((fromJson ? salvagedNote : reply) ||
+                    (iteration ? "แก้ไขเรียบร้อยแล้ว" : "สร้างระบบเรียบร้อยแล้ว")) + assetNote,
           deleted,
           cut,
         });

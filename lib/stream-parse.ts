@@ -1,9 +1,13 @@
+import type { EditPair } from "@/lib/apply-edit";
+
 /**
  * Streaming parser for the generator's incremental output. The model emits each
- * file as a <file path="...">…</file> block (and optional <delete path="..."/>),
- * with a short prose note before the first file. As chunks arrive we pull out
- * each COMPLETE block so the caller can write it to the live container right away
- * — no waiting for one giant JSON to finish (which is slow and often malformed).
+ * file as a <file path="...">…</file> block, each change to a file it already
+ * has as an <edit path="...">…</edit> block (lib/apply-edit), and optional
+ * <delete path="..."/>, with a short prose note before the first block. As
+ * chunks arrive we pull out each COMPLETE block so the caller can write it to
+ * the live container right away — no waiting for one giant JSON to finish
+ * (which is slow and often malformed).
  */
 
 export interface ParsedFile {
@@ -11,9 +15,19 @@ export interface ParsedFile {
   content: string;
 }
 
+/** A change to an existing file: its pairs, in the order the model wrote them. */
+export interface ParsedEdit {
+  path: string;
+  pairs: EditPair[];
+}
+
 // Non-greedy content + line-start-agnostic so blocks anywhere in the buffer match
 // only once their closing tag has streamed in.
 const FILE_RE = /<file\s+path="([^"]+)"\s*>\r?\n?([\s\S]*?)\r?\n?<\/file>/;
+const EDIT_RE = /<edit\s+path="([^"]+)"\s*>([\s\S]*?)<\/edit>/;
+// Inside an edit: one leading and one trailing line break belong to the tags,
+// as they do around a file's contents.
+const PAIR_RE = /<find>\r?\n?([\s\S]*?)\r?\n?<\/find>\s*<replace>\r?\n?([\s\S]*?)\r?\n?<\/replace>/g;
 const DELETE_RE = /<delete\s+path="([^"]+)"\s*\/>/;
 const DEPS_RE = /<deps>\s*([\s\S]*?)\s*<\/deps>/;
 
@@ -22,10 +36,11 @@ export class FileStreamParser {
   private note = "";
   private sawFile = false;
 
-  /** Feed a chunk; return any files/deletes/deps whose blocks are now complete. */
-  push(chunk: string): { files: ParsedFile[]; deletes: string[]; deps: string[] } {
+  /** Feed a chunk; return any files/edits/deletes/deps whose blocks are now complete. */
+  push(chunk: string): { files: ParsedFile[]; edits: ParsedEdit[]; deletes: string[]; deps: string[] } {
     this.buffer += chunk;
     const files: ParsedFile[] = [];
+    const edits: ParsedEdit[] = [];
     const deletes: string[] = [];
     const deps: string[] = [];
 
@@ -42,36 +57,41 @@ export class FileStreamParser {
 
     for (;;) {
       const fileMatch = FILE_RE.exec(this.buffer);
+      const editMatch = EDIT_RE.exec(this.buffer);
       const deleteMatch = DELETE_RE.exec(this.buffer);
-      const fileIdx = fileMatch ? fileMatch.index : Infinity;
-      const deleteIdx = deleteMatch ? deleteMatch.index : Infinity;
-      if (fileIdx === Infinity && deleteIdx === Infinity) break;
+      // The earliest complete block goes first, so blocks keep the model's order.
+      const next = [fileMatch, editMatch, deleteMatch]
+        .filter((m): m is RegExpExecArray => m !== null)
+        .sort((a, b) => a.index - b.index)[0];
+      if (!next) break;
 
-      if (fileIdx <= deleteIdx && fileMatch) {
-        // Everything before the first file block is the chat note.
-        if (!this.sawFile) {
-          this.note += this.buffer.slice(0, fileMatch.index);
-          this.sawFile = true;
-        }
-        files.push({ path: fileMatch[1].trim(), content: fileMatch[2] });
-        this.buffer = this.buffer.slice(fileMatch.index + fileMatch[0].length);
-      } else if (deleteMatch) {
-        deletes.push(deleteMatch[1].trim());
-        this.buffer = this.buffer.slice(deleteMatch.index + deleteMatch[0].length);
+      // Everything before the first file or edit block is the chat note.
+      if (next !== deleteMatch && !this.sawFile) {
+        this.note += this.buffer.slice(0, next.index);
+        this.sawFile = true;
       }
+      if (next === fileMatch) {
+        files.push({ path: next[1].trim(), content: next[2] });
+      } else if (next === editMatch) {
+        const pairs = [...next[2].matchAll(PAIR_RE)].map((m) => ({ find: m[1], replace: m[2] }));
+        edits.push({ path: next[1].trim(), pairs });
+      } else {
+        deletes.push(next[1].trim());
+      }
+      this.buffer = this.buffer.slice(next.index + next[0].length);
     }
 
-    return { files, deletes, deps };
+    return { files, edits, deletes, deps };
   }
 
   /**
    * The chat reply shown to the user. Prefer the trailing summary the model
    * writes AFTER the last file (rich Markdown); fall back to the leading note
    * (and to whatever prose exists when no files were emitted at all). Any
-   * dangling partial <file …> fragment left in the buffer is stripped.
+   * dangling partial <file …> or <edit …> fragment left in the buffer is stripped.
    */
   getReply(): string {
-    const tail = this.buffer.replace(/<file[\s\S]*$/, "").trim();
+    const tail = this.buffer.replace(/<(?:file|edit)\b[\s\S]*$/, "").trim();
     return tail || this.note.trim();
   }
 }

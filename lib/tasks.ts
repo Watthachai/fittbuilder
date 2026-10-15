@@ -62,6 +62,24 @@ export function parseTaskVerdict(reply: string): { complete: boolean | null; rea
   return { complete: null, reason: "", note: reply.trim() };
 }
 
+/**
+ * The reply with its verdict set to not done, for `reason` — the server found
+ * part of the turn's work could not be placed after the model had already
+ * called it done. A reply with no verdict was not a task turn and is returned
+ * as it is.
+ */
+export function markIncomplete(reply: string, reason: string): string {
+  const lines = reply.split("\n");
+  for (let i = lines.length - 1; i >= 0; i--) {
+    const m = VERDICT.exec(lines[i]);
+    if (!m) continue;
+    const said = m[1] === "ไม่ครบ" ? (m[2] ?? "").trim() : "";
+    lines[i] = `สถานะงาน: ไม่ครบ — ${said ? `${said} · ` : ""}${reason}`;
+    return lines.join("\n");
+  }
+  return reply;
+}
+
 /** The prompt for one task: the whole request for context, this item as the job. */
 export function taskTurnPrompt(request: string, tasks: BuildTask[], index: number): string {
   const task = tasks[index];

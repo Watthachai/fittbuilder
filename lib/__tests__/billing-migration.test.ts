@@ -40,6 +40,17 @@ describe("migration 0055", () => {
     expect(sql55).toMatch(/on conflict \(project_id\) do update/i);
   });
 
+  it("moves changed_at and changed_by only when the status or the reason changes, so a repeat leaves them be", () => {
+    const changed = "when b.status is distinct from excluded.status or b.reason is distinct from excluded.reason";
+    const flat = sql55.replace(/\s+/g, " ");
+    expect(flat).toContain(`changed_at = case ${changed} then now() else b.changed_at end`);
+    expect(flat).toContain(`changed_by = case ${changed} then excluded.changed_by else b.changed_by end`);
+  });
+
+  it("can't be steered by a temporary table of the caller's", () => {
+    expect(sql55).toMatch(/set search_path = public, pg_temp/);
+  });
+
   it("is callable by the service role only", () => {
     expect(sql55).toMatch(/revoke all on function fittbuilder_billing_set_status\([^)]*\) from public, anon, authenticated;/i);
     expect(sql55).toMatch(/grant execute on function fittbuilder_billing_set_status\([^)]*\) to service_role;/i);

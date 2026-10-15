@@ -26,6 +26,11 @@ const errorResponse = (description: string): Schema => ({
   description,
   content: { "application/json": { schema: ref("Error") } },
 });
+const statusRateLimited: Schema = {
+  description: "ถามถี่เกิน 60 ครั้งต่อนาทีต่อ key",
+  headers: { "Retry-After": { description: "รอกี่วินาทีแล้วค่อยลองใหม่", schema: { type: "integer" } } },
+  content: { "application/json": { schema: ref("Error") } },
+};
 const rateLimited: Schema = {
   description: "เรียกถี่เกิน 120 ครั้งต่อนาทีต่อ token",
   headers: { "Retry-After": { description: "รอกี่วินาทีแล้วค่อยลองใหม่", schema: { type: "integer" } } },
@@ -186,7 +191,7 @@ export const billingOpenApi = {
         responses: {
           "200": { description: "สถานะ", content: { "application/json": { schema: ref("ServiceStatus") } } },
           "401": errorResponse("ไม่มี key หรือ key ไม่ถูกต้อง/ถูกเปลี่ยนแล้ว"),
-          "429": rateLimited,
+          "429": statusRateLimited,
           "500": errorResponse("ฝั่ง FITT Builder มีปัญหา แอปใช้สถานะล่าสุดที่รู้"),
         },
       },
@@ -260,7 +265,7 @@ export const billingOpenApi = {
         required: ["status"],
         properties: {
           status: billingStatus,
-          reason: { type: "string", maxLength: 500, description: "เหตุผล เก็บในประวัติ เช่น ค้างชำระค่าบริการเดือนกันยายน" },
+          reason: { type: "string", maxLength: 500, description: "เหตุผล เก็บในประวัติ เช่น ค้างชำระค่าบริการเดือนกันยายน · ไม่ส่ง = ล้างเหตุผลเดิมเป็นค่าว่าง" },
         },
       },
       BillingState: obj({ status: billingStatus, reason: str(), changedAt: time("เวลาที่สถานะหรือเหตุผลเปลี่ยนครั้งล่าสุด") }),

@@ -7,6 +7,7 @@ import { MESSAGE_MAX_CHARS, REPLY_MAX_CHARS } from "./limits";
 import type { PhaseId } from "./phases";
 import type { ChatMessage, ProjectFiles, ProjectGeneration, ProjectRecord, ProjectSummary, RunnerSend, ShareRole } from "./types";
 import type { Database, Json } from "@/lib/db/types";
+import { parseTurnResult, type TurnResult } from "./turn-result";
 
 type ProjInsert = Database["public"]["Tables"]["fittbuilder_projects"]["Insert"];
 
@@ -202,6 +203,8 @@ export async function listProjects(): Promise<ProjectSummary[]> {
           updatedAt: d.updated_at,
           updatedBy: d.updated_by,
           complete: false,
+          turnId: null,
+          result: null,
         }),
         fileCount: d.file_count ?? 0,
         updatedAt: d.updated_at,
@@ -334,6 +337,10 @@ export interface GenerationDraft {
   updatedBy: string | null;
   /** The turn finished on the server — this is the answer, not the wreckage. */
   complete: boolean;
+  /** The build turn this draft belongs to (lib/turn-reattach). Null for document turns. */
+  turnId: string | null;
+  /** That turn's answer, parked as it ended. Null while it runs. */
+  result: TurnResult | null;
 }
 
 /**
@@ -352,19 +359,31 @@ export function isDraftLive(draft: GenerationDraft, now = Date.now()): boolean {
 
 /** The unfinished turn for this project, if one was interrupted. */
 export async function loadDraft(projectId: string): Promise<GenerationDraft | null> {
+  return fetchDraft(projectId).catch(() => null);
+}
+
+/**
+ * The project's draft, or null when it has none. Throws when it cannot be read —
+ * for a caller that must not take "could not look" for "nothing there"
+ * (lib/turn-reattach).
+ */
+export async function fetchDraft(projectId: string): Promise<GenerationDraft | null> {
   const supabase = createClient();
   const { data, error } = await supabase
     .from("fittbuilder_project_drafts")
-    .select("files, prompt, updated_at, updated_by, complete")
+    .select("files, prompt, updated_at, updated_by, complete, turn_id, result")
     .eq("project_id", projectId)
     .maybeSingle();
-  if (error || !data) return null;
+  if (error) throw new Error(error.message);
+  if (!data) return null;
   return {
     files: data.files as unknown as ProjectFiles,
     prompt: data.prompt,
     updatedAt: data.updated_at,
     updatedBy: data.updated_by,
     complete: data.complete ?? false,
+    turnId: data.turn_id,
+    result: parseTurnResult(data.result),
   };
 }
 

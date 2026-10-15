@@ -156,7 +156,8 @@ describe("message limit · one number in every gate", () => {
     expect(files[name as keyof typeof files]).toContain("MESSAGE_MAX_CHARS");
     // A local cap is the drift this test exists to catch: none of these four
     // files has any other use for the old number.
-    expect(files[name as keyof typeof files]).not.toMatch(/10_?000/);
+    // (The generate route's keepalive beat is ten seconds, and named.)
+    expect(files[name as keyof typeof files]).not.toMatch(/(?<!KEEPALIVE_MS = )10_?000/);
   });
 
   it("is big enough for a real design spec", () => {

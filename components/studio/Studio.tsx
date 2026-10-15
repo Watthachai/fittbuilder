@@ -43,7 +43,8 @@ import {
 } from "@/lib/scaffold";
 import { takePendingAction, takePendingAttachments } from "@/lib/pending-action";
 import { encodeShareUrl } from "@/lib/share";
-import { streamAgent, streamGenerate } from "@/lib/sse";
+import { StreamDropped, streamAgent, streamGenerate } from "@/lib/sse";
+import { awaitTurn } from "@/lib/turn-reattach";
 import {
   appendMessage,
   approvePhase,
@@ -57,6 +58,7 @@ import {
   setProjectOrg,
   setProjectRunner,
   clearDraft,
+  fetchDraft,
   loadDraft,
   isDraftLive,
   DRAFT_STALE_MS,
@@ -889,6 +891,12 @@ export default function Studio({ projectId }: { projectId: string }) {
 
       const controller = new AbortController();
       abortRef.current = controller;
+      /**
+       * This turn's id. The server parks the turn under it, so if the connection
+       * drops the studio can read back this turn — still running, or its answer —
+       * instead of starting it again (lib/turn-reattach, case #35).
+       */
+      const turnId = crypto.randomUUID();
       // Did this turn stream any write/delete into the live container? Decides
       // whether a cancel must reboot the container back to the saved state.
       let wroteLive = false;
@@ -913,62 +921,96 @@ export default function Studio({ projectId }: { projectId: string }) {
         let note = "";
         let deleted: string[] = [];
         let depsAdded = false;
+        /** The turn's files arrived through its parked draft: none of them reached the preview. */
+        let landedFromDraft = false;
         let thoughtStart: number | null = null;
         let thoughtLogged = false;
-        for await (const event of streamGenerate(
-          {
-            prompt,
-            iterationMode: isIteration,
-            previousFiles: isIteration ? current.files : undefined,
-            skillId: current.skillId,
-            projectId,
-            attachments,
-            ...spec,
-          },
-          controller.signal
-        )) {
-          if (event.type === "thought") {
-            if (thoughtStart === null) thoughtStart = Date.now();
-            appendLive((p) => ({ ...p, thinking: p.thinking + event.content }));
-            continue;
-          }
-          // First non-thought event → the model finished thinking: log the duration once.
-          if (thoughtStart !== null && !thoughtLogged) {
-            const secs = Math.max(1, Math.round((Date.now() - thoughtStart) / 1000));
-            appendLive((p) => ({
-              ...p,
-              actions: [...p.actions, { icon: "thought", label: `คิดเป็นเวลา ${secs} วินาที` }],
-            }));
-            thoughtLogged = true;
-          }
-          if (event.type === "status") {
-            pushTerminal(`… ${event.message}`);
-          } else if (event.type === "file") {
-            streamed[event.path] = event.content;
-            written.push(event.path);
-            pushTerminal(`📝 ${event.path}`);
-            appendLive((p) => ({ ...p, actions: [...p.actions, { icon: "file", label: event.path }] }));
-            if (liveContainer && myEpoch === epochRef.current) {
-              wroteLive = true;
-              void writeFile(event.path, event.content).catch(() => {});
+        try {
+          for await (const event of streamGenerate(
+            {
+              prompt,
+              iterationMode: isIteration,
+              previousFiles: isIteration ? current.files : undefined,
+              skillId: current.skillId,
+              projectId,
+              turnId,
+              attachments,
+              ...spec,
+            },
+            controller.signal
+          )) {
+            if (event.type === "thought") {
+              if (thoughtStart === null) thoughtStart = Date.now();
+              appendLive((p) => ({ ...p, thinking: p.thinking + event.content }));
+              continue;
             }
-          } else if (event.type === "delete") {
-            delete streamed[event.path];
-            if (liveContainer && myEpoch === epochRef.current) {
-              wroteLive = true;
-              void removeFile(event.path).catch(() => {});
+            // First non-thought event → the model finished thinking: log the duration once.
+            if (thoughtStart !== null && !thoughtLogged) {
+              const secs = Math.max(1, Math.round((Date.now() - thoughtStart) / 1000));
+              appendLive((p) => ({
+                ...p,
+                actions: [...p.actions, { icon: "thought", label: `คิดเป็นเวลา ${secs} วินาที` }],
+              }));
+              thoughtLogged = true;
             }
-          } else if (event.type === "deps") {
-            depsAdded = true;
-            pushTerminal(`+ ติดตั้ง: ${event.packages.join(", ")}`);
-            appendLive((p) => ({ ...p, actions: [...p.actions, { icon: "deps", label: event.packages.join(", ") }] }));
-          } else if (event.type === "error") {
-            throw new Error(event.message);
-          } else if (event.type === "done") {
-            note = event.note;
-            deleted = event.deleted;
-            cut = event.cut;
+            if (event.type === "status") {
+              pushTerminal(`… ${event.message}`);
+            } else if (event.type === "file") {
+              streamed[event.path] = event.content;
+              written.push(event.path);
+              pushTerminal(`📝 ${event.path}`);
+              appendLive((p) => ({ ...p, actions: [...p.actions, { icon: "file", label: event.path }] }));
+              if (liveContainer && myEpoch === epochRef.current) {
+                wroteLive = true;
+                void writeFile(event.path, event.content).catch(() => {});
+              }
+            } else if (event.type === "delete") {
+              delete streamed[event.path];
+              if (liveContainer && myEpoch === epochRef.current) {
+                wroteLive = true;
+                void removeFile(event.path).catch(() => {});
+              }
+            } else if (event.type === "deps") {
+              depsAdded = true;
+              pushTerminal(`+ ติดตั้ง: ${event.packages.join(", ")}`);
+              appendLive((p) => ({ ...p, actions: [...p.actions, { icon: "deps", label: event.packages.join(", ") }] }));
+            } else if (event.type === "error") {
+              throw new Error(event.message);
+            } else if (event.type === "done") {
+              note = event.note;
+              deleted = event.deleted;
+              cut = event.cut;
+            }
           }
+        } catch (error) {
+          if (!(error instanceof StreamDropped)) throw error;
+          /**
+           * The connection went, the turn did not: the server runs it to the end
+           * and parks its answer. Wait for that answer rather than call the turn
+           * failed — failing it is what made a task list send the same task again
+           * at once, and people press retry, so two full turns ran side by side.
+           */
+          pushTerminal("… การเชื่อมต่อหลุด — รอผลจากรอบเดิมที่ยังทำงานอยู่บนเซิร์ฟเวอร์");
+          appendLive((p) => ({
+            ...p,
+            content: "การเชื่อมต่อหลุดกลางรอบ — กำลังรอผลจากเซิร์ฟเวอร์ รอบนี้ยังทำงานอยู่ ไม่ต้องส่งใหม่",
+          }));
+          const landed = await awaitTurn({
+            turnId,
+            droppedAt: Date.now(),
+            signal: controller.signal,
+            load: () => fetchDraft(projectId),
+            now: Date.now,
+            sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
+          });
+          // Cancelled while waiting: the abort path below takes it from here.
+          if (!landed && controller.signal.aborted) throw error;
+          if (!landed) throw new Error("การเชื่อมต่อหลุดกลางรอบ และรอบนั้นไม่ได้ทำต่อบนเซิร์ฟเวอร์ — ลองส่งอีกครั้ง");
+          Object.assign(streamed, landed.files);
+          for (const path of Object.keys(landed.files)) if (!written.includes(path)) written.push(path);
+          ({ note, deleted, cut } = landed.result);
+          landedFromDraft = Object.keys(landed.files).length > 0;
+          pushTerminal("✓ ได้ผลจากเซิร์ฟเวอร์แล้ว");
         }
         for (const path of deleted) delete streamed[path];
         // Mirror done-event deletes into the live container too — otherwise
@@ -1024,9 +1066,10 @@ export default function Studio({ projectId }: { projectId: string }) {
         // Detached (user navigated away): files are already persisted above —
         // skip all container work, it belongs to the foreground project now.
         if (myEpoch === epochRef.current) {
-          if (depsAdded) {
+          if (depsAdded || landedFromDraft) {
             // package.json changed (new npm packages) → re-mount + reinstall so
-            // the generated code that imports them actually runs.
+            // the generated code that imports them actually runs. A turn that
+            // landed through its draft never streamed into the container either.
             await boot(files);
           } else if (liveContainer) {
             setPhase("ready"); // files already streamed into the running server (HMR)

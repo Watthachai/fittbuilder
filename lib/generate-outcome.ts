@@ -21,6 +21,8 @@ export interface RecordedTurn {
   durationMs: number;
   /** The real error of a failed turn (the user only sees a generic one). */
   error: string | null;
+  /** How far into the turn its browser stopped listening; null when it stayed to the end. */
+  clientLeftMs: number | null;
 }
 
 export function outcomeOf(cut: TurnCut | null): GenerateOutcome {

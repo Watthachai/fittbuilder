@@ -109,6 +109,7 @@ export async function recordUsage(params: {
       outcome: params.turn?.outcome ?? null,
       duration_ms: params.turn?.durationMs ?? null,
       error: params.turn?.error ?? null,
+      client_left_ms: params.turn?.clientLeftMs ?? null,
     });
     if (error) console.error("[ai-usage] insert failed:", error.message);
   } catch (e) {

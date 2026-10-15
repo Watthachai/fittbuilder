@@ -42,6 +42,7 @@ import { TURN_CUT_LABEL, type TurnCut } from "@/lib/tasks";
 import { missingDefaultExports } from "@/lib/default-exports";
 import { escapeJsxText } from "@/lib/jsx-text";
 import { outcomeOf, type RecordedTurn } from "@/lib/generate-outcome";
+import type { TurnResult } from "@/lib/turn-result";
 
 // Generation streams file-by-file, so a longer single pass is fine — partial
 // output is still written live, and there's no all-or-nothing JSON parse.
@@ -67,6 +68,18 @@ const DEADLINE_MS = 840_000;
 /** How often the server parks what it has produced. Mirrors the studio's own
  *  cadence — see DRAFT_INTERVAL_MS in Studio.tsx. */
 const DRAFT_INTERVAL_MS = 5_000;
+
+/**
+ * How often a quiet turn still says something.
+ *
+ * While the model thinks, or between two long files, nothing goes down the wire
+ * for a minute or more, and a company network or proxy cuts a connection that
+ * looks idle (case #8). An SSE comment every 10s keeps it open. The same beat
+ * re-parks the draft, so its heartbeat keeps moving and a studio that did lose
+ * the stream can tell this turn is still alive (lib/turn-reattach).
+ */
+const KEEPALIVE_MS = 10_000;
+const KEEPALIVE = new TextEncoder().encode(": keepalive\n\n");
 
 /** package.json + vite.config.js + tsconfig.json are injected canonically, not taken from the model. */
 const RESERVED_PATHS = new Set(["package.json", "vite.config.js", "tsconfig.json"]);
@@ -96,6 +109,12 @@ const bodySchema = z.object({
     .optional(),
   skillId: z.string().max(40).optional(),
   projectId: z.string().uuid().optional(),
+  /**
+   * The studio's id for this turn: the draft is parked under it, so a studio
+   * that loses the stream reads back this turn and no other (lib/turn-reattach).
+   * Optional only for a studio opened before it existed.
+   */
+  turnId: z.string().uuid().optional(),
   attachments: z
     .array(
       z.object({
@@ -225,6 +244,18 @@ export async function POST(request: Request) {
   after(() =>
     void recordUsage({ userId, projectId: ctxProjectId, kind: "generate", usage, turn })
   );
+  const startedAt = Date.now();
+  /** When the browser stopped listening, if it did before the turn ended. */
+  let clientLeftAt: number | null = null;
+  const clientLeft = () => {
+    clientLeftAt ??= Date.now();
+  };
+  const ended = (outcome: RecordedTurn["outcome"], error: string | null): RecordedTurn => ({
+    outcome,
+    durationMs: Date.now() - startedAt,
+    error,
+    clientLeftMs: clientLeftAt === null ? null : clientLeftAt - startedAt,
+  });
 
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
@@ -255,31 +286,59 @@ export async function POST(request: Request) {
       const produced: Record<string, string> = {};
       let lastPark = 0;
       /**
+       * Parks run one after another. Mid-stream ones are fired and forgotten, and
+       * one still on its way when the final park is sent must not land after it
+       * and turn a finished turn back into a running one.
+       */
+      let parking = Promise.resolve();
+      /**
        * Park the turn's output where a returning browser will pick it up.
        *
        * `complete` is what separates "this finished while you were away" from
        * "the server died mid-turn" — set only by the final call, after the
-       * canonical build files are in and before `done` goes out.
+       * canonical build files are in and before `done` goes out, together with
+       * the turn's answer (`result`), which the files alone cannot say.
        */
-      const parkDraft = async (complete = false) => {
-        if (!ctxProjectId || !db) return;
-        try {
-          await db.from("fittbuilder_project_drafts").upsert(
-            {
-              project_id: ctxProjectId,
-              files: produced,
-              prompt: body.prompt,
-              updated_at: new Date().toISOString(),
-              updated_by: userId,
-              complete,
-            },
-            { onConflict: "project_id" }
-          );
-        } catch (e) {
-          // Losing a checkpoint must never take the generation down with it.
-          console.error("[generate] draft checkpoint failed:", e);
-        }
-      };
+      const parkDraft = (complete = false, result: TurnResult | null = null) =>
+        (parking = parking.then(async () => {
+          if (!ctxProjectId || !db) return;
+          try {
+            await db.from("fittbuilder_project_drafts").upsert(
+              {
+                project_id: ctxProjectId,
+                files: produced,
+                prompt: body.prompt,
+                updated_at: new Date().toISOString(),
+                updated_by: userId,
+                complete,
+                turn_id: body.turnId ?? null,
+                result,
+              },
+              { onConflict: "project_id" }
+            );
+          } catch (e) {
+            // Losing a checkpoint must never take the generation down with it.
+            console.error("[generate] draft checkpoint failed:", e);
+          }
+        }));
+      /**
+       * A turn that failed with nothing to show takes its draft back: there is
+       * nothing to recover, and a studio waiting on this turn learns it is gone.
+       * Queued behind the parks, so none still on its way puts the draft back.
+       */
+      const dropDraft = () =>
+        (parking = parking.then(async () => {
+          if (!ctxProjectId || !db || !body.turnId) return;
+          try {
+            await db
+              .from("fittbuilder_project_drafts")
+              .delete()
+              .eq("project_id", ctxProjectId)
+              .eq("turn_id", body.turnId);
+          } catch (e) {
+            console.error("[generate] draft drop failed:", e);
+          }
+        }));
 
       const send = (event: GenerateEvent) => {
         if (event.type === "file") produced[event.path] = event.content;
@@ -289,9 +348,12 @@ export async function POST(request: Request) {
           controller.enqueue(sse(event));
         } catch {
           closed = true;
+          clientLeft();
         }
       };
+      let beat: ReturnType<typeof setInterval> | undefined;
       const close = () => {
+        clearInterval(beat);
         if (closed) return;
         closed = true;
         try {
@@ -300,6 +362,16 @@ export async function POST(request: Request) {
           // already closed by the client — nothing to do
         }
       };
+      /**
+       * End a turn that has an answer: stop the beat, park the answer — so a
+       * studio that lost the stream still gets it (lib/turn-reattach) — then say it.
+       */
+      const finish = async (result: TurnResult) => {
+        clearInterval(beat);
+        await parkDraft(true, result);
+        send({ type: "done", ...result });
+        close();
+      };
       const parser = new FileStreamParser();
       let fileCount = 0;
       const deleted: string[] = [];
@@ -307,8 +379,28 @@ export async function POST(request: Request) {
       // from the package UI) — the base for this turn's package.json AND the
       // filter that keeps a re-declared package from triggering a reinstall.
       const extra = iteration ? extraDepsOf(body.previousFiles?.["package.json"]) : {};
-      const startedAt = Date.now();
       const wantedDeps = new Set<string>();
+
+      // Parked before anything else, so a studio that loses the stream before the
+      // first file still finds this turn — then kept beating while it runs.
+      lastPark = Date.now();
+      await parkDraft();
+      beat = setInterval(() => {
+        if (!closed) {
+          try {
+            controller.enqueue(KEEPALIVE);
+          } catch {
+            closed = true;
+            clientLeft();
+          }
+        }
+        // Half a beat, so the heartbeat never goes quiet for two: twenty seconds
+        // is when a studio counts the turn dead (DRAFT_STALE_MS).
+        if (Date.now() - lastPark >= KEEPALIVE_MS / 2) {
+          lastPark = Date.now();
+          void parkDraft();
+        }
+      }, KEEPALIVE_MS);
 
       try {
         // Before the model's first file, so every page it writes imports
@@ -419,17 +511,13 @@ export async function POST(request: Request) {
         // The model answered without emitting any files (e.g. it explained a
         // limitation). Surface its note as a normal reply instead of an error.
         if (fileCount === 0) {
-          send({
-            type: "done",
-            // Cut before the first file: the model spent the turn thinking, which
-            // is not the same thing as there being nothing to change.
-            note: cut
-              ? `ยังไม่ได้แก้ไฟล์ — AI หยุดกลางทางเพราะ${TURN_CUT_LABEL[cut]}`
-              : parser.getReply() || "ไม่มีไฟล์ที่ต้องเปลี่ยน — ลองอธิบายสิ่งที่อยากได้ให้ชัดขึ้นได้ครับ",
-            deleted: [],
-            cut,
-          });
-          close();
+          const note = cut
+            ? // Cut before the first file: the model spent the turn thinking, which
+              // is not the same thing as there being nothing to change.
+              `ยังไม่ได้แก้ไฟล์ — AI หยุดกลางทางเพราะ${TURN_CUT_LABEL[cut]}`
+            : parser.getReply() || "ไม่มีไฟล์ที่ต้องเปลี่ยน — ลองอธิบายสิ่งที่อยากได้ให้ชัดขึ้นได้ครับ";
+          turn = ended(outcomeOf(cut), null);
+          await finish({ note, deleted: [], cut });
           return;
         }
 
@@ -564,15 +652,12 @@ export async function POST(request: Request) {
           send({ type: "file", path, content });
         }
 
-        // One park marks completeness, and it lands after every file this turn
-        // will ever produce — including the retry's.
-        await parkDraft(true);
-
         const shellMissing = !iteration && wroteScreens && shellGap.length > 0;
 
-        turn = { outcome: outcomeOf(cut), durationMs: Date.now() - startedAt, error: null };
-        send({
-          type: "done",
+        turn = ended(outcomeOf(cut), null);
+        // One park marks completeness, and it lands after every file this turn
+        // will ever produce — including the retry's.
+        await finish({
           note: shellMissing
             ? `เขียนหน้าจอและคอมโพเนนต์ครบแล้ว แต่ยังไม่ได้เขียน ${shellGap.join(" และ ")} ` +
               "ซึ่งเป็นไฟล์ที่ประกอบทุกอย่างเข้าด้วยกันและเป็นจุดเริ่มของแอป " +
@@ -589,7 +674,6 @@ export async function POST(request: Request) {
           deleted,
           cut,
         });
-        close();
       } catch (error) {
         const message =
           error instanceof MissingApiKeyError
@@ -598,17 +682,17 @@ export async function POST(request: Request) {
               ? "AI ใช้เวลานานเกินไป กรุณาลองใหม่"
               : "สร้างไม่สำเร็จ กรุณาลองใหม่อีกครั้ง";
         console.error("[generate] failed:", error);
-        turn = {
-          outcome: "failed",
-          durationMs: Date.now() - startedAt,
-          error: (error instanceof Error ? error.message : String(error)).slice(0, 500),
-        };
+        clearInterval(beat);
+        turn = ended("failed", (error instanceof Error ? error.message : String(error)).slice(0, 500));
+        if (Object.keys(produced).length === 0) await dropDraft();
         send({ type: "error", message });
         close();
       }
     },
     cancel() {
-      // Client aborted (Escape key) — nothing to clean up beyond the stream.
+      // The browser stopped listening — Escape, a closed tab, or a dropped
+      // connection. The turn runs on regardless; this only notes when.
+      clientLeft();
     },
   });
 

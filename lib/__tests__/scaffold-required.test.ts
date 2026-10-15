@@ -159,9 +159,10 @@ describe("the server finishes the job itself", () => {
   it("marks the draft complete only after the retry has run", () => {
     // Parking `complete` on a set about to gain two files hands a returning
     // browser a truncated project labelled as finished.
-    const marks = route.match(/await parkDraft\(true\)/g) ?? [];
+    const marks = route.match(/await parkDraft\(true, result\)/g) ?? [];
     expect(marks).toHaveLength(1);
-    expect(route.lastIndexOf("buildShellPrompt")).toBeLessThan(route.lastIndexOf("await parkDraft(true)"));
+    // That park runs inside finish(); the turn that wrote files finishes last.
+    expect(route.lastIndexOf("buildShellPrompt")).toBeLessThan(route.lastIndexOf("await finish("));
   });
 
   it("accepts only the two files it asked for", () => {

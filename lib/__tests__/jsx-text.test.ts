@@ -52,6 +52,7 @@ describe("/api/generate", () => {
     const route = readFileSync("app/api/generate/route.ts", "utf8");
     const fix = route.indexOf("escapeJsxText(content)");
     expect(fix).toBeGreaterThan(-1);
-    expect(fix).toBeLessThan(route.indexOf("await parkDraft(true)"));
+    // The final park runs inside the last finish() — the turn that wrote files.
+    expect(fix).toBeLessThan(route.lastIndexOf("await finish("));
   });
 });

@@ -231,6 +231,10 @@ export async function POST(request: Request) {
               updated_at: new Date().toISOString(),
               updated_by: userId,
               complete,
+              // A document turn, not a build turn: the row no longer holds a
+              // build turn a studio could be waiting on (lib/turn-reattach).
+              turn_id: null,
+              result: null,
             },
             { onConflict: "project_id" }
           );

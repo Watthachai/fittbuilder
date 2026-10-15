@@ -600,6 +600,10 @@ export interface Database {
           file_count: number;
           /** The turn ran to completion — this is finished work, not wreckage. */
           complete: boolean;
+          /** The build turn this draft belongs to; null for document turns (0057). */
+          turn_id: string | null;
+          /** That turn's answer, parked as it ended (lib/turn-result). */
+          result: Json | null;
         };
         Insert: {
           project_id: string;
@@ -609,6 +613,8 @@ export interface Database {
           updated_by?: string | null;
           file_count?: number;
           complete?: boolean;
+          turn_id?: string | null;
+          result?: Json | null;
         };
         Update: {
           project_id?: string;
@@ -674,6 +680,8 @@ export interface Database {
           outcome: string | null;
           duration_ms: number | null;
           error: string | null;
+          /** How far into the turn its browser stopped listening (0057); null if it stayed. */
+          client_left_ms: number | null;
         };
         Insert: {
           id?: string;
@@ -688,6 +696,7 @@ export interface Database {
           outcome?: string | null;
           duration_ms?: number | null;
           error?: string | null;
+          client_left_ms?: number | null;
         };
         Update: {
           id?: string;

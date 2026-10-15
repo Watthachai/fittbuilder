@@ -2,7 +2,18 @@
 
 import { useCallback, useState, type ClipboardEvent } from "react";
 import { ImagePlus, Loader2, X } from "lucide-react";
-import { CASE_KIND, CASE_STATUS, type CaseAttachment, type CaseKind, type CaseStatus } from "@/lib/cases";
+import {
+  CASE_AREA,
+  CASE_CAUSE,
+  CASE_KIND,
+  CASE_STATUS,
+  type CaseArea,
+  type CaseAttachment,
+  type CaseCause,
+  type CaseKind,
+  type CaseStatus,
+} from "@/lib/cases";
+import type { CauseKey } from "@/lib/case-stats";
 import { CASE_IMAGE_ACCEPT, uploadCaseImage } from "@/lib/cases-client";
 import { toast } from "@/lib/toast";
 
@@ -47,6 +58,31 @@ export function KindPill({ kind }: { kind: CaseKind }) {
       className={`whitespace-nowrap rounded-full border px-2 py-0.5 font-display text-[11px] font-medium ${KIND_TONE[kind]}`}
     >
       {CASE_KIND[kind]}
+    </span>
+  );
+}
+
+/**
+ * One colour per cause, the same on a case and in every chart of the overview.
+ * Mid tones, so each reads on the black canvas and on white. Red is our bug,
+ * violet the AI's code, amber the outside world, blue a wish, grey nothing to fix.
+ */
+export const CAUSE_COLOR: Record<CauseKey, string> = {
+  platform_bug: "#f43f5e",
+  ai_code: "#a855f7",
+  external: "#f59e0b",
+  feature: "#0ea5e9",
+  not_issue: "#94a3b8",
+  unclassified: "#64748b",
+};
+
+/** Why a case happened and where, once the team has named it. */
+export function CausePill({ cause, area }: { cause: CaseCause; area: CaseArea | null }) {
+  return (
+    <span className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border border-night-edge px-2 py-0.5 font-display text-[11px] font-medium text-chalk/85">
+      <span className="h-1.5 w-1.5 rounded-full" style={{ background: CAUSE_COLOR[cause] }} />
+      {CASE_CAUSE[cause].label}
+      {area && <span className="text-chalk-dim">· {CASE_AREA[area]}</span>}
     </span>
   );
 }

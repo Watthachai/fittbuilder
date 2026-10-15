@@ -2,15 +2,31 @@
 
 import { useCallback, useEffect, useMemo, useState, type KeyboardEvent } from "react";
 import Link from "next/link";
-import { ChevronDown, ChevronRight, Inbox, Loader2, Plus, Search, Send } from "lucide-react";
+import dynamic from "next/dynamic";
+import { ChartColumnBig, ChevronDown, ChevronRight, Inbox, List, Loader2, Plus, Search, Send } from "lucide-react";
 import ImageLightbox from "@/components/ui/ImageLightbox";
 import { useFileDrop } from "@/lib/useFileDrop";
-import { CASE_STATUS, CASE_STATUSES, isClosed, type CaseDetail, type CaseStatus, type CaseSummary } from "@/lib/cases";
+import {
+  CASE_AREA,
+  CASE_AREAS,
+  CASE_CAUSE,
+  CASE_CAUSES,
+  CASE_STATUS,
+  CASE_STATUSES,
+  isClosed,
+  needsCause,
+  type CaseArea,
+  type CaseCause,
+  type CaseDetail,
+  type CaseStatus,
+  type CaseSummary,
+} from "@/lib/cases";
 import { getCase, listCases, replyToCase, useCaseChanges } from "@/lib/cases-client";
 import ReportCaseModal, { ContextRows } from "./ReportCaseModal";
 import { useCaseInbox, useViewingCase } from "./inbox-context";
 import {
   ago,
+  CausePill,
   ImagePickButton,
   Initial,
   KindPill,
@@ -20,6 +36,22 @@ import {
   useCaseImages,
   when,
 } from "./CaseBits";
+
+// The charts load only when someone opens the overview: the case list stays light.
+const CaseOverview = dynamic(() => import("./CaseOverview"), {
+  ssr: false,
+  loading: () => (
+    <div className="flex flex-1 items-center justify-center gap-2 text-sm text-chalk-dim">
+      <Loader2 size={14} className="animate-spin" /> กำลังโหลดภาพรวม…
+    </div>
+  ),
+});
+
+export type CasesTab = "cases" | "overview";
+const TABS: { key: CasesTab; label: string; Icon: typeof List }[] = [
+  { key: "cases", label: "เคส", Icon: List },
+  { key: "overview", label: "ภาพรวม", Icon: ChartColumnBig },
+];
 
 type Filter = "open" | "closed" | "all";
 const FILTERS: { key: Filter; label: string }[] = [
@@ -33,10 +65,22 @@ const FILTERS: { key: Filter; label: string }[] = [
  * on the right. The team sees every case and can switch to their own; everyone
  * else sees the cases they reported.
  *
+ * Two tabs: the cases themselves, and ภาพรวม — counts and charts of every case,
+ * which anyone signed in may see.
+ *
  * `embedded`: shown over another page (the cases overlay), so picking a case
  * must not rewrite that page's address.
  */
-export default function CasesView({ initialId, embedded = false }: { initialId: string | null; embedded?: boolean }) {
+export default function CasesView({
+  initialId,
+  initialTab = "cases",
+  embedded = false,
+}: {
+  initialId: string | null;
+  initialTab?: CasesTab;
+  embedded?: boolean;
+}) {
+  const [tab, setTab] = useState<CasesTab>(initialTab);
   const [team, setTeam] = useState(false);
   const [scope, setScope] = useState<"all" | "mine">("all");
   const [cases, setCases] = useState<CaseSummary[] | null>(null);
@@ -82,6 +126,13 @@ export default function CasesView({ initialId, embedded = false }: { initialId: 
     if (!embedded) window.history.replaceState(null, "", `/cases?id=${id}`);
   };
 
+  const pickTab = (next: CasesTab) => {
+    setTab(next);
+    if (embedded) return;
+    const url = next === "overview" ? "/cases?view=overview" : selected ? `/cases?id=${selected}` : "/cases";
+    window.history.replaceState(null, "", url);
+  };
+
   const shown = useMemo(() => {
     const q = query.trim().toLowerCase();
     return (cases ?? []).filter((c) => {
@@ -95,123 +146,150 @@ export default function CasesView({ initialId, embedded = false }: { initialId: 
   }, [cases, filter, query]);
 
   return (
-    <div className="flex h-full min-h-0">
-      <section className="flex w-[23rem] shrink-0 flex-col border-r border-night-edge">
-        <div className="flex flex-col gap-3 border-b border-night-edge px-4 py-4">
-          <div className="flex items-center justify-between gap-2">
-            <h1 className="font-display text-lg font-semibold text-chalk">แจ้งเคส / ติดตามปัญหา</h1>
+    <div className="flex h-full min-h-0 w-full min-w-0 flex-col">
+      {/* pr-14 when embedded: the overlay's close button owns the top-right corner. */}
+      <header
+        className={`flex shrink-0 flex-wrap items-center gap-x-4 gap-y-2 border-b border-night-edge py-3 pl-4 ${
+          embedded ? "pr-14" : "pr-4"
+        }`}
+      >
+        <h1 className="font-display text-lg font-semibold text-chalk">แจ้งเคส / ติดตามปัญหา</h1>
+        <nav className="flex rounded-full border border-night-edge p-0.5" aria-label="มุมมอง">
+          {TABS.map(({ key, label, Icon }) => (
             <button
-              onClick={() => setReporting(true)}
-              className="inline-flex shrink-0 items-center gap-1 rounded-full bg-shine px-3 py-1.5 font-display text-[12px] font-semibold text-night transition hover:brightness-110"
+              key={key}
+              onClick={() => pickTab(key)}
+              aria-pressed={tab === key}
+              className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 font-display text-[12.5px] transition ${
+                tab === key ? "bg-chalk text-night" : "text-chalk-dim hover:text-chalk"
+              }`}
             >
-              <Plus size={14} /> แจ้งเคสใหม่
+              <Icon size={13} />
+              {label}
             </button>
-          </div>
-          <label className="flex items-center gap-2 rounded-md border border-night-edge bg-night px-2.5 py-1.5 focus-within:border-shine">
-            <Search size={14} className="shrink-0 text-chalk-dim" />
-            <input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder={team ? "ค้นหาเลขเคส หัวข้อ ผู้แจ้ง โปรเจกต์" : "ค้นหาเลขเคส หัวข้อ โปรเจกต์"}
-              className="min-w-0 flex-1 bg-transparent text-[13px] text-chalk outline-none placeholder:text-chalk-dim/60"
-            />
-          </label>
-          <div className="flex flex-wrap items-center gap-1.5">
-            {FILTERS.map((f) => (
-              <button
-                key={f.key}
-                onClick={() => setFilter(f.key)}
-                aria-pressed={filter === f.key}
-                className={`rounded-full px-2.5 py-1 font-display text-[11.5px] transition ${
-                  filter === f.key ? "bg-chalk/10 text-chalk" : "text-chalk-dim hover:text-chalk"
-                }`}
-              >
-                {f.label}
-              </button>
-            ))}
-            {team && (
-              <div className="ml-auto flex rounded-full border border-night-edge p-0.5">
-                {(["all", "mine"] as const).map((s) => (
+          ))}
+        </nav>
+        <button
+          onClick={() => setReporting(true)}
+          className="ml-auto inline-flex shrink-0 items-center gap-1 rounded-full bg-shine px-3 py-1.5 font-display text-[12px] font-semibold text-night transition hover:brightness-110"
+        >
+          <Plus size={14} /> แจ้งเคสใหม่
+        </button>
+      </header>
+
+      {tab === "overview" ? (
+        <CaseOverview />
+      ) : (
+        <div className="flex min-h-0 flex-1">
+          <section className="flex w-[23rem] shrink-0 flex-col border-r border-night-edge">
+            <div className="flex flex-col gap-3 border-b border-night-edge px-4 py-4">
+              <label className="flex items-center gap-2 rounded-md border border-night-edge bg-night px-2.5 py-1.5 focus-within:border-shine">
+                <Search size={14} className="shrink-0 text-chalk-dim" />
+                <input
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder={team ? "ค้นหาเลขเคส หัวข้อ ผู้แจ้ง โปรเจกต์" : "ค้นหาเลขเคส หัวข้อ โปรเจกต์"}
+                  className="min-w-0 flex-1 bg-transparent text-[13px] text-chalk outline-none placeholder:text-chalk-dim/60"
+                />
+              </label>
+              <div className="flex flex-wrap items-center gap-1.5">
+                {FILTERS.map((f) => (
                   <button
-                    key={s}
-                    onClick={() => setScope(s)}
-                    aria-pressed={scope === s}
-                    className={`rounded-full px-2.5 py-0.5 font-display text-[11px] transition ${
-                      scope === s ? "bg-shine text-night" : "text-chalk-dim hover:text-chalk"
+                    key={f.key}
+                    onClick={() => setFilter(f.key)}
+                    aria-pressed={filter === f.key}
+                    className={`rounded-full px-2.5 py-1 font-display text-[11.5px] transition ${
+                      filter === f.key ? "bg-chalk/10 text-chalk" : "text-chalk-dim hover:text-chalk"
                     }`}
                   >
-                    {s === "all" ? "ทุกคน" : "ของฉัน"}
+                    {f.label}
                   </button>
                 ))}
+                {team && (
+                  <div className="ml-auto flex rounded-full border border-night-edge p-0.5">
+                    {(["all", "mine"] as const).map((s) => (
+                      <button
+                        key={s}
+                        onClick={() => setScope(s)}
+                        aria-pressed={scope === s}
+                        className={`rounded-full px-2.5 py-0.5 font-display text-[11px] transition ${
+                          scope === s ? "bg-shine text-night" : "text-chalk-dim hover:text-chalk"
+                        }`}
+                      >
+                        {s === "all" ? "ทุกคน" : "ของฉัน"}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="scroll-thin min-h-0 flex-1 overflow-y-auto p-2">
+              {listError ? (
+                <p className="m-2 rounded border border-halt/40 bg-halt/10 px-3 py-2 text-xs text-halt">{listError}</p>
+              ) : cases === null ? (
+                <div className="flex items-center gap-2 px-3 py-4 text-sm text-chalk-dim">
+                  <Loader2 size={14} className="animate-spin" /> กำลังโหลด…
+                </div>
+              ) : shown.length === 0 ? (
+                <p className="px-3 py-6 text-center text-[13px] leading-relaxed text-chalk-dim">
+                  {cases.length === 0
+                    ? "ยังไม่มีเคส เจอปัญหาตอนใช้งานกด แจ้งเคสใหม่ หรือกด รายงานปัญหา จากหน้าที่เห็น error"
+                    : "ไม่มีเคสที่ตรงกับตัวกรองนี้"}
+                </p>
+              ) : (
+                <ul className="flex flex-col gap-1.5">
+                  {shown.map((c) => (
+                    <li key={c.id}>
+                      <button
+                        onClick={() => open(c.id)}
+                        className={`flex w-full gap-3 rounded-xl border px-3 py-3 text-left transition ${
+                          selected === c.id
+                            ? "border-shine/60 bg-shine/[0.06]"
+                            : "border-transparent hover:border-night-edge hover:bg-chalk/[0.03]"
+                        }`}
+                      >
+                        <Initial name={team ? personName(c.reporter) : (c.project?.name ?? c.title)} />
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-baseline justify-between gap-2">
+                            <span className="truncate font-display text-[13px] font-semibold text-chalk">
+                              {team ? personName(c.reporter) : (c.project?.name ?? "ไม่ได้ผูกกับโปรเจกต์")}
+                            </span>
+                            <span className="shrink-0 text-[11px] text-chalk-dim">{ago(c.updatedAt, now)}</span>
+                          </div>
+                          <p className="mt-0.5 line-clamp-2 text-[13px] leading-snug text-chalk/85">{c.title}</p>
+                          <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                            <StatusPill status={c.status} />
+                            <KindPill kind={c.kind} />
+                            <span className="font-mono text-[11px] text-chalk-dim">#{c.number}</span>
+                            {c.unread && (
+                              <span className="ml-auto inline-flex items-center gap-1 font-display text-[11px] font-semibold text-shine">
+                                <span className="h-2 w-2 rounded-full bg-shine" />
+                                ใหม่
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </section>
+
+          <section className="flex min-w-0 flex-1 flex-col">
+            {selected ? (
+              <CaseThread key={selected} id={selected} tick={threadTick} onChanged={() => void loadList()} />
+            ) : (
+              <div className="flex flex-1 flex-col items-center justify-center gap-2 px-8 text-center text-chalk-dim">
+                <Inbox size={28} className="text-chalk-dim/60" />
+                <p className="text-[13px]">เลือกเคสทางซ้ายเพื่อดูรายละเอียดและคุยกับทีม</p>
               </div>
             )}
-          </div>
+          </section>
         </div>
-
-        <div className="scroll-thin min-h-0 flex-1 overflow-y-auto p-2">
-          {listError ? (
-            <p className="m-2 rounded border border-halt/40 bg-halt/10 px-3 py-2 text-xs text-halt">{listError}</p>
-          ) : cases === null ? (
-            <div className="flex items-center gap-2 px-3 py-4 text-sm text-chalk-dim">
-              <Loader2 size={14} className="animate-spin" /> กำลังโหลด…
-            </div>
-          ) : shown.length === 0 ? (
-            <p className="px-3 py-6 text-center text-[13px] leading-relaxed text-chalk-dim">
-              {cases.length === 0
-                ? "ยังไม่มีเคส เจอปัญหาตอนใช้งานกด แจ้งเคสใหม่ หรือกด รายงานปัญหา จากหน้าที่เห็น error"
-                : "ไม่มีเคสที่ตรงกับตัวกรองนี้"}
-            </p>
-          ) : (
-            <ul className="flex flex-col gap-1.5">
-              {shown.map((c) => (
-                <li key={c.id}>
-                  <button
-                    onClick={() => open(c.id)}
-                    className={`flex w-full gap-3 rounded-xl border px-3 py-3 text-left transition ${
-                      selected === c.id
-                        ? "border-shine/60 bg-shine/[0.06]"
-                        : "border-transparent hover:border-night-edge hover:bg-chalk/[0.03]"
-                    }`}
-                  >
-                    <Initial name={team ? personName(c.reporter) : (c.project?.name ?? c.title)} />
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-baseline justify-between gap-2">
-                        <span className="truncate font-display text-[13px] font-semibold text-chalk">
-                          {team ? personName(c.reporter) : (c.project?.name ?? "ไม่ได้ผูกกับโปรเจกต์")}
-                        </span>
-                        <span className="shrink-0 text-[11px] text-chalk-dim">{ago(c.updatedAt, now)}</span>
-                      </div>
-                      <p className="mt-0.5 line-clamp-2 text-[13px] leading-snug text-chalk/85">{c.title}</p>
-                      <div className="mt-2 flex flex-wrap items-center gap-1.5">
-                        <StatusPill status={c.status} />
-                        <KindPill kind={c.kind} />
-                        <span className="font-mono text-[11px] text-chalk-dim">#{c.number}</span>
-                        {c.unread && (
-                          <span className="ml-auto inline-flex items-center gap-1 font-display text-[11px] font-semibold text-shine">
-                            <span className="h-2 w-2 rounded-full bg-shine" />
-                            ใหม่
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-      </section>
-
-      <section className="flex min-w-0 flex-1 flex-col">
-        {selected ? (
-          <CaseThread key={selected} id={selected} tick={threadTick} onChanged={() => void loadList()} />
-        ) : (
-          <div className="flex flex-1 flex-col items-center justify-center gap-2 px-8 text-center text-chalk-dim">
-            <Inbox size={28} className="text-chalk-dim/60" />
-            <p className="text-[13px]">เลือกเคสทางซ้ายเพื่อดูรายละเอียดและคุยกับทีม</p>
-          </div>
-        )}
-      </section>
+      )}
 
       {reporting && (
         <ReportCaseModal
@@ -239,6 +317,8 @@ function CaseThread({ id, tick, onChanged }: { id: string; tick: number; onChang
   const [body, setBody] = useState("");
   const [status, setStatus] = useState<CaseStatus | "">("");
   const [fixedIn, setFixedIn] = useState("");
+  const [cause, setCause] = useState<CaseCause | "">("");
+  const [area, setArea] = useState<CaseArea | "">("");
   const [sending, setSending] = useState(false);
   const [lightbox, setLightbox] = useState<string | null>(null);
   const images = useCaseImages();
@@ -268,15 +348,20 @@ function CaseThread({ id, tick, onChanged }: { id: string; tick: number; onChang
   const send = async () => {
     setSending(true);
     try {
+      const classify = status !== "" && needsCause(status);
       await replyToCase(id, {
         body: body.trim(),
         attachments: images.images,
         status: status || null,
         fixedIn: (status === "fixed" || status === "released") && fixedIn.trim() ? fixedIn.trim() : null,
+        cause: classify && cause ? cause : null,
+        area: classify && area ? area : null,
       });
       setBody("");
       setStatus("");
       setFixedIn("");
+      setCause("");
+      setArea("");
       images.clear();
       await load();
       onChanged();
@@ -287,8 +372,21 @@ function CaseThread({ id, tick, onChanged }: { id: string; tick: number; onChang
     }
   };
 
+  // Finishing a case names why it happened and where: the overview counts it.
+  const classifying = status !== "" && needsCause(status);
   const canSend =
-    !sending && images.uploading === 0 && (body.trim().length > 0 || images.images.length > 0 || status !== "");
+    !sending &&
+    images.uploading === 0 &&
+    (body.trim().length > 0 || images.images.length > 0 || status !== "") &&
+    (!classifying || (cause !== "" && area !== ""));
+
+  const pickStatus = (next: CaseStatus | "") => {
+    setStatus(next);
+    if (next !== "" && needsCause(next) && detail) {
+      setCause((c) => c || detail.cause || "");
+      setArea((a) => a || detail.area || "");
+    }
+  };
 
   const onKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && (e.ctrlKey || e.metaKey) && canSend) {
@@ -321,6 +419,7 @@ function CaseThread({ id, tick, onChanged }: { id: string; tick: number; onChang
         <div className="mt-2 flex flex-wrap items-center gap-1.5">
           <StatusPill status={detail.status} />
           <KindPill kind={detail.kind} />
+          {detail.cause && <CausePill cause={detail.cause} area={detail.area} />}
           {detail.fixedIn && (
             <span className="rounded-full border border-night-edge px-2 py-0.5 font-display text-[11px] text-chalk-dim">
               แก้ในเวอร์ชัน {detail.fixedIn}
@@ -363,14 +462,24 @@ function CaseThread({ id, tick, onChanged }: { id: string; tick: number; onChang
             const name = m.authorKind === "team" ? (m.author ? personName(m.author) : "ทีม FITT Builder") : personName(m.author ?? detail.reporter);
             return (
               <li key={m.id} className="flex flex-col gap-3">
-                {m.statusTo && (
-                  <div className="flex items-center gap-2 text-[12px] text-chalk-dim">
-                    <span className="h-px flex-1 bg-night-edge" />
-                    <span>{name} เปลี่ยนสถานะเป็น</span>
-                    <StatusPill status={m.statusTo} />
-                    {m.fixedIn && <span>เวอร์ชัน {m.fixedIn}</span>}
+                {(m.statusTo || m.cause) && (
+                  <div className="flex flex-wrap items-center justify-center gap-2 text-[12px] text-chalk-dim">
+                    <span className="h-px min-w-6 flex-1 bg-night-edge" />
+                    {m.statusTo && (
+                      <>
+                        <span>{name} เปลี่ยนสถานะเป็น</span>
+                        <StatusPill status={m.statusTo} />
+                        {m.fixedIn && <span>เวอร์ชัน {m.fixedIn}</span>}
+                      </>
+                    )}
+                    {m.cause && (
+                      <>
+                        <span>{m.statusTo ? "สาเหตุ" : `${name} ระบุสาเหตุ`}</span>
+                        <CausePill cause={m.cause} area={m.area} />
+                      </>
+                    )}
                     <span>· {when(m.createdAt)}</span>
-                    <span className="h-px flex-1 bg-night-edge" />
+                    <span className="h-px min-w-6 flex-1 bg-night-edge" />
                   </div>
                 )}
                 {(m.body || m.attachments.length > 0) && (
@@ -460,7 +569,7 @@ function CaseThread({ id, tick, onChanged }: { id: string; tick: number; onChang
               <>
                 <select
                   value={status}
-                  onChange={(e) => setStatus(e.target.value as CaseStatus | "")}
+                  onChange={(e) => pickStatus(e.target.value as CaseStatus | "")}
                   className="rounded-md border border-night-edge bg-night px-2 py-1 font-display text-[12px] text-chalk outline-none focus:border-shine"
                 >
                   <option value="">สถานะเดิม ({CASE_STATUS[detail.status].label})</option>
@@ -478,6 +587,40 @@ function CaseThread({ id, tick, onChanged }: { id: string; tick: number; onChang
                     placeholder="เวอร์ชันที่แก้ เช่น 0.96.1"
                     className="w-44 rounded-md border border-night-edge bg-night px-2 py-1 text-[12px] text-chalk outline-none placeholder:text-chalk-dim/60 focus:border-shine"
                   />
+                )}
+                {classifying && (
+                  <>
+                    <select
+                      value={cause}
+                      onChange={(e) => setCause(e.target.value as CaseCause | "")}
+                      aria-label="สาเหตุ"
+                      className={`rounded-md border bg-night px-2 py-1 font-display text-[12px] text-chalk outline-none focus:border-shine ${
+                        cause ? "border-night-edge" : "border-orange-400/70"
+                      }`}
+                    >
+                      <option value="">สาเหตุ…</option>
+                      {CASE_CAUSES.map((c) => (
+                        <option key={c} value={c}>
+                          {CASE_CAUSE[c].label}
+                        </option>
+                      ))}
+                    </select>
+                    <select
+                      value={area}
+                      onChange={(e) => setArea(e.target.value as CaseArea | "")}
+                      aria-label="ส่วนของระบบ"
+                      className={`rounded-md border bg-night px-2 py-1 font-display text-[12px] text-chalk outline-none focus:border-shine ${
+                        area ? "border-night-edge" : "border-orange-400/70"
+                      }`}
+                    >
+                      <option value="">ส่วนของระบบ…</option>
+                      {CASE_AREAS.map((a) => (
+                        <option key={a} value={a}>
+                          {CASE_AREA[a]}
+                        </option>
+                      ))}
+                    </select>
+                  </>
                 )}
               </>
             )}

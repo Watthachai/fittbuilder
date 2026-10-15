@@ -7,13 +7,16 @@ import { currentUser } from "@/lib/current-user";
 import { storageName } from "@/lib/team-chat";
 import type {
   CaseAlert,
+  CaseArea,
   CaseAttachment,
+  CaseCause,
   CaseContext,
   CaseDetail,
   CaseKind,
   CaseStatus,
   CaseSummary,
 } from "@/lib/cases";
+import type { CaseStats } from "@/lib/case-stats";
 
 /** The browser side of cases: pictures go straight to storage, everything else through /api/cases. */
 
@@ -69,9 +72,21 @@ export function createCase(input: {
 
 export function replyToCase(
   id: string,
-  input: { body: string; attachments: CaseAttachment[]; status: CaseStatus | null; fixedIn: string | null }
+  input: {
+    body: string;
+    attachments: CaseAttachment[];
+    status: CaseStatus | null;
+    fixedIn: string | null;
+    cause: CaseCause | null;
+    area: CaseArea | null;
+  }
 ): Promise<{ ok: true }> {
   return call(`/api/cases/${id}`, post(input));
+}
+
+/** The overview's numbers — every case counted, nobody's case shown. */
+export function fetchCaseStats(): Promise<CaseStats> {
+  return call("/api/cases/stats");
 }
 
 /** The cases waiting on the signed-in person, newest first (empty and signedIn=false when signed out). */

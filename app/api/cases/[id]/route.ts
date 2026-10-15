@@ -2,7 +2,10 @@ import { z } from "zod";
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
   authorKindFor,
+  CASE_AREAS,
+  CASE_CAUSES,
   CASE_STATUSES,
+  needsCause,
   ownsAttachmentPath,
   type CaseAttachment,
   type CaseContext,
@@ -29,7 +32,9 @@ import type { Json } from "@/lib/db/types";
  * Opening a case marks it read for the side that opened it — the reporter's
  * badge clears when they read the team's answer, the team's when one of them
  * looks. Only the team may move the status; a status change is a message, so the
- * thread records who moved it and when (the trigger in 0047 applies it).
+ * thread records who moved it and when (the trigger in 0047 applies it). The
+ * same goes for the cause and the area, which the team must name before a case
+ * counts as done (0056) — the cases overview is built from them.
  */
 export const dynamic = "force-dynamic";
 
@@ -67,7 +72,7 @@ export async function GET(_request: Request, ctx: { params: Promise<{ id: string
 
   const { data: messageRows, error } = await createAdminClient()
     .from("fittbuilder_case_messages")
-    .select("id, author_id, author_kind, body, attachments, status_to, fixed_in, created_at")
+    .select("id, author_id, author_kind, body, attachments, status_to, fixed_in, cause, area, created_at")
     .eq("case_id", id)
     .order("created_at", { ascending: true });
   if (error) {
@@ -89,6 +94,8 @@ export async function GET(_request: Request, ctx: { params: Promise<{ id: string
       attachments: m.attachments as unknown as CaseAttachment[],
       statusTo: m.status_to,
       fixedIn: m.fixed_in,
+      cause: m.cause,
+      area: m.area,
       createdAt: m.created_at,
     }))
   );
@@ -109,6 +116,8 @@ const replySchema = z.object({
   attachments: attachmentsSchema,
   status: z.enum(CASE_STATUSES).nullable(),
   fixedIn: z.string().trim().min(1).max(60).nullable(),
+  cause: z.enum(CASE_CAUSES).nullable(),
+  area: z.enum(CASE_AREAS).nullable(),
 });
 
 export async function POST(request: Request, ctx: { params: Promise<{ id: string }> }) {
@@ -127,15 +136,30 @@ export async function POST(request: Request, ctx: { params: Promise<{ id: string
   const row = await loadCase(id);
   if (!row || !mayOpen(viewer, row)) return Response.json({ error: "ไม่พบเคสนี้" }, { status: 404 });
   const authorKind = authorKindFor(viewer, row.reporter_id);
-  if (authorKind === "reporter" && (input.status !== null || input.fixedIn !== null)) {
+  if (
+    authorKind === "reporter" &&
+    (input.status !== null || input.fixedIn !== null || input.cause !== null || input.area !== null)
+  ) {
     return Response.json({ error: "เปลี่ยนสถานะได้เฉพาะทีมดูแล" }, { status: 403 });
   }
   if (!input.attachments.every((a) => ownsAttachmentPath(viewer.id, a.path))) {
     return Response.json({ error: "แนบได้เฉพาะรูปที่อัปโหลดเอง" }, { status: 400 });
   }
   const statusTo = input.status !== null && input.status !== row.status ? input.status : null;
-  if (!input.body && input.attachments.length === 0 && statusTo === null && input.fixedIn === null) {
+  const causeTo = input.cause !== null && input.cause !== row.cause ? input.cause : null;
+  const areaTo = input.area !== null && input.area !== row.area ? input.area : null;
+  if (
+    !input.body &&
+    input.attachments.length === 0 &&
+    statusTo === null &&
+    input.fixedIn === null &&
+    causeTo === null &&
+    areaTo === null
+  ) {
     return Response.json({ error: "พิมพ์ข้อความ แนบรูป หรือเปลี่ยนสถานะก่อนส่ง" }, { status: 400 });
+  }
+  if (statusTo !== null && needsCause(statusTo) && !((causeTo ?? row.cause) && (areaTo ?? row.area))) {
+    return Response.json({ error: "เลือกสาเหตุและส่วนของระบบก่อนปิดเคส" }, { status: 400 });
   }
 
   const { error } = await createAdminClient().from("fittbuilder_case_messages").insert({
@@ -146,6 +170,8 @@ export async function POST(request: Request, ctx: { params: Promise<{ id: string
     attachments: input.attachments as Json,
     status_to: statusTo,
     fixed_in: input.fixedIn,
+    cause: causeTo,
+    area: areaTo,
   });
   if (error) {
     console.error("[cases] reply failed:", error);

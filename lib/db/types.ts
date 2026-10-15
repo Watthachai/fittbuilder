@@ -117,6 +117,9 @@ export interface Database {
           status: "new" | "investigating" | "need_info" | "fixed" | "released" | "not_bug";
           context: Json;
           fixed_in: string | null;
+          /** Why it happened and where, named by the team when it finishes the case (migration 0056). */
+          cause: "platform_bug" | "ai_code" | "external" | "feature" | "not_issue" | null;
+          area: "ai_builder" | "preview" | "documents" | "project" | "integrations" | "other" | null;
           last_reporter_at: string;
           last_team_at: string | null;
           reporter_seen_at: string;
@@ -157,6 +160,8 @@ export interface Database {
           attachments: Json;
           status_to: "new" | "investigating" | "need_info" | "fixed" | "released" | "not_bug" | null;
           fixed_in: string | null;
+          cause: "platform_bug" | "ai_code" | "external" | "feature" | "not_issue" | null;
+          area: "ai_builder" | "preview" | "documents" | "project" | "integrations" | "other" | null;
           created_at: string;
         };
         Insert: {
@@ -168,6 +173,8 @@ export interface Database {
           attachments?: Json;
           status_to?: "new" | "investigating" | "need_info" | "fixed" | "released" | "not_bug" | null;
           fixed_in?: string | null;
+          cause?: "platform_bug" | "ai_code" | "external" | "feature" | "not_issue" | null;
+          area?: "ai_builder" | "preview" | "documents" | "project" | "integrations" | "other" | null;
           created_at?: string;
         };
         Update: Record<string, never>;

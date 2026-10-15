@@ -35,6 +35,40 @@ export const CASE_KIND: Record<CaseKind, string> = {
   other: "อื่น ๆ",
 };
 
+/**
+ * Why a case happened, and where in FITT Builder — the team names both when it
+ * closes a case (migration 0056), so the overview can say whether the system is
+ * getting better and what keeps breaking. Only the problem causes count against
+ * stability: a feature request is not the system getting worse.
+ */
+export const CASE_CAUSES = ["platform_bug", "ai_code", "external", "feature", "not_issue"] as const;
+export type CaseCause = (typeof CASE_CAUSES)[number];
+
+export const CASE_CAUSE: Record<CaseCause, { label: string; problem: boolean }> = {
+  platform_bug: { label: "บั๊กของ FITT Builder", problem: true },
+  ai_code: { label: "AI เขียนโค้ดเดโมผิด", problem: true },
+  external: { label: "เน็ต / ระบบภายนอก", problem: true },
+  feature: { label: "ขอฟีเจอร์ / ปรับปรุง", problem: false },
+  not_issue: { label: "ไม่ใช่ปัญหาของระบบ", problem: false },
+};
+
+export const CASE_AREAS = ["ai_builder", "preview", "documents", "project", "integrations", "other"] as const;
+export type CaseArea = (typeof CASE_AREAS)[number];
+
+export const CASE_AREA: Record<CaseArea, string> = {
+  ai_builder: "ตัวสร้างด้วย AI",
+  preview: "Preview / ตัวรันเดโม",
+  documents: "ใบเสนอราคา / เอกสาร",
+  project: "โปรเจกต์ / เฟส / สมาชิก",
+  integrations: "เชื่อมระบบอื่น",
+  other: "อื่น ๆ",
+};
+
+/** The statuses that need a cause and an area: the work on the case is done. */
+export function needsCause(status: CaseStatus): boolean {
+  return status === "fixed" || isClosed(status);
+}
+
 /** Log lines kept with a case — the tail is where a failure explains itself. */
 export const CASE_LOG_LINES = 40;
 const LOG_LINE_CHARS = 400;
@@ -133,6 +167,8 @@ export interface CaseSummary {
   kind: CaseKind;
   status: CaseStatus;
   fixedIn: string | null;
+  cause: CaseCause | null;
+  area: CaseArea | null;
   project: { id: string; name: string } | null;
   reporter: CasePerson;
   createdAt: string;
@@ -149,6 +185,8 @@ export interface CaseMessage {
   attachments: CaseAttachment[];
   statusTo: CaseStatus | null;
   fixedIn: string | null;
+  cause: CaseCause | null;
+  area: CaseArea | null;
   createdAt: string;
 }
 

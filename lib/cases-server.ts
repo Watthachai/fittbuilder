@@ -6,7 +6,9 @@ import {
   AI_REPLY_CHARS,
   alertFor,
   CASE_LOG_LINES,
+  type CaseArea,
   type CaseAttachment,
+  type CaseCause,
   type CaseKind,
   type CasePerson,
   type CaseStatus,
@@ -49,7 +51,7 @@ export const contextSchema = z.object({
 });
 
 export const CASE_COLUMNS =
-  "id, number, reporter_id, project_id, title, kind, status, context, fixed_in, last_reporter_at, last_team_at, reporter_seen_at, team_seen_at, created_at, updated_at";
+  "id, number, reporter_id, project_id, title, kind, status, context, fixed_in, cause, area, last_reporter_at, last_team_at, reporter_seen_at, team_seen_at, created_at, updated_at";
 
 export interface CaseRow {
   id: string;
@@ -61,6 +63,8 @@ export interface CaseRow {
   status: CaseStatus;
   context: unknown;
   fixed_in: string | null;
+  cause: CaseCause | null;
+  area: CaseArea | null;
   last_reporter_at: string;
   last_team_at: string | null;
   reporter_seen_at: string;
@@ -133,6 +137,8 @@ export function toSummary(
     kind: row.kind,
     status: row.status,
     fixedIn: row.fixed_in,
+    cause: row.cause,
+    area: row.area,
     project: row.project_id && projectName !== undefined ? { id: row.project_id, name: projectName } : null,
     reporter: people.get(row.reporter_id) ?? { name: null, email: null },
     createdAt: row.created_at,

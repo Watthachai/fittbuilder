@@ -23,6 +23,17 @@ export const CHANGE_BADGE: Record<ChangeType, { label: string; className: string
 // Newest first. SemVer: fix → PATCH, feature → MINOR, breaking → MAJOR.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.110.1",
+    date: "2026-10-15",
+    title: "ใบเสนอราคาไม่พิมพ์ราคา 0",
+    items: [
+      {
+        type: "fix",
+        text: "รายการที่ราคารวมเป็น 0 เช่นโมดูลที่แถมให้ในดีล ยังแสดงชื่อและรายละเอียดในใบเสนอราคาเหมือนเดิม แต่ไม่พิมพ์ตัวเลข 0 และไม่พิมพ์ที่มาของราคา (เช่น 1 × 0) ทั้งหน้าพิมพ์ ลิงก์ที่แชร์ และไฟล์ Word หน้าแก้ไขยังแสดง 0 ให้เห็นว่ายังไม่ได้ใส่ราคา",
+      },
+    ],
+  },
+  {
     version: "0.110.0",
     date: "2026-10-15",
     title: "หน้าแจ้งเคสมีแท็บ ภาพรวม: ระบบดีขึ้นหรือแย่ลง เคสเกิดจากอะไร และเกิดตรงไหน",

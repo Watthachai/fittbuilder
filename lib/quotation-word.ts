@@ -9,6 +9,7 @@ import {
   marketComparison,
   paymentSchedule,
   percentText,
+  printsPrice,
   quoteTotals,
   rowBasis,
   thaiDate,
@@ -171,7 +172,11 @@ function items(doc: QuoteDoc, accent: string): Table {
   } else if (doc.rows.length === 0) {
     rows.push(itemRow("", [para([run("—", { color: DIM })])], "0"));
   } else {
-    doc.rows.forEach((r, i) => rows.push(itemRow(String(i + 1), rowLines(r, doc), formatTHB(lineTotal(r, doc.ratePerDay)))));
+    doc.rows.forEach((r, i) =>
+      rows.push(
+        itemRow(String(i + 1), rowLines(r, doc), printsPrice(r, doc.ratePerDay) ? formatTHB(lineTotal(r, doc.ratePerDay)) : "")
+      )
+    );
   }
 
   return grid([N, DESC, AMOUNT], rows);
@@ -191,7 +196,7 @@ function rowLines(r: QuoteRow, doc: QuoteDoc): Paragraph[] {
   const lines: Line[] = [];
   if (r.sub && r.parent) lines.push({ text: [run(`modal ของ ${r.parent}`, { size: fs(10), color: DIM })], keep: true });
   lines.push({ text: [run(r.name || "—", { bold: true })], keep: true });
-  if (doc.showBasis) lines.push({ text: [run(rowBasis(r, doc.ratePerDay), { size: fs(10.5), color: DIM })], keep: true });
+  if (doc.showBasis && printsPrice(r, doc.ratePerDay)) lines.push({ text: [run(rowBasis(r, doc.ratePerDay), { size: fs(10.5), color: DIM })], keep: true });
   if (r.note) lines.push({ text: typed(r.note, NOTE_TONE), keep: false, before: px(2) });
   // A modal reads as part of its screen: indented behind a grey rule.
   return describe(lines, r.sub);

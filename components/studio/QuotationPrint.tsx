@@ -17,6 +17,7 @@ import {
   lumpSumScope,
   discountRate,
   percentText,
+  printsPrice,
 } from "@/lib/quote";
 import { acceptanceClauses } from "@/lib/quote-clauses";
 import type { Shot } from "@/lib/shots";
@@ -182,13 +183,15 @@ export default function QuotationPrint({ doc, shots }: { doc: QuoteDoc; shots: S
                           <span className="q-name">{r.name || "—"}</span>
                           {/* What the price is made of. Small and grey — it
                               justifies the number without competing with it. */}
-                          {doc.showBasis && (
+                          {doc.showBasis && printsPrice(r, doc.ratePerDay) && (
                             <span className="q-basis">{rowBasis(r, doc.ratePerDay)}</span>
                           )}
                           {r.note && <span className="q-note">{r.note}</span>}
                         </div>
                       </td>
-                      <td className="q-r">{formatTHB(lineTotal(r, doc.ratePerDay))}</td>
+                      <td className="q-r">
+                        {printsPrice(r, doc.ratePerDay) && formatTHB(lineTotal(r, doc.ratePerDay))}
+                      </td>
                     </tr>
                   ))}
                   {!doc.lumpSum.enabled && doc.rows.length === 0 && (

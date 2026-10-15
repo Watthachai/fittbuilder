@@ -109,3 +109,23 @@ describe("the printed MA table", () => {
     expect(render(null)).not.toContain("รอบการชำระ");
   });
 });
+
+/**
+ * A line priced at 0 is scope given with the deal — a module included at no
+ * charge — so the paper describes it and prints no figure, not a "0".
+ */
+describe("a row priced at 0 on the paper", () => {
+  it("prints its name and detail but no amount and no price basis", () => {
+    const doc = newDoc([], "Smart Product Library", "2026-10-15");
+    doc.rows = [
+      { ...emptyRow(), name: "Module: Product Library", pricing: "unit", qty: 1, unitPrice: 240_000 },
+      { ...emptyRow(), name: "Module: Sale", note: "ระบบ Dashboard สำหรับฝ่ายขาย", pricing: "unit", qty: 1, unitPrice: 0 },
+    ];
+    const html = renderToStaticMarkup(createElement(QuotationPrint, { doc, shots: [] }));
+    expect(html).toContain("Module: Sale");
+    expect(html).toContain("ระบบ Dashboard สำหรับฝ่ายขาย");
+    expect(html).not.toContain(`<td class="q-r">0</td>`);
+    expect(html).not.toContain("1 × 0");
+    expect(html).toContain("1 × 240,000");
+  });
+});

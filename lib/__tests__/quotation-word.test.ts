@@ -82,6 +82,23 @@ describe("the quotation's switches in the Word file", () => {
   });
 });
 
+describe("a row priced at 0 in the Word file", () => {
+  it("describes the line but prints no amount and no price basis", async () => {
+    const doc = quote({
+      rows: [
+        { ...emptyRow(), name: "Module: Product Library", pricing: "unit", qty: 1, unitPrice: 240_000 },
+        { ...emptyRow(), name: "Module: Sale", note: "ระบบ Dashboard สำหรับฝ่ายขาย", pricing: "unit", qty: 1, unitPrice: 0 },
+      ],
+    });
+    const { body } = await readWord(quotationDocx(doc, [], NO_ART));
+    expect(body).toContain("Module: Sale");
+    expect(body).toContain("ระบบ Dashboard สำหรับฝ่ายขาย");
+    expect(body).toContain("1 × 240,000");
+    expect(body).not.toContain("1 × 0");
+    expect(body.split("\n")).not.toContain("0");
+  });
+});
+
 describe("the Word MA table", () => {
   it("carries the billing cycle when one is chosen", async () => {
     const doc = quote();

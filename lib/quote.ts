@@ -738,6 +738,13 @@ const num = (n: number) => (Number.isFinite(n) ? n : 0);
 export const lineTotal = (row: QuoteRow, ratePerDay: number): number =>
   row.pricing === "unit" ? num(row.qty) * num(row.unitPrice) : num(row.days) * num(ratePerDay);
 
+/**
+ * Whether the paper prints a row's price. A row priced at 0 is scope given with
+ * the deal (a module included at no charge): it prints its description, and
+ * neither a "0" nor the basis that would spell one out.
+ */
+export const printsPrice = (row: QuoteRow, ratePerDay: number): boolean => lineTotal(row, ratePerDay) !== 0;
+
 /** What a row's price is made of, as the paper prints it under the name. */
 export function rowBasis(row: QuoteRow, ratePerDay: number): string {
   if (row.pricing === "unit") {

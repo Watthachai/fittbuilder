@@ -23,6 +23,7 @@ import {
   priceByUnit,
   newDoc,
   marketComparison,
+  lumpSumNotice,
   lumpSumSystemCount,
   quoteTotals,
   rowCounts,
@@ -511,6 +512,12 @@ export default function Quotation({
       </div>
 
       {advice && <AdviceCard advice={advice} doc={doc} onClose={() => setAdvice(null)} onRate={applyRate} onAll={applyAll} />}
+      {/* The switch sits below the rows, out of sight while pricing them. */}
+      {lumpSumNotice(doc) && (
+        <p className="mt-1.5 rounded-xl border border-shine/50 bg-shine/10 px-3 py-2 text-[13px] leading-relaxed text-chalk">
+          {lumpSumNotice(doc)}
+        </p>
+      )}
       <div className="mt-1.5 overflow-hidden rounded-xl border border-night-edge">
         <table className="w-full text-[14px]">
           <thead>
@@ -639,7 +646,12 @@ export default function Quotation({
                     />
                   </td>
                 )}
-                <td className="px-2 py-1.5 text-right font-mono text-chalk">
+                <td
+                  className={`px-2 py-1.5 text-right font-mono ${
+                    doc.lumpSum.enabled ? "text-chalk-dim/60 line-through" : "text-chalk"
+                  }`}
+                  title={doc.lumpSum.enabled ? "ไม่นับรวม — เสนอเป็นราคาเดียวอยู่" : undefined}
+                >
                   {formatTHB(lineTotal(r, doc.ratePerDay))}
                 </td>
                 <td className="px-1">
@@ -852,9 +864,11 @@ export default function Quotation({
           {/* With a unit-priced line in it, the subtotal is no longer all labour. */}
           <Total
             label={
-              doc.rows.some((r) => r.pricing === "unit")
-                ? `ราคารวม · แรงงาน ${t.days} วัน`
-                : `แรงงานรวม ${t.days} วัน`
+              doc.lumpSum.enabled
+                ? "ราคาเดียว ไม่แจกแจง"
+                : doc.rows.some((r) => r.pricing === "unit")
+                  ? `ราคารวม · แรงงาน ${t.days} วัน`
+                  : `แรงงานรวม ${t.days} วัน`
             }
             value={formatTHB(t.subtotal)}
           />

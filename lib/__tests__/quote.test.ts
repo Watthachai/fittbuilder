@@ -14,6 +14,7 @@ import {
   maintenanceTotals,
   marketComparison,
   missingRows,
+  lumpSumNotice,
   lumpSumScope,
   lumpSumSystemCount,
   newDoc,
@@ -721,6 +722,51 @@ describe("lump sum", () => {
     delete before.lumpSum;
     const reopened = parseDoc(before, "2026-08-18");
     expect(reopened?.lumpSum.enabled).toBe(false);
+  });
+});
+
+/**
+ * SQP-0001: the rows carried an annual fee and a discount, the editor showed
+ * their prices as usual, and the paper printed 240,000 — the single figure the
+ * switch below the rows had been set to. Nothing on screen said the rows' own
+ * prices had stopped counting.
+ */
+describe("the editor's word on a lump-sum quotation", () => {
+  const unit = (name: string, unitPrice: number) => ({ ...emptyRow(), name, pricing: "unit" as const, qty: 1, unitPrice });
+  const sqp = (enabled: boolean): QuoteDoc => ({
+    ...newDoc([], "First Chapter", "2026-10-15"),
+    rows: [
+      unit("Module: Sales Management", 240_000),
+      unit("Module: Procurement Management", 0),
+      unit("ค่าบริการรายปี", 240_000),
+      unit("ส่วนลดพิเศษค่าพัฒนาระบบ", -120_000),
+    ],
+    lumpSum: { enabled, amount: 240_000, title: "พัฒนาระบบบริหารต้นทุนโครงการ" },
+  });
+
+  it("says nothing while each row is priced on its own", () => {
+    expect(lumpSumNotice(sqp(false))).toBeNull();
+  });
+
+  it("says the paper prints the one figure, and what the rows' prices add up to that does not count", () => {
+    const notice = lumpSumNotice(sqp(true));
+    expect(notice).toContain("240,000");
+    expect(notice).toContain("360,000");
+    expect(notice).toContain("ไม่นับ");
+  });
+
+  it("leaves out the rows' sum when they carry no money", () => {
+    const free: QuoteDoc = { ...sqp(true), rows: [unit("Module: Sale", 0)] };
+    expect(lumpSumNotice(free)).not.toContain("รวม ฿0");
+  });
+
+  it("is shown above the rows, and strikes through the totals that no longer count", () => {
+    const editor = readFileSync("components/studio/Quotation.tsx", "utf8");
+    const notice = editor.indexOf("lumpSumNotice(doc)");
+    expect(notice).toBeGreaterThan(0);
+    expect(notice).toBeLessThan(editor.indexOf("<table"));
+    const cell = editor.slice(editor.indexOf("{formatTHB(lineTotal(r, doc.ratePerDay))}") - 400);
+    expect(cell.slice(0, 400)).toMatch(/doc\.lumpSum\.enabled \? "[^"]*line-through/);
   });
 });
 

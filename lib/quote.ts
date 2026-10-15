@@ -257,6 +257,25 @@ export function lumpSumSystemCount(doc: QuoteDoc): number {
 }
 
 /**
+ * What the editor says above the rows while the quotation is one agreed figure;
+ * null while each row is priced on its own.
+ *
+ * The rows keep showing their prices — they are still edited, and the switch
+ * may be turned off again — so without a word here a row added for an annual
+ * fee or a discount looks counted when it is not (SQP-0001).
+ */
+export function lumpSumNotice(doc: QuoteDoc): string | null {
+  if (!doc.lumpSum.enabled) return null;
+  const rows = quoteTotals({ ...doc, lumpSum: { ...doc.lumpSum, enabled: false } }).subtotal;
+  const sum = rows !== 0 ? ` (รวม ฿${formatTHB(rows)})` : "";
+  return (
+    `เปิด “เสนอเป็นราคาเดียว” อยู่ — กระดาษพิมพ์บรรทัดเดียวที่ ฿${formatTHB(quoteTotals(doc).subtotal)} ` +
+    `ราคาของแต่ละรายการด้านล่าง${sum} ไม่นับรวมและไม่พิมพ์ ใช้เป็นขอบเขตงานเท่านั้น · ` +
+    `ถ้าต้องการแจกแจงราคา ให้เอาติ๊กออกที่ช่องใต้รายการ`
+  );
+}
+
+/**
  * A discount as the sender gives it: "10%" or "฿5,000 off". Kept as what was
  * typed rather than converted to one form, so the paper prints the discount the
  * way it was offered — a fixed amount stays a round number, a rate stays a rate.

@@ -33,6 +33,9 @@ const PUBLIC_PREFIXES = [
   // Backend-to-backend integrations (FITT Voice). They carry a service
   // credential, not a session; each route checks it before anything else.
   "/v1/integrations",
+  // A customer's deployed app asks whether it is suspended (FITT Billing phase 2).
+  // It carries the project's license key, which the route checks.
+  "/v1/service-status",
 ];
 
 export async function updateSession(request: NextRequest) {

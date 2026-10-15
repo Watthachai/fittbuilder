@@ -1,5 +1,5 @@
 import { createAdminClient } from "@/lib/supabase/admin";
-import type { BillingBinding, BillingRow, BillingSnapshot, DocRecord, OrgRecord, OwnerRecord, ProjectBundle, ProjectRecord } from "./types";
+import type { BillingBinding, BillingRow, BillingSnapshot, BillingStatus, DocRecord, OrgRecord, OwnerRecord, ProjectBundle, ProjectRecord } from "./types";
 
 /**
  * Every database read behind the FITT Billing API (migration 0054). Service
@@ -106,4 +106,38 @@ export async function loadProjectBundle(projectId: string): Promise<ProjectBundl
     proposals: must(proposals, "billing proposals") as DocRecord[],
     billing: must(billing, "billing status") as BillingRow | null,
   };
+}
+
+/** The state after a status command; null when there is no such project (migration 0055). */
+export async function setBillingStatus(
+  projectId: string,
+  status: BillingStatus,
+  reason: string,
+  bindingId: string
+): Promise<{ status: string; reason: string; changed_at: string } | null> {
+  const r = await createAdminClient().rpc("fittbuilder_billing_set_status", {
+    p_project: projectId,
+    p_status: status,
+    p_reason: reason,
+    p_binding: bindingId,
+  });
+  return (must(r, "billing set status") ?? [])[0] ?? null;
+}
+
+/** Replace the project's license key, leaving its status as it is. False when there is no such project. */
+export async function setLicenseKeyHash(projectId: string, keyHash: string): Promise<boolean> {
+  const db = createAdminClient();
+  const project = must(await db.from("fittbuilder_projects").select("id").eq("id", projectId).maybeSingle(), "billing project");
+  if (!project) return false;
+  must(
+    await db.from("fittbuilder_project_billing").upsert({ project_id: projectId, license_key_hash: keyHash }, { onConflict: "project_id" }),
+    "billing license key"
+  );
+  return true;
+}
+
+/** The status a license key's app must obey; null when no project holds that key. */
+export async function findLicenseStatus(keyHash: string): Promise<{ status: string } | null> {
+  const r = await createAdminClient().from("fittbuilder_project_billing").select("status").eq("license_key_hash", keyHash).maybeSingle();
+  return must(r, "license status");
 }

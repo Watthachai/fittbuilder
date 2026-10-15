@@ -13,6 +13,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 type Row = Record<string, unknown>;
 const MAX_ROWS = 1000;
 const tables: Record<string, Row[]> = {};
+const rpcCalls: { name: string; args: unknown }[] = [];
+let rpcRows: Row[] = [];
 
 function query(table: string) {
   let rows = [...(tables[table] ?? [])];
@@ -26,6 +28,14 @@ function query(table: string) {
     is: (col: string, v: unknown) => ((rows = rows.filter((r) => (r[col] ?? null) === v)), q),
     in: (col: string, vs: unknown[]) => ((rows = rows.filter((r) => vs.includes(r[col]))), q),
     range: (from: number, to: number) => ((window = [from, to]), q),
+    // Like Postgres on conflict: an existing row keeps the columns it isn't sent.
+    upsert: (row: Row, opts: { onConflict: string }) => {
+      const t = (tables[table] ??= []);
+      const i = t.findIndex((r) => r[opts.onConflict] === row[opts.onConflict]);
+      if (i >= 0) t[i] = { ...t[i], ...row };
+      else t.push({ status: "active", reason: "", ...row });
+      return q;
+    },
     maybeSingle: () => ((single = true), q),
     then: (resolve: (v: { data: unknown; error: null }) => void) => {
       const [from, to] = window ?? [0, MAX_ROWS - 1];
@@ -35,9 +45,19 @@ function query(table: string) {
   };
   return q;
 }
-vi.mock("@/lib/supabase/admin", () => ({ createAdminClient: () => ({ from: (t: string) => query(t) }) }));
+vi.mock("@/lib/supabase/admin", () => ({
+  createAdminClient: () => ({
+    from: (t: string) => query(t),
+    rpc: (name: string, args: unknown) => {
+      rpcCalls.push({ name, args });
+      return Promise.resolve({ data: rpcRows, error: null });
+    },
+  }),
+}));
 
-const { findBillingBinding, loadSnapshot, loadProjectBundle } = await import("@/lib/billing/store");
+const { findBillingBinding, loadSnapshot, loadProjectBundle, setBillingStatus, setLicenseKeyHash, findLicenseStatus } = await import(
+  "@/lib/billing/store"
+);
 
 const project = (id: string, org_id: string | null, owner_id = "u1"): Row => ({
   id,
@@ -53,6 +73,8 @@ const project = (id: string, org_id: string | null, owner_id = "u1"): Row => ({
 
 beforeEach(() => {
   for (const k of Object.keys(tables)) delete tables[k];
+  rpcCalls.length = 0;
+  rpcRows = [];
 });
 
 describe("billing store boundaries", () => {
@@ -128,5 +150,43 @@ describe("billing store boundaries", () => {
   it("answers null for a project that does not exist", async () => {
     tables.fittbuilder_projects = [project("p1", "o1")];
     expect(await loadProjectBundle("p_missing")).toBeNull();
+  });
+});
+
+describe("billing store writes", () => {
+  it("sets a status through the one-transaction function, naming who asked", async () => {
+    rpcRows = [{ status: "suspended", reason: "ค้างชำระ", changed_at: "2026-10-15T03:00:00+00:00" }];
+    expect(await setBillingStatus("p1", "suspended", "ค้างชำระ", "bind_1")).toEqual(rpcRows[0]);
+    expect(rpcCalls).toEqual([
+      { name: "fittbuilder_billing_set_status", args: { p_project: "p1", p_status: "suspended", p_reason: "ค้างชำระ", p_binding: "bind_1" } },
+    ]);
+  });
+
+  it("answers null when the function finds no such project", async () => {
+    expect(await setBillingStatus("p_missing", "active", "", "bind_1")).toBeNull();
+  });
+
+  it("replaces a project's license key without touching its status", async () => {
+    tables.fittbuilder_projects = [project("p1", null)];
+    tables.fittbuilder_project_billing = [{ project_id: "p1", status: "suspended", reason: "ค้างชำระ", license_key_hash: "a".repeat(64) }];
+    expect(await setLicenseKeyHash("p1", "b".repeat(64))).toBe(true);
+    expect(tables.fittbuilder_project_billing).toEqual([
+      { project_id: "p1", status: "suspended", reason: "ค้างชำระ", license_key_hash: "b".repeat(64) },
+    ]);
+  });
+
+  it("issues no key for a project that doesn't exist", async () => {
+    tables.fittbuilder_projects = [];
+    expect(await setLicenseKeyHash("p_missing", "b".repeat(64))).toBe(false);
+    expect(tables.fittbuilder_project_billing ?? []).toEqual([]);
+  });
+
+  it("finds a status by license key alone", async () => {
+    tables.fittbuilder_project_billing = [
+      { project_id: "p1", status: "suspended", reason: "ค้างชำระ", license_key_hash: "a".repeat(64) },
+      { project_id: "p2", status: "active", reason: "", license_key_hash: null },
+    ];
+    expect(await findLicenseStatus("a".repeat(64))).toMatchObject({ status: "suspended" });
+    expect(await findLicenseStatus("c".repeat(64))).toBeNull();
   });
 });

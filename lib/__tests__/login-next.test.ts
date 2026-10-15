@@ -22,6 +22,11 @@ describe("the login wall", () => {
     expect([...to.searchParams.keys()]).toEqual(["next"]);
   });
 
+  it("lets a customer's app ask its service status without a session", async () => {
+    const res = await updateSession(new NextRequest("http://builder.test/v1/service-status"));
+    expect(res.headers.get("location")).toBeNull();
+  });
+
   it("lets public pages through", async () => {
     const res = await updateSession(new NextRequest("http://builder.test/login"));
     expect(res.headers.get("location")).toBeNull();

@@ -26,3 +26,26 @@ describe("migration 0054", () => {
     expect(sql).toMatch(/notify\s+pgrst,\s*'reload schema';/i);
   });
 });
+
+/**
+ * 0055: a status command is one transaction — the state and its history row land
+ * together or not at all — and only the service role may run it.
+ */
+const sql55 = readFileSync(join(__dirname, "../../supabase/migrations/0055_billing_set_status.sql"), "utf8");
+
+describe("migration 0055", () => {
+  it("sets the status and records the command in one function", () => {
+    expect(sql55).toMatch(/create or replace function fittbuilder_billing_set_status\(/i);
+    expect(sql55).toMatch(/insert into fittbuilder_project_billing_events/i);
+    expect(sql55).toMatch(/on conflict \(project_id\) do update/i);
+  });
+
+  it("is callable by the service role only", () => {
+    expect(sql55).toMatch(/revoke all on function fittbuilder_billing_set_status\([^)]*\) from public, anon, authenticated;/i);
+    expect(sql55).toMatch(/grant execute on function fittbuilder_billing_set_status\([^)]*\) to service_role;/i);
+  });
+
+  it("tells the API to reload its schema", () => {
+    expect(sql55).toMatch(/notify\s+pgrst,\s*'reload schema';/i);
+  });
+});

@@ -92,7 +92,9 @@ describe("FITT Billing OpenAPI", () => {
   it("is OpenAPI 3.1 and describes every billing route it serves, behind a bearer token", () => {
     expect(billingOpenApi.openapi).toBe("3.1.0");
     const documented = Object.keys(billingOpenApi.paths).sort();
-    expect(routePaths().filter((p) => p !== "/openapi.json").sort()).toEqual(documented);
+    // /service-status lives at /v1/service-status (the app's route, not Billing's) and says so with its own server.
+    expect([...routePaths().filter((p) => p !== "/openapi.json"), "/service-status"].sort()).toEqual(documented);
+    expect(billingOpenApi.paths["/service-status"].servers).toEqual([{ url: "https://fitt-builder.fittbsa.com/v1" }]);
     expect(billingOpenApi.security).toEqual([{ bearerAuth: [] }]);
     expect(billingOpenApi.components.securitySchemes.bearerAuth).toMatchObject({ type: "http", scheme: "bearer" });
   });

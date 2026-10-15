@@ -23,6 +23,21 @@ export const CHANGE_BADGE: Record<ChangeType, { label: string; className: string
 // Newest first. SemVer: fix → PATCH, feature → MINOR, breaking → MAJOR.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.109.0",
+    date: "2026-10-15",
+    title: "FITT Billing สั่งระงับและเปิดคืนแอปของลูกค้าได้",
+    items: [
+      {
+        type: "feature",
+        text: "FITT Billing สั่งระงับหรือเปิดคืนแอปของลูกค้าพร้อมเหตุผล ทุกคำสั่งถูกเก็บเป็นประวัติ และออก license key ให้แอปที่จะติดตั้งได้",
+      },
+      {
+        type: "feature",
+        text: "แอปของลูกค้าถามสถานะของตัวเองได้ที่ /v1/service-status ด้วย license key ของโปรเจกต์",
+      },
+    ],
+  },
+  {
     version: "0.108.0",
     date: "2026-10-14",
     title: "FITT Billing เห็นว่าโปรเจกต์ไหนส่งไป build แล้ว และมีเอกสาร OpenAPI",

@@ -931,6 +931,12 @@ export interface Database {
       fittbuilder_next_project_doc_number: { Args: { pid: string }; Returns: number };
       /** Apply one FITT Voice delivery atomically; {status, body} (migration 0045). Service role only. */
       fittbuilder_fittvoice_apply: { Args: { p_binding: string; p_payload: Json }; Returns: Json };
+      /** Set a project's billing status and record the command, in one transaction (migration 0055).
+       *  No row when the project doesn't exist. Service role only. */
+      fittbuilder_billing_set_status: {
+        Args: { p_project: string; p_status: string; p_reason: string; p_binding: string };
+        Returns: { status: string; reason: string; changed_at: string }[];
+      };
       /** A project's latest FITT Voice snapshot for its readers, or null (migration 0045). */
       fittbuilder_fittvoice_source: { Args: { pid: string }; Returns: Json };
       /** Read a shared demo snapshot by token — public, {name, files} or null (migration 0043). */

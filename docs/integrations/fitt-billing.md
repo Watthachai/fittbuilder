@@ -72,7 +72,7 @@ Spec: `docs/superpowers/specs/2026-10-14-fitt-billing-integration-design.md`
 กติกา:
 
 - โปรเจกต์ส่วนตัวไม่อยู่ใน workspace ไหน `orgId` และ `orgName` จึงเป็น `null` · ใช้ `ownerId` / `ownerName` / `ownerEmail` ดูว่าเป็นของใคร (เจ้าของคือคนในทีมที่สร้างโปรเจกต์ ไม่ใช่ลูกค้า ลูกค้าดูที่ `customer`) · `ownerName` เป็น `null` ถ้าเจ้าของไม่ได้ตั้งชื่อ
-- `build` = การส่งไป Code Runner เพื่อ build ครั้งล่าสุด (`null` = ยังไม่เคยส่ง) บอกว่าส่งไปแล้ว ไม่ได้บอกว่า build ผ่านหรือส่งมอบแล้ว ผล build ดูที่ Code Runner ด้วย `jobId` · `buildNo` มีเฉพาะการส่งรุ่นเก่า ปกติเป็น `null` · ในรายการแบบย่อคือ `buildSentAt`
+- `build` = การส่งไป Code Runner เพื่อ build ครั้งล่าสุด (`null` = ยังไม่เคยส่ง) บอกว่าส่งไปแล้ว ไม่ได้บอกว่า build ผ่านหรือส่งมอบแล้ว ผล build ดูที่ Code Runner ด้วย `jobId` · `buildNo` ตอนนี้เป็น `null` ทุกโปรเจกต์ (ระบบไม่ได้บันทึกกลับ) อย่าใช้อ้างอิง · ในรายการแบบย่อคือ `buildSentAt`
 - ข้อมูลการจ่ายเงินที่มีคือเงื่อนไขในใบเสนอราคา (`paymentSchedule`, `maintenance.billingCycle`) FITT Builder ไม่ได้บันทึกว่าลูกค้าจ่ายเงินแล้วหรือยัง
 - `customer` มาจากใบเสนอราคาของ `activeVersion` ถ้าไม่มีใช้ข้อเสนอโครงการ ถ้าไม่มีทั้งคู่เป็น `null`
 - แพ็กเกจที่ไม่มีใบเสนอราคาหรือข้อเสนอโครงการเป็น `null` · โปรเจกต์ที่ยังไม่มีเอกสารเลยก็ตอบ 200 ได้ปกติ
@@ -96,8 +96,24 @@ Spec: `docs/superpowers/specs/2026-10-14-fitt-billing-integration-design.md`
 | 429 | `rate_limited` | true | เรียกถี่เกิน · ดู header `Retry-After` (วินาที) |
 | 500 | `internal` | true | ฝั่ง FITT Builder มีปัญหา · ลองใหม่ได้ ถ้าไม่หายส่ง `requestId` ให้ทีม |
 
-## ยังไม่มีใน phase นี้ (phase 2)
+## ระงับและเปิดคืนแอปของลูกค้า
 
-- `PUT /projects/{id}/status` — ระงับ / เปิดคืน
-- `POST /projects/{id}/license-key` — ออก license key ให้แอป
-- `GET /v1/service-status` — endpoint ที่แอปของลูกค้าใช้ถามสถานะ
+แต่ละแอปที่ Code Runner สร้างมีสวิตช์ระงับในตัว แอปถาม `GET /v1/service-status` ด้วย license key ของโปรเจกต์ตอนเริ่มและทุก 5 นาที
+
+1. **ก่อนติดตั้ง:** `POST /projects/{id}/license-key` ได้ `{ "licenseKey": "fbl_..." }` (แสดงครั้งเดียว ระบบเก็บแค่ SHA-256) ส่งให้คนติดตั้งผ่านช่องทางลับ ใส่ใน `FITT_LICENSE_KEY` คู่กับ `FITT_STATUS_URL=https://fitt-builder.fittbsa.com/v1/service-status`
+2. **ระงับ:** `PUT /projects/{id}/status` body `{ "status": "suspended", "reason": "ค้างชำระค่าบริการเดือนกันยายน" }` ภายในประมาณ 5 นาที ทุกหน้าของแอปตอบหน้า "บริการถูกระงับชั่วคราว" (HTTP 503) ข้อมูลของลูกค้าไม่ถูกแตะ
+3. **เปิดคืน:** คำสั่งเดิมด้วย `{ "status": "active" }` แอปกลับมาใช้งานได้ภายในประมาณ 5 นาที
+4. **ประวัติ:** ทุกคำสั่งถูกบันทึกพร้อมเหตุผล เวลา และ token ที่สั่ง
+
+`PUT /projects/{id}/status` ตอบ `{ "status", "reason", "changedAt" }` · ส่งคำสั่งเดิมซ้ำได้ ผลเท่าเดิม (`changedAt` ไม่ขยับ แต่บันทึกประวัติทุกครั้ง) · `reason` ไม่เกิน 500 ตัวอักษร · body ผิดรูปแบบตอบ 400 · ไม่มีโปรเจกต์ตอบ 404
+
+`POST /projects/{id}/license-key` ตอบ 201 · ออกใหม่เมื่อไร key เดิมใช้ไม่ได้ทันที ต้องเปลี่ยนในแอปที่ติดตั้งด้วย (ระหว่างนั้นแอปใช้สถานะล่าสุดที่รู้)
+
+`GET /v1/service-status` (แอปเรียกเอง) ส่ง `Authorization: Bearer <license key>` ตอบ `{ "status": "active" | "suspended", "message", "checkedAt" }` · `message` ตอนระงับคือ "บริการถูกระงับชั่วคราว กรุณาติดต่อผู้ให้บริการ" · ไม่มีข้อมูลอื่นของโปรเจกต์ · key ผิดหรือถูกเปลี่ยนตอบ 401 · จำกัด 60 ครั้งต่อนาทีต่อ key
+
+**ข้อจำกัด**
+
+- ใช้ได้กับแอปที่ build หลังใส่สวิตช์แล้วเท่านั้น
+- แอปที่ไม่ได้ตั้ง `FITT_STATUS_URL` และ `FITT_LICENSE_KEY` หรือเครื่องลูกค้าไม่มีอินเทอร์เน็ต ระงับจากระยะไกลไม่ได้ ต้องใช้สัญญาแทน
+- ถ้าแอปถาม FITT Builder ไม่ได้ชั่วคราว จะใช้สถานะล่าสุดที่รู้ ไม่หยุดทำงานเอง
+- token ของ Billing ตัวเดียวสั่งระงับได้ทุกโปรเจกต์ เก็บไว้ฝั่งเซิร์ฟเวอร์ของ Billing เท่านั้น

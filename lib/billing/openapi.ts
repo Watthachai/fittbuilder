@@ -93,6 +93,7 @@ const proposal = obj({
 });
 
 const billingStatus: Schema = { type: "string", enum: ["active", "suspended"] };
+const idParam: Schema = { name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } };
 const orgId = nullable(str("workspace · null = โปรเจกต์ส่วนตัว"));
 const orgName = nullable(str());
 
@@ -100,9 +101,9 @@ export const billingOpenApi = {
   openapi: "3.1.0",
   info: {
     title: "FITT Builder → FITT Billing",
-    version: "1.1.0",
+    version: "1.2.0",
     description:
-      "FITT Billing ดึงข้อมูลโปรเจกต์ลูกค้าจาก FITT Builder: ลูกค้า ใบเสนอราคาพร้อมยอดและงวดชำระ รอบชำระ MA ข้อเสนอโครงการ BRD/PRD สถานะระงับ และเวลาที่ส่งไป build · token เดียวเห็นทุกโปรเจกต์ ทั้งทุก workspace และโปรเจกต์ส่วนตัว · เก็บ token ไว้ฝั่งเซิร์ฟเวอร์เท่านั้น",
+      "FITT Billing ดึงข้อมูลโปรเจกต์ลูกค้าจาก FITT Builder: ลูกค้า ใบเสนอราคาพร้อมยอดและงวดชำระ รอบชำระ MA ข้อเสนอโครงการ BRD/PRD สถานะระงับ และเวลาที่ส่งไป build · สั่งระงับ/เปิดคืนแอปของลูกค้า และออก license key ให้แอป · token เดียวเห็นและสั่งได้ทุกโปรเจกต์ ทั้งทุก workspace และโปรเจกต์ส่วนตัว · เก็บ token ไว้ฝั่งเซิร์ฟเวอร์เท่านั้น",
   },
   servers: [{ url: "https://fitt-builder.fittbsa.com/v1/integrations/billing" }],
   security: [{ bearerAuth: [] }],
@@ -131,7 +132,7 @@ export const billingOpenApi = {
       get: {
         operationId: "getProject",
         summary: "ข้อมูลครบชุดของโปรเจกต์หนึ่ง",
-        parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }],
+        parameters: [idParam],
         responses: {
           "200": { description: "โปรเจกต์", content: { "application/json": { schema: ref("ProjectDetail") } } },
           "401": errorResponse("ไม่มี token, token ผิด หรือถูกยกเลิก"),
@@ -141,10 +142,60 @@ export const billingOpenApi = {
         },
       },
     },
+    "/projects/{id}/status": {
+      put: {
+        operationId: "setProjectStatus",
+        summary: "ระงับหรือเปิดคืนแอปของโปรเจกต์",
+        description:
+          "ส่งคำสั่งเดิมซ้ำได้ ผลเท่าเดิม (changedAt ไม่ขยับ) · ทุกคำสั่งถูกบันทึกในประวัติพร้อม token ที่สั่ง · แอปรู้ผลภายในประมาณ 5 นาที ตอนถาม /service-status ครั้งถัดไป",
+        parameters: [idParam],
+        requestBody: { required: true, content: { "application/json": { schema: ref("StatusRequest") } } },
+        responses: {
+          "200": { description: "สถานะหลังคำสั่ง", content: { "application/json": { schema: ref("BillingState") } } },
+          "400": errorResponse("body ผิดรูปแบบ"),
+          "401": errorResponse("ไม่มี token, token ผิด หรือถูกยกเลิก"),
+          "404": errorResponse("ไม่มีโปรเจกต์นี้"),
+          "429": rateLimited,
+          "500": errorResponse("ฝั่ง FITT Builder มีปัญหา ลองใหม่ได้"),
+        },
+      },
+    },
+    "/projects/{id}/license-key": {
+      post: {
+        operationId: "issueLicenseKey",
+        summary: "ออก license key ใหม่ให้แอปของโปรเจกต์",
+        description:
+          "แสดงครั้งเดียว ระบบเก็บแค่ SHA-256 · key เดิมใช้ไม่ได้ทันที แอปที่ยังใช้ key เดิมจะถาม /service-status ไม่ได้ (401) และใช้สถานะล่าสุดที่รู้ไปก่อน · ส่ง key ให้คนติดตั้งผ่านช่องทางลับ ใส่ใน FITT_LICENSE_KEY",
+        parameters: [idParam],
+        responses: {
+          "201": { description: "key ใหม่", content: { "application/json": { schema: ref("LicenseKey") } } },
+          "401": errorResponse("ไม่มี token, token ผิด หรือถูกยกเลิก"),
+          "404": errorResponse("ไม่มีโปรเจกต์นี้"),
+          "429": rateLimited,
+          "500": errorResponse("ฝั่ง FITT Builder มีปัญหา ลองใหม่ได้"),
+        },
+      },
+    },
+    "/service-status": {
+      servers: [{ url: "https://fitt-builder.fittbsa.com/v1" }],
+      get: {
+        operationId: "getServiceStatus",
+        summary: "แอปของลูกค้าถามว่าถูกระงับหรือไม่ (แอปเรียกเอง Billing ไม่ต้องเรียก)",
+        description: "ใช้ license key ของโปรเจกต์ ไม่ใช่ token ของ Billing · ตอบแค่สถานะและข้อความที่ต้องแสดง ไม่มีข้อมูลอื่นของโปรเจกต์",
+        security: [{ licenseKey: [] }],
+        responses: {
+          "200": { description: "สถานะ", content: { "application/json": { schema: ref("ServiceStatus") } } },
+          "401": errorResponse("ไม่มี key หรือ key ไม่ถูกต้อง/ถูกเปลี่ยนแล้ว"),
+          "429": rateLimited,
+          "500": errorResponse("ฝั่ง FITT Builder มีปัญหา แอปใช้สถานะล่าสุดที่รู้"),
+        },
+      },
+    },
   },
   components: {
     securitySchemes: {
       bearerAuth: { type: "http", scheme: "bearer", description: "token ของ FITT Billing (ขึ้นต้นด้วย fbb_)" },
+      licenseKey: { type: "http", scheme: "bearer", description: "license key ของโปรเจกต์ (ขึ้นต้นด้วย fbl_) ที่ตั้งไว้ใน FITT_LICENSE_KEY ของแอป" },
     },
     schemas: {
       ProjectSummary: obj({
@@ -203,7 +254,23 @@ export const billingOpenApi = {
         proposals: obj({ standard: nullable(ref("Proposal")), premium: nullable(ref("Proposal")) }),
         documents: obj({ brd: nullable(str("markdown")), prd: nullable(str("markdown")) }),
       }),
-      Quote: quote,
+      StatusRequest: {
+        type: "object",
+        additionalProperties: false,
+        required: ["status"],
+        properties: {
+          status: billingStatus,
+          reason: { type: "string", maxLength: 500, description: "เหตุผล เก็บในประวัติ เช่น ค้างชำระค่าบริการเดือนกันยายน" },
+        },
+      },
+      BillingState: obj({ status: billingStatus, reason: str(), changedAt: time("เวลาที่สถานะหรือเหตุผลเปลี่ยนครั้งล่าสุด") }),
+      LicenseKey: obj({ licenseKey: str("แสดงครั้งเดียว ขึ้นต้นด้วย fbl_") }),
+      ServiceStatus: obj({
+        status: billingStatus,
+        message: str("ข้อความที่แอปต้องแสดงตอนถูกระงับ · ว่างเมื่อ active"),
+        checkedAt: time(),
+      }),
+            Quote: quote,
       Proposal: proposal,
       Error: obj({
         schemaVersion: { type: "string", const: "fittbuilder.error.v1" },

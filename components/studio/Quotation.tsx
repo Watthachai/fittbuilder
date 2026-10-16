@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import {
+  Boxes,
   CornerDownRight,
   Handshake,
   Loader2,
@@ -36,6 +37,9 @@ import {
   type Size,
 } from "@/lib/quote";
 import { loadQuote, saveQuote } from "@/lib/quote-store";
+import { loadProposal } from "@/lib/proposal-store";
+import type { ProposalModule } from "@/lib/proposal-modules";
+import { rowsFromModules } from "@/lib/quote-modules";
 import { marketMidpoint, type QuoteAdvice } from "@/lib/quote-advice";
 import { getProjectLetterhead, nextProjectDocNumber } from "@/lib/orgs";
 import { loadUserBrand } from "@/lib/user-brand";
@@ -45,6 +49,7 @@ import type { VersionKey } from "@/lib/versions";
 import type { ProjectFiles } from "@/lib/types";
 import { toast } from "@/lib/toast";
 import { printSheet } from "@/lib/print-sheet";
+import ModuleCutCard from "./ModuleCutCard";
 import QuotationPrint from "./QuotationPrint";
 import QuoteBrandBar from "./QuoteBrandBar";
 import QuoteTerms from "./QuoteTerms";
@@ -104,6 +109,9 @@ export default function Quotation({
   // The advisor's proposal, held OUTSIDE the document until it is accepted:
   // the sender signs their name to the price, so nothing here edits it for them.
   const [advice, setAdvice] = useState<QuoteAdvice | null>(null);
+  // The proposal's modules, held until the sender confirms re-cutting the rows by them.
+  const [moduleCut, setModuleCut] = useState<ProposalModule[] | null>(null);
+  const [readingModules, setReadingModules] = useState(false);
   // Today is read once, on mount: a document's issue date must not change
   // under the user because they left the tab open past midnight.
   const today = useMemo(() => new Date().toISOString().slice(0, 10), []);
@@ -215,6 +223,39 @@ export default function Quotation({
     } finally {
       setWriting(false);
     }
+  };
+
+  /**
+   * Re-cut the rows by the modules broken out on the proposal (lib/quote-modules).
+   *
+   * Read fresh, because the proposal is edited in its own tab. Nothing changes
+   * here until the card it opens is confirmed.
+   */
+  const askModules = async () => {
+    if (readOnly) return;
+    setReadingModules(true);
+    try {
+      const proposal = await loadProposal(projectId, version, today);
+      if (!proposal || proposal.modules.length === 0) {
+        toast.info("ยังไม่ได้แตกโมดูล", {
+          description: "ไปแท็บข้อเสนอโครงการ กด “แตกเป็นโมดูลด้วย AI” ก่อน แล้วกลับมากดปุ่มนี้",
+        });
+        return;
+      }
+      setModuleCut(proposal.modules);
+    } catch (e) {
+      toast.error("เปิดข้อเสนอโครงการไม่สำเร็จ", { description: e instanceof Error ? e.message : undefined });
+    } finally {
+      setReadingModules(false);
+    }
+  };
+
+  const applyModules = () => {
+    if (!moduleCut) return;
+    const modules = moduleCut;
+    edit((d) => ({ ...d, rows: rowsFromModules(d, modules).rows }));
+    setModuleCut(null);
+    toast.success("จัดรายการเป็นโมดูลแล้ว", { description: "ตรวจราคาของแต่ละโมดูลก่อนส่ง" });
   };
 
   /**
@@ -509,9 +550,23 @@ export default function Quotation({
             {pricing ? "กำลังคิดราคา…" : "ให้ AI ช่วยตั้งราคา"}
           </button>
         )}
+        {!readOnly && (
+          <button
+            onClick={() => void askModules()}
+            disabled={readingModules}
+            title="หนึ่งรายการต่อโมดูล พร้อมระบบย่อยและข้อสรุป จากโมดูลที่แตกไว้ในแท็บข้อเสนอโครงการ — ดูผลก่อนแทน"
+            className="inline-flex items-center gap-1.5 rounded-lg border border-shine/50 px-2.5 py-1 font-display text-[14px] text-shine transition hover:bg-shine/10 disabled:opacity-40"
+          >
+            {readingModules ? <Loader2 size={12} className="animate-spin" /> : <Boxes size={12} />}
+            สร้างรายการจากโมดูล
+          </button>
+        )}
       </div>
 
       {advice && <AdviceCard advice={advice} doc={doc} onClose={() => setAdvice(null)} onRate={applyRate} onAll={applyAll} />}
+      {moduleCut && (
+        <ModuleCutCard doc={doc} modules={moduleCut} onApply={applyModules} onClose={() => setModuleCut(null)} />
+      )}
       {/* The switch sits below the rows, out of sight while pricing them. */}
       {lumpSumNotice(doc) && (
         <p className="mt-1.5 rounded-xl border border-shine/50 bg-shine/10 px-3 py-2 text-[13px] leading-relaxed text-chalk">

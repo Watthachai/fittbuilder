@@ -20,6 +20,7 @@ export type UsageKind =
   | "screen_spec"
   | "quote_advice"
   | "proposal"
+  | "proposal_modules"
   | "premium_advice"
   | "split_tasks";
 

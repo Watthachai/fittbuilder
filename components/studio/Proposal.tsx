@@ -28,6 +28,7 @@ import type { VersionKey } from "@/lib/versions";
 import type { ProjectFiles } from "@/lib/types";
 import { toast } from "@/lib/toast";
 import { printSheet } from "@/lib/print-sheet";
+import ProposalModules from "./ProposalModules";
 import ProposalPrint from "./ProposalPrint";
 import QuoteBrandBar from "./QuoteBrandBar";
 import { Field, inputCls, SectionToggle, WordButton } from "./QuoteFields";
@@ -553,6 +554,15 @@ export default function Proposal({
             </Field>
           </div>
         </div>
+
+        <ProposalModules
+          doc={doc}
+          edit={edit}
+          steps={steps}
+          projectId={projectId}
+          projectName={projectName}
+          readOnly={readOnly}
+        />
 
         {/* The demonstrated walk — facts read off the inventory, not fields. */}
         <div className="rounded-xl border border-night-edge p-3.5">

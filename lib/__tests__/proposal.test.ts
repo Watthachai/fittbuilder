@@ -199,6 +199,32 @@ describe("parseProposal", () => {
     expect(round({ excluded: ["จริง", 5, null, { a: 1 }] })!.excluded).toEqual(["จริง"]);
   });
 
+  it("has no modules for a proposal written before they existed", () => {
+    expect(round({})!.modules).toEqual([]);
+    expect(newProposal("x", "2026-01-01").modules).toEqual([]);
+  });
+
+  it("keeps its modules through a save and reopen, junk dropped", () => {
+    const modules = [
+      {
+        id: "m1",
+        name: "Module: Sales Management (งานขาย)",
+        parts: [
+          { id: "p1", name: "Dashboard ฝ่ายประเมินราคา", points: ["แสดงภาพรวม", 3], screens: ["แดชบอร์ด", null] },
+          "not a part",
+        ],
+      },
+      { name: 7 },
+    ];
+    expect(round({ modules })!.modules).toEqual([
+      {
+        id: "m1",
+        name: "Module: Sales Management (งานขาย)",
+        parts: [{ id: "p1", name: "Dashboard ฝ่ายประเมินราคา", points: ["แสดงภาพรวม"], screens: ["แดชบอร์ด"] }],
+      },
+    ]);
+  });
+
   it("gives every point an id so React keys stay stable", () => {
     const doc = round({ points: [{ problem: "ก" }, { feature: "ข" }] })!;
     expect(doc.points.map((p) => p.id).filter(Boolean)).toHaveLength(2);

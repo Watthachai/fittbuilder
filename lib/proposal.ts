@@ -1,4 +1,5 @@
 import { quoteTotals, type QuoteDoc, type QuoteBrand, DEFAULT_ACCENT } from "@/lib/quote";
+import type { ProposalModule } from "@/lib/proposal-modules";
 import type { Shot } from "@/lib/shots";
 
 /**
@@ -141,6 +142,12 @@ export interface ProposalDoc {
    * that reads like the system's manual.
    */
   screenDocs: Record<string, ScreenDoc>;
+  /**
+   * The project broken into the modules it is sold as (lib/proposal-modules):
+   * what the quotation's module lines and the workspace page read. Empty until
+   * someone asks for it.
+   */
+  modules: ProposalModule[];
   closing: string;
   /** The quotation this proposal accompanies — the only place a price is named. */
   quoteNo: string;
@@ -201,6 +208,7 @@ export function newProposal(projectName: string, today: string): ProposalDoc {
     showSteps: true,
     showShots: true,
     screenDocs: {},
+    modules: [],
     closing: DEFAULT_CLOSING,
     quoteNo: "",
     showQuoteRef: true,
@@ -345,6 +353,19 @@ export function parseProposal(payload: unknown, fallbackDate: string): ProposalD
         return name.trim() && (doc.does || doc.how || doc.result) ? [[name.trim(), doc]] : [];
       })
     ),
+    modules: (Array.isArray(o.modules) ? o.modules : []).flatMap((raw, i) => {
+      const m = obj(raw);
+      const name = str(m.name).trim();
+      if (!name) return [];
+      const parts = (Array.isArray(m.parts) ? m.parts : []).flatMap((rawPart, j) => {
+        const p = obj(rawPart);
+        const partName = str(p.name).trim();
+        return partName
+          ? [{ id: str(p.id) || pointId(`part-${i}`, j), name: partName, points: strs(p.points), screens: strs(p.screens) }]
+          : [];
+      });
+      return [{ id: str(m.id) || pointId("mod", i), name, parts }];
+    }),
     closing: str(o.closing, DEFAULT_CLOSING),
     quoteNo: str(o.quoteNo),
     // On for every proposal written before this existed — they all printed it.

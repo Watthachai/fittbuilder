@@ -166,6 +166,31 @@ export function parseModulesDraft(raw: string, screenNames: string[]): ProposalM
   return modules.length > 0 ? modules : null;
 }
 
+/**
+ * Modules as stored on a proposal (jsonb): untrusted, so anything unnamed or
+ * not the right shape is dropped rather than rendered — the same contract as
+ * parseProposal, which reads them through here, as does the workspace page.
+ */
+export function parseStoredModules(value: unknown): ProposalModule[] {
+  const obj = (v: unknown): Record<string, unknown> =>
+    v && typeof v === "object" && !Array.isArray(v) ? (v as Record<string, unknown>) : {};
+  const str = (v: unknown) => (typeof v === "string" ? v : "");
+  const strs = (v: unknown): string[] => (Array.isArray(v) ? v.filter((x): x is string => typeof x === "string") : []);
+  return (Array.isArray(value) ? value : []).flatMap((raw, i) => {
+    const m = obj(raw);
+    const name = str(m.name).trim();
+    if (!name) return [];
+    const parts = (Array.isArray(m.parts) ? m.parts : []).flatMap((rawPart, j) => {
+      const p = obj(rawPart);
+      const partName = str(p.name).trim();
+      return partName
+        ? [{ id: str(p.id) || `part-${i}-${j}`, name: partName, points: strs(p.points), screens: strs(p.screens) }]
+        : [];
+    });
+    return [{ id: str(m.id) || `mod-${i}`, name, parts }];
+  });
+}
+
 /** Screens no part covers — shown beside the grouping so none leaves the scope unseen. */
 export function unplacedScreens(modules: ProposalModule[], screenNames: string[]): string[] {
   const placed = new Set(modules.flatMap((m) => m.parts.flatMap((p) => p.screens.map((s) => s.trim()))));

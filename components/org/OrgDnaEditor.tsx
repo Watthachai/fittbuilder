@@ -17,6 +17,7 @@ import { listAdvisorReports } from "@/lib/advisor-reports";
 import type { AdvisorResult } from "@/lib/org-advisor";
 import ColorIconPicker from "./ColorIconPicker";
 import DomainSkillStudio from "./DomainSkillStudio";
+import OrgModules from "./OrgModules";
 import PainPointResult from "./PainPointResult";
 import SourceViewer from "./SourceViewer";
 import WorkspaceMembers from "./WorkspaceMembers";
@@ -316,6 +317,9 @@ export default function OrgDnaEditor({ orgId }: { orgId: string }) {
         <div className="mt-5 rounded-xl border border-night-edge bg-night-panel p-4">
           <ColorIconPicker color={color} icon={icon} onColor={setColor} onIcon={setIcon} />
         </div>
+
+        {/* What has been built for this workspace, module by module */}
+        <OrgModules orgId={orgId} />
 
         {/* Team members + invites */}
         <WorkspaceMembers orgId={orgId} />

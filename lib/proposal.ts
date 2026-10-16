@@ -1,5 +1,5 @@
 import { quoteTotals, type QuoteDoc, type QuoteBrand, DEFAULT_ACCENT } from "@/lib/quote";
-import type { ProposalModule } from "@/lib/proposal-modules";
+import { parseStoredModules, type ProposalModule } from "@/lib/proposal-modules";
 import type { Shot } from "@/lib/shots";
 
 /**
@@ -353,19 +353,7 @@ export function parseProposal(payload: unknown, fallbackDate: string): ProposalD
         return name.trim() && (doc.does || doc.how || doc.result) ? [[name.trim(), doc]] : [];
       })
     ),
-    modules: (Array.isArray(o.modules) ? o.modules : []).flatMap((raw, i) => {
-      const m = obj(raw);
-      const name = str(m.name).trim();
-      if (!name) return [];
-      const parts = (Array.isArray(m.parts) ? m.parts : []).flatMap((rawPart, j) => {
-        const p = obj(rawPart);
-        const partName = str(p.name).trim();
-        return partName
-          ? [{ id: str(p.id) || pointId(`part-${i}`, j), name: partName, points: strs(p.points), screens: strs(p.screens) }]
-          : [];
-      });
-      return [{ id: str(m.id) || pointId("mod", i), name, parts }];
-    }),
+    modules: parseStoredModules(o.modules),
     closing: str(o.closing, DEFAULT_CLOSING),
     quoteNo: str(o.quoteNo),
     // On for every proposal written before this existed — they all printed it.

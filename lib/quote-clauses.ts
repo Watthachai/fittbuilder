@@ -33,8 +33,11 @@ const baht = (n: number) => `฿${formatTHB(n)}`;
  * says so and names the VAT on it; a signed sentence that gives only the total
  * leaves "60% of what?" to be argued later.
  */
-function money(index: number, line: PaymentLine, vatPercent: number): string {
-  const head = `งวดที่ ${index + 1} จำนวน ${percentText(line.term.percent)}% เป็นเงิน `;
+function money(index: number, line: PaymentLine, vatPercent: number, showPercent: boolean): string {
+  // The share goes when the paper does not print it (case #36): a clause must
+  // not quote a figure the table above it leaves out.
+  const share = showPercent ? ` จำนวน ${percentText(line.term.percent)}%` : "";
+  const head = `งวดที่ ${index + 1}${share} เป็นเงิน `;
   return vatPercent > 0
     ? `${head}${baht(line.beforeVat)} บวก VAT ${vatPercent}% ${baht(line.vat)} รวม ${baht(line.amount)}`
     : `${head}${baht(line.amount)}`;
@@ -66,7 +69,7 @@ export function generatedClauses(doc: QuoteDoc): string[] {
   // a hard-coded "ตามข้อ 3" would then point at the wrong one.
   if (first) {
     out.push(
-      `เมื่อส่งมอบแล้ว ผู้ว่าจ้างตกลงชำระ${money(0, first, doc.vatPercent)} ` +
+      `เมื่อส่งมอบแล้ว ผู้ว่าจ้างตกลงชำระ${money(0, first, doc.vatPercent, doc.showPercent)} ` +
         `ภายใน ${first.term.netDays} วันนับจากวันส่งมอบ`
     );
   }
@@ -80,7 +83,7 @@ export function generatedClauses(doc: QuoteDoc): string[] {
   // full, with the money named, precisely because it operates on their silence.
   if (deemedAccepted) {
     const balance = last
-      ? `และ${money(rows.length - 1, last, doc.vatPercent)} ถึงกำหนดชำระทันที`
+      ? `และ${money(rows.length - 1, last, doc.vatPercent, doc.showPercent)} ถึงกำหนดชำระทันที`
       : "และค่าจ้างส่วนที่เหลือถึงกำหนดชำระทันที";
     out.push(
       `หากพ้นกำหนด ${reviewDays} วันนับจากวันส่งมอบแล้ว ผู้ว่าจ้างมิได้แจ้งข้อบกพร่องเป็นลายลักษณ์อักษร ` +
@@ -88,7 +91,7 @@ export function generatedClauses(doc: QuoteDoc): string[] {
     );
   } else if (last) {
     out.push(
-      `เมื่อผู้ว่าจ้างตรวจรับงานเรียบร้อยแล้ว ${money(rows.length - 1, last, doc.vatPercent)} ` +
+      `เมื่อผู้ว่าจ้างตรวจรับงานเรียบร้อยแล้ว ${money(rows.length - 1, last, doc.vatPercent, doc.showPercent)} ` +
         `ถึงกำหนดชำระภายใน ${last.term.netDays} วัน`
     );
   }

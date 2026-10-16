@@ -238,3 +238,22 @@ describe("hand-edited clauses", () => {
     expect(acceptanceClauses(reopened!).length).toBeGreaterThan(0);
   });
 });
+
+/**
+ * Case #36: a subscription billed as a setup fee and twelve monthly charges.
+ * Each month is "8.33%" of the total, which reads as noise on the paper; with
+ * the share switched off the clause says the money and nothing else.
+ */
+describe("the instalment phrase with the share switched off", () => {
+  it("states the amount without a percentage", () => {
+    const d = doc({ showPercent: false });
+    const { rows } = paymentSchedule(d);
+    const text = acceptanceClauses(d).join("\n");
+    expect(text).toContain(`งวดที่ 1 เป็นเงิน ฿${formatTHB(rows[0].beforeVat)}`);
+    expect(text).not.toContain(`${rows[0].term.percent}%`);
+  });
+
+  it("still names the VAT on it", () => {
+    expect(acceptanceClauses(doc({ showPercent: false })).join("\n")).toContain("บวก VAT 7%");
+  });
+});

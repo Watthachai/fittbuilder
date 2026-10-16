@@ -283,9 +283,11 @@ function payments(doc: QuoteDoc, plan: ReturnType<typeof paymentSchedule>): Tabl
   const withVat = doc.vatPercent > 0;
   const money = withVat ? [px(100), px(90), px(100)] : [px(120)];
   const n = px(44);
-  const pct = px(70);
-  const when = CONTENT - n - pct - money.reduce((a, b) => a + b, 0);
-  const widths = [n, when, pct, ...money];
+  // The share column, when it prints (case #36); the money columns follow it.
+  const pct = doc.showPercent ? [px(70)] : [];
+  const when = CONTENT - n - pct.reduce((a, b) => a + b, 0) - money.reduce((a, b) => a + b, 0);
+  const widths = [n, when, ...pct, ...money];
+  const m = 2 + pct.length;
   const pad = { top: px(4), bottom: px(4), left: px(8), right: px(8) };
   const R = AlignmentType.RIGHT;
   const C = AlignmentType.CENTER;
@@ -312,8 +314,10 @@ function payments(doc: QuoteDoc, plan: ReturnType<typeof paymentSchedule>): Tabl
       children: [
         head(0, "งวด", L),
         head(1, "เงื่อนไขการชำระ", L),
-        head(2, "สัดส่วน", C),
-        ...(withVat ? [head(3, "ก่อนภาษี", R), head(4, `VAT ${doc.vatPercent}%`, R), head(5, "รวม", R)] : [head(3, "จำนวนเงิน", R)]),
+        ...(doc.showPercent ? [head(2, "สัดส่วน", C)] : []),
+        ...(withVat
+          ? [head(m, "ก่อนภาษี", R), head(m + 1, `VAT ${doc.vatPercent}%`, R), head(m + 2, "รวม", R)]
+          : [head(m, "จำนวนเงิน", R)]),
       ],
     }),
     ...plan.rows.map((line, i) => {
@@ -327,10 +331,10 @@ function payments(doc: QuoteDoc, plan: ReturnType<typeof paymentSchedule>): Tabl
         children: [
           body(0, [para([run(String(i + 1), { color: DIM })])]),
           body(1, term),
-          body(2, [para([run(`${percentText(line.term.percent)}%`)], { alignment: C })]),
+          ...(doc.showPercent ? [body(2, [para([run(`${percentText(line.term.percent)}%`)], { alignment: C })])] : []),
           ...(withVat
-            ? [body(3, amount(formatTHB(line.beforeVat))), body(4, amount(formatTHB(line.vat))), body(5, amount(formatTHB(line.amount)))]
-            : [body(3, amount(formatTHB(line.amount)))]),
+            ? [body(m, amount(formatTHB(line.beforeVat))), body(m + 1, amount(formatTHB(line.vat))), body(m + 2, amount(formatTHB(line.amount)))]
+            : [body(m, amount(formatTHB(line.amount)))]),
         ],
       });
     }),
@@ -338,10 +342,10 @@ function payments(doc: QuoteDoc, plan: ReturnType<typeof paymentSchedule>): Tabl
       cantSplit: true,
       children: [
         foot(0, "", R, 2),
-        foot(2, `${plan.percentSum}%`, C),
+        ...(doc.showPercent ? [foot(2, `${plan.percentSum}%`, C)] : []),
         ...(withVat
-          ? [foot(3, sum((r) => r.beforeVat), R), foot(4, sum((r) => r.vat), R), foot(5, sum((r) => r.amount), R)]
-          : [foot(3, sum((r) => r.amount), R)]),
+          ? [foot(m, sum((r) => r.beforeVat), R), foot(m + 1, sum((r) => r.vat), R), foot(m + 2, sum((r) => r.amount), R)]
+          : [foot(m, sum((r) => r.amount), R)]),
       ],
     }),
   ];

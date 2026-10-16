@@ -340,6 +340,13 @@ export interface QuoteDoc {
    * only; the day rate is the sender's to disclose, not ours (case #25).
    */
   showBasis: boolean;
+  /**
+   * Print each instalment's share of the total — the "สัดส่วน" column and the
+   * "จำนวน 60%" in the clauses. Off for a schedule that is a list of charges
+   * rather than a split of one price: a setup fee and twelve monthly fees read
+   * as "8.33%" a month, which tells the customer nothing (case #36).
+   */
+  showPercent: boolean;
 }
 
 // Payment now has its own table and its own generated clauses, so the free-text
@@ -553,6 +560,7 @@ export function newDoc(shots: Shot[], projectName: string, today: string): Quote
     terms: DEFAULT_TERMS,
     showShots: true,
     showBasis: true,
+    showPercent: true,
   };
 }
 
@@ -708,6 +716,7 @@ export function parseDoc(payload: unknown, fallbackDate: string): QuoteDoc | nul
     showShots: bool(o.showShots, true),
     // On for every document written before this existed — they all printed it.
     showBasis: bool(o.showBasis, true),
+    showPercent: bool(o.showPercent, true),
   };
 }
 

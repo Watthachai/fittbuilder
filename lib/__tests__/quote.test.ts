@@ -717,6 +717,13 @@ describe("lump sum", () => {
     expect(scope).toContain("1. Dashboard");
   });
 
+  it("prints the payment share for documents written before its switch existed (case #36)", () => {
+    const before = JSON.parse(JSON.stringify(newDoc([], "เก่า", "2026-01-01")));
+    delete before.showPercent;
+    expect(parseDoc(before, "2026-08-18")?.showPercent).toBe(true);
+    expect(parseDoc({ ...before, showPercent: false }, "2026-08-18")?.showPercent).toBe(false);
+  });
+
   it("is off for documents written before it existed", () => {
     const before = JSON.parse(JSON.stringify(newDoc([], "เก่า", "2026-01-01")));
     delete before.lumpSum;

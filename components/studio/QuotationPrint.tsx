@@ -264,7 +264,7 @@ export default function QuotationPrint({ doc, shots }: { doc: QuoteDoc; shots: S
                       <tr>
                         <th className="q-n">งวด</th>
                         <th>เงื่อนไขการชำระ</th>
-                        <th className="q-c">สัดส่วน</th>
+                        {doc.showPercent && <th className="q-c">สัดส่วน</th>}
                         {withVat ? (
                           <>
                             <th className="q-r">ก่อนภาษี</th>
@@ -288,7 +288,7 @@ export default function QuotationPrint({ doc, shots }: { doc: QuoteDoc; shots: S
                               </span>
                             )}
                           </td>
-                          <td className="q-c">{percentText(line.term.percent)}%</td>
+                          {doc.showPercent && <td className="q-c">{percentText(line.term.percent)}%</td>}
                           {withVat && (
                             <>
                               <td className="q-r">{formatTHB(line.beforeVat)}</td>
@@ -302,7 +302,7 @@ export default function QuotationPrint({ doc, shots }: { doc: QuoteDoc; shots: S
                     <tfoot>
                       <tr>
                         <td colSpan={2} />
-                        <td className="q-c">{plan.percentSum}%</td>
+                        {doc.showPercent && <td className="q-c">{plan.percentSum}%</td>}
                         {withVat && (
                           <>
                             <td className="q-r">{formatTHB(plan.rows.reduce((s, r) => s + r.beforeVat, 0))}</td>

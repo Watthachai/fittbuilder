@@ -158,7 +158,7 @@ export default function QuoteTerms({
           <CalendarClock size={13} className="text-shine" />
           <h3 className="font-display text-[14px] text-chalk">งวดชำระ</h3>
           <span className="rounded-full bg-night px-2 py-0.5 font-mono text-[12.5px] text-chalk-dim">
-            {plan.rows.length} งวด · รวม {plan.percentSum}%
+            {plan.rows.length} งวด · รวม {doc.showPercent ? `${plan.percentSum}%` : baht(scheduled)}
           </span>
           {!readOnly && (
             <div className="ml-auto flex flex-wrap items-center gap-1.5">
@@ -190,7 +190,7 @@ export default function QuoteTerms({
               <tr className="border-b border-night-edge bg-night/60 text-left text-chalk-dim">
                 <th className="w-8 px-2 py-1.5 text-right font-display font-medium">งวด</th>
                 <th className="px-2 py-1.5 font-display font-medium">เงื่อนไขการชำระ</th>
-                <th className="w-20 px-2 py-1.5 text-right font-display font-medium">%</th>
+                {doc.showPercent && <th className="w-20 px-2 py-1.5 text-right font-display font-medium">%</th>}
                 <th className="w-20 px-2 py-1.5 text-right font-display font-medium">ภายใน (วัน)</th>
                 {withVat ? (
                   <>
@@ -219,18 +219,20 @@ export default function QuoteTerms({
                       className="w-full rounded-md bg-transparent px-1.5 py-1 text-chalk outline-none focus:bg-night"
                     />
                   </td>
-                  <td className="px-2 py-1">
-                    <input
-                      type="number"
-                      min={0}
-                      max={100}
-                      step={5}
-                      value={Number(percentText(line.term.percent))}
-                      onChange={(e) => setTerm(line.term.id, { percent: Number(e.target.value) })}
-                      disabled={readOnly}
-                      className="w-full rounded-md bg-transparent px-1.5 py-1 text-right font-mono text-chalk outline-none focus:bg-night"
-                    />
-                  </td>
+                  {doc.showPercent && (
+                    <td className="px-2 py-1">
+                      <input
+                        type="number"
+                        min={0}
+                        max={100}
+                        step={5}
+                        value={Number(percentText(line.term.percent))}
+                        onChange={(e) => setTerm(line.term.id, { percent: Number(e.target.value) })}
+                        disabled={readOnly}
+                        className="w-full rounded-md bg-transparent px-1.5 py-1 text-right font-mono text-chalk outline-none focus:bg-night"
+                      />
+                    </td>
+                  )}
                   <td className="px-2 py-1">
                     <input
                       type="number"
@@ -278,7 +280,7 @@ export default function QuoteTerms({
               ))}
               {plan.rows.length === 0 && (
                 <tr>
-                  <td colSpan={withVat ? 8 : 6} className="px-3 py-6 text-center text-chalk-dim">
+                  <td colSpan={(withVat ? 8 : 6) - (doc.showPercent ? 0 : 1)} className="px-3 py-6 text-center text-chalk-dim">
                     ไม่มีงวดชำระ — ใบเสนอราคาจะไม่พิมพ์ตารางงวด
                   </td>
                 </tr>
@@ -296,8 +298,9 @@ export default function QuoteTerms({
           <p className="mt-2 flex items-start gap-1.5 rounded-lg border border-halt/40 bg-halt/10 px-2.5 py-1.5 text-[12.5px] leading-relaxed text-halt">
             <AlertTriangle size={12} className="mt-0.5 shrink-0" />
             <span>
-              งวดชำระรวมได้ {plan.percentSum}% — ต้องเป็น 100% ตอนนี้ตารางงวดเก็บเงินรวม{" "}
-              {baht(scheduled)} จากราคารวมทั้งสิ้น {baht(grand)}
+              {doc.showPercent
+                ? `งวดชำระรวมได้ ${plan.percentSum}% — ต้องเป็น 100% ตอนนี้ตารางงวดเก็บเงินรวม ${baht(scheduled)} จากราคารวมทั้งสิ้น ${baht(grand)}`
+                : `ตารางงวดเก็บเงินรวม ${baht(scheduled)} แต่ราคารวมทั้งสิ้น ${baht(grand)} — สองยอดนี้ต้องเท่ากัน`}
             </span>
           </p>
         )}
@@ -310,6 +313,21 @@ export default function QuoteTerms({
             <Plus size={12} /> เพิ่มงวด
           </button>
         )}
+        {/* A schedule of charges rather than a split of one price — a setup
+            fee and monthly fees — reads as noise in percent (case #36). */}
+        <div className="mt-3">
+          <SectionToggle
+            title="แสดงสัดส่วน % ของแต่ละงวด"
+            hint={
+              doc.showPercent
+                ? "พิมพ์คอลัมน์สัดส่วนในตารางงวด และ “จำนวน 60%” ในเงื่อนไขการชำระ"
+                : "ไม่พิมพ์ % — ตารางงวดและเงื่อนไขการชำระบอกเป็นจำนวนเงินอย่างเดียว เหมาะกับค่าบริการรายเดือน"
+            }
+            on={doc.showPercent}
+            disabled={readOnly}
+            onChange={(showPercent) => onEdit((d) => ({ ...d, showPercent }))}
+          />
+        </div>
       </section>
 
       {/* ---------- Acceptance ---------- */}

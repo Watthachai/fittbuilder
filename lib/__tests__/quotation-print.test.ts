@@ -129,3 +129,21 @@ describe("a row priced at 0 on the paper", () => {
     expect(html).toContain("1 × 240,000");
   });
 });
+
+describe("the payment share on the paper (case #36)", () => {
+  const render = (showPercent: boolean) =>
+    renderToStaticMarkup(createElement(QuotationPrint, { doc: { ...newDoc(shots, "Pace", "2026-10-16"), showPercent }, shots }));
+
+  it("prints the share column and its 100% while it is switched on", () => {
+    const html = render(true);
+    expect(html).toContain("สัดส่วน");
+    expect(html).toContain("100%");
+  });
+
+  it("leaves the column out when it is switched off, the amounts kept", () => {
+    const html = render(false);
+    expect(html).not.toContain("สัดส่วน");
+    expect(html).not.toContain("100%");
+    expect(html).toContain("งวดการชำระเงิน / Payment Schedule");
+  });
+});

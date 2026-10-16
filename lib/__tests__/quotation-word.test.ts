@@ -111,3 +111,14 @@ describe("the Word MA table", () => {
     expect(without.body).not.toContain("รอบการชำระ");
   });
 });
+
+describe("the payment share in the Word file (case #36)", () => {
+  it("prints the share column only while it is switched on", async () => {
+    const on = await readWord(quotationDocx(quote(), [], NO_ART));
+    const off = await readWord(quotationDocx(quote({ showPercent: false }), [], NO_ART));
+    expect(on.body).toContain("สัดส่วน");
+    expect(off.body).not.toContain("สัดส่วน");
+    expect(off.body).not.toContain("100%");
+    expect(off.body).toContain("งวดการชำระเงิน / Payment Schedule");
+  });
+});

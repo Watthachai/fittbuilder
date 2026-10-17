@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { buildProposalUser, parseProposalDraft } from "@/lib/proposal-write";
+import {
+  buildProposalUser,
+  buildScreenDocsUser,
+  parseProposalDraft,
+  parseScreenDocs,
+  SCREEN_BATCH,
+  screenBatches,
+} from "@/lib/proposal-write";
 
 /**
  * The model's answer is untrusted input like any other. What it gets wrong in
@@ -52,10 +59,23 @@ describe("parseProposalDraft", () => {
     expect(draft.excluded).toEqual(["จริง"]);
   });
 
-  it("clamps screen documentation to the names that were asked about", () => {
+  it("gives each point a distinct id so the editor's keys are stable", () => {
     const draft = parseProposalDraft(
+      JSON.stringify({ points: [{ problem: "ก", feature: "ก" }, { problem: "ข", feature: "ข" }] })
+    )!;
+    expect(new Set(draft.points.map((p) => p.id)).size).toBe(2);
+  });
+});
+
+/**
+ * The manual is written apart from the argument, a batch of screens at a time:
+ * Sechin's 143 screens in one answer ran into the length cap seven times out of
+ * seven, and a truncated answer is no answer at all.
+ */
+describe("parseScreenDocs", () => {
+  it("clamps screen documentation to the names that were asked about", () => {
+    const docs = parseScreenDocs(
       JSON.stringify({
-        ...ok,
         screens: {
           "รายการสินค้า": { does: "ดูสต๊อก", how: "เลือกสาขา", result: "เห็นคงเหลือ" },
           "หน้าที่โมเดลแต่งเอง": { does: "ไม่มีจริง", how: "", result: "" },
@@ -63,22 +83,50 @@ describe("parseProposalDraft", () => {
       }),
       ["รายการสินค้า"]
     )!;
-    expect(Object.keys(draft.screens)).toEqual(["รายการสินค้า"]);
+    expect(Object.keys(docs)).toEqual(["รายการสินค้า"]);
+    expect(docs["รายการสินค้า"].how).toBe("เลือกสาขา");
   });
 
-  it("a draft of nothing but screen docs still counts as an answer", () => {
-    const draft = parseProposalDraft(
-      JSON.stringify({ points: [], screens: { "ก": { does: "ทำงาน" } } }),
-      ["ก"]
-    )!;
-    expect(draft.screens["ก"].does).toBe("ทำงาน");
+  it("drops a screen whose entry says nothing", () => {
+    const docs = parseScreenDocs(JSON.stringify({ screens: { "ก": { does: " " }, "ข": { result: "ได้ผล" } } }), ["ก", "ข"])!;
+    expect(Object.keys(docs)).toEqual(["ข"]);
   });
 
-  it("gives each point a distinct id so the editor's keys are stable", () => {
-    const draft = parseProposalDraft(
-      JSON.stringify({ points: [{ problem: "ก", feature: "ก" }, { problem: "ข", feature: "ข" }] })
-    )!;
-    expect(new Set(draft.points.map((p) => p.id)).size).toBe(2);
+  it("is null when the answer was cut off or is not JSON", () => {
+    expect(parseScreenDocs('{"screens": {"ก": {"does": "ทำ', ["ก"])).toBeNull();
+    expect(parseScreenDocs("[]", ["ก"])).toBeNull();
+  });
+});
+
+describe("screenBatches", () => {
+  it("cuts a long list into batches small enough for one answer, every screen once, in order", () => {
+    const names = Array.from({ length: 143 }, (_, i) => `หน้า ${i}`);
+    const batches = screenBatches(names);
+    expect(batches.every((b) => b.length <= SCREEN_BATCH)).toBe(true);
+    expect(batches.flat()).toEqual(names);
+  });
+
+  it("has nothing to do when no screen needs writing", () => {
+    expect(screenBatches([])).toEqual([]);
+  });
+});
+
+describe("buildScreenDocsUser", () => {
+  it("shows every screen for context but asks for the batch only", () => {
+    const user = buildScreenDocsUser({
+      projectName: "Pace",
+      screens: [
+        { name: "รายการสินค้า", note: "ดูสต๊อกคงเหลือ" },
+        { name: "ตั้งค่า", note: "" },
+      ],
+      journey: ["จากหน้า “รายการสินค้า” กด “เพิ่มสินค้า” → ฟอร์มเพิ่มสินค้า"],
+      write: ["ตั้งค่า"],
+    });
+    expect(user).toContain("- รายการสินค้า — ดูสต๊อกคงเหลือ");
+    expect(user).toContain("เดินระบบจริง");
+    const asked = user.slice(user.indexOf("--- หน้าที่ต้องเขียนคู่มือ"));
+    expect(asked).toContain("- ตั้งค่า");
+    expect(asked).not.toContain("รายการสินค้า");
   });
 });
 

@@ -185,6 +185,8 @@ export default function Proposal({
           projectName,
           screens: steps.map((s) => ({ name: s.name, note: s.note })),
           journey: steps.map(stepJourney).filter((j): j is string => j !== null),
+          argument: wantContext || wantPoints || wantExcluded,
+          document: wantScreens,
         }),
       });
       const data = (await res.json()) as {
@@ -194,6 +196,10 @@ export default function Proposal({
           excluded: string[];
           screens: Record<string, ScreenDoc>;
         };
+        /** The context/points/exclusions answer failed; the screens may still have come back. */
+        argumentFailed?: boolean;
+        /** Screens asked for that came back without a manual entry. */
+        missing?: number;
         error?: string;
       };
       if (!res.ok || !data.draft) {
@@ -217,6 +223,17 @@ export default function Proposal({
           ),
         },
       }));
+      const missing = data.missing ?? 0;
+      if (data.argumentFailed || missing > 0) {
+        const left = [
+          data.argumentFailed ? "บทนำและข้อปัญหา" : "",
+          missing > 0 ? `คู่มืออีก ${missing} จาก ${wantScreens.length} หน้า` : "",
+        ].filter(Boolean);
+        toast.warning("ร่างได้บางส่วน", {
+          description: `ยังขาด${left.join(" และ")} — กดร่างอีกครั้ง ระบบจะเขียนเฉพาะส่วนที่ยังว่าง`,
+        });
+        return;
+      }
       toast.success("ร่างข้อเสนอให้แล้ว", {
         description: "อ่านทวนทุกข้อก่อนส่ง — ลบหรือแก้ได้ทั้งหมด นี่คือเอกสารของคุณ ไม่ใช่ของ AI",
       });

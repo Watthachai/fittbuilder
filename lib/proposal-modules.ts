@@ -73,6 +73,36 @@ const CHAR_BUDGET = 6_000;
 
 const clip = (s: string, n: number): string => (s.length <= n ? s : s.slice(0, n) + "\n…(ตัดทอน)");
 
+/**
+ * The sections a demo numbers its own screens by — "1.1 Planning Dashboard",
+ * "8.4 GL Data Inquiry" — when it does.
+ *
+ * A menu cut into numbered sections is how the sales team already talks about
+ * the system, so the split follows it instead of regrouping by department.
+ * Null when fewer than two sections are numbered: one is a numbered list, not
+ * a cut. Screens without a number are kept aside for the model to place.
+ */
+export function declaredSections(
+  names: string[]
+): { sections: { number: number; screens: string[] }[]; loose: string[] } | null {
+  const bySection = new Map<number, string[]>();
+  const loose: string[] = [];
+  for (const name of names) {
+    const m = /^\s*(\d+)\.\d+/.exec(name);
+    if (!m) {
+      loose.push(name);
+      continue;
+    }
+    const n = Number(m[1]);
+    bySection.set(n, [...(bySection.get(n) ?? []), name]);
+  }
+  if (bySection.size < 2) return null;
+  const sections = [...bySection.entries()]
+    .sort(([a], [b]) => a - b)
+    .map(([number, screens]) => ({ number, screens }));
+  return { sections, loose };
+}
+
 export function buildModulesUser(input: {
   projectName: string;
   /** The proposal's "before" paragraph. */
@@ -84,21 +114,35 @@ export function buildModulesUser(input: {
   brd: string;
   prd: string;
 }): string {
-  const screens = input.screens
-    .map((s) => {
-      const does = s.does ? ` — ${s.does}` : "";
-      const modals = s.modals.length ? ` (หน้าต่างย่อย: ${s.modals.join(", ")})` : "";
-      return `- ${s.name}${does}${modals}`;
-    })
-    .join("\n");
+  const line = (s: { name: string; does: string; modals: string[] }) => {
+    const does = s.does ? ` — ${s.does}` : "";
+    const modals = s.modals.length ? ` (หน้าต่างย่อย: ${s.modals.join(", ")})` : "";
+    return `- ${s.name}${does}${modals}`;
+  };
+  const byName = new Map(input.screens.map((s) => [s.name, s]));
+  const lines = (names: string[]) => names.map((n) => line(byName.get(n)!)).join("\n");
+  const declared = declaredSections(input.screens.map((s) => s.name));
+  const screens = declared
+    ? [
+        ...declared.sections.map((sec) => `หมวด ${sec.number}\n${lines(sec.screens)}`),
+        ...(declared.loose.length ? [`ไม่มีเลขหมวด\n${lines(declared.loose)}`] : []),
+      ].join("\n\n")
+    : input.screens.map(line).join("\n");
+  const heading = declared
+    ? `หน้าจอทั้งหมดในระบบ (${input.screens.length} หน้า) ระบบแบ่งเมนูไว้แล้ว ${declared.sections.length} หมวด`
+    : `หน้าจอทั้งหมดในระบบ (${input.screens.length} หน้า)`;
   return [
     `ชื่อระบบ: ${input.projectName || "(ไม่ระบุ)"}`,
     input.context ? `\nสภาพการทำงานเดิม\n${input.context}` : "",
     input.features.length ? `\nสิ่งที่ระบบทำให้ (จากข้อเสนอโครงการ)\n${input.features.map((f) => `- ${f}`).join("\n")}` : "",
     input.brd ? `\n--- BRD ---\n${clip(input.brd, CHAR_BUDGET)}` : "",
     input.prd ? `\n--- PRD ---\n${clip(input.prd, CHAR_BUDGET)}` : "",
-    `\n--- หน้าจอทั้งหมดในระบบ (${input.screens.length} หน้า) ---\n${screens}`,
-    "\nแตกเป็นโมดูลตามกติกา ใส่ทุกหน้าจอ ตอบ JSON อย่างเดียว",
+    `\n--- ${heading} ---\n${screens}`,
+    // Only here, never in the rules: worded as a rule, the model also read a
+    // PRD's menu outline as sections and cut First Chapter into five.
+    declared
+      ? `\nระบบนี้แบ่งเมนูเป็นหมวดไว้แล้ว ให้ทำ ${declared.sections.length} โมดูล หนึ่งหมวดเป็นหนึ่งโมดูล เรียงตามเลขหมวด ห้ามรวมหรือแยกหมวด ตั้งชื่อโมดูลตามงานของหมวดนั้น หน้าที่ไม่มีเลขหมวดให้ใส่ในโมดูลที่เกี่ยวข้องที่สุด ข้อนี้มาก่อนกติกาเรื่องจำนวนโมดูลและการรวมตามฝ่าย\nแตกเป็นโมดูลตามกติกา ใส่ทุกหน้าจอ ตอบ JSON อย่างเดียว`
+      : "\nแตกเป็นโมดูลตามกติกา ใส่ทุกหน้าจอ ตอบ JSON อย่างเดียว",
   ]
     .filter(Boolean)
     .join("\n");

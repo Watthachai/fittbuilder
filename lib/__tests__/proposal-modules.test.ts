@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   buildModulesUser,
+  declaredSections,
   MODULES_SYSTEM,
   moduleNote,
   parseModulesDraft,
@@ -124,5 +125,65 @@ describe("the instructions", () => {
     });
     expect(user).toContain("- ภาพรวมการจัดซื้อ — ดูคำขอราคาทั้งหมด (หน้าต่างย่อย: สร้างใบขอราคาใหม่)");
     expect(user).toContain("ระบบเปรียบเทียบราคา");
+  });
+});
+
+/**
+ * Sechin's demo already says how it is cut: its menu runs MODULE 1 … MODULE 8
+ * and every screen carries its section number (1.1 Planning Dashboard,
+ * 8.4 GL Data Inquiry). Told to group by department in one to four modules, the
+ * model folded eight sections into four. A demo that numbers its own sections
+ * is split along them.
+ */
+describe("declaredSections", () => {
+  const NUMBERED = ["1.1 Planning Dashboard", "1.2 Sales Order Planning", "2.1 PR Dashboard", "8.4 GL Data Inquiry", "Login"];
+
+  it("groups the screens by the section number they carry, in number order", () => {
+    expect(declaredSections(["2.1 PR Dashboard", "1.1 Planning Dashboard", "10.1 Executive", "1.2 Sales Order Planning"])).toEqual({
+      sections: [
+        { number: 1, screens: ["1.1 Planning Dashboard", "1.2 Sales Order Planning"] },
+        { number: 2, screens: ["2.1 PR Dashboard"] },
+        { number: 10, screens: ["10.1 Executive"] },
+      ],
+      loose: [],
+    });
+  });
+
+  it("keeps the screens without a number aside, for the model to place", () => {
+    expect(declaredSections(NUMBERED)?.loose).toEqual(["Login"]);
+  });
+
+  it("is null when the demo does not number its sections", () => {
+    expect(declaredSections(SCREENS)).toBeNull();
+    // One section is not a cut — that is a numbered list.
+    expect(declaredSections(["1.1 ภาพรวม", "1.2 รายการ", "ตั้งค่า"])).toBeNull();
+  });
+
+  it("hands the sections over as they are, and asks for one module each", () => {
+    const user = buildModulesUser({
+      projectName: "ระบบวางแผนการผลิต",
+      context: "",
+      features: [],
+      screens: NUMBERED.map((name) => ({ name, does: "", modals: [] })),
+      brd: "",
+      prd: "",
+    });
+    expect(user).toContain("หมวด 1\n- 1.1 Planning Dashboard\n- 1.2 Sales Order Planning");
+    expect(user).toContain("หมวด 8\n- 8.4 GL Data Inquiry");
+    expect(user).toContain("ไม่มีเลขหมวด\n- Login");
+    expect(user).toContain("ให้ทำ 3 โมดูล หนึ่งหมวดเป็นหนึ่งโมดูล");
+  });
+
+  it("says nothing about sections to a demo that has none — the rules alone cut First Chapter into two", () => {
+    const user = buildModulesUser({
+      projectName: "First Chapter",
+      context: "",
+      features: [],
+      screens: SCREENS.map((name) => ({ name, does: "", modals: [] })),
+      brd: "",
+      prd: "",
+    });
+    expect(user).not.toMatch(/หมวด/);
+    expect(MODULES_SYSTEM).not.toMatch(/หมวด/);
   });
 });

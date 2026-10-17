@@ -77,7 +77,8 @@ export async function POST(request: Request) {
       }),
       json: true,
       level: "medium",
-      maxOutputTokens: 12288,
+      // Thinking counts against the cap: four modules took 9k of 12k, eight would not fit.
+      maxOutputTokens: 32768,
       onUsage: (u) => {
         usage = u;
       },

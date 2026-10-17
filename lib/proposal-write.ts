@@ -29,7 +29,27 @@ export const PROPOSAL_SYSTEM = `คุณคือที่ปรึกษาท
   "points": [
     { "problem": "...", "feature": "...", "outcome": "..." }
   ],
-  "excluded": ["สิ่งที่ไม่รวมในเฟสนี้ ..."],
+  "excluded": ["สิ่งที่ไม่รวมในเฟสนี้ ..."]
+}`;
+
+/**
+ * The screen manual, written apart from the argument and a batch at a time.
+ *
+ * One answer for every screen ran out of room: Sechin's 143 screens hit the
+ * length cap seven times out of seven, and a cut-off answer parses as nothing.
+ * A batch that fails now loses its own screens only, and pressing again writes
+ * just the ones still empty.
+ */
+export const SCREEN_DOCS_SYSTEM = `คุณคือที่ปรึกษาที่เขียน "คู่มือการใช้งานรายหน้า" ในข้อเสนอโครงการ ให้ลูกค้าองค์กรไทยอ่าน
+
+กติกา
+- เขียนภาษาไทย ภาษาธุรกิจ ไม่ใช่ภาษาโปรแกรมเมอร์ ห้ามใช้ชื่อไฟล์ ชื่อคอมโพเนนต์ หรือศัพท์เทคนิค
+- เขียนเฉพาะหน้าที่อยู่ในรายการ "หน้าที่ต้องเขียนคู่มือ" ให้ครบทุกหน้า หน้าอื่นมีไว้ให้เห็นภาพรวมเท่านั้น
+- อ้างได้เฉพาะสิ่งที่อยู่ในข้อมูลที่ให้มา ห้ามเพิ่มฟีเจอร์ที่ไม่มี
+- ห้ามใส่ราคา ค่าใช้จ่าย หรือตัวเลขที่ไม่ได้อยู่ในข้อมูล
+
+ตอบเป็น JSON เท่านั้น:
+{
   "screens": {
     "<ชื่อหน้าตามรายการ ตรงตัวอักษร>": {
       "does": "หน้านี้มีไว้ทำอะไร 1-2 ประโยค",
@@ -39,7 +59,17 @@ export const PROPOSAL_SYSTEM = `คุณคือที่ปรึกษาท
   }
 }
 
-เขียน "screens" ให้ครบทุกหน้าที่อยู่ในรายการ ใช้ชื่อหน้าเป็น key ตรงตัวอักษร ห้ามตั้งชื่อใหม่`;
+ใช้ชื่อหน้าเป็น key ตรงตัวอักษร ห้ามตั้งชื่อใหม่`;
+
+/** Screens one answer can document without running into the length cap. */
+export const SCREEN_BATCH = 25;
+
+/** The screens to document, cut into batches written side by side. */
+export function screenBatches(names: string[]): string[][] {
+  const out: string[][] = [];
+  for (let i = 0; i < names.length; i += SCREEN_BATCH) out.push(names.slice(i, i + SCREEN_BATCH));
+  return out;
+}
 
 const CHAR_BUDGET = 6_000;
 
@@ -76,12 +106,47 @@ export function buildProposalUser(input: {
     .join("\n");
 }
 
+/** Lists every screen so the batch reads in context, then names the ones to write. */
+export function buildScreenDocsUser(input: {
+  projectName: string;
+  screens: { name: string; note: string }[];
+  journey: string[];
+  /** This batch: the screens to document. */
+  write: string[];
+}): string {
+  const screens = input.screens
+    .map((s) => (s.note ? `- ${s.name} — ${s.note}` : `- ${s.name}`))
+    .join("\n");
+  return [
+    `ชื่อระบบ: ${input.projectName || "(ไม่ระบุ)"}`,
+    `\n--- หน้าจอทั้งหมดในระบบ ---\n${screens}`,
+    input.journey.length
+      ? `\n--- เส้นทางการใช้งานที่บันทึกจากการเดินระบบจริง ---\n${input.journey.join("\n")}`
+      : "",
+    `\n--- หน้าที่ต้องเขียนคู่มือ (${input.write.length} หน้า) ---\n${input.write.map((n) => `- ${n}`).join("\n")}`,
+    "\nเขียนคู่มือให้ครบทุกหน้าในรายการนี้ ตอบ JSON อย่างเดียว",
+  ]
+    .filter(Boolean)
+    .join("\n");
+}
+
 export interface ProposalDraft {
   context: string;
   points: ProposalPoint[];
   excluded: string[];
-  /** Per-screen manual entries — keys clamped to the names that were asked for. */
-  screens: Record<string, ScreenDoc>;
+}
+
+const str = (v: unknown) => (typeof v === "string" ? v.trim() : "");
+
+/** The answer as an object, or null when it is not one — cut off, or not JSON. */
+function answerObject(raw: string): Record<string, unknown> | null {
+  let data: unknown;
+  try {
+    data = JSON.parse(raw);
+  } catch {
+    return null;
+  }
+  return data && typeof data === "object" && !Array.isArray(data) ? (data as Record<string, unknown>) : null;
 }
 
 /**
@@ -92,16 +157,9 @@ export interface ProposalDraft {
  * worse than a shorter proposal. Returns null when nothing survives, so the
  * caller can say so instead of silently replacing the document with emptiness.
  */
-export function parseProposalDraft(raw: string, screenNames: string[] = []): ProposalDraft | null {
-  let data: unknown;
-  try {
-    data = JSON.parse(raw);
-  } catch {
-    return null;
-  }
-  if (!data || typeof data !== "object" || Array.isArray(data)) return null;
-  const o = data as Record<string, unknown>;
-  const str = (v: unknown) => (typeof v === "string" ? v.trim() : "");
+export function parseProposalDraft(raw: string): ProposalDraft | null {
+  const o = answerObject(raw);
+  if (!o) return null;
 
   const points: ProposalPoint[] = (Array.isArray(o.points) ? o.points : [])
     .map((raw, i) => {
@@ -120,10 +178,23 @@ export function parseProposalDraft(raw: string, screenNames: string[] = []): Pro
     .filter(Boolean)
     .slice(0, 12);
 
-  // Keys are clamped to the names that were asked about — same rule as
-  // parseScreenSpecs, because a name the model invented would print as a page
-  // the system does not have.
-  const asked = new Set(screenNames.map((n) => n.trim()).filter(Boolean));
+  const context = str(o.context);
+  if (!context && points.length === 0) return null;
+  return { context, points, excluded };
+}
+
+/**
+ * Read one batch of the screen manual.
+ *
+ * Keys are clamped to the names that were asked about — same rule as
+ * parseScreenSpecs, because a name the model invented would print as a page
+ * the system does not have. Null when the answer is not an object, so the
+ * batch counts as failed rather than as written.
+ */
+export function parseScreenDocs(raw: string, asked: string[]): Record<string, ScreenDoc> | null {
+  const o = answerObject(raw);
+  if (!o) return null;
+  const wanted = new Set(asked.map((n) => n.trim()).filter(Boolean));
   const field = (v: unknown) => str(v).slice(0, 600);
   const screens: Record<string, ScreenDoc> = {};
   for (const [name, raw2] of Object.entries(
@@ -132,13 +203,10 @@ export function parseProposalDraft(raw: string, screenNames: string[] = []): Pro
       : {}
   )) {
     const key = name.trim();
-    if (!asked.has(key)) continue;
+    if (!wanted.has(key)) continue;
     const d = (raw2 ?? {}) as Record<string, unknown>;
     const entry: ScreenDoc = { does: field(d.does), how: field(d.how), result: field(d.result) };
     if (entry.does || entry.how || entry.result) screens[key] = entry;
   }
-
-  const context = str(o.context);
-  if (!context && points.length === 0 && Object.keys(screens).length === 0) return null;
-  return { context, points, excluded, screens };
+  return screens;
 }

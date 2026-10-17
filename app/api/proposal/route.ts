@@ -7,7 +7,16 @@ import { createClient } from "@/lib/supabase/server";
 import { getProjectOrgDnaContext } from "@/lib/org-context";
 import { docsFromFiles } from "@/lib/define";
 import { screenIndexEntries } from "@/lib/screen-index";
-import { buildProposalUser, parseProposalDraft, PROPOSAL_SYSTEM } from "@/lib/proposal-write";
+import {
+  buildProposalUser,
+  buildScreenDocsUser,
+  parseProposalDraft,
+  parseScreenDocs,
+  PROPOSAL_SYSTEM,
+  SCREEN_DOCS_SYSTEM,
+  screenBatches,
+} from "@/lib/proposal-write";
+import type { ScreenDoc } from "@/lib/proposal";
 import type { ProjectFiles } from "@/lib/types";
 
 /**
@@ -19,6 +28,11 @@ import type { ProjectFiles } from "@/lib/types";
  * material the browser has no business holding: the project's BRD/PRD and the
  * workspace Org DNA, read only after RLS has confirmed the caller may read the
  * project at all.
+ *
+ * The argument and the screen manual are separate answers, the manual in
+ * batches, all asked at once: one answer for 143 screens ran out of room every
+ * time. Whatever succeeds is returned, with how many screens are still missing,
+ * so pressing again writes only those.
  */
 // Clamp rather than reject: this is context for a draft, not a form a user
 // filled in. A quotation note can run long (one was 1525 chars), and a draft
@@ -36,6 +50,13 @@ const bodySchema = z.object({
     .catch([]),
   journey: z
     .array(clamped(300))
+    .transform((a) => a.slice(0, 400))
+    .catch([]),
+  /** Whether the context, points and exclusions are wanted — false when all three are written. */
+  argument: z.boolean().default(true),
+  /** The screens with no manual entry yet: the only ones written. */
+  document: z
+    .array(clamped(200))
     .transform((a) => a.slice(0, 400))
     .catch([]),
 });
@@ -70,10 +91,24 @@ export async function POST(request: Request) {
     : screenIndexEntries(files).map((e) => ({ name: e.name, note: "" }));
 
   let usage: TokenUsage | null = null;
+  /** Every answer's tokens together — the press costs all of them. */
+  const addUsage = (u: TokenUsage) => {
+    usage = usage
+      ? {
+          promptTokens: usage.promptTokens + u.promptTokens,
+          outputTokens: usage.outputTokens + u.outputTokens,
+          totalTokens: usage.totalTokens + u.totalTokens,
+        }
+      : u;
+  };
   const userId = await currentUserId();
   after(() => void recordUsage({ userId, projectId: body.projectId, kind: "proposal", usage }));
 
-  try {
+  const known = new Set(screens.map((s) => s.name.trim()));
+  const batches = screenBatches(body.document.filter((n) => known.has(n.trim())));
+
+  const writeArgument = async () => {
+    if (!body.argument) return null;
     const raw = await generateText({
       system: PROPOSAL_SYSTEM,
       user: buildProposalUser({
@@ -87,19 +122,48 @@ export async function POST(request: Request) {
       json: true,
       level: "medium",
       maxOutputTokens: 12288,
-      onUsage: (u) => {
-        usage = u;
-      },
+      onUsage: addUsage,
     });
-    const draft = parseProposalDraft(raw, screens.map((s) => s.name));
-    if (!draft) {
+    return parseProposalDraft(raw);
+  };
+  const writeBatch = async (write: string[]) => {
+    const raw = await generateText({
+      system: SCREEN_DOCS_SYSTEM,
+      user: buildScreenDocsUser({ projectName: body.projectName, screens, journey: body.journey, write }),
+      json: true,
+      level: "low",
+      maxOutputTokens: 16384,
+      onUsage: addUsage,
+    });
+    return parseScreenDocs(raw, write);
+  };
+
+  try {
+    const [argument, ...written] = await Promise.allSettled([writeArgument(), ...batches.map(writeBatch)]);
+    for (const r of [argument, ...written]) {
+      if (r.status === "rejected") {
+        if (r.reason instanceof MissingApiKeyError) return Response.json({ error: r.reason.message }, { status: 500 });
+        console.error("[proposal] failed:", r.reason);
+      }
+    }
+    const draft = argument.status === "fulfilled" ? argument.value : null;
+    const manual: Record<string, ScreenDoc> = Object.assign(
+      {},
+      ...written.map((r) => (r.status === "fulfilled" ? (r.value ?? {}) : {}))
+    );
+    const asked = batches.flat().length;
+    const missing = asked - Object.keys(manual).length;
+    const argumentFailed = body.argument && !draft;
+    if ((argumentFailed || !body.argument) && Object.keys(manual).length === 0) {
       return Response.json({ error: "เขียนข้อเสนอไม่สำเร็จ ลองอีกครั้งได้ครับ" }, { status: 422 });
     }
-    return Response.json({ draft });
+    return Response.json({
+      draft: { context: "", points: [], excluded: [], ...draft, screens: manual },
+      argumentFailed,
+      missing,
+    });
   } catch (error) {
-    const message =
-      error instanceof MissingApiKeyError ? error.message : "เขียนข้อเสนอไม่สำเร็จ กรุณาลองใหม่";
     console.error("[proposal] failed:", error);
-    return Response.json({ error: message }, { status: 500 });
+    return Response.json({ error: "เขียนข้อเสนอไม่สำเร็จ กรุณาลองใหม่" }, { status: 500 });
   }
 }

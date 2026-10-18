@@ -23,6 +23,25 @@ export const CHANGE_BADGE: Record<ChangeType, { label: string; className: string
 // Newest first. SemVer: fix → PATCH, feature → MINOR, breaking → MAJOR.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.113.0",
+    date: "2026-10-18",
+    title: "ส่งไป Code Runner แบบ local หรือ cloud ได้ และเห็นลิงก์ UAT ในหน้าส่งออก",
+    items: [
+      {
+        type: "feature",
+        text: "หน้า “ส่งไป FITT Code Runner” เลือกได้ว่าจะส่งแบบ local (ได้ไฟล์และ image ไปติดตั้งที่เครื่องลูกค้า) หรือแบบ cloud (Code Runner ขึ้น UAT บน GCP ให้เอง) ถ้าเลือก cloud ต้องกรอกอีเมลผู้ดูแลคนแรก ตัวเลือกจำไว้กับโปรเจกต์สำหรับการส่งครั้งต่อไป และเปลี่ยนจาก local เป็น cloud ได้โดยไม่ต้อง build ใหม่",
+      },
+      {
+        type: "feature",
+        text: "โปรเจกต์ที่ส่งแบบ cloud แสดงสถานะการขึ้นระบบ (รอ image, กำลังเตรียมฐานข้อมูล, กำลังขึ้นระบบ, พร้อมใช้ หรือล้มเหลว) พร้อมลิงก์ UAT และปุ่มแสดงรหัสผ่านผู้ดูแลคนแรก ซึ่งแสดงได้ครั้งเดียวกับคนที่แก้โปรเจกต์ได้",
+      },
+      {
+        type: "improvement",
+        text: "ถ้าการขึ้นระบบล้ม ระบบลองใหม่เองทุก 5 นาที และหยุดลองเมื่อ build เดียวกันล้มครบ 3 ครั้ง พร้อมขึ้นว่า “ต้องให้ทีมดู”",
+      },
+    ],
+  },
+  {
     version: "0.112.2",
     date: "2026-10-17",
     title: "ร่างข้อเสนอของระบบใหญ่ได้ครบ และแตกโมดูลตามหมวดที่ระบบแบ่งไว้",

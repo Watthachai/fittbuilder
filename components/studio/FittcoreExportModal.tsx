@@ -18,6 +18,7 @@ import {
 import { currentUser } from "@/lib/current-user";
 import { emitSystemLog } from "@/lib/team-chat-bus";
 import { toast } from "@/lib/toast";
+import CloudDelivery, { saveDelivery, type DeliveryChoice } from "./CloudDelivery";
 
 /** Human-readable KB from a raw byte/char count. */
 function kb(chars: number): string {
@@ -52,6 +53,7 @@ export default function FittcoreExportModal({
   const [result, setResult] = useState<GatewayIngestResult | null>(null);
   const [showSpec, setShowSpec] = useState(false);
   const [showBody, setShowBody] = useState(false);
+  const [delivery, setDelivery] = useState<DeliveryChoice>({ target: "local", admin_email: "" });
 
   if (!open) return null;
 
@@ -75,6 +77,10 @@ export default function FittcoreExportModal({
   const send = async () => {
     setSending(true);
     try {
+      // The choice is the project's, kept in FITT Builder; Code Runner's deploy side
+      // asks for it when the image is ready. Save it first, or do not send.
+      const saveError = await saveDelivery(project.id, delivery);
+      if (saveError) throw new Error(saveError);
       const payload = await buildFittcorePayload(project, orgName, activeVersion);
       const res = await fetch("/api/fittcore", {
         method: "POST",
@@ -143,6 +149,7 @@ export default function FittcoreExportModal({
 
         {/* Body */}
         <div className="scroll-thin min-h-0 flex-1 overflow-y-auto px-5 py-4">
+          <CloudDelivery projectId={project.id} value={delivery} onChange={setDelivery} editable={!result && !sending} />
           {result ? (
             <SuccessPanel result={result} project={project} />
           ) : (

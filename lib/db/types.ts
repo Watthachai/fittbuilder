@@ -1021,6 +1021,8 @@ export interface Database {
     };
     Views: Record<string, never>;
     Functions: {
+      /** Whether a person may edit a project — the same rule its RLS policies use (migration 0015). */
+      fittbuilder_can_edit_project: { Args: { pid: string; uid: string }; Returns: boolean };
       /** Claim the next running document number for a workspace (migration 0041). */
       fittbuilder_next_doc_number: { Args: { oid: string }; Returns: number };
       /** The workspace letterhead for a project's editors, or null without a workspace (migration 0044). */

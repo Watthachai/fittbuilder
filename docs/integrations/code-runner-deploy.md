@@ -33,8 +33,8 @@ Base `/v1/integrations/deploy`, `Authorization: Bearer <token>`, 120 requests a 
 | request | answer |
 |---|---|
 | `GET /projects/{id}` | `{ project_id, name, target, admin_email }` · 404 when there is no such project |
-| `GET /pending` | `{ projects: [{ project_id }] }` — cloud projects whose newest UAT event is missing or not `ready`, unless their newest build failed 3 times in a row |
-| `POST /projects/{id}/events` | body `{ env, stage, build_no?, digest?, url?, message?, initial_admin_password? }` → 202 · the password only with `stage: "ready"`, 16–200 characters, stored sealed and apart from the event |
+| `GET /pending` | `{ projects: [{ project_id }] }` — cloud projects whose newest UAT event is missing or not `ready`, unless their newest build failed 3 times in a row, or another run said `registering`/`deploying` less than 15 minutes ago |
+| `POST /projects/{id}/events` | body `{ env, stage, build_no?, digest?, url?, message?, initial_admin_password? }` → 202 · the password only with `stage: "ready"`, 16–200 characters, stored sealed and apart from the event · a `waiting_image` right after another `waiting_image` is not stored again |
 
 ## In the studio
 

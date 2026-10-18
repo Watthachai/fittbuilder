@@ -28,6 +28,17 @@ describe("pendingProjects", () => {
     expect(needsTeam([...three, ev("a", "failed", 4)])).toBe(false);
   });
 
+  it("leaves a project alone while another run is registering or deploying it", () => {
+    const now = Date.parse("2026-10-18T01:00:00Z");
+    const at = (minutesAgo: number) => new Date(now - minutesAgo * 60_000).toISOString();
+    const busy = (stage: DeployEventRow["stage"], minutesAgo: number): DeployEventRow => ({ ...ev("a", stage), at: at(minutesAgo) });
+    expect(pendingProjects([cloud("a")], [busy("registering", 2)], now)).toEqual([]);
+    expect(pendingProjects([cloud("a")], [busy("deploying", 14)], now)).toEqual([]);
+    // A run that died mid-way is picked up again once it is clearly gone.
+    expect(pendingProjects([cloud("a")], [busy("deploying", 16)], now)).toEqual(["a"]);
+    expect(pendingProjects([cloud("a")], [busy("waiting_image", 1)], now)).toEqual(["a"]);
+  });
+
   it("never lists a local project, and reads only UAT events", () => {
     expect(pendingProjects([{ ...cloud("a"), target: "local", admin_email: "" }], [])).toEqual([]);
     expect(pendingProjects([cloud("a")], [{ ...ev("a", "ready"), env: "production" }])).toEqual(["a"]);

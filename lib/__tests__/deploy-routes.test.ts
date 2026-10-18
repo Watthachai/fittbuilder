@@ -12,12 +12,14 @@ const data = {
   events: [] as DeployEventRow[],
   inserted: [] as unknown[],
   passwords: [] as unknown[][],
+  latest: null as { stage: string } | null,
   fail: false,
 };
 const maybeFail = () => {
   if (data.fail) throw new Error("db down");
 };
 vi.mock("@/lib/deploy/store", () => ({
+  loadLatestEvent: async () => (maybeFail(), data.latest),
   loadDeployProject: async () => (maybeFail(), data.project),
   loadCloudDeliveries: async () => (maybeFail(), data.deliveries),
   loadUatEvents: async () => (maybeFail(), data.events),
@@ -48,6 +50,7 @@ beforeEach(() => {
   data.events = [];
   data.inserted = [];
   data.passwords = [];
+  data.latest = null;
   data.fail = false;
   limit.ok = true;
   limit.retryAfter = 0;
@@ -137,6 +140,18 @@ describe("POST /v1/integrations/deploy/projects/{id}/events", () => {
     expect(await r.json()).toMatchObject({ retryable: true });
     expect(data.inserted).toEqual([]);
     expect(data.passwords).toEqual([]);
+  });
+
+  it("keeps one waiting_image row while a project keeps waiting, not one per sweep", async () => {
+    data.latest = { stage: "waiting_image" };
+    expect((await postEvent({ env: "uat", stage: "waiting_image", message: "ยังไม่มี image" })).status).toBe(202);
+    expect(data.inserted).toEqual([]);
+    data.latest = { stage: "ready" };
+    expect((await postEvent({ env: "uat", stage: "waiting_image" })).status).toBe(202);
+    expect(data.inserted).toHaveLength(1);
+    data.latest = { stage: "deploying" };
+    expect((await postEvent({ env: "uat", stage: "deploying" })).status).toBe(202);
+    expect(data.inserted).toHaveLength(2);
   });
 
   it("answers 404 for a project that does not exist", async () => {

@@ -59,6 +59,19 @@ export async function loadUatEvents(projectIds: string[]): Promise<DeployEventRo
   return pages.flatMap((p) => (p ?? []) as DeployEventRow[]);
 }
 
+/** The newest event of one project in one environment, or null. */
+export async function loadLatestEvent(projectId: string, env: DeployEnv): Promise<DeployEventRow | null> {
+  const r = await createAdminClient()
+    .from("fittbuilder_project_deploy_events")
+    .select(EVENT)
+    .eq("project_id", projectId)
+    .eq("env", env)
+    .order("at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  return (must(r, "latest deploy event") as DeployEventRow | null) ?? null;
+}
+
 export async function insertDeployEvent(e: Omit<DeployEventRow, "at"> & { binding_id: string }): Promise<void> {
   must(await createAdminClient().from("fittbuilder_project_deploy_events").insert(e), "deploy event insert");
 }

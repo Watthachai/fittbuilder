@@ -2,6 +2,13 @@ import type { DeliveryRow, DeployEventRow } from "./types";
 
 /** After this many failures of the same build in a row, a person has to look. */
 export const MAX_FAILURES = 3;
+/**
+ * A run that said "registering" or "deploying" this recently may still be at work:
+ * the sweep leaves it alone, so two runs never register one project at once. One
+ * that said so longer ago died mid-way and is picked up again (a run takes a few
+ * minutes; Cloud Build stops it at 15).
+ */
+export const IN_PROGRESS_MS = 15 * 60_000;
 
 function newestFirst(events: DeployEventRow[]): DeployEventRow[] {
   return [...events].sort((a, b) => b.at.localeCompare(a.at));
@@ -26,7 +33,7 @@ export function needsTeam(uatEvents: DeployEventRow[]): boolean {
  * newest UAT event is not "ready" — unless its newest build has already failed
  * MAX_FAILURES times. A new build starts the count again.
  */
-export function pendingProjects(deliveries: DeliveryRow[], uatEvents: DeployEventRow[]): string[] {
+export function pendingProjects(deliveries: DeliveryRow[], uatEvents: DeployEventRow[], now = Date.now()): string[] {
   const byProject = new Map<string, DeployEventRow[]>();
   for (const e of uatEvents) if (e.env === "uat") byProject.set(e.project_id, [...(byProject.get(e.project_id) ?? []), e]);
   return deliveries
@@ -34,7 +41,9 @@ export function pendingProjects(deliveries: DeliveryRow[], uatEvents: DeployEven
     .map((d) => d.project_id)
     .filter((id) => {
       const events = newestFirst(byProject.get(id) ?? []);
-      if (events[0]?.stage === "ready") return false;
+      const newest = events[0];
+      if (newest?.stage === "ready") return false;
+      if ((newest?.stage === "registering" || newest?.stage === "deploying") && now - Date.parse(newest.at) < IN_PROGRESS_MS) return false;
       return !needsTeam(events);
     });
 }

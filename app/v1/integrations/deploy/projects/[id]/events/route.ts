@@ -2,7 +2,7 @@ import { billingError } from "@/lib/billing/errors";
 import { parseEventInput } from "@/lib/deploy/event-input";
 import { guardDeploy, UUID } from "@/lib/deploy/guard";
 import { seal } from "@/lib/deploy/secret-box";
-import { insertDeployEvent, loadDeployProject, storeInitialPassword } from "@/lib/deploy/store";
+import { insertDeployEvent, loadDeployProject, loadLatestEvent, storeInitialPassword } from "@/lib/deploy/store";
 
 /**
  * Code Runner's deploy side → FITT Builder: one step of a deploy. A first
@@ -27,7 +27,9 @@ export async function POST(request: Request, ctx: { params: Promise<{ id: string
   try {
     if (!(await loadDeployProject(id))) return billingError("not_found", "ไม่พบโปรเจกต์", g.requestId);
     if (password) await storeInitialPassword(id, event.env, seal(password));
-    await insertDeployEvent({ project_id: id, ...event, binding_id: g.binding.id });
+    // The sweep says "still waiting for an image" every five minutes; one row says it.
+    const repeatWait = event.stage === "waiting_image" && (await loadLatestEvent(id, event.env))?.stage === "waiting_image";
+    if (!repeatWait) await insertDeployEvent({ project_id: id, ...event, binding_id: g.binding.id });
     return Response.json({ ok: true }, { status: 202, headers: { "cache-control": "no-store" } });
   } catch (e) {
     console.error(`[deploy] event failed (${g.requestId}): ${(e as Error).message}`);

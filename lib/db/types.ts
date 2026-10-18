@@ -286,6 +286,85 @@ export interface Database {
         Update: Record<string, never>;
         Relationships: [];
       };
+      /** How a project is delivered: local (files) or cloud (migration 0059). No row = local. */
+      fittbuilder_project_delivery: {
+        Row: {
+          project_id: string;
+          target: string;
+          admin_email: string;
+          updated_by: string | null;
+          updated_at: string;
+        };
+        Insert: {
+          project_id: string;
+          target?: string;
+          admin_email?: string;
+          updated_by?: string | null;
+          updated_at?: string;
+        };
+        Update: {
+          target?: string;
+          admin_email?: string;
+          updated_by?: string | null;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      /** What Code Runner's deploy side did, in order (migration 0059). */
+      fittbuilder_project_deploy_events: {
+        Row: {
+          id: string;
+          project_id: string;
+          env: string;
+          stage: string;
+          build_no: number | null;
+          digest: string | null;
+          url: string | null;
+          message: string;
+          binding_id: string | null;
+          at: string;
+        };
+        Insert: {
+          id?: string;
+          project_id: string;
+          env: string;
+          stage: string;
+          build_no?: number | null;
+          digest?: string | null;
+          url?: string | null;
+          message?: string;
+          binding_id?: string | null;
+          at?: string;
+        };
+        Update: Record<string, never>;
+        Relationships: [];
+      };
+      /** A first administrator's sealed password until it is shown once (migration 0059). */
+      fittbuilder_project_initial_passwords: {
+        Row: {
+          project_id: string;
+          env: string;
+          ciphertext: string | null;
+          created_at: string;
+          revealed_at: string | null;
+          revealed_by: string | null;
+        };
+        Insert: {
+          project_id: string;
+          env: string;
+          ciphertext?: string | null;
+          created_at?: string;
+          revealed_at?: string | null;
+          revealed_by?: string | null;
+        };
+        Update: {
+          ciphertext?: string | null;
+          created_at?: string;
+          revealed_at?: string | null;
+          revealed_by?: string | null;
+        };
+        Relationships: [];
+      };
       fittbuilder_integration_clients: {
         Row: {
           id: string;

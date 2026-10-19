@@ -729,6 +729,23 @@ export default function Proposal({
           )}
         </div>
 
+        {/* The short edition: the argument and the scope by module, without the walk. No money either way. */}
+        <div className="rounded-xl border border-night-edge p-3.5">
+          <SectionToggle
+            title="ฉบับย่อ (2–3 หน้า)"
+            hint={
+              !doc.short
+                ? "ฉบับเต็ม — พิมพ์การใช้งานจริงทีละหน้าตามที่ตั้งไว้ด้านบน"
+                : doc.modules.length > 0
+                  ? "พิมพ์ที่มา ปัญหาที่แก้ ขอบเขตงานตามโมดูล ระยะเวลา สิ่งที่ไม่รวม และช่องลงนาม — ไม่พิมพ์การใช้งานทีละหน้าและภาพหน้าจอ ไม่มีราคา"
+                  : "ยังไม่ได้แตกโมดูล — ฉบับย่อจะไม่มีหัวข้อขอบเขตงาน กด “แตกเป็นโมดูลด้วย AI” ด้านบนก่อน"
+            }
+            on={doc.short}
+            onChange={(on) => edit((d) => ({ ...d, short: on }))}
+            disabled={readOnly}
+          />
+        </div>
+
         <button
           onClick={() => void print()}
           disabled={exporting !== null}

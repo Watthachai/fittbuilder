@@ -20,7 +20,10 @@ import {
   printsPrice,
 } from "@/lib/quote";
 import { acceptanceClauses } from "@/lib/quote-clauses";
+import { quoteSheet } from "@/lib/quote-sheet";
+import type { ProposalModule } from "@/lib/proposal-modules";
 import type { Shot } from "@/lib/shots";
+import { CoverDetail, CoverSummary } from "./QuotationSheet";
 
 /**
  * The paper. Rendered into a portal on document.body so the print stylesheet
@@ -42,8 +45,18 @@ import type { Shot } from "@/lib/shots";
  * So the whole document is one table: <thead> is the page furniture, <tfoot> is
  * the mark, and every section lives in a single <tbody> cell.
  */
-export default function QuotationPrint({ doc, shots }: { doc: QuoteDoc; shots: Shot[] }) {
+export default function QuotationPrint({
+  doc,
+  shots,
+  modules,
+}: {
+  doc: QuoteDoc;
+  shots: Shot[];
+  /** The proposal's modules — the sections of the "cover" layout's detail. */
+  modules: ProposalModule[];
+}) {
   const t = quoteTotals(doc);
+  const sheet = doc.layout === "cover" ? quoteSheet(doc, modules) : null;
   const market = marketComparison(doc);
   const plan = paymentSchedule(doc);
   // Each instalment is a share of the price before VAT, with VAT added on it.
@@ -146,88 +159,94 @@ export default function QuotationPrint({ doc, shots }: { doc: QuoteDoc; shots: S
             <td>
               {doc.subject && <p className="q-subject">เรื่อง : {doc.subject}</p>}
 
-              <table className="q-items">
-                <thead>
-                  <tr>
-                    <th className="q-n" />
-                    <th>รายละเอียด / Description</th>
-                    <th className="q-r">ราคา / Amount</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {/* One agreed figure: the scope still prints in full, but as
-                      the description of a single line rather than as prices to
-                      be argued with one by one. */}
-                  {doc.lumpSum.enabled && (
-                    <tr className="q-lump">
-                      <td className="q-n">1</td>
-                      <td>
-                        <div>
-                          <span className="q-name">
-                            {doc.lumpSum.title || doc.subject || "—"}
-                          </span>
-                          <span className="q-note">{lumpSumScope(doc)}</span>
-                        </div>
-                      </td>
-                      <td className="q-r">{formatTHB(t.subtotal)}</td>
-                    </tr>
-                  )}
-                  {!doc.lumpSum.enabled && doc.rows.map((r, i) => (
-                    <tr key={r.id}>
-                      <td className="q-n">{i + 1}</td>
-                      <td>
-                        <div className={r.sub ? "q-sub-item" : ""}>
-                          {r.sub && r.parent && (
-                            <span className="q-of">modal ของ {r.parent}</span>
-                          )}
-                          <span className="q-name">{r.name || "—"}</span>
-                          {/* What the price is made of. Small and grey — it
-                              justifies the number without competing with it. */}
-                          {doc.showBasis && printsPrice(r, doc.ratePerDay) && (
-                            <span className="q-basis">{rowBasis(r, doc.ratePerDay)}</span>
-                          )}
-                          {r.note && <span className="q-note">{r.note}</span>}
-                        </div>
-                      </td>
-                      <td className="q-r">
-                        {printsPrice(r, doc.ratePerDay) && formatTHB(lineTotal(r, doc.ratePerDay))}
-                      </td>
-                    </tr>
-                  ))}
-                  {!doc.lumpSum.enabled && doc.rows.length === 0 && (
-                    <tr>
-                      <td className="q-n" />
-                      <td className="q-empty">—</td>
-                      <td className="q-r">0</td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
+              {sheet ? (
+                <CoverSummary doc={doc} sheet={sheet} />
+              ) : (
+                <>
+                  <table className="q-items">
+                    <thead>
+                      <tr>
+                        <th className="q-n" />
+                        <th>รายละเอียด / Description</th>
+                        <th className="q-r">ราคา / Amount</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {/* One agreed figure: the scope still prints in full, but as
+                          the description of a single line rather than as prices to
+                          be argued with one by one. */}
+                      {doc.lumpSum.enabled && (
+                        <tr className="q-lump">
+                          <td className="q-n">1</td>
+                          <td>
+                            <div>
+                              <span className="q-name">
+                                {doc.lumpSum.title || doc.subject || "—"}
+                              </span>
+                              <span className="q-note">{lumpSumScope(doc)}</span>
+                            </div>
+                          </td>
+                          <td className="q-r">{formatTHB(t.subtotal)}</td>
+                        </tr>
+                      )}
+                      {!doc.lumpSum.enabled && doc.rows.map((r, i) => (
+                        <tr key={r.id}>
+                          <td className="q-n">{i + 1}</td>
+                          <td>
+                            <div className={r.sub ? "q-sub-item" : ""}>
+                              {r.sub && r.parent && (
+                                <span className="q-of">modal ของ {r.parent}</span>
+                              )}
+                              <span className="q-name">{r.name || "—"}</span>
+                              {/* What the price is made of. Small and grey — it
+                                  justifies the number without competing with it. */}
+                              {doc.showBasis && printsPrice(r, doc.ratePerDay) && (
+                                <span className="q-basis">{rowBasis(r, doc.ratePerDay)}</span>
+                              )}
+                              {r.note && <span className="q-note">{r.note}</span>}
+                            </div>
+                          </td>
+                          <td className="q-r">
+                            {printsPrice(r, doc.ratePerDay) && formatTHB(lineTotal(r, doc.ratePerDay))}
+                          </td>
+                        </tr>
+                      ))}
+                      {!doc.lumpSum.enabled && doc.rows.length === 0 && (
+                        <tr>
+                          <td className="q-n" />
+                          <td className="q-empty">—</td>
+                          <td className="q-r">0</td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
 
-              <table className="q-sum">
-                <tbody>
-                  <tr>
-                    <th>ราคารวม / Total</th>
-                    <td>{formatTHB(t.subtotal)}</td>
-                  </tr>
-                  {t.discount > 0 && (
-                    <tr>
-                      <th>ส่วนลด / Discount {discountRate(doc.discount)}</th>
-                      <td>−{formatTHB(t.discount)}</td>
-                    </tr>
-                  )}
-                  {doc.vatPercent > 0 && (
-                    <tr>
-                      <th>ภาษีมูลค่าเพิ่ม / Vat {doc.vatPercent}%</th>
-                      <td>{formatTHB(t.vat)}</td>
-                    </tr>
-                  )}
-                  <tr className="q-net">
-                    <th>ราคาสุทธิ / Net</th>
-                    <td>{formatTHB(t.grand)}</td>
-                  </tr>
-                </tbody>
-              </table>
+                  <table className="q-sum">
+                    <tbody>
+                      <tr>
+                        <th>ราคารวม / Total</th>
+                        <td>{formatTHB(t.subtotal)}</td>
+                      </tr>
+                      {t.discount > 0 && (
+                        <tr>
+                          <th>ส่วนลด / Discount {discountRate(doc.discount)}</th>
+                          <td>−{formatTHB(t.discount)}</td>
+                        </tr>
+                      )}
+                      {doc.vatPercent > 0 && (
+                        <tr>
+                          <th>ภาษีมูลค่าเพิ่ม / Vat {doc.vatPercent}%</th>
+                          <td>{formatTHB(t.vat)}</td>
+                        </tr>
+                      )}
+                      <tr className="q-net">
+                        <th>ราคาสุทธิ / Net</th>
+                        <td>{formatTHB(t.grand)}</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </>
+              )}
 
               {/* The saving, stated as an estimate and attributed to nobody but
                   the sender — it is their claim about their market, made
@@ -392,6 +411,9 @@ export default function QuotationPrint({ doc, shots }: { doc: QuoteDoc; shots: S
                   <p className="q-sign-date">วันที่ ........./........./.........</p>
                 </div>
               </section>
+
+              {/* The cover layout's second sheet: every line under its module, on a page of its own. */}
+              {sheet && <CoverDetail doc={doc} sheet={sheet} />}
 
               {doc.showShots && gallery.length > 0 && (
                 <section className="q-shots">

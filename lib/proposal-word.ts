@@ -14,6 +14,7 @@ import {
   CONTENT,
   DIM,
   LIST,
+  NOTE,
   RULE,
   accentOf,
   cell,
@@ -58,7 +59,32 @@ export function proposalDocx(doc: ProposalDoc, quote: QuoteDoc | null, shots: Sh
     body.push(heading("ระบบนี้แก้ปัญหาอะไรให้บ้าง", accent), pointsTable(points, accent));
   }
 
-  if (doc.showSteps && steps.length > 0) {
+  // The short edition states the scope by module instead of walking every screen.
+  if (doc.short && doc.modules.length > 0) {
+    body.push(heading("ขอบเขตงาน", accent));
+    doc.modules.forEach((m, i) => {
+      body.push(
+        para([run(`${i + 1}  `, { bold: true, color: accent }), run(m.name, { bold: true })], {
+          keepNext: true,
+          spacing: { before: px(8) },
+        })
+      );
+      m.parts.forEach((p, j) => {
+        body.push(
+          para([run(`${i + 1}.${j + 1}  `, { bold: true, color: accent }), run(p.name, { bold: true })], {
+            keepNext: p.points.length > 0,
+            indent: { left: px(18) },
+            spacing: { before: px(4) },
+          })
+        );
+        for (const x of p.points) {
+          body.push(para([run(x, { color: NOTE })], { numbering: { reference: LIST.bullets, level: 0 }, indent: { left: px(48), hanging: px(14) } }));
+        }
+      });
+    });
+  }
+
+  if (!doc.short && doc.showSteps && steps.length > 0) {
     body.push(heading(`การใช้งานจริง — เดินให้ดูทีละหน้า (${steps.length})`, accent), walk(doc, steps, art, accent));
   }
 

@@ -20,6 +20,9 @@ import {
   type BillingCycle,
 } from "@/lib/quote";
 import { acceptanceClauses } from "@/lib/quote-clauses";
+import { bahtText } from "@/lib/baht-text";
+import type { ProposalModule } from "@/lib/proposal-modules";
+import { quoteSheet, type QuoteSheet, type SheetLine } from "@/lib/quote-sheet";
 import type { Shot } from "@/lib/shots";
 import {
   CONTENT,
@@ -56,7 +59,7 @@ import {
  * PDF cannot disagree about a number. The layout notes live in QuotationPrint
  * and app/globals.css; this file only says how each block is written in Word.
  */
-export function quotationDocx(doc: QuoteDoc, shots: Shot[], art: WordArt): Document {
+export function quotationDocx(doc: QuoteDoc, shots: Shot[], modules: ProposalModule[], art: WordArt): Document {
   const accent = accentOf(doc.brand);
   const t = quoteTotals(doc);
   const market = marketComparison(doc);
@@ -64,10 +67,16 @@ export function quotationDocx(doc: QuoteDoc, shots: Shot[], art: WordArt): Docum
   const ma = maintenanceTotals(doc.ma);
   const clauses = acceptanceClauses(doc);
   const gallery = shots.filter((s) => s.url);
+  const sheet = doc.layout === "cover" ? quoteSheet(doc, modules) : null;
 
   const body: (Paragraph | Table)[] = [];
   if (doc.subject) body.push(para([run(`เรื่อง : ${doc.subject}`, { bold: true })], { spacing: { before: px(14) } }));
-  body.push(gap(10), items(doc, accent), gap(10), totals(doc, accent));
+  if (sheet) {
+    body.push(gap(10), coverTable(doc, sheet, accent), gap(10), totals(doc, accent));
+    body.push(para([run(`(${bahtText(t.grand)})`, { bold: true })], { alignment: AlignmentType.RIGHT, spacing: { before: px(6) } }));
+  } else {
+    body.push(gap(10), items(doc, accent), gap(10), totals(doc, accent));
+  }
 
   if (market) {
     body.push(gap(14), marketBox(market, doc.marketNote));
@@ -102,6 +111,19 @@ export function quotationDocx(doc: QuoteDoc, shots: Shot[], art: WordArt): Docum
     gap(20),
     signatures(["ลงนามผู้เสนอราคา", `วันที่ ${thaiDate(doc.issuedAt)}`], ["ลงนามผู้อนุมัติสั่งซื้อ", "วันที่ ........./........./........."])
   );
+
+  // The cover layout's second sheet, on a page of its own.
+  if (sheet && sheet.sections.length > 0) {
+    body.push(
+      para([run(`รายละเอียดใบเสนอราคา / Details${doc.quoteNo ? ` · ${doc.quoteNo}` : ""}`, { bold: true, size: fs(14) })], {
+        pageBreakBefore: true,
+        keepNext: true,
+        spacing: { after: px(6) },
+        border: { bottom: { ...dashed(1, accent), space: 4 } },
+      }),
+      detailTable(doc, sheet, accent)
+    );
+  }
 
   if (doc.showShots && gallery.length > 0) {
     body.push(heading(`ภาคผนวก — หน้าจอที่เสนอราคา (${gallery.length})`, accent, fs(14)), appendix(gallery, art));
@@ -222,14 +244,150 @@ function itemRow(n: string, desc: Paragraph[], amount: string): TableRow {
   });
 }
 
+// ---- the cover layout: ruled tables, as the contractor's sheet prints them ----
+
+const RULED = {
+  top: solid(1, RULE),
+  bottom: solid(1, RULE),
+  left: solid(1, RULE),
+  right: solid(1, RULE),
+  insideHorizontal: solid(1, RULE),
+  insideVertical: solid(1, RULE),
+};
+const BOQ_PAD = { top: px(5), bottom: px(5), left: px(7), right: px(7) };
+const BOQ_N = px(52);
+const BOQ_QTY = px(58);
+const BOQ_UNIT = px(64);
+const BOQ_MONEY = px(96);
+const COVER_MONEY = px(130);
+const SEC_FILL = "FAFAFA";
+
+const qtyText = (n: number | null) => (n === null ? "" : n.toLocaleString("th-TH", { maximumFractionDigits: 2 }));
+const moneyText = (n: number | null) => (n === null ? "" : formatTHB(n));
+
+type Align = (typeof AlignmentType)[keyof typeof AlignmentType];
+
+/** The filled header row — repeats at the top of every page the table runs onto. */
+function boqHead(widths: number[], labels: string[], accent: string): TableRow {
+  return new TableRow({
+    tableHeader: true,
+    children: labels.map((label, i) =>
+      cell(widths[i], [para([run(label, { bold: true })], { alignment: AlignmentType.CENTER })], {
+        margins: BOQ_PAD,
+        shading: { fill: HEAD_FILL, type: ShadingType.CLEAR, color: "auto" },
+        borders: { top: solid(2, accent) },
+      })
+    ),
+  });
+}
+
+const textCell = (width: number, text: string, alignment: Align, tone: Tone = {}) =>
+  cell(width, [para([run(text, tone)], { alignment })], { margins: BOQ_PAD });
+
+/** "รวม …" or "TOTAL": the label across every column between the number and the figure. */
+function closingRow(widths: number[], label: string, amount: number, total: boolean): TableRow {
+  const edge = total ? { top: solid(2, INK) } : { top: solid(1, DIM) };
+  const tone: Tone = total ? { bold: true, size: fs(13.5) } : { bold: true };
+  const between = widths.slice(1, -1);
+  return new TableRow({
+    cantSplit: true,
+    children: [
+      cell(widths[0], [para([])], { margins: BOQ_PAD, borders: edge }),
+      cell(between.reduce((a, b) => a + b, 0), [para([run(label, tone)], { alignment: AlignmentType.RIGHT })], {
+        margins: BOQ_PAD,
+        borders: edge,
+        columnSpan: between.length,
+      }),
+      cell(widths[widths.length - 1], [para([run(formatTHB(amount), tone)], { alignment: AlignmentType.RIGHT })], {
+        margins: BOQ_PAD,
+        borders: edge,
+      }),
+    ],
+  });
+}
+
+/** The cover: one line per module — ลำดับที่ · รายการ · จำนวน · หน่วย · จำนวนเงิน — and their total. */
+function coverTable(doc: QuoteDoc, sheet: QuoteSheet, accent: string): Table {
+  const desc = CONTENT - BOQ_N - BOQ_QTY - BOQ_UNIT - COVER_MONEY;
+  const widths = [BOQ_N, desc, BOQ_QTY, BOQ_UNIT, COVER_MONEY];
+  const rows: TableRow[] = [boqHead(widths, ["ลำดับที่", "รายการ", "จำนวน", "หน่วย", "จำนวนเงิน (บาท)"], accent)];
+  for (const l of sheet.cover) {
+    rows.push(
+      new TableRow({
+        cantSplit: true,
+        children: [
+          textCell(widths[0], l.no, AlignmentType.CENTER),
+          textCell(widths[1], l.name, AlignmentType.LEFT, { bold: true }),
+          textCell(widths[2], qtyText(l.qty), AlignmentType.CENTER),
+          textCell(widths[3], l.unit, AlignmentType.CENTER),
+          textCell(widths[4], moneyText(l.amount), AlignmentType.RIGHT),
+        ],
+      })
+    );
+  }
+  rows.push(closingRow(widths, doc.lumpSum.enabled ? "รวมทุกรายการ (ราคาเหมารวม)" : "รวมทุกรายการ", sheet.total, true));
+  return grid(widths, rows, { borders: RULED });
+}
+
+/** The detail: each module's lines under it, a subtotal per module, the TOTAL last. */
+function detailTable(doc: QuoteDoc, sheet: QuoteSheet, accent: string): Table {
+  const desc = CONTENT - BOQ_N - BOQ_QTY - BOQ_UNIT - 2 * BOQ_MONEY;
+  const widths = [BOQ_N, desc, BOQ_QTY, BOQ_UNIT, BOQ_MONEY, BOQ_MONEY];
+  const rows: TableRow[] = [boqHead(widths, ["ลำดับที่", "รายการ", "จำนวน", "หน่วย", "ราคา/หน่วย", "จำนวนเงิน"], accent)];
+  for (const s of sheet.sections) {
+    const fill = { shading: { fill: SEC_FILL, type: ShadingType.CLEAR, color: "auto" } };
+    rows.push(
+      new TableRow({
+        cantSplit: true,
+        children: [
+          cell(widths[0], [para([run(s.no, { bold: true })], { alignment: AlignmentType.CENTER, keepNext: true })], {
+            margins: BOQ_PAD,
+            ...fill,
+          }),
+          cell(CONTENT - BOQ_N, [para([run(s.name, { bold: true })], { keepNext: true })], {
+            margins: BOQ_PAD,
+            columnSpan: 5,
+            ...fill,
+          }),
+        ],
+      })
+    );
+    for (const l of s.lines) rows.push(detailRow(widths, l));
+    if (s.subtotal !== null) rows.push(closingRow(widths, `รวม ${s.name}`, s.subtotal, false));
+  }
+  rows.push(closingRow(widths, doc.lumpSum.enabled ? "TOTAL (ราคาเหมารวม)" : "TOTAL", sheet.total, true));
+  return grid(widths, rows, { borders: RULED });
+}
+
+function detailRow(widths: number[], l: SheetLine): TableRow {
+  const lines: Line[] = [{ text: [run(l.name, { bold: true })], keep: true }];
+  if (l.note) lines.push({ text: typed(l.note, NOTE_TONE), keep: false, before: px(2) });
+  return new TableRow({
+    cantSplit: true,
+    children: [
+      textCell(widths[0], l.no, AlignmentType.CENTER, { color: DIM }),
+      cell(widths[1], describe(lines, l.sub), { margins: BOQ_PAD }),
+      textCell(widths[2], qtyText(l.qty), AlignmentType.CENTER),
+      textCell(widths[3], l.unit, AlignmentType.CENTER),
+      textCell(widths[4], moneyText(l.unitPrice), AlignmentType.RIGHT),
+      textCell(widths[5], moneyText(l.amount), AlignmentType.RIGHT),
+    ],
+  });
+}
+
 // ---- totals, right-aligned under a dashed rule ----
 
 function totals(doc: QuoteDoc, accent: string): Table {
   const t = quoteTotals(doc);
-  const lines: [string, string, boolean][] = [["ราคารวม / Total", formatTHB(t.subtotal), false]];
-  if (t.discount > 0) lines.push([`ส่วนลด / Discount ${discountRate(doc.discount)}`, `−${formatTHB(t.discount)}`, false]);
-  if (doc.vatPercent > 0) lines.push([`ภาษีมูลค่าเพิ่ม / Vat ${doc.vatPercent}%`, formatTHB(t.vat), false]);
-  lines.push(["ราคาสุทธิ / Net", formatTHB(t.grand), true]);
+  // The cover layout labels its totals the way the contractor's sheet does (QuotationSheet.tsx).
+  const cover = doc.layout === "cover";
+  const lines: [string, string, boolean][] = [[cover ? "ราคารวม / Sub Total" : "ราคารวม / Total", formatTHB(t.subtotal), false]];
+  if (t.discount > 0) {
+    lines.push([`ส่วนลด / Discount ${discountRate(doc.discount)}`, `−${formatTHB(t.discount)}`, false]);
+    if (cover) lines.push(["ราคาหลังหักส่วนลด / Total", formatTHB(t.net), false]);
+  }
+  if (doc.vatPercent > 0) lines.push([`ภาษีมูลค่าเพิ่ม / ${cover ? "VAT" : "Vat"} ${doc.vatPercent}%`, formatTHB(t.vat), false]);
+  lines.push([cover ? "ราคาสุทธิ / Grand Total" : "ราคาสุทธิ / Net", formatTHB(t.grand), true]);
 
   const label = px(240);
   const value = px(160);

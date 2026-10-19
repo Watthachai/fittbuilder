@@ -286,6 +286,15 @@ export interface QuoteDiscount {
   value: number;
 }
 
+/**
+ * How the paper is laid out. "list" is one numbered list of lines with a price
+ * each. "cover" is the shape a contractor's own quotation takes (First Chapter's
+ * Excel): a cover page that totals one line per module, then the detail — every
+ * line under its module with จำนวน · หน่วย · ราคา/หน่วย, a subtotal per module
+ * and a TOTAL (lib/quote-sheet.ts).
+ */
+export type QuoteLayout = "list" | "cover";
+
 export interface QuoteDoc {
   /** What the job is, on the paper's subject line. */
   subject: string;
@@ -347,6 +356,7 @@ export interface QuoteDoc {
    * as "8.33%" a month, which tells the customer nothing (case #36).
    */
   showPercent: boolean;
+  layout: QuoteLayout;
 }
 
 // Payment now has its own table and its own generated clauses, so the free-text
@@ -561,6 +571,7 @@ export function newDoc(shots: Shot[], projectName: string, today: string): Quote
     showShots: true,
     showBasis: true,
     showPercent: true,
+    layout: "list",
   };
 }
 
@@ -717,6 +728,8 @@ export function parseDoc(payload: unknown, fallbackDate: string): QuoteDoc | nul
     // On for every document written before this existed — they all printed it.
     showBasis: bool(o.showBasis, true),
     showPercent: bool(o.showPercent, true),
+    // Every document written before the cover layout existed printed as a list.
+    layout: o.layout === "cover" ? "cover" : "list",
   };
 }
 

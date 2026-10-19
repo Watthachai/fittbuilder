@@ -92,11 +92,12 @@ export default function Quotation({
 }) {
   const [loading, setLoading] = useState(true);
   /**
-   * The shots the printed sheet is currently rendering — null when not
-   * printing. One piece of state rather than a `printing` flag beside a shot
-   * array, so the two cannot disagree about what is on the paper.
+   * What the printed sheet is currently rendering — its shots and the modules
+   * the cover layout groups by — null when not printing. One piece of state
+   * rather than a `printing` flag beside them, so they cannot disagree about
+   * what is on the paper.
    */
-  const [sheet, setSheet] = useState<Shot[] | null>(null);
+  const [sheet, setSheet] = useState<{ shots: Shot[]; modules: ProposalModule[] } | null>(null);
   /**
    * Which export is running — it starts before the paper exists, because the
    * URLs are re-signed first. Separate from `sheet` on purpose: one answers
@@ -330,7 +331,9 @@ export default function Quotation({
    * Returns the number rather than reading it back off `doc`, because the edit
    * that freezes it in has not re-rendered yet.
    */
-  const prepareExport = async (current: QuoteDoc): Promise<{ docNo: string; shots: Shot[] }> => {
+  const prepareExport = async (
+    current: QuoteDoc
+  ): Promise<{ docNo: string; shots: Shot[]; modules: ProposalModule[] }> => {
     // Issue the running document number on first export, then freeze it into
     // the doc so a reprint keeps the same one (SQP12605-0002). Only for a
     // workspace project — a personal one keeps whatever is in the field.
@@ -353,7 +356,13 @@ export default function Quotation({
     // Falling back to the props on failure keeps a network blip from turning
     // "picture might be stale" into "cannot print at all".
     const fresh = await listShots(projectId, version).catch(() => [] as Shot[]);
-    return { docNo, shots: fresh.length > 0 ? fresh : shots };
+    // The cover layout's sections are the proposal's modules, read fresh because
+    // the proposal is edited in its own tab. Without any, the detail is one section.
+    const modules =
+      current.layout === "cover"
+        ? ((await loadProposal(projectId, version, today).catch(() => null))?.modules ?? [])
+        : [];
+    return { docNo, shots: fresh.length > 0 ? fresh : shots, modules };
   };
 
   /**
@@ -366,9 +375,9 @@ export default function Quotation({
     if (exporting || !doc) return;
     setExporting("pdf");
     try {
-      const { docNo, shots: printable } = await prepareExport(doc);
+      const { docNo, shots: printable, modules } = await prepareExport(doc);
       await printSheet(
-        () => setSheet(printable),
+        () => setSheet({ shots: printable, modules }),
         () => setSheet(null),
         { fileName: docFileName(docNo, doc.customerName) }
       );
@@ -382,9 +391,14 @@ export default function Quotation({
     if (exporting || !doc) return;
     setExporting("word");
     try {
-      const { docNo, shots: fresh } = await prepareExport(doc);
+      const { docNo, shots: fresh, modules } = await prepareExport(doc);
       const { saveQuotationWord } = await import("@/lib/word-export");
-      const { missing } = await saveQuotationWord({ ...doc, quoteNo: docNo }, fresh, docFileName(docNo, doc.customerName));
+      const { missing } = await saveQuotationWord(
+        { ...doc, quoteNo: docNo },
+        fresh,
+        modules,
+        docFileName(docNo, doc.customerName)
+      );
       if (missing > 0) toast.warning(`ไฟล์ Word ขาดภาพ ${missing} ภาพ`, { description: "โหลดภาพไม่สำเร็จ ลองบันทึกอีกครั้ง" });
     } catch (e) {
       toast.error("บันทึกไฟล์ Word ไม่สำเร็จ", { description: e instanceof Error ? e.message : undefined });
@@ -960,6 +974,20 @@ export default function Quotation({
               </p>
             </div>
           )}
+          {/* A contractor's own quotation shape: a cover totalling each module, then the detail. */}
+          <div className="mt-3">
+            <SectionToggle
+              title="แบบใบปะหน้า + รายละเอียด"
+              hint={
+                doc.layout === "cover"
+                  ? "หน้าแรกสรุปเป็นโมดูลพร้อมยอดตัวอักษร หน้าถัดไปเป็นรายละเอียดทุกรายการ จำนวน · หน่วย · ราคา/หน่วย รวมย่อยต่อโมดูล — จัดกลุ่มตามโมดูลในแท็บข้อเสนอโครงการ"
+                  : "ไม่ใช้ — พิมพ์เป็นรายการเดียวแบบเดิม"
+              }
+              on={doc.layout === "cover"}
+              onChange={(on) => edit((d) => ({ ...d, layout: on ? "cover" : "list" }))}
+              disabled={readOnly}
+            />
+          </div>
           {/* The arithmetic is the sender's; the customer may only get the price (case #25). */}
           <div className="mt-3">
             <SectionToggle
@@ -1015,7 +1043,7 @@ export default function Quotation({
 
       {sheet &&
         typeof document !== "undefined" &&
-        createPortal(<QuotationPrint doc={doc} shots={sheet} />, document.body)}
+        createPortal(<QuotationPrint doc={doc} shots={sheet.shots} modules={sheet.modules} />, document.body)}
     </div>
   );
 }

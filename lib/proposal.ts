@@ -157,6 +157,12 @@ export interface ProposalDoc {
    * own, with no quotation in the envelope (case #26).
    */
   showQuoteRef: boolean;
+  /**
+   * The short edition: two or three pages — the argument, the scope by module,
+   * the timeline, what is not included, and the signatures — without the walk
+   * through every screen and its pictures. Like the full one it names no money.
+   */
+  short: boolean;
 }
 
 export const DEFAULT_CLOSING =
@@ -212,6 +218,7 @@ export function newProposal(projectName: string, today: string): ProposalDoc {
     closing: DEFAULT_CLOSING,
     quoteNo: "",
     showQuoteRef: true,
+    short: false,
   };
 }
 
@@ -358,5 +365,7 @@ export function parseProposal(payload: unknown, fallbackDate: string): ProposalD
     quoteNo: str(o.quoteNo),
     // On for every proposal written before this existed — they all printed it.
     showQuoteRef: bool(o.showQuoteRef, true),
+    // Every proposal written before the short edition existed printed in full.
+    short: bool(o.short, false),
   };
 }

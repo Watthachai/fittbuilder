@@ -64,3 +64,19 @@ describe("the proposal as a Word file", () => {
     expect(body).toContain("ตรวจรับหลังส่งมอบ");
   });
 });
+
+describe("the short proposal as a Word file", () => {
+  const modules = [
+    { id: "m1", name: "ระบบขายหน้าร้าน", parts: [{ id: "p1", name: "ตะกร้าสินค้า", points: ["รวมสินค้าที่เลือก"], screens: ["ตะกร้า"] }] },
+  ];
+
+  it("states the scope by module, walks no screen and packs no picture", async () => {
+    const { body, pictures } = await readWord(proposalDocx(proposal({ short: true, modules }), quote, shots, art));
+    expect(body).toContain("ขอบเขตงาน");
+    expect(body).toContain("ระบบขายหน้าร้าน");
+    expect(body).toContain("1.1");
+    expect(body).toContain("รวมสินค้าที่เลือก");
+    expect(body).not.toContain("ขั้นตอนที่ 2");
+    expect(pictures.body).toBe(0);
+  });
+});

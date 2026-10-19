@@ -4,6 +4,7 @@ import { Packer, type Document } from "docx";
 import { IMAGE_TIMEOUT_MS } from "@/lib/print-sheet";
 import { proposalDocx } from "@/lib/proposal-word";
 import { proposalSteps, type ProposalDoc } from "@/lib/proposal";
+import type { ProposalModule } from "@/lib/proposal-modules";
 import { quotationDocx } from "@/lib/quotation-word";
 import type { QuoteDoc } from "@/lib/quote";
 import type { Shot } from "@/lib/shots";
@@ -108,10 +109,15 @@ async function download(file: Document, fileName: string): Promise<void> {
 }
 
 /** Only the pictures the file will show are fetched — an appendix that is switched off costs nothing. */
-export async function saveQuotationWord(doc: QuoteDoc, shots: Shot[], fileName: string): Promise<{ missing: number }> {
+export async function saveQuotationWord(
+  doc: QuoteDoc,
+  shots: Shot[],
+  modules: ProposalModule[],
+  fileName: string
+): Promise<{ missing: number }> {
   const urls = doc.showShots ? shots.filter((s) => s.url).map((s) => s.url) : [];
   const { art, missing } = await loadArt(doc.brand.logoUrl, urls);
-  await download(quotationDocx(doc, shots, art), fileName || "ใบเสนอราคา");
+  await download(quotationDocx(doc, shots, modules, art), fileName || "ใบเสนอราคา");
   return { missing };
 }
 
@@ -121,7 +127,8 @@ export async function saveProposalWord(
   shots: Shot[],
   fileName: string
 ): Promise<{ missing: number }> {
-  const urls = doc.showSteps && doc.showShots ? proposalSteps(shots, quote).map((s) => s.url) : [];
+  // The short edition prints no walk, so it fetches no pictures.
+  const urls = !doc.short && doc.showSteps && doc.showShots ? proposalSteps(shots, quote).map((s) => s.url) : [];
   const { art, missing } = await loadArt(doc.brand.logoUrl, urls);
   await download(proposalDocx(doc, quote, shots, art), fileName || "ข้อเสนอโครงการ");
   return { missing };

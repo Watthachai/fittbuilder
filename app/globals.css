@@ -1124,6 +1124,91 @@ body {
   margin-top: 2px;
 }
 
+/* ---- the cover layout: a contractor's quotation (QuoteLayout "cover") ----
+   Ruled cells with a filled header, the way the customer's own Excel prints:
+   numbers centred, money right, a section row and a subtotal row per module. */
+.fitt-paper .q-boq {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 10px;
+}
+.fitt-paper .q-boq th,
+.fitt-paper .q-boq td {
+  border: 1px solid var(--rule);
+  padding: 5px 7px;
+  vertical-align: top;
+}
+.fitt-paper .q-boq thead th {
+  background: #f6f7f8;
+  border-top: 2px solid var(--accent);
+  font-weight: 700;
+  text-align: center;
+  white-space: nowrap;
+}
+.fitt-paper .q-boq .q-r {
+  text-align: right;
+}
+.fitt-paper .q-boq .q-c {
+  text-align: center;
+}
+.fitt-paper .q-boq-n {
+  width: 52px;
+}
+.fitt-paper .q-boq-qty {
+  width: 58px;
+}
+.fitt-paper .q-boq-unit {
+  width: 64px;
+}
+.fitt-paper .q-boq-money {
+  width: 96px;
+}
+.fitt-paper .q-cover .q-boq-money {
+  width: 130px;
+}
+.fitt-paper .q-boq-no {
+  color: var(--ink-dim);
+  font-variant-numeric: tabular-nums;
+}
+.fitt-paper .q-boq-name {
+  font-weight: 600;
+}
+.fitt-paper .q-boq-sec td {
+  background: #fafafa;
+  font-weight: 700;
+}
+.fitt-paper .q-boq-subtotal td {
+  font-weight: 600;
+  border-top: 1px solid var(--ink-dim);
+}
+.fitt-paper .q-boq-subtotal td:nth-child(2) {
+  text-align: right;
+}
+.fitt-paper .q-boq-total td {
+  font-weight: 700;
+  font-size: 13.5px;
+  border-top: 2px solid var(--ink);
+}
+.fitt-paper .q-cover .q-boq-total td:nth-child(2),
+.fitt-paper .q-detail .q-boq-total td:nth-child(2) {
+  text-align: right;
+}
+.fitt-paper .q-words {
+  margin-top: 6px;
+  text-align: right;
+  font-weight: 600;
+}
+/* The detail is the second sheet of the customer's file: it starts a page. */
+.fitt-paper .q-detail {
+  break-before: page;
+}
+.fitt-paper .q-detail h2 {
+  font-size: 14px;
+  font-weight: 700;
+  border-bottom: 1px dashed var(--accent);
+  padding-bottom: 4px;
+}
+
 .fitt-paper .q-shots {
   margin-top: 22px;
 }
@@ -1292,6 +1377,30 @@ body {
   max-width: 82ch;
   line-height: 1.55;
 }
+/* The short edition's scope: each module, its parts numbered under it (1.1),
+   and their points as a plain list — the outline a customer signs off on. */
+.fitt-paper .p-mod {
+  margin-top: 8px;
+  break-inside: avoid;
+}
+.fitt-paper .p-mod-name {
+  font-weight: 700;
+}
+.fitt-paper .p-part {
+  margin: 4px 0 0 18px;
+}
+.fitt-paper .p-part-name {
+  font-weight: 600;
+}
+.fitt-paper .p-part ul {
+  margin: 1px 0 0;
+  padding-left: 30px;
+  list-style: disc outside;
+  color: #374151;
+}
+.fitt-paper .p-part li {
+  line-height: 1.5;
+}
 
 /* ---- phase documents (BRD, PRD, …): markdown on paper ---- */
 .fitt-paper .d-head {
@@ -1423,8 +1532,24 @@ body {
     display: table-footer-group;
   }
   .fitt-paper .q-items thead,
-  .fitt-paper .q-pay thead {
+  .fitt-paper .q-pay thead,
+  .fitt-paper .q-boq thead {
     display: table-header-group; /* repeat the column header on every page */
+  }
+  /* The cover layout's rows follow the line-item rule below: a line is held
+     together by its own lines, never as a whole block. A module's heading row
+     stays with its first line, and a subtotal or TOTAL row is never torn. */
+  .fitt-paper .q-boq-name {
+    display: block;
+    break-after: avoid;
+  }
+  .fitt-paper .q-boq-sec {
+    break-after: avoid;
+  }
+  .fitt-paper .q-boq-sec,
+  .fitt-paper .q-boq-subtotal,
+  .fitt-paper .q-boq-total {
+    break-inside: avoid;
   }
   /* A clause split across a page break is a real problem on paper, not a
      cosmetic one: the half a reader skims is the half that binds them. Each

@@ -157,7 +157,38 @@ export default function ProposalPrint({
                 </section>
               )}
 
-              {doc.showSteps && steps.length > 0 && (
+              {/* The short edition states the scope by module instead of walking every screen. */}
+              {doc.short && doc.modules.length > 0 && (
+                <section className="q-block">
+                  <h2>ขอบเขตงาน</h2>
+                  {doc.modules.map((m, i) => (
+                    <div key={m.id} className="p-mod">
+                      <p className="p-mod-name">
+                        <span className="p-n">{i + 1}</span> {m.name}
+                      </p>
+                      {m.parts.map((p, j) => (
+                        <div key={p.id} className="p-part">
+                          <p className="p-part-name">
+                            <span className="p-n">
+                              {i + 1}.{j + 1}
+                            </span>{" "}
+                            {p.name}
+                          </p>
+                          {p.points.length > 0 && (
+                            <ul>
+                              {p.points.map((x, k) => (
+                                <li key={k}>{x}</li>
+                              ))}
+                            </ul>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  ))}
+                </section>
+              )}
+
+              {!doc.short && doc.showSteps && steps.length > 0 && (
                 <section className="q-block">
                   <h2>การใช้งานจริง — เดินให้ดูทีละหน้า ({steps.length})</h2>
                   {/* One screen per row, manual-style: picture on the left,

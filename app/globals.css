@@ -1379,15 +1379,19 @@ body {
 }
 /* The short edition's scope: each module, its parts numbered under it (1.1),
    and their points as a plain list — the outline a customer signs off on. */
+/* A module of a large system runs longer than a page, so it breaks between its
+   parts — never inside one — and its name stays with its first part. Holding
+   the whole module together left half-empty pages. */
 .fitt-paper .p-mod {
   margin-top: 8px;
-  break-inside: avoid;
 }
 .fitt-paper .p-mod-name {
   font-weight: 700;
+  break-after: avoid;
 }
 .fitt-paper .p-part {
   margin: 4px 0 0 18px;
+  break-inside: avoid;
 }
 .fitt-paper .p-part-name {
   font-weight: 600;
@@ -1522,6 +1526,14 @@ body {
     inset: auto !important;
     max-height: none !important;
     overflow: visible !important;
+  }
+  /* The paper's padding is the first page's top margin and, printed, a strip
+     after the last line of the last page. A document ending within 12mm of a
+     page's foot pushed that strip onto a page of its own: a blank last page,
+     without even the letterhead. Nothing follows the paper, so it keeps no
+     space below itself. */
+  .fitt-paper {
+    padding-bottom: 0;
   }
   /* The letterhead and the mark ride along on every page — this pair of rules
      is the whole reason the document is wrapped in a table. */

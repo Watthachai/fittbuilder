@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import SettingsShell from "@/components/settings/SettingsShell";
 import { getAdminUser } from "@/lib/admin-server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { AddPartnerEmail, GrantLeadButton, RemovePartnerEmail } from "./PartnerEmailControls";
 
 export const metadata = { title: "Admin · คำขอเป็น Partner" };
 export const dynamic = "force-dynamic";
@@ -13,6 +14,11 @@ export const dynamic = "force-dynamic";
  * without losing anything: the row is always here. Read through the service
  * role because the table has RLS on and no policies — not even an admin's own
  * session can select from it.
+ *
+ * Above the inbox is the partner list (migration 0060): an email on it makes
+ * that person's workspaces partner workspaces, including ones they make after
+ * signing in for the first time — so a request can be granted before the
+ * applicant has an account.
  */
 const STATUS: Record<string, { label: string; cls: string }> = {
   new: { label: "ใหม่", cls: "border-shine/50 bg-shine/10 text-shine" },
@@ -33,13 +39,18 @@ export default async function AdminPartnersPage() {
   if (!user) redirect("/");
 
   const admin = createAdminClient();
-  const { data, error } = await admin
-    .from("fittbuilder_partner_leads")
-    .select("id, name, company, email, phone, note, source, status, created_at")
-    .order("created_at", { ascending: false })
-    .limit(200);
+  const [{ data, error }, { data: partnerData, error: partnerError }] = await Promise.all([
+    admin
+      .from("fittbuilder_partner_leads")
+      .select("id, name, company, email, phone, note, source, status, created_at")
+      .order("created_at", { ascending: false })
+      .limit(200),
+    admin.rpc("fittbuilder_partner_email_list"),
+  ]);
   const leads = data ?? [];
   const fresh = leads.filter((l) => l.status === "new").length;
+  const partners = partnerData ?? [];
+  const partnerEmails = new Set(partners.map((p) => p.email));
 
   return (
     <SettingsShell>
@@ -53,6 +64,41 @@ export default async function AdminPartnersPage() {
             </a>
           </p>
         </div>
+
+        <section className="mb-8 rounded-xl border border-night-edge p-4">
+          <h2 className="font-display text-base font-semibold">อีเมล Partner</h2>
+          <p className="mt-1 mb-3 text-[13px] text-chalk-dim">
+            พื้นที่ทำงานทุกแห่งของอีเมลในรายการนี้เป็น Partner รวมถึงแห่งที่สร้างทีหลัง
+            เพิ่มไว้ก่อนได้แม้เจ้าของอีเมลยังไม่เคยเข้าระบบ
+          </p>
+          <AddPartnerEmail />
+          {partnerError && <p className="mt-3 text-sm text-halt">โหลดรายการไม่สำเร็จ: {partnerError.message}</p>}
+          {partners.length > 0 && (
+            <ul className="mt-3 space-y-1.5">
+              {partners.map((p) => (
+                <li
+                  key={p.email}
+                  className="flex items-center gap-3 rounded-lg border border-night-edge bg-night px-3 py-2"
+                >
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate font-mono text-[12px] text-chalk">{p.email}</p>
+                    <p className="text-[12px] text-chalk-dim">
+                      {p.has_account
+                        ? p.workspaces > 0
+                          ? `เป็น Partner แล้ว ${p.workspaces} พื้นที่ทำงาน`
+                          : "เข้าระบบแล้ว ยังไม่มีพื้นที่ทำงาน — เป็น Partner ทันทีที่สร้าง"
+                        : "ยังไม่เคยเข้าระบบ — เป็น Partner ทันทีที่สร้างพื้นที่ทำงาน"}
+                      {" · "}เพิ่มโดย {p.added_by} เมื่อ {when(p.created_at)}
+                    </p>
+                  </div>
+                  <RemovePartnerEmail email={p.email} />
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+
+        <h2 className="mb-3 font-display text-base font-semibold">คำขอจากฟอร์ม</h2>
 
         {error && (
           <p className="mb-6 rounded-lg border border-halt/40 bg-halt/10 px-4 py-3 text-sm text-halt">
@@ -74,6 +120,7 @@ export default async function AdminPartnersPage() {
                   <th className="px-3 py-2.5 font-display font-medium">รายละเอียด</th>
                   <th className="w-32 px-3 py-2.5 font-display font-medium">สถานะ</th>
                   <th className="w-40 px-3 py-2.5 font-display font-medium">ส่งเมื่อ</th>
+                  <th className="w-36 px-3 py-2.5 font-display font-medium">Partner</th>
                 </tr>
               </thead>
               <tbody>
@@ -104,6 +151,13 @@ export default async function AdminPartnersPage() {
                       <td className="px-3 py-2.5 align-top font-mono text-[12px] text-chalk-dim">
                         {when(l.created_at)}
                       </td>
+                      <td className="px-3 py-2.5 align-top">
+                        {partnerEmails.has(l.email.trim().toLowerCase()) ? (
+                          <span className="text-[12px] text-go">อยู่ในรายการแล้ว</span>
+                        ) : (
+                          <GrantLeadButton email={l.email} leadId={l.id} />
+                        )}
+                      </td>
                     </tr>
                   );
                 })}
@@ -111,17 +165,6 @@ export default async function AdminPartnersPage() {
             </table>
           </div>
         )}
-
-        {/* Granting partner status is a service-role write (migration 0029 pins
-            the column against the Data API), so it is still a SQL statement
-            rather than a button. Written down here so it is not folklore. */}
-        <p className="mt-4 rounded-lg border border-night-edge px-4 py-3 font-mono text-[12px] leading-relaxed text-chalk-dim">
-          ให้สิทธิ์ Partner:{" "}
-          <code className="text-chalk">
-            update fittbuilder_orgs set is_partner = true where id = &apos;&lt;org_id&gt;&apos;;
-          </code>{" "}
-          — ต้องรันด้วย service_role หรือ psql (แก้ผ่านแอปไม่ได้ตามที่ตั้งใจไว้)
-        </p>
       </div>
     </SettingsShell>
   );

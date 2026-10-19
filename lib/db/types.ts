@@ -1037,6 +1037,14 @@ export interface Database {
         Args: { p_project: string; p_status: string; p_reason: string; p_binding: string };
         Returns: { status: string; reason: string; changed_at: string }[];
       };
+      /** Add an email to the partner list or take it off, and set the owner's workspaces to match;
+       *  returns how many workspaces changed (migration 0060). Service role only. */
+      fittbuilder_set_partner_email: { Args: { p_email: string; p_partner: boolean; p_by: string }; Returns: number };
+      /** The partner list with whether each email has signed in and how many workspaces it owns (0060). Service role only. */
+      fittbuilder_partner_email_list: {
+        Args: Record<string, never>;
+        Returns: { email: string; added_by: string; created_at: string; has_account: boolean; workspaces: number }[];
+      };
       /** A project's latest FITT Voice snapshot for its readers, or null (migration 0045). */
       fittbuilder_fittvoice_source: { Args: { pid: string }; Returns: Json };
       /** Read a shared demo snapshot by token — public, {name, files} or null (migration 0043). */

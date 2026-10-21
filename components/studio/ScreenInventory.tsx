@@ -17,13 +17,14 @@ import {
 import Overlay from "@/components/ui/Overlay";
 import GlassSurface from "@/components/ui/GlassSurface";
 import ImageLightbox from "@/components/ui/ImageLightbox";
-import { clearShots, deleteShot, listShots, uploadShot, type Shot } from "@/lib/shots";
+import { clearShots, deleteShot, listShots, thumbUrls, uploadShot, type Shot } from "@/lib/shots";
 import type { VersionKey } from "@/lib/versions";
 import { pageFiles, type ScreenMap } from "@/lib/screen-map";
 import { screenIndexCoverage } from "@/lib/screen-index";
 import { SHOT_BRIDGE_VERSION } from "@/lib/scaffold";
 import { toast } from "@/lib/toast";
 import FlowMap from "./FlowMap";
+import ShotThumb from "./ShotThumb";
 import Quotation from "./Quotation";
 import Proposal from "./Proposal";
 import { confirm } from "@/lib/confirm";
@@ -142,6 +143,27 @@ export default function ScreenInventory({
   }, [projectId, version]);
 
   useEffect(refresh, [refresh]);
+
+  // Card-sized pictures, signed only while a tab that draws them is open — the
+  // documents read `shots` for the full pictures and never need these.
+  const [thumbs, setThumbs] = useState<ReadonlyMap<string, string>>(new Map());
+  const pictured = tab === "grid" || tab === "flow";
+  useEffect(() => {
+    if (!pictured) return;
+    const missing = shots.map((s) => s.path).filter((path) => !thumbs.has(path));
+    if (missing.length === 0) return;
+    let alive = true;
+    thumbUrls(missing)
+      .then((signed) => {
+        if (alive) setThumbs((prev) => new Map([...prev, ...signed]));
+      })
+      .catch((err) =>
+        toast.error("โหลดภาพย่อไม่สำเร็จ", { description: err instanceof Error ? err.message : undefined })
+      );
+    return () => {
+      alive = false;
+    };
+  }, [pictured, shots, thumbs]);
 
   // Captures arrive one at a time from inside the preview.
   useEffect(() => {
@@ -574,7 +596,7 @@ export default function ScreenInventory({
             </div>
           )
         ) : tab === "flow" && shots.length > 0 ? (
-          <FlowMap shots={shots} onZoom={setZoom} />
+          <FlowMap shots={shots} thumbs={thumbs} onZoom={setZoom} />
         ) : (
         <div className="scroll-thin min-h-0 flex-1 overflow-y-auto px-5 py-4">
           {shots.length === 0 ? (
@@ -608,12 +630,13 @@ export default function ScreenInventory({
                   index={i + 1}
                   shot={screen}
                   subs={subsOf(screen.name)}
+                  thumbs={thumbs}
                   onZoom={setZoom}
                   onDelete={remove}
                 />
               ))}
               {orphans.map((s) => (
-                <ShotCard key={s.path} shot={s} subs={[]} onZoom={setZoom} onDelete={remove} />
+                <ShotCard key={s.path} shot={s} subs={[]} thumbs={thumbs} onZoom={setZoom} onDelete={remove} />
               ))}
             </div>
           )}
@@ -628,6 +651,7 @@ export default function ScreenInventory({
 function ShotCard({
   shot,
   subs,
+  thumbs,
   index,
   onZoom,
   onDelete,
@@ -635,6 +659,8 @@ function ShotCard({
   shot: Shot;
   /** Modals hanging off this screen, shown as a strip inside its card. */
   subs: Shot[];
+  /** Card-sized pictures by path; zoom opens the full one. */
+  thumbs: ReadonlyMap<string, string>;
   index?: number;
   onZoom: (url: string) => void;
   onDelete: (shot: Shot) => Promise<void>;
@@ -642,9 +668,8 @@ function ShotCard({
   return (
     <div className="group flex flex-col overflow-hidden rounded-xl border border-night-edge bg-night">
       <button onClick={() => onZoom(shot.url)} className="relative block w-full">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={shot.url}
+        <ShotThumb
+          src={thumbs.get(shot.path)}
           alt={shot.name}
           className="h-36 w-full bg-white object-cover object-top transition group-hover:opacity-90"
         />
@@ -687,8 +712,7 @@ function ShotCard({
               title={sub.via ? `${sub.name} — กด “${sub.via}”` : sub.name}
               className="shrink-0 overflow-hidden rounded-md border border-night-edge transition hover:border-shine/60"
             >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={sub.url} alt={sub.name} className="h-12 w-20 bg-white object-cover object-top" />
+              <ShotThumb src={thumbs.get(sub.path)} alt={sub.name} className="h-12 w-20 bg-white object-cover object-top" />
             </button>
           ))}
         </div>

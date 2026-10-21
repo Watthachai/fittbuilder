@@ -165,6 +165,33 @@ async function signedUrl(path: string): Promise<string> {
   return data?.signedUrl ?? "";
 }
 
+/** Thumbnail width: a gallery card at a 2x screen. */
+const THUMB_WIDTH = 640;
+
+/**
+ * Small pictures of shots for the gallery and the flow map, by path.
+ *
+ * A capture is 1516×746 and decodes to about 4.5MB; drawn full size on every
+ * card, a 146-screen project held some 650MB of pictures while the gallery was
+ * open. Storage resizes on request (and serves WebP where the browser takes
+ * it); zoom and the printed documents keep the full picture. Signed one at a
+ * time because the batch signer takes no transform. Storage bills each
+ * original it resizes, once a month, so cards ask for these lazily.
+ */
+export async function thumbUrls(paths: string[]): Promise<Map<string, string>> {
+  const supabase = createClient();
+  const signed = await Promise.all(
+    paths.map(async (path) => {
+      const { data, error } = await supabase.storage
+        .from(BUCKET)
+        .createSignedUrl(path, 60 * 60 * 8, { transform: { width: THUMB_WIDTH, resize: "contain" } });
+      if (error) throw error;
+      return [path, data.signedUrl] as const;
+    })
+  );
+  return new Map(signed);
+}
+
 /** The .png keys directly under one folder (non-recursive). */
 async function pngPathsIn(dir: string): Promise<string[]> {
   const supabase = createClient();

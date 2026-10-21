@@ -23,6 +23,17 @@ export const CHANGE_BADGE: Record<ChangeType, { label: string; className: string
 // Newest first. SemVer: fix → PATCH, feature → MINOR, breaking → MAJOR.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.114.2",
+    date: "2026-10-20",
+    title: "แกลเลอรีภาพหน้าจอเบาลง",
+    items: [
+      {
+        type: "improvement",
+        text: "แกลเลอรีและผัง Flow แสดงภาพย่อแทนภาพเต็มขนาด และโหลดเฉพาะภาพที่เลื่อนมาเห็น โปรเจกต์ที่มีภาพหน้าจอร้อยกว่าภาพจึงใช้หน่วยความจำของเบราว์เซอร์น้อยลงมาก กดที่ภาพยังเปิดภาพเต็มขนาดได้ และเอกสารที่พิมพ์ยังใช้ภาพเต็มขนาดเหมือนเดิม",
+      },
+    ],
+  },
+  {
     version: "0.114.1",
     date: "2026-10-20",
     title: "เอกสารที่พิมพ์ไม่มีหน้าว่างท้ายเล่ม และข้อเสนอฉบับย่อไม่เว้นครึ่งหน้า",

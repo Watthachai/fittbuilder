@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Maximize2, Minus, Plus } from "lucide-react";
 import type { Shot } from "@/lib/shots";
+import ShotThumb from "./ShotThumb";
 
 /**
  * The inventory as a prototype canvas: every screen a frame, every recorded
@@ -96,7 +97,16 @@ function path(e: Edge): string {
   return `M ${x1} ${y1} C ${x1 + dx} ${y1}, ${x2 - dx} ${y2}, ${x2} ${y2}`;
 }
 
-export default function FlowMap({ shots, onZoom }: { shots: Shot[]; onZoom: (url: string) => void }) {
+export default function FlowMap({
+  shots,
+  thumbs,
+  onZoom,
+}: {
+  shots: Shot[];
+  /** Card-sized pictures by path; zoom opens the full one. */
+  thumbs: ReadonlyMap<string, string>;
+  onZoom: (url: string) => void;
+}) {
   const { nodes, edges, w, h } = useMemo(() => layout(shots), [shots]);
   const [view, setView] = useState({ x: 24, y: 24, k: 0.6 });
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -223,8 +233,7 @@ export default function FlowMap({ shots, onZoom }: { shots: Shot[]; onZoom: (url
               className="block overflow-hidden rounded-lg border-2 border-night-edge bg-white transition hover:border-shine"
               style={{ width: NODE_W, height: NODE_H }}
             >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={n.shot.url} alt={n.shot.name} className="h-full w-full object-cover object-top" />
+              <ShotThumb src={thumbs.get(n.shot.path)} alt={n.shot.name} className="h-full w-full object-cover object-top" />
             </button>
           </div>
         ))}

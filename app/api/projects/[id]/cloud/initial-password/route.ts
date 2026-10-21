@@ -1,13 +1,15 @@
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { isAdminEmail } from "@/lib/admin";
 import { UUID } from "@/lib/deploy/guard";
 import { open } from "@/lib/deploy/secret-box";
 import { DEPLOY_ENVS, type DeployEnv } from "@/lib/deploy/types";
 
 /**
  * Shows a cloud app's first administrator password once, to someone who can edit
- * the project, then forgets it. The update only succeeds while the box it read is
- * still there, so two clicks at once reveal it to one of them at most.
+ * the project and is on the team (export is theirs), then forgets it. The update
+ * only succeeds while the box it read is still there, so two clicks at once
+ * reveal it to one of them at most.
  */
 export async function POST(request: Request, ctx: { params: Promise<{ id: string }> }) {
   const supabase = await createClient();
@@ -15,6 +17,7 @@ export async function POST(request: Request, ctx: { params: Promise<{ id: string
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) return Response.json({ error: "ยังไม่ได้เข้าสู่ระบบ" }, { status: 401 });
+  if (!isAdminEmail(user.email)) return Response.json({ error: "การส่งออกทำได้เฉพาะทีม FITT" }, { status: 403 });
   const { id } = await ctx.params;
   if (!UUID.test(id)) return Response.json({ error: "ไม่พบโปรเจกต์" }, { status: 404 });
   let env: DeployEnv;

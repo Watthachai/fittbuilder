@@ -27,6 +27,7 @@ import { downloadZip } from "@/lib/zip";
 import { downloadFittcoreSpec, type GatewayIngestResult } from "@/lib/fittcore";
 import { useOrgSkillName } from "@/lib/skills/use-org-skill";
 import FittcoreExportModal from "./FittcoreExportModal";
+import { useIsAdmin } from "@/lib/useIsAdmin";
 import CaseBell from "@/components/cases/CaseBell";
 import type { VersionKey } from "@/lib/versions";
 import ProjectPresence from "./ProjectPresence";
@@ -87,6 +88,9 @@ export default function TopBar({
   const [moreOpen, setMoreOpen] = useState(false);
   const [runnerOpen, setRunnerOpen] = useState(false);
   const specialist = useOrgSkillName(project.orgId);
+  // Export — the code zip, the FITTCORE spec and Code Runner — is the team's job:
+  // partners ask the team to ship. /api/fittcore and the cloud routes check too.
+  const canExport = useIsAdmin();
 
   const share = async () => {
     if (!project.files) return;
@@ -287,67 +291,71 @@ export default function TopBar({
 
       <CaseBell />
 
-      <div className="relative shrink-0">
-        <button
-          onClick={() => setMoreOpen((v) => !v)}
-          disabled={!shippable}
-          className={`inline-flex items-center gap-1.5 rounded-sm px-2.5 py-1.5 text-xs font-medium transition disabled:opacity-40 ${
-            moreOpen
-              ? "bg-chalk/10 text-chalk"
-              : "bg-shine text-night hover:brightness-110"
-          }`}
-          title="ส่งออก"
-        >
-          <Download size={13} />
-          <span className="hidden lg:inline">Export</span>
-        </button>
-        {moreOpen && (
-          <>
-            <div
-              className="fixed inset-0 z-40"
-              onClick={() => setMoreOpen(false)}
-            />
-            <div className="absolute right-0 top-full z-50 mt-1 w-56 overflow-hidden rounded-lg border border-night-edge bg-night-panel py-1 shadow-xl">
-              <button
-                onClick={() => {
-                  setMoreOpen(false);
-                  if (project.files) void downloadZip(project.files, project.name, activeVersion);
-                }}
-                className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-xs text-chalk/80 transition hover:bg-chalk/5 hover:text-chalk"
-              >
-                <Download size={14} /> ดาวน์โหลดโค้ด (.zip)
-              </button>
-              <button
-                onClick={() => {
-                  setMoreOpen(false);
-                  downloadFittcoreSpec(project);
-                }}
-                className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-xs text-chalk/80 transition hover:bg-chalk/5 hover:text-chalk"
-              >
-                <FileUp size={14} className="text-shine" /> Export to FITTCORE V2
-              </button>
-              <button
-                onClick={() => {
-                  setMoreOpen(false);
-                  setRunnerOpen(true);
-                }}
-                className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-xs text-chalk/80 transition hover:bg-chalk/5 hover:text-chalk"
-              >
-                <Rocket size={14} className="text-shine" /> ส่งไป Code Runner
-              </button>
-            </div>
-          </>
-        )}
-      </div>
+      {canExport && (
+        <div className="relative shrink-0">
+          <button
+            onClick={() => setMoreOpen((v) => !v)}
+            disabled={!shippable}
+            className={`inline-flex items-center gap-1.5 rounded-sm px-2.5 py-1.5 text-xs font-medium transition disabled:opacity-40 ${
+              moreOpen
+                ? "bg-chalk/10 text-chalk"
+                : "bg-shine text-night hover:brightness-110"
+            }`}
+            title="ส่งออก"
+          >
+            <Download size={13} />
+            <span className="hidden lg:inline">Export</span>
+          </button>
+          {moreOpen && (
+            <>
+              <div
+                className="fixed inset-0 z-40"
+                onClick={() => setMoreOpen(false)}
+              />
+              <div className="absolute right-0 top-full z-50 mt-1 w-56 overflow-hidden rounded-lg border border-night-edge bg-night-panel py-1 shadow-xl">
+                <button
+                  onClick={() => {
+                    setMoreOpen(false);
+                    if (project.files) void downloadZip(project.files, project.name, activeVersion);
+                  }}
+                  className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-xs text-chalk/80 transition hover:bg-chalk/5 hover:text-chalk"
+                >
+                  <Download size={14} /> ดาวน์โหลดโค้ด (.zip)
+                </button>
+                <button
+                  onClick={() => {
+                    setMoreOpen(false);
+                    downloadFittcoreSpec(project);
+                  }}
+                  className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-xs text-chalk/80 transition hover:bg-chalk/5 hover:text-chalk"
+                >
+                  <FileUp size={14} className="text-shine" /> Export to FITTCORE V2
+                </button>
+                <button
+                  onClick={() => {
+                    setMoreOpen(false);
+                    setRunnerOpen(true);
+                  }}
+                  className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-xs text-chalk/80 transition hover:bg-chalk/5 hover:text-chalk"
+                >
+                  <Rocket size={14} className="text-shine" /> ส่งไป Code Runner
+                </button>
+              </div>
+            </>
+          )}
+        </div>
+      )}
 
-      <FittcoreExportModal
-        activeVersion={activeVersion}
-        open={runnerOpen}
-        onClose={() => setRunnerOpen(false)}
-        project={project}
-        orgName={org?.name}
-        onSent={onRunnerSent}
-      />
+      {canExport && (
+        <FittcoreExportModal
+          activeVersion={activeVersion}
+          open={runnerOpen}
+          onClose={() => setRunnerOpen(false)}
+          project={project}
+          orgName={org?.name}
+          onSent={onRunnerSent}
+        />
+      )}
     </header>
   );
 }

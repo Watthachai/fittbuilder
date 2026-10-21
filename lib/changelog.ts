@@ -23,6 +23,17 @@ export const CHANGE_BADGE: Record<ChangeType, { label: string; className: string
 // Newest first. SemVer: fix → PATCH, feature → MINOR, breaking → MAJOR.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.115.1",
+    date: "2026-10-21",
+    title: "การส่งออกงานทำได้เฉพาะทีม FITT",
+    items: [
+      {
+        type: "improvement",
+        text: "เมนู Export (ดาวน์โหลดโค้ด, Export to FITTCORE V2 และส่งไป Code Runner) แสดงเฉพาะทีม FITT แล้ว Partner ที่ต้องการนำระบบไปใช้งานจริงติดต่อทีม FITT ให้ส่งออกให้",
+      },
+    ],
+  },
+  {
     version: "0.115.0",
     date: "2026-10-21",
     title: "ใช้ได้เฉพาะทีมงานกับ Partner และ Partner ได้อีเมลพร้อมลิงก์เข้าสู่ระบบ",

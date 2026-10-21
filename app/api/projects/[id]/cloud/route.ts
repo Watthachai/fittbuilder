@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { isAdminEmail } from "@/lib/admin";
 import { UUID } from "@/lib/deploy/guard";
 import { needsTeam } from "@/lib/deploy/pending";
 import { EMAIL, type DeployEnv, type DeployEventRow } from "@/lib/deploy/types";
@@ -10,6 +11,8 @@ import { EMAIL, type DeployEnv, type DeployEventRow } from "@/lib/deploy/types";
  * administrator's password waits to be shown. Reads go through the person's own
  * session, so RLS decides who sees what; only "is a password waiting" is read
  * with the service role, and never the password itself.
+ *
+ * Export belongs to the team (ADMIN_EMAILS), so both methods answer only to them.
  */
 
 const EVENT = "project_id, env, stage, build_no, digest, url, message, at";
@@ -21,6 +24,7 @@ export async function GET(_request: Request, ctx: { params: Promise<{ id: string
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) return Response.json({ error: "ยังไม่ได้เข้าสู่ระบบ" }, { status: 401 });
+  if (!isAdminEmail(user.email)) return Response.json({ error: "การส่งออกทำได้เฉพาะทีม FITT" }, { status: 403 });
   const { id } = await ctx.params;
   if (!UUID.test(id)) return Response.json({ error: "ไม่พบโปรเจกต์" }, { status: 404 });
   const project = await supabase.from("fittbuilder_projects").select("id").eq("id", id).maybeSingle();
@@ -55,6 +59,7 @@ export async function PUT(request: Request, ctx: { params: Promise<{ id: string 
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) return Response.json({ error: "ยังไม่ได้เข้าสู่ระบบ" }, { status: 401 });
+  if (!isAdminEmail(user.email)) return Response.json({ error: "การส่งออกทำได้เฉพาะทีม FITT" }, { status: 403 });
   const { id } = await ctx.params;
   if (!UUID.test(id)) return Response.json({ error: "ไม่พบโปรเจกต์" }, { status: 404 });
   let body: { target?: unknown; admin_email?: unknown };

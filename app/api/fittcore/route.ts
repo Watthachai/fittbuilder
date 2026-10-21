@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { getAdminUser } from "@/lib/admin-server";
 import { clientIp, rateLimit } from "@/lib/rate-limit";
 import type { FittcorePayload } from "@/lib/fittcore";
 
@@ -59,6 +60,11 @@ function preCheck(p: FittcorePayload): { status: number; error: string } | null 
  * queues a new job. Gateway status codes are mapped to clean messages.
  */
 export async function POST(request: Request) {
+  // Sending to Code Runner is the team's (ADMIN_EMAILS): partners ask the team to ship.
+  if (!(await getAdminUser())) {
+    return Response.json({ error: "การส่งไป Code Runner ทำได้เฉพาะทีม FITT" }, { status: 403 });
+  }
+
   const limit = await rateLimit(`fittcore:${clientIp(request)}`);
   if (!limit.ok) {
     return Response.json(

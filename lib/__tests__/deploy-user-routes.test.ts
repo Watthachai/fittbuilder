@@ -29,7 +29,9 @@ function client(handle: (c: Call) => Answer, extra: Record<string, unknown> = {}
 let calls: Call[] = [];
 
 const PID = "11111111-1111-4111-8111-111111111111";
-const session = { user: { id: "user-1" } as { id: string } | null, canEdit: true };
+// Export is the team's (ADMIN_EMAILS), so the person defaults to a team address.
+const TEAM = "staff@team.test";
+const session = { user: { id: "user-1", email: TEAM } as { id: string; email: string } | null, canEdit: true };
 const db = {
   project: { id: PID } as unknown,
   delivery: { project_id: PID, target: "cloud", admin_email: "admin@customer.test", updated_at: "2026-10-18T00:00:00Z" } as unknown,
@@ -71,7 +73,8 @@ const ev = (env: string, stage: string, at: string, build_no = 3) => ({ project_
 
 beforeEach(() => {
   calls = [];
-  session.user = { id: "user-1" };
+  process.env.ADMIN_EMAILS = TEAM;
+  session.user = { id: "user-1", email: TEAM };
   session.canEdit = true;
   db.project = { id: PID };
   db.events = [];
@@ -82,11 +85,22 @@ beforeEach(() => {
   process.env.FITT_DEPLOY_SECRET_KEY = randomBytes(32).toString("base64");
 });
 
+describe("export is the team's", () => {
+  it("answers 403 to a signed-in partner on every route, before reading or writing anything", async () => {
+    session.user = { id: "user-2", email: "owner@partner.test" };
+    db.sealed = seal("Initial-Pw-qqqqqqqqqqqqqqqq");
+    expect((await cloudRoute.GET(new Request("http://x"), ctx())).status).toBe(403);
+    expect((await put({ target: "local" })).status).toBe(403);
+    expect((await show()).status).toBe(403);
+    expect(calls).toEqual([]);
+  });
+});
+
 describe("GET /api/projects/{id}/cloud", () => {
   it("needs a session, and a project the person can read", async () => {
     session.user = null;
     expect((await cloudRoute.GET(new Request("http://x"), ctx())).status).toBe(401);
-    session.user = { id: "user-1" };
+    session.user = { id: "user-1", email: TEAM };
     db.project = null;
     expect((await cloudRoute.GET(new Request("http://x"), ctx())).status).toBe(404);
     expect((await cloudRoute.GET(new Request("http://x"), ctx("nope"))).status).toBe(404);

@@ -1045,6 +1045,12 @@ export interface Database {
         Args: Record<string, never>;
         Returns: { email: string; added_by: string; created_at: string; has_account: boolean; workspaces: number }[];
       };
+      /** Whether the signed-in account has been let in — invite-only (migration 0061). */
+      fittbuilder_has_access: { Args: Record<string, never>; Returns: boolean };
+      /** Whether the signed-in partner has yet to close the home page's welcome (0061). */
+      fittbuilder_partner_welcome: { Args: Record<string, never>; Returns: boolean };
+      /** Close that welcome for good, on every device (0061). */
+      fittbuilder_partner_welcome_done: { Args: Record<string, never>; Returns: undefined };
       /** A project's latest FITT Voice snapshot for its readers, or null (migration 0045). */
       fittbuilder_fittvoice_source: { Args: { pid: string }; Returns: Json };
       /** Read a shared demo snapshot by token — public, {name, files} or null (migration 0043). */

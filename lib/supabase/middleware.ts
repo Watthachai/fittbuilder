@@ -1,6 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import type { Database } from "@/lib/db/types";
+import { isAdminEmail } from "@/lib/admin";
 
 // /api/version is a build stamp and /api/health is an uptime probe — neither is
 // user data, and both must answer when nobody is signed in. Gating the version
@@ -38,6 +39,15 @@ const PUBLIC_PREFIXES = [
   "/v1/service-status",
 ];
 
+// Signed in is not enough for the rest: FITT Builder is for our team and our
+// partners (migration 0061). Any other account may still open the page that
+// tells it so, a demo someone shared with it, and the WebContainer handshake
+// that demo runs on.
+const OPEN_TO_ANY_ACCOUNT = ["/waiting", "/share", "/webcontainer"];
+
+const under = (prefixes: string[], pathname: string) =>
+  prefixes.some((p) => pathname === p || pathname.startsWith(p + "/"));
+
 export async function updateSession(request: NextRequest) {
   let response = NextResponse.next({ request });
 
@@ -60,7 +70,7 @@ export async function updateSession(request: NextRequest) {
 
   const { data: { user } } = await supabase.auth.getUser();
   const { pathname } = request.nextUrl;
-  const isPublic = PUBLIC_PREFIXES.some((p) => pathname === p || pathname.startsWith(p + "/"));
+  const isPublic = under(PUBLIC_PREFIXES, pathname);
 
   if (!user && !isPublic) {
     const url = request.nextUrl.clone();
@@ -73,6 +83,24 @@ export async function updateSession(request: NextRequest) {
     // them, desyncing browser/server and forcing a second login (Supabase SSR).
     response.cookies.getAll().forEach((c) => redirect.cookies.set(c));
     return redirect;
+  }
+
+  // The team (ADMIN_EMAILS) is answered here because the database does not know
+  // that list; partners and FITT Voice users are asked of the database. The AI
+  // routes sit behind this same check, so no other account can spend on them.
+  if (user && !isPublic && !under(OPEN_TO_ANY_ACCOUNT, pathname) && !isAdminEmail(user.email)) {
+    const { data: allowed, error } = await supabase.rpc("fittbuilder_has_access");
+    if (error) throw new Error(`access check failed: ${error.message}`);
+    if (!allowed) {
+      const waiting = request.nextUrl.clone();
+      waiting.pathname = "/waiting";
+      waiting.search = "";
+      const denied = pathname.startsWith("/api/")
+        ? NextResponse.json({ error: "บัญชีนี้ยังไม่ได้รับสิทธิ์ใช้ FITT Builder" }, { status: 403 })
+        : NextResponse.redirect(waiting);
+      response.cookies.getAll().forEach((c) => denied.cookies.set(c));
+      return denied;
+    }
   }
   return response;
 }

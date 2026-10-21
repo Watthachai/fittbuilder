@@ -9,6 +9,7 @@ import LaunchPad from "./LaunchPad";
 import AccountMenu from "@/components/AccountMenu";
 import CaseBell from "@/components/cases/CaseBell";
 import ProjectsDrawer from "@/components/projects/ProjectsDrawer";
+import PartnerWelcome from "./PartnerWelcome";
 
 const VIDEO_SRC =
   "https://d8j0ntlcm91z4.cloudfront.net/user_38xzZboKViGWJOttwIXH07lWA1P/hf_20260530_042513_df96a13b-6155-4f6e-8b93-c9dee66fba08.mp4";
@@ -334,6 +335,7 @@ export default function MainframeHero() {
       </div>
 
       <ProjectsDrawer open={projectsOpen} onClose={() => setProjectsOpen(false)} />
+      <PartnerWelcome />
 
       {/* Hero */}
       <section

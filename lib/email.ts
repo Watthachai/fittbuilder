@@ -110,6 +110,52 @@ export async function sendPartnerLeadEmail(
   return { sent: true };
 }
 
+export interface PartnerWelcomeEmailArgs {
+  to: string;
+  /** The sign-in page. Not a magic link: the partner picks Google or email there. */
+  loginLink: string;
+  senderName: string;
+}
+
+/**
+ * Tell someone just put on the partner list (/admin/partners) that they are in,
+ * and which email to sign in with — partner status follows the email, so the
+ * address in the subject is the one thing they must not get wrong. Rides the
+ * invitation template: "joining FITT Builder as Partner" is what it is.
+ */
+export function buildPartnerWelcomePayload(args: PartnerWelcomeEmailArgs): DmailPayload {
+  return {
+    templateId: INVITATION_TEMPLATE_ID,
+    to: [{ email: args.to, name: args.to }],
+    subject: `คุณได้รับสิทธิ์ Partner ของ FITT Builder แล้ว — เข้าสู่ระบบด้วย ${args.to}`,
+    variables: {
+      name: args.to,
+      companyName: "FITT Builder",
+      branchName: "-",
+      roleText: "Partner",
+      invitationLink: args.loginLink,
+      senderName: args.senderName,
+      year: new Date().getFullYear().toString(),
+    },
+  };
+}
+
+/** `sent: false` when DMAIL_API_KEY is not set — the grant stands either way. */
+export async function sendPartnerWelcomeEmail(args: PartnerWelcomeEmailArgs): Promise<{ sent: boolean }> {
+  const apiKey = process.env.DMAIL_API_KEY;
+  if (!apiKey) {
+    console.warn("[email] DMAIL_API_KEY not set — skipping partner welcome email");
+    return { sent: false };
+  }
+  const res = await fetch(DMAIL_API_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "X-API-Key": apiKey },
+    body: JSON.stringify(buildPartnerWelcomePayload(args)),
+  });
+  if (!res.ok) throw new Error(`DMAIL error ${res.status}: ${await res.text()}`);
+  return { sent: true };
+}
+
 export interface OrgInviteEmailArgs {
   to: string;
   orgName: string;

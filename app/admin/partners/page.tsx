@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import SettingsShell from "@/components/settings/SettingsShell";
 import { getAdminUser } from "@/lib/admin-server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { AddPartnerEmail, GrantLeadButton, RemovePartnerEmail } from "./PartnerEmailControls";
+import { AddPartnerEmail, GrantLeadButton, RemovePartnerEmail, ResendPartnerEmail } from "./PartnerEmailControls";
 
 export const metadata = { title: "Admin · คำขอเป็น Partner" };
 export const dynamic = "force-dynamic";
@@ -69,7 +69,7 @@ export default async function AdminPartnersPage() {
           <h2 className="font-display text-base font-semibold">อีเมล Partner</h2>
           <p className="mt-1 mb-3 text-[13px] text-chalk-dim">
             พื้นที่ทำงานทุกแห่งของอีเมลในรายการนี้เป็น Partner รวมถึงแห่งที่สร้างทีหลัง
-            เพิ่มไว้ก่อนได้แม้เจ้าของอีเมลยังไม่เคยเข้าระบบ
+            เพิ่มไว้ก่อนได้แม้เจ้าของอีเมลยังไม่เคยเข้าระบบ กดเพิ่มแล้วระบบส่งอีเมลพร้อมลิงก์เข้าสู่ระบบให้เอง
           </p>
           <AddPartnerEmail />
           {partnerError && <p className="mt-3 text-sm text-halt">โหลดรายการไม่สำเร็จ: {partnerError.message}</p>}
@@ -91,6 +91,7 @@ export default async function AdminPartnersPage() {
                       {" · "}เพิ่มโดย {p.added_by} เมื่อ {when(p.created_at)}
                     </p>
                   </div>
+                  <ResendPartnerEmail email={p.email} />
                   <RemovePartnerEmail email={p.email} />
                 </li>
               ))}

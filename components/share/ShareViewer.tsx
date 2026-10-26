@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { bootFiles } from "@/lib/files";
 import { decodeShareFragment, getSharedDemo, type SharePayload } from "@/lib/share";
 import type { GenerationPhase } from "@/lib/types";
 import { isPreviewSupported, runProject } from "@/lib/webcontainer";
@@ -54,7 +55,8 @@ export default function ShareViewer({ token }: { token?: string }) {
         return;
       }
       setPhase("installing");
-      await runProject(decoded.files, {
+      // The studio's boot, so the customer sees the demo the sender saw.
+      await runProject(bootFiles(decoded.files), {
         onPhase: setPhase,
         onTerminal: () => {},
         onServerReady: setUrl,

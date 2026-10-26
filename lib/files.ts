@@ -1,4 +1,4 @@
-import { TAILWIND_BROWSER_CDN } from "./scaffold";
+import { TAILWIND_BROWSER_CDN, VITE_CONFIG, withRequiredScaffold } from "./scaffold";
 import type { FileChange, ProjectFiles } from "./types";
 
 /**
@@ -41,6 +41,16 @@ export function sanitizeFiles(files: ProjectFiles): ProjectFiles {
     out[path] = normalizeTailwindCdn(path.endsWith(".css") ? sanitizeCss(content) : content);
   }
   return out;
+}
+
+/**
+ * The files a project boots with, wherever it boots — the studio, /compare, a
+ * shared link: the plumbing the model never writes filled in, the mount-time
+ * repairs applied, and our vite.config.js (never the AI's), so older projects
+ * pick up the current one.
+ */
+export function bootFiles(files: ProjectFiles): ProjectFiles {
+  return { ...sanitizeFiles(withRequiredScaffold(files)), "vite.config.js": VITE_CONFIG };
 }
 
 /** Per-file content cap stored in a changeset (keeps localStorage + the diff modal light). */

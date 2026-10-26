@@ -16,8 +16,7 @@ import {
 import { listProjects } from "@/lib/storage";
 import { getProject } from "@/lib/storage";
 import { isPreviewSupported, prepareWorkdir, runProject } from "@/lib/webcontainer";
-import { sanitizeFiles } from "@/lib/files";
-import { VITE_CONFIG, withRequiredScaffold } from "@/lib/scaffold";
+import { bootFiles } from "@/lib/files";
 import type { ProjectSummary } from "@/lib/types";
 
 /**
@@ -101,7 +100,7 @@ export default function CompareShell() {
       await prepareWorkdir(id);
       if (mine !== switchRef.current) return;
       await runProject(
-        { ...sanitizeFiles(withRequiredScaffold(project.files)), "vite.config.js": VITE_CONFIG },
+        bootFiles(project.files),
         {
           onPhase: () => {},
           onTerminal: () => {},

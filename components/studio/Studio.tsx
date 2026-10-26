@@ -31,14 +31,13 @@ import { buildScreenIndexPrompt } from "@/lib/screen-index";
 import { listShots, uploadShot } from "@/lib/shots";
 import { buildWandPrompt, parseLoc, type WandTarget } from "@/lib/wand";
 import { patchClassName, patchText } from "@/lib/wand-patch";
-import { computeChanges, deriveProductName, sanitizeFiles } from "@/lib/files";
+import { bootFiles, computeChanges, deriveProductName } from "@/lib/files";
 import { isBuildPhase, nextPhase, phaseDef, type PhaseId } from "@/lib/phases";
 import { type DesignOption, designStyleDirective, fetchDesignOptions } from "@/lib/design";
 import {
   extraDepsOf,
   packageJsonWithDeps,
   SCAFFOLD_FILES,
-  VITE_CONFIG,
   withRequiredScaffold,
 } from "@/lib/scaffold";
 import { takePendingAction, takePendingAttachments } from "@/lib/pending-action";
@@ -641,10 +640,7 @@ export default function Studio({ projectId }: { projectId: string }) {
       // withRequiredScaffold fills plumbing the model never writes (index.html
       // above all) — without it a build that emitted package.json but no
       // index.html booted a dev server with nothing to serve at "/".
-      await runProject(
-        { ...sanitizeFiles(withRequiredScaffold(files)), "vite.config.js": VITE_CONFIG },
-        runCallbacks()
-      );
+      await runProject(bootFiles(files), runCallbacks());
     },
     [runCallbacks]
   );

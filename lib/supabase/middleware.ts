@@ -17,8 +17,13 @@ import { isAdminEmail } from "@/lib/admin";
 // behind a FITT Builder account would put a sign-up in front of the one thing
 // that is meant to answer "what am I buying?" before anyone signs up. It has its
 // own sign-in and carries nothing but seeded demo data.
+//
+// /share is a demo a partner sends their customer, who has no account. The page
+// reads one snapshot by its token (fittbuilder_shared_demo, granted to anon) and
+// runs it in the visitor's browser — no AI, nothing else of the project.
 const PUBLIC_PREFIXES = [
   "/login",
+  "/share",
   "/erp",
   "/marketplace",
   "/auth",
@@ -41,9 +46,9 @@ const PUBLIC_PREFIXES = [
 
 // Signed in is not enough for the rest: FITT Builder is for our team and our
 // partners (migration 0061). Any other account may still open the page that
-// tells it so, a demo someone shared with it, and the WebContainer handshake
-// that demo runs on.
-const OPEN_TO_ANY_ACCOUNT = ["/waiting", "/share", "/webcontainer"];
+// tells it so, and the WebContainer handshake a preview opened in its own tab
+// runs on.
+const OPEN_TO_ANY_ACCOUNT = ["/waiting", "/webcontainer"];
 
 const under = (prefixes: string[], pathname: string) =>
   prefixes.some((p) => pathname === p || pathname.startsWith(p + "/"));

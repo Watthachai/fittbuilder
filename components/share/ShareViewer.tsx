@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { decodeShareFragment, getSharedDemo, type SharePayload } from "@/lib/share";
 import type { GenerationPhase } from "@/lib/types";
@@ -75,12 +74,6 @@ export default function ShareViewer({ token }: { token?: string }) {
           <span className="font-display text-sm">{payload?.name ?? "Demo"}</span>
           {url && <span className="live-dot ml-1 h-1.5 w-1.5 rounded-full bg-go" />}
         </div>
-        <Link
-          href="/"
-          className="rounded-sm bg-shine px-3 py-1.5 font-display text-xs font-semibold text-night transition hover:bg-shine-soft"
-        >
-          สร้างของคุณเองฟรี →
-        </Link>
       </header>
 
       <div className="bg-grid min-h-0 flex-1">

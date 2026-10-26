@@ -23,6 +23,17 @@ export const CHANGE_BADGE: Record<ChangeType, { label: string; className: string
 // Newest first. SemVer: fix → PATCH, feature → MINOR, breaking → MAJOR.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.115.2",
+    date: "2026-10-26",
+    title: "ลิงก์แชร์เดโมเปิดดูได้โดยไม่ต้องเข้าสู่ระบบ",
+    items: [
+      {
+        type: "fix",
+        text: "ลิงก์แชร์เดโมเปิดดูและทดลองใช้ได้ทันทีโดยไม่ต้องเข้าสู่ระบบ Partner ส่งให้ลูกค้าได้เลย และหน้าเดโมที่แชร์ไม่มีปุ่มชวนสร้างระบบเองแล้ว",
+      },
+    ],
+  },
+  {
     version: "0.115.1",
     date: "2026-10-21",
     title: "การส่งออกงานทำได้เฉพาะทีม FITT",

@@ -35,7 +35,7 @@ function shortToken(): string {
  * link a customer receives keeps showing this version while the project is
  * edited, until someone puts a new one on it (updateProjectShare).
  * `created_by` defaults to auth.uid() in the row, gated by RLS to someone who
- * can read the project.
+ * can edit the project — the newest snapshot is the project's link (0062).
  */
 export async function createSharedDemo(projectId: string, payload: SharePayload): Promise<string> {
   const supabase = createClient();

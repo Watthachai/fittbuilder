@@ -12,12 +12,40 @@
 -- the same project keep working, frozen as they were.
 --
 -- The table still has no select or update policy (0043): besides the public read
--- by token, these two functions are the only way in, and each checks the caller
--- against the project.
+-- by token, the two functions below are the only way in, and each checks the
+-- caller against the project.
 
 alter table fittbuilder_shared_demos
   add column if not exists updated_at timestamptz not null default now();
 update fittbuilder_shared_demos set updated_at = created_at where updated_at <> created_at;
+
+-- Which snapshot is "the link" decides what every editor hands out next, so
+-- making one is now an editor's act. 0043 let anyone who could read the project
+-- publish one — harmless while each link stood alone, but a viewer's snapshot,
+-- with whatever files they sent, would now become the project's link the next
+-- editor copies to a customer. The same goes for deleting one.
+drop policy if exists shared_demos_insert on fittbuilder_shared_demos;
+create policy shared_demos_insert on fittbuilder_shared_demos
+  for insert to authenticated
+  with check (fittbuilder_can_edit_project(project_id, auth.uid()) and created_by = auth.uid());
+
+drop policy if exists shared_demos_delete on fittbuilder_shared_demos;
+create policy shared_demos_delete on fittbuilder_shared_demos
+  for delete to authenticated
+  using (created_by = auth.uid() and fittbuilder_can_edit_project(project_id, auth.uid()));
+
+-- The project's link, named in one place so the read and the update can never
+-- pick different rows; the token breaks a tie between two snapshots made in one
+-- transaction (same now()). Internal: callers go through the two below.
+create or replace function fittbuilder_project_share_token(pid uuid)
+  returns text
+  language sql stable security definer set search_path = public, pg_temp
+as $$
+  select token from fittbuilder_shared_demos
+  where project_id = pid
+  order by created_at desc, token desc
+  limit 1
+$$;
 
 -- The project's link and when its content was last set, for anyone who can read
 -- the project; no row when it has none yet.
@@ -27,9 +55,9 @@ create or replace function fittbuilder_project_share(pid uuid)
 as $$
   select s.token, s.updated_at
   from fittbuilder_shared_demos s
-  where s.project_id = pid and fittbuilder_can_read_project(pid, auth.uid())
-  order by s.created_at desc
-  limit 1
+  where fittbuilder_can_read_project(pid, auth.uid())
+    and s.project_id = pid
+    and s.token = fittbuilder_project_share_token(pid)
 $$;
 
 -- Put this version on the project's link. Someone who can edit the project only:
@@ -47,13 +75,14 @@ begin
   end if;
   update fittbuilder_shared_demos s
      set name = share_name, files = share_files, updated_at = now()
-   where s.token = (select token from fittbuilder_shared_demos
-                    where project_id = pid order by created_at desc limit 1)
+   where s.project_id = pid
+     and s.token = fittbuilder_project_share_token(pid)
   returning s.token into updated;
   return updated;
 end
 $$;
 
+revoke all on function fittbuilder_project_share_token(uuid) from public, anon, authenticated;
 revoke all on function fittbuilder_project_share(uuid) from public, anon;
 revoke all on function fittbuilder_update_project_share(uuid, text, jsonb) from public, anon;
 grant execute on function fittbuilder_project_share(uuid) to authenticated;

@@ -18,8 +18,22 @@ function injectedScripts(): string[] {
 }
 
 describe("injected preview scripts", () => {
-  it("ships live cursors, the error reporter, the wand and the capture bridge", () => {
-    expect(injectedScripts()).toHaveLength(4);
+  it("ships live cursors, the error reporter, the crash notice, the wand and the capture bridge", () => {
+    expect(injectedScripts()).toHaveLength(5);
+  });
+
+  // Unlike the others it must not bail out when there is no parent: a shared
+  // link's customer, or a demo opened in its own tab, is who it is for.
+  it("shows the crash notice in a top-level page too", () => {
+    const notice = injectedScripts().find((s) => s.includes("data-fitt-crash")) ?? "";
+    expect(notice).toContain("กลับไปหน้าแรก");
+    expect(notice).not.toContain("window.parent === window");
+  });
+
+  // The share page's loading card waits for this, not for the frame's load event.
+  it("tells the parent when the demo has drawn its first screen", () => {
+    const notice = injectedScripts().find((s) => s.includes("data-fitt-crash")) ?? "";
+    expect(notice).toContain("__fittRendered: true");
   });
 
   it("are valid JavaScript", () => {

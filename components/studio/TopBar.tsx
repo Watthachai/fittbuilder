@@ -13,13 +13,14 @@ import {
   History,
   MoreHorizontal,
   Package,
+  RefreshCw,
   Rocket,
   Share2,
   Sparkles,
   Undo2,
   Users,
 } from "lucide-react";
-import { createSharedDemo } from "@/lib/share";
+import { createSharedDemo, getProjectShare, updateProjectShare } from "@/lib/share";
 import { toast } from "@/lib/toast";
 import DnaMark from "@/components/ui/DnaMark";
 import type { OrgRecord, ProjectRecord } from "@/lib/types";
@@ -92,14 +93,37 @@ export default function TopBar({
   // partners ask the team to ship. /api/fittcore and the cloud routes check too.
   const canExport = useIsAdmin();
 
+  // A project has one share link (its newest snapshot). Copying hands it out as
+  // it is; only "update" puts the current version on it, so a customer holding
+  // the link never sees a change that is still being made.
   const share = async () => {
     if (!project.files) return;
     try {
-      const url = await createSharedDemo(project.id, { name: project.name, files: project.files });
+      const existing = await getProjectShare(project.id);
+      const url = existing?.url ?? (await createSharedDemo(project.id, { name: project.name, files: project.files }));
       await navigator.clipboard.writeText(url);
-      toast.success("คัดลอกลิงก์แชร์แล้ว — เปิดดูได้โดยไม่ต้อง login");
+      toast.success("คัดลอกลิงก์แชร์แล้ว — เปิดดูได้โดยไม่ต้องเข้าสู่ระบบ", {
+        description: existing
+          ? `ลิงก์นี้แสดงฉบับวันที่ ${new Date(existing.updatedAt).toLocaleString("th-TH")} ถ้าแก้งานหลังจากนั้น กด "อัปเดตลิงก์แชร์เป็นฉบับนี้"`
+          : undefined,
+      });
     } catch (e) {
       toast.error("สร้างลิงก์แชร์ไม่สำเร็จ", {
+        description: e instanceof Error ? e.message : undefined,
+      });
+    }
+  };
+
+  const updateShare = async () => {
+    if (!project.files) return;
+    try {
+      const url = await updateProjectShare(project.id, { name: project.name, files: project.files });
+      await navigator.clipboard.writeText(url);
+      toast.success("อัปเดตลิงก์แชร์แล้ว", {
+        description: "ผู้ที่มีลิงก์นี้โหลดหน้าใหม่ก็เห็นฉบับนี้ (คัดลอกลิงก์ไว้ให้แล้ว)",
+      });
+    } catch (e) {
+      toast.error("อัปเดตลิงก์แชร์ไม่สำเร็จ", {
         description: e instanceof Error ? e.message : undefined,
       });
     }
@@ -272,6 +296,16 @@ export default function TopBar({
                 className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-xs text-chalk/80 transition hover:bg-chalk/5 hover:text-chalk disabled:opacity-40"
               >
                 <Share2 size={14} /> คัดลอกลิงก์แชร์
+              </button>
+              <button
+                onClick={() => {
+                  setActionsOpen(false);
+                  void updateShare();
+                }}
+                disabled={!shippable}
+                className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-xs text-chalk/80 transition hover:bg-chalk/5 hover:text-chalk disabled:opacity-40"
+              >
+                <RefreshCw size={14} /> อัปเดตลิงก์แชร์เป็นฉบับนี้
               </button>
               {onTeamShare && (
                 <button

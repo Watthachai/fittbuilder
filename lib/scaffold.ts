@@ -147,6 +147,54 @@ const ERROR_SCRIPT = `(function () {
 })();`;
 
 /**
+ * Crash notice. A demo page that throws while rendering, with no error boundary
+ * above it, makes React unmount the whole app: #root is left empty and the
+ * screen goes white, menu and all — a customer on a shared link saw nothing but
+ * white after one click (case #39). The reporter above tells the studio; this
+ * tells whoever is looking at the demo, the customer included, and gives them a
+ * way back to the first page.
+ *
+ * Only once the app has rendered: one that never did has a build problem the
+ * studio's banner explains, and reloading would land on the same error. A fix
+ * that arrives by hot reload renders into #root again, which takes it down.
+ */
+const CRASH_SCRIPT = `(function () {
+  var rendered = false, notice = null;
+  function root() { return document.getElementById("root"); }
+
+  function show() {
+    var r = root();
+    if (notice || !rendered || !r || r.childElementCount > 0) return;
+    if (document.querySelector("vite-error-overlay")) return;
+    notice = document.createElement("div");
+    notice.setAttribute("data-fitt-crash", "");
+    notice.style.cssText = "position:fixed;inset:0;z-index:2147483646;display:flex;align-items:center;justify-content:center;padding:24px;background:#f8fafc;color:#0f172a;font-family:Anuphan,Inter,system-ui,sans-serif";
+    notice.innerHTML =
+      '<div style="max-width:420px;padding:28px 32px;border:1px solid #e2e8f0;border-radius:16px;background:#fff;text-align:center">' +
+      '<p style="margin:0 0 8px;font-size:18px;font-weight:600">หน้านี้ยังแสดงผลไม่ได้</p>' +
+      '<p style="margin:0 0 20px;font-size:14px;line-height:1.6;color:#64748b">หน้าที่เพิ่งเปิดมีข้อผิดพลาด<br>กลับไปหน้าแรกแล้วเลือกเมนูอื่นต่อได้</p>' +
+      '<button type="button" style="padding:10px 18px;border:0;border-radius:10px;background:#0f172a;color:#fff;font:inherit;font-size:14px;font-weight:600;cursor:pointer">กลับไปหน้าแรก</button>' +
+      "</div>";
+    notice.querySelector("button").addEventListener("click", function () { location.reload(); });
+    document.body.appendChild(notice);
+  }
+
+  new MutationObserver(function () {
+    var r = root();
+    if (!r || r.childElementCount === 0) return;
+    // First screen drawn: the share page holds its loading card until it hears
+    // this — the frame's load event comes seconds early, before Vite's first
+    // dependency reload.
+    if (!rendered && window.parent !== window) parent.postMessage({ __fittRendered: true }, "*");
+    rendered = true;
+    if (notice) { notice.remove(); notice = null; }
+  }).observe(document.documentElement, { childList: true, subtree: true });
+
+  // React reports the error, then unmounts — look once it has had the chance.
+  addEventListener("error", function () { setTimeout(show, 50); setTimeout(show, 500); });
+})();`;
+
+/**
  * Version of the capture bridge. Bump on every change to SHOT_SCRIPT so a studio
  * tab running against an older container can tell, instead of silently
  * reproducing the bug that was just fixed.
@@ -1375,6 +1423,9 @@ const fittBridge = {
           "(function(){if(window.parent===window)return;var p=false,lx=0,ly=0;addEventListener('mousemove',function(e){lx=e.clientX;ly=e.clientY;if(p)return;p=true;requestAnimationFrame(function(){p=false;parent.postMessage({__fittCursor:true,x:lx/innerWidth,y:ly/innerHeight},'*');});});addEventListener('mouseleave',function(){parent.postMessage({__fittCursor:true,leave:true},'*');});})();",
       },
       { tag: "script", injectTo: "head", children: ${JSON.stringify(ERROR_SCRIPT)} },
+      // 2b) crash notice: the same white screen, told to whoever is looking at
+      //     the demo — a customer on a shared link included — with a way back.
+      { tag: "script", injectTo: "head", children: ${JSON.stringify(CRASH_SCRIPT)} },
       // 3) Wand: point at an element in the running demo and edit exactly it.
       { tag: "script", injectTo: "head", children: ${JSON.stringify(WAND_SCRIPT)} },
       // 4) Screen capture + auto-walk, for the screen inventory / quotation.

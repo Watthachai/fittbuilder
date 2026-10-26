@@ -460,7 +460,9 @@ export interface Database {
         Relationships: [];
       };
       /** Snapshot behind a short share link (migration 0043). Read only via the
-       *  fittbuilder_shared_demo(token) function; no select policy on the table. */
+       *  fittbuilder_shared_demo(token) function; no select policy on the table.
+       *  A project's newest one is its link, rewritten in place by
+       *  fittbuilder_update_project_share (migration 0062). */
       fittbuilder_shared_demos: {
         Row: {
           token: string;
@@ -469,6 +471,7 @@ export interface Database {
           files: Json;
           created_by: string;
           created_at: string;
+          updated_at: string;
         };
         Insert: {
           token: string;
@@ -477,6 +480,7 @@ export interface Database {
           files: Json;
           created_by?: string;
           created_at?: string;
+          updated_at?: string;
         };
         Update: {
           token?: string;
@@ -485,6 +489,7 @@ export interface Database {
           files?: Json;
           created_by?: string;
           created_at?: string;
+          updated_at?: string;
         };
         Relationships: [];
       };
@@ -1055,6 +1060,16 @@ export interface Database {
       fittbuilder_fittvoice_source: { Args: { pid: string }; Returns: Json };
       /** Read a shared demo snapshot by token — public, {name, files} or null (migration 0043). */
       fittbuilder_shared_demo: { Args: { share_token: string }; Returns: Json };
+      /** The project's share link and when its content was last set (0062). */
+      fittbuilder_project_share: {
+        Args: { pid: string };
+        Returns: { token: string; updated_at: string }[];
+      };
+      /** Put this version on the project's share link; null when it has none (0062). */
+      fittbuilder_update_project_share: {
+        Args: { pid: string; share_name: string; share_files: Json };
+        Returns: string | null;
+      };
       fittbuilder_accept_invites: { Args: { uid: string; mail: string }; Returns: undefined };
       fittbuilder_accept_org_invites: { Args: { uid: string; mail: string }; Returns: undefined };
       fittbuilder_join_by_token: { Args: { tok: string; uid: string }; Returns: string | null };

@@ -32,9 +32,10 @@ function shortToken(): string {
  * Store a snapshot of the demo and return a short link to it.
  *
  * A snapshot, not a reference: name+files are copied as they are now, so the
- * link a customer receives keeps showing this version even after the project is
- * edited. `created_by` defaults to auth.uid() in the row, gated by RLS to
- * someone who can read the project.
+ * link a customer receives keeps showing this version while the project is
+ * edited, until someone puts a new one on it (updateProjectShare).
+ * `created_by` defaults to auth.uid() in the row, gated by RLS to someone who
+ * can read the project.
  */
 export async function createSharedDemo(projectId: string, payload: SharePayload): Promise<string> {
   const supabase = createClient();
@@ -46,7 +47,42 @@ export async function createSharedDemo(projectId: string, payload: SharePayload)
     files: payload.files as unknown as Json,
   });
   if (error) throw error;
+  return shareUrl(token);
+}
+
+function shareUrl(token: string): string {
   return `${window.location.origin}/share/${token}`;
+}
+
+/** A project's share link: its newest snapshot (migration 0062). */
+export interface ProjectShare {
+  url: string;
+  /** When the link's content was last set (ISO). */
+  updatedAt: string;
+}
+
+/** The project's share link, or null when it has none yet. */
+export async function getProjectShare(projectId: string): Promise<ProjectShare | null> {
+  const supabase = createClient();
+  const { data, error } = await supabase.rpc("fittbuilder_project_share", { pid: projectId }).maybeSingle();
+  if (error) throw error;
+  return data ? { url: shareUrl(data.token), updatedAt: data.updated_at } : null;
+}
+
+/**
+ * Put this version on the project's link, so whoever holds it sees it on their
+ * next reload; the link is created when the project has none yet. The database
+ * lets only someone who can edit the project do this.
+ */
+export async function updateProjectShare(projectId: string, payload: SharePayload): Promise<string> {
+  const supabase = createClient();
+  const { data: token, error } = await supabase.rpc("fittbuilder_update_project_share", {
+    pid: projectId,
+    share_name: payload.name,
+    share_files: payload.files as unknown as Json,
+  });
+  if (error) throw error;
+  return token ? shareUrl(token) : createSharedDemo(projectId, payload);
 }
 
 /** Read a shared snapshot by its token (public, no login — via a SECURITY

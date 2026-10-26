@@ -23,6 +23,17 @@ export const CHANGE_BADGE: Record<ChangeType, { label: string; className: string
 // Newest first. SemVer: fix → PATCH, feature → MINOR, breaking → MAJOR.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.116.1",
+    date: "2026-10-26",
+    title: "หน้าต่างในธีมมืดอ่านง่ายขึ้น",
+    items: [
+      {
+        type: "fix",
+        text: "หน้าต่างใหญ่ในธีมมืด เช่น คลังหน้าจอ กล่องเคส และหน้าต่างยืนยัน มีพื้นหลังเกือบทึบแล้ว ไม่เห็นหน้าจอด้านหลังเป็นภาพเบลอจนรก",
+      },
+    ],
+  },
+  {
     version: "0.116.0",
     date: "2026-10-26",
     title: "ลิงก์แชร์เดียวต่อโปรเจกต์ อัปเดตได้ ลูกค้าใช้ลิงก์เดิม",

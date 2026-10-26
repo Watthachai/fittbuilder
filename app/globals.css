@@ -90,7 +90,7 @@
   --halt: #f87171;
   --grid-line: rgba(255, 255, 255, 0.04);
   --glass-surface: color-mix(in srgb, var(--night-panel) 55%, transparent);
-  --glass-surface-strong: color-mix(in srgb, var(--night-panel) 42%, transparent);
+  --glass-surface-strong: color-mix(in srgb, var(--night-panel) 90%, transparent);
   --glass-border: rgba(255, 255, 255, 0.12);
   --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
   --overlay-dim: rgba(0, 0, 0, 0.7);
@@ -110,7 +110,7 @@
     --halt: #f87171;
     --grid-line: rgba(255, 255, 255, 0.04);
     --glass-surface: color-mix(in srgb, var(--night-panel) 55%, transparent);
-    --glass-surface-strong: color-mix(in srgb, var(--night-panel) 42%, transparent);
+    --glass-surface-strong: color-mix(in srgb, var(--night-panel) 90%, transparent);
     --glass-border: rgba(255, 255, 255, 0.12);
     --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
     --overlay-dim: rgba(0, 0, 0, 0.7);
@@ -195,7 +195,9 @@ body {
 }
 /* For text-heavy panels (drawers, modals, cards): heavy blur dissolves the text
    behind into a soft frost (so it can't clash with the panel's own content),
-   while staying clearly glassy. */
+   while staying clearly glassy. Near-opaque in dark too (90%, as light is 97%):
+   at 42% a big window like the screen gallery read as a smear of the studio
+   behind it (case #40). */
 .glass-strong {
   background: var(--glass-surface-strong);
   -webkit-backdrop-filter: var(--glass-blur-strong);

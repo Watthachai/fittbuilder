@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import {
   Check,
   CheckCircle2,
@@ -279,6 +279,15 @@ export default function ChatPanel({
   const [thumbs, setThumbs] = useState<Record<string, string>>({});
   const scrollRef = useRef<HTMLDivElement>(null);
   const mediaInputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
+
+  // The box grows with what is typed up to its max height, then scrolls (case #41).
+  useLayoutEffect(() => {
+    const input = inputRef.current;
+    if (!input) return;
+    input.style.height = "auto";
+    input.style.height = `${input.scrollHeight}px`;
+  }, [draft]);
 
   const onPickMedia = async (files: FileList | null) => {
     if (!files || files.length === 0) return;
@@ -813,9 +822,10 @@ export default function ChatPanel({
             </div>
           )}
           <textarea
+            ref={inputRef}
             value={draft}
             maxLength={MESSAGE_MAX_CHARS}
-            rows={2}
+            rows={3}
             disabled={busy}
             onChange={(event) => {
               setDraft(event.target.value);
@@ -835,7 +845,7 @@ export default function ChatPanel({
               }
             }}
             placeholder={placeholder}
-            className="block w-full resize-none bg-transparent px-3 py-2.5 text-[14px] text-chalk outline-none placeholder:text-chalk-dim/60 disabled:opacity-50"
+            className="block max-h-[260px] w-full resize-none overflow-y-auto bg-transparent px-3 py-2.5 text-[15px] leading-6 text-chalk outline-none placeholder:text-chalk-dim/60 disabled:opacity-50"
           />
           <div className="flex items-center justify-between px-3 pb-2">
             <div className="flex items-center gap-2">

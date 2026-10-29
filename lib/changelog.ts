@@ -23,6 +23,21 @@ export const CHANGE_BADGE: Record<ChangeType, { label: string; className: string
 // Newest first. SemVer: fix → PATCH, feature → MINOR, breaking → MAJOR.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.116.2",
+    date: "2026-10-29",
+    title: "ช่องพิมพ์สั่ง AI ใหญ่ขึ้น",
+    items: [
+      {
+        type: "improvement",
+        text: "ช่องพิมพ์สั่ง AI เริ่มที่ 3 บรรทัด ตัวอักษรใหญ่ขึ้น และสูงขึ้นตามข้อความได้ถึง 10 บรรทัด พิมพ์ยาวกว่านั้นเลื่อนอ่านในช่องได้",
+      },
+      {
+        type: "improvement",
+        text: "ลากเส้นแบ่งระหว่างแชทกับหน้าตัวอย่างเพื่อขยายฝั่งแชทแล้ว ระบบจะจำความกว้างไว้ เปิดโปรเจกต์ครั้งต่อไปไม่ต้องลากใหม่",
+      },
+    ],
+  },
+  {
     version: "0.116.1",
     date: "2026-10-26",
     title: "หน้าต่างในธีมมืดอ่านง่ายขึ้น",

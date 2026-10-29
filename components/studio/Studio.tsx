@@ -143,6 +143,10 @@ const MAX_TERMINAL_LINES = 400;
 // nicety, but uncapped it bloats every autosave payload and the DB row for the
 // life of the project (long sessions were reaching multi-MB records).
 const THINKING_STORE_LIMIT = 20_000;
+// The chat panel's width, remembered per browser once someone drags the
+// divider — it fell back to 400 on every load (case #41).
+const CHAT_WIDTH_KEY = "fitt-chat-width";
+const chatWidth = (x: number) => Math.min(640, Math.max(320, x));
 
 
 export interface SpecPayload {
@@ -2597,13 +2601,27 @@ export default function Studio({ projectId }: { projectId: string }) {
   // Resizable divider.
   const dragging = useRef(false);
   useEffect(() => {
+    try {
+      const saved = Number(localStorage.getItem(CHAT_WIDTH_KEY));
+      if (saved) setLeftWidth(chatWidth(saved));
+    } catch {
+      // A blocked store just means the default width.
+    }
+  }, []);
+  useEffect(() => {
     const onMove = (event: PointerEvent) => {
       if (!dragging.current) return;
-      setLeftWidth(Math.min(640, Math.max(320, event.clientX)));
+      setLeftWidth(chatWidth(event.clientX));
     };
-    const onUp = () => {
+    const onUp = (event: PointerEvent) => {
+      if (!dragging.current) return;
       dragging.current = false;
       document.body.style.cursor = "";
+      try {
+        localStorage.setItem(CHAT_WIDTH_KEY, String(chatWidth(event.clientX)));
+      } catch {
+        // Same: the width still holds for this visit.
+      }
     };
     window.addEventListener("pointermove", onMove);
     window.addEventListener("pointerup", onUp);

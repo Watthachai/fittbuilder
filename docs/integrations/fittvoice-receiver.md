@@ -175,7 +175,11 @@ receipt (`fittbuilder.receipt.v1`) ไม่มีลิงก์ เพรา�
 
 redirect URI ต้องเป็น https และไม่มี `#fragment` รันซ้ำด้วย id เดิมเพื่อแก้ชื่อหรือ URI
 
-Sandbox (12 ต.ค. 2026): client `fittvoice-sandbox` ชื่อ "FITT Voice" redirect URI `https://fitt-voice-sandbox-api-pdvd3dztwq-as.a.run.app/v1/builder/connections/callback` ส่วน Production รอทีม Voice ยืนยัน origin
+Sandbox (12 ต.ค. 2026): client `fittvoice-sandbox` ชื่อ "FITT Voice" redirect URI `https://fitt-voice-sandbox-api-pdvd3dztwq-as.a.run.app/v1/builder/connections/callback`
+
+Production (29 ต.ค. 2026): client `fittvoice-production` ชื่อ "FITT Voice" redirect URI `https://fitt-voice-prod-api-pdvd3dztwq-as.a.run.app/v1/builder/connections/callback` ทั้งสอง client ใช้ `BASE_URL` เดียวกันคือ `https://fitt-builder.fittbsa.com`
+
+token ไม่ผูกกับ backend ที่เรียก: token ที่ออกให้ `fittvoice-sandbox` ยังส่งงานและเรียก `/connection` ได้ไม่ว่าจะเรียกจากที่ไหน จนกว่าจะถูกถอนหรือหมดอายุ แต่ `/revoke` ต้องส่ง `client_id` ของ client ที่ออก token นั้น ถ้าส่ง client อื่นจะได้ 200 แต่ token ยังใช้ได้อยู่ และการเชื่อมผ่าน client ใหม่จะแทนที่เฉพาะการเชื่อมเดิมของ client เดียวกัน การเชื่อมของ `fittvoice-sandbox` จึงยังอยู่จนกว่าจะถอน
 
 ## ตั้งค่า Sandbox
 

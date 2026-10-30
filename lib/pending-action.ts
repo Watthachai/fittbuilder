@@ -18,12 +18,17 @@ export function setPendingAction(projectId: string, action: PendingAction): void
   sessionStorage.setItem(KEY(projectId), JSON.stringify(action));
 }
 
+/** Read the pending action for a project, leaving it for takePendingAction. */
+export function peekPendingAction(projectId: string): PendingAction | null {
+  const raw = sessionStorage.getItem(KEY(projectId));
+  return raw ? (JSON.parse(raw) as PendingAction) : null;
+}
+
 /** Read and remove the pending action for a project (one-shot). */
 export function takePendingAction(projectId: string): PendingAction | null {
-  const raw = sessionStorage.getItem(KEY(projectId));
-  if (!raw) return null;
+  const action = peekPendingAction(projectId);
   sessionStorage.removeItem(KEY(projectId));
-  return JSON.parse(raw) as PendingAction;
+  return action;
 }
 
 /**

@@ -23,6 +23,17 @@ export const CHANGE_BADGE: Record<ChangeType, { label: string; className: string
 // Newest first. SemVer: fix → PATCH, feature → MINOR, breaking → MAJOR.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.116.6",
+    date: "2026-10-30",
+    title: "ข้ามการเลือกประเภทระบบแล้ว สตูดิโอไม่ถามซ้ำ",
+    items: [
+      {
+        type: "fix",
+        text: "กดข้ามการเลือกประเภทระบบที่หน้าแรกแล้ว พอเข้าสตูดิโอช่องแชทยังขึ้นให้เลือกประเภทระบบอีกรอบ ต้องกดข้ามสองครั้ง ตอนนี้ถามแค่ที่หน้าแรกครั้งเดียว",
+      },
+    ],
+  },
+  {
     version: "0.116.5",
     date: "2026-10-30",
     title: "อีเมลเชิญ Partner ส่งออกได้แล้ว",

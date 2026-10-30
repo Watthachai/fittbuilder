@@ -445,6 +445,13 @@ export async function POST(request: Request) {
         }
 
         const user = await buildUser((message) => send({ type: "status", message }));
+        // Where the turn's time goes, for the server log: the prompt ready, the
+        // model's first written (not thought) text, its first file. Whether a
+        // slow first build is the model thinking or the model writing decides
+        // what would make it faster.
+        const promptAt = Date.now();
+        let textAt: number | null = null;
+        let firstFileAt: number | null = null;
         const abort = AbortSignal.timeout(ATTEMPT_TIMEOUT_MS);
         // Why the turn stopped before the model said it was done, if it did.
         // Partial output is still kept below; this is what stops the chat from
@@ -470,6 +477,7 @@ export async function POST(request: Request) {
               send({ type: "thought", content: part.text });
               continue;
             }
+            textAt ??= Date.now();
             const { files, edits, deletes, deps } = parser.push(part.text);
             for (const file of files) {
               const path = normalizePath(file.path);
@@ -498,6 +506,7 @@ export async function POST(request: Request) {
             );
             for (const d of fresh) wantedDeps.add(d);
             if (fresh.length) send({ type: "deps", packages: fresh });
+            if (fileCount > 0) firstFileAt ??= Date.now();
             // Fire and forget mid-stream: a checkpoint that is one file behind
             // is worth far more than a generation that waits on the database.
             if (Date.now() - lastPark >= DRAFT_INTERVAL_MS) {
@@ -515,6 +524,7 @@ export async function POST(request: Request) {
           cut = abort.aborted ? "time" : "error";
           console.error("[generate] stream ended early, using partial output:", streamError);
         }
+        const streamEndAt = Date.now();
         if (cut) {
           console.warn(
             `[generate] turn cut (${cut}) after ${fileCount} file(s) in ${Math.round((Date.now() - startedAt) / 1000)}s`
@@ -750,6 +760,15 @@ export async function POST(request: Request) {
         const shellMissing = !iteration && wroteScreens && shellGap.length > 0;
 
         turn = ended(outcomeOf(cut), null);
+        const secs = (ms: number) => `${(ms / 1000).toFixed(1)}s`;
+        console.info(
+          `[generate] timing ${iteration ? "edit" : "build"}: prepare ${secs(promptAt - startedAt)}, ` +
+            `to first text ${textAt === null ? "-" : secs(textAt - promptAt)}, ` +
+            `writing ${textAt === null ? "-" : secs(streamEndAt - textAt)}, ` +
+            `first file at ${firstFileAt === null ? "-" : secs(firstFileAt - startedAt)}, ` +
+            `after the stream ${secs(Date.now() - streamEndAt)}, total ${secs(Date.now() - startedAt)}, ` +
+            `${fileCount} file(s), ${usage?.outputTokens ?? 0} output tokens`
+        );
         // One park marks completeness, and it lands after every file this turn
         // will ever produce — including the retry's.
         await finish({

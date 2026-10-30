@@ -40,7 +40,7 @@ import {
   SCAFFOLD_FILES,
   withRequiredScaffold,
 } from "@/lib/scaffold";
-import { takePendingAction, takePendingAttachments } from "@/lib/pending-action";
+import { peekPendingAction, takePendingAction, takePendingAttachments } from "@/lib/pending-action";
 import { encodeShareUrl } from "@/lib/share";
 import { StreamDropped, streamAgent, streamGenerate } from "@/lib/sse";
 import { awaitTurn } from "@/lib/turn-reattach";
@@ -2226,6 +2226,12 @@ export default function Studio({ projectId }: { projectId: string }) {
         return;
       }
 
+      // An express launch asked for the domain on the LaunchPad already, and a
+      // skip there is an answer. Mark it asked before the project renders: the
+      // picker effect runs on that render, and marking it once the pending
+      // action is taken below came after several awaits — the picker had opened
+      // by then, so a skipped domain was asked for a second time.
+      if (peekPendingAction(projectId)?.kind === "express") skillCheckedRef.current = projectId;
       projectRef.current = loaded;
       setProject(loaded);
 
@@ -2277,8 +2283,6 @@ export default function Studio({ projectId }: { projectId: string }) {
       if (pending) {
         if (pending.kind === "express") {
           // Brief is complete → auto-pilot the whole flow (BRD→PRD→build).
-          // Suppress the domain picker; the skill was already chosen at launch.
-          skillCheckedRef.current = projectId;
           void bootScaffold(); // warm the preview so the final build HMRs in
           // Files attached on the LaunchPad ride IndexedDB (too big for
           // sessionStorage) — fetch them before kicking off the pipeline.

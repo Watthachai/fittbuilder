@@ -23,6 +23,17 @@ export const CHANGE_BADGE: Record<ChangeType, { label: string; className: string
 // Newest first. SemVer: fix → PATCH, feature → MINOR, breaking → MAJOR.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.116.4",
+    date: "2026-10-30",
+    title: "สลับไป Premium แล้วกด “ให้ AI รวมให้” เดโมเปิดได้ปกติ",
+    items: [
+      {
+        type: "fix",
+        text: "สลับไปเวอร์ชัน Premium แล้วกด “ให้ AI รวมให้” หน้าตัวอย่างยังรันไฟล์ของเวอร์ชันปกติอยู่ เดโมจึงขึ้นว่าหาไฟล์ของ Premium ไม่เจอทีละไฟล์ ตอนนี้ระบบโหลดไฟล์ Premium เข้าหน้าตัวอย่างให้เสร็จก่อน แล้วค่อยให้ AI รวมการแก้ไข",
+      },
+    ],
+  },
+  {
     version: "0.116.3",
     date: "2026-10-30",
     title: "อีเมลเชิญ Partner แบบใหม่",

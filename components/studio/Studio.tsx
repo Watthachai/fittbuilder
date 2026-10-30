@@ -2830,6 +2830,11 @@ export default function Studio({ projectId }: { projectId: string }) {
           confirmLabel: "ให้ AI รวมให้",
         });
         if (merge) {
+          // Boot first, as the no-merge path does below. The turn's result only
+          // writes the files it changed, so a preview still running the version
+          // just left never got the Premium-only files — each one showed up as a
+          // missing import, and every "ให้ AI แก้" rewrote a Premium file (case #43).
+          await boot(files);
           void runTurn(
             [
               "ไฟล์เหล่านี้ในเวอร์ชัน Premium ถูกเขียนทับไว้ ทำให้การแก้ไขล่าสุดที่ทำในเวอร์ชันปกติหายไป:",

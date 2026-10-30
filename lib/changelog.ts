@@ -23,6 +23,17 @@ export const CHANGE_BADGE: Record<ChangeType, { label: string; className: string
 // Newest first. SemVer: fix → PATCH, feature → MINOR, breaking → MAJOR.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.116.5",
+    date: "2026-10-30",
+    title: "อีเมลเชิญ Partner ส่งออกได้แล้ว",
+    items: [
+      {
+        type: "fix",
+        text: "กดเพิ่ม Partner หรือ “ส่งอีเมลอีกครั้ง” แล้วขึ้นว่าส่งอีเมลไม่สำเร็จ เพราะระบบส่งไปที่บริการอีเมลชุดทดสอบ ตอนนี้ส่งผ่านบริการอีเมลจริงของบริษัทแล้ว",
+      },
+    ],
+  },
+  {
     version: "0.116.4",
     date: "2026-10-30",
     title: "สลับไป Premium แล้วกด “ให้ AI รวมให้” เดโมเปิดได้ปกติ",

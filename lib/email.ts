@@ -1,7 +1,6 @@
 import type { OrgInviteRole, ShareRole } from "@/lib/types";
 
-const DMAIL_API_URL =
-  "https://dmailservicebackend-sandbox-1095128507689.asia-southeast1.run.app/api/v1/mail/send";
+const DMAIL_API_URL = "https://dmail-api.digitalvalue.co.th/api/v1/mail/send";
 const INVITATION_TEMPLATE_ID = "4b72b137-4124-4b4a-982b-a7b38d723547";
 // DMail "FITT Builder — เชิญ Partner": variables email, loginLink, senderName.
 const PARTNER_WELCOME_TEMPLATE_ID = "6a1a524b-2c7b-4309-bc6a-7b69885df68d";

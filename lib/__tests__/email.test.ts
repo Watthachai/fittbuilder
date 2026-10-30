@@ -21,11 +21,12 @@ test("a partner welcome names the email to sign in with and links to sign-in", (
   const p = buildPartnerWelcomePayload({
     to: "owner@partner.co.th", loginLink: "https://app/login", senderName: "ทีม FITT Builder",
   });
-  expect(p.templateId).toBe("4b72b137-4124-4b4a-982b-a7b38d723547");
+  expect(p.templateId).toBe("6a1a524b-2c7b-4309-bc6a-7b69885df68d");
   expect(p.to).toEqual([{ email: "owner@partner.co.th", name: "owner@partner.co.th" }]);
   expect(p.subject).toContain("owner@partner.co.th");
-  expect(p.variables.companyName).toBe("FITT Builder");
-  expect(p.variables.roleText).toBe("Partner");
-  expect(p.variables.invitationLink).toBe("https://app/login");
-  expect(p.variables.senderName).toBe("ทีม FITT Builder");
+  expect(p.variables).toEqual({
+    email: "owner@partner.co.th",
+    loginLink: "https://app/login",
+    senderName: "ทีม FITT Builder",
+  });
 });

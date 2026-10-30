@@ -3,6 +3,8 @@ import type { OrgInviteRole, ShareRole } from "@/lib/types";
 const DMAIL_API_URL =
   "https://dmailservicebackend-sandbox-1095128507689.asia-southeast1.run.app/api/v1/mail/send";
 const INVITATION_TEMPLATE_ID = "4b72b137-4124-4b4a-982b-a7b38d723547";
+// DMail "FITT Builder — เชิญ Partner": variables email, loginLink, senderName.
+const PARTNER_WELCOME_TEMPLATE_ID = "6a1a524b-2c7b-4309-bc6a-7b69885df68d";
 
 export interface InviteEmailArgs {
   to: string;
@@ -120,22 +122,18 @@ export interface PartnerWelcomeEmailArgs {
 /**
  * Tell someone just put on the partner list (/admin/partners) that they are in,
  * and which email to sign in with — partner status follows the email, so the
- * address in the subject is the one thing they must not get wrong. Rides the
- * invitation template: "joining FITT Builder as Partner" is what it is.
+ * address in the subject is the one thing they must not get wrong. Has its own
+ * template: the invitation one asked for a branch and a role a partner has not.
  */
 export function buildPartnerWelcomePayload(args: PartnerWelcomeEmailArgs): DmailPayload {
   return {
-    templateId: INVITATION_TEMPLATE_ID,
+    templateId: PARTNER_WELCOME_TEMPLATE_ID,
     to: [{ email: args.to, name: args.to }],
     subject: `คุณได้รับสิทธิ์ Partner ของ FITT Builder แล้ว — เข้าสู่ระบบด้วย ${args.to}`,
     variables: {
-      name: args.to,
-      companyName: "FITT Builder",
-      branchName: "-",
-      roleText: "Partner",
-      invitationLink: args.loginLink,
+      email: args.to,
+      loginLink: args.loginLink,
       senderName: args.senderName,
-      year: new Date().getFullYear().toString(),
     },
   };
 }

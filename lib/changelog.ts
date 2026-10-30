@@ -23,6 +23,17 @@ export const CHANGE_BADGE: Record<ChangeType, { label: string; className: string
 // Newest first. SemVer: fix → PATCH, feature → MINOR, breaking → MAJOR.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.116.3",
+    date: "2026-10-30",
+    title: "อีเมลเชิญ Partner แบบใหม่",
+    items: [
+      {
+        type: "improvement",
+        text: "อีเมลที่ Partner ได้รับตอนถูกเพิ่มสิทธิ์มีหน้าตาของตัวเองแล้ว แสดงอีเมลที่ต้องใช้เข้าสู่ระบบเด่นชัด บอกว่าเข้าด้วย Google หรืออีเมลก็ได้แต่ต้องเป็นอีเมลนี้ พร้อมปุ่มเข้าสู่ระบบและ 3 ขั้นตอนแรกที่ต้องทำ",
+      },
+    ],
+  },
+  {
     version: "0.116.2",
     date: "2026-10-29",
     title: "ช่องพิมพ์สั่ง AI ใหญ่ขึ้น",

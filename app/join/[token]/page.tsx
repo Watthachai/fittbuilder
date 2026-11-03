@@ -144,7 +144,8 @@ export default async function JoinPage({
               </h1>
               <div className="mx-auto mt-4 inline-flex items-center gap-2 rounded-full border border-night-edge bg-chalk/[0.03] px-3.5 py-1.5">
                 <RoleIcon size={13} className="text-chalk-dim" />
-                <span className="text-xs text-chalk">
+                {/* The role never wraps mid-word; a long hint beside it does the wrapping. */}
+                <span className="shrink-0 whitespace-nowrap text-xs text-chalk">
                   ในฐานะ<span className="font-semibold">{roleLabel}</span>
                 </span>
                 <span className="text-xs text-chalk-dim/70">· {roleHint}</span>

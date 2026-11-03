@@ -110,11 +110,11 @@ export default async function JoinPage({
   }
 
   // Role presentation differs by invite kind: projects use editor/viewer,
-  // workspaces admin/member, companies admin/approver/member.
+  // workspaces admin/member, companies admin/approver/reviewer/member.
   const elevated = role === "editor" || role === "admin";
   const roleLabel =
     kind === "company"
-      ? role === "admin" ? "ผู้ดูแลบริษัท" : role === "approver" ? "ผู้อนุมัติ" : "พนักงาน"
+      ? role === "admin" ? "ผู้ดูแลบริษัท" : role === "approver" ? "ผู้อนุมัติ" : role === "reviewer" ? "ผู้ตรวจ" : "พนักงาน"
       : kind === "org"
         ? role === "admin" ? "ผู้ดูแล" : "สมาชิก"
         : elevated ? "ผู้แก้ไข" : "ผู้ชม";
@@ -124,7 +124,9 @@ export default async function JoinPage({
         ? "จัดการคนในบริษัท และอนุมัติเอกสารของทุก workspace ในบริษัท"
         : role === "approver"
           ? "ตรวจและอนุมัติใบเสนอราคากับข้อเสนอโครงการของทุก workspace ในบริษัท เปิดดูได้อย่างเดียว"
-          : "workspace ของคุณจะส่งเอกสารให้ผู้อนุมัติของบริษัทได้"
+          : role === "reviewer"
+            ? "อ่านใบเสนอราคากับข้อเสนอโครงการก่อน แล้วส่งต่อให้ผู้อนุมัติ ทุก workspace ในบริษัท เปิดดูได้อย่างเดียว"
+            : "workspace ของคุณจะส่งเอกสารให้ผู้อนุมัติของบริษัทได้"
       : kind === "org"
         ? role === "admin" ? "จัดการสมาชิกและทุกโปรเจกต์ได้" : "ทำงานกับทุกโปรเจกต์ใน workspace ได้"
         : elevated ? "แก้ไขและสร้างร่วมกันได้" : "เปิดดูได้อย่างเดียว";

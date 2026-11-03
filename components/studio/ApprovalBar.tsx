@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { BadgeCheck, Clock, Loader2, Send, Undo2 } from "lucide-react";
 import { currentUser } from "@/lib/current-user";
-import { approvalState, canExport, type ApprovalDocKind, type ApprovalState } from "@/lib/doc-approval";
+import { approvalState, canExport, pendingText, type ApprovalDocKind, type ApprovalState } from "@/lib/doc-approval";
 import {
   approveNow,
   listApprovals,
@@ -16,13 +16,17 @@ import { parseDoc, thaiDateShort } from "@/lib/quote";
 import { toast } from "@/lib/toast";
 import type { VersionKey } from "@/lib/versions";
 
-// The reasons fittbuilder_project_approvers gives (migration 0065).
+// The reasons fittbuilder_project_approvers gives (migrations 0065, 0066).
 const ROLE_LABEL: Record<string, string> = {
   owner: "เจ้าของ",
   admin: "ผู้ดูแล",
   company_approver: "ผู้อนุมัติ",
   company_admin: "ผู้ดูแลบริษัท",
+  company_reviewer: "ผู้ตรวจ",
 };
+
+/** A reviewer reads first and passes it on; the approver alone decides (migration 0066). */
+const REVIEWER_ROLE = "company_reviewer";
 
 // Every stored copy carries its own date, so the fallback date never decides anything.
 const readQuote = (doc: unknown) => parseDoc(doc, "");
@@ -94,19 +98,26 @@ export function ApprovalBar({
 }) {
   const { state, approvers, meId, reload } = approval;
   const [picking, setPicking] = useState(false);
+  const [reviewerId, setReviewerId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const nameOf = (id: string) => {
     const a = approvers.find((p) => p.userId === id);
     return a ? a.name || a.email : "ผู้อนุมัติ";
   };
+  const reviewers = approvers.filter((a) => a.role === REVIEWER_ROLE);
+  const deciders = approvers.filter((a) => a.role !== REVIEWER_ROLE);
   const mine = approvers.find((a) => a.userId === meId);
   const canApproveNow = mine !== undefined && (mine.role === "owner" || mine.role === "admin");
 
   const send = async (approverId: string) => {
     setBusy(true);
     try {
-      await requestApproval(projectId, kind, version, approverId, doc);
-      toast.success(`ส่งให้ ${nameOf(approverId)} อนุมัติแล้ว`);
+      await requestApproval(projectId, kind, version, approverId, doc, reviewerId);
+      toast.success(
+        reviewerId
+          ? `ส่งให้ ${nameOf(reviewerId)} ตรวจก่อน แล้วจะส่งต่อให้ ${nameOf(approverId)} อนุมัติ`
+          : `ส่งให้ ${nameOf(approverId)} อนุมัติแล้ว`
+      );
       setPicking(false);
       await reload();
     } catch (e) {
@@ -136,7 +147,7 @@ export function ApprovalBar({
         return {
           icon: Clock,
           tone: "text-shine",
-          text: `รออนุมัติจาก ${nameOf(state.request.approverId)} · ส่งเมื่อ ${thaiDateShort(state.request.requestedAt.slice(0, 10))}`,
+          text: pendingText(state.request, nameOf, thaiDateShort(state.request.requestedAt.slice(0, 10))),
         };
       case "approved":
         return {
@@ -144,7 +155,7 @@ export function ApprovalBar({
           tone: "text-go",
           text: `อนุมัติแล้วโดย ${nameOf(state.request.decidedBy ?? state.request.approverId)}${
             state.request.decidedAt ? ` · ${thaiDateShort(state.request.decidedAt.slice(0, 10))}` : ""
-          }`,
+          }${state.request.reviewerId ? ` · ตรวจโดย ${nameOf(state.request.reviewerId)}` : ""}`,
         };
       case "changed":
         return { icon: Clock, tone: "text-halt", text: "แก้ไขหลังอนุมัติแล้ว — ต้องส่งอนุมัติใหม่ก่อนพิมพ์" };
@@ -169,7 +180,7 @@ export function ApprovalBar({
         <div className="mt-2 flex flex-wrap gap-1.5">
           <button
             onClick={() => setPicking((v) => !v)}
-            disabled={busy || approvers.length === 0}
+            disabled={busy || deciders.length === 0}
             className="inline-flex items-center gap-1 rounded-lg border border-night-edge px-2 py-1 font-display text-[0.78125rem] text-chalk transition hover:border-shine/60 disabled:opacity-50"
           >
             <Send size={12} /> {state.kind === "pending" ? "ส่งให้คนอื่นแทน" : "ส่งอนุมัติ"}
@@ -185,9 +196,28 @@ export function ApprovalBar({
           )}
         </div>
       )}
+      {picking && reviewers.length > 0 && (
+        <label className="mt-2 block text-[0.6875rem] text-chalk-dim">
+          ให้ใครตรวจก่อน
+          <select
+            value={reviewerId ?? ""}
+            onChange={(e) => setReviewerId(e.target.value || null)}
+            disabled={busy}
+            className="mt-1 w-full rounded-md border border-night-edge bg-night px-2 py-1.5 text-[0.78125rem] text-chalk"
+          >
+            <option value="">ไม่ต้องตรวจ — ส่งถึงผู้อนุมัติเลย</option>
+            {reviewers.map((r) => (
+              <option key={r.userId} value={r.userId}>
+                {r.name || r.email}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
       {picking && (
         <ul className="mt-2 space-y-1">
-          {approvers.map((a) => (
+          {reviewers.length > 0 && <li className="text-[0.6875rem] text-chalk-dim">ผู้อนุมัติ</li>}
+          {deciders.map((a) => (
             <li key={a.userId}>
               <button
                 onClick={() => void send(a.userId)}

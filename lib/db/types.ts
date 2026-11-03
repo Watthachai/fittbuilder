@@ -219,6 +219,12 @@ export interface Database {
           decided_by: string | null;
           decided_at: string | null;
           comment: string | null;
+          /** Who checks it before the approver; null sends it straight to approval (migration 0066). */
+          reviewer_id: string | null;
+          /** 'review' while it waits on the reviewer, 'approve' after. */
+          stage: string;
+          reviewed_at: string | null;
+          review_note: string | null;
         };
         Insert: never;
         Update: never;
@@ -1103,9 +1109,9 @@ export interface Database {
         Args: { pid: string };
         Returns: { user_id: string; email: string | null; name: string | null; role: string }[];
       };
-      /** Send a document for approval, withdrawing the open request (migration 0063). */
+      /** Send a document for approval, through a reviewer when one is named, withdrawing the open request (0066). */
       fittbuilder_request_approval: {
-        Args: { pid: string; kind: string; ver: string; approver: string; snap: Json };
+        Args: { pid: string; kind: string; ver: string; approver: string; snap: Json; reviewer?: string | null };
         Returns: string;
       };
       /** My company's people with names (migration 0065). */

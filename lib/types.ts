@@ -278,9 +278,10 @@ export interface ProjectInvite {
 export type OrgRole = "owner" | "admin" | "member";
 export type OrgInviteRole = "admin" | "member";
 
-/** Company roles (migration 0065). An approver reads every workspace of the
- *  company's staff and approves their documents; an admin also manages people. */
-export type CompanyRole = "admin" | "approver" | "member";
+/** Company roles (migrations 0065, 0066). An approver reads every workspace of
+ *  the company's staff and approves their documents; a reviewer reads them too
+ *  and checks a document before the approver; an admin also manages people. */
+export type CompanyRole = "admin" | "approver" | "reviewer" | "member";
 
 export interface Company {
   id: string;

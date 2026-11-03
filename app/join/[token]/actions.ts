@@ -90,8 +90,8 @@ export async function joinProject(
       if (linkError.message.includes("link expired")) return "ลิงก์นี้หมดอายุแล้ว — ขอลิงก์ใหม่จากผู้ดูแลบริษัท";
       return "เข้าร่วมไม่สำเร็จ ลองอีกครั้ง";
     }
-    // An approver's work is the approval page.
-    redirect(role === "approver" ? "/approvals" : "/company");
+    // An approver's and a reviewer's work is the approval page.
+    redirect(role === "approver" || role === "reviewer" ? "/approvals" : "/company");
   }
 
   // ── 4. Per-email WORKSPACE invite token? ────────────────────────────────

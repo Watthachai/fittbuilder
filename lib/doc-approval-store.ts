@@ -2,7 +2,7 @@
 
 import { createClient } from "@/lib/supabase/client";
 import type { Json } from "@/lib/db/types";
-import type { ApprovalDocKind, ApprovalRow, ApprovalStatus } from "./doc-approval";
+import type { ApprovalDocKind, ApprovalRow, ApprovalStage, ApprovalStatus } from "./doc-approval";
 import type { VersionKey } from "./versions";
 
 /**
@@ -22,6 +22,10 @@ type Row = {
   decided_by: string | null;
   decided_at: string | null;
   comment: string | null;
+  reviewer_id: string | null;
+  stage: string;
+  reviewed_at: string | null;
+  review_note: string | null;
 };
 
 const toApproval = (r: Row): ApprovalRow => ({
@@ -34,9 +38,14 @@ const toApproval = (r: Row): ApprovalRow => ({
   decidedBy: r.decided_by,
   decidedAt: r.decided_at,
   comment: r.comment,
+  reviewerId: r.reviewer_id,
+  stage: r.stage as ApprovalStage,
+  reviewedAt: r.reviewed_at,
+  reviewNote: r.review_note,
 });
 
-const COLUMNS = "id, approver_id, requested_by, requested_at, status, snapshot, decided_by, decided_at, comment";
+const COLUMNS =
+  "id, approver_id, requested_by, requested_at, status, snapshot, decided_by, decided_at, comment, reviewer_id, stage, reviewed_at, review_note";
 
 /** Every request made for one document. */
 export async function listApprovals(
@@ -73,7 +82,9 @@ export async function requestApproval(
   kind: ApprovalDocKind,
   version: VersionKey,
   approverId: string,
-  doc: object
+  doc: object,
+  /** Who checks it first; null sends it straight to the approver. */
+  reviewerId: string | null
 ): Promise<void> {
   const { error } = await createClient().rpc("fittbuilder_request_approval", {
     pid: projectId,
@@ -81,6 +92,7 @@ export async function requestApproval(
     ver: version,
     approver: approverId,
     snap: doc as unknown as Json,
+    reviewer: reviewerId,
   });
   if (error) throw error;
 }
@@ -114,18 +126,26 @@ export interface ApprovalItem extends ApprovalRow {
   version: VersionKey;
 }
 
-/** Requests waiting on me, and the ones I decided most recently. */
+/**
+ * Requests on my desk — to review, or to approve once reviewed — and the ones
+ * I acted on most recently: decided, or passed on after review.
+ */
 export async function myApprovals(meId: string): Promise<{ waiting: ApprovalItem[]; decided: ApprovalItem[] }> {
   const supabase = createClient();
   const select = `${COLUMNS}, project_id, doc_kind, version`;
   const [waiting, decided] = await Promise.all([
-    supabase.from(TABLE).select(select).eq("approver_id", meId).eq("status", "pending").order("requested_at"),
     supabase
       .from(TABLE)
       .select(select)
-      .eq("decided_by", meId)
-      .in("status", ["approved", "returned"])
-      .order("decided_at", { ascending: false })
+      .eq("status", "pending")
+      .or(`and(stage.eq.review,reviewer_id.eq.${meId}),and(stage.eq.approve,approver_id.eq.${meId})`)
+      .order("requested_at"),
+    supabase
+      .from(TABLE)
+      .select(select)
+      .neq("status", "withdrawn")
+      .or(`and(decided_by.eq.${meId},status.neq.pending),and(reviewer_id.eq.${meId},reviewed_at.not.is.null)`)
+      .order("requested_at", { ascending: false })
       .limit(20),
   ]);
   if (waiting.error) throw waiting.error;
@@ -144,5 +164,10 @@ export async function myApprovals(meId: string): Promise<{ waiting: ApprovalItem
     kind: r.doc_kind as ApprovalDocKind,
     version: r.version as VersionKey,
   });
-  return { waiting: (waiting.data ?? []).map(item), decided: (decided.data ?? []).map(item) };
+  // Reviewed by me and now mine to approve: on the desk, not in the history.
+  const onDesk = new Set((waiting.data ?? []).map((r) => r.id));
+  return {
+    waiting: (waiting.data ?? []).map(item),
+    decided: (decided.data ?? []).filter((r) => !onDesk.has(r.id)).map(item),
+  };
 }

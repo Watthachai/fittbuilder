@@ -12,6 +12,9 @@ export type ApprovalDocKind = "quote" | "proposal";
 
 export type ApprovalStatus = "pending" | "approved" | "returned" | "withdrawn";
 
+/** A pending request waits on its reviewer first when it has one, then on its approver (migration 0066). */
+export type ApprovalStage = "review" | "approve";
+
 export interface ApprovalRow {
   id: string;
   approverId: string;
@@ -23,6 +26,26 @@ export interface ApprovalRow {
   decidedBy: string | null;
   decidedAt: string | null;
   comment: string | null;
+  reviewerId: string | null;
+  stage: ApprovalStage;
+  reviewedAt: string | null;
+  reviewNote: string | null;
+}
+
+/** Who a pending request is waiting on right now. */
+export function waitingOn(request: ApprovalRow): string {
+  return request.stage === "review" && request.reviewerId ? request.reviewerId : request.approverId;
+}
+
+/** The status line of a pending request: whose desk it is on, and what comes next. */
+export function pendingText(request: ApprovalRow, nameOf: (id: string) => string, sentOn: string): string {
+  if (request.stage === "review" && request.reviewerId) {
+    return `รอตรวจโดย ${nameOf(request.reviewerId)} แล้วจะส่งต่อให้ ${nameOf(request.approverId)} อนุมัติ · ส่งเมื่อ ${sentOn}`;
+  }
+  if (request.reviewerId && request.reviewedAt) {
+    return `ตรวจแล้วโดย ${nameOf(request.reviewerId)} · รออนุมัติจาก ${nameOf(request.approverId)}`;
+  }
+  return `รออนุมัติจาก ${nameOf(request.approverId)} · ส่งเมื่อ ${sentOn}`;
 }
 
 /** Where a document stands: the panel's status line and whether it may be printed. */

@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { BadgeCheck, Building2, Copy, Link2, Loader2, Shield, Trash2, User } from "lucide-react";
+import { BadgeCheck, Building2, Copy, Link2, Loader2, SearchCheck, Shield, Trash2, User } from "lucide-react";
 import { currentUser } from "@/lib/current-user";
 import {
   COMPANY_ROLE_LABEL,
@@ -19,8 +19,8 @@ import { thaiDateShort } from "@/lib/quote";
 import { toast } from "@/lib/toast";
 import type { Company, CompanyInvite, CompanyMember, CompanyRole } from "@/lib/types";
 
-const ROLE_ORDER: Record<CompanyRole, number> = { admin: 0, approver: 1, member: 2 };
-const ROLE_ICON = { admin: Shield, approver: BadgeCheck, member: User } as const;
+const ROLE_ORDER: Record<CompanyRole, number> = { admin: 0, approver: 1, reviewer: 2, member: 3 };
+const ROLE_ICON = { admin: Shield, approver: BadgeCheck, reviewer: SearchCheck, member: User } as const;
 
 /**
  * The company page (migration 0065): who works here and who approves. A
@@ -62,7 +62,9 @@ export default function CompanyView() {
   const sorted = [...members].sort(
     (a, b) => ROLE_ORDER[a.role] - ROLE_ORDER[b.role] || (a.name || a.email).localeCompare(b.name || b.email, "th")
   );
-  const approvers = members.filter((m) => m.role !== "member").length;
+  // Admins approve too (fittbuilder_company_approves_org); reviewers only pass documents on.
+  const approvers = members.filter((m) => m.role === "admin" || m.role === "approver").length;
+  const reviewers = members.filter((m) => m.role === "reviewer").length;
 
   async function copyLink(inv: CompanyInvite) {
     try {
@@ -156,6 +158,7 @@ export default function CompanyView() {
       <Header name={company.name} />
       <p className="mt-3 text-[0.8125rem] leading-relaxed text-chalk-dim">
         ผู้อนุมัติของบริษัทอนุมัติใบเสนอราคาและข้อเสนอโครงการได้ทุก workspace ของคนในบริษัท และเปิดดูได้อย่างเดียว
+        · ผู้ตรวจอ่านเอกสารก่อน แล้วส่งต่อให้ผู้อนุมัติ
         {company.emailDomain && <> · คนที่ใช้อีเมล @{company.emailDomain} เข้าบริษัทให้เอง</>}
       </p>
 
@@ -175,6 +178,7 @@ export default function CompanyView() {
               aria-label="บทบาทของคนที่กดลิงก์"
             >
               <option value="approver">{COMPANY_ROLE_LABEL.approver}</option>
+              <option value="reviewer">{COMPANY_ROLE_LABEL.reviewer}</option>
               <option value="member">{COMPANY_ROLE_LABEL.member}</option>
               <option value="admin">{COMPANY_ROLE_LABEL.admin}</option>
             </select>
@@ -223,7 +227,9 @@ export default function CompanyView() {
         <h2 className="flex items-center gap-2 font-display text-sm font-semibold">
           คนในบริษัท
           <span className="rounded-full bg-chalk/10 px-2 py-0.5 font-mono text-[0.625rem] text-chalk-dim">{members.length}</span>
-          <span className="text-[0.75rem] font-normal text-chalk-dim">· อนุมัติได้ {approvers} คน</span>
+          <span className="text-[0.75rem] font-normal text-chalk-dim">
+            · อนุมัติได้ {approvers} คน{reviewers > 0 && <> · ผู้ตรวจ {reviewers} คน</>}
+          </span>
         </h2>
         <div className="mt-3 space-y-1.5">
           {sorted.map((m) => {
@@ -249,6 +255,7 @@ export default function CompanyView() {
                       aria-label={`บทบาทของ ${m.name || m.email}`}
                     >
                       <option value="member">{COMPANY_ROLE_LABEL.member}</option>
+                      <option value="reviewer">{COMPANY_ROLE_LABEL.reviewer}</option>
                       <option value="approver">{COMPANY_ROLE_LABEL.approver}</option>
                       <option value="admin">{COMPANY_ROLE_LABEL.admin}</option>
                     </select>

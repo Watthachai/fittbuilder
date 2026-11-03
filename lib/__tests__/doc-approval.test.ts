@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { approvalState, canExport, docContent, type ApprovalRow } from "../doc-approval";
+import { approvalState, canExport, docContent, pendingText, type ApprovalRow } from "../doc-approval";
 import { newDoc, parseDoc, type QuoteDoc } from "../quote";
 
 const sent: QuoteDoc = newDoc([], "SiamPools", "2026-11-03");
@@ -18,6 +18,10 @@ const row = (over: Partial<ApprovalRow>): ApprovalRow => ({
   decidedBy: null,
   decidedAt: null,
   comment: null,
+  reviewerId: null,
+  stage: "approve",
+  reviewedAt: null,
+  reviewNote: null,
   ...over,
 });
 
@@ -95,5 +99,45 @@ describe("canExport", () => {
 
   it("needs nothing outside a workspace", () => {
     expect(canExport({ kind: "none" }, false)).toBe(true);
+  });
+});
+
+// A reviewer reads first and passes the document on; only the approver's
+// decision unlocks printing (migration 0066).
+describe("the review step", () => {
+  const names: Record<string, string> = { "u-dev": "อั๋น", "u-approver": "พี่เอ๋" };
+  const nameOf = (id: string) => names[id] ?? "?";
+
+  it("says the document waits on its reviewer, then goes to the approver", () => {
+    const r = row({ reviewerId: "u-dev", stage: "review" });
+    expect(pendingText(r, nameOf, "3 พ.ย. 69")).toBe("รอตรวจโดย อั๋น แล้วจะส่งต่อให้ พี่เอ๋ อนุมัติ · ส่งเมื่อ 3 พ.ย. 69");
+  });
+
+  it("says who reviewed it once it reaches the approver", () => {
+    const r = row({ reviewerId: "u-dev", stage: "approve", reviewedAt: "2026-11-03T06:00:00Z" });
+    expect(pendingText(r, nameOf, "3 พ.ย. 69")).toBe("ตรวจแล้วโดย อั๋น · รออนุมัติจาก พี่เอ๋");
+  });
+
+  it("reads as before when nobody reviews", () => {
+    expect(pendingText(row({}), nameOf, "3 พ.ย. 69")).toBe("รออนุมัติจาก พี่เอ๋ · ส่งเมื่อ 3 พ.ย. 69");
+  });
+
+  it("keeps a reviewed document locked until the approver decides", () => {
+    const reviewed = row({ reviewerId: "u-dev", stage: "approve", reviewedAt: "2026-11-03T06:00:00Z" });
+    const state = approvalState([reviewed], sent, read);
+    expect(state.kind).toBe("pending");
+    expect(canExport(state, true)).toBe(false);
+  });
+
+  it("is approved once the approver approves what the reviewer passed on", () => {
+    const done = row({
+      reviewerId: "u-dev",
+      stage: "approve",
+      reviewedAt: "2026-11-03T06:00:00Z",
+      status: "approved",
+      decidedBy: "u-approver",
+      decidedAt: "2026-11-03T07:00:00Z",
+    });
+    expect(approvalState([done], sent, read).kind).toBe("approved");
   });
 });

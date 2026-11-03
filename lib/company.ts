@@ -13,6 +13,7 @@ import type { Company, CompanyInvite, CompanyMember, CompanyRole } from "@/lib/t
 export const COMPANY_ROLE_LABEL: Record<CompanyRole, string> = {
   admin: "ผู้ดูแลบริษัท",
   approver: "ผู้อนุมัติ",
+  reviewer: "ผู้ตรวจ",
   member: "พนักงาน",
 };
 

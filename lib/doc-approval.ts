@@ -58,15 +58,24 @@ export function docContent(doc: unknown): string {
   return canonical(Object.fromEntries(Object.entries(doc).filter(([k]) => !NUMBER_FIELDS.has(k))));
 }
 
-/** The document's state from its requests, in any order. */
-export function approvalState(rows: ApprovalRow[], live: object): ApprovalState {
+/**
+ * The document's state from its requests, in any order.
+ *
+ * Both sides are read through `read` — the parser the panel and the approval
+ * page read the document with — before they are compared. A snapshot stored
+ * before a field existed then reads with that field's default, as the approver
+ * saw it, instead of reading as an edit (every quotation approved before
+ * paymentHeads, 0.121.0). A snapshot that does not read as a document is changed.
+ */
+export function approvalState(rows: ApprovalRow[], live: object, read: (doc: unknown) => object | null): ApprovalState {
   const newest = rows
     .filter((r) => r.status !== "withdrawn")
     .sort((a, b) => (a.requestedAt < b.requestedAt ? 1 : a.requestedAt > b.requestedAt ? -1 : 0))[0];
   if (!newest) return { kind: "none" };
   if (newest.status === "pending") return { kind: "pending", request: newest };
   if (newest.status === "returned") return { kind: "returned", request: newest };
-  return docContent(newest.snapshot) === docContent(live)
+  const approved = read(newest.snapshot);
+  return approved !== null && docContent(approved) === docContent(read(live))
     ? { kind: "approved", request: newest }
     : { kind: "changed", request: newest };
 }

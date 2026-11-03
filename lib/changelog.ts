@@ -5,12 +5,22 @@ export interface ChangelogItem {
   text: string;
 }
 
+/** A picture of the release — before and after — under public/whats-new/. */
+export interface ChangelogImage {
+  src: string;
+  alt: string;
+  width: number;
+  height: number;
+}
+
 export interface ChangelogEntry {
   /** Semantic version (MAJOR.MINOR.PATCH). */
   version: string;
   date: string; // YYYY-MM-DD
   title: string;
   items: ChangelogItem[];
+  /** The poster the team shares for this release, shown under its items. */
+  images?: ChangelogImage[];
 }
 
 /** Badge label + theme class per change type (used by the /changelog page). */
@@ -22,6 +32,17 @@ export const CHANGE_BADGE: Record<ChangeType, { label: string; className: string
 
 // Newest first. SemVer: fix → PATCH, feature → MINOR, breaking → MAJOR.
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "0.121.1",
+    date: "2026-11-03",
+    title: "ใบที่อนุมัติแล้วไม่ถูกล็อกเพราะอัปเดต",
+    items: [
+      {
+        type: "fix",
+        text: "หลังอัปเดต 0.121.0 ใบเสนอราคาที่อนุมัติแล้วขึ้นว่า “แก้ไขหลังอนุมัติแล้ว” และพิมพ์ไม่ได้ ทั้งที่ไม่มีใครแก้ ตอนนี้กลับเป็นอนุมัติแล้วตามเดิม และการเพิ่มตัวเลือกใหม่ในเอกสารครั้งต่อไปจะไม่ทำให้ใบที่อนุมัติไว้ต้องส่งใหม่",
+      },
+    ],
+  },
   {
     version: "0.121.0",
     date: "2026-11-03",
@@ -41,6 +62,14 @@ export const CHANGELOG: ChangelogEntry[] = [
       {
         type: "feature",
         text: "ตัวหนังสือเล็กไป ปรับได้แล้วที่ปุ่มลอยมุมขวาล่าง (ปุ่มเดียวกับธีม) หรือในเมนูบัญชี กด A− / A+ ทีละ 10% ตั้งแต่ 90% ถึง 140% กดที่ตัวเลขเพื่อกลับขนาดปกติ เครื่องแต่ละเครื่องจำขนาดของตัวเอง ใบเสนอราคาและเอกสารที่พิมพ์ยังเป็นขนาดเดิม",
+      },
+    ],
+    images: [
+      {
+        src: "/whats-new/0.120.0-font-size.jpg",
+        alt: "หน้าสตูดิโอที่ขนาดตัวอักษร 100% เทียบกับ 130% และปุ่ม A− / A+ ในปุ่มลอยมุมขวาล่าง",
+        width: 1600,
+        height: 1100,
       },
     ],
   },

@@ -11,7 +11,8 @@ import {
   requestApproval,
   type Approver,
 } from "@/lib/doc-approval-store";
-import { thaiDateShort } from "@/lib/quote";
+import { parseProposal } from "@/lib/proposal";
+import { parseDoc, thaiDateShort } from "@/lib/quote";
 import { toast } from "@/lib/toast";
 import type { VersionKey } from "@/lib/versions";
 
@@ -22,6 +23,10 @@ const ROLE_LABEL: Record<string, string> = {
   company_approver: "ผู้อนุมัติ",
   company_admin: "ผู้ดูแลบริษัท",
 };
+
+// Every stored copy carries its own date, so the fallback date never decides anything.
+const readQuote = (doc: unknown) => parseDoc(doc, "");
+const readProposal = (doc: unknown) => parseProposal(doc, "");
 
 /**
  * Where a quotation or proposal stands in its approval, and whether it may be
@@ -55,10 +60,11 @@ export function useDocApproval(
     reload().catch((e) => console.error("[approval] load failed:", e));
   }, [reload]);
 
-  // The live document against the snapshot approved decides "approved" or "edited since".
+  // The live document against the snapshot approved decides "approved" or "edited since",
+  // both read the way the approval page reads them.
   const state: ApprovalState = useMemo(
-    () => (doc && rows ? approvalState(rows, doc) : { kind: "none" }),
-    [doc, rows]
+    () => (doc && rows ? approvalState(rows, doc, kind === "quote" ? readQuote : readProposal) : { kind: "none" }),
+    [doc, rows, kind]
   );
 
   return {

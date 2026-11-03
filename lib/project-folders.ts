@@ -6,7 +6,9 @@ import type { ProjectSummary } from "@/lib/types";
  * A workspace's projects belong to everyone in it, so they go under "ของฉัน"
  * (in the workspace's folder) whoever created them. Filing by owner alone left
  * a member's folder reading "ยังไม่มีโปรเจกต์" beside a workspace full of work.
- * "แชร์กับฉัน" is what someone shared with me outside my workspaces.
+ * "แชร์กับฉัน" is what someone shared with me outside my workspaces — it
+ * carries the role they gave me. A project I only read through my company
+ * (migration 0065) has neither, and is in neither tab.
  */
 export function fileProjects(
   projects: ProjectSummary[],
@@ -15,7 +17,7 @@ export function fileProjects(
   const inMyWorkspace = (p: ProjectSummary) => p.orgId !== null && myWorkspaceIds.has(p.orgId);
   return {
     mine: projects.filter((p) => p.access === "owner" || inMyWorkspace(p)),
-    shared: projects.filter((p) => p.access === "member" && !inMyWorkspace(p)),
+    shared: projects.filter((p) => p.access === "member" && p.role !== undefined && !inMyWorkspace(p)),
   };
 }
 

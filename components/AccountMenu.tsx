@@ -16,6 +16,9 @@ import { toast } from "@/lib/toast";
 import { useDismiss } from "@/lib/useDismiss";
 import { THEME_OPTIONS, useTheme } from "@/lib/useTheme";
 import FontScaleControl from "@/components/FontScaleControl";
+import CompanyTag from "@/components/company/CompanyTag";
+import { myCompany } from "@/lib/company";
+import type { Company, CompanyRole } from "@/lib/types";
 
 const ROLE_LABEL: Record<string, string> = {
   owner: "เจ้าของ",
@@ -44,6 +47,22 @@ export default function AccountMenu() {
   const caseCount = useCaseInbox().alerts.length;
   const [accepting, setAccepting] = useState<string | null>(null);
   const [theme, setTheme] = useTheme();
+  // undefined until the menu is first opened; null when I am in no company.
+  const [company, setCompany] = useState<{ company: Company; role: CompanyRole } | null | undefined>(undefined);
+
+  // Read on every open: an invite accepted elsewhere changes it.
+  useEffect(() => {
+    if (!open) return;
+    let cancelled = false;
+    myCompany()
+      .then((mine) => {
+        if (!cancelled) setCompany(mine);
+      })
+      .catch((e) => console.error("[account] company failed:", e));
+    return () => {
+      cancelled = true;
+    };
+  }, [open]);
 
   async function accept(invite: MyInvite) {
     setAccepting(invite.inviteId);
@@ -255,6 +274,11 @@ export default function AccountMenu() {
                 </p>
               </div>
             </div>
+            {company !== undefined && (
+              <div className="mt-4" onClick={() => setOpen(false)}>
+                <CompanyTag mine={company} />
+              </div>
+            )}
 
             {invites.length > 0 && (
               <div className="mt-6">

@@ -34,6 +34,16 @@ describe("fileProjects", () => {
     expect(ids(shared)).toEqual(["direct", "foreign"]);
   });
 
+  // A company's admins, approvers and reviewers read every project in its
+  // workspaces (migration 0065). Nobody shared those with me and I work on none
+  // of them: they are read from the approval page, not filed as my work.
+  it("leaves out a project I only read through my company", () => {
+    const colleagues = project("colleagues", { orgId: OTHER_WORKSPACE, access: "member" });
+    const { mine, shared } = fileProjects([colleagues], new Set([WORKSPACE]));
+    expect(mine).toEqual([]);
+    expect(shared).toEqual([]);
+  });
+
   it("keeps everything I own under mine", () => {
     const personal = project("personal", {});
     const inWorkspace = project("in-workspace", { orgId: WORKSPACE });

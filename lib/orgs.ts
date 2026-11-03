@@ -1,5 +1,6 @@
 "use client";
 
+import { currentUser } from "@/lib/current-user";
 import { createClient } from "@/lib/supabase/client";
 import type { Json } from "@/lib/db/types";
 import type { OrgBrand, OrgDna, OrgRecord } from "@/lib/types";
@@ -43,14 +44,70 @@ function rowToOrg(r: OrgRow): OrgRecord {
 }
 
 /** Workspaces owned by the current user, oldest first (default workspace leads). */
-export async function listOrgs(): Promise<OrgRecord[]> {
-  const supabase = createClient();
-  const { data, error } = await supabase
+/**
+ * Where I stand in a workspace. A company's admins, approvers and reviewers read
+ * every workspace its people own (migration 0065) without working in it: they
+ * cannot create projects there or save its settings.
+ */
+export type OrgAccess = "owner" | "member" | "company";
+
+/** The workspaces I can open, by how I reach them. */
+export interface Workspaces {
+  /** Created by me. */
+  mine: OrgRecord[];
+  /** Someone else's, which I was invited into. */
+  joined: OrgRecord[];
+  /** Someone else's, which I only read through my company role. */
+  company: OrgRecord[];
+}
+
+/** The workspaces I was invited into. */
+async function memberOrgIds(me: string): Promise<Set<string>> {
+  const { data, error } = await createClient().from("fittbuilder_org_members").select("org_id").eq("user_id", me);
+  if (error) throw error;
+  return new Set((data ?? []).map((m) => m.org_id));
+}
+
+/** Every workspace I can read, oldest first. */
+async function readableOrgs(): Promise<OrgRecord[]> {
+  const { data, error } = await createClient()
     .from("fittbuilder_orgs")
     .select(SELECT)
     .order("created_at", { ascending: true });
   if (error) throw error;
   return (data ?? []).map((r) => rowToOrg(r as OrgRow));
+}
+
+function accessOf(org: OrgRecord, me: string, memberOf: ReadonlySet<string>): OrgAccess {
+  if (org.ownerId === me) return "owner";
+  return memberOf.has(org.id) ? "member" : "company";
+}
+
+export async function listWorkspaces(): Promise<Workspaces> {
+  const me = (await currentUser())?.id;
+  if (!me) return { mine: [], joined: [], company: [] };
+  const [orgs, memberOf] = await Promise.all([readableOrgs(), memberOrgIds(me)]);
+  const by = (access: OrgAccess) => orgs.filter((o) => accessOf(o, me, memberOf) === access);
+  return { mine: by("owner"), joined: by("member"), company: by("company") };
+}
+
+/**
+ * The workspaces I work in, oldest first — never one I only read through my
+ * company: every picker and folder list builds on this.
+ */
+export async function listOrgs(): Promise<OrgRecord[]> {
+  const me = (await currentUser())?.id;
+  if (!me) return [];
+  const [orgs, memberOf] = await Promise.all([readableOrgs(), memberOrgIds(me)]);
+  return orgs.filter((o) => accessOf(o, me, memberOf) !== "company");
+}
+
+/** Where I stand in this workspace. */
+export async function orgAccess(org: OrgRecord): Promise<OrgAccess> {
+  const me = (await currentUser())?.id;
+  if (!me) throw new Error("not signed in");
+  if (org.ownerId === me) return "owner";
+  return accessOf(org, me, await memberOrgIds(me));
 }
 
 export async function getOrg(id: string): Promise<OrgRecord | null> {

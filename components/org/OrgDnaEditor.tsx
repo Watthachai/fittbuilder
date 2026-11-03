@@ -4,9 +4,10 @@ import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { FileText, History, Loader2, Paperclip, Quote, Radar, RotateCcw, Save, Sparkles, Trash2, X } from "lucide-react";
+import { Eye, FileText, History, Loader2, Paperclip, Quote, Radar, RotateCcw, Save, Sparkles, Trash2, X } from "lucide-react";
 import SettingsShell from "@/components/settings/SettingsShell";
-import { deleteOrg, getOrg, updateOrgMeta, updateOrgDna, dnaCompleteness } from "@/lib/orgs";
+import { listCompanyMembers } from "@/lib/company";
+import { deleteOrg, getOrg, orgAccess, updateOrgMeta, updateOrgDna, dnaCompleteness } from "@/lib/orgs";
 import { ARCHETYPES, DNA_BLOCKS, archetypeMeta } from "@/lib/org-dna";
 import { DEFAULT_COLOR, DEFAULT_ICON, WorkspaceIcon } from "@/lib/workspace-style";
 import { ATTACHMENT_ACCEPT, fileToAttachment, MAX_ATTACHMENT_BYTES } from "@/lib/attachments";
@@ -67,6 +68,9 @@ export default function OrgDnaEditor({ orgId }: { orgId: string }) {
   const [deleting, setDeleting] = useState(false);
   const [viewer, setViewer] = useState<{ sources: string; highlight?: string } | null>(null);
   const [versionsOpen, setVersionsOpen] = useState(false);
+  // Someone else's workspace I read through my company role (migration 0065):
+  // its owner's name, or null when it is mine to work in.
+  const [readOnlyOwner, setReadOnlyOwner] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const remove = async () => {
@@ -97,6 +101,11 @@ export default function OrgDnaEditor({ orgId }: { orgId: string }) {
         setFound(false);
         setLoading(false);
         return;
+      }
+      if ((await orgAccess(org)) === "company") {
+        const owner = (await listCompanyMembers()).find((m) => m.userId === org.ownerId);
+        if (cancelled) return;
+        setReadOnlyOwner(owner ? owner.name || owner.email : "คนในบริษัท");
       }
       setName(org.name);
       setColor(org.color || DEFAULT_COLOR);
@@ -302,16 +311,28 @@ export default function OrgDnaEditor({ orgId }: { orgId: string }) {
               aria-label="ชื่อ workspace"
             />
           </div>
-          <button
-            onClick={() => void remove()}
-            disabled={deleting}
-            className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-night-edge px-3 py-1.5 text-xs text-chalk-dim transition hover:border-halt hover:text-halt disabled:opacity-40"
-            title="ลบ workspace นี้"
-          >
-            {deleting ? <Loader2 size={13} className="animate-spin" /> : <Trash2 size={13} />}
-            ลบ workspace
-          </button>
+          {readOnlyOwner === null && (
+            <button
+              onClick={() => void remove()}
+              disabled={deleting}
+              className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-night-edge px-3 py-1.5 text-xs text-chalk-dim transition hover:border-halt hover:text-halt disabled:opacity-40"
+              title="ลบ workspace นี้"
+            >
+              {deleting ? <Loader2 size={13} className="animate-spin" /> : <Trash2 size={13} />}
+              ลบ workspace
+            </button>
+          )}
         </div>
+
+        {readOnlyOwner !== null && (
+          <p className="mt-4 flex items-start gap-2 rounded-xl border border-shine/30 bg-shine/5 px-4 py-3 text-[0.8125rem] leading-relaxed text-chalk">
+            <Eye size={15} className="mt-0.5 shrink-0 text-shine" />
+            <span>
+              ดูอย่างเดียว — workspace นี้เป็นของ <b>{readOnlyOwner}</b> คุณเปิดดูได้เพราะเป็นผู้ดูแล ผู้อนุมัติ
+              หรือผู้ตรวจของบริษัท แต่บันทึกหรือลบไม่ได้
+            </span>
+          </p>
+        )}
 
         {/* Identity: color + icon */}
         <div className="mt-5 rounded-xl border border-night-edge bg-night-panel p-4">
@@ -543,16 +564,18 @@ export default function OrgDnaEditor({ orgId }: { orgId: string }) {
           </div>
         </div>
 
-        <div className="sticky bottom-4 mt-8">
-          <button
-            onClick={() => void save()}
-            disabled={saving}
-            className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-shine py-3 font-display text-sm font-semibold text-night shadow-lg transition hover:brightness-110 disabled:opacity-50"
-          >
-            {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
-            {saving ? "กำลังบันทึก…" : "บันทึก Org DNA"}
-          </button>
-        </div>
+        {readOnlyOwner === null && (
+          <div className="sticky bottom-4 mt-8">
+            <button
+              onClick={() => void save()}
+              disabled={saving}
+              className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-shine py-3 font-display text-sm font-semibold text-night shadow-lg transition hover:brightness-110 disabled:opacity-50"
+            >
+              {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+              {saving ? "กำลังบันทึก…" : "บันทึก Org DNA"}
+            </button>
+          </div>
+        )}
       </div>
 
       {viewer && viewer.sources && (

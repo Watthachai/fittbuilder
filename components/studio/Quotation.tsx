@@ -53,6 +53,7 @@ import { toast } from "@/lib/toast";
 import { printSheet } from "@/lib/print-sheet";
 import ModuleCutCard from "./ModuleCutCard";
 import QuotationPrint from "./QuotationPrint";
+import DocPreview, { PreviewButton } from "./DocPreview";
 import QuoteBrandBar from "./QuoteBrandBar";
 import QuoteTerms from "./QuoteTerms";
 import { Field, inputCls, SectionToggle, Total, WordButton } from "./QuoteFields";
@@ -100,6 +101,8 @@ export default function Quotation({
    * what is on the paper.
    */
   const [sheet, setSheet] = useState<{ shots: Shot[]; modules: ProposalModule[] } | null>(null);
+  const [preview, setPreview] = useState<{ shots: Shot[]; modules: ProposalModule[] } | null>(null);
+  const [previewing, setPreviewing] = useState(false);
   /**
    * Which export is running — it starts before the paper exists, because the
    * URLs are re-signed first. Separate from `sheet` on purpose: one answers
@@ -354,6 +357,11 @@ export default function Quotation({
         });
       }
     }
+    return { docNo, ...(await sheetMaterials(current)) };
+  };
+
+  /** What the paper is drawn from besides the document: the pictures and the cover's sections. */
+  const sheetMaterials = async (current: QuoteDoc): Promise<{ shots: Shot[]; modules: ProposalModule[] }> => {
     // Shot URLs are signed for 8 hours (lib/shots.ts). A studio tab left open
     // overnight holds a doc full of expired links, and the appendix prints as
     // a grid of broken boxes — so re-sign right before mounting the sheet.
@@ -366,7 +374,18 @@ export default function Quotation({
       current.layout === "cover"
         ? ((await loadProposal(projectId, version, today).catch(() => null))?.modules ?? [])
         : [];
-    return { docNo, shots: fresh.length > 0 ? fresh : shots, modules };
+    return { shots: fresh.length > 0 ? fresh : shots, modules };
+  };
+
+  /** The paper on screen, before approval — no number is issued for it. */
+  const openPreview = async () => {
+    if (previewing || !doc) return;
+    setPreviewing(true);
+    try {
+      setPreview(await sheetMaterials(doc));
+    } finally {
+      setPreviewing(false);
+    }
   };
 
   /**
@@ -1038,6 +1057,7 @@ export default function Quotation({
           {orgId !== null && (
             <ApprovalBar projectId={projectId} kind="quote" version={version} doc={doc} readOnly={readOnly} approval={approval} />
           )}
+          <PreviewButton busy={previewing} onClick={() => void openPreview()} className="mt-3" />
           <button
             onClick={() => void print()}
             disabled={exporting !== null || !approval.exportAllowed}
@@ -1070,6 +1090,11 @@ export default function Quotation({
       {sheet &&
         typeof document !== "undefined" &&
         createPortal(<QuotationPrint doc={doc} shots={sheet.shots} modules={sheet.modules} />, document.body)}
+      {preview && (
+        <DocPreview title="ใบเสนอราคา" approved={approval.exportAllowed} onClose={() => setPreview(null)}>
+          <QuotationPrint doc={doc} shots={preview.shots} modules={preview.modules} />
+        </DocPreview>
+      )}
     </div>
   );
 }

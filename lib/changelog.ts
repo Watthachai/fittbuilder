@@ -33,6 +33,17 @@ export const CHANGE_BADGE: Record<ChangeType, { label: string; className: string
 // Newest first. SemVer: fix → PATCH, feature → MINOR, breaking → MAJOR.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.122.0",
+    date: "2026-11-03",
+    title: "ดูตัวอย่างใบเสนอราคาก่อนส่งอนุมัติ",
+    items: [
+      {
+        type: "feature",
+        text: "ใบเสนอราคาและข้อเสนอโครงการมีปุ่ม “ดูตัวอย่างเอกสาร” เปิดดูหน้าตาเหมือนใบที่พิมพ์จริงได้ตลอด ไม่ต้องรออนุมัติ แก้แล้วดูซ้ำได้เรื่อย ๆ พอพร้อมค่อยกด “ส่งอนุมัติ” ครั้งเดียว ตัวอย่างของใบที่ยังไม่อนุมัติมีลายน้ำ “ตัวอย่าง · ยังไม่อนุมัติ” และยังพิมพ์หรือบันทึกไฟล์ไม่ได้",
+      },
+    ],
+  },
+  {
     version: "0.121.1",
     date: "2026-11-03",
     title: "ใบที่อนุมัติแล้วไม่ถูกล็อกเพราะอัปเดต",

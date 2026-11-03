@@ -31,6 +31,7 @@ import { printSheet } from "@/lib/print-sheet";
 import { ApprovalBar, useDocApproval } from "./ApprovalBar";
 import ProposalModules from "./ProposalModules";
 import ProposalPrint from "./ProposalPrint";
+import DocPreview, { PreviewButton } from "./DocPreview";
 import QuoteBrandBar from "./QuoteBrandBar";
 import { Field, inputCls, SectionToggle, WordButton } from "./QuoteFields";
 import { useSharedDoc } from "./useSharedDoc";
@@ -71,6 +72,8 @@ export default function Proposal({
   const [quote, setQuote] = useState<QuoteDoc | null>(null);
   const [loading, setLoading] = useState(true);
   const [sheet, setSheet] = useState<Shot[] | null>(null);
+  const [preview, setPreview] = useState<Shot[] | null>(null);
+  const [previewing, setPreviewing] = useState(false);
   // Which export is running; one value for both buttons — see Quotation.
   const [exporting, setExporting] = useState<"pdf" | "word" | null>(null);
   const [writing, setWriting] = useState(false);
@@ -266,10 +269,25 @@ export default function Proposal({
         });
       }
     }
-    // Re-sign the shot URLs first — same 8-hour-expiry problem the quotation
-    // prints around, same fix (lib/print-sheet.ts).
+    return { docNo, shots: await freshShots() };
+  };
+
+  // Re-sign the shot URLs first — same 8-hour-expiry problem the quotation
+  // prints around, same fix (lib/print-sheet.ts).
+  const freshShots = async (): Promise<Shot[]> => {
     const fresh = await listShots(projectId, version).catch(() => [] as Shot[]);
-    return { docNo, shots: fresh.length > 0 ? fresh : shots };
+    return fresh.length > 0 ? fresh : shots;
+  };
+
+  /** The paper on screen, before approval — no number is issued for it. */
+  const openPreview = async () => {
+    if (previewing || !doc) return;
+    setPreviewing(true);
+    try {
+      setPreview(await freshShots());
+    } finally {
+      setPreviewing(false);
+    }
   };
 
   const print = async () => {
@@ -752,6 +770,7 @@ export default function Proposal({
         {orgId !== null && (
           <ApprovalBar projectId={projectId} kind="proposal" version={version} doc={doc} readOnly={readOnly} approval={approval} />
         )}
+        <PreviewButton busy={previewing} onClick={() => void openPreview()} />
         <button
           onClick={() => void print()}
           disabled={exporting !== null || !approval.exportAllowed}
@@ -782,6 +801,11 @@ export default function Proposal({
       {sheet &&
         typeof document !== "undefined" &&
         createPortal(<ProposalPrint doc={doc} quote={quote} shots={sheet} />, document.body)}
+      {preview && (
+        <DocPreview title="ข้อเสนอโครงการ" approved={approval.exportAllowed} onClose={() => setPreview(null)}>
+          <ProposalPrint doc={doc} quote={quote} shots={preview} />
+        </DocPreview>
+      )}
     </div>
   );
 }

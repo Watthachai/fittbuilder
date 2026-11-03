@@ -1,7 +1,7 @@
 "use client";
 
 import { bahtText } from "@/lib/baht-text";
-import { discountRate, formatTHB, quoteTotals, type QuoteDoc } from "@/lib/quote";
+import { annualLine, discountRate, formatTHB, quoteTotals, type QuoteDoc } from "@/lib/quote";
 import type { QuoteSheet, SheetLine } from "@/lib/quote-sheet";
 
 /**
@@ -17,6 +17,7 @@ const moneyText = (n: number | null) => (n === null ? "" : formatTHB(n));
 
 export function CoverSummary({ doc, sheet }: { doc: QuoteDoc; sheet: QuoteSheet }) {
   const t = quoteTotals(doc);
+  const annual = annualLine(doc);
   return (
     <>
       <table className="q-boq q-cover">
@@ -46,6 +47,17 @@ export function CoverSummary({ doc, sheet }: { doc: QuoteDoc; sheet: QuoteSheet 
               <td />
               <td className="q-empty">—</td>
               <td colSpan={3} />
+            </tr>
+          )}
+          {annual && (
+            <tr className="q-annual">
+              <td />
+              <td>
+                <span className="q-boq-name">{annual.label}</span>
+                <span className="q-note">({annual.note})</span>
+              </td>
+              <td colSpan={2} />
+              <td className="q-r">{formatTHB(annual.amount)} / ปี</td>
             </tr>
           )}
           <tr className="q-boq-total">

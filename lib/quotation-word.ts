@@ -1,5 +1,6 @@
 import { AlignmentType, ShadingType, TableRow, TabStopType, type Document, type Paragraph, type Table } from "docx";
 import {
+  annualLine,
   BILLING_CYCLE_LABEL,
   discountRate,
   formatTHB,
@@ -200,6 +201,20 @@ function items(doc: QuoteDoc, accent: string): Table {
       )
     );
   }
+  const annual = annualLine(doc);
+  if (annual) {
+    rows.push(
+      itemRow(
+        "",
+        describe([
+          { text: [run(annual.label, { bold: true })], keep: true },
+          { text: typed(`(${annual.note})`, NOTE_TONE), keep: false },
+        ]),
+        `${formatTHB(annual.amount)} / ปี`,
+        true
+      )
+    );
+  }
 
   return grid([N, DESC, AMOUNT], rows);
 }
@@ -234,12 +249,12 @@ function describe(lines: Line[], sub = false): Paragraph[] {
   );
 }
 
-function itemRow(n: string, desc: Paragraph[], amount: string): TableRow {
+function itemRow(n: string, desc: Paragraph[], amount: string, strong = false): TableRow {
   return new TableRow({
     children: [
       cell(N, [para([run(n, { color: DIM })], { alignment: AlignmentType.RIGHT })], { margins: ITEM_PAD }),
       cell(DESC, desc, { margins: ITEM_PAD }),
-      cell(AMOUNT, [para([run(amount)], { alignment: AlignmentType.RIGHT })], { margins: ITEM_PAD }),
+      cell(AMOUNT, [para([run(amount, { bold: strong })], { alignment: AlignmentType.RIGHT })], { margins: ITEM_PAD }),
     ],
   });
 }
@@ -321,6 +336,23 @@ function coverTable(doc: QuoteDoc, sheet: QuoteSheet, accent: string): Table {
           textCell(widths[2], qtyText(l.qty), AlignmentType.CENTER),
           textCell(widths[3], l.unit, AlignmentType.CENTER),
           textCell(widths[4], moneyText(l.amount), AlignmentType.RIGHT),
+        ],
+      })
+    );
+  }
+  const annual = annualLine(doc);
+  if (annual) {
+    rows.push(
+      new TableRow({
+        cantSplit: true,
+        children: [
+          textCell(widths[0], "", AlignmentType.CENTER),
+          cell(widths[1], [para([run(annual.label, { bold: true })]), para(typed(`(${annual.note})`, NOTE_TONE))], {
+            margins: BOQ_PAD,
+          }),
+          textCell(widths[2], "", AlignmentType.CENTER),
+          textCell(widths[3], "", AlignmentType.CENTER),
+          textCell(widths[4], `${formatTHB(annual.amount)} / ปี`, AlignmentType.RIGHT, { bold: true }),
         ],
       })
     );

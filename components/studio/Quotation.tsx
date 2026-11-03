@@ -15,6 +15,7 @@ import {
   X,
 } from "lucide-react";
 import {
+  annualLine,
   brandFromOrg,
   emptyRow,
   formatTHB,
@@ -419,6 +420,7 @@ export default function Quotation({
   const missing = missingRows(doc, shots);
   const counts = rowCounts(doc);
   const market = marketComparison(doc);
+  const annual = annualLine(doc);
   const baht = (n: number) => `฿${formatTHB(n)}`;
   /** Rewrite one row from its current state — not the rendered one, which a co-editor may have moved on. */
   const mapRow = (id: string, f: (r: QuoteRow, d: QuoteDoc) => QuoteRow) =>
@@ -974,6 +976,20 @@ export default function Quotation({
               </p>
             </div>
           )}
+          {/* The total read as a yearly fee, right under the lines — on unless the job is paid once. */}
+          <div className="mt-3">
+            <SectionToggle
+              title="แสดงค่า Subscription รายปี"
+              hint={
+                annual
+                  ? `พิมพ์ใต้รายการ: ${annual.label} ${baht(annual.amount)} / ปี (${annual.note})`
+                  : "ไม่แสดง — สำหรับงานที่จ่ายครั้งเดียว"
+              }
+              on={doc.showAnnual}
+              onChange={(on) => edit((d) => ({ ...d, showAnnual: on }))}
+              disabled={readOnly}
+            />
+          </div>
           {/* A contractor's own quotation shape: a cover totalling each module, then the detail. */}
           <div className="mt-3">
             <SectionToggle

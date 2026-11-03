@@ -8,10 +8,9 @@ import {
   MA_MIN_MONTHLY,
   maintenanceTotals,
   paymentSchedule,
-  presetEqual,
-  presetSigning,
-  presetUat,
+  choosePreset,
   quoteTotals,
+  type PaymentPreset,
   type PaymentTerm,
   type QuoteDoc,
   percentOfNet,
@@ -143,6 +142,15 @@ export default function QuoteTerms({
       payment: d.payment.map((t) => (t.id === id ? { ...t, ...patch } : t)),
     }));
   const setPayment = (payment: PaymentTerm[]) => onEdit((d) => ({ ...d, payment }));
+  /** The schedule being left is put aside under its own preset, not replaced (case #44). */
+  const pick = (preset: PaymentPreset) => onEdit((d) => choosePreset(d, preset, splitCount));
+  /** What a preset's button will do, said before it is pressed: on the one in use it starts over. */
+  const presetTitle = (preset: PaymentPreset) =>
+    doc.paymentPreset === preset
+      ? "ใช้อยู่ — กดอีกครั้งเพื่อเริ่มตารางนี้ใหม่จากค่าตั้งต้น"
+      : doc.paymentSaved[preset]
+        ? "กลับไปตารางที่แก้ไว้ของแบบนี้ — ตารางที่ใช้อยู่จะถูกเก็บไว้"
+        : "เริ่มตารางแบบนี้ — ตารางที่ใช้อยู่จะถูกเก็บไว้";
   /** An instalment set by its amount before VAT: the % is worked out from the price. */
   const setTermAmount = (id: string, amount: number) =>
     onEdit((d) => ({
@@ -162,9 +170,13 @@ export default function QuoteTerms({
           </span>
           {!readOnly && (
             <div className="ml-auto flex flex-wrap items-center gap-1.5">
-              <Preset label="UAT 60/40" onClick={() => setPayment(presetUat())} />
-              <Preset label="ลงนาม 60/40" onClick={() => setPayment(presetSigning())} />
-              <div className="flex items-center gap-1 rounded-lg border border-night-edge px-1.5 py-0.5">
+              <Preset label="UAT 60/40" active={doc.paymentPreset === "uat"} title={presetTitle("uat")} onClick={() => pick("uat")} />
+              <Preset label="ลงนาม 60/40" active={doc.paymentPreset === "signing"} title={presetTitle("signing")} onClick={() => pick("signing")} />
+              <div
+                className={`flex items-center gap-1 rounded-lg border px-1.5 py-0.5 ${
+                  doc.paymentPreset === "equal" ? "border-shine/60" : "border-night-edge"
+                }`}
+              >
                 <input
                   type="number"
                   min={1}
@@ -174,8 +186,12 @@ export default function QuoteTerms({
                   className="w-9 bg-transparent text-right font-mono text-[12.5px] text-chalk outline-none"
                 />
                 <button
-                  onClick={() => setPayment(presetEqual(splitCount))}
-                  className="font-display text-[12.5px] text-chalk-dim transition hover:text-shine"
+                  onClick={() => pick("equal")}
+                  title={presetTitle("equal")}
+                  aria-pressed={doc.paymentPreset === "equal"}
+                  className={`font-display text-[12.5px] transition hover:text-shine ${
+                    doc.paymentPreset === "equal" ? "text-chalk" : "text-chalk-dim"
+                  }`}
                 >
                   งวดเท่ากัน
                 </button>
@@ -657,11 +673,25 @@ export default function QuoteTerms({
   );
 }
 
-function Preset({ label, onClick }: { label: string; onClick: () => void }) {
+function Preset({
+  label,
+  active,
+  title,
+  onClick,
+}: {
+  label: string;
+  active: boolean;
+  title: string;
+  onClick: () => void;
+}) {
   return (
     <button
       onClick={onClick}
-      className="rounded-lg border border-night-edge px-2 py-1 font-display text-[12.5px] text-chalk-dim transition hover:border-shine/60 hover:text-chalk"
+      title={title}
+      aria-pressed={active}
+      className={`rounded-lg border px-2 py-1 font-display text-[12.5px] transition hover:border-shine/60 hover:text-chalk ${
+        active ? "border-shine/60 text-chalk" : "border-night-edge text-chalk-dim"
+      }`}
     >
       {label}
     </button>

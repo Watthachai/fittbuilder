@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  annualLine,
   BILLING_CYCLE_LABEL,
   formatTHB,
   maintenanceTotals,
@@ -56,6 +57,7 @@ export default function QuotationPrint({
   modules: ProposalModule[];
 }) {
   const t = quoteTotals(doc);
+  const annual = annualLine(doc);
   const sheet = doc.layout === "cover" ? quoteSheet(doc, modules) : null;
   const market = marketComparison(doc);
   const plan = paymentSchedule(doc);
@@ -218,6 +220,7 @@ export default function QuotationPrint({
                           <td className="q-r">0</td>
                         </tr>
                       )}
+                      {annual && <AnnualRow annual={annual} />}
                     </tbody>
                   </table>
 
@@ -471,6 +474,22 @@ export function Row({ label, value, strong }: { label: string; value: string; st
     <tr>
       <th>{label}</th>
       <td className={strong ? "q-strong" : undefined}>{value || "—"}</td>
+    </tr>
+  );
+}
+
+/** The yearly fee under the lines: unnumbered, since it is their total rather than one more of them. */
+function AnnualRow({ annual }: { annual: NonNullable<ReturnType<typeof annualLine>> }) {
+  return (
+    <tr className="q-annual">
+      <td className="q-n" />
+      <td>
+        <div>
+          <span className="q-name">{annual.label}</span>
+          <span className="q-note">({annual.note})</span>
+        </div>
+      </td>
+      <td className="q-r">{formatTHB(annual.amount)} / ปี</td>
     </tr>
   );
 }

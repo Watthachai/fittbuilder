@@ -96,6 +96,16 @@ export interface PaymentTerm {
   netDays: number;
 }
 
+/** The ready-made schedules the panel offers, one button each. */
+export type PaymentPreset = "uat" | "signing" | "equal";
+const PRESETS: readonly PaymentPreset[] = ["uat", "signing", "equal"];
+
+/** A schedule put aside when the sender picked another preset (case #44). */
+export interface SavedSchedule {
+  payment: PaymentTerm[];
+  showPercent: boolean;
+}
+
 /**
  * The acceptance deal, as fields rather than prose.
  *
@@ -335,6 +345,16 @@ export interface QuoteDoc {
   marketNote: string;
   /** How the total is paid. Empty means the paper prints no schedule at all. */
   payment: PaymentTerm[];
+  /** The preset the schedule above was started from. */
+  paymentPreset: PaymentPreset;
+  /**
+   * Every other preset's schedule as the sender last left it (case #44).
+   *
+   * A quotation is often drafted both ways — 60/40 and a monthly subscription —
+   * and picking a preset used to replace the table outright, so going back
+   * meant working out every instalment again. The one in use is `payment`.
+   */
+  paymentSaved: Partial<Record<PaymentPreset, SavedSchedule>>;
   acceptance: Acceptance;
   ma: Maintenance;
   brand: QuoteBrand;
@@ -356,6 +376,12 @@ export interface QuoteDoc {
    * as "8.33%" a month, which tells the customer nothing (case #36).
    */
   showPercent: boolean;
+  /**
+   * Print "ค่า Subscription รายปี" under the lines: the total, stated as what the
+   * customer pays every year. The customer has to read that the deal recurs
+   * before they reach the payment table; a one-off build switches it off.
+   */
+  showAnnual: boolean;
   layout: QuoteLayout;
 }
 
@@ -408,6 +434,61 @@ export function presetEqual(count: number): PaymentTerm[] {
     percent: i === n - 1 ? 100 - each * (n - 1) : each,
     netDays: PAY_NET_DAYS,
   }));
+}
+
+/** A preset's schedule as it starts out. */
+function presetTerms(preset: PaymentPreset, count: number): PaymentTerm[] {
+  if (preset === "uat") return presetUat();
+  if (preset === "signing") return presetSigning();
+  return presetEqual(count);
+}
+
+/**
+ * Switch the payment schedule to a preset (case #44).
+ *
+ * The schedule being left is put aside under its own preset, and the one put
+ * aside earlier under the preset picked comes back — with whether it prints
+ * its shares, since a monthly fee printed as "8.33%" is why that switch exists
+ * (case #36). Picking the preset already in use starts it over: that is how a
+ * new instalment count takes effect, and how a preset's default comes back.
+ */
+export function choosePreset(doc: QuoteDoc, preset: PaymentPreset, count: number): QuoteDoc {
+  if (preset === doc.paymentPreset) return { ...doc, payment: presetTerms(preset, count) };
+  const { [preset]: back, ...rest } = doc.paymentSaved;
+  return {
+    ...doc,
+    payment: back?.payment ?? presetTerms(preset, count),
+    showPercent: back?.showPercent ?? doc.showPercent,
+    paymentPreset: preset,
+    paymentSaved: { ...rest, [doc.paymentPreset]: { payment: doc.payment, showPercent: doc.showPercent } },
+  };
+}
+
+/**
+ * Which preset a schedule saved before presets were remembered came from, by
+ * its first instalment's id. A schedule built by hand counts as UAT's: it is
+ * then put aside, not lost, the first time another preset is picked.
+ */
+function presetOf(payment: PaymentTerm[]): PaymentPreset {
+  const first = payment[0]?.id ?? "";
+  if (first === "pay-sign") return "signing";
+  if (/^pay-\d+$/.test(first)) return "equal";
+  return "uat";
+}
+
+/**
+ * The "ค่า Subscription รายปี" line under the quotation's lines, or null when it
+ * is switched off. It is the total after the discount and before VAT — what
+ * the customer pays each year.
+ */
+export function annualLine(doc: QuoteDoc): { label: string; note: string; amount: number } | null {
+  if (!doc.showAnnual) return null;
+  const t = quoteTotals(doc);
+  return {
+    label: "ค่า Subscription รายปี",
+    note: t.discount > 0 ? "รวมทุกรายการด้านบน หลังหักส่วนลด" : "รวมทุกรายการด้านบน",
+    amount: t.net,
+  };
 }
 
 /**
@@ -563,6 +644,8 @@ export function newDoc(shots: Shot[], projectName: string, today: string): Quote
     marketRatePerDay: 0,
     marketNote: "",
     payment: presetUat(),
+    paymentPreset: "uat",
+    paymentSaved: {},
     acceptance: defaultAcceptance(),
     ma: defaultMaintenance(),
     brand: emptyBrand(),
@@ -571,6 +654,7 @@ export function newDoc(shots: Shot[], projectName: string, today: string): Quote
     showShots: true,
     showBasis: true,
     showPercent: true,
+    showAnnual: true,
     layout: "list",
   };
 }
@@ -639,6 +723,27 @@ export function parseDoc(payload: unknown, fallbackDate: string): QuoteDoc | nul
   const brand = obj(o.brand);
   const lump = obj(o.lumpSum);
   const fallbackMa = defaultMaintenance();
+  const terms = (raw: unknown[]): PaymentTerm[] =>
+    raw.map((x, i) => {
+      const t = obj(x);
+      return {
+        id: str(t.id) || `pay-${i + 1}`,
+        when: str(t.when),
+        percent: n(t.percent, 0),
+        netDays: n(t.netDays, PAY_NET_DAYS),
+      };
+    });
+  // An empty array is a real state — someone deleted every instalment — so
+  // only a MISSING schedule gets seeded with the default one.
+  const payment = Array.isArray(o.payment) ? terms(o.payment) : presetUat();
+  const savedRaw = obj(o.paymentSaved);
+  const paymentSaved: Partial<Record<PaymentPreset, SavedSchedule>> = {};
+  for (const preset of PRESETS) {
+    const s = obj(savedRaw[preset]);
+    if (Array.isArray(s.payment)) {
+      paymentSaved[preset] = { payment: terms(s.payment), showPercent: bool(s.showPercent, true) };
+    }
+  }
   // Documents written before the letterhead existed kept both parties as one
   // free-text blob each. Neither is dropped: the vendor blob's first line is a
   // company name and the rest is an address often enough to be the right guess,
@@ -664,19 +769,11 @@ export function parseDoc(payload: unknown, fallbackDate: string): QuoteDoc | nul
     discount: parseDiscount(o),
     marketRatePerDay: n(o.marketRatePerDay, 0),
     marketNote: str(o.marketNote),
-    // An empty array is a real state — someone deleted every instalment — so
-    // only a MISSING schedule gets seeded with the default one.
-    payment: Array.isArray(o.payment)
-      ? o.payment.map((raw, i) => {
-          const t = obj(raw);
-          return {
-            id: str(t.id) || `pay-${i + 1}`,
-            when: str(t.when),
-            percent: n(t.percent, 0),
-            netDays: n(t.netDays, PAY_NET_DAYS),
-          };
-        })
-      : presetUat(),
+    payment,
+    // A quotation saved before presets were remembered names none and has
+    // nothing put aside.
+    paymentPreset: PRESETS.find((p) => p === o.paymentPreset) ?? presetOf(payment),
+    paymentSaved,
     acceptance: {
       enabled: bool(acc.enabled, true),
       reviewDays: n(acc.reviewDays, REVIEW_DAYS),
@@ -728,6 +825,8 @@ export function parseDoc(payload: unknown, fallbackDate: string): QuoteDoc | nul
     // On for every document written before this existed — they all printed it.
     showBasis: bool(o.showBasis, true),
     showPercent: bool(o.showPercent, true),
+    // On for every quotation, those written before it existed included.
+    showAnnual: bool(o.showAnnual, true),
     // Every document written before the cover layout existed printed as a list.
     layout: o.layout === "cover" ? "cover" : "list",
   };

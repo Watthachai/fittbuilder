@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import {
+  annualLine,
   BILLING_CYCLE_LABEL,
+  choosePreset,
   DEFAULT_ACCENT,
   DEFAULT_RATE,
   defaultMaintenance,
@@ -881,5 +883,79 @@ describe("MA billing cycle (FITT Billing reads it)", () => {
 
   it("labels each cycle in Thai", () => {
     expect(BILLING_CYCLE_LABEL).toEqual({ monthly: "รายเดือน", yearly: "รายปี" });
+  });
+});
+
+describe("choosePreset", () => {
+  const base = () => newDoc(INVENTORY, "d", "2026-08-05");
+  /** The schedule case #44 typed by hand: a set-up month, then a monthly fee. */
+  const monthly = (d: QuoteDoc): QuoteDoc => ({
+    ...d,
+    showPercent: false,
+    payment: d.payment.map((t, i) => ({
+      ...t,
+      when: i === 0 ? "เดือนแรก รวมค่าติดตั้ง" : `เดือนที่ ${i + 1}`,
+      percent: i === 0 ? 30 : 70 / 11,
+    })),
+  });
+
+  it("brings back the schedule edited under a preset after another one was picked (case #44)", () => {
+    const edited = monthly(choosePreset(base(), "equal", 12));
+    const uat = choosePreset(edited, "uat", 12);
+    expect(uat.payment).toEqual(presetUat());
+    const back = choosePreset(uat, "equal", 12);
+    expect(back.payment).toEqual(edited.payment);
+    expect(back.showPercent).toBe(false);
+  });
+
+  it("keeps each preset's edits apart", () => {
+    const uatEdited = { ...base(), payment: presetUat().map((t) => ({ ...t, netDays: 15 })) };
+    const equalEdited = monthly(choosePreset(uatEdited, "equal", 12));
+    const uatAgain = choosePreset(equalEdited, "uat", 12);
+    expect(uatAgain.payment).toEqual(uatEdited.payment);
+    expect(choosePreset(uatAgain, "equal", 12).payment).toEqual(equalEdited.payment);
+  });
+
+  it("starts a preset never used from its default", () => {
+    expect(choosePreset(base(), "signing", 12).payment).toEqual(presetSigning());
+  });
+
+  it("rebuilds the preset in use when it is picked again — how a new instalment count takes effect", () => {
+    const twelve = monthly(choosePreset(base(), "equal", 12));
+    expect(choosePreset(twelve, "equal", 6).payment).toEqual(presetEqual(6));
+  });
+
+  it("names the preset of a schedule saved before presets were remembered", () => {
+    const { paymentPreset: _p, paymentSaved: _s, ...old } = choosePreset(base(), "equal", 12);
+    expect(parseDoc(old, "2026-08-05")!.paymentPreset).toBe("equal");
+    expect(parseDoc({ rows: [], payment: presetSigning() }, "2026-08-05")!.paymentPreset).toBe("signing");
+    expect(parseDoc({ rows: [] }, "2026-08-05")!.paymentPreset).toBe("uat");
+  });
+
+  it("round-trips the schedules it remembers", () => {
+    const doc = choosePreset(monthly(choosePreset(base(), "equal", 12)), "uat", 12);
+    expect(parseDoc(JSON.parse(JSON.stringify(doc)), "2026-08-05")).toEqual(doc);
+  });
+});
+
+describe("annualLine", () => {
+  const doc = () => newDoc(INVENTORY, "d", "2026-08-05");
+
+  it("states the total as the yearly subscription", () => {
+    const d = doc();
+    expect(annualLine(d)).toEqual({ label: "ค่า Subscription รายปี", note: "รวมทุกรายการด้านบน", amount: quoteTotals(d).subtotal });
+  });
+
+  it("is the price after the discount, and says so", () => {
+    const d: QuoteDoc = { ...doc(), discount: { kind: "percent", value: 10 } };
+    expect(annualLine(d)).toEqual({ label: "ค่า Subscription รายปี", note: "รวมทุกรายการด้านบน หลังหักส่วนลด", amount: quoteTotals(d).net });
+  });
+
+  it("is not printed when switched off", () => {
+    expect(annualLine({ ...doc(), showAnnual: false })).toBeNull();
+  });
+
+  it("is on for every quotation saved before it existed", () => {
+    expect(parseDoc({ rows: [] }, "2026-08-05")!.showAnnual).toBe(true);
   });
 });

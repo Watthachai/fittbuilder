@@ -969,6 +969,15 @@ body {
      people paste in. */
   white-space: pre-wrap;
 }
+/* The yearly fee under the lines: their total, read as what recurs. The
+   dashed rule sets it apart from the lines it sums. */
+.fitt-paper .q-annual td {
+  border-top: 1px dashed var(--ink-dim);
+}
+.fitt-paper .q-annual .q-r {
+  font-weight: 700;
+  white-space: nowrap;
+}
 
 /* ---- totals, right-aligned under a dashed rule ---- */
 .fitt-paper .q-sum {

@@ -6,6 +6,7 @@ import {
   formatTHB,
   maintenanceTotals,
   marketComparison,
+  paymentHead,
   paymentSchedule,
   quoteTotals,
   lineTotal,
@@ -280,21 +281,21 @@ export default function QuotationPrint({
 
               {plan.rows.length > 0 && (
                 <section className="q-block q-pay">
-                  <h2>งวดการชำระเงิน / Payment Schedule</h2>
+                  <h2>{paymentHead(doc, "title")}</h2>
                   <table>
                     <thead>
                       <tr>
-                        <th className="q-n">งวด</th>
-                        <th>เงื่อนไขการชำระ</th>
-                        {doc.showPercent && <th className="q-c">สัดส่วน</th>}
+                        <th className="q-n">{paymentHead(doc, "no")}</th>
+                        <th>{paymentHead(doc, "term")}</th>
+                        {doc.showPercent && <th className="q-c">{paymentHead(doc, "percent")}</th>}
                         {withVat ? (
                           <>
-                            <th className="q-r">ก่อนภาษี</th>
-                            <th className="q-r">VAT {doc.vatPercent}%</th>
-                            <th className="q-r">รวม</th>
+                            <th className="q-r">{paymentHead(doc, "net")}</th>
+                            <th className="q-r">{paymentHead(doc, "vat")}</th>
+                            <th className="q-r">{paymentHead(doc, "total")}</th>
                           </>
                         ) : (
-                          <th className="q-r">จำนวนเงิน</th>
+                          <th className="q-r">{paymentHead(doc, "amount")}</th>
                         )}
                       </tr>
                     </thead>

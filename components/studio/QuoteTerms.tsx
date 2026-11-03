@@ -3,13 +3,18 @@
 import { useState } from "react";
 import { AlertTriangle, CalendarClock, Plus, Trash2, Wrench } from "lucide-react";
 import {
+  defaultPaymentHead,
   emptyTerm,
   formatTHB,
   MA_MIN_MONTHLY,
   maintenanceTotals,
+  paymentHead,
   paymentSchedule,
   choosePreset,
   quoteTotals,
+  setPaymentHead,
+  settlePaymentHead,
+  type PaymentHeadKey,
   type PaymentPreset,
   type PaymentTerm,
   type QuoteDoc,
@@ -200,22 +205,45 @@ export default function QuoteTerms({
           )}
         </div>
 
+        <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-[0.78125rem] text-chalk-dim">
+          <span className="shrink-0">หัวข้อตารางในเอกสาร</span>
+          <HeadInput doc={doc} k="title" readOnly={readOnly} onEdit={onEdit} wide />
+          {!readOnly && <span className="text-chalk-dim/70">คลิกที่หัวตารางเพื่อแก้ชื่อ · เว้นว่างเพื่อใช้ชื่อเดิม</span>}
+        </div>
+
         <div className="mt-2 overflow-hidden rounded-lg border border-night-edge">
           <table className="w-full text-[0.875rem]">
             <thead>
               <tr className="border-b border-night-edge bg-night/60 text-left text-chalk-dim">
-                <th className="w-8 px-2 py-1.5 text-right font-display font-medium">งวด</th>
-                <th className="px-2 py-1.5 font-display font-medium">เงื่อนไขการชำระ</th>
-                {doc.showPercent && <th className="w-20 px-2 py-1.5 text-right font-display font-medium">%</th>}
+                <th className="w-12 px-2 py-1.5 text-right font-display font-medium">
+                  <HeadInput doc={doc} k="no" readOnly={readOnly} onEdit={onEdit} right />
+                </th>
+                <th className="px-2 py-1.5 font-display font-medium">
+                  <HeadInput doc={doc} k="term" readOnly={readOnly} onEdit={onEdit} />
+                </th>
+                {doc.showPercent && (
+                  <th className="w-20 px-2 py-1.5 text-right font-display font-medium">
+                    <HeadInput doc={doc} k="percent" readOnly={readOnly} onEdit={onEdit} right />
+                  </th>
+                )}
+                {/* Not printed as a column: the paper says it under each instalment. */}
                 <th className="w-20 px-2 py-1.5 text-right font-display font-medium">ภายใน (วัน)</th>
                 {withVat ? (
                   <>
-                    <th className="w-28 px-2 py-1.5 text-right font-display font-medium">ก่อน VAT</th>
-                    <th className="w-24 px-2 py-1.5 text-right font-display font-medium">VAT {doc.vatPercent}%</th>
-                    <th className="w-28 px-2 py-1.5 text-right font-display font-medium">รวม</th>
+                    <th className="w-28 px-2 py-1.5 text-right font-display font-medium">
+                      <HeadInput doc={doc} k="net" readOnly={readOnly} onEdit={onEdit} right />
+                    </th>
+                    <th className="w-24 px-2 py-1.5 text-right font-display font-medium">
+                      <HeadInput doc={doc} k="vat" readOnly={readOnly} onEdit={onEdit} right />
+                    </th>
+                    <th className="w-28 px-2 py-1.5 text-right font-display font-medium">
+                      <HeadInput doc={doc} k="total" readOnly={readOnly} onEdit={onEdit} right />
+                    </th>
                   </>
                 ) : (
-                  <th className="w-28 px-2 py-1.5 text-right font-display font-medium">จำนวนเงิน</th>
+                  <th className="w-28 px-2 py-1.5 text-right font-display font-medium">
+                    <HeadInput doc={doc} k="amount" readOnly={readOnly} onEdit={onEdit} right />
+                  </th>
                 )}
                 <th className="w-8" />
               </tr>
@@ -670,6 +698,42 @@ export default function QuoteTerms({
         )}
       </section>
     </div>
+  );
+}
+
+/**
+ * A payment-table heading the sender can rename in place — what they type is
+ * what the paper, the Word file and the shared link print. Left blank, it goes
+ * back to the default when the field is left.
+ */
+function HeadInput({
+  doc,
+  k,
+  readOnly,
+  onEdit,
+  right = false,
+  wide = false,
+}: {
+  doc: QuoteDoc;
+  k: PaymentHeadKey;
+  readOnly: boolean;
+  onEdit: (patch: (d: QuoteDoc) => QuoteDoc) => void;
+  right?: boolean;
+  wide?: boolean;
+}) {
+  if (readOnly) return <span className={wide ? "text-chalk" : undefined}>{paymentHead(doc, k)}</span>;
+  return (
+    <input
+      value={doc.paymentHeads[k] ?? defaultPaymentHead(doc, k)}
+      onChange={(e) => onEdit((d) => setPaymentHead(d, k, e.target.value))}
+      onBlur={() => onEdit((d) => settlePaymentHead(d, k))}
+      placeholder={defaultPaymentHead(doc, k)}
+      title="คลิกเพื่อแก้ชื่อหัวตาราง — เว้นว่างเพื่อใช้ชื่อเดิม"
+      aria-label={`ชื่อหัวตาราง ${defaultPaymentHead(doc, k)}`}
+      className={`rounded-sm border border-dashed border-transparent bg-transparent px-1 font-display font-medium outline-none transition hover:border-chalk/25 focus:border-solid focus:border-shine focus:text-chalk ${
+        right ? "text-right" : ""
+      } ${wide ? "min-w-[18rem] flex-1 text-chalk" : "-mx-1 w-full min-w-0 text-chalk-dim"}`}
+    />
   );
 }
 

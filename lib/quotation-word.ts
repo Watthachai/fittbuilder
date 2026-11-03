@@ -8,6 +8,7 @@ import {
   lumpSumScope,
   maintenanceTotals,
   marketComparison,
+  paymentHead,
   paymentSchedule,
   percentText,
   printsPrice,
@@ -84,7 +85,7 @@ export function quotationDocx(doc: QuoteDoc, shots: Shot[], modules: ProposalMod
   }
 
   if (plan.rows.length > 0) {
-    body.push(heading("งวดการชำระเงิน / Payment Schedule", accent), payments(doc, plan));
+    body.push(heading(paymentHead(doc, "title"), accent), payments(doc, plan));
   }
 
   if (doc.ma.enabled) {
@@ -502,12 +503,16 @@ function payments(doc: QuoteDoc, plan: ReturnType<typeof paymentSchedule>): Tabl
     new TableRow({
       tableHeader: true,
       children: [
-        head(0, "งวด", L),
-        head(1, "เงื่อนไขการชำระ", L),
-        ...(doc.showPercent ? [head(2, "สัดส่วน", C)] : []),
+        head(0, paymentHead(doc, "no"), L),
+        head(1, paymentHead(doc, "term"), L),
+        ...(doc.showPercent ? [head(2, paymentHead(doc, "percent"), C)] : []),
         ...(withVat
-          ? [head(m, "ก่อนภาษี", R), head(m + 1, `VAT ${doc.vatPercent}%`, R), head(m + 2, "รวม", R)]
-          : [head(m, "จำนวนเงิน", R)]),
+          ? [
+              head(m, paymentHead(doc, "net"), R),
+              head(m + 1, paymentHead(doc, "vat"), R),
+              head(m + 2, paymentHead(doc, "total"), R),
+            ]
+          : [head(m, paymentHead(doc, "amount"), R)]),
       ],
     }),
     ...plan.rows.map((line, i) => {

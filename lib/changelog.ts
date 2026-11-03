@@ -23,6 +23,17 @@ export const CHANGE_BADGE: Record<ChangeType, { label: string; className: string
 // Newest first. SemVer: fix → PATCH, feature → MINOR, breaking → MAJOR.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.121.0",
+    date: "2026-11-03",
+    title: "แก้ชื่อหัวตารางงวดชำระในใบเสนอราคาได้",
+    items: [
+      {
+        type: "feature",
+        text: "หัวตารางงวดชำระ เช่น “เงื่อนไขการชำระ” “ก่อนภาษี” “รวม” และหัวข้อ “งวดการชำระเงิน / Payment Schedule” คลิกแล้วพิมพ์ชื่อใหม่ได้ในหน้าแก้ไข เหมาะกับค่าบริการรายเดือนหรือใบเสนอราคาภาษาอังกฤษ ชื่อที่แก้ขึ้นทั้งใบที่พิมพ์ ไฟล์ Word และลิงก์ที่แชร์ แยกตามใบ เว้นว่างเพื่อกลับเป็นชื่อเดิม",
+      },
+    ],
+  },
+  {
     version: "0.120.0",
     date: "2026-11-03",
     title: "ปรับขนาดตัวอักษรได้เอง",

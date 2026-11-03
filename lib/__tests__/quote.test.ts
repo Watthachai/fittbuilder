@@ -21,8 +21,11 @@ import {
   lumpSumSystemCount,
   newDoc,
   parseDoc,
+  paymentHead,
   paymentSchedule,
   PAY_NET_DAYS,
+  setPaymentHead,
+  settlePaymentHead,
   presetEqual,
   presetSigning,
   percentOfNet,
@@ -957,5 +960,41 @@ describe("annualLine", () => {
 
   it("is on for every quotation saved before it existed", () => {
     expect(parseDoc({ rows: [] }, "2026-08-05")!.showAnnual).toBe(true);
+  });
+});
+
+describe("payment table headings", () => {
+  const doc = () => newDoc(INVENTORY, "d", "2026-08-05");
+
+  it("prints the defaults until one is renamed", () => {
+    const d = doc();
+    expect(paymentHead(d, "title")).toBe("งวดการชำระเงิน / Payment Schedule");
+    expect(paymentHead(d, "term")).toBe("เงื่อนไขการชำระ");
+    expect(paymentHead(d, "vat")).toBe("VAT 7%");
+    expect(paymentHead(setPaymentHead(d, "term", "รายละเอียดค่าบริการ"), "term")).toBe("รายละเอียดค่าบริการ");
+  });
+
+  it("keeps a cleared heading while it is typed, and falls back once it is left", () => {
+    const cleared = setPaymentHead(doc(), "term", "");
+    expect(cleared.paymentHeads.term).toBe("");
+    expect(paymentHead(cleared, "term")).toBe("เงื่อนไขการชำระ");
+    expect(settlePaymentHead(cleared, "term").paymentHeads).toEqual({});
+  });
+
+  it("does not keep a heading typed back to its default, so VAT follows the rate", () => {
+    const d = settlePaymentHead(setPaymentHead(doc(), "vat", "VAT 7%"), "vat");
+    expect(d.paymentHeads).toEqual({});
+    expect(paymentHead({ ...d, vatPercent: 10 }, "vat")).toBe("VAT 10%");
+  });
+
+  it("keeps a renamed heading once it is left", () => {
+    const d = settlePaymentHead(setPaymentHead(doc(), "net", "Before VAT"), "net");
+    expect(d.paymentHeads).toEqual({ net: "Before VAT" });
+  });
+
+  it("reads back only known, non-blank headings", () => {
+    const d = parseDoc({ rows: [], paymentHeads: { term: "Milestone", no: "  ", bogus: "x", total: 5 } }, "2026-08-05")!;
+    expect(d.paymentHeads).toEqual({ term: "Milestone" });
+    expect(parseDoc({ rows: [] }, "2026-08-05")!.paymentHeads).toEqual({});
   });
 });

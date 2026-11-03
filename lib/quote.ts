@@ -355,6 +355,12 @@ export interface QuoteDoc {
    * meant working out every instalment again. The one in use is `payment`.
    */
   paymentSaved: Partial<Record<PaymentPreset, SavedSchedule>>;
+  /**
+   * The payment table's headings as the sender renamed them. A schedule of
+   * monthly fees is not a list of "เงื่อนไขการชำระ", and an English quotation
+   * needs English ones. Absent or blank prints the default (paymentHead).
+   */
+  paymentHeads: PaymentHeads;
   acceptance: Acceptance;
   ma: Maintenance;
   brand: QuoteBrand;
@@ -474,6 +480,54 @@ function presetOf(payment: PaymentTerm[]): PaymentPreset {
   if (first === "pay-sign") return "signing";
   if (/^pay-\d+$/.test(first)) return "equal";
   return "uat";
+}
+
+/** The payment table's printed headings: its title and each column. */
+export type PaymentHeadKey = "title" | "no" | "term" | "percent" | "net" | "vat" | "total" | "amount";
+export type PaymentHeads = Partial<Record<PaymentHeadKey, string>>;
+const PAYMENT_HEAD_KEYS: PaymentHeadKey[] = ["title", "no", "term", "percent", "net", "vat", "total", "amount"];
+
+/** A heading as it reads when nobody renamed it. */
+export function defaultPaymentHead(doc: QuoteDoc, key: PaymentHeadKey): string {
+  switch (key) {
+    case "title":
+      return "งวดการชำระเงิน / Payment Schedule";
+    case "no":
+      return "งวด";
+    case "term":
+      return "เงื่อนไขการชำระ";
+    case "percent":
+      return "สัดส่วน";
+    case "net":
+      return "ก่อนภาษี";
+    case "vat":
+      return `VAT ${doc.vatPercent}%`;
+    case "total":
+      return "รวม";
+    case "amount":
+      return "จำนวนเงิน";
+  }
+}
+
+/** A heading as printed: the sender's, or the default when they left it blank. */
+export function paymentHead(doc: QuoteDoc, key: PaymentHeadKey): string {
+  return doc.paymentHeads[key]?.trim() || defaultPaymentHead(doc, key);
+}
+
+/** Rename a heading as it is typed — blank is kept, so the field can be cleared and retyped. */
+export function setPaymentHead(doc: QuoteDoc, key: PaymentHeadKey, text: string): QuoteDoc {
+  return { ...doc, paymentHeads: { ...doc.paymentHeads, [key]: text } };
+}
+
+/**
+ * Once the field is left: a blank or default heading is not kept, so it goes
+ * on following the default — "VAT 7%" must become "VAT 10%" with the rate.
+ */
+export function settlePaymentHead(doc: QuoteDoc, key: PaymentHeadKey): QuoteDoc {
+  const text = doc.paymentHeads[key]?.trim();
+  if (text && text !== defaultPaymentHead(doc, key)) return doc;
+  const rest = Object.fromEntries(Object.entries(doc.paymentHeads).filter(([k]) => k !== key));
+  return { ...doc, paymentHeads: rest };
 }
 
 /**
@@ -646,6 +700,7 @@ export function newDoc(shots: Shot[], projectName: string, today: string): Quote
     payment: presetUat(),
     paymentPreset: "uat",
     paymentSaved: {},
+    paymentHeads: {},
     acceptance: defaultAcceptance(),
     ma: defaultMaintenance(),
     brand: emptyBrand(),
@@ -744,6 +799,13 @@ export function parseDoc(payload: unknown, fallbackDate: string): QuoteDoc | nul
       paymentSaved[preset] = { payment: terms(s.payment), showPercent: bool(s.showPercent, true) };
     }
   }
+  // Every quotation saved before headings could be renamed prints the defaults.
+  const headsRaw = obj(o.paymentHeads);
+  const paymentHeads: PaymentHeads = {};
+  for (const key of PAYMENT_HEAD_KEYS) {
+    const text = headsRaw[key];
+    if (typeof text === "string" && text.trim()) paymentHeads[key] = text;
+  }
   // Documents written before the letterhead existed kept both parties as one
   // free-text blob each. Neither is dropped: the vendor blob's first line is a
   // company name and the rest is an address often enough to be the right guess,
@@ -774,6 +836,7 @@ export function parseDoc(payload: unknown, fallbackDate: string): QuoteDoc | nul
     // nothing put aside.
     paymentPreset: PRESETS.find((p) => p === o.paymentPreset) ?? presetOf(payment),
     paymentSaved,
+    paymentHeads,
     acceptance: {
       enabled: bool(acc.enabled, true),
       reviewDays: n(acc.reviewDays, REVIEW_DAYS),

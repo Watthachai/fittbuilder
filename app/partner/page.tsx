@@ -63,13 +63,13 @@ export default function PartnerPage() {
       <header className="mx-auto flex max-w-6xl items-center justify-between px-6 py-6">
         <Link
           href="/"
-          className="inline-flex items-center gap-2 font-mono text-[13px] text-chalk/60 transition hover:text-chalk"
+          className="inline-flex items-center gap-2 font-mono text-[0.8125rem] text-chalk/60 transition hover:text-chalk"
         >
           <ArrowLeft size={14} /> FITT Builder
         </Link>
         <a
           href="#apply"
-          className="rounded-full bg-shine px-4 py-1.5 font-display text-[13px] font-semibold text-night transition hover:brightness-110"
+          className="rounded-full bg-shine px-4 py-1.5 font-display text-[0.8125rem] font-semibold text-night transition hover:brightness-110"
         >
           สมัครเป็น Partner
         </a>
@@ -78,14 +78,14 @@ export default function PartnerPage() {
       <main className="mx-auto max-w-6xl px-6 pb-24">
         <section className="pt-10 pb-16 sm:pt-16">
           <Reveal>
-            <p className="font-mono text-[13px] uppercase tracking-[0.2em] text-shine">
+            <p className="font-mono text-[0.8125rem] uppercase tracking-[0.2em] text-shine">
               Partner Program
             </p>
             <h1 className="mt-4 max-w-3xl font-display text-4xl leading-[1.15] font-medium tracking-tight text-chalk sm:text-6xl">
               รับงานในนามบริษัทคุณ
               <span className="block text-chalk/45">เราเป็นแค่เครื่องมือที่อยู่ข้างหลัง</span>
             </h1>
-            <p className="mt-6 max-w-2xl text-[17px] leading-relaxed text-chalk/70">
+            <p className="mt-6 max-w-2xl text-[1.0625rem] leading-relaxed text-chalk/70">
               ถ้าคุณรับงานพัฒนาเว็บอยู่แล้ว สิ่งที่กินเวลาที่สุดคือสองอย่าง — ทำ demo ให้ลูกค้าดูก่อนปิดงาน
               และนั่งทำใบเสนอราคาทีละบรรทัด FITT Builder ทำทั้งสองอย่างให้ในนามบริษัทคุณ
               พร้อมโลโก้ของคุณบนเอกสารทุกใบ
@@ -99,7 +99,7 @@ export default function PartnerPage() {
               <div className="h-full rounded-3xl border border-chalk/12 bg-chalk/[0.05] p-6 backdrop-blur-xl">
                 <v.icon size={20} className="text-shine" />
                 <h2 className="mt-3 font-display text-lg font-semibold text-chalk">{v.title}</h2>
-                <p className="mt-2 text-[15px] leading-relaxed text-chalk/65">{v.body}</p>
+                <p className="mt-2 text-[0.9375rem] leading-relaxed text-chalk/65">{v.body}</p>
               </div>
             </Reveal>
           ))}
@@ -115,11 +115,11 @@ export default function PartnerPage() {
             {STEPS.map((s, i) => (
               <Reveal key={s.title} delay={i * 0.08}>
                 <div className="h-full rounded-3xl border border-chalk/12 bg-chalk/[0.05] p-6 backdrop-blur-xl">
-                  <span className="font-mono text-[13px] text-shine">
+                  <span className="font-mono text-[0.8125rem] text-shine">
                     {String(i + 1).padStart(2, "0")}
                   </span>
                   <h3 className="mt-2 font-display text-lg font-semibold text-chalk">{s.title}</h3>
-                  <p className="mt-2 text-[15px] leading-relaxed text-chalk/65">{s.body}</p>
+                  <p className="mt-2 text-[0.9375rem] leading-relaxed text-chalk/65">{s.body}</p>
                 </div>
               </Reveal>
             ))}
@@ -142,7 +142,7 @@ export default function PartnerPage() {
       </main>
 
       <footer className="border-t border-chalk/10 py-8">
-        <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-3 px-6 font-mono text-[12px] text-chalk/45 sm:flex-row">
+        <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-3 px-6 font-mono text-[0.75rem] text-chalk/45 sm:flex-row">
           <Link href="/" className="transition hover:text-chalk">
             ← กลับหน้าแรก
           </Link>

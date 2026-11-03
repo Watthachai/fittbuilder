@@ -64,7 +64,7 @@ export default function VoiceSource({ projectId }: { projectId: string }) {
             <div className="scroll-thin min-h-0 flex-1 overflow-y-auto px-6 py-5">
               <Markdown>{sourceMarkdown(source.payload)}</Markdown>
             </div>
-            <p className="shrink-0 border-t border-night-edge bg-night px-5 py-3 text-[12px] text-chalk-dim">
+            <p className="shrink-0 border-t border-night-edge bg-night px-5 py-3 text-[0.75rem] text-chalk-dim">
               ข้อมูลนี้คัดลอกมาจาก FITT Voice — การลบใน FITT Voice ไม่ลบที่นี่อัตโนมัติ · BRD และ Prototype เริ่มเมื่อคุณสั่งในแชทเท่านั้น
             </p>
           </GlassSurface>

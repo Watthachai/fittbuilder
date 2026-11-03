@@ -44,7 +44,7 @@ const KIND_TONE: Record<CaseKind, string> = {
 export function StatusPill({ status }: { status: CaseStatus }) {
   return (
     <span
-      className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border px-2 py-0.5 font-display text-[11px] font-semibold ${STATUS_TONE[status]}`}
+      className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border px-2 py-0.5 font-display text-[0.6875rem] font-semibold ${STATUS_TONE[status]}`}
     >
       <span className="h-1.5 w-1.5 rounded-full bg-current" />
       {CASE_STATUS[status].label}
@@ -55,7 +55,7 @@ export function StatusPill({ status }: { status: CaseStatus }) {
 export function KindPill({ kind }: { kind: CaseKind }) {
   return (
     <span
-      className={`whitespace-nowrap rounded-full border px-2 py-0.5 font-display text-[11px] font-medium ${KIND_TONE[kind]}`}
+      className={`whitespace-nowrap rounded-full border px-2 py-0.5 font-display text-[0.6875rem] font-medium ${KIND_TONE[kind]}`}
     >
       {CASE_KIND[kind]}
     </span>
@@ -79,7 +79,7 @@ export const CAUSE_COLOR: Record<CauseKey, string> = {
 /** Why a case happened and where, once the team has named it. */
 export function CausePill({ cause, area }: { cause: CaseCause; area: CaseArea | null }) {
   return (
-    <span className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border border-night-edge px-2 py-0.5 font-display text-[11px] font-medium text-chalk/85">
+    <span className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border border-night-edge px-2 py-0.5 font-display text-[0.6875rem] font-medium text-chalk/85">
       <span className="h-1.5 w-1.5 rounded-full" style={{ background: CAUSE_COLOR[cause] }} />
       {CASE_CAUSE[cause].label}
       {area && <span className="text-chalk-dim">· {CASE_AREA[area]}</span>}
@@ -106,7 +106,7 @@ function toneOf(name: string): string {
 export function Initial({ name, team = false }: { name: string; team?: boolean }) {
   return (
     <span
-      className={`grid h-8 w-8 shrink-0 place-items-center rounded-full font-display text-[13px] font-semibold ${
+      className={`grid h-8 w-8 shrink-0 place-items-center rounded-full font-display text-[0.8125rem] font-semibold ${
         team ? "bg-shine text-night" : toneOf(name)
       }`}
     >
@@ -178,7 +178,7 @@ export function useCaseImages() {
 export function ImagePickButton({ onFiles, disabled }: { onFiles: (files: File[]) => void; disabled?: boolean }) {
   return (
     <label
-      className={`inline-flex cursor-pointer items-center gap-1.5 rounded-md px-2 py-1 font-display text-[12px] text-chalk-dim transition hover:bg-chalk/5 hover:text-chalk ${
+      className={`inline-flex cursor-pointer items-center gap-1.5 rounded-md px-2 py-1 font-display text-[0.75rem] text-chalk-dim transition hover:bg-chalk/5 hover:text-chalk ${
         disabled ? "pointer-events-none opacity-50" : ""
       }`}
     >
@@ -212,7 +212,7 @@ export function PendingImages({
       {images.map((a) => (
         <span
           key={a.path}
-          className="inline-flex max-w-[14rem] items-center gap-1.5 rounded-md border border-night-edge bg-night px-2 py-1 text-[11px] text-chalk-dim"
+          className="inline-flex max-w-[14rem] items-center gap-1.5 rounded-md border border-night-edge bg-night px-2 py-1 text-[0.6875rem] text-chalk-dim"
         >
           <span className="truncate">{a.name}</span>
           <button onClick={() => onRemove(a.path)} aria-label={`เอา ${a.name} ออก`} className="hover:text-chalk">
@@ -221,7 +221,7 @@ export function PendingImages({
         </span>
       ))}
       {uploading > 0 && (
-        <span className="inline-flex items-center gap-1.5 rounded-md border border-night-edge px-2 py-1 text-[11px] text-chalk-dim">
+        <span className="inline-flex items-center gap-1.5 rounded-md border border-night-edge px-2 py-1 text-[0.6875rem] text-chalk-dim">
           <Loader2 size={12} className="animate-spin" /> กำลังอัปโหลด {uploading} รูป
         </span>
       )}

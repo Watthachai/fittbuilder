@@ -224,7 +224,7 @@ export default function FlowMap({
 
         {nodes.map((n) => (
           <div key={n.shot.path} className="absolute" style={{ left: n.x, top: n.y, width: NODE_W }}>
-            <p className="mb-1 truncate font-display text-[12px] text-chalk-dim" title={n.shot.name}>
+            <p className="mb-1 truncate font-display text-[0.75rem] text-chalk-dim" title={n.shot.name}>
               {n.shot.name}
             </p>
             <button
@@ -243,7 +243,7 @@ export default function FlowMap({
         <button onClick={() => zoomBy(0.9)} aria-label="ย่อ" className="rounded-full p-1 text-chalk-dim hover:text-chalk">
           <Minus size={13} />
         </button>
-        <span className="w-10 text-center font-mono text-[11px] text-chalk-dim">
+        <span className="w-10 text-center font-mono text-[0.6875rem] text-chalk-dim">
           {Math.round(view.k * 100)}%
         </span>
         <button onClick={() => zoomBy(1.1)} aria-label="ขยาย" className="rounded-full p-1 text-chalk-dim hover:text-chalk">
@@ -258,7 +258,7 @@ export default function FlowMap({
         </button>
       </div>
 
-      <p className="pointer-events-none absolute bottom-3 left-4 font-mono text-[10px] text-chalk-dim">
+      <p className="pointer-events-none absolute bottom-3 left-4 font-mono text-[0.625rem] text-chalk-dim">
         ลากเพื่อเลื่อน · ล้อเมาส์เลื่อน · Ctrl/⌘ + ล้อ ซูม · คลิกเฟรมดูเต็ม
       </p>
     </div>

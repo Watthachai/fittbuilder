@@ -77,7 +77,7 @@ export default function StatusBar({
 
       <div className="flex h-9 items-center gap-4 px-3">
         {/* Step indicators */}
-        <ol className="flex items-center gap-1 font-mono text-[10px] uppercase tracking-wider">
+        <ol className="flex items-center gap-1 font-mono text-[0.625rem] uppercase tracking-wider">
           {STEPS.map((step, index) => {
             const isDone =
               (activeIndex > index || phase === "ready") && phase !== "error";
@@ -106,17 +106,17 @@ export default function StatusBar({
 
         {errorMessage && (
           <div className="flex min-w-0 flex-1 items-center gap-2">
-            <span className="truncate text-[12px] text-halt">{errorMessage}</span>
+            <span className="truncate text-[0.75rem] text-halt">{errorMessage}</span>
             <button
               onClick={onRetry}
-              className="shrink-0 rounded-sm border border-night-edge px-2 py-0.5 text-[11px] text-chalk transition hover:border-shine"
+              className="shrink-0 rounded-sm border border-night-edge px-2 py-0.5 text-[0.6875rem] text-chalk transition hover:border-shine"
             >
               ลองใหม่
             </button>
             {canFix && (
               <button
                 onClick={onFixWithAi}
-                className="inline-flex shrink-0 items-center gap-1 rounded-sm bg-shine px-2 py-0.5 text-[11px] font-medium text-night transition hover:bg-shine-soft"
+                className="inline-flex shrink-0 items-center gap-1 rounded-sm bg-shine px-2 py-0.5 text-[0.6875rem] font-medium text-night transition hover:bg-shine-soft"
               >
                 <Sparkles size={10} /> แก้ด้วย AI
               </button>
@@ -127,7 +127,7 @@ export default function StatusBar({
         <button
           onClick={onReport}
           title="ส่งเรื่องให้ทีมดูแล พร้อมข้อความ error และล็อกล่าสุด"
-          className={`ml-auto inline-flex shrink-0 items-center gap-1.5 text-[11px] transition ${
+          className={`ml-auto inline-flex shrink-0 items-center gap-1.5 text-[0.6875rem] transition ${
             errorMessage
               ? "rounded-sm border border-halt/40 px-2 py-0.5 text-halt hover:bg-halt/10"
               : "text-chalk-dim hover:text-chalk"
@@ -139,7 +139,7 @@ export default function StatusBar({
 
         <button
           onClick={() => setTerminalOpen((open) => !open)}
-          className="inline-flex items-center gap-1.5 font-mono text-[11px] text-chalk-dim transition hover:text-chalk"
+          className="inline-flex items-center gap-1.5 font-mono text-[0.6875rem] text-chalk-dim transition hover:text-chalk"
         >
           <Terminal size={12} />
           terminal
@@ -152,7 +152,7 @@ export default function StatusBar({
           <div className="flex items-center gap-1 border-b border-night-edge px-2 py-1">
             <button
               onClick={() => setTab("output")}
-              className={`rounded-sm px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider transition ${
+              className={`rounded-sm px-2 py-0.5 font-mono text-[0.625rem] uppercase tracking-wider transition ${
                 tab === "output" ? "bg-shine/15 text-shine" : "text-chalk-dim hover:text-chalk"
               }`}
             >
@@ -163,13 +163,13 @@ export default function StatusBar({
                 setTab("shell");
                 setShellOpened(true);
               }}
-              className={`rounded-sm px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider transition ${
+              className={`rounded-sm px-2 py-0.5 font-mono text-[0.625rem] uppercase tracking-wider transition ${
                 tab === "shell" ? "bg-shine/15 text-shine" : "text-chalk-dim hover:text-chalk"
               }`}
             >
               Shell
             </button>
-            <span className="ml-auto font-mono text-[10px] text-chalk-dim/60">
+            <span className="ml-auto font-mono text-[0.625rem] text-chalk-dim/60">
               {tab === "shell" ? "พิมพ์คำสั่งได้ (ls, npm, node)" : "log อ่านอย่างเดียว"}
             </span>
           </div>
@@ -178,7 +178,7 @@ export default function StatusBar({
                 scrollback survive Output↔Shell switches. */}
             <div
               ref={logRef}
-              className={`scroll-thin h-full overflow-y-auto px-3 py-2 font-mono text-[11px] leading-relaxed text-chalk-dim ${
+              className={`scroll-thin h-full overflow-y-auto px-3 py-2 font-mono text-[0.6875rem] leading-relaxed text-chalk-dim ${
                 tab === "output" ? "" : "hidden"
               }`}
             >

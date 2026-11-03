@@ -333,11 +333,11 @@ export default function ScreenInventory({
           <Camera size={16} className="text-shine" />
           <div className="min-w-0 flex-1">
             <h2 className="font-display text-sm font-semibold text-chalk">คลังหน้าจอ</h2>
-            <p className="text-[11px] text-chalk-dim">
+            <p className="text-[0.6875rem] text-chalk-dim">
               เก็บภาพทุกหน้าจอและ modal เพื่อใช้ทำใบเสนอราคา
             </p>
           </div>
-          <span className="shrink-0 rounded-full bg-night px-2.5 py-1 font-mono text-[11px] text-chalk-dim">
+          <span className="shrink-0 rounded-full bg-night px-2.5 py-1 font-mono text-[0.6875rem] text-chalk-dim">
             {screens.length} หน้า · {shots.length - screens.length} ย่อย
           </span>
           <div className="flex shrink-0 items-center rounded-lg border border-night-edge p-0.5">
@@ -352,7 +352,7 @@ export default function ScreenInventory({
               <button
                 key={t.id}
                 onClick={() => setTab(t.id)}
-                className={`rounded-md px-2.5 py-1 font-display text-[12px] transition ${
+                className={`rounded-md px-2.5 py-1 font-display text-[0.75rem] transition ${
                   tab === t.id ? "bg-shine text-night" : "text-chalk-dim hover:text-chalk"
                 }`}
               >
@@ -373,7 +373,7 @@ export default function ScreenInventory({
           {busy === "walk" || busy === "map" ? (
             <button
               onClick={stop}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-halt/50 px-3 py-1.5 font-display text-[12px] text-chalk transition hover:bg-halt/10"
+              className="inline-flex items-center gap-1.5 rounded-lg border border-halt/50 px-3 py-1.5 font-display text-[0.75rem] text-chalk transition hover:bg-halt/10"
             >
               <Square size={12} className="text-halt" /> หยุดสแกน
             </button>
@@ -386,7 +386,7 @@ export default function ScreenInventory({
                   onClick={() => void indexScan()}
                   disabled={!ready || busy !== null || recording}
                   title={`เดินตามดัชนีที่ประกาศไว้ในโค้ด — ${doors.screens} หน้า · ${doors.modals} modal`}
-                  className="inline-flex items-center gap-1.5 rounded-lg bg-shine px-3 py-1.5 font-display text-[12px] font-semibold text-night transition hover:brightness-110 disabled:opacity-40"
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-shine px-3 py-1.5 font-display text-[0.75rem] font-semibold text-night transition hover:brightness-110 disabled:opacity-40"
                 >
                   <ListChecks size={13} /> แคปทุกหน้า ({doors.screens + doors.modals})
                 </button>
@@ -404,7 +404,7 @@ export default function ScreenInventory({
                   onClick={onAddScreenIndex}
                   disabled={!files || busy !== null || recording}
                   title="ให้ AI ใส่ปุ่มซ่อนหนึ่งปุ่มต่อหนึ่งหน้าจอ/modal โดยเช็คกับรายชื่อไฟล์จริงในโปรเจกต์ — ไม่กระทบหน้าตาเว็บ"
-                  className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 font-display text-[12px] font-semibold transition hover:brightness-110 disabled:opacity-40 ${
+                  className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 font-display text-[0.75rem] font-semibold transition hover:brightness-110 disabled:opacity-40 ${
                     !doors.present
                       ? "bg-shine text-night"
                       : doors.short
@@ -429,7 +429,7 @@ export default function ScreenInventory({
                 }}
                 disabled={!ready || busy !== null || recording}
                 title="กดแล้วใช้งานเว็บตามปกติ — ระบบเก็บทุกหน้าที่เปลี่ยนพร้อมจำว่ามาจากปุ่มไหน"
-                className="inline-flex items-center gap-1.5 rounded-lg bg-halt px-3 py-1.5 font-display text-[12px] font-semibold text-white transition hover:brightness-110 disabled:opacity-40"
+                className="inline-flex items-center gap-1.5 rounded-lg bg-halt px-3 py-1.5 font-display text-[0.75rem] font-semibold text-white transition hover:brightness-110 disabled:opacity-40"
               >
                 <Radio size={13} /> อัดการใช้งาน
               </button>
@@ -437,7 +437,7 @@ export default function ScreenInventory({
                 onClick={() => void scan(true)}
                 disabled={!ready || !files || busy !== null}
                 title="ล็อกอิน/เลือกบริษัทเองในพรีวิวก่อน แล้วกดปุ่มนี้ให้ระบบเดินต่อจากหน้านั้น"
-                className="inline-flex items-center gap-1.5 rounded-lg border border-night-edge px-3 py-1.5 font-display text-[12px] text-chalk-dim transition hover:border-shine/60 hover:text-chalk disabled:opacity-40"
+                className="inline-flex items-center gap-1.5 rounded-lg border border-night-edge px-3 py-1.5 font-display text-[0.75rem] text-chalk-dim transition hover:border-shine/60 hover:text-chalk disabled:opacity-40"
               >
                 <ScanLine size={13} /> สแกนต่อจากหน้านี้
               </button>
@@ -445,7 +445,7 @@ export default function ScreenInventory({
                 onClick={() => void scan()}
                 disabled={!ready || !files || busy !== null}
                 title="ให้ระบบเดินเอง — ใช้ได้กับเว็บที่ไม่มีหน้าเข้าสู่ระบบหรือเมนูซ่อน"
-                className="inline-flex items-center gap-1.5 rounded-lg border border-night-edge px-3 py-1.5 font-display text-[12px] text-chalk-dim transition hover:border-shine/60 hover:text-chalk disabled:opacity-40"
+                className="inline-flex items-center gap-1.5 rounded-lg border border-night-edge px-3 py-1.5 font-display text-[0.75rem] text-chalk-dim transition hover:border-shine/60 hover:text-chalk disabled:opacity-40"
               >
                 <ScanLine size={13} /> สแกนอัตโนมัติ
               </button>
@@ -455,18 +455,18 @@ export default function ScreenInventory({
             onClick={captureOne}
             disabled={!ready || busy !== null}
             title="เดินไปหน้าที่ต้องการในเว็บเอง แล้วกดปุ่มนี้"
-            className="inline-flex items-center gap-1.5 rounded-lg border border-night-edge px-3 py-1.5 font-display text-[12px] text-chalk-dim transition hover:border-shine/60 hover:text-chalk disabled:opacity-40"
+            className="inline-flex items-center gap-1.5 rounded-lg border border-night-edge px-3 py-1.5 font-display text-[0.75rem] text-chalk-dim transition hover:border-shine/60 hover:text-chalk disabled:opacity-40"
           >
             <Camera size={13} /> แคปหน้านี้
           </button>
           {busy && (
-            <span className="inline-flex items-center gap-1.5 font-display text-[12px] text-chalk-dim">
+            <span className="inline-flex items-center gap-1.5 font-display text-[0.75rem] text-chalk-dim">
               <Loader2 size={13} className="animate-spin text-shine" />
               {busy === "map" ? "กำลังอ่านโครงสร้างหน้าจอ…" : "กำลังเก็บภาพ…"}
             </span>
           )}
           {!ready && (
-            <span className="font-display text-[12px] text-amber-300">
+            <span className="font-display text-[0.75rem] text-amber-300">
               ต้องให้ preview รันอยู่ก่อนถึงจะแคปได้
             </span>
           )}
@@ -474,10 +474,10 @@ export default function ScreenInventory({
 
         {ready && bridge === "stale" && (
           <div className="flex shrink-0 items-center gap-2.5 border-b border-amber-400/40 bg-amber-400/10 px-5 py-2">
-            <span className="shrink-0 font-mono text-[11px] font-semibold text-amber-300">
+            <span className="shrink-0 font-mono text-[0.6875rem] font-semibold text-amber-300">
               ⚠ สคริปต์ในพรีวิวเป็นเวอร์ชันเก่า
             </span>
-            <span className="min-w-0 flex-1 text-[11px] leading-relaxed text-amber-200/90">
+            <span className="min-w-0 flex-1 text-[0.6875rem] leading-relaxed text-amber-200/90">
               ตัวแคปฝังอยู่ในไฟล์ตั้งค่าของคอนเทนเนอร์ ซึ่งเขียนใหม่ตอนบูตเท่านั้น —
               <b> โหลดหน้า studio ใหม่ (F5)</b> ก่อนสแกน ไม่งั้นจะได้ผลเหมือนเดิม
             </span>
@@ -487,7 +487,7 @@ export default function ScreenInventory({
                 setPingTimedOut(false);
                 setProbe((n) => n + 1);
               }}
-              className="shrink-0 rounded-md border border-amber-400/50 px-2 py-0.5 font-display text-[11px] text-amber-100 transition hover:bg-amber-400/20"
+              className="shrink-0 rounded-md border border-amber-400/50 px-2 py-0.5 font-display text-[0.6875rem] text-amber-100 transition hover:bg-amber-400/20"
             >
               ตรวจอีกครั้ง
             </button>
@@ -502,7 +502,7 @@ export default function ScreenInventory({
         {files && onAddScreenIndex && (!doors.present || doors.short) && (
           <div className="flex shrink-0 items-center gap-2.5 border-b border-shine/30 bg-shine/[0.07] px-5 py-2">
             <Sparkles size={13} className="shrink-0 text-shine" />
-            <span className="min-w-0 flex-1 text-[11px] leading-relaxed text-chalk-dim">
+            <span className="min-w-0 flex-1 text-[0.6875rem] leading-relaxed text-chalk-dim">
               {doors.present ? (
                 <>
                   <b className="text-chalk">ดัชนียังไม่ครบ</b> — ประกาศไว้{" "}
@@ -535,7 +535,7 @@ export default function ScreenInventory({
           <div className="shrink-0 border-b border-night-edge bg-night/40 px-5 py-2">
             <button
               onClick={() => setStepsOpen((v) => !v)}
-              className="flex w-full items-center gap-2 font-mono text-[11px] text-chalk-dim transition hover:text-chalk"
+              className="flex w-full items-center gap-2 font-mono text-[0.6875rem] text-chalk-dim transition hover:text-chalk"
             >
               <CheckCircle2 size={11} className="shrink-0 text-go" />
               <span className="text-go">{steps.filter((s) => s.ok).length} สำเร็จ</span>
@@ -550,7 +550,7 @@ export default function ScreenInventory({
             {(stepsOpen || (failed.length > 0 && !busy)) && (
               <div className="scroll-thin mt-1.5 max-h-28 space-y-0.5 overflow-y-auto">
                 {(stepsOpen ? steps : failed).map((s, i) => (
-                  <div key={i} className="flex items-start gap-1.5 font-mono text-[11px] leading-relaxed">
+                  <div key={i} className="flex items-start gap-1.5 font-mono text-[0.6875rem] leading-relaxed">
                     {s.ok ? (
                       <CheckCircle2 size={11} className="mt-0.5 shrink-0 text-go" />
                     ) : (
@@ -674,23 +674,23 @@ function ShotCard({
           className="h-36 w-full bg-white object-cover object-top transition group-hover:opacity-90"
         />
         {index !== undefined && (
-          <span className="absolute left-1.5 top-1.5 rounded-md bg-night/85 px-1.5 py-0.5 font-mono text-[10px] text-chalk-dim">
+          <span className="absolute left-1.5 top-1.5 rounded-md bg-night/85 px-1.5 py-0.5 font-mono text-[0.625rem] text-chalk-dim">
             {String(index).padStart(2, "0")}
           </span>
         )}
       </button>
 
       <div className="flex items-center gap-2 px-3 py-2">
-        <span className="min-w-0 flex-1 truncate font-display text-[12px] text-chalk" title={shot.name}>
+        <span className="min-w-0 flex-1 truncate font-display text-[0.75rem] text-chalk" title={shot.name}>
           {shot.name}
           {shot.via && (
-            <span className="block truncate font-mono text-[10px] text-chalk-dim" title={`มาจากการกด “${shot.via}”`}>
+            <span className="block truncate font-mono text-[0.625rem] text-chalk-dim" title={`มาจากการกด “${shot.via}”`}>
               ← {shot.via}
             </span>
           )}
         </span>
         {subs.length > 0 && (
-          <span className="shrink-0 rounded-full bg-shine/15 px-1.5 py-0.5 font-mono text-[10px] text-shine">
+          <span className="shrink-0 rounded-full bg-shine/15 px-1.5 py-0.5 font-mono text-[0.625rem] text-shine">
             +{subs.length}
           </span>
         )}

@@ -41,7 +41,7 @@ export default function TrialSwitcher({ trial, licensed }: { trial: ModuleFamily
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
         aria-haspopup="menu"
-        className="flex items-center gap-1.5 rounded-lg border border-violet-300 px-2.5 py-1.5 text-[12px] text-violet-700 transition hover:bg-violet-50 dark:border-violet-500/40 dark:text-violet-300 dark:hover:bg-violet-500/10"
+        className="flex items-center gap-1.5 rounded-lg border border-violet-300 px-2.5 py-1.5 text-[0.75rem] text-violet-700 transition hover:bg-violet-50 dark:border-violet-500/40 dark:text-violet-300 dark:hover:bg-violet-500/10"
       >
         <span className="hidden max-w-[12rem] truncate sm:inline">กำลังลองระบบ{current.name}</span>
         <span className="sm:hidden">ทดลองใช้</span>
@@ -60,8 +60,8 @@ export default function TrialSwitcher({ trial, licensed }: { trial: ModuleFamily
           >
             <Grid3x3 size={14} className="shrink-0 text-slate-400" />
             <span className="min-w-0">
-              <span className="block text-[12.5px] font-medium text-slate-800 dark:text-slate-100">ดูทุกระบบ</span>
-              <span className="block text-[11px] text-slate-500 dark:text-slate-400">
+              <span className="block text-[0.78125rem] font-medium text-slate-800 dark:text-slate-100">ดูทุกระบบ</span>
+              <span className="block text-[0.6875rem] text-slate-500 dark:text-slate-400">
                 เปิดได้ {licensed.length} ส่วน ทุกส่วนทำงานเชื่อมถึงกัน
               </span>
             </span>
@@ -83,8 +83,8 @@ export default function TrialSwitcher({ trial, licensed }: { trial: ModuleFamily
                 >
                   <Check size={13} className={"shrink-0 " + (on ? "text-violet-600 dark:text-violet-300" : "opacity-0")} />
                   <span className="min-w-0 flex-1">
-                    <span className="block truncate text-[12.5px] text-slate-700 dark:text-slate-200">ระบบ{f.name}</span>
-                    <span className="block text-[11px] text-slate-400 dark:text-slate-500">
+                    <span className="block truncate text-[0.78125rem] text-slate-700 dark:text-slate-200">ระบบ{f.name}</span>
+                    <span className="block text-[0.6875rem] text-slate-400 dark:text-slate-500">
                       เปิดได้ {mine} จาก {modulesOf(f.id).length} ส่วน
                     </span>
                   </span>
@@ -96,7 +96,7 @@ export default function TrialSwitcher({ trial, licensed }: { trial: ModuleFamily
           <Link
             href={`/marketplace/${trial}`}
             onClick={() => setOpen(false)}
-            className="flex items-center gap-2.5 border-t border-slate-100 px-3.5 py-2.5 text-[12px] text-slate-500 transition hover:bg-slate-50 dark:border-slate-800 dark:text-slate-400 dark:hover:bg-slate-800/60"
+            className="flex items-center gap-2.5 border-t border-slate-100 px-3.5 py-2.5 text-[0.75rem] text-slate-500 transition hover:bg-slate-50 dark:border-slate-800 dark:text-slate-400 dark:hover:bg-slate-800/60"
           >
             <Store size={13} className="shrink-0" />
             ดูราคาและรายละเอียดในมาร์เก็ตเพลส

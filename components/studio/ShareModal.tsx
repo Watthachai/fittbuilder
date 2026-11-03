@@ -207,7 +207,7 @@ export default function ShareModal({ projectId, onClose }: ShareModalProps) {
         <div className="flex shrink-0 items-center justify-between border-b border-night-edge px-4 py-3">
           <div className="flex items-center gap-2">
             <Users size={15} className="text-shine" />
-            <h2 className="font-display text-[15px] font-semibold text-chalk">เชิญทีม</h2>
+            <h2 className="font-display text-[0.9375rem] font-semibold text-chalk">เชิญทีม</h2>
           </div>
           <button
             onClick={onClose}
@@ -231,7 +231,7 @@ export default function ShareModal({ projectId, onClose }: ShareModalProps) {
           <section className="flex flex-col gap-3">
             <div className="flex items-center gap-2">
               <Link size={13} className="text-chalk-dim" />
-              <span className="font-display text-[13px] font-semibold text-chalk">ลิงก์สาธารณะ</span>
+              <span className="font-display text-[0.8125rem] font-semibold text-chalk">ลิงก์สาธารณะ</span>
             </div>
 
             <div className="flex items-center gap-2">
@@ -276,7 +276,7 @@ export default function ShareModal({ projectId, onClose }: ShareModalProps) {
 
             {joinUrl && (
               <div className="flex items-center gap-2 rounded-lg border border-night-edge bg-night px-3 py-2">
-                <span className="min-w-0 flex-1 truncate font-mono text-[11px] text-chalk-dim">
+                <span className="min-w-0 flex-1 truncate font-mono text-[0.6875rem] text-chalk-dim">
                   {joinUrl}
                 </span>
                 <button
@@ -292,7 +292,7 @@ export default function ShareModal({ projectId, onClose }: ShareModalProps) {
             {joinUrl && (
               <div className="flex items-center justify-between gap-2">
                 <span
-                  className={`text-[11px] ${
+                  className={`text-[0.6875rem] ${
                     expired ? "text-halt" : daysLeft !== null && daysLeft <= 5 ? "text-amber-300" : "text-chalk-dim"
                   }`}
                 >
@@ -306,7 +306,7 @@ export default function ShareModal({ projectId, onClose }: ShareModalProps) {
                   <button
                     onClick={() => void handleRenewLink()}
                     disabled={linkBusy}
-                    className="shrink-0 rounded-sm border border-night-edge px-2 py-1 text-[11px] text-chalk-dim transition hover:border-shine hover:text-chalk disabled:opacity-40"
+                    className="shrink-0 rounded-sm border border-night-edge px-2 py-1 text-[0.6875rem] text-chalk-dim transition hover:border-shine hover:text-chalk disabled:opacity-40"
                   >
                     ต่ออายุ 30 วัน
                   </button>
@@ -321,7 +321,7 @@ export default function ShareModal({ projectId, onClose }: ShareModalProps) {
           <section className="flex flex-col gap-3">
             <div className="flex items-center gap-2">
               <Mail size={13} className="text-chalk-dim" />
-              <span className="font-display text-[13px] font-semibold text-chalk">เชิญด้วยอีเมล</span>
+              <span className="font-display text-[0.8125rem] font-semibold text-chalk">เชิญด้วยอีเมล</span>
             </div>
 
             <div className="flex gap-2">
@@ -359,7 +359,7 @@ export default function ShareModal({ projectId, onClose }: ShareModalProps) {
           <section className="flex flex-col gap-3">
             <div className="flex items-center gap-2">
               <Users size={13} className="text-chalk-dim" />
-              <span className="font-display text-[13px] font-semibold text-chalk">สมาชิก</span>
+              <span className="font-display text-[0.8125rem] font-semibold text-chalk">สมาชิก</span>
             </div>
 
             {members.length === 0 && invites.length === 0 && (
@@ -377,7 +377,7 @@ export default function ShareModal({ projectId, onClose }: ShareModalProps) {
                   onChange={(e) => void handleRoleChange(m.userId, e.target.value as ShareRole)}
                   disabled={peopleBusy}
                   title="เปลี่ยนสิทธิ์ — ผู้แก้ไขร่วมสร้างและอนุมัติได้ ผู้ชมดูอย่างเดียว"
-                  className="shrink-0 rounded-sm border border-night-edge bg-night px-1.5 py-0.5 text-[11px] text-chalk-dim outline-none transition hover:text-chalk focus:border-shine disabled:opacity-40"
+                  className="shrink-0 rounded-sm border border-night-edge bg-night px-1.5 py-0.5 text-[0.6875rem] text-chalk-dim outline-none transition hover:text-chalk focus:border-shine disabled:opacity-40"
                 >
                   <option value="viewer">ผู้ชม</option>
                   <option value="editor">ผู้แก้ไข</option>
@@ -399,10 +399,10 @@ export default function ShareModal({ projectId, onClose }: ShareModalProps) {
                 <span className="min-w-0 flex-1 truncate font-mono text-xs text-chalk-dim">
                   {inv.email}
                 </span>
-                <span className="shrink-0 rounded-sm border border-night-edge px-1.5 py-0.5 text-[10px] uppercase tracking-wider text-chalk-dim">
+                <span className="shrink-0 rounded-sm border border-night-edge px-1.5 py-0.5 text-[0.625rem] uppercase tracking-wider text-chalk-dim">
                   {inv.role}
                 </span>
-                <span className="shrink-0 text-[10px] text-chalk-dim">รอตอบรับ</span>
+                <span className="shrink-0 text-[0.625rem] text-chalk-dim">รอตอบรับ</span>
                 <button
                   onClick={() => void handleRevokeInvite(inv.id)}
                   disabled={peopleBusy}

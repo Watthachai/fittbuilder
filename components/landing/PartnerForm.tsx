@@ -52,7 +52,7 @@ export default function PartnerForm() {
       <div className="rounded-3xl border border-go/40 bg-go/10 p-8 text-center backdrop-blur-xl">
         <CheckCircle2 size={30} className="mx-auto text-go" />
         <h3 className="mt-3 font-display text-xl font-semibold text-chalk">ได้รับเรื่องแล้ว</h3>
-        <p className="mt-2 text-[15px] leading-relaxed text-chalk/70">
+        <p className="mt-2 text-[0.9375rem] leading-relaxed text-chalk/70">
           ทีมงานจะติดต่อกลับภายใน 2 วันทำการ เพื่อคุยเรื่องขอบเขตงานและเงื่อนไขที่เหมาะกับบริษัทคุณ
         </p>
       </div>
@@ -112,12 +112,12 @@ export default function PartnerForm() {
       <button
         type="submit"
         disabled={busy}
-        className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-shine px-6 py-3.5 font-display text-[15px] font-semibold text-night transition hover:brightness-110 disabled:opacity-50"
+        className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-shine px-6 py-3.5 font-display text-[0.9375rem] font-semibold text-night transition hover:brightness-110 disabled:opacity-50"
       >
         {busy ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
         {busy ? "กำลังส่ง…" : "สมัครเป็น Partner"}
       </button>
-      <p className="mt-3 text-center font-mono text-[12px] text-chalk/45">
+      <p className="mt-3 text-center font-mono text-[0.75rem] text-chalk/45">
         ไม่มีค่าสมัคร · ไม่ผูกมัด · เราจะติดต่อกลับเพื่อคุยรายละเอียดก่อนเสมอ
       </p>
     </form>
@@ -125,7 +125,7 @@ export default function PartnerForm() {
 }
 
 const field =
-  "w-full rounded-xl border border-chalk/15 bg-night/60 px-4 py-2.5 text-[15px] text-chalk outline-none transition placeholder:text-chalk/30 focus:border-shine/60";
+  "w-full rounded-xl border border-chalk/15 bg-night/60 px-4 py-2.5 text-[0.9375rem] text-chalk outline-none transition placeholder:text-chalk/30 focus:border-shine/60";
 
 function L({
   label,
@@ -138,7 +138,7 @@ function L({
 }) {
   return (
     <label className="block">
-      <span className="mb-1.5 block font-display text-[13px] text-chalk/70">
+      <span className="mb-1.5 block font-display text-[0.8125rem] text-chalk/70">
         {label}
         {required && <span className="text-shine"> *</span>}
       </span>

@@ -163,7 +163,7 @@ export default function DomainSkillStudio({ orgId }: { orgId: string }) {
         <Sparkles size={15} className="text-shine" />
         <h2 className="font-display text-sm font-semibold">ปั้นผู้เชี่ยวชาญประจำองค์กร</h2>
       </div>
-      <p className="mt-1 text-[13px] text-chalk-dim">
+      <p className="mt-1 text-[0.8125rem] text-chalk-dim">
         ให้ AI สร้าง “ผู้เชี่ยวชาญ” ประจำ workspace จาก Org DNA ที่กรอกไว้ —
         เพื่อให้การถาม-ตอบและการสร้างระบบเข้าใจโดเมนของคุณโดยเฉพาะ (ใส่บรีฟด้านล่างเพื่อเจาะจงเพิ่มได้)
       </p>
@@ -177,20 +177,20 @@ export default function DomainSkillStudio({ orgId }: { orgId: string }) {
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
               <p className="truncate font-display text-sm font-semibold text-chalk">{existing.name}</p>
-              <span className="shrink-0 rounded-full bg-shine/15 px-2 py-0.5 font-mono text-[10px] text-shine">
+              <span className="shrink-0 rounded-full bg-shine/15 px-2 py-0.5 font-mono text-[0.625rem] text-shine">
                 ใช้งานอยู่
               </span>
             </div>
             {existing.tagline && (
-              <p className="mt-0.5 line-clamp-2 text-[12px] text-chalk-dim">{existing.tagline}</p>
+              <p className="mt-0.5 line-clamp-2 text-[0.75rem] text-chalk-dim">{existing.tagline}</p>
             )}
-            <p className="mt-1 font-mono text-[10px] text-chalk-dim">
+            <p className="mt-1 font-mono text-[0.625rem] text-chalk-dim">
               คำถามเชิงลึก {existing.questionBank.length} ข้อ
             </p>
           </div>
           <button
             onClick={() => void remove()}
-            className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-night-edge px-2.5 py-1.5 text-[12px] text-chalk-dim transition hover:border-halt hover:text-halt"
+            className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-night-edge px-2.5 py-1.5 text-[0.75rem] text-chalk-dim transition hover:border-halt hover:text-halt"
             title="ลบผู้เชี่ยวชาญนี้"
           >
             <Trash2 size={13} /> ลบ
@@ -208,7 +208,7 @@ export default function DomainSkillStudio({ orgId }: { orgId: string }) {
             ? "อยากปรับผู้เชี่ยวชาญให้เจาะจงขึ้น? ใส่บรีฟแล้วสร้างใหม่ทับได้ (ไม่บังคับ)"
             : "บรีฟเพิ่มเติม เช่น เน้นคลินิกทันตกรรม มีระบบนัดหมายและสต็อกยา (ไม่บังคับ — เว้นว่างได้ AI จะใช้ Org DNA)"
         }
-        className="mt-3 w-full resize-y rounded-lg border border-night-edge bg-night px-3 py-2.5 text-[14px] outline-none focus:border-shine"
+        className="mt-3 w-full resize-y rounded-lg border border-night-edge bg-night px-3 py-2.5 text-[0.875rem] outline-none focus:border-shine"
       />
       <div className="mt-2">
         <button
@@ -224,7 +224,7 @@ export default function DomainSkillStudio({ orgId }: { orgId: string }) {
       {/* Reveal: streamed research text */}
       {(busy || report) && (
         <div className="mt-3">
-          <p className="mb-1.5 flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-wider text-chalk-dim">
+          <p className="mb-1.5 flex items-center gap-1.5 font-mono text-[0.625rem] uppercase tracking-wider text-chalk-dim">
             <Sparkles size={11} className="text-shine" />{" "}
             {busy ? "กำลังค้นคว้าและร่างผู้เชี่ยวชาญ" : "ผลการค้นคว้า / ร่างผู้เชี่ยวชาญ"}
           </p>
@@ -254,7 +254,7 @@ export default function DomainSkillStudio({ orgId }: { orgId: string }) {
               {restored ? "กู้คืนร่างที่ยังไม่บันทึก" : "ร่างเสร็จแล้ว"}
               {draft.name ? `: ${draft.name}` : ""}
             </p>
-            <p className="mt-0.5 text-[12px] text-chalk-dim">
+            <p className="mt-0.5 text-[0.75rem] text-chalk-dim">
               {restored
                 ? "ร่างเดิมที่ยังไม่ได้บันทึก — กดบันทึกเพื่อเปิดใช้งาน หรือสร้างใหม่ทับ"
                 : draft.tagline || "ตรวจรายละเอียดด้านบน แล้วกดบันทึกเพื่อเปิดใช้งานใน workspace"}
@@ -263,7 +263,7 @@ export default function DomainSkillStudio({ orgId }: { orgId: string }) {
           </div>
           <button
             onClick={discardDraft}
-            className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-night-edge px-3 py-2 text-[12px] text-chalk-dim transition hover:border-halt hover:text-halt"
+            className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-night-edge px-3 py-2 text-[0.75rem] text-chalk-dim transition hover:border-halt hover:text-halt"
             title="ทิ้งร่างนี้ (ไม่บันทึก)"
           >
             ล้างร่าง

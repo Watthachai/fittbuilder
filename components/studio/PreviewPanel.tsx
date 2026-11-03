@@ -316,7 +316,7 @@ export default function PreviewPanel({
           {url && phase === "ready" && (
             <span className="live-dot h-1.5 w-1.5 shrink-0 rounded-full bg-go" />
           )}
-          <span className="truncate font-mono text-[11px] text-chalk-dim">
+          <span className="truncate font-mono text-[0.6875rem] text-chalk-dim">
             {url ?? "รอ dev server…"}
           </span>
         </div>
@@ -325,7 +325,7 @@ export default function PreviewPanel({
             onClick={onToggleWand}
             disabled={!url || phase !== "ready"}
             title="Wand — ชี้ element ในระบบแล้วแก้ตรงจุด"
-            className={`wand-btn flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 font-display text-[11px] font-semibold transition disabled:opacity-40 ${
+            className={`wand-btn flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 font-display text-[0.6875rem] font-semibold transition disabled:opacity-40 ${
               wandOn ? "wand-btn-on" : ""
             }`}
           >
@@ -366,12 +366,12 @@ export default function PreviewPanel({
       {wandOn && !wandBusy && (
         <div className="flex shrink-0 items-center gap-2.5 border-b border-shine/30 bg-shine/10 px-3 py-2">
           <Wand2 size={13} className="shrink-0 text-shine" />
-          <span className="min-w-0 flex-1 text-[11px] leading-relaxed text-chalk">
+          <span className="min-w-0 flex-1 text-[0.6875rem] leading-relaxed text-chalk">
             โหมด Wand — เลื่อนเมาส์บนระบบแล้ว<b className="text-shine">คลิก element</b>ที่อยากแก้
           </span>
           <button
             onClick={onWandExit}
-            className="shrink-0 rounded-md border border-shine/40 px-2 py-0.5 font-display text-[11px] text-chalk transition hover:bg-shine hover:text-night"
+            className="shrink-0 rounded-md border border-shine/40 px-2 py-0.5 font-display text-[0.6875rem] text-chalk transition hover:bg-shine hover:text-night"
           >
             ออก (Esc)
           </button>
@@ -391,14 +391,14 @@ export default function PreviewPanel({
           }`}
         >
           <span
-            className={`shrink-0 font-mono text-[11px] font-semibold ${
+            className={`shrink-0 font-mono text-[0.6875rem] font-semibold ${
               problem.tone === "halt" ? "text-halt" : "text-amber-300"
             }`}
           >
             ⚠ {problem.title}
           </span>
           <span
-            className="min-w-0 flex-1 truncate font-mono text-[11px] text-chalk-dim"
+            className="min-w-0 flex-1 truncate font-mono text-[0.6875rem] text-chalk-dim"
             title={problem.detail}
           >
             {problem.body}
@@ -407,7 +407,7 @@ export default function PreviewPanel({
           {problem.also && (
             <button
               onClick={() => setShowAlso((v) => !v)}
-              className="shrink-0 rounded-md border border-night-edge px-2 py-0.5 font-display text-[11px] text-chalk-dim transition hover:text-chalk"
+              className="shrink-0 rounded-md border border-night-edge px-2 py-0.5 font-display text-[0.6875rem] text-chalk-dim transition hover:text-chalk"
             >
               {showAlso ? "ซ่อน error" : "ดู error"}
             </button>
@@ -415,7 +415,7 @@ export default function PreviewPanel({
           {problem.action && (
             <button
               onClick={problem.action.run}
-              className="shrink-0 rounded-md bg-shine px-2.5 py-1 font-display text-[12px] font-semibold text-night transition hover:brightness-110"
+              className="shrink-0 rounded-md bg-shine px-2.5 py-1 font-display text-[0.75rem] font-semibold text-night transition hover:brightness-110"
             >
               ✦ {problem.action.label}
             </button>
@@ -424,7 +424,7 @@ export default function PreviewPanel({
             <button
               onClick={() => onReport(problem.report!.kind, problem.report!.error)}
               title="ส่งเรื่องนี้ให้ทีมดูแล พร้อมข้อความ error และล็อก"
-              className="inline-flex shrink-0 items-center gap-1 rounded-md bg-red-600 px-2.5 py-1 font-display text-[12px] font-semibold text-white transition hover:bg-red-500"
+              className="inline-flex shrink-0 items-center gap-1 rounded-md bg-red-600 px-2.5 py-1 font-display text-[0.75rem] font-semibold text-white transition hover:bg-red-500"
             >
               <Flag size={12} /> รายงาน
             </button>
@@ -433,7 +433,7 @@ export default function PreviewPanel({
             <button
               onClick={problem.dismiss}
               aria-label="ปิดแจ้งเตือน"
-              className="shrink-0 rounded-md px-1.5 py-1 text-[12px] text-chalk-dim transition hover:text-chalk"
+              className="shrink-0 rounded-md px-1.5 py-1 text-[0.75rem] text-chalk-dim transition hover:text-chalk"
             >
               ✕
             </button>
@@ -441,7 +441,7 @@ export default function PreviewPanel({
         </div>
       )}
       {problem?.also && showAlso && (
-        <pre className="scroll-thin max-h-28 shrink-0 overflow-auto border-b border-night-edge bg-night px-3 py-2 font-mono text-[10px] leading-relaxed text-chalk-dim">
+        <pre className="scroll-thin max-h-28 shrink-0 overflow-auto border-b border-night-edge bg-night px-3 py-2 font-mono text-[0.625rem] leading-relaxed text-chalk-dim">
           {problem.also}
         </pre>
       )}
@@ -488,7 +488,7 @@ export default function PreviewPanel({
             {writing > 0 && (
               <div className="pointer-events-none absolute inset-0 z-10">
                 <div className="preview-sweep absolute inset-0" />
-                <span className="glass absolute bottom-3 left-3 inline-flex items-center gap-2 rounded-full py-1.5 pl-2.5 pr-3 text-[11.5px] text-chalk shadow-lg">
+                <span className="glass absolute bottom-3 left-3 inline-flex items-center gap-2 rounded-full py-1.5 pl-2.5 pr-3 text-[0.71875rem] text-chalk shadow-lg">
                   <Loader2 size={12} className="animate-spin text-shine" />
                   กำลังสร้างหน้านี้ใหม่ · {writing} ไฟล์
                 </span>
@@ -514,7 +514,7 @@ export default function PreviewPanel({
                 {onRestart && (
                   <button
                     onClick={onRestart}
-                    className="inline-flex items-center gap-1.5 rounded-full bg-shine px-4 py-2 font-display text-[13px] font-semibold text-night transition hover:brightness-110"
+                    className="inline-flex items-center gap-1.5 rounded-full bg-shine px-4 py-2 font-display text-[0.8125rem] font-semibold text-night transition hover:brightness-110"
                   >
                     <RotateCw size={14} /> ลองเปิดใหม่
                   </button>
@@ -522,14 +522,14 @@ export default function PreviewPanel({
                 {savedFiles > 0 && (
                   <button
                     onClick={onShowCode}
-                    className="inline-flex items-center gap-1.5 rounded-full border border-night-edge px-4 py-2 font-display text-[13px] text-chalk transition hover:bg-chalk/5"
+                    className="inline-flex items-center gap-1.5 rounded-full border border-night-edge px-4 py-2 font-display text-[0.8125rem] text-chalk transition hover:bg-chalk/5"
                   >
                     <Code2 size={14} /> ดูโค้ด
                   </button>
                 )}
                 <button
                   onClick={() => onReport(failedAt, null)}
-                  className="inline-flex items-center gap-1.5 rounded-full bg-red-600 px-4 py-2 font-display text-[13px] font-semibold text-white transition hover:bg-red-500"
+                  className="inline-flex items-center gap-1.5 rounded-full bg-red-600 px-4 py-2 font-display text-[0.8125rem] font-semibold text-white transition hover:bg-red-500"
                 >
                   <Flag size={14} /> รายงานปัญหา
                 </button>
@@ -564,10 +564,10 @@ function CenterNote({
   return (
     <div className="flex flex-col items-center justify-center gap-2 self-center px-8 text-center">
       <div className="max-w-sm rounded-2xl border border-night-edge bg-night-panel px-8 py-6">
-        <p className={`font-display text-[15px] text-chalk ${pulse ? "animate-pulse" : ""}`}>
+        <p className={`font-display text-[0.9375rem] text-chalk ${pulse ? "animate-pulse" : ""}`}>
           {title}
         </p>
-        {body && <p className="mt-1.5 text-[13px] leading-relaxed text-chalk-dim">{body}</p>}
+        {body && <p className="mt-1.5 text-[0.8125rem] leading-relaxed text-chalk-dim">{body}</p>}
         {action}
       </div>
     </div>

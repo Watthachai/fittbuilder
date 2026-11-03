@@ -78,7 +78,7 @@ export default function LoginPage() {
         </div>
 
         <div className="mx-auto w-full max-w-sm py-10">
-          <p className="mb-4 font-mono text-[11px] uppercase tracking-[0.22em] text-shine">
+          <p className="mb-4 font-mono text-[0.6875rem] uppercase tracking-[0.22em] text-shine">
             FITT-001 · เข้าสู่ระบบ
           </p>
           <h1
@@ -94,7 +94,7 @@ export default function LoginPage() {
             <br />
             ได้<span className="text-shine">เว็บจริง</span>
           </h1>
-          <p className="mt-4 text-[15px] leading-relaxed text-chalk-dim">
+          <p className="mt-4 text-[0.9375rem] leading-relaxed text-chalk-dim">
             เข้าสู่ระบบเพื่อเริ่มสร้าง demo ที่รันได้จริงในเบราว์เซอร์ — ไม่ต้องเขียนโค้ด
           </p>
 
@@ -118,7 +118,7 @@ export default function LoginPage() {
               </div>
             ) : (
               <>
-                <div className="flex items-center gap-3 text-[11px] uppercase tracking-widest text-chalk-dim/60">
+                <div className="flex items-center gap-3 text-[0.6875rem] uppercase tracking-widest text-chalk-dim/60">
                   <span className="h-px flex-1 bg-chalk/10" /> หรือ
                   <span className="h-px flex-1 bg-chalk/10" />
                 </div>
@@ -149,7 +149,7 @@ export default function LoginPage() {
           </div>
         </div>
 
-        <p className="font-mono text-[11px] text-chalk-dim/70">
+        <p className="font-mono text-[0.6875rem] text-chalk-dim/70">
           สร้าง demo แรกของคุณภายใน 60 วินาที — ฟรี
         </p>
       </section>

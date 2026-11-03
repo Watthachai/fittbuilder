@@ -12,12 +12,12 @@ import { FileDown, Loader2 } from "lucide-react";
  */
 
 export const inputCls =
-  "w-full rounded-lg border border-night-edge bg-night px-2.5 py-1.5 text-[14px] text-chalk outline-none focus:border-shine/60 disabled:opacity-50";
+  "w-full rounded-lg border border-night-edge bg-night px-2.5 py-1.5 text-[0.875rem] text-chalk outline-none focus:border-shine/60 disabled:opacity-50";
 
 export function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <label className="block">
-      <span className="mb-1 block font-display text-[11.5px] uppercase tracking-widest text-chalk-dim">
+      <span className="mb-1 block font-display text-[0.71875rem] uppercase tracking-widest text-chalk-dim">
         {label}
       </span>
       {children}
@@ -27,7 +27,7 @@ export function Field({ label, children }: { label: string; children: React.Reac
 
 export function Total({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex items-baseline justify-between py-0.5 text-[14px]">
+    <div className="flex items-baseline justify-between py-0.5 text-[0.875rem]">
       <span className="text-chalk-dim">{label}</span>
       <span className="font-mono text-chalk">{value}</span>
     </div>
@@ -68,8 +68,8 @@ export function SectionToggle({
         />
       </button>
       <div className="min-w-0">
-        <h3 className="font-display text-[14px] text-chalk">{title}</h3>
-        <p className="mt-0.5 text-[12.5px] leading-relaxed text-chalk-dim">{hint}</p>
+        <h3 className="font-display text-[0.875rem] text-chalk">{title}</h3>
+        <p className="mt-0.5 text-[0.78125rem] leading-relaxed text-chalk-dim">{hint}</p>
       </div>
     </div>
   );
@@ -95,7 +95,7 @@ export function WordButton({
         type="button"
         onClick={onClick}
         disabled={disabled}
-        className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-lg border border-shine/50 px-3 py-2 font-display text-[14px] text-shine transition hover:bg-shine/10 disabled:opacity-60"
+        className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-lg border border-shine/50 px-3 py-2 font-display text-[0.875rem] text-shine transition hover:bg-shine/10 disabled:opacity-60"
       >
         {busy ? (
           <>
@@ -107,7 +107,7 @@ export function WordButton({
           </>
         )}
       </button>
-      <p className="mt-1.5 text-center text-[11.5px] leading-relaxed text-chalk-dim">
+      <p className="mt-1.5 text-center text-[0.71875rem] leading-relaxed text-chalk-dim">
         เปิดแก้ต่อใน Word หรือ Google Docs ได้
       </p>
     </>

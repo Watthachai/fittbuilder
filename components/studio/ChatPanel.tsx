@@ -139,7 +139,7 @@ function Thinking({ text, expanded }: { text: string; expanded: boolean }) {
     <div className="mb-1.5 rounded-lg border border-night-edge bg-night/40 px-3 py-2">
       <button
         onClick={() => setOpen((o) => !o)}
-        className="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-wider text-chalk-dim transition hover:text-chalk"
+        className="flex items-center gap-1.5 font-mono text-[0.625rem] uppercase tracking-wider text-chalk-dim transition hover:text-chalk"
       >
         <Sparkles size={11} className="text-shine" />
         ความคิด
@@ -182,7 +182,7 @@ function ActionHistory({ actions, live }: { actions: AgentAction[]; live: boolea
   if (groups.length === 0) return null;
   return (
     <div className="mt-2 overflow-hidden rounded-lg border border-night-edge bg-night/30">
-      <div className="flex items-center gap-1.5 border-b border-night-edge px-3 py-2 font-mono text-[10px] uppercase tracking-wider text-chalk-dim">
+      <div className="flex items-center gap-1.5 border-b border-night-edge px-3 py-2 font-mono text-[0.625rem] uppercase tracking-wider text-chalk-dim">
         <ListChecks size={12} className="text-shine" />
         Action history
       </div>
@@ -191,7 +191,7 @@ function ActionHistory({ actions, live }: { actions: AgentAction[]; live: boolea
           // "Thought for Xs" is a single standalone line — no count header / rows.
           if (g.kind === "thought") {
             return (
-              <div key={gi} className="flex items-center gap-1.5 text-[12px] text-chalk">
+              <div key={gi} className="flex items-center gap-1.5 text-[0.75rem] text-chalk">
                 <Lightbulb size={13} className="shrink-0 text-chalk-dim" />
                 <span>{g.items[0]}</span>
               </div>
@@ -202,7 +202,7 @@ function ActionHistory({ actions, live }: { actions: AgentAction[]; live: boolea
           const lastGroup = gi === groups.length - 1;
           return (
             <div key={gi}>
-              <div className="flex items-center gap-1.5 text-[12px] text-chalk">
+              <div className="flex items-center gap-1.5 text-[0.75rem] text-chalk">
                 <Icon size={13} className="shrink-0 text-chalk-dim" />
                 <span>{meta.header(g.items.length)}</span>
               </div>
@@ -210,7 +210,7 @@ function ActionHistory({ actions, live }: { actions: AgentAction[]; live: boolea
                 {g.items.map((item, ii) => {
                   const working = live && lastGroup && ii === g.items.length - 1;
                   return (
-                    <div key={ii} className="flex items-center justify-between gap-2 text-[12px] text-chalk-dim">
+                    <div key={ii} className="flex items-center justify-between gap-2 text-[0.75rem] text-chalk-dim">
                       <span className="truncate font-mono">{item}</span>
                       {working ? (
                         <Loader2 size={13} className="shrink-0 animate-spin text-shine" />
@@ -225,7 +225,7 @@ function ActionHistory({ actions, live }: { actions: AgentAction[]; live: boolea
           );
         })}
         {live && (
-          <div className="flex items-center gap-1.5 text-[12px] text-chalk-dim">
+          <div className="flex items-center gap-1.5 text-[0.75rem] text-chalk-dim">
             <Loader2 size={13} className="shrink-0 animate-spin text-shine" />
             กำลังทำงาน…
           </div>
@@ -477,7 +477,7 @@ export default function ChatPanel({
             <div key={message.id} className="flex w-full flex-col items-end pl-8">
               {/* A shared project has many typists — name the one who isn't you. */}
               {message.author?.name && message.author.name !== myName && (
-                <span className="mb-1 mr-9 font-mono text-[10px] uppercase tracking-[0.15em] text-chalk-dim">
+                <span className="mb-1 mr-9 font-mono text-[0.625rem] uppercase tracking-[0.15em] text-chalk-dim">
                   {message.author.name}
                 </span>
               )}
@@ -503,7 +503,7 @@ export default function ChatPanel({
                       ) : (
                         <span
                           key={m.path}
-                          className="rounded-lg border border-shine/20 px-2 py-1 font-mono text-[10px] text-chalk-dim"
+                          className="rounded-lg border border-shine/20 px-2 py-1 font-mono text-[0.625rem] text-chalk-dim"
                         >
                           {m.name}
                         </span>
@@ -543,7 +543,7 @@ export default function ChatPanel({
             <div className="mb-1 flex items-center gap-1.5">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src="/logo.png" alt="" className="h-5 w-5 shrink-0 rounded-md" draggable={false} />
-              <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-chalk-dim">
+              <p className="font-mono text-[0.625rem] uppercase tracking-[0.2em] text-chalk-dim">
                 {agentName}
               </p>
             </div>
@@ -569,7 +569,7 @@ export default function ChatPanel({
               !isBuildPhase(message.phase) && (
                 <button
                   onClick={() => onViewDoc(message.phase!)}
-                  className="mt-2 inline-flex items-center gap-1.5 rounded-md border border-night-edge bg-night px-2.5 py-1 font-mono text-[11px] text-chalk-dim transition hover:border-shine/60 hover:text-chalk"
+                  className="mt-2 inline-flex items-center gap-1.5 rounded-md border border-night-edge bg-night px-2.5 py-1 font-mono text-[0.6875rem] text-chalk-dim transition hover:border-shine/60 hover:text-chalk"
                 >
                   <FileText size={12} className="text-shine" />
                   ดูเอกสาร
@@ -586,7 +586,7 @@ export default function ChatPanel({
                     ? `เวอร์ชัน ${message.revision.sha} — ย้อนกลับได้ที่แท็บ History`
                     : undefined
                 }
-                className="mt-2 inline-flex items-center gap-1.5 rounded-md border border-night-edge bg-night px-2.5 py-1 font-mono text-[11px] text-chalk-dim transition hover:border-shine/60 hover:text-chalk"
+                className="mt-2 inline-flex items-center gap-1.5 rounded-md border border-night-edge bg-night px-2.5 py-1 font-mono text-[0.6875rem] text-chalk-dim transition hover:border-shine/60 hover:text-chalk"
               >
                 <GitCompare size={12} className="text-shine" />
                 {message.revision && <span className="text-shine">{message.revision.sha}</span>}
@@ -598,7 +598,7 @@ export default function ChatPanel({
               message.citations.length > 0 &&
               orgDna && (
                 <div className="mt-2 flex flex-wrap items-center gap-1.5">
-                  <span className="font-mono text-[10px] uppercase tracking-wider text-chalk-dim">
+                  <span className="font-mono text-[0.625rem] uppercase tracking-wider text-chalk-dim">
                     <Quote size={11} className="mr-1 inline text-shine" />
                     อ้างอิง Org DNA
                   </span>
@@ -612,7 +612,7 @@ export default function ChatPanel({
                         }
                         disabled={!orgDna.sources}
                         title={quote ? `จากข้อมูลคุณ: “${quote}”` : "ดูแหล่งข้อมูล"}
-                        className="rounded-full border border-night-edge bg-night px-2 py-0.5 text-[11px] text-chalk-dim transition hover:border-shine/60 hover:text-chalk disabled:opacity-50"
+                        className="rounded-full border border-night-edge bg-night px-2 py-0.5 text-[0.6875rem] text-chalk-dim transition hover:border-shine/60 hover:text-chalk disabled:opacity-50"
                       >
                         {CITE_LABELS[key] ?? key}
                       </button>
@@ -626,7 +626,7 @@ export default function ChatPanel({
               <button
                 onClick={() => onReportReply(message)}
                 title="ส่งข้อความนี้ให้ทีมดูแล พร้อมล็อกล่าสุด"
-                className="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 font-display text-[11px] text-chalk-dim/70 transition hover:bg-red-600/10 hover:text-red-500"
+                className="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 font-display text-[0.6875rem] text-chalk-dim/70 transition hover:bg-red-600/10 hover:text-red-500"
               >
                 <Flag size={11} /> แจ้งปัญหา
               </button>
@@ -644,7 +644,7 @@ export default function ChatPanel({
                 className="h-6 w-6 shrink-0"
                 draggable={false}
               />
-              <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-chalk-dim">
+              <p className="font-mono text-[0.625rem] uppercase tracking-[0.2em] text-chalk-dim">
                 {agentName} · กำลังทำงาน
               </p>
             </div>
@@ -655,7 +655,7 @@ export default function ChatPanel({
                 {live.content ? (
                   <Markdown>{live.content}</Markdown>
                 ) : (
-                  <span className="text-[14px] text-chalk-dim">
+                  <span className="text-[0.875rem] text-chalk-dim">
                     {inBuild ? "กำลังเขียนโค้ด" : "กำลังพิมพ์"}
                   </span>
                 )}
@@ -670,7 +670,7 @@ export default function ChatPanel({
       {activeAsk && !readOnly && (
         <div className="shrink-0 border-t border-night-edge bg-night px-3 pt-3">
           {activeAsk.question && (
-            <p className="mb-2 font-display text-[12px] text-chalk-dim">
+            <p className="mb-2 font-display text-[0.75rem] text-chalk-dim">
               {activeAsk.question}
               {activeAsk.multi && <span className="ml-1 text-chalk-dim/60">(เลือกได้หลายข้อ)</span>}
             </p>
@@ -682,14 +682,14 @@ export default function ChatPanel({
                 <button
                   key={option}
                   onClick={() => onOption(option)}
-                  className={`flex w-full items-center gap-2.5 rounded-md border px-3 py-2 text-left text-[13px] transition ${
+                  className={`flex w-full items-center gap-2.5 rounded-md border px-3 py-2 text-left text-[0.8125rem] transition ${
                     selected
                       ? "border-shine bg-shine/10 text-chalk light:border-selected-edge light:bg-selected light:text-selected-ink"
                       : "border-night-edge bg-night-panel text-chalk hover:border-shine/60"
                   }`}
                 >
                   <span
-                    className={`grid h-5 w-5 shrink-0 place-items-center rounded text-[10px] font-bold ${
+                    className={`grid h-5 w-5 shrink-0 place-items-center rounded text-[0.625rem] font-bold ${
                       selected ? "bg-shine text-night" : "border border-night-edge text-chalk-dim"
                     }`}
                   >
@@ -701,7 +701,7 @@ export default function ChatPanel({
             })}
           </div>
           {activeAsk.allowText !== false && (
-            <p className="mt-2 text-[13px] font-medium text-orange-400">
+            <p className="mt-2 text-[0.8125rem] font-medium text-orange-400">
               ไม่มีตัวเลือกที่ตรง? พิมพ์คำตอบเองในช่องด้านล่างได้เลย ↓
             </p>
           )}
@@ -728,13 +728,13 @@ export default function ChatPanel({
       {peers.length > 0 && (
         <div className="shrink-0 border-t border-night-edge bg-night px-3.5 py-1.5">
           {peers.some((p) => p.mode === "working") && (
-            <p className="flex items-center gap-1.5 text-[11px] text-shine">
+            <p className="flex items-center gap-1.5 text-[0.6875rem] text-shine">
               <Loader2 size={11} className="animate-spin" />
               {peers.filter((p) => p.mode === "working").map((p) => p.name).join(", ")} กำลังให้ AI ทำงาน…
             </p>
           )}
           {peers.some((p) => p.mode === "typing") && (
-            <p className="text-[11px] italic text-chalk-dim">
+            <p className="text-[0.6875rem] italic text-chalk-dim">
               {peers.filter((p) => p.mode === "typing").map((p) => p.name).join(", ")} กำลังพิมพ์…
             </p>
           )}
@@ -754,7 +754,7 @@ export default function ChatPanel({
 
       {readOnly ? (
         <div className="shrink-0 border-t border-night-edge p-3">
-          <p className="flex items-center justify-center gap-2 rounded-md border border-night-edge bg-night px-3 py-3 text-center text-[12px] text-chalk-dim">
+          <p className="flex items-center justify-center gap-2 rounded-md border border-night-edge bg-night px-3 py-3 text-center text-[0.75rem] text-chalk-dim">
             <Eye size={13} className="shrink-0 text-chalk-dim" />
             โหมดดูอย่างเดียว — คุยกับทีมได้ที่ห้องแชท
           </p>
@@ -767,7 +767,7 @@ export default function ChatPanel({
               {attachments.map((path) => (
                 <span
                   key={path}
-                  className="inline-flex items-center gap-1 rounded-md border border-night-edge bg-night-panel px-2 py-0.5 font-mono text-[10px] text-chalk-dim"
+                  className="inline-flex items-center gap-1 rounded-md border border-night-edge bg-night-panel px-2 py-0.5 font-mono text-[0.625rem] text-chalk-dim"
                 >
                   <Paperclip size={9} className="text-shine" />
                   <span className="max-w-[160px] truncate">{path}</span>
@@ -809,7 +809,7 @@ export default function ChatPanel({
                 ) : (
                   <span
                     key={`${m.name}-${i}`}
-                    className="inline-flex items-center gap-1 rounded-md border border-night-edge bg-night-panel px-2 py-1 font-mono text-[10px] text-chalk-dim"
+                    className="inline-flex items-center gap-1 rounded-md border border-night-edge bg-night-panel px-2 py-1 font-mono text-[0.625rem] text-chalk-dim"
                   >
                     <FileText size={11} className="text-shine" />
                     <span className="max-w-[160px] truncate">{m.name}</span>
@@ -845,7 +845,7 @@ export default function ChatPanel({
               }
             }}
             placeholder={placeholder}
-            className="block max-h-[260px] w-full resize-none overflow-y-auto bg-transparent px-3 py-2.5 text-[15px] leading-6 text-chalk outline-none placeholder:text-chalk-dim/60 disabled:opacity-50"
+            className="block max-h-[260px] w-full resize-none overflow-y-auto bg-transparent px-3 py-2.5 text-[0.9375rem] leading-6 text-chalk outline-none placeholder:text-chalk-dim/60 disabled:opacity-50"
           />
           <div className="flex items-center justify-between px-3 pb-2">
             <div className="flex items-center gap-2">
@@ -880,15 +880,15 @@ export default function ChatPanel({
                   <>
                     <div className="fixed inset-0 z-40" onClick={() => setLibOpen(false)} />
                     <div className="scroll-thin absolute bottom-full left-0 z-50 mb-2 max-h-64 w-72 overflow-y-auto rounded-xl border border-night-edge bg-night-panel py-1 shadow-2xl">
-                      <p className="px-3 py-1 font-mono text-[10px] uppercase tracking-wider text-chalk-dim">
+                      <p className="px-3 py-1 font-mono text-[0.625rem] uppercase tracking-wider text-chalk-dim">
                         ไฟล์ในโปรเจกต์นี้
                       </p>
                       {libBusy ? (
-                        <p className="flex items-center gap-2 px-3 py-2 text-[12px] text-chalk-dim">
+                        <p className="flex items-center gap-2 px-3 py-2 text-[0.75rem] text-chalk-dim">
                           <Loader2 size={12} className="animate-spin" /> กำลังโหลด…
                         </p>
                       ) : !libFiles || libFiles.length === 0 ? (
-                        <p className="px-3 py-2 text-[12px] leading-relaxed text-chalk-dim">
+                        <p className="px-3 py-2 text-[0.75rem] leading-relaxed text-chalk-dim">
                           ยังไม่มีไฟล์ — ไฟล์ที่แนบให้ AI หรือส่งในห้องแชททีมจะมารออยู่ที่นี่
                         </p>
                       ) : (
@@ -912,10 +912,10 @@ export default function ChatPanel({
                             ) : (
                               <FileText size={13} className="shrink-0 text-shine" />
                             )}
-                            <span className="min-w-0 flex-1 truncate text-[12px] text-chalk/85">
+                            <span className="min-w-0 flex-1 truncate text-[0.75rem] text-chalk/85">
                               {f.name}
                               {f.createdAt && (
-                                <span className="block font-mono text-[10px] text-chalk-dim">
+                                <span className="block font-mono text-[0.625rem] text-chalk-dim">
                                   {new Date(f.createdAt).toLocaleString("th-TH", {
                                     day: "numeric",
                                     month: "short",
@@ -926,7 +926,7 @@ export default function ChatPanel({
                               )}
                             </span>
                             {f.size !== null && (
-                              <span className="shrink-0 font-mono text-[10px] text-chalk-dim">
+                              <span className="shrink-0 font-mono text-[0.625rem] text-chalk-dim">
                                 {Math.max(1, Math.round(f.size / 1024))}KB
                               </span>
                             )}
@@ -950,7 +950,7 @@ export default function ChatPanel({
                 )}
               </div>
               <span
-                className={`font-mono text-[10px] ${
+                className={`font-mono text-[0.625rem] ${
                   draft.length >= MESSAGE_WARN_CHARS ? "text-halt" : "text-chalk-dim"
                 }`}
               >

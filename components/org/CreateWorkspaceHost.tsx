@@ -73,7 +73,7 @@ export default function CreateWorkspaceHost() {
           </span>
           <div>
             <h2 className="font-display text-base font-semibold text-chalk">สร้าง workspace ใหม่</h2>
-            <p className="text-[12px] text-chalk-dim">ตั้งชื่อ สี และไอคอน เพื่อแยกหมวดหมู่</p>
+            <p className="text-[0.75rem] text-chalk-dim">ตั้งชื่อ สี และไอคอน เพื่อแยกหมวดหมู่</p>
           </div>
         </div>
 
@@ -85,7 +85,7 @@ export default function CreateWorkspaceHost() {
             if (e.key === "Enter") void create();
           }}
           placeholder="ชื่อ workspace — เช่น ทีมการตลาด"
-          className="mt-4 w-full rounded-lg border border-night-edge bg-night px-3 py-2.5 text-[14px] text-chalk outline-none focus:border-shine"
+          className="mt-4 w-full rounded-lg border border-night-edge bg-night px-3 py-2.5 text-[0.875rem] text-chalk outline-none focus:border-shine"
         />
 
         <div className="mt-4">

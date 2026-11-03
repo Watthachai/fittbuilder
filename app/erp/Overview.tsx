@@ -29,8 +29,8 @@ export default function Overview() {
 
   return (
     <div className="mx-auto max-w-5xl">
-      <h1 className="text-[20px] font-semibold text-slate-900 dark:text-slate-50">สวัสดี {role.name}</h1>
-      <p className="mt-0.5 text-[13px] text-slate-500 dark:text-slate-400">
+      <h1 className="text-[1.25rem] font-semibold text-slate-900 dark:text-slate-50">สวัสดี {role.name}</h1>
+      <p className="mt-0.5 text-[0.8125rem] text-slate-500 dark:text-slate-400">
         บัญชี{role.title} เปิดได้ {openCount} จาก {MODULES.length} ส่วน ใน {systems.length} ระบบ
       </p>
 
@@ -41,10 +41,10 @@ export default function Overview() {
           <section key={family.id} className="mt-6">
             <div className="flex items-baseline justify-between gap-3">
               <div>
-                <h2 className="text-[14px] font-semibold text-slate-900 dark:text-slate-50">ระบบ{family.name}</h2>
-                <p className="text-[12.5px] text-slate-500 dark:text-slate-400">{family.blurb}</p>
+                <h2 className="text-[0.875rem] font-semibold text-slate-900 dark:text-slate-50">ระบบ{family.name}</h2>
+                <p className="text-[0.78125rem] text-slate-500 dark:text-slate-400">{family.blurb}</p>
               </div>
-              <span className="shrink-0 text-[12px] text-slate-400 dark:text-slate-500">
+              <span className="shrink-0 text-[0.75rem] text-slate-400 dark:text-slate-500">
                 เปิดได้ {mine.length} จาก {parts.length} ส่วน
               </span>
             </div>
@@ -56,23 +56,23 @@ export default function Overview() {
                     <div className="flex items-baseline justify-between gap-2">
                       <span
                         className={
-                          "text-[14px] font-semibold " +
+                          "text-[0.875rem] font-semibold " +
                           (locked ? "text-slate-400 dark:text-slate-600" : "text-slate-900 group-hover:text-violet-700 dark:text-slate-50")
                         }
                       >
                         {m.name}
                       </span>
                       {locked ? (
-                        <span className="flex shrink-0 items-center gap-1 text-[11px] text-slate-400 dark:text-slate-600">
+                        <span className="flex shrink-0 items-center gap-1 text-[0.6875rem] text-slate-400 dark:text-slate-600">
                           <Lock size={11} /> ไม่มีสิทธิ์
                         </span>
                       ) : (
-                        <span className="shrink-0 text-[11px] text-slate-400">{m.keyFeatures.length} ความสามารถ</span>
+                        <span className="shrink-0 text-[0.6875rem] text-slate-400">{m.keyFeatures.length} ความสามารถ</span>
                       )}
                     </div>
                     <p
                       className={
-                        "mt-1 line-clamp-2 text-[12.5px] leading-snug " +
+                        "mt-1 line-clamp-2 text-[0.78125rem] leading-snug " +
                         (locked ? "text-slate-300 dark:text-slate-700" : "text-slate-500 dark:text-slate-400")
                       }
                     >

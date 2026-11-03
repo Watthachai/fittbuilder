@@ -173,7 +173,7 @@ export default function WandComposer({
       {/* Target */}
       <div className="flex shrink-0 items-center gap-2 border-b border-night-edge px-3 py-2">
         <Wand2 size={13} className="shrink-0 text-shine" />
-        <span className="min-w-0 flex-1 truncate font-mono text-[11px] text-chalk-dim">
+        <span className="min-w-0 flex-1 truncate font-mono text-[0.6875rem] text-chalk-dim">
           <span className="text-shine">&lt;{target.tag}&gt;</span> · {shortLoc(target.loc)}
         </span>
         <button
@@ -197,7 +197,7 @@ export default function WandComposer({
             key={id}
             onClick={() => setMode(id)}
             title={hint}
-            className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1 font-display text-[12px] transition ${
+            className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1 font-display text-[0.75rem] transition ${
               mode === id ? "bg-shine text-night" : "text-chalk-dim hover:text-chalk"
             }`}
           >
@@ -207,7 +207,7 @@ export default function WandComposer({
       </div>
 
       {locked && (
-        <p className="mx-3 mt-2 shrink-0 rounded-lg border border-amber-400/40 bg-amber-400/10 px-2.5 py-1.5 text-[11px] leading-relaxed text-amber-200">
+        <p className="mx-3 mt-2 shrink-0 rounded-lg border border-amber-400/40 bg-amber-400/10 px-2.5 py-1.5 text-[0.6875rem] leading-relaxed text-amber-200">
           กำลังแก้ไขรอบก่อนหน้าอยู่ — ทำได้ทีละรอบครับ เลือกไว้ก่อนได้ พอเสร็จแล้วกดต่อได้เลย
         </p>
       )}
@@ -238,7 +238,7 @@ export default function WandComposer({
                 key={`tx-${c.text}`}
                 onClick={() => quick(textColorAction(c.text, c.label))}
                 title={c.label}
-                className="grid h-5 w-5 place-items-center rounded-md border border-white/15 font-display text-[11px] font-bold transition hover:scale-110"
+                className="grid h-5 w-5 place-items-center rounded-md border border-white/15 font-display text-[0.6875rem] font-bold transition hover:scale-110"
                 style={{ color: c.swatch }}
               >
                 A
@@ -268,7 +268,7 @@ export default function WandComposer({
           </Row>
           {canEditText && (
             <div>
-              <p className="mb-1 font-display text-[10px] uppercase tracking-widest text-chalk-dim">
+              <p className="mb-1 font-display text-[0.625rem] uppercase tracking-widest text-chalk-dim">
                 ข้อความ
               </p>
               <div className="flex items-center gap-1.5">
@@ -279,20 +279,20 @@ export default function WandComposer({
                     if (e.key === "Enter") applyText();
                   }}
                   placeholder="พิมพ์ข้อความใหม่"
-                  className="min-w-0 flex-1 rounded-lg border border-night-edge bg-night px-2.5 py-1.5 text-[12px] text-chalk outline-none focus:border-shine/60"
+                  className="min-w-0 flex-1 rounded-lg border border-night-edge bg-night px-2.5 py-1.5 text-[0.75rem] text-chalk outline-none focus:border-shine/60"
                 />
                 <button
                   onClick={applyText}
                   disabled={!draft.trim() || draft.trim() === target.text}
                   title="ใช้ข้อความนี้"
-                  className="shrink-0 rounded-lg bg-shine px-2.5 py-1.5 font-display text-[12px] font-semibold text-night transition hover:brightness-110 disabled:opacity-30"
+                  className="shrink-0 rounded-lg bg-shine px-2.5 py-1.5 font-display text-[0.75rem] font-semibold text-night transition hover:brightness-110 disabled:opacity-30"
                 >
                   <Check size={13} />
                 </button>
               </div>
             </div>
           )}
-          <p className="text-[10px] leading-relaxed text-chalk-dim">
+          <p className="text-[0.625rem] leading-relaxed text-chalk-dim">
             ปรับเร็วแก้โค้ดตรงจุดทันที ไม่ใช้โควตา AI · ย้อนกลับได้ด้วยปุ่ม Undo
           </p>
         </div>
@@ -318,10 +318,10 @@ export default function WandComposer({
             rows={3}
             disabled={locked}
             placeholder={`บอกสิ่งที่อยากให้ <${target.tag}> นี้เป็น เช่น “ใส่ไอคอนตะกร้าหน้าข้อความ”`}
-            className="w-full resize-none rounded-lg border border-night-edge bg-night px-2.5 py-2 text-[12px] leading-relaxed text-chalk outline-none focus:border-shine/60 disabled:opacity-50"
+            className="w-full resize-none rounded-lg border border-night-edge bg-night px-2.5 py-2 text-[0.75rem] leading-relaxed text-chalk outline-none focus:border-shine/60 disabled:opacity-50"
           />
           {attachments.length > 0 && (
-            <div className="mt-1.5 flex items-center gap-1.5 rounded-md bg-night px-2 py-1 font-mono text-[10px] text-chalk-dim">
+            <div className="mt-1.5 flex items-center gap-1.5 rounded-md bg-night px-2 py-1 font-mono text-[0.625rem] text-chalk-dim">
               <ImagePlus size={10} className="text-shine" />
               <span className="min-w-0 flex-1 truncate">{attachments[0].name}</span>
               <button onClick={() => setAttachments([])} className="hover:text-chalk">
@@ -350,7 +350,7 @@ export default function WandComposer({
             <button
               onClick={cast}
               disabled={locked || !text.trim()}
-              className="flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-shine px-3 py-1.5 font-display text-[12px] font-semibold text-night transition hover:brightness-110 disabled:opacity-40"
+              className="flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-shine px-3 py-1.5 font-display text-[0.75rem] font-semibold text-night transition hover:brightness-110 disabled:opacity-40"
             >
               <Sparkles size={12} />
               {locked ? "รอรอบที่กำลังทำอยู่" : "เสก (Enter)"}
@@ -360,7 +360,7 @@ export default function WandComposer({
       )}
 
       {label && (
-        <div className="shrink-0 border-t border-night-edge px-3 py-1.5 font-display text-[11px] text-go">
+        <div className="shrink-0 border-t border-night-edge px-3 py-1.5 font-display text-[0.6875rem] text-go">
           ✓ {label}
         </div>
       )}
@@ -371,7 +371,7 @@ export default function WandComposer({
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div>
-      <p className="mb-1 font-display text-[10px] uppercase tracking-widest text-chalk-dim">
+      <p className="mb-1 font-display text-[0.625rem] uppercase tracking-widest text-chalk-dim">
         {label}
       </p>
       <div className="flex flex-wrap items-center gap-1.5">{children}</div>
@@ -383,7 +383,7 @@ function Chip({ children, onClick }: { children: React.ReactNode; onClick: () =>
   return (
     <button
       onClick={onClick}
-      className="rounded-md border border-night-edge px-1.5 py-0.5 font-mono text-[10px] text-chalk-dim transition hover:border-shine/60 hover:text-chalk"
+      className="rounded-md border border-night-edge px-1.5 py-0.5 font-mono text-[0.625rem] text-chalk-dim transition hover:border-shine/60 hover:text-chalk"
     >
       {children}
     </button>

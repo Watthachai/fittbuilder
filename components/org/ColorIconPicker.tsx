@@ -18,7 +18,7 @@ export default function ColorIconPicker({
   return (
     <div className="space-y-4">
       <div>
-        <p className="mb-1.5 font-mono text-[11px] uppercase tracking-wider text-chalk-dim">สี</p>
+        <p className="mb-1.5 font-mono text-[0.6875rem] uppercase tracking-wider text-chalk-dim">สี</p>
         <div className="flex flex-wrap gap-2">
           {WORKSPACE_COLORS.map((c) => (
             <button
@@ -35,7 +35,7 @@ export default function ColorIconPicker({
         </div>
       </div>
       <div>
-        <p className="mb-1.5 font-mono text-[11px] uppercase tracking-wider text-chalk-dim">ไอคอน</p>
+        <p className="mb-1.5 font-mono text-[0.6875rem] uppercase tracking-wider text-chalk-dim">ไอคอน</p>
         <div className="flex flex-wrap gap-1.5">
           {WORKSPACE_ICON_KEYS.map((key) => {
             const active = icon === key;

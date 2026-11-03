@@ -23,6 +23,17 @@ export const CHANGE_BADGE: Record<ChangeType, { label: string; className: string
 // Newest first. SemVer: fix → PATCH, feature → MINOR, breaking → MAJOR.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.120.0",
+    date: "2026-11-03",
+    title: "ปรับขนาดตัวอักษรได้เอง",
+    items: [
+      {
+        type: "feature",
+        text: "ตัวหนังสือเล็กไป ปรับได้แล้วที่ปุ่มลอยมุมขวาล่าง (ปุ่มเดียวกับธีม) หรือในเมนูบัญชี กด A− / A+ ทีละ 10% ตั้งแต่ 90% ถึง 140% กดที่ตัวเลขเพื่อกลับขนาดปกติ เครื่องแต่ละเครื่องจำขนาดของตัวเอง ใบเสนอราคาและเอกสารที่พิมพ์ยังเป็นขนาดเดิม",
+      },
+    ],
+  },
+  {
     version: "0.119.0",
     date: "2026-11-03",
     title: "ผู้อนุมัติของบริษัท อนุมัติได้ทุก workspace",

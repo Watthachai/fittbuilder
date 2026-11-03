@@ -154,7 +154,7 @@ export default function CompanyView() {
   return (
     <div className="w-full max-w-3xl px-8 py-10">
       <Header name={company.name} />
-      <p className="mt-3 text-[13px] leading-relaxed text-chalk-dim">
+      <p className="mt-3 text-[0.8125rem] leading-relaxed text-chalk-dim">
         ผู้อนุมัติของบริษัทอนุมัติใบเสนอราคาและข้อเสนอโครงการได้ทุก workspace ของคนในบริษัท และเปิดดูได้อย่างเดียว
         {company.emailDomain && <> · คนที่ใช้อีเมล @{company.emailDomain} เข้าบริษัทให้เอง</>}
       </p>
@@ -164,7 +164,7 @@ export default function CompanyView() {
           <h2 className="flex items-center gap-2 font-display text-sm font-semibold">
             <Link2 size={15} className="text-shine" /> เชิญเข้าบริษัทด้วยลิงก์
           </h2>
-          <p className="mt-1 text-[13px] text-chalk-dim">
+          <p className="mt-1 text-[0.8125rem] text-chalk-dim">
             ส่งลิงก์ให้ทางแชตส่วนตัว คนแรกที่กดจะได้บทบาทที่เลือก · ใช้ได้ครั้งเดียว ภายใน 7 วัน · คนที่อยู่ในบริษัทแล้วจะได้บทบาทใหม่แทน
           </p>
           <div className="mt-3 flex flex-wrap gap-2">
@@ -199,7 +199,7 @@ export default function CompanyView() {
                   </span>
                   <button
                     onClick={() => void copyLink(inv)}
-                    className="inline-flex shrink-0 items-center gap-1 rounded-sm border border-night-edge px-1.5 py-0.5 text-[10px] text-chalk-dim transition hover:border-shine hover:text-chalk"
+                    className="inline-flex shrink-0 items-center gap-1 rounded-sm border border-night-edge px-1.5 py-0.5 text-[0.625rem] text-chalk-dim transition hover:border-shine hover:text-chalk"
                     title="คัดลอกลิงก์ ส่งทางแชตได้"
                   >
                     <Copy size={11} /> ลิงก์
@@ -222,8 +222,8 @@ export default function CompanyView() {
       <section className="mt-6 rounded-xl border border-night-edge bg-night-panel p-4">
         <h2 className="flex items-center gap-2 font-display text-sm font-semibold">
           คนในบริษัท
-          <span className="rounded-full bg-chalk/10 px-2 py-0.5 font-mono text-[10px] text-chalk-dim">{members.length}</span>
-          <span className="text-[12px] font-normal text-chalk-dim">· อนุมัติได้ {approvers} คน</span>
+          <span className="rounded-full bg-chalk/10 px-2 py-0.5 font-mono text-[0.625rem] text-chalk-dim">{members.length}</span>
+          <span className="text-[0.75rem] font-normal text-chalk-dim">· อนุมัติได้ {approvers} คน</span>
         </h2>
         <div className="mt-3 space-y-1.5">
           {sorted.map((m) => {
@@ -233,11 +233,11 @@ export default function CompanyView() {
               <div key={m.userId} className="flex items-center gap-3 rounded-lg border border-night-edge bg-night px-3 py-2">
                 <Icon size={14} className={`shrink-0 ${m.role === "member" ? "text-chalk-dim" : "text-shine"}`} />
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-[13px] text-chalk">
+                  <p className="truncate text-[0.8125rem] text-chalk">
                     {m.name || m.email}
-                    {isSelf && <span className="ml-1.5 text-[11px] text-chalk-dim">(คุณ)</span>}
+                    {isSelf && <span className="ml-1.5 text-[0.6875rem] text-chalk-dim">(คุณ)</span>}
                   </p>
-                  {m.name && <p className="truncate font-mono text-[10px] text-chalk-dim">{m.email}</p>}
+                  {m.name && <p className="truncate font-mono text-[0.625rem] text-chalk-dim">{m.email}</p>}
                 </div>
                 {isAdmin && !isSelf ? (
                   <>
@@ -245,7 +245,7 @@ export default function CompanyView() {
                       value={m.role}
                       onChange={(e) => void changeRole(m, e.target.value as CompanyRole)}
                       disabled={busy}
-                      className="shrink-0 rounded-sm border border-night-edge bg-night px-1.5 py-0.5 text-[11px] text-chalk-dim outline-none transition hover:text-chalk focus:border-shine disabled:opacity-40"
+                      className="shrink-0 rounded-sm border border-night-edge bg-night px-1.5 py-0.5 text-[0.6875rem] text-chalk-dim outline-none transition hover:text-chalk focus:border-shine disabled:opacity-40"
                       aria-label={`บทบาทของ ${m.name || m.email}`}
                     >
                       <option value="member">{COMPANY_ROLE_LABEL.member}</option>
@@ -262,7 +262,7 @@ export default function CompanyView() {
                     </button>
                   </>
                 ) : (
-                  <span className="shrink-0 rounded-full border border-night-edge px-2 py-0.5 text-[10px] text-chalk-dim">
+                  <span className="shrink-0 rounded-full border border-night-edge px-2 py-0.5 text-[0.625rem] text-chalk-dim">
                     {COMPANY_ROLE_LABEL[m.role]}
                   </span>
                 )}
@@ -282,7 +282,7 @@ function Header({ name }: { name: string }) {
         <Building2 size={22} />
       </span>
       <div className="min-w-0">
-        <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-shine">บริษัท · ผู้อนุมัติเอกสาร</p>
+        <p className="font-mono text-[0.6875rem] uppercase tracking-[0.2em] text-shine">บริษัท · ผู้อนุมัติเอกสาร</p>
         <h1 className="truncate font-display text-xl font-semibold text-chalk">{name}</h1>
       </div>
     </div>

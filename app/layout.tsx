@@ -66,6 +66,12 @@ export default function RootLayout({
             __html: `(function(){try{var t=localStorage.getItem('fitt-theme');var c=document.documentElement.classList;c.remove('light','dark');if(t==='light'||t==='dark')c.add(t);}catch(e){}})();`,
           }}
         />
+        {/* No-FOUC text size (lib/useFontScale.ts): the saved percent on the root, before paint. */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var s=Number(localStorage.getItem('fitt-font-scale'));if(s>=90&&s<=140&&s%10===0&&s!==100)document.documentElement.style.fontSize=s+'%';}catch(e){}})();`,
+          }}
+        />
         {/* Helvetica Now Display — used by the Mainframe-style landing hero. */}
         <link
           rel="stylesheet"

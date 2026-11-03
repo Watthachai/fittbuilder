@@ -60,7 +60,7 @@ export default function ImageLightbox({
         className="max-h-[90vh] max-w-[92vw] rounded-lg object-contain shadow-2xl"
       />
       {alt && (
-        <p className="absolute bottom-5 left-1/2 max-w-[80vw] -translate-x-1/2 truncate rounded-full bg-black/60 px-3 py-1 font-mono text-[12px] text-white/80">
+        <p className="absolute bottom-5 left-1/2 max-w-[80vw] -translate-x-1/2 truncate rounded-full bg-black/60 px-3 py-1 font-mono text-[0.75rem] text-white/80">
           {alt}
         </p>
       )}

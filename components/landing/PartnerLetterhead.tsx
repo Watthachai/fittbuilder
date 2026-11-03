@@ -39,7 +39,7 @@ export default function PartnerLetterhead() {
   return (
     <figure className="mt-14">
       <figcaption className="mb-4 flex flex-wrap items-center justify-center gap-3">
-        <span className="font-mono text-[11px] uppercase tracking-[0.18em] text-chalk/45">
+        <span className="font-mono text-[0.6875rem] uppercase tracking-[0.18em] text-chalk/45">
           ออกใบเสนอราคา
         </span>
         <div
@@ -56,7 +56,7 @@ export default function PartnerLetterhead() {
               type="button"
               onClick={() => setOwnBrand(opt.on)}
               aria-pressed={ownBrand === opt.on}
-              className={`rounded-full px-4 py-1.5 text-[13px] transition ${
+              className={`rounded-full px-4 py-1.5 text-[0.8125rem] transition ${
                 ownBrand === opt.on
                   ? "bg-shine font-medium text-night"
                   : "text-chalk/60 hover:text-chalk"
@@ -76,7 +76,7 @@ export default function PartnerLetterhead() {
         <header className="flex items-start justify-between gap-6">
           <div className="flex items-center gap-3">
             {ownBrand ? (
-              <span className="grid h-11 w-11 shrink-0 place-items-center rounded-lg border border-dashed border-[color:var(--rule)] text-[9px] leading-tight text-[color:var(--ink-dim)]">
+              <span className="grid h-11 w-11 shrink-0 place-items-center rounded-lg border border-dashed border-[color:var(--rule)] text-[0.5625rem] leading-tight text-[color:var(--ink-dim)]">
                 โลโก้
                 <br />
                 คุณ
@@ -86,28 +86,28 @@ export default function PartnerLetterhead() {
               <img src="/logo.png" alt="" className="h-11 w-11 shrink-0 rounded-lg" />
             )}
             <div className="min-w-0">
-              <p className="text-[15px] leading-tight font-semibold">
+              <p className="text-[0.9375rem] leading-tight font-semibold">
                 {ownBrand ? "บริษัทของคุณ จำกัด" : "FITT Builder"}
               </p>
-              <p className="mt-0.5 text-[11px] text-[color:var(--ink-dim)]">
+              <p className="mt-0.5 text-[0.6875rem] text-[color:var(--ink-dim)]">
                 {ownBrand ? "เลขประจำตัวผู้เสียภาษี 0-1055-XXXXX-XX-X" : "fittbuilder.com"}
               </p>
             </div>
           </div>
           <div className="shrink-0 text-right">
-            <p className="text-[15px] font-semibold">ใบเสนอราคา</p>
-            <p className="mt-0.5 font-mono text-[11px] text-[color:var(--ink-dim)]">QT-2026-014</p>
+            <p className="text-[0.9375rem] font-semibold">ใบเสนอราคา</p>
+            <p className="mt-0.5 font-mono text-[0.6875rem] text-[color:var(--ink-dim)]">QT-2026-014</p>
           </div>
         </header>
 
-        <table className="mt-6 w-full text-[13px]">
+        <table className="mt-6 w-full text-[0.8125rem]">
           <caption className="sr-only">ตัวอย่างรายการในใบเสนอราคา</caption>
           <tbody>
             {LINES.map((line) => (
               <tr key={line.label} className="border-t border-[color:var(--rule)]">
                 <td className="py-2.5">
                   {line.label}
-                  <span className="block text-[11px] text-[color:var(--ink-dim)]">{line.meta}</span>
+                  <span className="block text-[0.6875rem] text-[color:var(--ink-dim)]">{line.meta}</span>
                 </td>
                 <td className="py-2.5 text-right font-mono tabular-nums">{baht(line.amount)}</td>
               </tr>
@@ -120,10 +120,10 @@ export default function PartnerLetterhead() {
             </tr>
             {terms.map((term, i) => (
               <tr key={term.id} className="text-[color:var(--ink-dim)]">
-                <td className="pt-2 text-[12px]">
+                <td className="pt-2 text-[0.75rem]">
                   งวดที่ {i + 1} · {term.when}
                 </td>
-                <td className="pt-2 text-right font-mono text-[12px] tabular-nums">
+                <td className="pt-2 text-right font-mono text-[0.75rem] tabular-nums">
                   {term.percent}% · {baht(Math.round((grand * term.percent) / 100))}
                 </td>
               </tr>
@@ -131,7 +131,7 @@ export default function PartnerLetterhead() {
           </tbody>
         </table>
 
-        <footer className="mt-6 flex items-center justify-between border-t border-[color:var(--rule)] pt-3 text-[11px] text-[color:var(--ink-dim)]">
+        <footer className="mt-6 flex items-center justify-between border-t border-[color:var(--rule)] pt-3 text-[0.6875rem] text-[color:var(--ink-dim)]">
           <span>ค่าดูแลระบบหลังส่งมอบ ขั้นต่ำ {baht(MA_MIN_MONTHLY)}/module/เดือน</span>
           <span
             // Struck through rather than removed: watching the line go is the
@@ -146,7 +146,7 @@ export default function PartnerLetterhead() {
           </span>
         </footer>
       </div>
-      <p className="mt-3 text-center text-[11px] text-chalk/40">
+      <p className="mt-3 text-center text-[0.6875rem] text-chalk/40">
         ตัวอย่างเอกสาร — ตัวเลขและเงื่อนไขคำนวณจากสูตรเดียวกับใบจริง
       </p>
     </figure>

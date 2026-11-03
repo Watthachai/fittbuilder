@@ -51,11 +51,11 @@ export function GrantLeadButton({ email, leadId }: { email: string; leadId: stri
       <input type="hidden" name="lead_id" value={leadId} />
       <button
         disabled={pending}
-        className="whitespace-nowrap rounded-lg border border-shine/50 px-2.5 py-1 font-display text-[12px] font-medium text-shine transition hover:bg-shine/10 disabled:opacity-40"
+        className="whitespace-nowrap rounded-lg border border-shine/50 px-2.5 py-1 font-display text-[0.75rem] font-medium text-shine transition hover:bg-shine/10 disabled:opacity-40"
       >
         {pending ? "กำลังให้สิทธิ์…" : "ให้สิทธิ์ Partner"}
       </button>
-      <Notice notice={notice} className="mt-1 text-[11px]" />
+      <Notice notice={notice} className="mt-1 text-[0.6875rem]" />
     </form>
   );
 }
@@ -67,11 +67,11 @@ export function RemovePartnerEmail({ email }: { email: string }) {
       <input type="hidden" name="email" value={email} />
       <button
         disabled={pending}
-        className="whitespace-nowrap rounded-lg px-2 py-1 text-[12px] text-chalk-dim transition hover:bg-halt/10 hover:text-halt disabled:opacity-40"
+        className="whitespace-nowrap rounded-lg px-2 py-1 text-[0.75rem] text-chalk-dim transition hover:bg-halt/10 hover:text-halt disabled:opacity-40"
       >
         {pending ? "กำลังยกเลิก…" : "ยกเลิกสิทธิ์"}
       </button>
-      <Notice notice={notice} className="mt-1 text-[11px]" />
+      <Notice notice={notice} className="mt-1 text-[0.6875rem]" />
     </form>
   );
 }
@@ -84,11 +84,11 @@ export function ResendPartnerEmail({ email }: { email: string }) {
       <input type="hidden" name="email" value={email} />
       <button
         disabled={pending}
-        className="whitespace-nowrap rounded-lg px-2 py-1 text-[12px] text-chalk-dim transition hover:bg-shine/10 hover:text-shine disabled:opacity-40"
+        className="whitespace-nowrap rounded-lg px-2 py-1 text-[0.75rem] text-chalk-dim transition hover:bg-shine/10 hover:text-shine disabled:opacity-40"
       >
         {pending ? "กำลังส่ง…" : "ส่งอีเมลอีกครั้ง"}
       </button>
-      <Notice notice={notice} className="mt-1 text-[11px]" />
+      <Notice notice={notice} className="mt-1 text-[0.6875rem]" />
     </form>
   );
 }

@@ -131,9 +131,9 @@ export default function SkillAdmin() {
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
                       <span className="font-display text-sm font-medium text-chalk">{row.name}</span>
-                      <span className="font-mono text-[11px] text-chalk-dim">/{row.slug}</span>
+                      <span className="font-mono text-[0.6875rem] text-chalk-dim">/{row.slug}</span>
                       <span
-                        className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${
+                        className={`rounded-full px-2 py-0.5 text-[0.625rem] font-medium ${
                           row.status === "published"
                             ? "bg-go/15 text-go"
                             : "bg-chalk/10 text-chalk-dim"

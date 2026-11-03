@@ -139,7 +139,7 @@ function Steps({ current }: { current: number }) {
       {STEPS.map((label, i) => (
         <li key={label} className="flex items-center gap-3 font-display text-sm">
           <span
-            className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-semibold ${
+            className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[0.625rem] font-semibold ${
               i < current ? "bg-go text-night" : i === current ? "bg-shine text-night" : "border border-night-edge text-chalk-dim"
             }`}
           >

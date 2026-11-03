@@ -37,11 +37,11 @@ export default function PainPointResult({
     <div className="mt-4 space-y-4">
       {sentiment !== null && (
         <div className="flex items-center gap-2">
-          <span className="font-mono text-[10px] uppercase tracking-wider text-chalk-dim">
+          <span className="font-mono text-[0.625rem] uppercase tracking-wider text-chalk-dim">
             ดัชนีอารมณ์
           </span>
           <span
-            className={`rounded-full px-2 py-0.5 font-mono text-[12px] font-semibold ${
+            className={`rounded-full px-2 py-0.5 font-mono text-[0.75rem] font-semibold ${
               sentiment >= 66
                 ? "bg-go/15 text-go"
                 : sentiment >= 40
@@ -62,7 +62,7 @@ export default function PainPointResult({
       {/* Pain points — each cites the source verbatim (click to see where it came from). */}
       {result.issues.length > 0 && (
         <div>
-          <p className="mb-2 flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-wider text-chalk-dim">
+          <p className="mb-2 flex items-center gap-1.5 font-mono text-[0.625rem] uppercase tracking-wider text-chalk-dim">
             <Radar size={11} className="text-shine" /> Pain Point (คลิกโควตเพื่อดูที่มาในข้อมูลของคุณ)
           </p>
           <div className="space-y-2">
@@ -71,17 +71,17 @@ export default function PainPointResult({
               return (
                 <div key={i} className="rounded-lg border border-night-edge bg-night/30 p-3">
                   <div className="flex items-center gap-2">
-                    <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold ${sev.cls}`}>
+                    <span className={`shrink-0 rounded-full px-2 py-0.5 text-[0.625rem] font-semibold ${sev.cls}`}>
                       {sev.label}
                     </span>
                     <span className="font-display text-sm font-semibold text-chalk">{issue.title}</span>
                   </div>
-                  {issue.detail && <p className="mt-1 text-[13px] text-chalk-dim">{issue.detail}</p>}
+                  {issue.detail && <p className="mt-1 text-[0.8125rem] text-chalk-dim">{issue.detail}</p>}
                   {issue.cite && (
                     <button
                       onClick={() => onCite(issue.cite)}
                       title="คลิกดูที่มาในข้อมูลของคุณ"
-                      className="mt-1.5 flex w-full items-start gap-1.5 rounded-md border border-night-edge bg-night/50 px-2 py-1.5 text-left text-[11px] text-chalk-dim transition hover:border-shine/50 hover:text-chalk"
+                      className="mt-1.5 flex w-full items-start gap-1.5 rounded-md border border-night-edge bg-night/50 px-2 py-1.5 text-left text-[0.6875rem] text-chalk-dim transition hover:border-shine/50 hover:text-chalk"
                     >
                       <Quote size={11} className="mt-0.5 shrink-0 text-shine" />
                       <span className="line-clamp-2 italic">“{issue.cite}”</span>
@@ -97,7 +97,7 @@ export default function PainPointResult({
       {/* Decision options — Human-in-the-Loop: the user (CEO) approves. */}
       {result.options.length > 0 && (
         <div>
-          <p className="mb-2 flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-wider text-chalk-dim">
+          <p className="mb-2 flex items-center gap-1.5 font-mono text-[0.625rem] uppercase tracking-wider text-chalk-dim">
             <Radar size={11} className="text-shine" /> ทางเลือกตัดสินใจ — คุณเป็นคนเคาะ
           </p>
           <div className="space-y-2">
@@ -117,15 +117,15 @@ export default function PainPointResult({
                         {opt.title}
                       </p>
                       {opt.tradeoffs && (
-                        <p className="mt-0.5 text-[12px] text-chalk-dim">{opt.tradeoffs}</p>
+                        <p className="mt-0.5 text-[0.75rem] text-chalk-dim">{opt.tradeoffs}</p>
                       )}
                       {opt.rationale && (
-                        <p className="mt-1 text-[13px] text-chalk-dim">{opt.rationale}</p>
+                        <p className="mt-1 text-[0.8125rem] text-chalk-dim">{opt.rationale}</p>
                       )}
                     </div>
                     <button
                       onClick={() => onToggleApprove(i)}
-                      className={`inline-flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-1.5 text-[12px] font-semibold transition ${
+                      className={`inline-flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-1.5 text-[0.75rem] font-semibold transition ${
                         isApproved
                           ? "bg-go text-night"
                           : "border border-night-edge text-chalk-dim hover:border-go hover:text-go"
@@ -138,7 +138,7 @@ export default function PainPointResult({
               );
             })}
           </div>
-          <p className="mt-2 flex items-center gap-1.5 text-[11px] text-chalk-dim">
+          <p className="mt-2 flex items-center gap-1.5 text-[0.6875rem] text-chalk-dim">
             <AlertTriangle size={11} />
             ตัวเลขทั้งหมดเป็นประมาณการ · การอนุมัติเป็นเพียงการบันทึกการเลือก ไม่มีการสั่งการภายนอก
           </p>

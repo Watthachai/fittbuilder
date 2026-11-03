@@ -164,8 +164,8 @@ export default function QuoteTerms({
       <section className="rounded-xl border border-night-edge p-3.5">
         <div className="flex flex-wrap items-center gap-2">
           <CalendarClock size={13} className="text-shine" />
-          <h3 className="font-display text-[14px] text-chalk">งวดชำระ</h3>
-          <span className="rounded-full bg-night px-2 py-0.5 font-mono text-[12.5px] text-chalk-dim">
+          <h3 className="font-display text-[0.875rem] text-chalk">งวดชำระ</h3>
+          <span className="rounded-full bg-night px-2 py-0.5 font-mono text-[0.78125rem] text-chalk-dim">
             {plan.rows.length} งวด · รวม {doc.showPercent ? `${plan.percentSum}%` : baht(scheduled)}
           </span>
           {!readOnly && (
@@ -183,13 +183,13 @@ export default function QuoteTerms({
                   max={60}
                   value={splitCount}
                   onChange={(e) => setSplitCount(Number(e.target.value))}
-                  className="w-9 bg-transparent text-right font-mono text-[12.5px] text-chalk outline-none"
+                  className="w-9 bg-transparent text-right font-mono text-[0.78125rem] text-chalk outline-none"
                 />
                 <button
                   onClick={() => pick("equal")}
                   title={presetTitle("equal")}
                   aria-pressed={doc.paymentPreset === "equal"}
-                  className={`font-display text-[12.5px] transition hover:text-shine ${
+                  className={`font-display text-[0.78125rem] transition hover:text-shine ${
                     doc.paymentPreset === "equal" ? "text-chalk" : "text-chalk-dim"
                   }`}
                 >
@@ -201,7 +201,7 @@ export default function QuoteTerms({
         </div>
 
         <div className="mt-2 overflow-hidden rounded-lg border border-night-edge">
-          <table className="w-full text-[14px]">
+          <table className="w-full text-[0.875rem]">
             <thead>
               <tr className="border-b border-night-edge bg-night/60 text-left text-chalk-dim">
                 <th className="w-8 px-2 py-1.5 text-right font-display font-medium">งวด</th>
@@ -223,7 +223,7 @@ export default function QuoteTerms({
             <tbody>
               {plan.rows.map((line, i) => (
                 <tr key={line.term.id} className="group border-b border-night-edge/60 last:border-0">
-                  <td className="px-2 py-1 text-right font-mono text-[12.5px] text-chalk-dim">
+                  <td className="px-2 py-1 text-right font-mono text-[0.78125rem] text-chalk-dim">
                     {i + 1}
                   </td>
                   <td className="px-2 py-1">
@@ -311,7 +311,7 @@ export default function QuoteTerms({
           number from the total agreed above it — and nobody would ever see it.
         */}
         {!plan.balanced && plan.rows.length > 0 && (
-          <p className="mt-2 flex items-start gap-1.5 rounded-lg border border-halt/40 bg-halt/10 px-2.5 py-1.5 text-[12.5px] leading-relaxed text-halt">
+          <p className="mt-2 flex items-start gap-1.5 rounded-lg border border-halt/40 bg-halt/10 px-2.5 py-1.5 text-[0.78125rem] leading-relaxed text-halt">
             <AlertTriangle size={12} className="mt-0.5 shrink-0" />
             <span>
               {doc.showPercent
@@ -324,7 +324,7 @@ export default function QuoteTerms({
         {!readOnly && (
           <button
             onClick={() => setPayment([...doc.payment, emptyTerm(doc.payment.length)])}
-            className="mt-2 inline-flex items-center gap-1.5 rounded-lg border border-night-edge px-2.5 py-1.5 font-display text-[14px] text-chalk-dim transition hover:border-shine/60 hover:text-chalk"
+            className="mt-2 inline-flex items-center gap-1.5 rounded-lg border border-night-edge px-2.5 py-1.5 font-display text-[0.875rem] text-chalk-dim transition hover:border-shine/60 hover:text-chalk"
           >
             <Plus size={12} /> เพิ่มงวด
           </button>
@@ -391,7 +391,7 @@ export default function QuoteTerms({
               </Field>
             </div>
 
-            <label className="mt-2.5 flex cursor-pointer items-start gap-2 text-[12.5px] leading-relaxed text-chalk-dim">
+            <label className="mt-2.5 flex cursor-pointer items-start gap-2 text-[0.78125rem] leading-relaxed text-chalk-dim">
               <input
                 type="checkbox"
                 checked={doc.acceptance.deemedAccepted}
@@ -416,14 +416,14 @@ export default function QuoteTerms({
             {generated.length > 0 && (
               <div className="mt-3 rounded-lg border border-night-edge bg-night p-3">
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <p className="font-display text-[11.5px] uppercase tracking-widest text-chalk-dim">
+                  <p className="font-display text-[0.71875rem] uppercase tracking-widest text-chalk-dim">
                     ข้อความที่จะพิมพ์ในใบเสนอราคา
                   </p>
-                  <span className="font-mono text-[11px] text-chalk-dim">
+                  <span className="font-mono text-[0.6875rem] text-chalk-dim">
                     แก้ข้อไหนก็ได้ · ข้อที่ไม่แก้จะอัปเดตตามตารางเอง
                   </span>
                 </div>
-                <ol className="mt-2 space-y-2 text-[12.5px] leading-relaxed">
+                <ol className="mt-2 space-y-2 text-[0.78125rem] leading-relaxed">
                   {generated.map((auto, i) => {
                     const edited = overridden.includes(i);
                     // A removed clause collapses to a one-line restore affordance.
@@ -432,18 +432,18 @@ export default function QuoteTerms({
                     if (excludedClauses.has(i)) {
                       return (
                         <li key={i} className="flex items-start gap-2">
-                          <span className="mt-1.5 shrink-0 font-mono text-[11.5px] text-chalk-dim">
+                          <span className="mt-1.5 shrink-0 font-mono text-[0.71875rem] text-chalk-dim">
                             —
                           </span>
                           <div className="flex-1">
-                            <p className="line-clamp-1 text-[11.5px] italic text-chalk-dim/60">
+                            <p className="line-clamp-1 text-[0.71875rem] italic text-chalk-dim/60">
                               (ลบแล้ว) {auto}
                             </p>
                             {!readOnly && (
                               <button
                                 type="button"
                                 onClick={() => restoreClause(i)}
-                                className="mt-0.5 font-mono text-[11.5px] text-chalk-dim underline transition hover:text-chalk"
+                                className="mt-0.5 font-mono text-[0.71875rem] text-chalk-dim underline transition hover:text-chalk"
                               >
                                 คืนข้อนี้
                               </button>
@@ -457,7 +457,7 @@ export default function QuoteTerms({
                     const value = doc.acceptance.overrides?.[String(i)] ?? auto;
                     return (
                       <li key={i} className="flex gap-2">
-                        <span className="mt-1.5 shrink-0 font-mono text-[11.5px] text-chalk-dim">
+                        <span className="mt-1.5 shrink-0 font-mono text-[0.71875rem] text-chalk-dim">
                           {clauseNo[i]}.
                         </span>
                         <div className="flex-1">
@@ -474,13 +474,13 @@ export default function QuoteTerms({
                             <div className="mt-1 flex flex-wrap items-center gap-2">
                               {edited && (
                                 <>
-                                  <span className="font-mono text-[11.5px] text-shine">
+                                  <span className="font-mono text-[0.71875rem] text-shine">
                                     แก้เอง — ตัวเลขในข้อนี้จะไม่ตามตารางแล้ว
                                   </span>
                                   <button
                                     type="button"
                                     onClick={() => setClause(i, auto, auto)}
-                                    className="font-mono text-[11.5px] text-chalk-dim underline transition hover:text-chalk"
+                                    className="font-mono text-[0.71875rem] text-chalk-dim underline transition hover:text-chalk"
                                   >
                                     คืนค่าอัตโนมัติ
                                   </button>
@@ -489,7 +489,7 @@ export default function QuoteTerms({
                               <button
                                 type="button"
                                 onClick={() => removeClause(i)}
-                                className="font-mono text-[11.5px] text-chalk-dim underline transition hover:text-halt"
+                                className="font-mono text-[0.71875rem] text-chalk-dim underline transition hover:text-halt"
                               >
                                 ลบข้อนี้
                               </button>
@@ -501,7 +501,7 @@ export default function QuoteTerms({
                   })}
                   {(doc.acceptance.extra ?? []).map((text, i) => (
                     <li key={`extra-${i}`} className="flex gap-2">
-                      <span className="mt-1.5 shrink-0 font-mono text-[11.5px] text-chalk-dim">
+                      <span className="mt-1.5 shrink-0 font-mono text-[0.71875rem] text-chalk-dim">
                         {visibleClauseCount + i + 1}.
                       </span>
                       <div className="flex-1">
@@ -517,7 +517,7 @@ export default function QuoteTerms({
                           <button
                             type="button"
                             onClick={() => removeExtra(i)}
-                            className="mt-1 font-mono text-[11.5px] text-chalk-dim underline transition hover:text-halt"
+                            className="mt-1 font-mono text-[0.71875rem] text-chalk-dim underline transition hover:text-halt"
                           >
                             ลบข้อนี้
                           </button>
@@ -530,7 +530,7 @@ export default function QuoteTerms({
                   <button
                     type="button"
                     onClick={addExtra}
-                    className="mt-2 font-mono text-[11.5px] text-shine transition hover:brightness-110"
+                    className="mt-2 font-mono text-[0.71875rem] text-shine transition hover:brightness-110"
                   >
                     + เพิ่มข้อสัญญา
                   </button>
@@ -635,7 +635,7 @@ export default function QuoteTerms({
             </div>
 
             {ma.clamped && (
-              <p className="mt-2 flex items-start gap-1.5 rounded-lg border border-shine/40 bg-shine/[0.08] px-2.5 py-1.5 text-[12.5px] leading-relaxed text-chalk">
+              <p className="mt-2 flex items-start gap-1.5 rounded-lg border border-shine/40 bg-shine/[0.08] px-2.5 py-1.5 text-[0.78125rem] leading-relaxed text-chalk">
                 <Wrench size={12} className="mt-0.5 shrink-0 text-shine" />
                 ต่ำกว่าขั้นต่ำ — ใบเสนอราคาจะพิมพ์ที่ {baht(MA_MIN_MONTHLY)}/module/เดือน
               </p>
@@ -689,7 +689,7 @@ function Preset({
       onClick={onClick}
       title={title}
       aria-pressed={active}
-      className={`rounded-lg border px-2 py-1 font-display text-[12.5px] transition hover:border-shine/60 hover:text-chalk ${
+      className={`rounded-lg border px-2 py-1 font-display text-[0.78125rem] transition hover:border-shine/60 hover:text-chalk ${
         active ? "border-shine/60 text-chalk" : "border-night-edge text-chalk-dim"
       }`}
     >
@@ -715,11 +715,11 @@ function MaStat({
         accent ? "border-shine/50 bg-shine/10" : "border-night-edge bg-night"
       }`}
     >
-      <p className="font-display text-[11.5px] uppercase tracking-widest text-chalk-dim">{label}</p>
-      <p className={`font-display text-[15px] font-semibold ${accent ? "text-shine" : "text-chalk"}`}>
+      <p className="font-display text-[0.71875rem] uppercase tracking-widest text-chalk-dim">{label}</p>
+      <p className={`font-display text-[0.9375rem] font-semibold ${accent ? "text-shine" : "text-chalk"}`}>
         {value}
       </p>
-      <p className="font-mono text-[11.5px] text-chalk-dim">{sub}</p>
+      <p className="font-mono text-[0.71875rem] text-chalk-dim">{sub}</p>
     </div>
   );
 }

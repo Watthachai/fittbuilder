@@ -166,12 +166,12 @@ export default function WorkspaceMembers({ orgId }: { orgId: string }) {
         <Users size={15} className="text-shine" />
         <h2 className="font-display text-sm font-semibold">สมาชิก workspace</h2>
         {!loading && (
-          <span className="rounded-full bg-chalk/10 px-2 py-0.5 font-mono text-[10px] text-chalk-dim">
+          <span className="rounded-full bg-chalk/10 px-2 py-0.5 font-mono text-[0.625rem] text-chalk-dim">
             {members.length}
           </span>
         )}
       </div>
-      <p className="mt-1 text-[13px] text-chalk-dim">
+      <p className="mt-1 text-[0.8125rem] text-chalk-dim">
         ทุกคนใน workspace เห็นและทำงานกับทุกโปรเจกต์ในนี้ได้ · ผู้ดูแลจัดการสมาชิกได้ · ผู้อนุมัติเอกสารตั้งที่หน้า{" "}
         <Link href="/company" className="text-shine hover:underline">
           บริษัท
@@ -225,17 +225,17 @@ export default function WorkspaceMembers({ orgId }: { orgId: string }) {
               >
                 <RoleIcon size={14} className={`shrink-0 ${isOwner ? "text-shine" : "text-chalk-dim"}`} />
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-[13px] text-chalk">
+                  <p className="truncate text-[0.8125rem] text-chalk">
                     {m.name || m.email}
-                    {isSelf && <span className="ml-1.5 text-[11px] text-chalk-dim">(คุณ)</span>}
+                    {isSelf && <span className="ml-1.5 text-[0.6875rem] text-chalk-dim">(คุณ)</span>}
                   </p>
-                  {m.name && <p className="truncate font-mono text-[10px] text-chalk-dim">{m.email}</p>}
+                  {m.name && <p className="truncate font-mono text-[0.625rem] text-chalk-dim">{m.email}</p>}
                 </div>
 
                 {/* Owner: fixed badge. Manageable others: role select + remove.
                     Self (non-owner): leave. Otherwise: read-only badge. */}
                 {isOwner ? (
-                  <span className="shrink-0 rounded-full border border-shine/40 bg-shine/10 px-2 py-0.5 text-[10px] text-shine">
+                  <span className="shrink-0 rounded-full border border-shine/40 bg-shine/10 px-2 py-0.5 text-[0.625rem] text-shine">
                     {ROLE_LABEL.owner}
                   </span>
                 ) : canManage && !isSelf ? (
@@ -244,7 +244,7 @@ export default function WorkspaceMembers({ orgId }: { orgId: string }) {
                       value={m.role}
                       onChange={(e) => void handleRoleChange(m.userId, e.target.value as OrgInviteRole)}
                       disabled={busy}
-                      className="shrink-0 rounded-sm border border-night-edge bg-night px-1.5 py-0.5 text-[11px] text-chalk-dim outline-none transition hover:text-chalk focus:border-shine disabled:opacity-40"
+                      className="shrink-0 rounded-sm border border-night-edge bg-night px-1.5 py-0.5 text-[0.6875rem] text-chalk-dim outline-none transition hover:text-chalk focus:border-shine disabled:opacity-40"
                     >
                       <option value="member">สมาชิก</option>
                       <option value="admin">ผู้ดูแล</option>
@@ -262,13 +262,13 @@ export default function WorkspaceMembers({ orgId }: { orgId: string }) {
                   <button
                     onClick={() => void handleLeave()}
                     disabled={busy}
-                    className="inline-flex shrink-0 items-center gap-1 rounded-sm border border-night-edge px-2 py-0.5 text-[11px] text-chalk-dim transition hover:border-halt hover:text-halt disabled:opacity-40"
+                    className="inline-flex shrink-0 items-center gap-1 rounded-sm border border-night-edge px-2 py-0.5 text-[0.6875rem] text-chalk-dim transition hover:border-halt hover:text-halt disabled:opacity-40"
                     title="ออกจาก workspace"
                   >
                     <LogOut size={11} /> ออก
                   </button>
                 ) : (
-                  <span className="shrink-0 rounded-full border border-night-edge px-2 py-0.5 text-[10px] text-chalk-dim">
+                  <span className="shrink-0 rounded-full border border-night-edge px-2 py-0.5 text-[0.625rem] text-chalk-dim">
                     {ROLE_LABEL[m.role] ?? m.role}
                   </span>
                 )}
@@ -287,14 +287,14 @@ export default function WorkspaceMembers({ orgId }: { orgId: string }) {
             <span className="min-w-0 flex-1 truncate font-mono text-xs text-chalk-dim">
               {inv.email}
             </span>
-            <span className="shrink-0 rounded-sm border border-night-edge px-1.5 py-0.5 text-[10px] text-chalk-dim">
+            <span className="shrink-0 rounded-sm border border-night-edge px-1.5 py-0.5 text-[0.625rem] text-chalk-dim">
               {ROLE_LABEL[inv.role] ?? inv.role}
             </span>
-            <span className="shrink-0 text-[10px] text-chalk-dim">รอตอบรับ</span>
+            <span className="shrink-0 text-[0.625rem] text-chalk-dim">รอตอบรับ</span>
             {canManage && (
               <button
                 onClick={() => void handleCopyLink(inv)}
-                className="inline-flex shrink-0 items-center gap-1 rounded-sm border border-night-edge px-1.5 py-0.5 text-[10px] text-chalk-dim transition hover:border-shine hover:text-chalk"
+                className="inline-flex shrink-0 items-center gap-1 rounded-sm border border-night-edge px-1.5 py-0.5 text-[0.625rem] text-chalk-dim transition hover:border-shine hover:text-chalk"
                 title="คัดลอกลิงก์คำเชิญ ส่งทางแชตได้"
               >
                 <Copy size={11} /> ลิงก์

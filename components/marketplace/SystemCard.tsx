@@ -40,19 +40,19 @@ export default function SystemCard({
         <div className="min-w-0">
           <Link
             href={`/marketplace/${family}`}
-            className="font-display text-[17px] font-semibold text-chalk transition hover:text-shine"
+            className="font-display text-[1.0625rem] font-semibold text-chalk transition hover:text-shine"
           >
             ระบบ{system.name}
           </Link>
-          <p className="mt-1 text-[12.5px] leading-relaxed text-chalk/60">{system.blurb}</p>
-          <p className="mt-2 text-[11.5px] text-chalk/40">
+          <p className="mt-1 text-[0.78125rem] leading-relaxed text-chalk/60">{system.blurb}</p>
+          <p className="mt-2 text-[0.71875rem] text-chalk/40">
             {parts.length} ส่วนประกอบ · {capabilities} ความสามารถ
             {needs.length > 0 && <> · ต้องมีระบบ{needs.join(" และ ")}ด้วย</>}
           </p>
         </div>
         <div className="shrink-0 text-right">
-          <p className="font-display text-[20px] font-semibold tabular-nums text-chalk">{price.days} วัน</p>
-          <p className="text-[11.5px] tabular-nums text-chalk/45">฿{price.ma.toLocaleString("th-TH")}/ด.</p>
+          <p className="font-display text-[1.25rem] font-semibold tabular-nums text-chalk">{price.days} วัน</p>
+          <p className="text-[0.71875rem] tabular-nums text-chalk/45">฿{price.ma.toLocaleString("th-TH")}/ด.</p>
         </div>
       </div>
 
@@ -60,12 +60,12 @@ export default function SystemCard({
         {parts.map((m) => (
           <li key={m.id} className="flex items-center gap-3 px-5 py-2.5">
             <span className="min-w-0 flex-1">
-              <span className="block truncate text-[13px] text-chalk/85">{m.name}</span>
-              <span className="block truncate text-[11.5px] text-chalk/40">
+              <span className="block truncate text-[0.8125rem] text-chalk/85">{m.name}</span>
+              <span className="block truncate text-[0.71875rem] text-chalk/40">
                 {m.keyFeatures.join(" · ")}
               </span>
             </span>
-            <span className="shrink-0 text-[11.5px] tabular-nums text-chalk/45">{m.effortDays} วัน</span>
+            <span className="shrink-0 text-[0.71875rem] tabular-nums text-chalk/45">{m.effortDays} วัน</span>
           </li>
         ))}
       </ul>
@@ -73,7 +73,7 @@ export default function SystemCard({
       <div className="flex items-center gap-2 p-4">
         <Link
           href={`/erp?system=${family}`}
-          className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-chalk/15 py-2 text-[12.5px] text-chalk/75 transition hover:border-shine/60 hover:text-shine"
+          className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-chalk/15 py-2 text-[0.78125rem] text-chalk/75 transition hover:border-shine/60 hover:text-shine"
         >
           <PlayCircle size={14} />
           ลองใช้ทั้งระบบ
@@ -82,7 +82,7 @@ export default function SystemCard({
           onClick={onAdd}
           disabled={inScope}
           className={
-            "flex flex-1 items-center justify-center gap-1.5 rounded-lg py-2 text-[12.5px] font-medium transition " +
+            "flex flex-1 items-center justify-center gap-1.5 rounded-lg py-2 text-[0.78125rem] font-medium transition " +
             (inScope ? "cursor-default bg-shine/15 text-shine" : "bg-shine text-night hover:brightness-110")
           }
         >

@@ -58,7 +58,7 @@ export default function ConfirmHost() {
           <div className="min-w-0 flex-1">
             <h2 className="font-display text-base font-semibold text-chalk">{dialog.title}</h2>
             {dialog.message && (
-              <p className="mt-1.5 text-[13px] leading-relaxed text-chalk-dim">{dialog.message}</p>
+              <p className="mt-1.5 text-[0.8125rem] leading-relaxed text-chalk-dim">{dialog.message}</p>
             )}
           </div>
         </div>
@@ -66,7 +66,7 @@ export default function ConfirmHost() {
         {dialog.kind === "prompt" && (
           <div className="mt-4">
             {dialog.label && (
-              <label className="mb-1.5 block font-mono text-[11px] uppercase tracking-wider text-chalk-dim">
+              <label className="mb-1.5 block font-mono text-[0.6875rem] uppercase tracking-wider text-chalk-dim">
                 {dialog.label}
               </label>
             )}
@@ -78,7 +78,7 @@ export default function ConfirmHost() {
                 if (e.key === "Enter") accept();
               }}
               placeholder={dialog.placeholder}
-              className="w-full rounded-lg border border-night-edge bg-night px-3 py-2.5 text-[14px] text-chalk outline-none focus:border-shine"
+              className="w-full rounded-lg border border-night-edge bg-night px-3 py-2.5 text-[0.875rem] text-chalk outline-none focus:border-shine"
             />
           </div>
         )}

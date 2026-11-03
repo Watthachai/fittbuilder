@@ -42,10 +42,10 @@ export default function ScopePanel({
     // the list. top-20 clears the sticky header above it.
     <aside className="lg:sticky lg:top-20 lg:self-start">
       <div className="rounded-2xl border border-chalk/12 bg-night-panel p-4">
-        <h2 className="font-display text-[14px] font-semibold text-chalk">ขอบเขตที่เลือก</h2>
+        <h2 className="font-display text-[0.875rem] font-semibold text-chalk">ขอบเขตที่เลือก</h2>
 
         {systems.length === 0 ? (
-          <p className="mt-2.5 text-[12.5px] leading-relaxed text-chalk/50">
+          <p className="mt-2.5 text-[0.78125rem] leading-relaxed text-chalk/50">
             ยังไม่ได้เลือกระบบไว้ กด “ลองใช้ทั้งระบบ” เพื่อเข้าไปใช้งานดูก่อน แล้วกด “เพิ่มลงขอบเขต” เมื่อตัดสินใจแล้ว
           </p>
         ) : (
@@ -55,7 +55,7 @@ export default function ScopePanel({
                 const price = systemPrice(f.id);
                 return (
                   <li key={f.id} className="rounded-lg border border-chalk/10 px-3 py-2">
-                    <div className="flex items-center gap-2 text-[12.5px]">
+                    <div className="flex items-center gap-2 text-[0.78125rem]">
                       <span className="min-w-0 flex-1 truncate font-medium text-chalk/85">ระบบ{f.name}</span>
                       <span className="shrink-0 tabular-nums text-chalk/45">{price.days} วัน</span>
                       <button
@@ -66,7 +66,7 @@ export default function ScopePanel({
                         <Trash size={13} />
                       </button>
                     </div>
-                    <p className="mt-0.5 truncate text-[11px] text-chalk/40">
+                    <p className="mt-0.5 truncate text-[0.6875rem] text-chalk/40">
                       {modulesOf(f.id).map((m) => m.name).join(" · ")}
                     </p>
                   </li>
@@ -74,7 +74,7 @@ export default function ScopePanel({
               })}
             </ul>
 
-            <dl className="mt-3 space-y-1 border-t border-chalk/10 pt-3 text-[12.5px]">
+            <dl className="mt-3 space-y-1 border-t border-chalk/10 pt-3 text-[0.78125rem]">
               <div className="flex justify-between">
                 <dt className="text-chalk/60">รวมเวลาพัฒนา</dt>
                 <dd className="font-semibold tabular-nums text-chalk">{days} วัน</dd>
@@ -88,7 +88,7 @@ export default function ScopePanel({
         )}
 
         {error && (
-          <p className="mt-3 flex items-start gap-1.5 rounded-lg border border-halt/40 bg-halt/10 p-2.5 text-[12px] leading-snug text-halt">
+          <p className="mt-3 flex items-start gap-1.5 rounded-lg border border-halt/40 bg-halt/10 p-2.5 text-[0.75rem] leading-snug text-halt">
             <TriangleAlert size={13} className="mt-0.5 shrink-0" />
             <span>{error}</span>
           </p>
@@ -97,12 +97,12 @@ export default function ScopePanel({
         <button
           onClick={() => void build()}
           disabled={busy || chosen.length === 0}
-          className="mt-4 w-full rounded-lg bg-shine py-2.5 font-display text-[13.5px] font-semibold text-night transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-35"
+          className="mt-4 w-full rounded-lg bg-shine py-2.5 font-display text-[0.84375rem] font-semibold text-night transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-35"
         >
           {busy ? "กำลังสร้าง…" : "สร้างโปรเจกต์จากขอบเขตนี้"}
         </button>
         {systems.length > 0 && (
-          <p className="mt-2 text-center text-[11.5px] leading-snug text-chalk/40">
+          <p className="mt-2 text-center text-[0.71875rem] leading-snug text-chalk/40">
             ระบบที่เลือกไว้จะถูกคัดลอกเข้าโปรเจกต์ใหม่ แก้ไขต่อได้ทันที
           </p>
         )}

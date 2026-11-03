@@ -86,7 +86,7 @@ export default function CaseBell({ align = "right" }: { align?: "left" | "right"
       >
         {count ? <BellRing size={16} /> : <Bell size={16} />}
         {count > 0 && (
-          <span className="absolute -right-0.5 -top-0.5 grid h-4 min-w-4 place-items-center rounded-full bg-red-600 px-1 font-mono text-[9px] font-bold text-white">
+          <span className="absolute -right-0.5 -top-0.5 grid h-4 min-w-4 place-items-center rounded-full bg-red-600 px-1 font-mono text-[0.5625rem] font-bold text-white">
             {count}
           </span>
         )}
@@ -96,17 +96,17 @@ export default function CaseBell({ align = "right" }: { align?: "left" | "right"
         <>
           <div className={`absolute top-full z-50 mt-2 w-80 ${align === "right" ? "right-0" : "left-0"} overflow-hidden rounded-xl border border-night-edge bg-night-panel shadow-2xl`}>
             <div className="flex items-center justify-between border-b border-night-edge px-3.5 py-2.5">
-              <p className="font-display text-[13px] font-semibold text-chalk">{team ? "เคสที่ยังไม่ปิด" : "เคสของฉัน"}</p>
-              {count > 0 && <p className="text-[11px] text-red-400">รอคุณ {count} เคส</p>}
+              <p className="font-display text-[0.8125rem] font-semibold text-chalk">{team ? "เคสที่ยังไม่ปิด" : "เคสของฉัน"}</p>
+              {count > 0 && <p className="text-[0.6875rem] text-red-400">รอคุณ {count} เคส</p>}
             </div>
 
             <div className="scroll-thin max-h-80 overflow-y-auto py-1">
               {cases === null ? (
-                <p className="flex items-center gap-2 px-3.5 py-4 text-[12px] text-chalk-dim">
+                <p className="flex items-center gap-2 px-3.5 py-4 text-[0.75rem] text-chalk-dim">
                   <Loader2 size={13} className="animate-spin" /> กำลังโหลด…
                 </p>
               ) : shown.length === 0 ? (
-                <p className="px-3.5 py-4 text-[12px] leading-relaxed text-chalk-dim">
+                <p className="px-3.5 py-4 text-[0.75rem] leading-relaxed text-chalk-dim">
                   ยังไม่มีเคสที่เปิดอยู่ เจอปัญหาตรงไหนกดแจ้งได้เลยครับ
                 </p>
               ) : (
@@ -124,7 +124,7 @@ export default function CaseBell({ align = "right" }: { align?: "left" | "right"
                       aria-label={c.unread ? "มีอัปเดตใหม่" : undefined}
                     />
                     <span className="min-w-0 flex-1">
-                      <span className="block truncate text-[13px] text-chalk">
+                      <span className="block truncate text-[0.8125rem] text-chalk">
                         <span className="font-mono text-chalk-dim">#{c.number}</span> {c.title}
                       </span>
                       <span className="mt-1 block">
@@ -142,7 +142,7 @@ export default function CaseBell({ align = "right" }: { align?: "left" | "right"
                   setOpen(false);
                   setReporting(true);
                 }}
-                className="inline-flex items-center gap-1 rounded-full bg-shine px-3 py-1.5 font-display text-[12px] font-semibold text-night transition hover:brightness-110"
+                className="inline-flex items-center gap-1 rounded-full bg-shine px-3 py-1.5 font-display text-[0.75rem] font-semibold text-night transition hover:brightness-110"
               >
                 <Plus size={13} /> แจ้งเคสใหม่
               </button>
@@ -151,14 +151,14 @@ export default function CaseBell({ align = "right" }: { align?: "left" | "right"
                   setOpen(false);
                   openCases();
                 }}
-                className="font-display text-[12px] text-chalk-dim transition hover:text-chalk"
+                className="font-display text-[0.75rem] text-chalk-dim transition hover:text-chalk"
               >
                 ดูเคสทั้งหมด
               </button>
             </div>
 
             {permission !== "unsupported" && (
-              <div className="border-t border-night-edge px-3.5 py-2.5 text-[11px] leading-relaxed text-chalk-dim">
+              <div className="border-t border-night-edge px-3.5 py-2.5 text-[0.6875rem] leading-relaxed text-chalk-dim">
                 {permission === "default" ? (
                   <button onClick={() => void allow()} className="text-shine transition hover:underline">
                     เปิดแจ้งเตือนบนเดสก์ท็อป เมื่อทีมตอบระหว่างเปิดแท็บอื่นอยู่

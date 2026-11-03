@@ -102,7 +102,7 @@ export default function CaseOverview() {
   }
   if (stats.totals.total === 0) {
     return (
-      <div className="flex flex-1 items-center justify-center px-8 text-center text-[13px] text-chalk-dim">
+      <div className="flex flex-1 items-center justify-center px-8 text-center text-[0.8125rem] text-chalk-dim">
         ยังไม่มีเคส พอมีคนแจ้งเคสแรก กราฟจะเริ่มขึ้นที่นี่
       </div>
     );
@@ -139,7 +139,7 @@ function Overview({ stats }: { stats: CaseStats }) {
         <Panel title="แก้เร็วแค่ไหน" note={`ค่ากลางของเวลาตั้งแต่แจ้งจนปิด ของเคสที่ปิดในแต่ละ${each} ยิ่งต่ำยิ่งดี`}>
           <SpeedChart key={grain} periods={periods} animate={animate} />
         </Panel>
-        <p className="text-[11.5px] leading-relaxed text-chalk-dim">
+        <p className="text-[0.71875rem] leading-relaxed text-chalk-dim">
           เคสปัญหา คือ บั๊กของ FITT Builder, AI เขียนโค้ดเดโมผิด, เน็ตหรือระบบภายนอก และเคสที่ทีมยังไม่ระบุสาเหตุ
           ส่วนขอฟีเจอร์และเคสที่ไม่ใช่ปัญหาของระบบไม่นับว่าระบบแย่ลง · สัปดาห์เริ่มวันจันทร์ เวลาไทย ·
           อัปเดตล่าสุด {CLOCK.format(new Date(stats.asOf))} น. และอัปเดตเองทุกครั้งที่มีเคสเปลี่ยน
@@ -196,7 +196,7 @@ function Verdict({
     >
       <div className="grid items-end gap-5 md:grid-cols-[minmax(0,1fr)_minmax(0,22rem)]">
         <div className="min-w-0">
-          <p className="font-display text-[12.5px] text-chalk-dim">
+          <p className="font-display text-[0.78125rem] text-chalk-dim">
             {stats.verdict.trend === "early" ? "7 วันล่าสุด" : "7 วันล่าสุด เทียบกับ 7 วันก่อนหน้า"}
           </p>
           <h2
@@ -206,7 +206,7 @@ function Verdict({
             <t.Icon className="h-[0.9em] w-[0.9em] shrink-0" strokeWidth={2.4} />
             {t.word}
           </h2>
-          <p className="mt-3 max-w-xl text-[14.5px] leading-relaxed text-chalk/90">{verdictLine(stats.verdict)}</p>
+          <p className="mt-3 max-w-xl text-[0.90625rem] leading-relaxed text-chalk/90">{verdictLine(stats.verdict)}</p>
         </div>
         <div className="h-24 w-full" aria-hidden>
           <ResponsiveContainer width="100%" height="100%">
@@ -231,7 +231,7 @@ function Verdict({
               />
             </AreaChart>
           </ResponsiveContainer>
-          <p className="mt-1 text-right font-display text-[11px] text-chalk-dim">เคสปัญหา{GRAIN[grain].label}</p>
+          <p className="mt-1 text-right font-display text-[0.6875rem] text-chalk-dim">เคสปัญหา{GRAIN[grain].label}</p>
         </div>
       </div>
     </section>
@@ -257,7 +257,7 @@ function Totals({ stats }: { stats: CaseStats }) {
             i === 2 ? "sm:border-l" : ""
           }`}
         >
-          <dt className="text-[12px] text-chalk-dim">{it.label}</dt>
+          <dt className="text-[0.75rem] text-chalk-dim">{it.label}</dt>
           <dd className="mt-1 font-display text-2xl font-semibold tabular-nums text-chalk">{it.value}</dd>
         </div>
       ))}
@@ -282,8 +282,8 @@ function Panel({
     <section className="rounded-2xl border border-night-edge bg-night-panel/60 px-4 py-4 sm:px-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
-          <h3 className="font-display text-[15px] font-semibold text-chalk">{title}</h3>
-          <p className="mt-0.5 text-[12px] text-chalk-dim">{note}</p>
+          <h3 className="font-display text-[0.9375rem] font-semibold text-chalk">{title}</h3>
+          <p className="mt-0.5 text-[0.75rem] text-chalk-dim">{note}</p>
         </div>
         {action}
       </div>
@@ -300,7 +300,7 @@ function GrainSwitch({ grain, onChange }: { grain: Grain; onChange: (g: Grain) =
           key={g}
           onClick={() => onChange(g)}
           aria-pressed={grain === g}
-          className={`rounded-full px-2.5 py-0.5 font-display text-[11.5px] transition ${
+          className={`rounded-full px-2.5 py-0.5 font-display text-[0.71875rem] transition ${
             grain === g ? "bg-chalk text-night" : "text-chalk-dim hover:text-chalk"
           }`}
         >
@@ -336,7 +336,7 @@ function ChartTip({ active, label, payload, format }: TipProps & { format?: (v: 
   const rows = payload.filter((p) => Number(p.value) > 0 || payload.length === 1);
   if (rows.length === 0) return null;
   return (
-    <div className="min-w-44 rounded-xl border border-night-edge bg-night-panel/95 px-3 py-2.5 text-[12px] shadow-xl backdrop-blur">
+    <div className="min-w-44 rounded-xl border border-night-edge bg-night-panel/95 px-3 py-2.5 text-[0.75rem] shadow-xl backdrop-blur">
       {label !== undefined && <p className="mb-1.5 font-display font-semibold text-chalk">{label}</p>}
       <ul className="flex flex-col gap-1">
         {rows.map((p) => {
@@ -403,7 +403,7 @@ function CasesChart({ periods, animate }: { periods: PeriodStat[]; animate: bool
           </ComposedChart>
         </ResponsiveContainer>
       </div>
-      <ul className="mt-3 flex flex-wrap gap-x-4 gap-y-1.5 text-[12px] text-chalk-dim">
+      <ul className="mt-3 flex flex-wrap gap-x-4 gap-y-1.5 text-[0.75rem] text-chalk-dim">
         {used.map((k) => (
           <li key={k} className="inline-flex items-center gap-1.5">
             <Swatch k={k} />
@@ -475,10 +475,10 @@ function WhyChart({ stats, animate }: { stats: CaseStats; animate: boolean }) {
         </ResponsiveContainer>
         <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
           <span className="font-display text-3xl font-semibold tabular-nums text-chalk">{problemTotal}</span>
-          <span className="text-[11px] text-chalk-dim">เคสปัญหา จาก {total}</span>
+          <span className="text-[0.6875rem] text-chalk-dim">เคสปัญหา จาก {total}</span>
         </div>
       </div>
-      <div className="w-full min-w-0 flex-1 text-[13px]">
+      <div className="w-full min-w-0 flex-1 text-[0.8125rem]">
         <CauseList title="นับเป็นปัญหา" rows={problems} total={total} />
         {others.length > 0 && <CauseList title="ไม่นับ" rows={others} total={total} />}
       </div>
@@ -489,14 +489,14 @@ function WhyChart({ stats, animate }: { stats: CaseStats; animate: boolean }) {
 function CauseList({ title, rows, total }: { title: string; rows: CaseStats["causes"]; total: number }) {
   return (
     <div className="mb-3 last:mb-0">
-      <p className="mb-1.5 text-[11px] text-chalk-dim">{title}</p>
+      <p className="mb-1.5 text-[0.6875rem] text-chalk-dim">{title}</p>
       <ul className="flex flex-col gap-1.5">
         {rows.map((c) => (
           <li key={c.cause} className="flex items-center gap-2">
             <Swatch k={c.cause} />
             <span className="min-w-0 flex-1 text-chalk/90">{causeLabel(c.cause)}</span>
             <span className="font-mono tabular-nums text-chalk">{c.count}</span>
-            <span className="w-10 text-right font-mono text-[11px] tabular-nums text-chalk-dim">
+            <span className="w-10 text-right font-mono text-[0.6875rem] tabular-nums text-chalk-dim">
               {Math.round((c.count / total) * 100)}%
             </span>
           </li>
@@ -512,7 +512,7 @@ function WhereChart({ stats, animate }: { stats: CaseStats; animate: boolean }) 
   const data = stats.areas.map((a) => ({ label: CASE_AREA[a.area], ...a.counts }));
   const used = CASE_CAUSES.filter((k) => stats.areas.some((a) => a.counts[k] > 0));
   if (data.length === 0) {
-    return <p className="py-10 text-center text-[13px] text-chalk-dim">ยังไม่มีเคสที่ระบุสาเหตุ</p>;
+    return <p className="py-10 text-center text-[0.8125rem] text-chalk-dim">ยังไม่มีเคสที่ระบุสาเหตุ</p>;
   }
   return (
     <div className="w-full" style={{ height: data.length * 44 + 16 }}>
@@ -557,7 +557,7 @@ function SpeedChart({ periods, animate }: { periods: PeriodStat[]; animate: bool
     [periods]
   );
   if (!data.some((d) => d.hours !== null)) {
-    return <p className="py-10 text-center text-[13px] text-chalk-dim">ยังไม่มีเคสที่ปิด</p>;
+    return <p className="py-10 text-center text-[0.8125rem] text-chalk-dim">ยังไม่มีเคสที่ปิด</p>;
   }
   return (
     <div className="h-48 w-full">

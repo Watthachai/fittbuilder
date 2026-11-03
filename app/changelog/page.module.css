@@ -27,7 +27,7 @@
   display: inline-flex;
   align-items: center;
   gap: 10px;
-  font-size: 19px;
+  font-size: 1.1875rem;
   font-weight: 600;
   letter-spacing: -0.6px;
 }
@@ -43,7 +43,7 @@
   padding: 10px 14px;
   border: 1px solid var(--night-edge);
   border-radius: 999px;
-  font-size: 13px;
+  font-size: 0.8125rem;
   color: var(--chalk-dim);
   cursor: pointer;
   transition: color 150ms, background 150ms;
@@ -73,7 +73,7 @@
 }
 
 .eyebrow {
-  font-size: 10px;
+  font-size: 0.625rem;
   font-weight: 600;
   letter-spacing: 2.5px;
   color: var(--shine);
@@ -81,7 +81,7 @@
 
 .hero h1 {
   margin-top: 8px;
-  font-size: clamp(25px, 3vw, 34px);
+  font-size: clamp(1.5625rem, 3vw, 2.125rem);
   font-weight: 600;
   letter-spacing: -1.3px;
   line-height: 1.35;
@@ -91,7 +91,7 @@
 .intro {
   margin-top: 8px;
   color: var(--chalk-dim);
-  font-size: 13px;
+  font-size: 0.8125rem;
   line-height: 1.7;
 }
 
@@ -108,7 +108,7 @@
   border-radius: 999px;
   background: var(--night);
   padding: 9px 14px;
-  font-size: 12px;
+  font-size: 0.75rem;
 }
 
 .latestLink:hover {
@@ -124,7 +124,7 @@
 
 .version {
   font-family: var(--font-plex-mono), var(--font-anuphan), monospace;
-  font-size: 12px;
+  font-size: 0.75rem;
 }
 
 .artwork {
@@ -182,14 +182,14 @@
 }
 
 .toolbar h2 {
-  font-size: 19px;
+  font-size: 1.1875rem;
   font-weight: 600;
   letter-spacing: -0.4px;
 }
 
 .toolbar p {
   margin-top: 5px;
-  font-size: 12px;
+  font-size: 0.75rem;
   color: var(--chalk-dim);
 }
 
@@ -207,7 +207,7 @@
   background: var(--night);
   color: var(--chalk);
   font: inherit;
-  font-size: 13px;
+  font-size: 0.8125rem;
   cursor: pointer;
 }
 
@@ -301,21 +301,21 @@
 .railVersion {
   display: block;
   font-family: var(--font-plex-mono), monospace;
-  font-size: 13px;
+  font-size: 0.8125rem;
   font-weight: 500;
 }
 
 .railStep time {
   display: block;
   margin-top: 5px;
-  font-size: 11px;
+  font-size: 0.6875rem;
 }
 
 .railLatest {
   position: absolute;
   top: 17px;
   right: 12px;
-  font-size: 9px;
+  font-size: 0.5625rem;
   color: var(--shine);
 }
 
@@ -350,12 +350,12 @@
   flex-wrap: wrap;
   gap: 12px;
   color: var(--chalk-dim);
-  font-size: 11px;
+  font-size: 0.6875rem;
 }
 
 .latestBadge {
   display: inline-block;
-  font-size: 10px;
+  font-size: 0.625rem;
   font-weight: 500;
   color: var(--shine);
   background: color-mix(in srgb, var(--shine) 9%, transparent);
@@ -387,7 +387,7 @@
 
 .cardHeader h3 {
   margin-top: 9px;
-  font-size: 21px;
+  font-size: 1.3125rem;
   font-weight: 600;
   line-height: 1.55;
   letter-spacing: -0.4px;
@@ -406,7 +406,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 13px;
+  font-size: 0.8125rem;
   font-weight: 600;
 }
 
@@ -426,14 +426,14 @@
 
 .items li {
   padding-left: 3px;
-  font-size: 14px;
+  font-size: 0.875rem;
   line-height: 1.95;
   overflow-wrap: anywhere;
 }
 
 .items li::marker {
   color: color-mix(in srgb, var(--chalk-dim) 50%, transparent);
-  font-size: 10px;
+  font-size: 0.625rem;
 }
 
 .items li + li {
@@ -447,7 +447,7 @@
 
 .more p {
   color: var(--chalk-dim);
-  font-size: 12px;
+  font-size: 0.75rem;
 }
 
 .more button {
@@ -459,7 +459,7 @@
   border-radius: 999px;
   background: var(--night);
   padding: 12px 22px;
-  font-size: 13px;
+  font-size: 0.8125rem;
   cursor: pointer;
 }
 
@@ -476,7 +476,7 @@
   margin-top: 12px;
   padding: 12px 0;
   border-top: 1px solid color-mix(in srgb, var(--night-edge) 65%, transparent);
-  font-size: 12px;
+  font-size: 0.75rem;
   font-weight: 500;
   color: var(--chalk-dim);
 }
@@ -500,7 +500,7 @@
   }
 
   .brand {
-    font-size: 17px;
+    font-size: 1.0625rem;
   }
 
   .hero {
@@ -513,7 +513,7 @@
   }
 
   .eyebrow {
-    font-size: 9px;
+    font-size: 0.5625rem;
     letter-spacing: 2px;
   }
 
@@ -524,7 +524,7 @@
   .latestLink {
     margin-top: 12px;
     padding: 7px 12px;
-    font-size: 11px;
+    font-size: 0.6875rem;
   }
 
   .artwork {
@@ -542,16 +542,16 @@
   }
 
   .toolbar h2 {
-    font-size: 16px;
+    font-size: 1rem;
   }
 
   .toolbar p {
-    font-size: 11px;
+    font-size: 0.6875rem;
   }
 
   .monthFilter select {
     width: 145px;
-    font-size: 12px;
+    font-size: 0.75rem;
     padding-left: 12px;
   }
 
@@ -577,7 +577,7 @@
   }
 
   .railVersion {
-    font-size: 11px;
+    font-size: 0.6875rem;
   }
 
   .railStep::before, .railStep::after, .railStep time, .railLatest {
@@ -602,7 +602,7 @@
   }
 
   .cardHeader h3 {
-    font-size: 19px;
+    font-size: 1.1875rem;
   }
 
   .cardBody {
@@ -610,13 +610,13 @@
   }
 
   .items li {
-    font-size: 13px;
+    font-size: 0.8125rem;
   }
 
   .footer {
     margin-top: 8px;
     padding: 9px 0;
-    font-size: 10px;
+    font-size: 0.625rem;
   }
 
 }
@@ -635,7 +635,7 @@
   }
 
   .toolbar h2 {
-    font-size: 14px;
+    font-size: 0.875rem;
   }
 
   .monthFilter select {
@@ -656,7 +656,7 @@
 
   .hero h1 {
     margin: 0;
-    font-size: 25px;
+    font-size: 1.5625rem;
   }
 
   .eyebrow, .intro {

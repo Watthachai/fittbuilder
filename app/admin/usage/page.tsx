@@ -195,7 +195,7 @@ export default async function AdminUsagePage(props: PageProps<"/admin/usage">) {
             </div>
             <div className="mt-2 flex gap-1.5">
               {daily.map((d, i) => (
-                <span key={d.key} className="flex-1 text-center font-mono text-[9px] text-chalk-dim">
+                <span key={d.key} className="flex-1 text-center font-mono text-[0.5625rem] text-chalk-dim">
                   {i % 2 === 0 ? d.label : ""}
                 </span>
               ))}
@@ -209,7 +209,7 @@ export default async function AdminUsagePage(props: PageProps<"/admin/usage">) {
               )}
               {report.by_kind.map((k) => (
                 <div key={k.kind}>
-                  <div className="flex items-center justify-between text-[12px]">
+                  <div className="flex items-center justify-between text-[0.75rem]">
                     <span className="truncate text-chalk/85">{KIND_LABELS[k.kind] ?? k.kind}</span>
                     <span className="shrink-0 font-mono text-chalk-dim">{compact(Number(k.total_tokens))}</span>
                   </div>
@@ -230,7 +230,7 @@ export default async function AdminUsagePage(props: PageProps<"/admin/usage">) {
             <p className="text-sm text-chalk-dim">ยังไม่มีข้อมูล เริ่มบันทึกผลของแต่ละรอบตั้งแต่เวอร์ชัน 0.103.0</p>
           ) : (
             <>
-              <p className="mb-3 text-[12px] text-chalk-dim">
+              <p className="mb-3 text-[0.75rem] text-chalk-dim">
                 {num(turnTotal)} รอบ · ครึ่งหนึ่งจบภายใน {secs(turns.p50_ms)} · 90% จบภายใน {secs(turns.p90_ms)}
               </p>
               <div className="space-y-2.5">
@@ -238,7 +238,7 @@ export default async function AdminUsagePage(props: PageProps<"/admin/usage">) {
                   const n = Number(turns.counts[o] ?? 0);
                   return (
                     <div key={o}>
-                      <div className="flex items-center justify-between text-[12px]">
+                      <div className="flex items-center justify-between text-[0.75rem]">
                         <span className="text-chalk/85">{GENERATE_OUTCOME_LABEL[o]}</span>
                         <span className="font-mono text-chalk-dim">
                           {num(n)} · {((n / turnTotal) * 100).toFixed(1)}%
@@ -253,7 +253,7 @@ export default async function AdminUsagePage(props: PageProps<"/admin/usage">) {
               </div>
               {turns.unfinished.length > 0 && (
                 <div className="scroll-thin mt-5 overflow-x-auto">
-                  <p className="mb-1 text-[12px] font-semibold text-chalk-dim">รอบที่ไม่จบเอง ล่าสุด {turns.unfinished.length} รอบ</p>
+                  <p className="mb-1 text-[0.75rem] font-semibold text-chalk-dim">รอบที่ไม่จบเอง ล่าสุด {turns.unfinished.length} รอบ</p>
                   <Table head={["เวลา", "Chat", "ผู้ใช้", "ผล", "ใช้เวลา", "error"]}>
                     {turns.unfinished.map((r) => (
                       <tr key={`${r.created_at}-${r.project_id}`} className="border-t border-night-edge">
@@ -312,7 +312,7 @@ export default async function AdminUsagePage(props: PageProps<"/admin/usage">) {
                   <div className="min-w-0 flex-1">
                     <div className="flex items-baseline justify-between gap-2">
                       <span className="truncate text-sm text-chalk">{name}</span>
-                      <span className="shrink-0 font-mono text-[11px] text-chalk-dim">
+                      <span className="shrink-0 font-mono text-[0.6875rem] text-chalk-dim">
                         {num(total)} · <span className="text-shine">{usd(cost)}</span>
                       </span>
                     </div>
@@ -372,7 +372,7 @@ export default async function AdminUsagePage(props: PageProps<"/admin/usage">) {
 function Stat({ label, value, accent }: { label: string; value: string; accent?: boolean }) {
   return (
     <div className="glass rounded-xl px-4 py-3">
-      <p className="text-[11px] uppercase tracking-wider text-chalk-dim">{label}</p>
+      <p className="text-[0.6875rem] uppercase tracking-wider text-chalk-dim">{label}</p>
       <p className={`mt-1 font-display text-xl font-semibold ${accent ? "text-shine" : "text-chalk"}`}>
         {value}
       </p>
@@ -408,9 +408,9 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 
 function Table({ head, children }: { head: string[]; children: React.ReactNode }) {
   return (
-    <table className="w-full text-left text-[13px]">
+    <table className="w-full text-left text-[0.8125rem]">
       <thead>
-        <tr className="text-[11px] uppercase tracking-wider text-chalk-dim">
+        <tr className="text-[0.6875rem] uppercase tracking-wider text-chalk-dim">
           {head.map((h) => (
             <th key={h} className="px-3 py-2 font-medium">
               {h}
@@ -430,10 +430,10 @@ function Pager<T>({ page, href }: { page: Page<T>; href: (n: number) => string }
   const shown = Array.from({ length: page.pages }, (_, i) => i + 1).filter(
     (n) => n === 1 || n === page.pages || Math.abs(n - page.page) <= 2
   );
-  const link = "grid h-7 min-w-7 place-items-center rounded-md px-2 font-mono text-[12px] transition";
+  const link = "grid h-7 min-w-7 place-items-center rounded-md px-2 font-mono text-[0.75rem] transition";
   return (
     <div className="flex flex-wrap items-center justify-between gap-2 border-t border-night-edge px-3 py-2.5">
-      <span className="text-[12px] text-chalk-dim">
+      <span className="text-[0.75rem] text-chalk-dim">
         แสดง {page.from}–{page.to} จาก {page.total} · หน้า {page.page}/{page.pages}
       </span>
       <nav className="flex items-center gap-1" aria-label="เปลี่ยนหน้า">

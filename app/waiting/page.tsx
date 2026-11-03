@@ -47,14 +47,14 @@ export default async function WaitingPage() {
         >
           บัญชีนี้ยังไม่ได้รับสิทธิ์ใช้งาน
         </h1>
-        <p className="mt-4 text-[15px] leading-relaxed text-chalk-dim">
+        <p className="mt-4 text-[0.9375rem] leading-relaxed text-chalk-dim">
           FITT Builder เปิดให้ใช้เฉพาะทีมงาน FITT และ Partner ตอนนี้คุณเข้าสู่ระบบด้วย
         </p>
         <p className="mt-2 break-all rounded-xl border border-chalk/15 bg-chalk/[0.03] px-4 py-3 font-mono text-sm text-chalk">
           {user.email}
         </p>
 
-        <ul className="mt-6 space-y-3 text-[14px] leading-relaxed text-chalk-dim">
+        <ul className="mt-6 space-y-3 text-[0.875rem] leading-relaxed text-chalk-dim">
           <li>
             <span className="text-chalk">เป็น Partner แล้ว?</span> เข้าสู่ระบบด้วยอีเมลที่ได้รับอีเมลแจ้งสิทธิ์ Partner
             ไม่ใช่อีเมลนี้

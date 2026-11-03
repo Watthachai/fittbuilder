@@ -70,7 +70,7 @@ export default function ShowcaseMarquee({ tiles }: { tiles: ShowcaseTile[] }) {
       aria-label="ตัวอย่างระบบที่สร้างจาก FITT Builder"
       className="overflow-hidden border-y border-chalk/10 py-14 sm:py-20"
     >
-      <p className="mb-8 px-6 text-center font-mono text-[11px] uppercase tracking-[0.22em] text-chalk/45 sm:text-[12px]">
+      <p className="mb-8 px-6 text-center font-mono text-[0.6875rem] uppercase tracking-[0.22em] text-chalk/45 sm:text-[0.75rem]">
         ทุกภาพคือหน้าจอจริงที่ระบบนี้สร้าง
       </p>
       <div className="flex flex-col gap-3">

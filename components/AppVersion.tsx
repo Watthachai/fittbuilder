@@ -13,7 +13,7 @@ export default function AppVersion({ className = "" }: { className?: string }) {
       target="_blank"
       rel="noreferrer"
       title="มีอะไรใหม่ · changelog"
-      className={`shrink-0 font-mono text-[11px] text-chalk/45 transition hover:text-chalk/80 ${className}`}
+      className={`shrink-0 font-mono text-[0.6875rem] text-chalk/45 transition hover:text-chalk/80 ${className}`}
     >
       v{latestVersion()}
     </a>

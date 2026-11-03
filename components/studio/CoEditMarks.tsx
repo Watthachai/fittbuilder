@@ -80,7 +80,7 @@ export function CoEditMarks({
           }}
         >
           <span
-            className="absolute -top-[18px] left-0 whitespace-nowrap rounded px-1.5 py-px text-[11px] font-medium text-white"
+            className="absolute -top-[18px] left-0 whitespace-nowrap rounded px-1.5 py-px text-[0.6875rem] font-medium text-white"
             style={{ background: b.editor.color }}
           >
             {b.editor.name}
@@ -95,7 +95,7 @@ export function CoEditMarks({
 export function CoEditors({ editors }: { editors: CoEditor[] }) {
   if (editors.length === 0) return null;
   return (
-    <div className="mb-3 flex flex-wrap items-center gap-2 rounded-lg border border-night-edge bg-night/40 px-3 py-2 text-[12.5px] text-chalk-dim">
+    <div className="mb-3 flex flex-wrap items-center gap-2 rounded-lg border border-night-edge bg-night/40 px-3 py-2 text-[0.78125rem] text-chalk-dim">
       <Users size={13} className="text-shine" />
       <span>แก้ไขพร้อมกันอยู่ตอนนี้</span>
       {editors.map((e) => (

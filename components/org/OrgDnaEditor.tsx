@@ -292,7 +292,7 @@ export default function OrgDnaEditor({ orgId }: { orgId: string }) {
             <WorkspaceIcon icon={icon} size={22} />
           </span>
           <div className="min-w-0 flex-1">
-            <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-shine">
+            <p className="font-mono text-[0.6875rem] uppercase tracking-[0.2em] text-shine">
               ข้อมูล workspace · Org DNA
             </p>
             <input
@@ -345,12 +345,12 @@ export default function OrgDnaEditor({ orgId }: { orgId: string }) {
 
         {/* AI draft + pain-point analysis from ONE data hub */}
         <section className="mt-7 rounded-xl border border-night-edge bg-night-panel p-4">
-          <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-shine">ข้อมูลตั้งต้น</p>
+          <p className="font-mono text-[0.6875rem] uppercase tracking-[0.2em] text-shine">ข้อมูลตั้งต้น</p>
           <div className="mt-1 flex items-center gap-2">
             <Sparkles size={18} className="text-shine" />
             <h2 className="font-display text-lg font-semibold text-chalk">ให้ AI ร่างจากข้อมูลที่มี</h2>
           </div>
-          <p className="mt-1 text-[13px] text-chalk-dim">
+          <p className="mt-1 text-[0.8125rem] text-chalk-dim">
             วางข้อความ หรืออัปโหลดไฟล์ที่มี — คำอธิบายบริษัท เว็บไซต์ โครงสร้างทีม เอกสาร (PDF/รูป/ข้อความ)
             รวมถึงเสียงจริง (คำบ่นลูกค้า/ฟีดแบ็ก/รีวิว) — จากข้อมูลกองเดียวนี้ AI ช่วยได้ทั้ง{" "}
             <b className="text-chalk">ร่าง Org DNA</b> (4 ฐานราก เติมเฉพาะช่องที่ว่าง) และ{" "}
@@ -364,10 +364,10 @@ export default function OrgDnaEditor({ orgId }: { orgId: string }) {
             }}
             rows={restored ? 8 : 4}
             placeholder="เช่น: เราเป็นเอเจนซีดิจิทัล 30 คน ทีมเล็กตัดสินใจเองได้ ผู้บริหารดูภาพรวม…"
-            className="mt-3 w-full resize-y rounded-lg border border-night-edge bg-night px-3 py-2.5 text-[14px] outline-none focus:border-shine"
+            className="mt-3 w-full resize-y rounded-lg border border-night-edge bg-night px-3 py-2.5 text-[0.875rem] outline-none focus:border-shine"
           />
           {restored && (
-            <p className="mt-1.5 flex items-center gap-1.5 text-[12px] text-chalk-dim">
+            <p className="mt-1.5 flex items-center gap-1.5 text-[0.75rem] text-chalk-dim">
               <RotateCcw size={12} className="text-shine" />
               โหลดข้อมูลที่เคยใช้ร่างกลับมาให้แล้ว — แก้แล้วกด “ให้ AI ร่าง Org DNA” เพื่อร่างใหม่ได้
             </p>
@@ -377,7 +377,7 @@ export default function OrgDnaEditor({ orgId }: { orgId: string }) {
               {files.map((f, i) => (
                 <span
                   key={`${f.name}-${i}`}
-                  className="inline-flex items-center gap-1 rounded-md border border-night-edge bg-night px-2 py-1 font-mono text-[11px] text-chalk-dim"
+                  className="inline-flex items-center gap-1 rounded-md border border-night-edge bg-night px-2 py-1 font-mono text-[0.6875rem] text-chalk-dim"
                 >
                   <Paperclip size={10} className="text-shine" />
                   <span className="max-w-[180px] truncate">{f.name}</span>
@@ -425,7 +425,7 @@ export default function OrgDnaEditor({ orgId }: { orgId: string }) {
             </button>
             <Link
               href={`/consult/app?org=${orgId}`}
-              className="inline-flex items-center gap-1.5 text-[12px] text-chalk-dim underline-offset-2 transition hover:text-shine hover:underline"
+              className="inline-flex items-center gap-1.5 text-[0.75rem] text-chalk-dim underline-offset-2 transition hover:text-shine hover:underline"
             >
               เปิด FITT Consult (ประวัติ + ตรวจสุขภาพธุรกิจ) →
             </Link>
@@ -444,14 +444,14 @@ export default function OrgDnaEditor({ orgId }: { orgId: string }) {
                   <p className="flex items-center gap-1.5 font-display text-sm font-semibold text-chalk">
                     <Radar size={14} className="text-shine" /> Pain Point ขององค์กร
                   </p>
-                  <p className="mt-0.5 text-[11px] text-chalk-dim">
+                  <p className="mt-0.5 text-[0.6875rem] text-chalk-dim">
                     ทุกคนใน workspace เห็นผลนี้
                     {painSavedAt ? ` · อัปเดต ${new Date(painSavedAt).toLocaleString("th-TH")}` : ""}
                   </p>
                 </div>
                 <Link
                   href={`/consult/app?org=${orgId}`}
-                  className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-night-edge px-2.5 py-1.5 text-[12px] text-chalk-dim transition hover:border-shine/60 hover:text-shine"
+                  className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-night-edge px-2.5 py-1.5 text-[0.75rem] text-chalk-dim transition hover:border-shine/60 hover:text-shine"
                 >
                   ดูประวัติทั้งหมด →
                 </Link>
@@ -470,7 +470,7 @@ export default function OrgDnaEditor({ orgId }: { orgId: string }) {
           {dna.sources?.trim() && (
             <button
               onClick={() => setViewer({ sources: dna.sources ?? "" })}
-              className="inline-flex items-center gap-1.5 text-[12px] text-chalk-dim transition hover:text-shine"
+              className="inline-flex items-center gap-1.5 text-[0.75rem] text-chalk-dim transition hover:text-shine"
             >
               <FileText size={13} /> ดูแหล่งข้อมูลทั้งหมดที่ AI ใช้
             </button>
@@ -478,7 +478,7 @@ export default function OrgDnaEditor({ orgId }: { orgId: string }) {
           {dna.versions && dna.versions.length > 0 && (
             <button
               onClick={() => setVersionsOpen(true)}
-              className="inline-flex items-center gap-1.5 text-[12px] text-chalk-dim transition hover:text-shine"
+              className="inline-flex items-center gap-1.5 text-[0.75rem] text-chalk-dim transition hover:text-shine"
             >
               <History size={13} /> ประวัติเวอร์ชัน ({dna.versions.length})
             </button>
@@ -492,18 +492,18 @@ export default function OrgDnaEditor({ orgId }: { orgId: string }) {
             return (
               <div key={b.key}>
                 <label className="font-display text-sm font-semibold text-chalk">{b.th}</label>
-                <p className="mb-1.5 text-[12px] text-chalk-dim">{b.hint}</p>
+                <p className="mb-1.5 text-[0.75rem] text-chalk-dim">{b.hint}</p>
                 <textarea
                   value={dna[b.key] ?? ""}
                   onChange={(e) => setField(b.key, e.target.value)}
                   rows={2}
-                  className="w-full resize-y rounded-lg border border-night-edge bg-night-panel px-3 py-2.5 text-[14px] outline-none focus:border-shine"
+                  className="w-full resize-y rounded-lg border border-night-edge bg-night-panel px-3 py-2.5 text-[0.875rem] outline-none focus:border-shine"
                 />
                 {cite && (
                   <button
                     onClick={() => setViewer({ sources: dna.sources ?? "", highlight: cite })}
                     title="คลิกดูที่มาในข้อมูลของคุณ"
-                    className="mt-1.5 flex w-full items-start gap-1.5 rounded-md border border-night-edge bg-night/50 px-2 py-1.5 text-left text-[11px] text-chalk-dim transition hover:border-shine/50 hover:text-chalk"
+                    className="mt-1.5 flex w-full items-start gap-1.5 rounded-md border border-night-edge bg-night/50 px-2 py-1.5 text-left text-[0.6875rem] text-chalk-dim transition hover:border-shine/50 hover:text-chalk"
                   >
                     <Quote size={11} className="mt-0.5 shrink-0 text-shine" />
                     <span className="line-clamp-2 italic">“{cite}”</span>
@@ -517,7 +517,7 @@ export default function OrgDnaEditor({ orgId }: { orgId: string }) {
         {/* Archetype */}
         <div className="mt-6">
           <label className="font-display text-sm font-semibold text-chalk">รูปแบบองค์กร (Archetype)</label>
-          <p className="mb-2 text-[12px] text-chalk-dim">เลือก 1 ใน 7 ที่ใกล้เคียงที่สุด (หรือเว้นไว้)</p>
+          <p className="mb-2 text-[0.75rem] text-chalk-dim">เลือก 1 ใน 7 ที่ใกล้เคียงที่สุด (หรือเว้นไว้)</p>
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
             {ARCHETYPES.map((a) => {
               const active = dna.archetype === a.key;
@@ -533,10 +533,10 @@ export default function OrgDnaEditor({ orgId }: { orgId: string }) {
                 >
                   <div className="flex items-center gap-1.5">
                     <span className={`h-1.5 w-1.5 rounded-full ${a.healthy ? "bg-go" : "bg-halt"}`} />
-                    <span className="font-display text-[13px] font-semibold text-chalk">{a.th}</span>
-                    <span className="font-mono text-[10px] text-chalk-dim">{a.en}</span>
+                    <span className="font-display text-[0.8125rem] font-semibold text-chalk">{a.th}</span>
+                    <span className="font-mono text-[0.625rem] text-chalk-dim">{a.en}</span>
                   </div>
-                  <p className="mt-0.5 text-[12px] leading-snug text-chalk-dim">{a.desc}</p>
+                  <p className="mt-0.5 text-[0.75rem] leading-snug text-chalk-dim">{a.desc}</p>
                 </button>
               );
             })}
@@ -583,7 +583,7 @@ export default function OrgDnaEditor({ orgId }: { orgId: string }) {
                   <X size={18} />
                 </button>
               </div>
-              <p className="mt-1 text-[12px] text-chalk-dim">
+              <p className="mt-1 text-[0.75rem] text-chalk-dim">
                 ทุกครั้งที่ AI ร่างหรือคุณกู้คืน จะถูกเก็บเป็นเวอร์ชัน — กดกู้คืนเพื่อย้อนกลับ (เก็บล่าสุด {MAX_VERSIONS})
               </p>
               <div className="scroll-thin mt-3 min-h-0 flex-1 space-y-2 overflow-y-auto">
@@ -593,22 +593,22 @@ export default function OrgDnaEditor({ orgId }: { orgId: string }) {
                     className="flex items-center gap-3 rounded-lg border border-night-edge bg-night px-3 py-2.5"
                   >
                     <span
-                      className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium ${
+                      className={`shrink-0 rounded-full px-2 py-0.5 text-[0.625rem] font-medium ${
                         v.source === "ai" ? "bg-shine/15 text-shine" : "bg-chalk/10 text-chalk-dim"
                       }`}
                     >
                       {v.source === "ai" ? "AI ร่าง" : "แก้เอง"}
                     </span>
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-[13px] text-chalk">{versionPreview(v.snapshot)}</p>
-                      <p className="font-mono text-[10px] text-chalk-dim">
+                      <p className="truncate text-[0.8125rem] text-chalk">{versionPreview(v.snapshot)}</p>
+                      <p className="font-mono text-[0.625rem] text-chalk-dim">
                         {new Date(v.createdAt).toLocaleString("th-TH")}
                         {i === 0 ? " · ล่าสุด" : ""}
                       </p>
                     </div>
                     <button
                       onClick={() => restore(v)}
-                      className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-night-edge px-2.5 py-1.5 text-[12px] text-chalk-dim transition hover:border-shine hover:text-chalk"
+                      className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-night-edge px-2.5 py-1.5 text-[0.75rem] text-chalk-dim transition hover:border-shine hover:text-chalk"
                     >
                       <RotateCcw size={12} /> กู้คืน
                     </button>

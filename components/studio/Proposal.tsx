@@ -46,7 +46,7 @@ import { CoEditMarks, CoEditors } from "./CoEditMarks";
  * exclusions, closing.
  */
 
-const label = "font-display text-[11.5px] uppercase tracking-widest text-chalk-dim";
+const label = "font-display text-[0.71875rem] uppercase tracking-widest text-chalk-dim";
 
 export default function Proposal({
   projectId,
@@ -332,7 +332,7 @@ export default function Proposal({
         {/* What this sheet is, and what it deliberately is not. */}
         <div className="flex items-start gap-2.5 rounded-xl border border-night-edge p-3.5">
           <FileText size={14} className="mt-0.5 shrink-0 text-shine" />
-          <p className="text-[12.5px] leading-relaxed text-chalk-dim">
+          <p className="text-[0.78125rem] leading-relaxed text-chalk-dim">
             เอกสารเล่าเรื่อง — ปัญหาของลูกค้า สิ่งที่ระบบทำให้ และผลที่ได้ พร้อมภาพจากการเดินระบบจริง
             <span className="text-chalk"> ไม่มีตัวเลขเงินในใบนี้</span> ราคาอ้างไปที่ใบเสนอราคาแนบ
             สองใบจึงขัดกันไม่ได้
@@ -430,13 +430,13 @@ export default function Proposal({
         {/* The argument */}
         <div className="rounded-xl border border-night-edge p-3.5">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <h3 className="font-display text-[14px] text-chalk">เนื้อหาข้อเสนอ</h3>
+            <h3 className="font-display text-[0.875rem] text-chalk">เนื้อหาข้อเสนอ</h3>
             {!readOnly && (
               <button
                 onClick={() => void draft()}
                 disabled={writing}
                 title="อ่าน BRD/PRD หน้าจอจริง และเส้นทางที่เดินไว้ แล้วร่างให้ — เติมเฉพาะส่วนที่ยังว่าง"
-                className="inline-flex items-center gap-1.5 rounded-lg border border-shine/50 px-2.5 py-1 font-display text-[12.5px] text-shine transition hover:bg-shine/10 disabled:opacity-40"
+                className="inline-flex items-center gap-1.5 rounded-lg border border-shine/50 px-2.5 py-1 font-display text-[0.78125rem] text-shine transition hover:bg-shine/10 disabled:opacity-40"
               >
                 {writing ? (
                   <Loader2 size={12} className="animate-spin" />
@@ -467,7 +467,7 @@ export default function Proposal({
             {doc.points.map((p, i) => (
               <div key={p.id} data-coedit-row={p.id} className="rounded-lg border border-night-edge p-2.5">
                 <div className="flex items-start gap-2">
-                  <span className="mt-1 shrink-0 font-mono text-[11.5px] text-chalk-dim">
+                  <span className="mt-1 shrink-0 font-mono text-[0.71875rem] text-chalk-dim">
                     {i + 1}.
                   </span>
                   <div className="grid flex-1 gap-2 sm:grid-cols-3">
@@ -516,7 +516,7 @@ export default function Proposal({
               onClick={() =>
                 edit((d) => ({ ...d, points: [...d.points, emptyPoint(d.points.length)] }))
               }
-              className="mt-2 inline-flex items-center gap-1.5 rounded-lg border border-night-edge px-2.5 py-1 font-display text-[12.5px] text-chalk-dim transition hover:border-shine/60 hover:text-chalk"
+              className="mt-2 inline-flex items-center gap-1.5 rounded-lg border border-night-edge px-2.5 py-1 font-display text-[0.78125rem] text-chalk-dim transition hover:border-shine/60 hover:text-chalk"
             >
               <Plus size={12} /> เพิ่มข้อ
             </button>
@@ -554,7 +554,7 @@ export default function Proposal({
             {!readOnly && (
               <button
                 onClick={() => edit((d) => ({ ...d, excluded: [...d.excluded, ""] }))}
-                className="inline-flex w-fit items-center gap-1.5 rounded-lg border border-night-edge px-2.5 py-1 font-display text-[12.5px] text-chalk-dim transition hover:border-shine/60 hover:text-chalk"
+                className="inline-flex w-fit items-center gap-1.5 rounded-lg border border-night-edge px-2.5 py-1 font-display text-[0.78125rem] text-chalk-dim transition hover:border-shine/60 hover:text-chalk"
               >
                 <Plus size={12} /> เพิ่มรายการ
               </button>
@@ -639,7 +639,7 @@ export default function Proposal({
                   }));
                 return (
                   <div key={st.name} className="rounded-lg border border-night-edge p-2.5">
-                    <p className="font-display text-[12.5px] text-chalk">{st.name}</p>
+                    <p className="font-display text-[0.78125rem] text-chalk">{st.name}</p>
                     <div className="mt-1.5 grid gap-2 sm:grid-cols-3">
                       <textarea
                         value={manual.does}
@@ -647,7 +647,7 @@ export default function Proposal({
                         rows={2}
                         onChange={(e) => setField("does", e.target.value)}
                         placeholder="ทำอะไร — หน้านี้มีไว้เพื่ออะไร"
-                        className={`${inputCls} min-h-[54px] resize-y text-[12.5px] leading-relaxed`}
+                        className={`${inputCls} min-h-[54px] resize-y text-[0.78125rem] leading-relaxed`}
                       />
                       <textarea
                         value={manual.how}
@@ -655,7 +655,7 @@ export default function Proposal({
                         rows={2}
                         onChange={(e) => setField("how", e.target.value)}
                         placeholder={"ขั้นตอน — หนึ่งขั้นต่อบรรทัด เลข 1.1 1.2 ระบบใส่ให้เอง\nเช่น เลือกสีผ้าและขาโซฟา\nกดปุ่มหยิบใส่ตะกร้า"}
-                        className={`${inputCls} min-h-[54px] resize-y text-[12.5px] leading-relaxed`}
+                        className={`${inputCls} min-h-[54px] resize-y text-[0.78125rem] leading-relaxed`}
                       />
                       <textarea
                         value={manual.result}
@@ -663,13 +663,13 @@ export default function Proposal({
                         rows={2}
                         onChange={(e) => setField("result", e.target.value)}
                         placeholder="ผลลัพธ์ — จบหน้านี้แล้วได้อะไร"
-                        className={`${inputCls} min-h-[54px] resize-y text-[12.5px] leading-relaxed`}
+                        className={`${inputCls} min-h-[54px] resize-y text-[0.78125rem] leading-relaxed`}
                       />
                     </div>
                   </div>
                 );
               })}
-              <p className="font-mono text-[11px] text-chalk-dim">
+              <p className="font-mono text-[0.6875rem] text-chalk-dim">
                 ช่องที่เว้นว่าง ปุ่ม “ร่างด้วย AI จากระบบจริง” จะเขียนให้ — ช่องที่พิมพ์เองแล้ว AI
                 จะไม่แตะ
               </p>
@@ -679,9 +679,9 @@ export default function Proposal({
 
         {/* Schedule and price both point at the quotation. */}
         <div className="rounded-xl border border-night-edge p-3.5">
-          <h3 className="font-display text-[14px] text-chalk">ตัวเลขที่ดึงจากใบเสนอราคา</h3>
+          <h3 className="font-display text-[0.875rem] text-chalk">ตัวเลขที่ดึงจากใบเสนอราคา</h3>
           {time.known ? (
-            <p className="mt-1.5 text-[12.5px] leading-relaxed text-chalk-dim">
+            <p className="mt-1.5 text-[0.78125rem] leading-relaxed text-chalk-dim">
               {time.buildDays > 0 ? (
                 <>
                   พัฒนา <span className="font-mono text-chalk">{time.buildDays}</span> วันทำการ ·
@@ -700,7 +700,7 @@ export default function Proposal({
               — แก้ตัวเลขพวกนี้ที่แท็บใบเสนอราคา ใบนี้จะตามเอง
             </p>
           ) : (
-            <p className="mt-1.5 text-[12.5px] leading-relaxed text-chalk-dim">
+            <p className="mt-1.5 text-[0.78125rem] leading-relaxed text-chalk-dim">
               ยังไม่มีใบเสนอราคา — ส่วนระยะเวลาจะเว้นไว้ ไม่เดาตัวเลขให้ ไปที่แท็บใบเสนอราคาก่อน
             </p>
           )}
@@ -755,7 +755,7 @@ export default function Proposal({
         <button
           onClick={() => void print()}
           disabled={exporting !== null || !approval.exportAllowed}
-          className="flex w-full items-center justify-center gap-1.5 rounded-lg bg-shine px-3 py-2 font-display text-[14px] font-semibold text-night transition hover:brightness-110 disabled:opacity-60"
+          className="flex w-full items-center justify-center gap-1.5 rounded-lg bg-shine px-3 py-2 font-display text-[0.875rem] font-semibold text-night transition hover:brightness-110 disabled:opacity-60"
         >
           {exporting === "pdf" ? (
             <>
@@ -767,7 +767,7 @@ export default function Proposal({
             </>
           )}
         </button>
-        <p className="-mt-2 text-center text-[11.5px] leading-relaxed text-chalk-dim">
+        <p className="-mt-2 text-center text-[0.71875rem] leading-relaxed text-chalk-dim">
           ในหน้าต่างพิมพ์ เลือกปลายทางเป็น “Save as PDF” — ส่งคู่กับใบเสนอราคาเป็นชุดเดียว
         </p>
         <div className="-mt-3">

@@ -10,9 +10,9 @@ import remarkGfm from "remark-gfm";
  * needed. `muted` renders smaller/dimmer text for the collapsible thinking block.
  */
 const components: Components = {
-  h1: ({ children }) => <h1 className="mb-1.5 mt-2 text-[15px] font-bold text-chalk">{children}</h1>,
-  h2: ({ children }) => <h2 className="mb-1.5 mt-2 text-[14px] font-bold text-chalk">{children}</h2>,
-  h3: ({ children }) => <h3 className="mb-1 mt-2 text-[13px] font-semibold text-chalk">{children}</h3>,
+  h1: ({ children }) => <h1 className="mb-1.5 mt-2 text-[0.9375rem] font-bold text-chalk">{children}</h1>,
+  h2: ({ children }) => <h2 className="mb-1.5 mt-2 text-[0.875rem] font-bold text-chalk">{children}</h2>,
+  h3: ({ children }) => <h3 className="mb-1 mt-2 text-[0.8125rem] font-semibold text-chalk">{children}</h3>,
   p: ({ children }) => <p className="my-1.5 leading-relaxed first:mt-0 last:mb-0">{children}</p>,
   strong: ({ children }) => <strong className="font-semibold text-chalk">{children}</strong>,
   em: ({ children }) => <em className="italic">{children}</em>,
@@ -27,15 +27,15 @@ const components: Components = {
   code: ({ className, children }) => {
     const inline = !className;
     return inline ? (
-      <code className="rounded bg-night px-1 py-0.5 font-mono text-[12px] text-shine [overflow-wrap:anywhere]">
+      <code className="rounded bg-night px-1 py-0.5 font-mono text-[0.75rem] text-shine [overflow-wrap:anywhere]">
         {children}
       </code>
     ) : (
-      <code className={`${className ?? ""} font-mono text-[12px]`}>{children}</code>
+      <code className={`${className ?? ""} font-mono text-[0.75rem]`}>{children}</code>
     );
   },
   pre: ({ children }) => (
-    <pre className="scroll-thin my-2 overflow-x-auto rounded-md border border-night-edge bg-night p-3 text-[12px] leading-relaxed">
+    <pre className="scroll-thin my-2 overflow-x-auto rounded-md border border-night-edge bg-night p-3 text-[0.75rem] leading-relaxed">
       {children}
     </pre>
   ),
@@ -44,7 +44,7 @@ const components: Components = {
   ),
   table: ({ children }) => (
     <div className="scroll-thin my-2 overflow-x-auto">
-      <table className="w-full border-collapse text-[12px]">{children}</table>
+      <table className="w-full border-collapse text-[0.75rem]">{children}</table>
     </div>
   ),
   th: ({ children }) => <th className="border border-night-edge bg-night px-2 py-1 text-left font-semibold">{children}</th>,
@@ -54,7 +54,7 @@ const components: Components = {
 
 function Markdown({ children, muted }: { children: string; muted?: boolean }) {
   return (
-    <div className={muted ? "text-[12px] text-chalk-dim" : "text-[14px] text-chalk"}>
+    <div className={muted ? "text-[0.75rem] text-chalk-dim" : "text-[0.875rem] text-chalk"}>
       <ReactMarkdown remarkPlugins={[remarkGfm]} components={components}>
         {children}
       </ReactMarkdown>

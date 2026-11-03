@@ -51,7 +51,7 @@ export default function Storefront() {
         <div className="mx-auto flex max-w-6xl items-center gap-3 px-5 py-4">
           <Link
             href="/"
-            className="flex shrink-0 items-center gap-1.5 rounded-lg px-2 py-1.5 text-[12.5px] text-chalk/50 transition hover:bg-chalk/[0.05] hover:text-chalk"
+            className="flex shrink-0 items-center gap-1.5 rounded-lg px-2 py-1.5 text-[0.78125rem] text-chalk/50 transition hover:bg-chalk/[0.05] hover:text-chalk"
           >
             <ArrowLeft size={14} />
             FITT Builder
@@ -59,8 +59,8 @@ export default function Storefront() {
           <div className="flex min-w-0 flex-1 items-center gap-2">
             <Store size={17} className="shrink-0 text-shine" />
             <div className="min-w-0">
-              <h1 className="font-display text-[15px] font-semibold text-chalk">มาร์เก็ตเพลสระบบ</h1>
-              <p className="truncate text-[12px] text-chalk/50">
+              <h1 className="font-display text-[0.9375rem] font-semibold text-chalk">มาร์เก็ตเพลสระบบ</h1>
+              <p className="truncate text-[0.75rem] text-chalk/50">
                 ระบบสำเร็จรูป {FAMILIES.length} ระบบ รวม {MODULES.length} ส่วนประกอบ เข้าไปลองใช้งานได้ก่อนตัดสินใจ
               </p>
             </div>
@@ -70,7 +70,7 @@ export default function Storefront() {
 
       <div className="mx-auto max-w-6xl px-5 py-6">
         <div className="mb-5 flex flex-wrap items-center gap-2">
-          <p className="text-[12.5px] text-chalk/45">
+          <p className="text-[0.78125rem] text-chalk/45">
             เลือกและทดลองใช้ทีละระบบ ส่วนเรื่องที่ว่าใครเห็นส่วนไหน ตั้งเป็นสิทธิ์ได้ภายหลังในตัวระบบ
           </p>
           <div className="relative ml-auto">
@@ -79,13 +79,13 @@ export default function Storefront() {
               value={q}
               onChange={(e) => setQ(e.target.value)}
               placeholder="ค้นหาระบบ ส่วนประกอบ รหัส SAP หรือความสามารถ"
-              className="w-80 rounded-lg border border-chalk/15 bg-night-panel py-2 pl-8 pr-3 text-[12.5px] text-chalk outline-none placeholder:text-chalk/35 focus:border-shine/60"
+              className="w-80 rounded-lg border border-chalk/15 bg-night-panel py-2 pl-8 pr-3 text-[0.78125rem] text-chalk outline-none placeholder:text-chalk/35 focus:border-shine/60"
             />
           </div>
         </div>
 
         {note && (
-          <p className="mb-4 rounded-lg border border-shine/30 bg-shine/[0.07] px-3 py-2 text-[12.5px] text-shine">{note}</p>
+          <p className="mb-4 rounded-lg border border-shine/30 bg-shine/[0.07] px-3 py-2 text-[0.78125rem] text-shine">{note}</p>
         )}
 
         <div className="grid gap-5 lg:grid-cols-[1fr_290px]">
@@ -94,7 +94,7 @@ export default function Storefront() {
               <SystemCard key={f.id} family={f.id} inScope={scope.hasSystem(f.id)} onAdd={() => add(f.id)} />
             ))}
             {systems.length === 0 && (
-              <p className="py-10 text-center text-[13px] text-chalk/40">ไม่พบระบบที่ตรงกับ “{q}”</p>
+              <p className="py-10 text-center text-[0.8125rem] text-chalk/40">ไม่พบระบบที่ตรงกับ “{q}”</p>
             )}
           </div>
 

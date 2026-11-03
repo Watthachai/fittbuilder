@@ -92,7 +92,7 @@ export default function BuildFlow({ phase, workflow, approved, has, actions }: B
           className="loader-float w-64 select-none opacity-90"
           draggable={false}
         />
-        <p className="-mt-1 font-display text-[14px] text-chalk">{HEADLINE[phase]}</p>
+        <p className="-mt-1 font-display text-[0.875rem] text-chalk">{HEADLINE[phase]}</p>
         <span className="mt-1.5 flex items-center gap-1.5">
           <span className="loader-dot size-1.5 rounded-full bg-shine" style={{ animationDelay: "0ms" }} />
           <span className="loader-dot size-1.5 rounded-full bg-shine" style={{ animationDelay: "150ms" }} />
@@ -104,7 +104,7 @@ export default function BuildFlow({ phase, workflow, approved, has, actions }: B
           own — it is the third step of a chain, and the two documents above it
           are what it was written from. */}
       <div className="rounded-xl border border-night-edge bg-night-panel px-4 py-3">
-        <p className="mb-2.5 font-mono text-[10px] uppercase tracking-[0.2em] text-chalk-dim/60">
+        <p className="mb-2.5 font-mono text-[0.625rem] uppercase tracking-[0.2em] text-chalk-dim/60">
           สร้างจากเอกสาร
         </p>
         <ol className="flex items-center gap-2">
@@ -123,8 +123,8 @@ export default function BuildFlow({ phase, workflow, approved, has, actions }: B
                     {done ? <Check size={11} /> : <FileText size={11} />}
                   </span>
                   <span className="min-w-0">
-                    <span className="block font-display text-[12.5px] text-chalk">{s.label}</span>
-                    <span className="block truncate font-mono text-[10.5px] text-chalk-dim/60">
+                    <span className="block font-display text-[0.78125rem] text-chalk">{s.label}</span>
+                    <span className="block truncate font-mono text-[0.65625rem] text-chalk-dim/60">
                       {exists ? s.doc : "ยังไม่มีเอกสาร"}
                     </span>
                   </span>
@@ -139,8 +139,8 @@ export default function BuildFlow({ phase, workflow, approved, has, actions }: B
                 <Loader2 size={11} className="animate-spin" />
               </span>
               <span className="min-w-0">
-                <span className="block font-display text-[12.5px] font-semibold text-shine">Build</span>
-                <span className="block truncate text-[10.5px] text-chalk-dim/60">กำลังสร้าง</span>
+                <span className="block font-display text-[0.78125rem] font-semibold text-shine">Build</span>
+                <span className="block truncate text-[0.65625rem] text-chalk-dim/60">กำลังสร้าง</span>
               </span>
             </span>
           </li>
@@ -169,7 +169,7 @@ export default function BuildFlow({ phase, workflow, approved, has, actions }: B
                     {done ? <Check size={12} /> : active ? <Loader2 size={12} className="animate-spin" /> : <Icon size={12} />}
                   </span>
                   <span
-                    className={`truncate text-[12px] transition ${
+                    className={`truncate text-[0.75rem] transition ${
                       active ? "font-semibold text-chalk" : done ? "text-go" : "text-chalk-dim/50"
                     }`}
                   >
@@ -191,13 +191,13 @@ export default function BuildFlow({ phase, workflow, approved, has, actions }: B
               style={{ width: `${((at + 1) / STEPS.length) * 100}%` }}
             />
           </span>
-          <span className="shrink-0 font-mono text-[10.5px] tabular-nums text-chalk-dim">
+          <span className="shrink-0 font-mono text-[0.65625rem] tabular-nums text-chalk-dim">
             {files.length > 0 ? `${files.length} ไฟล์` : "เริ่มต้น"}
           </span>
         </div>
       </div>
 
-      <p key={tip} className="tip-fade px-1 text-center text-[11.5px] leading-relaxed text-chalk-dim/60">
+      <p key={tip} className="tip-fade px-1 text-center text-[0.71875rem] leading-relaxed text-chalk-dim/60">
         {TIPS[tip]}
       </p>
     </div>

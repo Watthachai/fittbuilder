@@ -9,7 +9,7 @@ export default function DropOverlay({ label = "วางรูปหรือไ
     <div className="drop-overlay pointer-events-none absolute inset-0 z-40 m-1.5 flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-shine bg-night/85 backdrop-blur-sm">
       <ImageDown size={30} className="text-shine" />
       <p className="font-display text-sm font-semibold text-chalk">{label}</p>
-      <p className="font-mono text-[11px] text-chalk-dim">รูปภาพ · PDF · ไฟล์เอกสาร</p>
+      <p className="font-mono text-[0.6875rem] text-chalk-dim">รูปภาพ · PDF · ไฟล์เอกสาร</p>
     </div>
   );
 }

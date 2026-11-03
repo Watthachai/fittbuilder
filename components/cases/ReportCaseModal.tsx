@@ -108,7 +108,7 @@ export default function ReportCaseModal({
         <div className="flex shrink-0 items-center justify-between border-b border-night-edge px-4 py-3">
           <div className="flex items-center gap-2">
             <Flag size={15} className="text-shine" />
-            <h2 className="font-display text-[15px] font-semibold text-chalk">รายงานปัญหาให้ทีม</h2>
+            <h2 className="font-display text-[0.9375rem] font-semibold text-chalk">รายงานปัญหาให้ทีม</h2>
           </div>
           <button
             onClick={onClose}
@@ -123,14 +123,14 @@ export default function ReportCaseModal({
           <div className="flex flex-col items-center gap-3 px-6 py-10 text-center">
             <CheckCircle2 size={36} className="text-go" />
             <p className="font-display text-lg font-semibold text-chalk">ส่งเคส #{created.number} แล้ว</p>
-            <p className="max-w-sm text-[13px] leading-relaxed text-chalk-dim">
+            <p className="max-w-sm text-[0.8125rem] leading-relaxed text-chalk-dim">
               ทีมจะตอบในเคสนี้ เมื่อมีคำตอบจะมีตัวเลขขึ้นที่ปุ่มบัญชีมุมขวาบน ติดตามทุกเคสได้ที่หน้า แจ้งเคส / ติดตามปัญหา
             </p>
             <div className="mt-2 flex gap-2">
               {onOpenCase ? (
                 <button
                   onClick={() => onOpenCase(created.id)}
-                  className="rounded-full bg-shine px-4 py-2 font-display text-[13px] font-semibold text-night transition hover:brightness-110"
+                  className="rounded-full bg-shine px-4 py-2 font-display text-[0.8125rem] font-semibold text-night transition hover:brightness-110"
                 >
                   เปิดดูเคส
                 </button>
@@ -140,14 +140,14 @@ export default function ReportCaseModal({
                   href={`/cases?id=${created.id}`}
                   target="_blank"
                   rel="noreferrer"
-                  className="rounded-full bg-shine px-4 py-2 font-display text-[13px] font-semibold text-night transition hover:brightness-110"
+                  className="rounded-full bg-shine px-4 py-2 font-display text-[0.8125rem] font-semibold text-night transition hover:brightness-110"
                 >
                   เปิดดูเคส
                 </a>
               )}
               <button
                 onClick={onClose}
-                className="rounded-full border border-night-edge px-4 py-2 font-display text-[13px] text-chalk transition hover:bg-chalk/5"
+                className="rounded-full border border-night-edge px-4 py-2 font-display text-[0.8125rem] text-chalk transition hover:bg-chalk/5"
               >
                 ปิด
               </button>
@@ -166,14 +166,14 @@ export default function ReportCaseModal({
               )}
 
               <div className="flex flex-col gap-1.5">
-                <span className="font-display text-[12px] text-chalk-dim">ปัญหาแบบไหน</span>
+                <span className="font-display text-[0.75rem] text-chalk-dim">ปัญหาแบบไหน</span>
                 <div className="flex flex-wrap gap-1.5">
                   {CASE_KINDS.map((k) => (
                     <button
                       key={k}
                       onClick={() => pickKind(k)}
                       aria-pressed={kind === k}
-                      className={`rounded-full border px-3 py-1 font-display text-[12px] transition ${
+                      className={`rounded-full border px-3 py-1 font-display text-[0.75rem] transition ${
                         kind === k
                           ? "border-shine bg-shine/15 text-shine"
                           : "border-night-edge text-chalk-dim hover:text-chalk"
@@ -186,7 +186,7 @@ export default function ReportCaseModal({
               </div>
 
               <label className="flex flex-col gap-1.5">
-                <span className="font-display text-[12px] text-chalk-dim">หัวข้อ</span>
+                <span className="font-display text-[0.75rem] text-chalk-dim">หัวข้อ</span>
                 <input
                   value={title}
                   maxLength={200}
@@ -195,12 +195,12 @@ export default function ReportCaseModal({
                     setTitle(e.target.value);
                     setTitleEdited(true);
                   }}
-                  className="rounded-md border border-night-edge bg-night px-3 py-2 text-[13px] text-chalk outline-none placeholder:text-chalk-dim/60 focus:border-shine"
+                  className="rounded-md border border-night-edge bg-night px-3 py-2 text-[0.8125rem] text-chalk outline-none placeholder:text-chalk-dim/60 focus:border-shine"
                 />
               </label>
 
               <label className="flex flex-col gap-1.5">
-                <span className="font-display text-[12px] text-chalk-dim">เล่าให้ทีมฟัง (ไม่บังคับ)</span>
+                <span className="font-display text-[0.75rem] text-chalk-dim">เล่าให้ทีมฟัง (ไม่บังคับ)</span>
                 <textarea
                   value={body}
                   onChange={(e) => setBody(e.target.value)}
@@ -208,7 +208,7 @@ export default function ReportCaseModal({
                   rows={4}
                   maxLength={10_000}
                   placeholder="ตอนนั้นกำลังทำอะไร สั่ง AI ว่าอะไร หรืออยากให้ได้ผลแบบไหน — วางภาพหน้าจอตรงนี้ได้เลย"
-                  className="resize-y rounded-md border border-night-edge bg-night px-3 py-2 text-[13px] leading-relaxed text-chalk outline-none placeholder:text-chalk-dim/60 focus:border-shine"
+                  className="resize-y rounded-md border border-night-edge bg-night px-3 py-2 text-[0.8125rem] leading-relaxed text-chalk outline-none placeholder:text-chalk-dim/60 focus:border-shine"
                 />
               </label>
 
@@ -220,7 +220,7 @@ export default function ReportCaseModal({
               <div className="rounded-lg border border-night-edge bg-night/60">
                 <button
                   onClick={() => setShowContext((v) => !v)}
-                  className="flex w-full items-center gap-2 px-3 py-2 text-left font-display text-[12px] text-chalk-dim transition hover:text-chalk"
+                  className="flex w-full items-center gap-2 px-3 py-2 text-left font-display text-[0.75rem] text-chalk-dim transition hover:text-chalk"
                 >
                   {showContext ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
                   ข้อมูลที่ระบบแนบให้ทีมด้วย
@@ -232,14 +232,14 @@ export default function ReportCaseModal({
             <div className="flex shrink-0 items-center justify-end gap-2 border-t border-night-edge px-4 py-3">
               <button
                 onClick={onClose}
-                className="rounded-full px-4 py-2 font-display text-[13px] text-chalk-dim transition hover:text-chalk"
+                className="rounded-full px-4 py-2 font-display text-[0.8125rem] text-chalk-dim transition hover:text-chalk"
               >
                 ยกเลิก
               </button>
               <button
                 onClick={() => void send()}
                 disabled={!canSend}
-                className="inline-flex items-center gap-1.5 rounded-full bg-shine px-4 py-2 font-display text-[13px] font-semibold text-night transition hover:brightness-110 disabled:opacity-50"
+                className="inline-flex items-center gap-1.5 rounded-full bg-shine px-4 py-2 font-display text-[0.8125rem] font-semibold text-night transition hover:brightness-110 disabled:opacity-50"
               >
                 {sending ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
                 ส่งให้ทีม
@@ -274,17 +274,17 @@ export function ContextRows({ context, projectName }: { context: CaseContext; pr
     ["เบราว์เซอร์", context.userAgent],
   ];
   return (
-    <div className="flex flex-col gap-2 border-t border-night-edge px-3 py-3 text-[12px]">
+    <div className="flex flex-col gap-2 border-t border-night-edge px-3 py-3 text-[0.75rem]">
       {context.aiReply && (
         <div className="flex flex-col gap-1">
           <span className="text-chalk-dim">ข้อความที่ AI ตอบ</span>
-          <div className="scroll-thin max-h-40 overflow-auto whitespace-pre-wrap break-words rounded-md border border-night-edge border-l-2 border-l-shine bg-shine/[0.05] px-2.5 py-2 text-[12px] leading-relaxed text-chalk">
+          <div className="scroll-thin max-h-40 overflow-auto whitespace-pre-wrap break-words rounded-md border border-night-edge border-l-2 border-l-shine bg-shine/[0.05] px-2.5 py-2 text-[0.75rem] leading-relaxed text-chalk">
             {context.aiReply.text}
           </div>
         </div>
       )}
       {context.error && (
-        <pre className="scroll-thin max-h-32 overflow-auto whitespace-pre-wrap break-words rounded-md border border-halt/30 bg-halt/5 px-2.5 py-2 font-mono text-[11px] leading-relaxed text-halt">
+        <pre className="scroll-thin max-h-32 overflow-auto whitespace-pre-wrap break-words rounded-md border border-halt/30 bg-halt/5 px-2.5 py-2 font-mono text-[0.6875rem] leading-relaxed text-halt">
           {context.error}
         </pre>
       )}
@@ -300,20 +300,20 @@ export function ContextRows({ context, projectName }: { context: CaseContext; pr
         <div>
           <button
             onClick={() => setShowLog((v) => !v)}
-            className="inline-flex items-center gap-1 font-display text-[12px] text-chalk-dim transition hover:text-chalk"
+            className="inline-flex items-center gap-1 font-display text-[0.75rem] text-chalk-dim transition hover:text-chalk"
           >
             {showLog ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
             ล็อก {context.log.length} บรรทัดสุดท้าย
           </button>
           {showLog && (
-            <pre className="scroll-thin mt-1.5 max-h-48 overflow-auto whitespace-pre-wrap break-words rounded-md border border-night-edge bg-night px-2.5 py-2 font-mono text-[10.5px] leading-relaxed text-chalk-dim">
+            <pre className="scroll-thin mt-1.5 max-h-48 overflow-auto whitespace-pre-wrap break-words rounded-md border border-night-edge bg-night px-2.5 py-2 font-mono text-[0.65625rem] leading-relaxed text-chalk-dim">
               {context.log.join("\n")}
             </pre>
           )}
         </div>
       )}
       {projectName && (
-        <p className="text-[11px] text-chalk-dim/80">ทีมดูแลจะเปิดดูไฟล์ในโปรเจกต์นี้เพื่อหาสาเหตุ</p>
+        <p className="text-[0.6875rem] text-chalk-dim/80">ทีมดูแลจะเปิดดูไฟล์ในโปรเจกต์นี้เพื่อหาสาเหตุ</p>
       )}
     </div>
   );

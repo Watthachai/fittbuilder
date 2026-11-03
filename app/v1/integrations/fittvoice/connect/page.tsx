@@ -60,7 +60,7 @@ export default async function ConnectPage({
         <h1 className="mt-5 font-display text-xl font-semibold leading-snug text-chalk">
           {client.name} ขอเชื่อมกับบัญชี FITT Builder ของคุณ
         </h1>
-        <ul className="mt-4 space-y-1.5 text-left text-[13px] leading-relaxed text-chalk-dim">
+        <ul className="mt-4 space-y-1.5 text-left text-[0.8125rem] leading-relaxed text-chalk-dim">
           <li>• ส่งบทสรุปที่คุณตรวจแล้วเข้ามาเป็นโปรเจกต์ในเฟส Define ของ workspace ที่เลือก และอัปเดตโปรเจกต์ที่ส่งมาเอง</li>
           <li>• เห็นอีเมลของคุณ ชื่อ workspace และบทบาทของคุณใน workspace นั้น</li>
           <li>• เปิดหรือแก้โปรเจกต์อื่นไม่ได้</li>

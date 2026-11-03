@@ -192,7 +192,7 @@ export default function CompareShell() {
             >
               <button
                 onClick={() => !active && void show(t.id)}
-                className={`max-w-56 truncate px-3 py-1.5 font-display text-[13px] ${
+                className={`max-w-56 truncate px-3 py-1.5 font-display text-[0.8125rem] ${
                   active ? "text-shine" : "text-chalk-dim group-hover:text-chalk"
                 }`}
               >
@@ -215,7 +215,7 @@ export default function CompareShell() {
         {ids.length < MAX_TABS && (
           <button
             onClick={() => setPicking((v) => !v)}
-            className="inline-flex items-center gap-1.5 rounded-xl border border-dashed border-night-edge px-3 py-1.5 font-display text-[13px] text-chalk-dim transition hover:border-shine/60 hover:text-chalk"
+            className="inline-flex items-center gap-1.5 rounded-xl border border-dashed border-night-edge px-3 py-1.5 font-display text-[0.8125rem] text-chalk-dim transition hover:border-shine/60 hover:text-chalk"
           >
             <Plus size={13} /> เพิ่มระบบ
           </button>
@@ -223,7 +223,7 @@ export default function CompareShell() {
 
         <div className="ml-auto flex items-center gap-2">
           {elapsedMs !== null && status === "ready" && (
-            <span className="font-mono text-[11px] text-chalk-dim">
+            <span className="font-mono text-[0.6875rem] text-chalk-dim">
               สลับใน {(elapsedMs / 1000).toFixed(1)} วิ
             </span>
           )}
@@ -268,7 +268,7 @@ export default function CompareShell() {
                 className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm transition hover:bg-night-panel disabled:opacity-40"
               >
                 <span className="min-w-0 flex-1 truncate text-chalk">{p.name}</span>
-                <span className="font-mono text-[11px] text-chalk-dim">{p.fileCount} ไฟล์</span>
+                <span className="font-mono text-[0.6875rem] text-chalk-dim">{p.fileCount} ไฟล์</span>
                 {chosen && <Check size={13} className="text-go" />}
               </button>
             );
@@ -298,7 +298,7 @@ export default function CompareShell() {
           <div className="flex h-full flex-col items-center justify-center gap-3 text-chalk-dim">
             <Loader2 size={22} className="animate-spin text-shine" />
             <p className="text-sm">กำลังเปิดโปรเจกต์…</p>
-            <p className="max-w-md text-center text-[12px] leading-relaxed text-chalk-dim/70">
+            <p className="max-w-md text-center text-[0.75rem] leading-relaxed text-chalk-dim/70">
               ระบบที่ใช้ไลบรารีชุดเดียวกันจะข้ามการติดตั้งใหม่ — สลับครั้งต่อไปจะเร็วกว่านี้มาก
             </p>
           </div>
@@ -314,12 +314,12 @@ function Frame({ children }: { children: React.ReactNode }) {
       <header className="mb-3 flex items-center gap-3">
         <Link
           href="/"
-          className="inline-flex items-center gap-1.5 font-mono text-[12px] text-chalk-dim transition hover:text-chalk"
+          className="inline-flex items-center gap-1.5 font-mono text-[0.75rem] text-chalk-dim transition hover:text-chalk"
         >
           <ArrowLeft size={13} /> หน้าแรก
         </Link>
-        <h1 className="font-display text-[15px] font-semibold">เทียบโปรเจกต์</h1>
-        <span className="hidden font-mono text-[11px] text-chalk-dim sm:inline">
+        <h1 className="font-display text-[0.9375rem] font-semibold">เทียบโปรเจกต์</h1>
+        <span className="hidden font-mono text-[0.6875rem] text-chalk-dim sm:inline">
           เปิดทีละตัวในเครื่องเดียวกัน — สลับแท็บเพื่อให้ลูกค้าเห็นความต่าง
         </span>
       </header>
@@ -332,8 +332,8 @@ function Empty() {
   return (
     <div className="flex h-full flex-col items-center justify-center gap-3 px-8 text-center">
       <MonitorSmartphone size={30} className="text-chalk-dim/50" />
-      <p className="font-display text-[15px] text-chalk">เลือกโปรเจกต์มาเทียบกัน</p>
-      <p className="max-w-md text-[13px] leading-relaxed text-chalk-dim">
+      <p className="font-display text-[0.9375rem] text-chalk">เลือกโปรเจกต์มาเทียบกัน</p>
+      <p className="max-w-md text-[0.8125rem] leading-relaxed text-chalk-dim">
         กด “เพิ่มระบบ” แล้วเลือกได้สูงสุด {MAX_TABS} โปรเจกต์ · เหมาะกับการโชว์ลูกค้าว่าแบบธรรมดากับ
         Premium ต่างกันตรงไหน
       </p>

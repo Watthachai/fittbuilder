@@ -81,7 +81,7 @@ export default function PartnerWelcome() {
           <X size={16} />
         </button>
 
-        <p className="inline-flex items-center gap-1.5 text-[13px] text-go">
+        <p className="inline-flex items-center gap-1.5 text-[0.8125rem] text-go">
           <BadgeCheck size={14} /> คุณเป็น Partner แล้ว
         </p>
         <h2
@@ -94,14 +94,14 @@ export default function PartnerWelcome() {
         <ol className="mt-4 space-y-3">
           {STEPS.map((step, i) => (
             <li key={step.title} className="flex gap-3">
-              <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full border border-shine/50 font-mono text-[12px] text-shine">
+              <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full border border-shine/50 font-mono text-[0.75rem] text-shine">
                 {i + 1}
               </span>
               <div>
-                <p className="text-[14px] font-medium text-chalk">
+                <p className="text-[0.875rem] font-medium text-chalk">
                   {step.title}
                 </p>
-                <p className="mt-0.5 text-[13px] leading-relaxed text-chalk-dim">
+                <p className="mt-0.5 text-[0.8125rem] leading-relaxed text-chalk-dim">
                   {step.body}
                 </p>
               </div>
@@ -112,7 +112,7 @@ export default function PartnerWelcome() {
         <button
           onClick={() => void close()}
           disabled={closing}
-          className="mt-5 rounded-full bg-shine px-4 py-2 font-display text-[13px] font-semibold text-night transition hover:brightness-110 disabled:opacity-40"
+          className="mt-5 rounded-full bg-shine px-4 py-2 font-display text-[0.8125rem] font-semibold text-night transition hover:brightness-110 disabled:opacity-40"
         >
           {closing ? "กำลังปิด…" : "เข้าใจแล้ว"}
         </button>

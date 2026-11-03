@@ -151,11 +151,11 @@ export default function SourceViewer({
           </button>
         </div>
         {has && (
-          <p className="mt-1.5 text-[13px] text-chalk-dim">
+          <p className="mt-1.5 text-[0.8125rem] text-chalk-dim">
             ส่วนที่ไฮไลต์ = ข้อความที่ AI ใช้อ้างอิงสำหรับฐานรากนี้
           </p>
         )}
-        <div className="scroll-thin mt-4 min-h-0 flex-1 overflow-y-auto whitespace-pre-wrap rounded-xl border border-night-edge bg-night p-5 text-[16px] leading-8 text-chalk/90">
+        <div className="scroll-thin mt-4 min-h-0 flex-1 overflow-y-auto whitespace-pre-wrap rounded-xl border border-night-edge bg-night p-5 text-[1rem] leading-8 text-chalk/90">
           {body}
         </div>
       </div>

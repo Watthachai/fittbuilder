@@ -79,7 +79,7 @@ export default function ProjectPresence({ projectId }: { projectId: string }) {
                 className="h-6 w-6 rounded-full border-2 border-night-panel object-cover"
               />
             ) : (
-              <span className="grid h-6 w-6 place-items-center rounded-full border-2 border-night-panel bg-chalk/15 text-[10px] font-semibold text-chalk/80">
+              <span className="grid h-6 w-6 place-items-center rounded-full border-2 border-night-panel bg-chalk/15 text-[0.625rem] font-semibold text-chalk/80">
                 {(p.name || "?").charAt(0).toUpperCase()}
               </span>
             )}
@@ -88,7 +88,7 @@ export default function ProjectPresence({ projectId }: { projectId: string }) {
         ))}
       </div>
       {extra > 0 && (
-        <span className="ml-1.5 font-mono text-[11px] text-chalk-dim">+{extra}</span>
+        <span className="ml-1.5 font-mono text-[0.6875rem] text-chalk-dim">+{extra}</span>
       )}
     </div>
   );

@@ -310,7 +310,7 @@ export default function ProjectsDrawer({
         </span>
         <span className="min-w-0 flex-1">
           <span className="block truncate text-sm text-chalk">{p.name}</span>
-          <span className="block truncate font-mono text-[10px] text-chalk-dim">
+          <span className="block truncate font-mono text-[0.625rem] text-chalk-dim">
             {p.generation?.live ? (
               <span className="text-shine">กำลังสร้าง…</span>
             ) : p.generation?.complete ? (
@@ -455,7 +455,7 @@ export default function ProjectsDrawer({
                 <Dna size={14} className="shrink-0 text-shine" />
               )}
               <span className="flex-1 text-left">ตั้งค่า Org DNA ของคุณ</span>
-              <span className="font-mono text-[10px] uppercase tracking-wider text-chalk-dim">
+              <span className="font-mono text-[0.625rem] uppercase tracking-wider text-chalk-dim">
                 workspace
               </span>
             </button>
@@ -472,13 +472,13 @@ export default function ProjectsDrawer({
             >
               <Columns2 size={14} className="shrink-0 text-shine" />
               <span className="flex-1 text-left">เทียบโปรเจกต์หลายตัว</span>
-              <span className="font-mono text-[10px] uppercase tracking-wider text-chalk-dim">
+              <span className="font-mono text-[0.625rem] uppercase tracking-wider text-chalk-dim">
                 ใหม่
               </span>
             </button>
 
             {tab === "shared" && othersWorkspaces.length > 0 && (
-              <div className="mx-3 mt-3 rounded-xl border border-shine/30 bg-shine/10 px-3 py-2.5 text-[12px] leading-relaxed text-chalk/85">
+              <div className="mx-3 mt-3 rounded-xl border border-shine/30 bg-shine/10 px-3 py-2.5 text-[0.75rem] leading-relaxed text-chalk/85">
                 <p>
                   โปรเจกต์ใน workspace ที่คุณเป็นสมาชิก (
                   {othersWorkspaces.map((o) => o.name).join(", ")}) อยู่ในแท็บ
@@ -509,7 +509,7 @@ export default function ProjectsDrawer({
               ) : tab === "shared" ? (
                 groups.map((g) => (
                   <div key={g.label} className="mb-3">
-                    <p className="px-2 py-1 font-mono text-[10px] uppercase tracking-wider text-chalk-dim">
+                    <p className="px-2 py-1 font-mono text-[0.625rem] uppercase tracking-wider text-chalk-dim">
                       {g.label}
                     </p>
                     {g.items.map(renderRow)}
@@ -546,10 +546,10 @@ export default function ProjectsDrawer({
                             className="shrink-0 text-chalk-dim"
                           />
                         )}
-                        <span className="min-w-0 flex-1 truncate text-left text-[13px] font-medium text-chalk">
+                        <span className="min-w-0 flex-1 truncate text-left text-[0.8125rem] font-medium text-chalk">
                           {g.label}
                         </span>
-                        <span className="font-mono text-[10px] text-chalk-dim">
+                        <span className="font-mono text-[0.625rem] text-chalk-dim">
                           {g.items.length}
                         </span>
                       </button>
@@ -557,7 +557,7 @@ export default function ProjectsDrawer({
                         (g.items.length > 0 ? (
                           g.items.map(renderRow)
                         ) : (
-                          <p className="px-3 py-1.5 text-[12px] text-chalk-dim/70">
+                          <p className="px-3 py-1.5 text-[0.75rem] text-chalk-dim/70">
                             ยังไม่มีโปรเจกต์
                           </p>
                         ))}

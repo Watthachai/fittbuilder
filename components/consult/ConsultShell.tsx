@@ -234,7 +234,7 @@ export default function ConsultShell() {
       <header className="sticky top-0 z-30 flex h-14 items-center gap-3 border-b border-night-edge bg-night/90 px-4 backdrop-blur sm:px-6">
         <Link
           href="/"
-          className="inline-flex items-center gap-1.5 text-[13px] text-chalk-dim transition hover:text-chalk"
+          className="inline-flex items-center gap-1.5 text-[0.8125rem] text-chalk-dim transition hover:text-chalk"
         >
           <ArrowLeft size={14} /> FITT Builder
         </Link>
@@ -242,10 +242,10 @@ export default function ConsultShell() {
         <div className="flex items-center gap-2">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/logo.png" alt="" className="h-7 w-7 rounded-lg" />
-          <span className="font-display text-[15px] font-bold tracking-tight text-chalk">
+          <span className="font-display text-[0.9375rem] font-bold tracking-tight text-chalk">
             FITT <span className="text-shine">Consult</span>
           </span>
-          <span className="rounded-full bg-shine/15 px-1.5 py-0.5 font-mono text-[9px] font-bold uppercase tracking-wider text-shine">
+          <span className="rounded-full bg-shine/15 px-1.5 py-0.5 font-mono text-[0.5625rem] font-bold uppercase tracking-wider text-shine">
             alpha
           </span>
           <AppVersion />
@@ -255,7 +255,7 @@ export default function ConsultShell() {
           <div className="relative ml-auto">
             <button
               onClick={() => setOrgOpen((v) => !v)}
-              className="inline-flex max-w-[240px] items-center gap-1.5 rounded-full border border-night-edge bg-night-panel px-3 py-1.5 text-[13px] text-chalk/85 transition hover:border-shine/50"
+              className="inline-flex max-w-[240px] items-center gap-1.5 rounded-full border border-night-edge bg-night-panel px-3 py-1.5 text-[0.8125rem] text-chalk/85 transition hover:border-shine/50"
             >
               <WorkspaceIcon icon={org.icon} size={13} style={{ color: org.color }} />
               <span className="truncate">{org.name}</span>
@@ -275,7 +275,7 @@ export default function ConsultShell() {
                         setOrgId(o.id);
                         setOrgOpen(false);
                       }}
-                      className={`flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-[13px] transition hover:bg-chalk/5 ${
+                      className={`flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-[0.8125rem] transition hover:bg-chalk/5 ${
                         o.id === orgId ? "text-chalk" : "text-chalk/70"
                       }`}
                     >
@@ -299,13 +299,13 @@ export default function ConsultShell() {
         </p>
       ) : orgs.length === 0 ? (
         <div className="mx-auto mt-20 max-w-md rounded-2xl border border-night-edge bg-night-panel px-8 py-10 text-center">
-          <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-shine">
+          <p className="font-mono text-[0.625rem] uppercase tracking-[0.22em] text-shine">
             FITT Consult
           </p>
           <h1 className="mt-2 font-display text-lg font-semibold text-chalk">
             ที่ปรึกษาทำงานกับ workspace
           </h1>
-          <p className="mt-2 text-[13px] leading-relaxed text-chalk-dim">
+          <p className="mt-2 text-[0.8125rem] leading-relaxed text-chalk-dim">
             สร้าง workspace ขององค์กรก่อน แล้ว Consult จะวิเคราะห์เสียงลูกค้าและสุขภาพธุรกิจ
             จากข้อมูลจริงของทีมคุณ — ทุกรายงานเก็บเป็นประวัติให้ทั้งทีม
           </p>
@@ -320,13 +320,13 @@ export default function ConsultShell() {
         <div className="mx-auto max-w-6xl px-4 pb-16 pt-10 sm:px-6">
           {/* Page identity */}
           <div className="max-w-2xl">
-            <p className="font-mono text-[10px] uppercase tracking-[0.24em] text-shine">
+            <p className="font-mono text-[0.625rem] uppercase tracking-[0.24em] text-shine">
               ที่ปรึกษาธุรกิจ · จากข้อมูลจริง ไม่ใช่ความรู้สึก
             </p>
-            <h1 className="mt-2 font-display text-2xl font-semibold leading-snug text-chalk sm:text-[28px]">
+            <h1 className="mt-2 font-display text-2xl font-semibold leading-snug text-chalk sm:text-[1.75rem]">
               วางข้อมูลของ {org?.name ?? "องค์กร"} แล้วให้ AI อ่านให้ขาด
             </h1>
-            <p className="mt-2 text-[13.5px] leading-relaxed text-chalk-dim">
+            <p className="mt-2 text-[0.84375rem] leading-relaxed text-chalk-dim">
               ทุกข้อสรุปอ้างอิงกลับไปยังข้อความต้นฉบับได้ · ทุกรายงานเก็บเป็นประวัติของทีม
               เทียบรอบก่อนได้ว่าดีขึ้นหรือแย่ลง · AI เสนอ — คุณเป็นคนตัดสินใจ
             </p>
@@ -348,7 +348,7 @@ export default function ConsultShell() {
                   placeholder={
                     "วางข้อมูลจริงที่นี่ — รีวิว/คำบ่นลูกค้า · ฟีดแบ็กพนักงาน · สรุปยอดขาย-ค่าใช้จ่าย · รายการหนี้/ลูกหนี้\nหรือลากไฟล์มาวางได้เลย (Excel / PDF / รูป / ข้อความ สูงสุด 5 ไฟล์)"
                   }
-                  className="scroll-thin block w-full resize-y bg-transparent px-5 pb-2 pt-5 text-[14px] leading-relaxed text-chalk outline-none placeholder:text-chalk-dim/45"
+                  className="scroll-thin block w-full resize-y bg-transparent px-5 pb-2 pt-5 text-[0.875rem] leading-relaxed text-chalk outline-none placeholder:text-chalk-dim/45"
                 />
                 <div className="flex flex-wrap items-center gap-2 px-4 pb-3.5">
                   <input
@@ -370,7 +370,7 @@ export default function ConsultShell() {
                   {files.map((a, i) => (
                     <span
                       key={`${a.name}-${i}`}
-                      className="inline-flex max-w-[220px] items-center gap-1.5 rounded-full border border-night-edge bg-night py-1 pl-2.5 pr-1 text-[12px] text-chalk/75"
+                      className="inline-flex max-w-[220px] items-center gap-1.5 rounded-full border border-night-edge bg-night py-1 pl-2.5 pr-1 text-[0.75rem] text-chalk/75"
                     >
                       <Paperclip size={11} className="shrink-0 text-shine" />
                       <span className="truncate">{a.name}</span>
@@ -384,7 +384,7 @@ export default function ConsultShell() {
                     </span>
                   ))}
                   {files.length === 0 && (
-                    <span className="text-[11.5px] text-chalk-dim/70">
+                    <span className="text-[0.71875rem] text-chalk-dim/70">
                       ยิ่งข้อมูลจริงมาก ผลยิ่งแม่น — Excel จะถูกแปลงเป็นตารางให้ AI อ่านอัตโนมัติ
                     </span>
                   )}
@@ -408,12 +408,12 @@ export default function ConsultShell() {
                         <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-shine/10 text-shine">
                           {running ? <Loader2 size={17} className="animate-spin" /> : <Icon size={17} />}
                         </span>
-                        <span className="font-display text-[14.5px] font-semibold text-chalk">
+                        <span className="font-display text-[0.90625rem] font-semibold text-chalk">
                           {meta.label}
                         </span>
                       </div>
-                      <p className="mt-2 text-[12px] leading-relaxed text-chalk-dim">{meta.desc}</p>
-                      <p className="mt-2.5 font-mono text-[10.5px] uppercase tracking-wider text-shine opacity-0 transition group-hover:opacity-100">
+                      <p className="mt-2 text-[0.75rem] leading-relaxed text-chalk-dim">{meta.desc}</p>
+                      <p className="mt-2.5 font-mono text-[0.65625rem] uppercase tracking-wider text-shine opacity-0 transition group-hover:opacity-100">
                         {running ? "กำลังวิเคราะห์…" : "วิเคราะห์ →"}
                       </p>
                     </button>
@@ -424,10 +424,10 @@ export default function ConsultShell() {
               {/* Analyzing state */}
               {busy && (
                 <div className="mt-5 animate-pulse rounded-2xl border border-shine/25 bg-shine/[0.04] px-5 py-6 text-center">
-                  <p className="font-display text-[14px] text-chalk">
+                  <p className="font-display text-[0.875rem] text-chalk">
                     {KIND_META[busy].label} กำลังอ่านข้อมูลของคุณ…
                   </p>
-                  <p className="mt-1 text-[12px] text-chalk-dim">
+                  <p className="mt-1 text-[0.75rem] text-chalk-dim">
                     จัดกลุ่ม ตรวจตัวเลข และหาที่มาอ้างอิง — ใช้เวลาราว 1-2 นาที
                   </p>
                 </div>
@@ -437,14 +437,14 @@ export default function ConsultShell() {
               {!busy && selected && (
                 <div className="mt-5 rounded-2xl border border-night-edge bg-night-panel p-5">
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className="inline-flex items-center gap-1.5 font-display text-[15px] font-semibold text-chalk">
+                    <span className="inline-flex items-center gap-1.5 font-display text-[0.9375rem] font-semibold text-chalk">
                       {(() => {
                         const Icon = KIND_META[selected.kind].icon;
                         return <Icon size={15} className="text-shine" />;
                       })()}
                       {KIND_META[selected.kind].label}
                     </span>
-                    <span className="font-mono text-[11px] text-chalk-dim">
+                    <span className="font-mono text-[0.6875rem] text-chalk-dim">
                       {dateLabel(selected.createdAt)}
                       {selected.createdBy && names.get(selected.createdBy)
                         ? ` · โดย ${names.get(selected.createdBy)}`
@@ -477,7 +477,7 @@ export default function ConsultShell() {
                 </div>
               )}
               {!busy && !selected && (
-                <div className="mt-5 rounded-2xl border border-dashed border-night-edge px-6 py-10 text-center text-[13px] leading-relaxed text-chalk-dim">
+                <div className="mt-5 rounded-2xl border border-dashed border-night-edge px-6 py-10 text-center text-[0.8125rem] leading-relaxed text-chalk-dim">
                   ยังไม่มีรายงานใน workspace นี้
                   <br />
                   วางข้อมูลด้านบนแล้วเลือกเลนส์ — รายงานแรกของทีมจะมาอยู่ตรงนี้
@@ -487,7 +487,7 @@ export default function ConsultShell() {
 
             {/* Right: team history */}
             <aside className="min-w-0">
-              <p className="px-1 font-mono text-[10px] uppercase tracking-wider text-chalk-dim">
+              <p className="px-1 font-mono text-[0.625rem] uppercase tracking-wider text-chalk-dim">
                 ประวัติของทีม ({reports.length})
               </p>
               <div className="mt-2 space-y-1.5">
@@ -513,15 +513,15 @@ export default function ConsultShell() {
                       >
                         <Icon size={14} className="shrink-0 text-shine/80" />
                         <span className="min-w-0 flex-1">
-                          <span className="block truncate text-[12px] text-chalk">
+                          <span className="block truncate text-[0.75rem] text-chalk">
                             {KIND_META[r.kind].label}
                           </span>
-                          <span className="block font-mono text-[10px] text-chalk-dim">
+                          <span className="block font-mono text-[0.625rem] text-chalk-dim">
                             {dateLabel(r.createdAt)}
                           </span>
                         </span>
                         {score !== null && (
-                          <span className="shrink-0 font-mono text-[11px] font-semibold text-chalk/80">
+                          <span className="shrink-0 font-mono text-[0.6875rem] font-semibold text-chalk/80">
                             {score}
                           </span>
                         )}
@@ -546,7 +546,7 @@ export default function ConsultShell() {
                   );
                 })}
                 {reports.length === 0 && (
-                  <p className="px-1 py-2 text-[12px] text-chalk-dim">
+                  <p className="px-1 py-2 text-[0.75rem] text-chalk-dim">
                     ยังไม่มีประวัติ — รายงานทุกฉบับของทีมจะเรียงอยู่ตรงนี้
                   </p>
                 )}

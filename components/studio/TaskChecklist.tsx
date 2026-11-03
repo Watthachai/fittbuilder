@@ -35,11 +35,11 @@ export default function TaskChecklist({
     <div className="mt-2 overflow-hidden rounded-lg border border-night-edge bg-night-panel">
       {header && (
         <div className="flex items-center gap-3 border-b border-night-edge px-3.5 py-2.5">
-          <span className="font-display text-[13px] font-semibold text-chalk">รายการงาน</span>
+          <span className="font-display text-[0.8125rem] font-semibold text-chalk">รายการงาน</span>
           <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-chalk/10">
             <div className="h-full rounded-full bg-go transition-all" style={{ width: `${(done / total) * 100}%` }} />
           </div>
-          <span className="font-mono text-[11px] text-chalk-dim">
+          <span className="font-mono text-[0.6875rem] text-chalk-dim">
             เสร็จ {done}/{total}
           </span>
         </div>
@@ -51,17 +51,17 @@ export default function TaskChecklist({
           const { label, tone, Icon } = STATUS[status];
           return (
             <li key={task.id} className="flex gap-2.5 px-3.5 py-2" title={task.detail}>
-              <span className="w-5 shrink-0 pt-px text-right font-mono text-[11px] text-chalk-dim">{i + 1}.</span>
+              <span className="w-5 shrink-0 pt-px text-right font-mono text-[0.6875rem] text-chalk-dim">{i + 1}.</span>
               <Icon size={14} className={`mt-0.5 shrink-0 ${tone} ${status === "running" ? "animate-spin" : ""}`} />
               <div className="min-w-0 flex-1">
-                <p className="text-[13px] leading-snug text-chalk">{task.title}</p>
+                <p className="text-[0.8125rem] leading-snug text-chalk">{task.title}</p>
                 {task.note && status !== "running" && (
-                  <p className={`mt-0.5 text-[11.5px] leading-snug ${status === "done" ? "text-chalk-dim" : tone}`}>
+                  <p className={`mt-0.5 text-[0.71875rem] leading-snug ${status === "done" ? "text-chalk-dim" : tone}`}>
                     {task.note}
                   </p>
                 )}
               </div>
-              <span className={`shrink-0 pt-px font-display text-[11px] ${tone}`}>{label}</span>
+              <span className={`shrink-0 pt-px font-display text-[0.6875rem] ${tone}`}>{label}</span>
             </li>
           );
         })}
@@ -70,7 +70,7 @@ export default function TaskChecklist({
         <div className="border-t border-night-edge px-3.5 py-2.5">
           <button
             onClick={onResume}
-            className="inline-flex items-center gap-1.5 rounded-full bg-shine px-3 py-1.5 font-display text-[12px] font-semibold text-night transition hover:brightness-110"
+            className="inline-flex items-center gap-1.5 rounded-full bg-shine px-3 py-1.5 font-display text-[0.75rem] font-semibold text-night transition hover:brightness-110"
           >
             <Play size={12} /> ทำข้อที่ค้างต่อ ({open.length})
           </button>

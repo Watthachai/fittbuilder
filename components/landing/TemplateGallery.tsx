@@ -47,10 +47,10 @@ export default function TemplateGallery({
         >
           <LayoutTemplate size={17} className="shrink-0 text-shine" />
           <span className="min-w-0 flex-1">
-            <span className="block font-display text-[13px] font-semibold text-chalk group-hover:text-shine">
+            <span className="block font-display text-[0.8125rem] font-semibold text-chalk group-hover:text-shine">
               เริ่มจากเทมเพลตดีไซน์
             </span>
-            <span className="block text-[12px] leading-snug text-chalk/55">
+            <span className="block text-[0.75rem] leading-snug text-chalk/55">
               เลือกลุคสำเร็จรูป แล้วแค่หารูปมาวางตามโครง
             </span>
           </span>
@@ -116,8 +116,8 @@ function GalleryModal({
         <div className="flex items-start gap-2.5 border-b border-chalk/10 px-5 py-4">
           <LayoutTemplate size={20} className="mt-0.5 shrink-0 text-shine" />
           <div className="min-w-0 flex-1">
-            <h2 className="font-display text-[16px] font-semibold text-chalk">เทมเพลตดีไซน์</h2>
-            <p className="text-[12.5px] leading-snug text-chalk/55">
+            <h2 className="font-display text-[1rem] font-semibold text-chalk">เทมเพลตดีไซน์</h2>
+            <p className="text-[0.78125rem] leading-snug text-chalk/55">
               เลือกลุค แล้วแค่หารูปมาวางตามโครง — ที่เหลือระบบสร้างให้
             </p>
           </div>
@@ -143,10 +143,10 @@ function GalleryModal({
                 <div className="flex items-start gap-2 px-3 py-2.5">
                   <span className="text-base leading-none">{t.emoji}</span>
                   <span className="min-w-0 flex-1">
-                    <span className="block font-display text-[13.5px] font-semibold text-chalk group-hover:text-shine">
+                    <span className="block font-display text-[0.84375rem] font-semibold text-chalk group-hover:text-shine">
                       {t.name}
                     </span>
-                    <span className="mt-0.5 block text-[12px] leading-snug text-chalk/55">
+                    <span className="mt-0.5 block text-[0.75rem] leading-snug text-chalk/55">
                       {t.tagline}
                     </span>
                   </span>
@@ -245,8 +245,8 @@ function TemplateForm({
           </button>
           <span className="text-2xl leading-none">{template.emoji}</span>
           <div className="min-w-0 flex-1">
-            <h2 className="font-display text-[15px] font-semibold text-chalk">{template.name}</h2>
-            <p className="text-[12.5px] leading-snug text-chalk/55">{template.tagline}</p>
+            <h2 className="font-display text-[0.9375rem] font-semibold text-chalk">{template.name}</h2>
+            <p className="text-[0.78125rem] leading-snug text-chalk/55">{template.tagline}</p>
           </div>
           <button
             onClick={onClose}
@@ -259,7 +259,7 @@ function TemplateForm({
 
         <div className="scroll-thin min-h-0 flex-1 overflow-y-auto px-4 py-3">
           {/* Images first: they are the part the person has to go hunting for. */}
-          <p className="mb-2 font-display text-[11.5px] uppercase tracking-widest text-chalk/50">
+          <p className="mb-2 font-display text-[0.71875rem] uppercase tracking-widest text-chalk/50">
             รูปที่ต้องหามาวาง
           </p>
           <div className="grid gap-3 sm:grid-cols-2">
@@ -273,17 +273,17 @@ function TemplateForm({
             ))}
           </div>
 
-          <p className="mb-2 mt-5 font-display text-[11.5px] uppercase tracking-widest text-chalk/50">
+          <p className="mb-2 mt-5 font-display text-[0.71875rem] uppercase tracking-widest text-chalk/50">
             เนื้อหา
           </p>
           <div className="flex flex-col gap-3">
             {texts.map((slot) => (
               <label key={slot.id} className="block">
-                <span className="mb-0.5 block font-display text-[12.5px] text-chalk">
+                <span className="mb-0.5 block font-display text-[0.78125rem] text-chalk">
                   {slot.label}
                   {slot.required && <span className="text-halt"> *</span>}
                 </span>
-                <span className="mb-1 block text-[11.5px] leading-snug text-chalk/50">
+                <span className="mb-1 block text-[0.71875rem] leading-snug text-chalk/50">
                   {slot.hint}
                 </span>
                 {slot.kind === "textarea" ? (
@@ -292,14 +292,14 @@ function TemplateForm({
                     onChange={(e) => setValues({ ...values, [slot.id]: e.target.value })}
                     rows={3}
                     placeholder={slot.placeholder}
-                    className="w-full resize-y rounded-lg border border-chalk/15 bg-night/80 px-2.5 py-1.5 text-[13.5px] text-chalk outline-none placeholder:text-chalk/30 focus:border-shine/60"
+                    className="w-full resize-y rounded-lg border border-chalk/15 bg-night/80 px-2.5 py-1.5 text-[0.84375rem] text-chalk outline-none placeholder:text-chalk/30 focus:border-shine/60"
                   />
                 ) : (
                   <input
                     value={values[slot.id] ?? ""}
                     onChange={(e) => setValues({ ...values, [slot.id]: e.target.value })}
                     placeholder={slot.placeholder}
-                    className="w-full rounded-lg border border-chalk/15 bg-night/80 px-2.5 py-1.5 text-[13.5px] text-chalk outline-none placeholder:text-chalk/30 focus:border-shine/60"
+                    className="w-full rounded-lg border border-chalk/15 bg-night/80 px-2.5 py-1.5 text-[0.84375rem] text-chalk outline-none placeholder:text-chalk/30 focus:border-shine/60"
                   />
                 )}
               </label>
@@ -308,7 +308,7 @@ function TemplateForm({
         </div>
 
         <div className="flex items-center gap-2 border-t border-chalk/10 px-4 py-3">
-          <p className="min-w-0 flex-1 text-[11.5px] leading-snug text-chalk/45">
+          <p className="min-w-0 flex-1 text-[0.71875rem] leading-snug text-chalk/45">
             {tooLong
               ? `ยาวเกินเพดาน ${MESSAGE_MAX_CHARS.toLocaleString()} ตัวอักษร — ตัดเนื้อหาบางช่องลง`
               : "ช่องที่เว้นไว้ เทมเพลตมีทางลงของมันเอง · สร้างแล้วคุยแก้ต่อในสตูดิโอได้ทุกอย่าง"}
@@ -317,7 +317,7 @@ function TemplateForm({
             onClick={() => onCreate(brief)}
             disabled={disabled || missing.length > 0 || tooLong}
             title={missing.length > 0 ? "กรอกช่องที่มี * ให้ครบก่อน" : undefined}
-            className="inline-flex shrink-0 items-center gap-2 rounded-full bg-chalk px-5 py-2 font-display text-[14px] font-semibold text-night transition hover:bg-gray-200 disabled:cursor-not-allowed disabled:opacity-40"
+            className="inline-flex shrink-0 items-center gap-2 rounded-full bg-chalk px-5 py-2 font-display text-[0.875rem] font-semibold text-night transition hover:bg-gray-200 disabled:cursor-not-allowed disabled:opacity-40"
           >
             {disabled ? "กำลังเปิดสตูดิโอ…" : "สร้างจากเทมเพลตนี้"}
             <ArrowRight size={15} />
@@ -363,11 +363,11 @@ function ImageSlotField({
 
   return (
     <div className="rounded-lg border border-chalk/15 p-2.5">
-      <p className="font-display text-[12.5px] text-chalk">
+      <p className="font-display text-[0.78125rem] text-chalk">
         {slot.label}
         {slot.required && <span className="text-halt"> *</span>}
       </p>
-      <p className="mt-0.5 text-[11.5px] leading-snug text-chalk/50">{slot.hint}</p>
+      <p className="mt-0.5 text-[0.71875rem] leading-snug text-chalk/50">{slot.hint}</p>
 
       <div className="mt-2 flex items-start gap-2">
         {/* Thumbnail — what will actually be built with. */}
@@ -384,7 +384,7 @@ function ImageSlotField({
           ) : value.trim() && broken ? (
             <ImageOff size={16} className="text-halt/70" />
           ) : (
-            <span className="text-[10px] text-chalk/30">ยังไม่มีรูป</span>
+            <span className="text-[0.625rem] text-chalk/30">ยังไม่มีรูป</span>
           )}
         </div>
 
@@ -397,14 +397,14 @@ function ImageSlotField({
             }}
             placeholder={slot.placeholder ?? "https://…"}
             inputMode="url"
-            className="w-full rounded-lg border border-chalk/15 bg-night/80 px-2.5 py-1.5 text-[12.5px] text-chalk outline-none placeholder:text-chalk/30 focus:border-shine/60"
+            className="w-full rounded-lg border border-chalk/15 bg-night/80 px-2.5 py-1.5 text-[0.78125rem] text-chalk outline-none placeholder:text-chalk/30 focus:border-shine/60"
           />
           <div className="mt-1.5 flex items-center gap-2">
             <button
               type="button"
               onClick={() => fileRef.current?.click()}
               disabled={uploading}
-              className="inline-flex items-center gap-1 rounded-md border border-chalk/15 px-2 py-0.5 font-display text-[11.5px] text-chalk/70 transition hover:border-shine/60 hover:text-chalk disabled:opacity-40"
+              className="inline-flex items-center gap-1 rounded-md border border-chalk/15 px-2 py-0.5 font-display text-[0.71875rem] text-chalk/70 transition hover:border-shine/60 hover:text-chalk disabled:opacity-40"
             >
               {uploading ? (
                 <Loader2 size={10} className="animate-spin" />
@@ -413,12 +413,12 @@ function ImageSlotField({
               )}
               อัปโหลดไฟล์
             </button>
-            <span className="text-[10.5px] text-chalk/35">หรือวางลิงก์รูปจากเว็บไหนก็ได้</span>
+            <span className="text-[0.65625rem] text-chalk/35">หรือวางลิงก์รูปจากเว็บไหนก็ได้</span>
           </div>
           {broken && value.trim() && (
-            <p className="mt-1 text-[11px] text-halt/80">ลิงก์นี้เปิดเป็นรูปไม่ได้ — ตรวจ URL อีกที</p>
+            <p className="mt-1 text-[0.6875rem] text-halt/80">ลิงก์นี้เปิดเป็นรูปไม่ได้ — ตรวจ URL อีกที</p>
           )}
-          {uploadError && <p className="mt-1 text-[11px] text-halt/80">{uploadError}</p>}
+          {uploadError && <p className="mt-1 text-[0.6875rem] text-halt/80">{uploadError}</p>}
         </div>
       </div>
 

@@ -48,11 +48,11 @@ export default function TakeProject({ role, only }: { role: Role; only?: ModuleF
 
   return (
     <div className="flex items-center gap-2">
-      {error && <span className="max-w-[18rem] truncate text-[11.5px] text-rose-600">{error}</span>}
+      {error && <span className="max-w-[18rem] truncate text-[0.71875rem] text-rose-600">{error}</span>}
       <button
         onClick={() => void take()}
         disabled={busy}
-        className="shrink-0 rounded-lg bg-sky-600 px-3 py-1.5 text-[12px] font-medium text-white transition hover:bg-sky-700 disabled:opacity-50"
+        className="shrink-0 rounded-lg bg-sky-600 px-3 py-1.5 text-[0.75rem] font-medium text-white transition hover:bg-sky-700 disabled:opacity-50"
       >
         {busy ? "กำลังสร้าง…" : only ? "สร้างโปรเจกต์จากระบบนี้" : `สร้างโปรเจกต์จาก ${selected.length} ส่วนนี้`}
       </button>

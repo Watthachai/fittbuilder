@@ -139,15 +139,15 @@ export default function ErpShell({ children }: { children: React.ReactNode }) {
           href={keep("/erp")}
           className="flex items-center gap-2.5 border-b border-slate-100 px-4 py-4 dark:border-slate-800"
         >
-          <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-violet-600 text-[13px] font-bold text-white shadow-sm shadow-violet-600/30">
+          <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-violet-600 text-[0.8125rem] font-bold text-white shadow-sm shadow-violet-600/30">
             F
           </span>
           {!rail && (
             <span className="min-w-0">
-              <span className="block truncate text-[13.5px] font-semibold text-slate-900 dark:text-slate-50">
+              <span className="block truncate text-[0.84375rem] font-semibold text-slate-900 dark:text-slate-50">
                 บจก. ตัวอย่างอุตสาหกรรม
               </span>
-              <span className="block text-[11.5px] text-slate-500 dark:text-slate-400">
+              <span className="block text-[0.71875rem] text-slate-500 dark:text-slate-400">
                 ระบบบริหารทรัพยากรองค์กร
               </span>
             </span>
@@ -158,7 +158,7 @@ export default function ErpShell({ children }: { children: React.ReactNode }) {
           {FAMILIES.filter((f) => (trial ? f.id === trial.id : open.some((m) => m.family === f.id))).map((family) => (
             <div key={family.id} className="mb-4">
               {!rail && (
-                <p className="px-2 pb-1.5 text-[11px] font-medium uppercase tracking-wide text-slate-400 dark:text-slate-500">
+                <p className="px-2 pb-1.5 text-[0.6875rem] font-medium uppercase tracking-wide text-slate-400 dark:text-slate-500">
                   ระบบ{family.name}
                 </p>
               )}
@@ -176,7 +176,7 @@ export default function ErpShell({ children }: { children: React.ReactNode }) {
                       <div
                         key={m.id}
                         title={`บัญชี${role.title}ไม่มีสิทธิ์เปิด${m.name}`}
-                        className="flex cursor-not-allowed items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] text-slate-300 dark:text-slate-600"
+                        className="flex cursor-not-allowed items-center gap-2.5 rounded-lg px-2.5 py-2 text-[0.8125rem] text-slate-300 dark:text-slate-600"
                       >
                         <Icon size={16} className="shrink-0" />
                         {!rail && (
@@ -194,7 +194,7 @@ export default function ErpShell({ children }: { children: React.ReactNode }) {
                         href={keep(`/erp/${m.id}`)}
                         title={rail ? m.name : undefined}
                         className={
-                          "flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] transition " +
+                          "flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[0.8125rem] transition " +
                           (on
                             ? "bg-violet-600 font-medium text-white shadow-sm shadow-violet-600/25"
                             : "text-slate-600 hover:bg-slate-50 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800/60 dark:hover:text-slate-100")
@@ -233,7 +233,7 @@ export default function ErpShell({ children }: { children: React.ReactNode }) {
         <div className="border-t border-slate-100 p-2 dark:border-slate-800">
           <button
             onClick={toggleRail}
-            className="mb-2 flex w-full items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-[12px] text-slate-500 transition hover:bg-slate-50 dark:text-slate-400 dark:hover:bg-slate-800/60"
+            className="mb-2 flex w-full items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-[0.75rem] text-slate-500 transition hover:bg-slate-50 dark:text-slate-400 dark:hover:bg-slate-800/60"
             title={rail ? "ขยายแถบเมนู" : "ยุบแถบเมนู"}
           >
             <ChevronsLeft size={15} className={"shrink-0 transition " + (rail ? "rotate-180" : "")} />
@@ -241,15 +241,15 @@ export default function ErpShell({ children }: { children: React.ReactNode }) {
           </button>
 
           <div className={"flex items-center gap-2.5 px-1 " + (rail ? "justify-center" : "")}>
-            <span className="grid size-8 shrink-0 place-items-center rounded-full bg-slate-200 text-[12px] font-semibold text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+            <span className="grid size-8 shrink-0 place-items-center rounded-full bg-slate-200 text-[0.75rem] font-semibold text-slate-600 dark:bg-slate-800 dark:text-slate-300">
               {role.name.slice(0, 1)}
             </span>
             {!rail && (
               <span className="min-w-0 flex-1">
-                <span className="block truncate text-[13px] font-medium text-slate-900 dark:text-slate-100">
+                <span className="block truncate text-[0.8125rem] font-medium text-slate-900 dark:text-slate-100">
                   {role.name}
                 </span>
-                <span className="block truncate text-[11.5px] text-slate-500 dark:text-slate-400">
+                <span className="block truncate text-[0.71875rem] text-slate-500 dark:text-slate-400">
                   {role.title}
                 </span>
               </span>
@@ -262,7 +262,7 @@ export default function ErpShell({ children }: { children: React.ReactNode }) {
                 setRole(undefined);
                 router.push("/erp");
               }}
-              className="mt-2 w-full rounded-lg border border-slate-200 py-1.5 text-[12px] text-slate-600 transition hover:border-slate-300 hover:text-slate-900 dark:border-slate-800 dark:text-slate-300 dark:hover:border-slate-700"
+              className="mt-2 w-full rounded-lg border border-slate-200 py-1.5 text-[0.75rem] text-slate-600 transition hover:border-slate-300 hover:text-slate-900 dark:border-slate-800 dark:text-slate-300 dark:hover:border-slate-700"
             >
               ออกจากระบบ
             </button>
@@ -272,7 +272,7 @@ export default function ErpShell({ children }: { children: React.ReactNode }) {
 
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="flex shrink-0 items-center gap-2.5 border-b border-slate-200/80 bg-white px-5 py-2.5 dark:border-slate-800 dark:bg-slate-900">
-          <nav aria-label="เส้นทาง" className="flex min-w-0 items-center gap-1 text-[12.5px]">
+          <nav aria-label="เส้นทาง" className="flex min-w-0 items-center gap-1 text-[0.78125rem]">
             <ArrowRightToLine size={14} className="mr-1 shrink-0 text-slate-400" />
             <Link
               href={keep("/erp")}
@@ -304,11 +304,11 @@ export default function ErpShell({ children }: { children: React.ReactNode }) {
 
           <button
             onClick={() => setPalette(true)}
-            className="mx-auto hidden w-full max-w-sm items-center gap-2 rounded-full bg-slate-100 px-3.5 py-2 text-[12.5px] text-slate-400 transition hover:bg-slate-200/70 hover:text-slate-600 md:flex dark:bg-slate-800 dark:text-slate-500 dark:hover:bg-slate-700"
+            className="mx-auto hidden w-full max-w-sm items-center gap-2 rounded-full bg-slate-100 px-3.5 py-2 text-[0.78125rem] text-slate-400 transition hover:bg-slate-200/70 hover:text-slate-600 md:flex dark:bg-slate-800 dark:text-slate-500 dark:hover:bg-slate-700"
           >
             <Search size={14} />
             <span className="flex-1 text-left">ค้นหาโมดูล ความสามารถ…</span>
-            <kbd className="rounded-md border border-slate-200 bg-white px-1.5 font-sans text-[10px] text-slate-400 dark:border-slate-700 dark:bg-slate-900">
+            <kbd className="rounded-md border border-slate-200 bg-white px-1.5 font-sans text-[0.625rem] text-slate-400 dark:border-slate-700 dark:bg-slate-900">
               ⌘K
             </kbd>
           </button>
@@ -328,7 +328,7 @@ export default function ErpShell({ children }: { children: React.ReactNode }) {
             >
               <Bell size={14} />
               {alerts.length > 0 && (
-                <span className="absolute -right-1 -top-1 grid size-4 place-items-center rounded-full bg-rose-500 text-[9px] font-semibold text-white">
+                <span className="absolute -right-1 -top-1 grid size-4 place-items-center rounded-full bg-rose-500 text-[0.5625rem] font-semibold text-white">
                   {alerts.length}
                 </span>
               )}
@@ -337,7 +337,7 @@ export default function ErpShell({ children }: { children: React.ReactNode }) {
               <>
                 <div className="fixed inset-0 z-30" onClick={() => setBell(false)} />
                 <div className="absolute right-0 z-40 mt-2 w-80 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xl dark:border-slate-800 dark:bg-slate-900">
-                  <p className="border-b border-slate-100 px-4 py-2.5 text-[12.5px] font-medium text-slate-800 dark:border-slate-800 dark:text-slate-100">
+                  <p className="border-b border-slate-100 px-4 py-2.5 text-[0.78125rem] font-medium text-slate-800 dark:border-slate-800 dark:text-slate-100">
                     มี {alerts.length} เรื่องที่ต้องจัดการ
                   </p>
                   <ul className="max-h-80 divide-y divide-slate-100 overflow-y-auto dark:divide-slate-800">
@@ -355,11 +355,11 @@ export default function ErpShell({ children }: { children: React.ReactNode }) {
                             }
                           />
                           <span className="min-w-0">
-                            <span className="block text-[12.5px] text-slate-800 dark:text-slate-100">{a.title}</span>
-                            <span className="block truncate text-[11.5px] text-slate-500 dark:text-slate-400">
+                            <span className="block text-[0.78125rem] text-slate-800 dark:text-slate-100">{a.title}</span>
+                            <span className="block truncate text-[0.71875rem] text-slate-500 dark:text-slate-400">
                               {a.detail}
                             </span>
-                            <span className="block text-[10.5px] text-slate-400 dark:text-slate-500">
+                            <span className="block text-[0.65625rem] text-slate-400 dark:text-slate-500">
                               {moduleName(a.moduleId)}
                             </span>
                           </span>
@@ -367,7 +367,7 @@ export default function ErpShell({ children }: { children: React.ReactNode }) {
                       </li>
                     ))}
                     {alerts.length === 0 && (
-                      <li className="px-4 py-8 text-center text-[12.5px] text-slate-400 dark:text-slate-500">
+                      <li className="px-4 py-8 text-center text-[0.78125rem] text-slate-400 dark:text-slate-500">
                         ไม่มีเรื่องค้าง
                       </li>
                     )}
@@ -393,13 +393,13 @@ export default function ErpShell({ children }: { children: React.ReactNode }) {
           <TakeProject role={role} only={trial?.id} />
           <Link
             href="/"
-            className="hidden shrink-0 rounded-lg border border-slate-200 px-3 py-1.5 text-[12px] text-slate-600 transition hover:border-violet-300 hover:text-violet-700 lg:block dark:border-slate-800 dark:text-slate-300"
+            className="hidden shrink-0 rounded-lg border border-slate-200 px-3 py-1.5 text-[0.75rem] text-slate-600 transition hover:border-violet-300 hover:text-violet-700 lg:block dark:border-slate-800 dark:text-slate-300"
           >
             กลับหน้า FITT Builder
           </Link>
           <span
             title={role.name + " · " + role.title}
-            className="grid size-8 shrink-0 place-items-center rounded-full bg-violet-600 text-[12px] font-semibold text-white shadow-sm shadow-violet-600/30"
+            className="grid size-8 shrink-0 place-items-center rounded-full bg-violet-600 text-[0.75rem] font-semibold text-white shadow-sm shadow-violet-600/30"
           >
             {role.name.slice(0, 1)}
           </span>
@@ -420,7 +420,7 @@ function SubLink({ href, active, label }: { href: string; active: boolean; label
       <Link
         href={href}
         className={
-          "block rounded-md px-2 py-1.5 text-[12.5px] transition " +
+          "block rounded-md px-2 py-1.5 text-[0.78125rem] transition " +
           (active
             ? "bg-violet-50 font-medium text-violet-700 dark:bg-violet-500/10 dark:text-violet-300"
             : "text-slate-500 hover:bg-slate-50 hover:text-slate-800 dark:text-slate-400 dark:hover:bg-slate-800/60 dark:hover:text-slate-100")
@@ -494,10 +494,10 @@ function SignIn({
                   {r.id === picked && <span className="size-2 rounded-full bg-violet-600" />}
                 </span>
                 <span className="min-w-0 flex-1">
-                  <span className="block truncate text-[13px] font-medium text-slate-900 dark:text-slate-100">
+                  <span className="block truncate text-[0.8125rem] font-medium text-slate-900 dark:text-slate-100">
                     {r.title}
                   </span>
-                  <span className="block truncate text-[11.5px] text-slate-500 dark:text-slate-400">
+                  <span className="block truncate text-[0.71875rem] text-slate-500 dark:text-slate-400">
                     {r.email}
                   </span>
                 </span>
@@ -517,7 +517,7 @@ function SignIn({
             className="mt-1.5 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 outline-none placeholder:text-slate-400 focus:border-violet-500 focus:ring-4 focus:ring-violet-500/10 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-500"
           />
           {tried && !password.trim() && (
-            <p className="mt-1.5 text-[12px] text-rose-600 dark:text-rose-400">กรอกรหัสผ่านก่อนเข้าสู่ระบบ</p>
+            <p className="mt-1.5 text-[0.75rem] text-rose-600 dark:text-rose-400">กรอกรหัสผ่านก่อนเข้าสู่ระบบ</p>
           )}
 
           <button
@@ -528,7 +528,7 @@ function SignIn({
           </button>
 
           <div className="mt-3 flex items-center justify-between gap-2">
-            <p className="text-[11.5px] leading-snug text-slate-500 dark:text-slate-400">
+            <p className="text-[0.71875rem] leading-snug text-slate-500 dark:text-slate-400">
               ระบบตัวอย่าง เลือกฝ่ายเพื่อดูว่าสิทธิ์ของฝ่ายนั้นเปิดส่วนไหนของระบบได้บ้าง
             </p>
             <button

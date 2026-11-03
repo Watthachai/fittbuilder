@@ -188,7 +188,7 @@ export default function LaunchPad({
       <div className="flex items-center justify-between gap-2 border-b border-chalk/10 px-3 py-2">
         <OrgSelect value={selectedOrgId} onChange={setSelectedOrgId} />
         <span
-          className={`shrink-0 font-mono text-[11px] ${
+          className={`shrink-0 font-mono text-[0.6875rem] ${
             prompt.length >= MESSAGE_WARN_CHARS ? "text-halt" : "text-chalk/60"
           }`}
         >
@@ -235,7 +235,7 @@ export default function LaunchPad({
           {attachments.map((a, i) => (
             <span
               key={`${a.name}-${i}`}
-              className="inline-flex max-w-[220px] items-center gap-1.5 rounded-full border border-chalk/15 bg-chalk/5 py-1 pl-2.5 pr-1 text-[12px] text-chalk/75"
+              className="inline-flex max-w-[220px] items-center gap-1.5 rounded-full border border-chalk/15 bg-chalk/5 py-1 pl-2.5 pr-1 text-[0.75rem] text-chalk/75"
             >
               <Paperclip size={11} className="shrink-0 text-shine" />
               <span className="truncate">{a.name}</span>
@@ -332,7 +332,7 @@ export default function LaunchPad({
       </div>
 
       {error && (
-        <div className="border-t border-chalk/10 px-4 py-3 text-[13px] text-chalk/60">
+        <div className="border-t border-chalk/10 px-4 py-3 text-[0.8125rem] text-chalk/60">
           {error}
         </div>
       )}
@@ -345,7 +345,7 @@ export default function LaunchPad({
               setPrompt(example);
               textareaRef.current?.focus();
             }}
-            className="rounded-full border border-chalk/15 px-3 py-1 text-[13px] text-chalk/60 transition hover:border-shine hover:text-shine"
+            className="rounded-full border border-chalk/15 px-3 py-1 text-[0.8125rem] text-chalk/60 transition hover:border-shine hover:text-shine"
           >
             {example.length > 42 ? example.slice(0, 42) + "…" : example}
           </button>

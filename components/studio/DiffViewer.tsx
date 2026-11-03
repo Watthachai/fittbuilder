@@ -58,18 +58,18 @@ function FileDiff({ change }: { change: FileChange }) {
       >
         {open ? <ChevronDown size={13} className="shrink-0 text-chalk-dim" /> : <ChevronRight size={13} className="shrink-0 text-chalk-dim" />}
         <Icon size={13} className={`shrink-0 ${meta.tint}`} />
-        <span className="min-w-0 flex-1 truncate font-mono text-[12px] text-chalk">{change.path}</span>
-        {added > 0 && <span className="shrink-0 font-mono text-[11px] text-go">+{added}</span>}
-        {removed > 0 && <span className="shrink-0 font-mono text-[11px] text-halt">−{removed}</span>}
+        <span className="min-w-0 flex-1 truncate font-mono text-[0.75rem] text-chalk">{change.path}</span>
+        {added > 0 && <span className="shrink-0 font-mono text-[0.6875rem] text-go">+{added}</span>}
+        {removed > 0 && <span className="shrink-0 font-mono text-[0.6875rem] text-halt">−{removed}</span>}
       </button>
       {open && trimmed && (
-        <div className="bg-night-panel px-3 py-2.5 text-[11px] leading-relaxed text-chalk-dim">
+        <div className="bg-night-panel px-3 py-2.5 text-[0.6875rem] leading-relaxed text-chalk-dim">
           เทิร์นนี้เก่าแล้ว ระบบจึงไม่ได้เก็บเนื้อไฟล์ไว้ — ไฟล์ที่ถูกแก้ยังแสดงครบ
           ส่วนโค้ดจริงดูและย้อนกลับได้ที่แท็บ <b className="text-chalk">History</b>
         </div>
       )}
       {open && !trimmed && (
-        <div className="scroll-thin max-h-[360px] overflow-auto bg-night-panel font-mono text-[12px] leading-relaxed">
+        <div className="scroll-thin max-h-[360px] overflow-auto bg-night-panel font-mono text-[0.75rem] leading-relaxed">
           {parts.map((part, pi) =>
             toLines(part.value).map((line, li) => (
               <div
@@ -110,8 +110,8 @@ export default function DiffViewer({
       >
         <div className="flex shrink-0 items-center justify-between border-b border-night-edge px-4 py-3">
           <div className="min-w-0">
-            <h2 className="font-display text-[15px] font-semibold text-chalk">ดูการเปลี่ยนแปลง</h2>
-            <p className="truncate font-mono text-[11px] text-chalk-dim">
+            <h2 className="font-display text-[0.9375rem] font-semibold text-chalk">ดูการเปลี่ยนแปลง</h2>
+            <p className="truncate font-mono text-[0.6875rem] text-chalk-dim">
               {changes.length} ไฟล์ · {title}
             </p>
           </div>

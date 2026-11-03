@@ -73,7 +73,7 @@ export default function ApprovalModal({
             </span>
             <div>
               <p className="font-display text-sm font-semibold text-chalk">อนุมัติเฟส “{phaseLabel}”</p>
-              <p className="font-mono text-[11px] text-chalk-dim">
+              <p className="font-mono text-[0.6875rem] text-chalk-dim">
                 {people === null ? "กำลังโหลด…" : `อนุมัติแล้ว ${approvedCount}/${total} คน`}
               </p>
             </div>
@@ -90,15 +90,15 @@ export default function ApprovalModal({
         {/* Roster */}
         <div className="scroll-thin max-h-72 min-h-0 overflow-y-auto px-2 py-2">
           {people === null ? (
-            <p className="px-3 py-3 text-[13px] text-chalk-dim">กำลังโหลดรายชื่อ…</p>
+            <p className="px-3 py-3 text-[0.8125rem] text-chalk-dim">กำลังโหลดรายชื่อ…</p>
           ) : people.length === 0 ? (
-            <p className="px-3 py-3 text-[13px] text-chalk-dim">ไม่มีผู้อนุมัติ</p>
+            <p className="px-3 py-3 text-[0.8125rem] text-chalk-dim">ไม่มีผู้อนุมัติ</p>
           ) : (
             <ul>
               {people.map((p) => (
                 <li
                   key={p.id}
-                  className="flex items-center justify-between gap-3 rounded-md px-3 py-2 text-[13px]"
+                  className="flex items-center justify-between gap-3 rounded-md px-3 py-2 text-[0.8125rem]"
                 >
                   <span className="flex min-w-0 items-center gap-2.5">
                     <span
@@ -115,7 +115,7 @@ export default function ApprovalModal({
                     </span>
                   </span>
                   <span
-                    className={`shrink-0 font-mono text-[10px] uppercase tracking-wider ${
+                    className={`shrink-0 font-mono text-[0.625rem] uppercase tracking-wider ${
                       p.approved ? "text-go" : "text-chalk-dim"
                     }`}
                   >
@@ -129,7 +129,7 @@ export default function ApprovalModal({
 
         {/* Footer */}
         <div className="flex items-center justify-between gap-3 border-t border-night-edge bg-night px-5 py-3">
-          <p className="text-[11px] text-chalk-dim">
+          <p className="text-[0.6875rem] text-chalk-dim">
             {step === "wait"
               ? `คุณอนุมัติแล้ว — รออีก ${remaining} คน`
               : step === "advance"

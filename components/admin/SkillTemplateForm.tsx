@@ -278,7 +278,7 @@ export default function SkillTemplateForm({
                 <button
                   type="button"
                   onClick={() => setThinkOpen((o) => !o)}
-                  className="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-wider text-chalk-dim transition hover:text-chalk"
+                  className="flex items-center gap-1.5 font-mono text-[0.625rem] uppercase tracking-wider text-chalk-dim transition hover:text-chalk"
                 >
                   <Sparkles size={11} className="text-shine" /> ความคิด
                   {thinkOpen ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
@@ -300,7 +300,7 @@ export default function SkillTemplateForm({
               )}
             </div>
             {!aiBusy && aiReport && (
-              <p className="text-[11px] text-go">✓ เติมฟอร์มด้านล่างให้แล้ว — ตรวจ/แก้ก่อนบันทึก</p>
+              <p className="text-[0.6875rem] text-go">✓ เติมฟอร์มด้านล่างให้แล้ว — ตรวจ/แก้ก่อนบันทึก</p>
             )}
           </div>
         )}

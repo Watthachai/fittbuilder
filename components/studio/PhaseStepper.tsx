@@ -135,7 +135,7 @@ export default function PhaseStepper({
                 <span className="min-w-0">
                   <span className={`block text-xs leading-tight ${active ? "font-semibold" : ""}`}>{step.user}</span>
                   <span
-                    className={`block truncate font-mono text-[10px] leading-tight ${
+                    className={`block truncate font-mono text-[0.625rem] leading-tight ${
                       active ? "text-night/60" : done ? "text-go/60" : "text-chalk-dim/40"
                     }`}
                   >
@@ -209,7 +209,7 @@ export default function PhaseStepper({
           {/* The count IS the reason to press it — a bare "update?" tag makes
               the user go and look for what changed. */}
           {undocumented.length > 0 && (
-            <span className="rounded-full bg-go/20 px-1.5 font-mono text-[10px] tabular-nums">
+            <span className="rounded-full bg-go/20 px-1.5 font-mono text-[0.625rem] tabular-nums">
               {undocumented.length}
             </span>
           )}
@@ -244,7 +244,7 @@ export default function PhaseStepper({
           people asking whether the button was broken (a FITT Voice project lands
           in Define with no BRD yet). */}
       {!isLast && !canAdvance && (
-        <span className="hidden min-w-0 max-w-[260px] shrink truncate text-[11px] text-chalk-dim md:block">
+        <span className="hidden min-w-0 max-w-[260px] shrink truncate text-[0.6875rem] text-chalk-dim md:block">
           {gateHint(phase)}
         </span>
       )}

@@ -141,7 +141,7 @@ export default function SpecFlow({ onClose, onComplete }: SpecFlowProps) {
       <div className="w-full max-w-2xl rounded-2xl border border-night-edge bg-night-panel text-chalk shadow-2xl">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-night-edge px-5 py-3">
-          <span className="font-mono text-[11px] uppercase tracking-[0.22em] text-shine">
+          <span className="font-mono text-[0.6875rem] uppercase tracking-[0.22em] text-shine">
             Spec-to-Demo
           </span>
           <div className="flex items-center gap-3">
@@ -171,7 +171,7 @@ export default function SpecFlow({ onClose, onComplete }: SpecFlowProps) {
           {step === "docs" && (
             <div>
               <h2 className="font-display text-xl font-semibold">วางเอกสารของคุณ</h2>
-              <p className="mt-1 text-[13px] text-chalk-dim">
+              <p className="mt-1 text-[0.8125rem] text-chalk-dim">
                 อย่างน้อย 1 อย่าง (BRD หรือ PRD) — ระบบจะอ่านแล้วถามคำถามเจาะจงก่อนสร้าง demo
               </p>
               {(
@@ -182,11 +182,11 @@ export default function SpecFlow({ onClose, onComplete }: SpecFlowProps) {
               ).map(([label, value, setter]) => (
                 <div key={label} className="mt-4">
                   <div className="flex items-center justify-between">
-                    <label className="font-mono text-[11px] uppercase tracking-wider text-chalk-dim">
+                    <label className="font-mono text-[0.6875rem] uppercase tracking-wider text-chalk-dim">
                       {label}
                     </label>
                     <span
-                      className={`font-mono text-[10px] ${
+                      className={`font-mono text-[0.625rem] ${
                         value.length > MAX_DOC_CHARS * 0.9 ? "text-halt" : "text-chalk-dim"
                       }`}
                     >
@@ -199,7 +199,7 @@ export default function SpecFlow({ onClose, onComplete }: SpecFlowProps) {
                     onChange={(event) => setter(event.target.value)}
                     rows={5}
                     placeholder="วาง markdown หรือ text ที่นี่…"
-                    className="scroll-thin mt-1.5 block w-full resize-y rounded-md border border-night-edge bg-night px-3 py-2.5 font-mono text-[12px] leading-relaxed text-chalk outline-none transition focus:border-shine"
+                    className="scroll-thin mt-1.5 block w-full resize-y rounded-md border border-night-edge bg-night px-3 py-2.5 font-mono text-[0.75rem] leading-relaxed text-chalk outline-none transition focus:border-shine"
                   />
                 </div>
               ))}
@@ -218,7 +218,7 @@ export default function SpecFlow({ onClose, onComplete }: SpecFlowProps) {
           {step === "detecting" && (
             <div className="py-12 text-center">
               <p className="animate-pulse font-display text-lg">กำลังอ่านเอกสาร…</p>
-              <p className="mt-2 font-mono text-[11px] text-chalk-dim">
+              <p className="mt-2 font-mono text-[0.6875rem] text-chalk-dim">
                 วิเคราะห์ domain จากเนื้อหา
               </p>
             </div>
@@ -231,7 +231,7 @@ export default function SpecFlow({ onClose, onComplete }: SpecFlowProps) {
                   <h2 className="font-display text-xl font-semibold">
                     ดูเหมือนจะเป็น <span className="text-shine">{preset.name}</span> — ใช่ไหม?
                   </h2>
-                  <p className="mt-1 text-[13px] text-chalk-dim">{preset.tagline}</p>
+                  <p className="mt-1 text-[0.8125rem] text-chalk-dim">{preset.tagline}</p>
                   <div className="mt-5 flex gap-2">
                     <button
                       onClick={() => void startQuestions(preset)}
@@ -262,7 +262,7 @@ export default function SpecFlow({ onClose, onComplete }: SpecFlowProps) {
                         }`}
                       >
                         <p className="font-display text-sm font-semibold">{candidate.name}</p>
-                        <p className="mt-0.5 text-[11px] leading-snug text-chalk-dim">
+                        <p className="mt-0.5 text-[0.6875rem] leading-snug text-chalk-dim">
                           {candidate.tagline}
                         </p>
                       </button>
@@ -275,7 +275,7 @@ export default function SpecFlow({ onClose, onComplete }: SpecFlowProps) {
 
           {step === "questions" && preset && question && (
             <div>
-              <p className="font-mono text-[11px] uppercase tracking-wider text-shine">
+              <p className="font-mono text-[0.6875rem] uppercase tracking-wider text-shine">
                 {preset.name} · คำถาม {questionIndex + 1}/{preset.questions.length}
                 {prefilled.has(question.id) && (
                   <span className="ml-2 text-go">· เติมให้จากเอกสารแล้ว</span>
@@ -292,7 +292,7 @@ export default function SpecFlow({ onClose, onComplete }: SpecFlowProps) {
                       setAnswers((prev) => ({ ...prev, [question.id]: event.target.value }))
                     }
                     placeholder={question.placeholder}
-                    className="block w-full rounded-md border border-night-edge bg-night px-3 py-3 text-[15px] text-chalk outline-none transition focus:border-shine"
+                    className="block w-full rounded-md border border-night-edge bg-night px-3 py-3 text-[0.9375rem] text-chalk outline-none transition focus:border-shine"
                   />
                 ) : (
                   <div className="flex flex-wrap gap-2">
@@ -378,7 +378,7 @@ export default function SpecFlow({ onClose, onComplete }: SpecFlowProps) {
                 value={extraNote}
                 onChange={(event) => setExtraNote(event.target.value)}
                 placeholder="หมายเหตุเพิ่มเติม (ไม่บังคับ) เช่น โทนสีตาม brand"
-                className="mt-3 block w-full rounded-md border border-night-edge bg-night px-3 py-2.5 text-[14px] text-chalk outline-none transition focus:border-shine"
+                className="mt-3 block w-full rounded-md border border-night-edge bg-night px-3 py-2.5 text-[0.875rem] text-chalk outline-none transition focus:border-shine"
               />
               <div className="mt-5 flex items-center justify-between">
                 <button
@@ -404,7 +404,7 @@ export default function SpecFlow({ onClose, onComplete }: SpecFlowProps) {
 
 function SummaryRow({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex gap-3 text-[13px]">
+    <div className="flex gap-3 text-[0.8125rem]">
       <span className="w-44 shrink-0 text-chalk-dim">{label}</span>
       <span className="text-chalk">{value}</span>
     </div>

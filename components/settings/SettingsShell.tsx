@@ -107,13 +107,13 @@ export default function SettingsShell({ children }: { children: ReactNode }) {
               {account?.name ?? account?.email ?? "ผู้ใช้"}
             </p>
             {account?.name && (
-              <p className="truncate font-mono text-[10px] text-chalk-dim">{account.email}</p>
+              <p className="truncate font-mono text-[0.625rem] text-chalk-dim">{account.email}</p>
             )}
           </div>
         </div>
 
         <nav className="mt-5 flex-1 overflow-y-auto">
-          <p className="px-3 pb-1.5 font-display text-[11px] font-semibold uppercase tracking-wide text-chalk-dim/60">
+          <p className="px-3 pb-1.5 font-display text-[0.6875rem] font-semibold uppercase tracking-wide text-chalk-dim/60">
             Workspaces · Org DNA
           </p>
           <div className="space-y-1">
@@ -147,7 +147,7 @@ export default function SettingsShell({ children }: { children: ReactNode }) {
 
           {((orgs !== null && orgs.length > 0) || inCompany) && (
             <>
-              <p className="mt-5 px-3 pb-1.5 font-display text-[11px] font-semibold uppercase tracking-wide text-chalk-dim/60">
+              <p className="mt-5 px-3 pb-1.5 font-display text-[0.6875rem] font-semibold uppercase tracking-wide text-chalk-dim/60">
                 เอกสาร
               </p>
               <div className="space-y-1">
@@ -171,7 +171,7 @@ export default function SettingsShell({ children }: { children: ReactNode }) {
             </>
           )}
 
-          <p className="mt-5 px-3 pb-1.5 font-display text-[11px] font-semibold uppercase tracking-wide text-chalk-dim/60">
+          <p className="mt-5 px-3 pb-1.5 font-display text-[0.6875rem] font-semibold uppercase tracking-wide text-chalk-dim/60">
             ช่วยเหลือ
           </p>
           <NavLink
@@ -184,7 +184,7 @@ export default function SettingsShell({ children }: { children: ReactNode }) {
 
           {isAdmin && (
             <>
-              <p className="mt-5 px-3 pb-1.5 font-display text-[11px] font-semibold uppercase tracking-wide text-chalk-dim/60">
+              <p className="mt-5 px-3 pb-1.5 font-display text-[0.6875rem] font-semibold uppercase tracking-wide text-chalk-dim/60">
                 Admin
               </p>
               <div className="space-y-1">

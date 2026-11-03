@@ -15,6 +15,7 @@ import { openCreateWorkspace } from "@/lib/workspace-modal";
 import { toast } from "@/lib/toast";
 import { useDismiss } from "@/lib/useDismiss";
 import { THEME_OPTIONS, useTheme } from "@/lib/useTheme";
+import FontScaleControl from "@/components/FontScaleControl";
 
 const ROLE_LABEL: Record<string, string> = {
   owner: "เจ้าของ",
@@ -192,7 +193,7 @@ export default function AccountMenu() {
         <Avatar avatarUrl={account.avatarUrl} initial={initial} />
         <span className="max-w-[10rem] truncate font-display text-sm text-chalk/80">{label}</span>
         {isAdmin && (
-          <span className="rounded-full bg-shine/15 px-1.5 py-0.5 font-display text-[10px] font-semibold text-shine">
+          <span className="rounded-full bg-shine/15 px-1.5 py-0.5 font-display text-[0.625rem] font-semibold text-shine">
             Admin
           </span>
         )}
@@ -200,7 +201,7 @@ export default function AccountMenu() {
         {invites.length > 0 && (
           <span
             aria-label={`มีคำเชิญ ${invites.length} รายการ`}
-            className="absolute -right-0.5 -top-0.5 grid h-4 min-w-4 place-items-center rounded-full bg-shine px-1 font-mono text-[9px] font-bold text-night"
+            className="absolute -right-0.5 -top-0.5 grid h-4 min-w-4 place-items-center rounded-full bg-shine px-1 font-mono text-[0.5625rem] font-bold text-night"
           >
             {invites.length}
           </span>
@@ -257,7 +258,7 @@ export default function AccountMenu() {
 
             {invites.length > 0 && (
               <div className="mt-6">
-                <p className="mb-2 font-mono text-[11px] uppercase tracking-wider text-chalk/50">
+                <p className="mb-2 font-mono text-[0.6875rem] uppercase tracking-wider text-chalk/50">
                   คำเชิญ ({invites.length})
                 </p>
                 <div className="space-y-2">
@@ -274,7 +275,7 @@ export default function AccountMenu() {
                         </span>
                         <div className="min-w-0 flex-1">
                           <p className="truncate font-display text-sm text-chalk">{inv.entityName}</p>
-                          <p className="truncate font-mono text-[10px] text-chalk/50">
+                          <p className="truncate font-mono text-[0.625rem] text-chalk/50">
                             {isOrg ? "workspace" : "โปรเจกต์"} · {ROLE_LABEL[inv.role] ?? inv.role}
                           </p>
                         </div>
@@ -298,7 +299,7 @@ export default function AccountMenu() {
             )}
 
             <div className="mt-6">
-              <p className="mb-2 font-mono text-[11px] uppercase tracking-wider text-chalk/50">
+              <p className="mb-2 font-mono text-[0.6875rem] uppercase tracking-wider text-chalk/50">
                 ธีม
               </p>
               <div className="flex gap-1 rounded-full border border-chalk/15 p-1">
@@ -320,6 +321,13 @@ export default function AccountMenu() {
               </div>
             </div>
 
+            <div className="mt-4">
+              <p className="mb-2 font-mono text-[0.6875rem] uppercase tracking-wider text-chalk/50">
+                ขนาดตัวอักษร
+              </p>
+              <FontScaleControl />
+            </div>
+
             <div className="mt-4 space-y-2.5">
               {isAdmin && (
                 <Link
@@ -328,7 +336,7 @@ export default function AccountMenu() {
                   className="flex w-full items-center justify-center gap-2 rounded-full border border-shine/40 py-2.5 font-display text-sm text-shine transition hover:bg-shine/10"
                 >
                   <Stethoscope size={15} /> FITT Consult
-                  <span className="rounded-full bg-shine/15 px-1.5 py-0.5 font-mono text-[9px] font-bold uppercase tracking-wider">
+                  <span className="rounded-full bg-shine/15 px-1.5 py-0.5 font-mono text-[0.5625rem] font-bold uppercase tracking-wider">
                     alpha
                   </span>
                 </Link>
@@ -340,7 +348,7 @@ export default function AccountMenu() {
               >
                 <LifeBuoy size={15} className="text-shine" /> แจ้งเคส / ติดตามปัญหา
                 {caseCount > 0 && (
-                  <span className="grid h-5 min-w-5 place-items-center rounded-full bg-shine px-1.5 font-mono text-[10px] font-bold text-night">
+                  <span className="grid h-5 min-w-5 place-items-center rounded-full bg-shine px-1.5 font-mono text-[0.625rem] font-bold text-night">
                     {caseCount}
                   </span>
                 )}

@@ -124,21 +124,21 @@ export default function CommandPalette({
                   (i === at ? "bg-sky-50 dark:bg-sky-500/10" : "")
                 }
               >
-                <span className="min-w-0 truncate text-[13px] text-slate-800 dark:text-slate-100">
+                <span className="min-w-0 truncate text-[0.8125rem] text-slate-800 dark:text-slate-100">
                   {e.label}
                 </span>
-                <span className="shrink-0 text-[11.5px] text-slate-400 dark:text-slate-500">{e.group}</span>
+                <span className="shrink-0 text-[0.71875rem] text-slate-400 dark:text-slate-500">{e.group}</span>
               </button>
             </li>
           ))}
           {matches.length === 0 && (
-            <li className="px-4 py-8 text-center text-[13px] text-slate-400 dark:text-slate-500">
+            <li className="px-4 py-8 text-center text-[0.8125rem] text-slate-400 dark:text-slate-500">
               ไม่พบ “{q}”
             </li>
           )}
         </ul>
 
-        <div className="flex items-center gap-3 border-t border-slate-100 px-4 py-2 text-[11px] text-slate-400 dark:border-slate-800 dark:text-slate-500">
+        <div className="flex items-center gap-3 border-t border-slate-100 px-4 py-2 text-[0.6875rem] text-slate-400 dark:border-slate-800 dark:text-slate-500">
           <span>↑↓ เลื่อน</span>
           <span>↵ เปิด</span>
           <span>esc ปิด</span>

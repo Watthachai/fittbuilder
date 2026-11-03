@@ -23,15 +23,15 @@ export default function Error({
   return (
     <main className="flex min-h-screen flex-col items-center justify-center gap-4 bg-night px-6 text-center">
       <div className="w-full max-w-lg rounded-2xl border border-night-edge bg-night-panel px-8 py-7">
-        <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-halt">Error</p>
+        <p className="font-mono text-[0.6875rem] uppercase tracking-[0.2em] text-halt">Error</p>
         <h1 className="mt-1.5 font-display text-lg font-semibold text-chalk">
           เกิดข้อผิดพลาดที่ไม่คาดคิด
         </h1>
-        <p className="mt-1.5 text-[13px] leading-relaxed text-chalk-dim">
+        <p className="mt-1.5 text-[0.8125rem] leading-relaxed text-chalk-dim">
           หน้านี้หยุดทำงานกลางคัน — ลองกด “ลองใหม่” ก่อน ถ้ายังไม่หายให้โหลดหน้าใหม่
           แล้วส่งข้อความ error ด้านล่างให้ทีมงานช่วยตรวจได้เลย
         </p>
-        <pre className="scroll-thin mt-4 max-h-40 overflow-auto rounded-lg border border-night-edge bg-night p-3 text-left font-mono text-[11px] leading-relaxed text-chalk-dim">
+        <pre className="scroll-thin mt-4 max-h-40 overflow-auto rounded-lg border border-night-edge bg-night p-3 text-left font-mono text-[0.6875rem] leading-relaxed text-chalk-dim">
           {error.message}
           {error.digest ? `\n\ndigest: ${error.digest}` : ""}
         </pre>

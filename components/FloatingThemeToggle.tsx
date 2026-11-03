@@ -4,9 +4,10 @@ import { useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { useDismiss } from "@/lib/useDismiss";
 import { THEME_OPTIONS, useTheme, type Theme } from "@/lib/useTheme";
+import FontScaleControl from "@/components/FontScaleControl";
 
 /**
- * Floating glass theme switcher. To stay out of the way it hides at the right
+ * Floating glass theme and text-size switcher. To stay out of the way it hides at the right
  * edge, peeking just enough to find, and slides fully out on hover/focus (or
  * while its menu is open). Reduced-motion users get it fully revealed.
  */
@@ -54,13 +55,17 @@ export default function FloatingThemeToggle() {
                   {label}
                 </button>
               ))}
+              <div className="mt-1 border-t border-chalk/10 px-1 pb-1 pt-2">
+                <p className="mb-1.5 px-1 text-xs text-chalk-dim">ขนาดตัวอักษร</p>
+                <FontScaleControl />
+              </div>
             </motion.div>
           )}
         </AnimatePresence>
 
         <button
           onClick={() => setOpen((v) => !v)}
-          aria-label="สลับธีม"
+          aria-label="ธีมและขนาดตัวอักษร"
           className="glass grid h-11 w-11 place-items-center rounded-full text-chalk shadow-lg transition hover:text-shine"
         >
           <Current size={18} />

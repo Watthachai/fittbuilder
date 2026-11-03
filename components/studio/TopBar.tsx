@@ -153,11 +153,11 @@ export default function TopBar({
         aria-label="ชื่อโปรเจกต์"
       />
       {readOnly ? (
-        <span className="hidden shrink-0 items-center gap-1 rounded-full border border-night-edge bg-chalk/[0.04] px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider text-chalk-dim md:inline-flex">
+        <span className="hidden shrink-0 items-center gap-1 rounded-full border border-night-edge bg-chalk/[0.04] px-2 py-0.5 font-mono text-[0.625rem] uppercase tracking-wider text-chalk-dim md:inline-flex">
           <Eye size={11} /> ดูอย่างเดียว
         </span>
       ) : (
-        <span className="hidden shrink-0 font-mono text-[10px] uppercase tracking-widest text-chalk-dim md:inline">
+        <span className="hidden shrink-0 font-mono text-[0.625rem] uppercase tracking-widest text-chalk-dim md:inline">
           {saveState === "saving" ? "กำลังบันทึก…" : saveState === "saved" ? "บันทึกแล้ว" : "เซฟอัตโนมัติ"}
         </span>
       )}
@@ -218,7 +218,7 @@ export default function TopBar({
       {project.runnerLast && (
         <span
           title={`ส่งไป Code Runner แล้ว${project.runnerLast.buildNo != null ? ` · build #${project.runnerLast.buildNo}` : ""}${project.runnerLast.jobId ? ` · job ${project.runnerLast.jobId}` : ""}${project.runnerLast.state ? ` · ${project.runnerLast.state}` : ""} · ${project.runnerLast.tag} · ${new Date(project.runnerLast.sentAt).toLocaleString("th-TH")}`}
-          className="inline-flex shrink-0 items-center gap-1 rounded-full border border-go/40 bg-go/10 px-2 py-1 font-mono text-[10px] text-go"
+          className="inline-flex shrink-0 items-center gap-1 rounded-full border border-go/40 bg-go/10 px-2 py-1 font-mono text-[0.625rem] text-go"
         >
           <Rocket size={11} />
           <span className="hidden lg:inline">Code Runner</span>{" "}

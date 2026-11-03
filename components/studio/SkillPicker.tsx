@@ -41,7 +41,7 @@ export default function SkillPicker({ detectedId, busy, onSelect, onSkip }: Skil
               <SkillIcon name={detected.icon} size={20} />
             </span>
             <div className="min-w-0">
-              <div className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wide text-shine">
+              <div className="flex items-center gap-1.5 text-[0.6875rem] font-medium uppercase tracking-wide text-shine">
                 <Sparkles size={11} /> ตรวจพบโดเมน
               </div>
               <h3 className="mt-0.5 font-display text-base font-semibold text-chalk">{detected.name}</h3>
@@ -97,7 +97,7 @@ export default function SkillPicker({ detectedId, busy, onSelect, onSkip }: Skil
               >
                 <SkillIcon name={s.icon} />
                 <span className="font-display text-sm font-medium text-chalk">{s.name}</span>
-                <span className="text-[11px] leading-snug text-chalk-dim">{s.tagline}</span>
+                <span className="text-[0.6875rem] leading-snug text-chalk-dim">{s.tagline}</span>
               </button>
             ))}
           </div>

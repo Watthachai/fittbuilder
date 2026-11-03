@@ -90,7 +90,7 @@ export default function DocPreviewModal({
               </div>
             )}
             {doc && (
-              <span className="truncate font-mono text-[11px] text-chalk-dim">{doc.path}</span>
+              <span className="truncate font-mono text-[0.6875rem] text-chalk-dim">{doc.path}</span>
             )}
           </div>
           <div className="flex shrink-0 items-center gap-3">
@@ -136,7 +136,7 @@ export default function DocPreviewModal({
                 }
               }}
               placeholder='บอกสิ่งที่อยากแก้ เช่น "เพิ่มหน้า pricing", "เปลี่ยนกลุ่มเป้าหมายเป็น SME"'
-              className="scroll-thin min-h-0 flex-1 resize-none rounded-lg border border-night-edge bg-night-panel px-3 py-2 text-[14px] leading-relaxed text-chalk outline-none placeholder:text-chalk-dim/50 focus:border-shine/60"
+              className="scroll-thin min-h-0 flex-1 resize-none rounded-lg border border-night-edge bg-night-panel px-3 py-2 text-[0.875rem] leading-relaxed text-chalk outline-none placeholder:text-chalk-dim/50 focus:border-shine/60"
             />
             <button
               onClick={submit}
@@ -146,7 +146,7 @@ export default function DocPreviewModal({
               <Sparkles size={14} /> แก้ไขใหม่
             </button>
           </div>
-          <p className="mt-1.5 text-[11px] text-chalk-dim">
+          <p className="mt-1.5 text-[0.6875rem] text-chalk-dim">
             {hint ?? "คอมเมนต์จะถูกส่งเข้าแชท แล้ว AI จะ regenerate เอกสารนี้ให้"}
             {" · ⌘/Ctrl + Enter เพื่อส่ง"}
           </p>

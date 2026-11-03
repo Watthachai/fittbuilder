@@ -54,7 +54,7 @@ export default function ApprovalsView() {
     <div className="flex h-full min-h-0">
       <section className="w-80 shrink-0 overflow-y-auto border-r border-night-edge p-4">
         <h1 className="font-display text-lg font-semibold text-chalk">อนุมัติเอกสาร</h1>
-        <p className="mt-1 text-[12.5px] leading-relaxed text-chalk-dim">
+        <p className="mt-1 text-[0.78125rem] leading-relaxed text-chalk-dim">
           ใบเสนอราคาและข้อเสนอโครงการที่ส่งมาให้คุณตรวจ ก่อนส่งถึงลูกค้า
         </p>
         {lists === null ? (
@@ -65,7 +65,7 @@ export default function ApprovalsView() {
           <>
             <ListHead label={`รอคุณอนุมัติ (${lists.waiting.length})`} />
             {lists.waiting.length === 0 ? (
-              <p className="flex items-center gap-2 px-1 py-2 text-[12.5px] text-chalk-dim">
+              <p className="flex items-center gap-2 px-1 py-2 text-[0.78125rem] text-chalk-dim">
                 <Inbox size={13} /> ไม่มีเอกสารรออนุมัติ
               </p>
             ) : (
@@ -95,7 +95,7 @@ export default function ApprovalsView() {
 }
 
 function ListHead({ label }: { label: string }) {
-  return <p className="mt-5 px-1 pb-1.5 font-display text-[12px] font-semibold text-chalk-dim">{label}</p>;
+  return <p className="mt-5 px-1 pb-1.5 font-display text-[0.75rem] font-semibold text-chalk-dim">{label}</p>;
 }
 
 function Entry({ item, active, onOpen }: { item: ApprovalItem; active: boolean; onOpen: (id: string) => void }) {
@@ -107,8 +107,8 @@ function Entry({ item, active, onOpen }: { item: ApprovalItem; active: boolean; 
         active ? "border-shine/60 bg-chalk/5" : "border-night-edge hover:border-shine/40"
       }`}
     >
-      <p className="truncate text-[13px] text-chalk">{item.projectName}</p>
-      <p className="mt-0.5 flex items-center gap-1.5 text-[11.5px] text-chalk-dim">
+      <p className="truncate text-[0.8125rem] text-chalk">{item.projectName}</p>
+      <p className="mt-0.5 flex items-center gap-1.5 text-[0.71875rem] text-chalk-dim">
         <FileText size={11} /> {KIND_LABEL[item.kind]} · {VERSION_LABEL[item.version]} ·{" "}
         {thaiDateShort((item.decidedAt ?? item.requestedAt).slice(0, 10))}
         {decided && (
@@ -175,14 +175,14 @@ function Review({ item, onDecided }: { item: ApprovalItem; onDecided: () => void
           <p className="font-display text-base font-semibold text-chalk">
             {KIND_LABEL[item.kind]} · {item.projectName}
           </p>
-          <p className="mt-0.5 text-[12.5px] text-chalk-dim">
+          <p className="mt-0.5 text-[0.78125rem] text-chalk-dim">
             เวอร์ชัน{VERSION_LABEL[item.version]} · ส่งเมื่อ {thaiDateShort(item.requestedAt.slice(0, 10))}
           </p>
         </div>
         <Link
           href={`/project/${item.projectId}`}
           target="_blank"
-          className="inline-flex items-center gap-1.5 rounded-lg border border-night-edge px-2.5 py-1.5 text-[12.5px] text-chalk-dim transition hover:border-shine/60 hover:text-chalk"
+          className="inline-flex items-center gap-1.5 rounded-lg border border-night-edge px-2.5 py-1.5 text-[0.78125rem] text-chalk-dim transition hover:border-shine/60 hover:text-chalk"
         >
           <ExternalLink size={12} /> เปิดโปรเจกต์ (ดูอย่างเดียว)
         </Link>
@@ -195,27 +195,27 @@ function Review({ item, onDecided }: { item: ApprovalItem; onDecided: () => void
             onChange={(e) => setNote(e.target.value)}
             rows={2}
             placeholder="หมายเหตุ — ต้องใส่เมื่อส่งกลับให้แก้"
-            className="w-full resize-y rounded-lg border border-night-edge bg-night px-3 py-2 text-[13px] text-chalk outline-none placeholder:text-chalk-dim/60 focus:border-shine"
+            className="w-full resize-y rounded-lg border border-night-edge bg-night px-3 py-2 text-[0.8125rem] text-chalk outline-none placeholder:text-chalk-dim/60 focus:border-shine"
           />
           <div className="mt-2 flex flex-wrap gap-2">
             <button
               onClick={() => void decide(true)}
               disabled={busy}
-              className="inline-flex items-center gap-1.5 rounded-lg bg-go px-3 py-1.5 font-display text-[13px] font-semibold text-night transition hover:brightness-110 disabled:opacity-50"
+              className="inline-flex items-center gap-1.5 rounded-lg bg-go px-3 py-1.5 font-display text-[0.8125rem] font-semibold text-night transition hover:brightness-110 disabled:opacity-50"
             >
               {busy ? <Loader2 size={13} className="animate-spin" /> : <BadgeCheck size={13} />} อนุมัติ
             </button>
             <button
               onClick={() => void decide(false)}
               disabled={busy}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-halt/60 px-3 py-1.5 font-display text-[13px] text-halt transition hover:bg-halt/10 disabled:opacity-50"
+              className="inline-flex items-center gap-1.5 rounded-lg border border-halt/60 px-3 py-1.5 font-display text-[0.8125rem] text-halt transition hover:bg-halt/10 disabled:opacity-50"
             >
               <Undo2 size={13} /> ส่งกลับให้แก้
             </button>
           </div>
         </div>
       ) : (
-        <p className={`mt-4 text-[13px] ${item.status === "approved" ? "text-go" : "text-halt"}`}>
+        <p className={`mt-4 text-[0.8125rem] ${item.status === "approved" ? "text-go" : "text-halt"}`}>
           {item.status === "approved" ? "คุณอนุมัติเอกสารนี้แล้ว" : `คุณส่งกลับให้แก้: ${item.comment ?? ""}`}
         </p>
       )}

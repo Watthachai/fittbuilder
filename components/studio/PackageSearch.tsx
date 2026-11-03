@@ -67,7 +67,7 @@ export default function PackageSearch({
         <div className="flex items-center justify-between border-b border-night-edge px-4 py-3">
           <div>
             <h2 className="font-display text-sm font-semibold text-chalk">ติดตั้ง npm package</h2>
-            <p className="font-mono text-[11px] text-chalk-dim">
+            <p className="font-mono text-[0.6875rem] text-chalk-dim">
               ค้นหาแล้วเพิ่มเข้าโปรเจกต์ — ระบบจะติดตั้งใน WebContainer ให้อัตโนมัติ
             </p>
           </div>
@@ -90,7 +90,7 @@ export default function PackageSearch({
                 if (e.key === "Enter") void search();
               }}
               placeholder='เช่น "lodash", "dayjs", "recharts"…'
-              className="w-full bg-transparent py-2 text-[14px] text-chalk outline-none placeholder:text-chalk-dim/60"
+              className="w-full bg-transparent py-2 text-[0.875rem] text-chalk outline-none placeholder:text-chalk-dim/60"
             />
             <button
               onClick={() => void search()}
@@ -102,14 +102,14 @@ export default function PackageSearch({
           </div>
           {installedNames.length > 0 && (
             <div className="mt-3">
-              <p className="mb-1.5 font-mono text-[10px] uppercase tracking-widest text-chalk-dim">
+              <p className="mb-1.5 font-mono text-[0.625rem] uppercase tracking-widest text-chalk-dim">
                 ติดตั้งแล้ว ({installedNames.length})
               </p>
               <div className="flex flex-wrap gap-1.5">
                 {installedNames.map((name) => (
                   <span
                     key={name}
-                    className="inline-flex items-center gap-1.5 rounded-full border border-shine/40 bg-shine/10 py-1 pl-2.5 pr-1.5 font-mono text-[11px] text-chalk"
+                    className="inline-flex items-center gap-1.5 rounded-full border border-shine/40 bg-shine/10 py-1 pl-2.5 pr-1.5 font-mono text-[0.6875rem] text-chalk"
                   >
                     {name}
                     <button
@@ -135,10 +135,10 @@ export default function PackageSearch({
             </div>
           )}
           {error && !loading && (
-            <p className="py-10 text-center text-[13px] text-halt">{error}</p>
+            <p className="py-10 text-center text-[0.8125rem] text-halt">{error}</p>
           )}
           {!loading && !error && results.length === 0 && (
-            <p className="py-10 text-center text-[13px] text-chalk-dim">
+            <p className="py-10 text-center text-[0.8125rem] text-chalk-dim">
               พิมพ์ชื่อ package แล้วกดค้นหา
             </p>
           )}
@@ -152,8 +152,8 @@ export default function PackageSearch({
                 >
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
-                      <span className="font-mono text-[13px] font-medium text-chalk">{hit.name}</span>
-                      <span className="font-mono text-[10px] text-chalk-dim">{hit.version}</span>
+                      <span className="font-mono text-[0.8125rem] font-medium text-chalk">{hit.name}</span>
+                      <span className="font-mono text-[0.625rem] text-chalk-dim">{hit.version}</span>
                       {hit.npmUrl && (
                         <a
                           href={hit.npmUrl}
@@ -167,7 +167,7 @@ export default function PackageSearch({
                       )}
                     </div>
                     {hit.description && (
-                      <p className="mt-0.5 line-clamp-2 text-[12px] text-chalk-dim">{hit.description}</p>
+                      <p className="mt-0.5 line-clamp-2 text-[0.75rem] text-chalk-dim">{hit.description}</p>
                     )}
                   </div>
                   <button

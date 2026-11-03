@@ -141,7 +141,7 @@ export default function TerminalPanel() {
             if (e.key === "Enter") find(!e.shiftKey);
           }}
           placeholder="ค้นหาใน terminal…"
-          className="min-w-0 flex-1 bg-transparent font-mono text-[11px] text-chalk outline-none placeholder:text-chalk-dim/50"
+          className="min-w-0 flex-1 bg-transparent font-mono text-[0.6875rem] text-chalk outline-none placeholder:text-chalk-dim/50"
         />
         <button onClick={() => find(false)} title="ก่อนหน้า" className="text-chalk-dim transition hover:text-chalk">
           <ChevronUp size={12} />

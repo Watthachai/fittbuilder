@@ -232,7 +232,7 @@ export default function CodePanel({
             <button
               onClick={() => toggleFolder(node.path)}
               style={pad}
-              className="flex w-full items-center gap-1.5 py-1 pr-2 text-left font-mono text-[12px] text-chalk-dim transition hover:text-chalk"
+              className="flex w-full items-center gap-1.5 py-1 pr-2 text-left font-mono text-[0.75rem] text-chalk-dim transition hover:text-chalk"
             >
               {isOpen ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
               {isOpen ? <FolderOpen size={12} className="text-shine/70" /> : <Folder size={12} className="text-shine/70" />}
@@ -256,14 +256,14 @@ export default function CodePanel({
               if (e.key === "Enter") submitRename(node.path);
               if (e.key === "Escape") setRenaming(null);
             }}
-            className="block w-full border border-shine bg-night py-1 pr-2 font-mono text-[12px] text-chalk outline-none"
+            className="block w-full border border-shine bg-night py-1 pr-2 font-mono text-[0.75rem] text-chalk outline-none"
           />
         );
       }
       return (
         <div
           key={`f:${node.path}`}
-          className={`group flex items-center gap-1.5 py-1 pr-1.5 font-mono text-[12px] transition ${
+          className={`group flex items-center gap-1.5 py-1 pr-1.5 font-mono text-[0.75rem] transition ${
             isActive ? "border-r-2 border-shine bg-shine/10 text-chalk light:border-selected-edge light:bg-selected light:text-selected-ink" : "text-chalk-dim hover:text-chalk"
           }`}
           style={pad}
@@ -332,7 +332,7 @@ export default function CodePanel({
     <div className="flex min-h-0 flex-1">
       <aside className="scroll-thin flex w-56 shrink-0 flex-col overflow-y-auto border-r border-night-edge bg-night-panel py-1">
         <div className="flex items-center justify-between px-3 py-1.5">
-          <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-chalk-dim">
+          <span className="font-mono text-[0.625rem] uppercase tracking-[0.2em] text-chalk-dim">
             Files · {paths.length}
           </span>
           <button
@@ -357,7 +357,7 @@ export default function CodePanel({
               if (e.key === "Enter") submitCreate();
               if (e.key === "Escape") setCreating(false);
             }}
-            className="mx-2 mb-1 border border-shine bg-night px-2 py-1 font-mono text-[12px] text-chalk outline-none placeholder:text-chalk-dim/50"
+            className="mx-2 mb-1 border border-shine bg-night px-2 py-1 font-mono text-[0.75rem] text-chalk outline-none placeholder:text-chalk-dim/50"
           />
         )}
         <div className="min-h-0 flex-1">{renderNodes(tree, 0)}</div>
@@ -369,7 +369,7 @@ export default function CodePanel({
         {oversized.length > 0 && (
           <div className="flex shrink-0 items-center gap-2.5 border-b border-amber-400/30 bg-amber-400/10 px-3 py-2">
             <Split size={13} className="shrink-0 text-amber-300" />
-            <span className="min-w-0 flex-1 truncate text-[11px] leading-relaxed text-amber-200">
+            <span className="min-w-0 flex-1 truncate text-[0.6875rem] leading-relaxed text-amber-200">
               <span className="font-mono">{oversized[0].path}</span> ยาว{" "}
               {oversized[0].lines.toLocaleString("th-TH")} บรรทัด
               {oversized.length > 1 && ` (+อีก ${oversized.length - 1} ไฟล์)`} — โค้ดกองในไฟล์เดียว
@@ -378,7 +378,7 @@ export default function CodePanel({
             {onReorganize && (
               <button
                 onClick={onReorganize}
-                className="shrink-0 rounded-md bg-shine px-2.5 py-1 font-display text-[12px] font-semibold text-night transition hover:brightness-110"
+                className="shrink-0 rounded-md bg-shine px-2.5 py-1 font-display text-[0.75rem] font-semibold text-night transition hover:brightness-110"
               >
                 ✦ จัดโครงสร้างใหม่
               </button>
@@ -392,7 +392,7 @@ export default function CodePanel({
               return (
                 <div
                   key={path}
-                  className={`group flex shrink-0 items-center gap-2 border-r border-night-edge px-3 py-1.5 font-mono text-[11px] transition ${
+                  className={`group flex shrink-0 items-center gap-2 border-r border-night-edge px-3 py-1.5 font-mono text-[0.6875rem] transition ${
                     isActive ? "bg-night text-chalk" : "text-chalk-dim hover:text-chalk"
                   }`}
                 >

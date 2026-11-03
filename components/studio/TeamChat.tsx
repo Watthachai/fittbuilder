@@ -410,7 +410,7 @@ export default function TeamChat({ projectId }: { projectId: string }) {
         <MessageSquare size={13} /> แชท
         {badge > 0 && (
           <span
-            className={`grid h-4 min-w-4 place-items-center rounded-full px-1 text-[10px] font-bold ${
+            className={`grid h-4 min-w-4 place-items-center rounded-full px-1 text-[0.625rem] font-bold ${
               unread > 0 ? "bg-shine text-night" : "bg-chalk/15 text-chalk-dim"
             }`}
           >
@@ -436,7 +436,7 @@ export default function TeamChat({ projectId }: { projectId: string }) {
         <div className="flex h-10 shrink-0 items-center justify-between border-b border-night-edge px-3.5">
           <div className="flex items-center gap-2">
             <MessageSquare size={14} className="text-shine" />
-            <span className="font-display text-[13px] font-semibold text-chalk">ห้องแชททีม</span>
+            <span className="font-display text-[0.8125rem] font-semibold text-chalk">ห้องแชททีม</span>
           </div>
           <button
             onClick={() => setOpen(false)}
@@ -453,7 +453,7 @@ export default function TeamChat({ projectId }: { projectId: string }) {
           className="scroll-thin min-h-[220px] flex-1 space-y-3 overflow-y-auto px-3.5 py-3"
         >
           {messages.length === 0 && (
-            <p className="mt-10 text-center text-[13px] text-chalk-dim">
+            <p className="mt-10 text-center text-[0.8125rem] text-chalk-dim">
               ยังไม่มีข้อความ — เริ่มคุยกับทีมได้เลย
               <br />
               ส่งข้อความ รูปภาพ หรือไฟล์เอกสารให้กันได้
@@ -463,7 +463,7 @@ export default function TeamChat({ projectId }: { projectId: string }) {
             m.kind === "system" ? (
               <p
                 key={m.id}
-                className="mx-auto w-fit rounded-full border border-night-edge bg-night px-3 py-1 text-center font-mono text-[11px] text-chalk-dim"
+                className="mx-auto w-fit rounded-full border border-night-edge bg-night px-3 py-1 text-center font-mono text-[0.6875rem] text-chalk-dim"
               >
                 {m.body}
               </p>
@@ -488,7 +488,7 @@ export default function TeamChat({ projectId }: { projectId: string }) {
             )
           )}
           {typers.length > 0 && (
-            <p className="flex items-center gap-1.5 text-[12px] italic text-chalk-dim">
+            <p className="flex items-center gap-1.5 text-[0.75rem] italic text-chalk-dim">
               <span className="flex gap-0.5">
                 <Dot /> <Dot /> <Dot />
               </span>
@@ -501,7 +501,7 @@ export default function TeamChat({ projectId }: { projectId: string }) {
         <div className="relative shrink-0 border-t border-night-edge p-2.5">
           {mention && mentionMatches.length > 0 && (
             <div className="absolute bottom-full left-2.5 z-20 mb-1 w-64 overflow-hidden rounded-xl border border-night-edge bg-night-panel py-1 shadow-2xl">
-              <p className="px-3 py-1 font-mono text-[10px] uppercase tracking-wider text-chalk-dim">
+              <p className="px-3 py-1 font-mono text-[0.625rem] uppercase tracking-wider text-chalk-dim">
                 แท็กสมาชิก
               </p>
               {mentionMatches.map((n, i) => (
@@ -512,11 +512,11 @@ export default function TeamChat({ projectId }: { projectId: string }) {
                     e.preventDefault();
                     applyMention(n);
                   }}
-                  className={`flex w-full items-center gap-2 px-3 py-1.5 text-left text-[13px] transition ${
+                  className={`flex w-full items-center gap-2 px-3 py-1.5 text-left text-[0.8125rem] transition ${
                     i === mention.index ? "bg-shine/10 text-chalk" : "text-chalk/80 hover:bg-chalk/5"
                   }`}
                 >
-                  <span className="grid h-5 w-5 shrink-0 place-items-center rounded-full bg-chalk/15 text-[10px] font-semibold text-chalk/80">
+                  <span className="grid h-5 w-5 shrink-0 place-items-center rounded-full bg-chalk/15 text-[0.625rem] font-semibold text-chalk/80">
                     {n.charAt(0).toUpperCase()}
                   </span>
                   <span className="truncate">{n}</span>
@@ -526,7 +526,7 @@ export default function TeamChat({ projectId }: { projectId: string }) {
           )}
           {mention && mentionCandidates.length === 0 && (
             <div className="absolute bottom-full left-2.5 z-20 mb-1 w-72 rounded-xl border border-night-edge bg-night-panel px-3 py-2 shadow-2xl">
-              <p className="text-[12px] leading-relaxed text-chalk-dim">
+              <p className="text-[0.75rem] leading-relaxed text-chalk-dim">
                 ยังไม่พบรายชื่อสมาชิกในโปรเจกต์นี้ — ลองโหลดหน้าใหม่อีกครั้ง
               </p>
             </div>
@@ -535,8 +535,8 @@ export default function TeamChat({ projectId }: { projectId: string }) {
             <div className="mb-2 flex items-start gap-2 rounded-md border-l-2 border-l-shine border-night-edge bg-night px-2.5 py-1.5">
               <CornerUpLeft size={13} className="mt-0.5 shrink-0 text-shine" />
               <div className="min-w-0 flex-1">
-                <p className="text-[11px] font-semibold text-chalk">ตอบกลับ {replyTarget.author}</p>
-                <p className="truncate text-[11px] text-chalk-dim">{replyTarget.excerpt}</p>
+                <p className="text-[0.6875rem] font-semibold text-chalk">ตอบกลับ {replyTarget.author}</p>
+                <p className="truncate text-[0.6875rem] text-chalk-dim">{replyTarget.excerpt}</p>
               </div>
               <button
                 onClick={() => setReplyTarget(null)}
@@ -576,7 +576,7 @@ export default function TeamChat({ projectId }: { projectId: string }) {
                 ) : (
                   <span
                     key={a.path}
-                    className="inline-flex items-center gap-1 rounded-md border border-night-edge bg-night px-2 py-1 font-mono text-[10px] text-chalk-dim"
+                    className="inline-flex items-center gap-1 rounded-md border border-night-edge bg-night px-2 py-1 font-mono text-[0.625rem] text-chalk-dim"
                   >
                     <Paperclip size={9} className="text-shine" />
                     <span className="max-w-[140px] truncate">{a.name}</span>
@@ -649,7 +649,7 @@ export default function TeamChat({ projectId }: { projectId: string }) {
                 }
               }}
               placeholder="พิมพ์ข้อความถึงทีม…"
-              className="max-h-24 min-h-[40px] flex-1 resize-none bg-transparent py-2.5 text-[14px] text-chalk outline-none placeholder:text-chalk-dim/60"
+              className="max-h-24 min-h-[40px] flex-1 resize-none bg-transparent py-2.5 text-[0.875rem] text-chalk outline-none placeholder:text-chalk-dim/60"
             />
             <button
               onClick={() => void send()}
@@ -734,7 +734,7 @@ function InlineImage({ url, onView }: { url: string; onView: () => void }) {
         href={url}
         target="_blank"
         rel="noreferrer"
-        className="mt-1 break-all text-[12px] text-shine underline underline-offset-2"
+        className="mt-1 break-all text-[0.75rem] text-shine underline underline-offset-2"
       >
         {url}
       </a>
@@ -789,14 +789,14 @@ function ChatBubble({
           className="h-7 w-7 shrink-0 rounded-full object-cover"
         />
       ) : (
-        <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-chalk/15 text-[11px] font-semibold text-chalk/80">
+        <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-chalk/15 text-[0.6875rem] font-semibold text-chalk/80">
           {initial}
         </span>
       )}
       <div className={`flex min-w-0 max-w-[80%] flex-col ${mine ? "items-end" : "items-start"}`}>
         <div className="mb-0.5 flex items-center gap-1.5">
-          <span className="font-mono text-[10px] text-chalk-dim">{message.authorName ?? "ผู้ใช้"}</span>
-          <span className="font-mono text-[9px] text-chalk-dim/60">{timeLabel(message.createdAt)}</span>
+          <span className="font-mono text-[0.625rem] text-chalk-dim">{message.authorName ?? "ผู้ใช้"}</span>
+          <span className="font-mono text-[0.5625rem] text-chalk-dim/60">{timeLabel(message.createdAt)}</span>
         </div>
 
         {message.replyTo && (
@@ -805,8 +805,8 @@ function ChatBubble({
               mine ? "text-right" : ""
             }`}
           >
-            <p className="text-[10px] font-semibold text-chalk-dim">↪ {message.replyTo.author}</p>
-            <p className="truncate text-[11px] text-chalk-dim/80">{message.replyTo.excerpt}</p>
+            <p className="text-[0.625rem] font-semibold text-chalk-dim">↪ {message.replyTo.author}</p>
+            <p className="truncate text-[0.6875rem] text-chalk-dim/80">{message.replyTo.excerpt}</p>
           </div>
         )}
 
@@ -814,7 +814,7 @@ function ChatBubble({
         <div className={`relative flex items-center gap-1 ${mine ? "flex-row-reverse" : ""}`}>
           {(textBody || (message.attachments.length === 0 && imageUrls.length === 0)) && (
             <div
-              className={`whitespace-pre-wrap break-words rounded-lg px-3 py-2 text-[14px] text-chalk ${
+              className={`whitespace-pre-wrap break-words rounded-lg px-3 py-2 text-[0.875rem] text-chalk ${
                 mine ? "border border-shine/30 bg-shine/10" : "border border-night-edge bg-night"
               }`}
             >
@@ -834,7 +834,7 @@ function ChatBubble({
               <button
                 key={emoji}
                 onClick={() => onReact(emoji)}
-                className="rounded-full px-1 text-[14px] leading-none transition hover:scale-125"
+                className="rounded-full px-1 text-[0.875rem] leading-none transition hover:scale-125"
                 title={`รีแอกชัน ${emoji}`}
               >
                 {emoji}
@@ -876,7 +876,7 @@ function ChatBubble({
                 <button
                   key={r.emoji}
                   onClick={() => onReact(r.emoji)}
-                  className={`inline-flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-[11px] transition ${
+                  className={`inline-flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-[0.6875rem] transition ${
                     mineReacted
                       ? "border-shine/50 bg-shine/15 text-chalk"
                       : "border-night-edge bg-night text-chalk-dim hover:text-chalk"
@@ -924,7 +924,7 @@ function Attachment({
       href={att.url}
       target="_blank"
       rel="noreferrer"
-      className="mt-1 inline-flex items-center gap-2 rounded-lg border border-night-edge bg-night px-3 py-2 text-[13px] text-chalk transition hover:border-shine/60"
+      className="mt-1 inline-flex items-center gap-2 rounded-lg border border-night-edge bg-night px-3 py-2 text-[0.8125rem] text-chalk transition hover:border-shine/60"
     >
       <FileText size={15} className="shrink-0 text-shine" />
       <span className="max-w-[200px] truncate">{att.name}</span>

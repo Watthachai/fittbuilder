@@ -66,7 +66,7 @@ export default function PartnerStack() {
   return (
     <section id="partner" className="mx-auto max-w-4xl px-6 pt-20 pb-24 sm:pt-28">
       <h2 className="landing-display text-center">Partner</h2>
-      <p className="mx-auto mt-5 max-w-xl text-center text-[17px] leading-relaxed text-chalk/65">
+      <p className="mx-auto mt-5 max-w-xl text-center text-[1.0625rem] leading-relaxed text-chalk/65">
         รับงานพัฒนาเว็บในนามบริษัทคุณ — เราเป็นแค่เครื่องมือที่อยู่ข้างหลัง
       </p>
 
@@ -108,7 +108,7 @@ export default function PartnerStack() {
                   <h3 className="font-display text-xl leading-tight font-medium tracking-tight text-chalk sm:text-[1.75rem]">
                     {card.title}
                   </h3>
-                  <p className="mt-3 max-w-lg text-[15px] leading-relaxed text-chalk/65 sm:text-[17px]">
+                  <p className="mt-3 max-w-lg text-[0.9375rem] leading-relaxed text-chalk/65 sm:text-[1.0625rem]">
                     {card.body}
                   </p>
                 </div>
@@ -124,7 +124,7 @@ export default function PartnerStack() {
       <div className="mt-14 flex justify-center">
         <Link
           href="/partner"
-          className="inline-flex items-center gap-2.5 rounded-full bg-shine px-8 py-3.5 font-display text-[15px] font-semibold text-night transition hover:-translate-y-0.5 hover:brightness-110"
+          className="inline-flex items-center gap-2.5 rounded-full bg-shine px-8 py-3.5 font-display text-[0.9375rem] font-semibold text-night transition hover:-translate-y-0.5 hover:brightness-110"
         >
           ดูรายละเอียด Partner
           <ArrowRight size={17} strokeWidth={2.5} aria-hidden />

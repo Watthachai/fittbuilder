@@ -2901,7 +2901,7 @@ export default function Studio({ projectId }: { projectId: string }) {
               <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-halt opacity-70" />
               <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-halt" />
             </span>
-            <span className="text-[13px] text-chalk">
+            <span className="text-[0.8125rem] text-chalk">
               กำลังอัด · <b className="text-shine">เก็บแล้ว {recCount} หน้า</b>
               {recLast && <span className="text-chalk-dim"> — ล่าสุด: {recLast}</span>}
             </span>
@@ -2911,7 +2911,7 @@ export default function Studio({ projectId }: { projectId: string }) {
                 toPreview({ __fittRecord: false });
                 setScreensOpen(true);
               }}
-              className="shrink-0 rounded-full bg-shine px-3 py-1 font-display text-[12px] font-semibold text-night transition hover:brightness-110"
+              className="shrink-0 rounded-full bg-shine px-3 py-1 font-display text-[0.75rem] font-semibold text-night transition hover:brightness-110"
             >
               หยุดอัด
             </button>
@@ -3091,7 +3091,7 @@ export default function Studio({ projectId }: { projectId: string }) {
                 <div className="flex flex-col items-center gap-4 text-center">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src="/cat_playing_animation.svg" alt="" className="loader-float w-44 opacity-90" draggable={false} />
-                  <p className="font-display text-[15px] text-chalk">กำลังออกแบบดีไซน์ให้เลือก…</p>
+                  <p className="font-display text-[0.9375rem] text-chalk">กำลังออกแบบดีไซน์ให้เลือก…</p>
                   <div className="flex items-center gap-1.5">
                     <span className="loader-dot h-1.5 w-1.5 rounded-full bg-shine" style={{ animationDelay: "0ms" }} />
                     <span className="loader-dot h-1.5 w-1.5 rounded-full bg-shine" style={{ animationDelay: "150ms" }} />

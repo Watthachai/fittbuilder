@@ -61,12 +61,12 @@ export default function ConsultLanding() {
         <div className="pointer-events-auto flex h-12 w-full max-w-[1280px] items-center justify-between gap-8 rounded-[16px] px-6 py-2 transition-all duration-300">
           <Link
             href="/consult"
-            className="flex items-center gap-2 text-[22px] font-extrabold tracking-tight text-black dark:text-white"
+            className="flex items-center gap-2 text-[1.375rem] font-extrabold tracking-tight text-black dark:text-white"
             style={{ fontFamily: "var(--font-fustat), Inter, sans-serif" }}
           >
             <Bot className="h-6 w-6 text-[#0084FF]" />
             FITT Consult
-            <span className="rounded-full bg-[#0084FF]/10 px-1.5 py-0.5 font-mono text-[9px] font-bold uppercase tracking-wider text-[#0084FF] dark:bg-[#0084FF]/20 dark:text-[#60B1FF]">
+            <span className="rounded-full bg-[#0084FF]/10 px-1.5 py-0.5 font-mono text-[0.5625rem] font-bold uppercase tracking-wider text-[#0084FF] dark:bg-[#0084FF]/20 dark:text-[#60B1FF]">
               alpha
             </span>
           </Link>
@@ -74,13 +74,13 @@ export default function ConsultLanding() {
           <div className="hidden items-center gap-6 md:flex">
             <Link
               href="/"
-              className="text-[14px] font-medium text-black/60 transition-colors hover:text-black dark:text-white/60 dark:hover:text-white"
+              className="text-[0.875rem] font-medium text-black/60 transition-colors hover:text-black dark:text-white/60 dark:hover:text-white"
             >
               FITT Builder
             </Link>
             <Link
               href="/consult/app"
-              className="group flex h-9 items-center gap-2 rounded-[12px] border border-black/10 bg-black/5 px-5 text-[14px] font-semibold text-black transition-all hover:bg-black/10 hover:shadow-md dark:border-white/15 dark:bg-white/10 dark:text-white dark:hover:bg-white/15"
+              className="group flex h-9 items-center gap-2 rounded-[12px] border border-black/10 bg-black/5 px-5 text-[0.875rem] font-semibold text-black transition-all hover:bg-black/10 hover:shadow-md dark:border-white/15 dark:bg-white/10 dark:text-white dark:hover:bg-white/15"
             >
               เข้าใช้งาน
               <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
@@ -125,14 +125,14 @@ export default function ConsultLanding() {
               <Link
                 href="/"
                 onClick={() => setDrawer(false)}
-                className="rounded-lg px-3 py-2.5 text-[15px] font-medium text-black/70 transition hover:bg-black/5 hover:text-black dark:text-white/70 dark:hover:bg-white/5 dark:hover:text-white"
+                className="rounded-lg px-3 py-2.5 text-[0.9375rem] font-medium text-black/70 transition hover:bg-black/5 hover:text-black dark:text-white/70 dark:hover:bg-white/5 dark:hover:text-white"
               >
                 FITT Builder
               </Link>
               <Link
                 href="/consult/app"
                 onClick={() => setDrawer(false)}
-                className="mt-2 flex items-center justify-center gap-2 rounded-[12px] bg-[#0084FF] px-5 py-2.5 text-[14px] font-semibold text-white"
+                className="mt-2 flex items-center justify-center gap-2 rounded-[12px] bg-[#0084FF] px-5 py-2.5 text-[0.875rem] font-semibold text-white"
               >
                 เข้าใช้งาน <ArrowRight className="h-3.5 w-3.5" />
               </Link>
@@ -164,13 +164,13 @@ export default function ConsultLanding() {
                   />
                 ))}
               </span>
-              <span className="text-[12px] text-black/80 dark:text-white/80">
+              <span className="text-[0.75rem] text-black/80 dark:text-white/80">
                 <b className="text-neutral-900 dark:text-white">Alpha</b> — ทีมแรกๆ กำลังทดลองใช้
               </span>
             </div>
 
             <h1
-              className="mt-6 select-none text-[36px] font-black leading-[1.08] tracking-[-3px] text-black sm:text-[44px] lg:text-[60px] dark:text-white"
+              className="mt-6 select-none text-[2.25rem] font-black leading-[1.08] tracking-[-3px] text-black sm:text-[2.75rem] lg:text-[3.75rem] dark:text-white"
               style={{ fontFamily: "var(--font-outfit), Inter, sans-serif" }}
             >
               Your All-in-One
@@ -178,7 +178,7 @@ export default function ConsultLanding() {
               Business Consult.
             </h1>
 
-            <p className="mt-5 max-w-[480px] text-[18px] leading-relaxed tracking-[-0.5px] text-black/60 dark:text-white/60">
+            <p className="mt-5 max-w-[480px] text-[1.125rem] leading-relaxed tracking-[-0.5px] text-black/60 dark:text-white/60">
               วางข้อมูลจริงขององค์กร — เสียงลูกค้า งบ ตัวเลขขาย — แล้วให้ AI
               หา Pain Point และตรวจสุขภาพธุรกิจ พร้อมที่มาอ้างอิงทุกข้อสรุป
             </p>
@@ -204,7 +204,7 @@ export default function ConsultLanding() {
                 <span className="flex h-9 w-9 items-center justify-center rounded-full border border-blue-100 bg-blue-50 transition-colors group-hover:bg-blue-100 dark:border-[#0084FF]/30 dark:bg-[#0084FF]/15 dark:group-hover:bg-[#0084FF]/25">
                   <Play size={13} className="fill-[#0084FF] text-[#0084FF]" />
                 </span>
-                <span className="text-[14px] font-bold text-[#0084FF] transition-colors group-hover:text-[#0074E0] dark:text-[#60B1FF] dark:group-hover:text-[#9ddffc]">
+                <span className="text-[0.875rem] font-bold text-[#0084FF] transition-colors group-hover:text-[#0074E0] dark:text-[#60B1FF] dark:group-hover:text-[#9ddffc]">
                   ดูตัวอย่างรายงาน
                 </span>
               </Link>
@@ -385,10 +385,10 @@ function FloatingBadge({
           {icon}
         </span>
         <span className="flex flex-col text-left leading-tight">
-          <span className="text-[13px] font-black tracking-tight text-neutral-900 dark:text-white">
+          <span className="text-[0.8125rem] font-black tracking-tight text-neutral-900 dark:text-white">
             {title}
           </span>
-          <span className="mt-0.5 text-[10px] font-semibold text-neutral-500 dark:text-neutral-400">
+          <span className="mt-0.5 text-[0.625rem] font-semibold text-neutral-500 dark:text-neutral-400">
             {sub}
           </span>
         </span>

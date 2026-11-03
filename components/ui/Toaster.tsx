@@ -55,9 +55,9 @@ export default function Toaster() {
               className={`mt-0.5 shrink-0 ${ACCENT[t.type]} ${t.type === "loading" ? "animate-spin" : ""}`}
             />
             <div className="min-w-0 flex-1">
-              <p className="text-[13px] font-semibold leading-snug text-chalk">{t.title}</p>
+              <p className="text-[0.8125rem] font-semibold leading-snug text-chalk">{t.title}</p>
               {t.description && (
-                <p className="mt-0.5 break-words text-[12px] leading-relaxed text-chalk-dim">
+                <p className="mt-0.5 break-words text-[0.75rem] leading-relaxed text-chalk-dim">
                   {t.description}
                 </p>
               )}
@@ -67,7 +67,7 @@ export default function Toaster() {
                     t.action!.run();
                     dismiss(t.id);
                   }}
-                  className="mt-1.5 inline-block font-display text-[12px] font-semibold text-shine transition hover:underline"
+                  className="mt-1.5 inline-block font-display text-[0.75rem] font-semibold text-shine transition hover:underline"
                 >
                   {t.action.label}
                 </button>

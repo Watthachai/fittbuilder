@@ -128,16 +128,16 @@ export default function HistoryPanel({
     <div className="scroll-thin flex min-h-0 flex-1 flex-col overflow-y-auto bg-night">
       <div className="sticky top-0 z-10 flex items-center gap-2 border-b border-night-edge bg-night-panel px-4 py-2">
         <History size={13} className="text-shine" />
-        <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-chalk-dim">
+        <span className="font-mono text-[0.625rem] uppercase tracking-[0.2em] text-chalk-dim">
           ประวัติเวอร์ชัน · {rows.length}
         </span>
-        <span className="ml-auto text-[10px] text-chalk-dim/70">เก็บ 30 จุดล่าสุด</span>
+        <span className="ml-auto text-[0.625rem] text-chalk-dim/70">เก็บ 30 จุดล่าสุด</span>
       </div>
       {/* No row matches what is on screen: the project has moved past every
           checkpoint. Say so — otherwise the newest row looks like where you are,
           and rolling "back" to it quietly throws away everything since. */}
       {rows && rows.length > 0 && currentSha !== null && !rows.some((r) => r.sha === currentSha) && (
-        <div className="border-b border-night-edge bg-night-panel/60 px-4 py-2 text-[11px] leading-relaxed text-chalk-dim">
+        <div className="border-b border-night-edge bg-night-panel/60 px-4 py-2 text-[0.6875rem] leading-relaxed text-chalk-dim">
           ไฟล์ตอนนี้ยังไม่ตรงกับจุดใดในประวัติ — มีการแก้ไขหลังจุดล่าสุด
           กดย้อนกลับจะทิ้งส่วนนั้นไป
         </div>
@@ -165,24 +165,24 @@ export default function HistoryPanel({
 
               <div className="min-w-0 flex-1 pb-1">
                 <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                  <code className="rounded bg-night-panel px-1.5 py-0.5 font-mono text-[11px] text-shine">
+                  <code className="rounded bg-night-panel px-1.5 py-0.5 font-mono text-[0.6875rem] text-shine">
                     {rev.sha}
                   </code>
                   {latest && (
-                    <span className="rounded-full bg-go/15 px-1.5 py-0.5 font-display text-[10px] text-go">
+                    <span className="rounded-full bg-go/15 px-1.5 py-0.5 font-display text-[0.625rem] text-go">
                       ล่าสุด
                     </span>
                   )}
-                  <span className="font-mono text-[10px] uppercase tracking-wider text-chalk-dim">
+                  <span className="font-mono text-[0.625rem] uppercase tracking-wider text-chalk-dim">
                     {meta.label}
                   </span>
-                  <span className="text-[10px] text-chalk-dim/70">{when(rev.createdAt)}</span>
+                  <span className="text-[0.625rem] text-chalk-dim/70">{when(rev.createdAt)}</span>
                 </div>
-                <p className="mt-0.5 break-words text-[13px] leading-relaxed text-chalk">
+                <p className="mt-0.5 break-words text-[0.8125rem] leading-relaxed text-chalk">
                   {rev.label}
                 </p>
                 {rev.targetLoc && (
-                  <p className="mt-0.5 truncate font-mono text-[10px] text-chalk-dim">
+                  <p className="mt-0.5 truncate font-mono text-[0.625rem] text-chalk-dim">
                     {rev.targetLoc.split("/").pop()}
                   </p>
                 )}
@@ -190,7 +190,7 @@ export default function HistoryPanel({
                   <button
                     onClick={() => void openDiff(rev)}
                     disabled={loadingSha === rev.sha}
-                    className="inline-flex items-center gap-1.5 rounded-md border border-night-edge bg-night-panel px-2 py-1 font-display text-[11px] text-chalk-dim transition hover:border-shine/60 hover:text-chalk disabled:opacity-50"
+                    className="inline-flex items-center gap-1.5 rounded-md border border-night-edge bg-night-panel px-2 py-1 font-display text-[0.6875rem] text-chalk-dim transition hover:border-shine/60 hover:text-chalk disabled:opacity-50"
                   >
                     {loadingSha === rev.sha ? (
                       <Loader2 size={11} className="animate-spin" />
@@ -202,7 +202,7 @@ export default function HistoryPanel({
                   {onRollback && !latest && (
                     <button
                       onClick={() => void onRollback(rev.sha)}
-                      className="inline-flex items-center gap-1.5 rounded-md border border-night-edge bg-night-panel px-2 py-1 font-display text-[11px] text-chalk-dim transition hover:border-halt/60 hover:text-chalk"
+                      className="inline-flex items-center gap-1.5 rounded-md border border-night-edge bg-night-panel px-2 py-1 font-display text-[0.6875rem] text-chalk-dim transition hover:border-halt/60 hover:text-chalk"
                     >
                       <RotateCcw size={11} className="text-halt" />
                       ย้อนกลับมาที่นี่

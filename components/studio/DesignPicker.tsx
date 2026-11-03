@@ -23,7 +23,7 @@ export default function DesignPicker({
         <div className="mb-5 flex items-end justify-between gap-4">
           <div>
             <h2 className="font-display text-lg font-semibold text-chalk">ดีไซน์พร้อมให้เลือกแล้ว</h2>
-            <p className="mt-0.5 text-[13px] text-chalk-dim">
+            <p className="mt-0.5 text-[0.8125rem] text-chalk-dim">
               เลือกแนวทางที่ชอบ แล้ว AI จะสร้าง demo ตามสไตล์นั้น — หรือกดข้ามเพื่อให้ AI เลือกให้
             </p>
           </div>
@@ -45,14 +45,14 @@ export default function DesignPicker({
               <Swatch option={option} />
               <div className="flex flex-1 flex-col gap-1 px-3.5 py-3">
                 <div className="flex items-center justify-between gap-2">
-                  <span className="font-display text-[14px] font-semibold text-chalk">{option.name}</span>
+                  <span className="font-display text-[0.875rem] font-semibold text-chalk">{option.name}</span>
                   <span
                     className="h-3.5 w-3.5 shrink-0 rounded-full ring-1 ring-night-edge"
                     style={{ background: option.palette.primary }}
                   />
                 </div>
-                <p className="text-[12px] leading-relaxed text-chalk-dim">{option.description}</p>
-                <span className="mt-2 font-mono text-[10px] uppercase tracking-wider text-shine opacity-0 transition group-hover:opacity-100">
+                <p className="text-[0.75rem] leading-relaxed text-chalk-dim">{option.description}</p>
+                <span className="mt-2 font-mono text-[0.625rem] uppercase tracking-wider text-shine opacity-0 transition group-hover:opacity-100">
                   เลือกดีไซน์นี้ →
                 </span>
               </div>

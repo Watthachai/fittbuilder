@@ -218,13 +218,13 @@ export default function MainframeHero() {
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src="/logo.png" alt="FITT Builder" className="h-9 w-9 rounded-[10px] sm:h-10 sm:w-10" />
             <span
-              className="text-[21px] tracking-tight text-chalk sm:text-[26px]"
+              className="text-[1.3125rem] tracking-tight text-chalk sm:text-[1.625rem]"
               style={{ fontFamily: "var(--font-heading)" }}
             >
               FITT Builder
             </span>
             <span
-              className="select-none text-[25px] text-chalk sm:text-[30px]"
+              className="select-none text-[1.5625rem] text-chalk sm:text-[1.875rem]"
               style={{ letterSpacing: "-0.02em" }}
             >
               ✳︎
@@ -233,7 +233,7 @@ export default function MainframeHero() {
           <AppVersion />
         </div>
 
-        <nav className="absolute left-1/2 hidden -translate-x-1/2 items-center gap-1 rounded-full border border-chalk/12 bg-night/40 light:border-night-edge light:bg-night/90 light:shadow-sm px-2 py-1.5 text-[15px] text-chalk/85 backdrop-blur-xl md:flex">
+        <nav className="absolute left-1/2 hidden -translate-x-1/2 items-center gap-1 rounded-full border border-chalk/12 bg-night/40 light:border-night-edge light:bg-night/90 light:shadow-sm px-2 py-1.5 text-[0.9375rem] text-chalk/85 backdrop-blur-xl md:flex">
           {NAV_LINKS.map((link) => (
             <a
               key={link.href}
@@ -249,7 +249,7 @@ export default function MainframeHero() {
               className="inline-flex items-center gap-1.5 rounded-full px-4 py-1.5 transition hover:bg-chalk/10 hover:text-chalk"
             >
               FITT Consult
-              <span className="rounded-full bg-shine/15 px-1.5 py-0.5 font-mono text-[9px] font-bold uppercase tracking-wider text-shine">
+              <span className="rounded-full bg-shine/15 px-1.5 py-0.5 font-mono text-[0.5625rem] font-bold uppercase tracking-wider text-shine">
                 alpha
               </span>
             </Link>
@@ -259,7 +259,7 @@ export default function MainframeHero() {
         <div className="hidden items-center gap-2 rounded-full border border-chalk/12 bg-night/40 light:border-night-edge light:bg-night/90 light:shadow-sm py-1 pl-3 pr-1 backdrop-blur-xl md:flex">
           <button
             onClick={() => setProjectsOpen(true)}
-            className="text-[15px] text-chalk/85 transition hover:text-chalk"
+            className="text-[0.9375rem] text-chalk/85 transition hover:text-chalk"
           >
             ผลงานของฉัน
           </button>
@@ -302,7 +302,7 @@ export default function MainframeHero() {
             key={link.href}
             href={link.href}
             onClick={() => setMenuOpen(false)}
-            className="text-[32px] font-medium text-chalk"
+            className="text-[2rem] font-medium text-chalk"
           >
             {link.label}
           </a>
@@ -311,10 +311,10 @@ export default function MainframeHero() {
           <Link
             href="/consult"
             onClick={() => setMenuOpen(false)}
-            className="inline-flex items-center gap-2 text-[32px] font-medium text-chalk"
+            className="inline-flex items-center gap-2 text-[2rem] font-medium text-chalk"
           >
             FITT Consult
-            <span className="rounded-full bg-shine/15 px-2 py-1 font-mono text-[11px] font-bold uppercase tracking-wider text-shine">
+            <span className="rounded-full bg-shine/15 px-2 py-1 font-mono text-[0.6875rem] font-bold uppercase tracking-wider text-shine">
               alpha
             </span>
           </Link>
@@ -324,7 +324,7 @@ export default function MainframeHero() {
             setMenuOpen(false);
             setProjectsOpen(true);
           }}
-          className="text-left text-[32px] font-medium text-chalk underline underline-offset-2"
+          className="text-left text-[2rem] font-medium text-chalk underline underline-offset-2"
         >
           ผลงานของฉัน
         </button>

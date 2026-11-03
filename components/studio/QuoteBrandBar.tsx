@@ -171,9 +171,9 @@ export default function QuoteBrandBar({
 
       <div className="flex items-center gap-2">
         <Building2 size={13} className="text-shine" />
-        <h3 className="font-display text-[14px] text-chalk">หัวกระดาษ — บริษัทผู้เสนอราคา</h3>
+        <h3 className="font-display text-[0.875rem] text-chalk">หัวกระดาษ — บริษัทผู้เสนอราคา</h3>
         {!brand.poweredBy && (
-          <span className="inline-flex items-center gap-1 rounded-full border border-go/50 bg-go/10 px-2 py-0.5 font-mono text-[11.5px] text-go">
+          <span className="inline-flex items-center gap-1 rounded-full border border-go/50 bg-go/10 px-2 py-0.5 font-mono text-[0.71875rem] text-go">
             <BadgeCheck size={10} /> Partner
           </span>
         )}
@@ -189,7 +189,7 @@ export default function QuoteBrandBar({
                   ? "ดึงชื่อบริษัท ที่อยู่ เลขผู้เสียภาษี และโลโก้ที่บันทึกไว้ที่ workspace มาใส่ใบนี้"
                   : "ดึงหัวกระดาษที่คุณเคยบันทึกเป็นค่าเริ่มต้นมาใส่ใบนี้"
               }
-              className="inline-flex items-center gap-1.5 rounded-lg border border-shine/50 bg-shine/[0.06] px-2.5 py-1.5 font-display text-[12.5px] font-medium text-shine transition hover:bg-shine/15 disabled:opacity-40"
+              className="inline-flex items-center gap-1.5 rounded-lg border border-shine/50 bg-shine/[0.06] px-2.5 py-1.5 font-display text-[0.78125rem] font-medium text-shine transition hover:bg-shine/15 disabled:opacity-40"
             >
               {busy === "pull" ? <Loader2 size={11} className="animate-spin" /> : <Download size={11} />}
               {orgId ? "ดึงจาก workspace" : "ดึงค่าเริ่มต้นของฉัน"}
@@ -207,7 +207,7 @@ export default function QuoteBrandBar({
                     ? "ทำให้หัวกระดาษนี้เป็นค่าเริ่มต้นของ workspace — ใบเสนอราคาใบถัดไปจะขึ้นให้เอง"
                     : "ทำให้หัวกระดาษนี้เป็นค่าเริ่มต้นของคุณ — โปรเจกต์ใหม่ทุกโปรเจกต์จะขึ้นให้เอง"
                 }
-                className="inline-flex items-center gap-1.5 rounded-lg bg-shine px-3 py-1.5 font-display text-[12.5px] font-semibold text-night transition hover:brightness-110 disabled:opacity-40"
+                className="inline-flex items-center gap-1.5 rounded-lg bg-shine px-3 py-1.5 font-display text-[0.78125rem] font-semibold text-night transition hover:brightness-110 disabled:opacity-40"
               >
                 {busy === "push" ? <Loader2 size={11} className="animate-spin" /> : <Save size={11} />}
                 บันทึกเป็นค่าเริ่มต้น
@@ -233,7 +233,7 @@ export default function QuoteBrandBar({
               <button
                 onClick={() => fileInput.current?.click()}
                 disabled={busy !== null}
-                className="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 font-display text-[11.5px] text-chalk-dim transition hover:text-shine disabled:opacity-40"
+                className="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 font-display text-[0.71875rem] text-chalk-dim transition hover:text-shine disabled:opacity-40"
               >
                 {busy === "upload" ? (
                   <Loader2 size={10} className="animate-spin" />
@@ -341,16 +341,16 @@ export default function QuoteBrandBar({
 
       {orgId && (
         <div className="mt-3 flex flex-wrap items-center gap-2 rounded-lg border border-night-edge bg-night/40 px-3 py-2">
-          <span className="font-display text-[12px] text-chalk-dim">รหัสเลขที่เอกสาร</span>
+          <span className="font-display text-[0.75rem] text-chalk-dim">รหัสเลขที่เอกสาร</span>
           <input
             value={docCode}
             onChange={(e) => setDocCode(e.target.value)}
             onBlur={() => void saveDocCode()}
             placeholder="เช่น 12605"
             disabled={readOnly || !canManage}
-            className="w-28 rounded-md border border-night-edge bg-night px-2 py-1 font-mono text-[13px] text-chalk outline-none focus:border-shine/60 disabled:opacity-50"
+            className="w-28 rounded-md border border-night-edge bg-night px-2 py-1 font-mono text-[0.8125rem] text-chalk outline-none focus:border-shine/60 disabled:opacity-50"
           />
-          <span className="font-mono text-[11.5px] text-chalk-dim">
+          <span className="font-mono text-[0.71875rem] text-chalk-dim">
             เลขที่จะออกเป็น <span className="text-shine">SQP{docCode.trim() || "…"}-0001</span> ·
             ข้อเสนอเป็น <span className="text-shine">PRP{docCode.trim() || "…"}-…</span> — ออกเลขอัตโนมัติตอนพิมพ์ครั้งแรก นับต่อกันทั้ง workspace
             {!canManage && " · รหัสและหัวกระดาษเริ่มต้นของ workspace เปลี่ยนได้เฉพาะเจ้าของ workspace"}
@@ -359,7 +359,7 @@ export default function QuoteBrandBar({
       )}
 
       {!orgId && (
-        <p className="mt-2.5 text-[11.5px] leading-relaxed text-chalk-dim">
+        <p className="mt-2.5 text-[0.71875rem] leading-relaxed text-chalk-dim">
           กรอกครั้งเดียวแล้วกด “บันทึกเป็นค่าเริ่มต้น” — โปรเจกต์ใหม่ทุกโปรเจกต์จะขึ้นหัวกระดาษนี้ให้เอง
           (โปรเจกต์ที่ผูก workspace ใช้ข้อมูลบริษัทของ workspace แทน)
         </p>

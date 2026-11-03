@@ -128,11 +128,11 @@ export default function FittcoreExportModal({
             <div className="min-w-0">
               <div className="flex items-center gap-2">
                 <p className="font-display text-sm font-semibold text-chalk">ส่งไป FITT Code Runner</p>
-                <span className="shrink-0 rounded-full border border-amber-400/40 bg-amber-400/10 px-2 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-wider text-amber-300">
+                <span className="shrink-0 rounded-full border border-amber-400/40 bg-amber-400/10 px-2 py-0.5 font-mono text-[0.625rem] font-semibold uppercase tracking-wider text-amber-300">
                   {FITTCORE_TAG}
                 </span>
               </div>
-              <p className="truncate font-mono text-[11px] text-chalk-dim">
+              <p className="truncate font-mono text-[0.6875rem] text-chalk-dim">
                 target · Watthachai/coderunner_test.git
               </p>
             </div>
@@ -177,16 +177,16 @@ export default function FittcoreExportModal({
                 {files.map((f) => (
                   <li
                     key={f.path}
-                    className="flex items-center justify-between gap-3 border-b border-night-edge px-3 py-1.5 text-[12px] last:border-b-0"
+                    className="flex items-center justify-between gap-3 border-b border-night-edge px-3 py-1.5 text-[0.75rem] last:border-b-0"
                   >
                     <span className="truncate font-mono text-chalk/85">{f.path}</span>
-                    <span className="shrink-0 font-mono text-[11px] text-chalk-dim">
+                    <span className="shrink-0 font-mono text-[0.6875rem] text-chalk-dim">
                       {kb(f.size)}
                     </span>
                   </li>
                 ))}
                 {files.length === 0 && (
-                  <li className="px-3 py-2 text-[12px] text-chalk-dim">(ยังไม่มีไฟล์)</li>
+                  <li className="px-3 py-2 text-[0.75rem] text-chalk-dim">(ยังไม่มีไฟล์)</li>
                 )}
               </ul>
 
@@ -222,10 +222,10 @@ export default function FittcoreExportModal({
               </button>
               {showBody && (
                 <div className="mt-2 rounded-lg border border-night-edge bg-night">
-                  <p className="border-b border-night-edge px-3 py-1.5 font-mono text-[10px] text-chalk-dim">
+                  <p className="border-b border-night-edge px-3 py-1.5 font-mono text-[0.625rem] text-chalk-dim">
                     POST /api/fittcore → Gateway /v1/ingest · idea/brd/zip ถูกย่อในตัวอย่างนี้
                   </p>
-                  <pre className="scroll-thin max-h-96 overflow-auto px-3 py-2.5 font-mono text-[11px] leading-relaxed text-chalk/85">
+                  <pre className="scroll-thin max-h-96 overflow-auto px-3 py-2.5 font-mono text-[0.6875rem] leading-relaxed text-chalk/85">
                     {bodyPreview}
                   </pre>
                 </div>
@@ -278,8 +278,8 @@ export default function FittcoreExportModal({
 function Stat({ label, value, mono }: { label: string; value: string; mono?: boolean }) {
   return (
     <div className="bg-night-panel px-3 py-2">
-      <p className="font-mono text-[10px] uppercase tracking-wider text-chalk-dim">{label}</p>
-      <p className={`truncate text-[13px] text-chalk ${mono ? "font-mono text-[11px]" : ""}`} title={value}>
+      <p className="font-mono text-[0.625rem] uppercase tracking-wider text-chalk-dim">{label}</p>
+      <p className={`truncate text-[0.8125rem] text-chalk ${mono ? "font-mono text-[0.6875rem]" : ""}`} title={value}>
         {value}
       </p>
     </div>
@@ -297,7 +297,7 @@ function SuccessPanel({ result, project }: { result: GatewayIngestResult; projec
           <p className="font-display text-sm font-semibold text-chalk">
             {result.duplicate ? "งานนี้ถูกส่งไปแล้ว — ไม่ส่งซ้ำ" : "เข้าคิว build แล้ว"}
           </p>
-          <p className="text-[12px] text-chalk-dim">
+          <p className="text-[0.75rem] text-chalk-dim">
             สถานะ: {result.state}
             {result.duplicate ? " · idempotent (ยิงซ้ำ key เดิม)" : ""}
           </p>
@@ -309,7 +309,7 @@ function SuccessPanel({ result, project }: { result: GatewayIngestResult; projec
         <Stat label="project_id" value={project.id} mono />
         <Stat label="org_id" value={project.orgId || "—"} mono />
       </div>
-      <p className="mt-3 rounded-lg border border-night-edge bg-night px-3 py-2 text-[12px] text-chalk-dim">
+      <p className="mt-3 rounded-lg border border-night-edge bg-night px-3 py-2 text-[0.75rem] text-chalk-dim">
         build #, branch และ git remote จะทราบเมื่อ Runner เริ่ม build งานนี้ (ดูสถานะจาก job ภายหลัง)
       </p>
     </div>

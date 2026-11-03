@@ -63,13 +63,13 @@ export default function VersionWatcher() {
   return (
     <div className="pointer-events-none fixed inset-x-0 bottom-4 z-[100] flex justify-center px-4">
       <div className="glass pointer-events-auto flex items-center gap-3 rounded-full py-2 pl-4 pr-2 shadow-glass">
-        <span className="text-[13px] text-chalk">
+        <span className="text-[0.8125rem] text-chalk">
           มีเวอร์ชันใหม่ <span className="font-mono text-shine">{serverVersion}</span>{" "}
           <span className="text-chalk-dim">(คุณอยู่ที่ {mine})</span>
         </span>
         <button
           onClick={() => window.location.reload()}
-          className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-shine px-3 py-1 font-display text-[12px] font-semibold text-night transition hover:brightness-110"
+          className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-shine px-3 py-1 font-display text-[0.75rem] font-semibold text-night transition hover:brightness-110"
         >
           <RefreshCw size={12} /> โหลดใหม่
         </button>

@@ -82,7 +82,7 @@ export default function OrgDnaPanel({
         <div className="flex shrink-0 items-center justify-between border-b border-night-edge px-4 py-3">
           <div className="flex min-w-0 items-center gap-2.5">
             <DnaMark size={20} bars={6} rainbow className="shrink-0" />
-            <h2 className="font-display text-[15px] font-semibold text-chalk">
+            <h2 className="font-display text-[0.9375rem] font-semibold text-chalk">
               Org DNA ของ workspace
             </h2>
           </div>
@@ -99,17 +99,17 @@ export default function OrgDnaPanel({
           {picking ? (
             /* ── Attach / switch a workspace ───────────────────────────── */
             <div className="flex flex-col gap-3">
-              <p className="text-[13px] leading-relaxed text-chalk-dim">
+              <p className="text-[0.8125rem] leading-relaxed text-chalk-dim">
                 {org
                   ? "เลือก workspace อื่นให้โปรเจกต์นี้ — AI จะอ้างอิง Org DNA ของ workspace ที่เลือก"
                   : "โปรเจกต์นี้ยังไม่ได้ผูกกับ workspace ไหน — ผูกเพื่อให้ AI ออกแบบ spec และระบบ ตาม Org DNA ขององค์กรคุณ"}
               </p>
               {!canAttach ? (
-                <p className="rounded-lg border border-night-edge bg-night px-3 py-2.5 text-[13px] text-chalk-dim">
+                <p className="rounded-lg border border-night-edge bg-night px-3 py-2.5 text-[0.8125rem] text-chalk-dim">
                   เฉพาะเจ้าของโปรเจกต์เท่านั้นที่ผูก workspace ได้
                 </p>
               ) : orgs === null ? (
-                <p className="text-[13px] text-chalk-dim">กำลังโหลด workspace…</p>
+                <p className="text-[0.8125rem] text-chalk-dim">กำลังโหลด workspace…</p>
               ) : (
                 <div className="flex flex-col gap-1.5">
                   {orgs.map((o) => (
@@ -126,18 +126,18 @@ export default function OrgDnaPanel({
                       >
                         <WorkspaceIcon icon={o.icon} size={15} />
                       </span>
-                      <span className="min-w-0 flex-1 truncate text-[13px] text-chalk">{o.name}</span>
-                      <span className="shrink-0 font-mono text-[10px] text-chalk-dim">
+                      <span className="min-w-0 flex-1 truncate text-[0.8125rem] text-chalk">{o.name}</span>
+                      <span className="shrink-0 font-mono text-[0.625rem] text-chalk-dim">
                         {Math.round(dnaCompleteness(o.dna) * 100)}% DNA
                       </span>
                     </button>
                   ))}
                   {orgs.length === 0 && (
-                    <p className="text-[13px] text-chalk-dim">ยังไม่มี workspace — สร้างอันแรกได้เลย</p>
+                    <p className="text-[0.8125rem] text-chalk-dim">ยังไม่มี workspace — สร้างอันแรกได้เลย</p>
                   )}
                   <button
                     onClick={() => void create()}
-                    className="mt-1 inline-flex items-center gap-2 rounded-lg border border-night-edge px-3 py-2 text-[13px] text-chalk-dim transition hover:border-shine hover:text-chalk"
+                    className="mt-1 inline-flex items-center gap-2 rounded-lg border border-night-edge px-3 py-2 text-[0.8125rem] text-chalk-dim transition hover:border-shine hover:text-chalk"
                   >
                     <Plus size={14} /> สร้าง workspace ใหม่
                   </button>
@@ -147,7 +147,7 @@ export default function OrgDnaPanel({
                 <div className="flex items-center gap-2">
                   <button
                     onClick={() => setPicking(false)}
-                    className="rounded-lg border border-night-edge px-3 py-1.5 text-[12px] text-chalk-dim transition hover:text-chalk"
+                    className="rounded-lg border border-night-edge px-3 py-1.5 text-[0.75rem] text-chalk-dim transition hover:text-chalk"
                   >
                     ← กลับไปดู DNA
                   </button>
@@ -157,7 +157,7 @@ export default function OrgDnaPanel({
                         onAttach(null);
                         onClose();
                       }}
-                      className="inline-flex items-center gap-1.5 rounded-lg border border-night-edge px-3 py-1.5 text-[12px] text-chalk-dim transition hover:border-halt hover:text-halt"
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-night-edge px-3 py-1.5 text-[0.75rem] text-chalk-dim transition hover:border-halt hover:text-halt"
                     >
                       <Unlink size={12} /> เอาออกจาก workspace
                     </button>
@@ -177,13 +177,13 @@ export default function OrgDnaPanel({
                   <WorkspaceIcon icon={org.icon} size={20} />
                 </span>
                 <div className="min-w-0 flex-1">
-                  <p className="font-display text-[15px] font-semibold text-chalk">{org.name}</p>
-                  <p className="font-mono text-[11px] text-chalk-dim">Org DNA · {pct}% ครบ</p>
+                  <p className="font-display text-[0.9375rem] font-semibold text-chalk">{org.name}</p>
+                  <p className="font-mono text-[0.6875rem] text-chalk-dim">Org DNA · {pct}% ครบ</p>
                 </div>
                 {canAttach && (
                   <button
                     onClick={() => setPicking(true)}
-                    className="shrink-0 rounded-lg border border-night-edge px-2.5 py-1.5 text-[12px] text-chalk-dim transition hover:border-shine hover:text-chalk"
+                    className="shrink-0 rounded-lg border border-night-edge px-2.5 py-1.5 text-[0.75rem] text-chalk-dim transition hover:border-shine hover:text-chalk"
                   >
                     เปลี่ยน
                   </button>
@@ -193,7 +193,7 @@ export default function OrgDnaPanel({
                   target="_blank"
                   rel="noreferrer"
                   title="แก้ไข Org DNA ในหน้า workspace (แท็บใหม่)"
-                  className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-night-edge px-2.5 py-1.5 text-[12px] text-chalk-dim transition hover:border-shine hover:text-chalk"
+                  className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-night-edge px-2.5 py-1.5 text-[0.75rem] text-chalk-dim transition hover:border-shine hover:text-chalk"
                 >
                   แก้ไข <ExternalLink size={12} />
                 </a>
@@ -204,21 +204,21 @@ export default function OrgDnaPanel({
                 <div className="h-full rounded-full bg-shine transition-all" style={{ width: `${pct}%` }} />
               </div>
 
-              <p className="flex items-start gap-1.5 rounded-lg border border-night-edge bg-shine/[0.05] px-3 py-2 text-[12px] leading-relaxed text-chalk-dim">
+              <p className="flex items-start gap-1.5 rounded-lg border border-night-edge bg-shine/[0.05] px-3 py-2 text-[0.75rem] leading-relaxed text-chalk-dim">
                 <Sparkles size={13} className="mt-0.5 shrink-0 text-shine" />
                 AI ใช้ข้อมูลนี้เป็นบริบทตอนสัมภาษณ์และสร้าง spec และระบบ — เมื่อใช้ฐานรากไหน จะมีชิป “อ้างอิง Org DNA” ใต้คำตอบในแชท คลิกดูข้อความต้นฉบับได้
               </p>
 
               {!hasAny ? (
                 <div className="rounded-lg border border-dashed border-night-edge px-4 py-6 text-center">
-                  <p className="text-[13px] text-chalk-dim">
+                  <p className="text-[0.8125rem] text-chalk-dim">
                     workspace นี้ยังไม่มีข้อมูล Org DNA
                   </p>
                   <a
                     href={`/org/${org.id}`}
                     target="_blank"
                     rel="noreferrer"
-                    className="mt-2 inline-flex items-center gap-1.5 text-[13px] text-shine transition hover:underline"
+                    className="mt-2 inline-flex items-center gap-1.5 text-[0.8125rem] text-shine transition hover:underline"
                   >
                     ไปเพิ่ม Org DNA <ExternalLink size={13} />
                   </a>
@@ -228,15 +228,15 @@ export default function OrgDnaPanel({
                   {/* Archetype */}
                   {arch && (
                     <div className="rounded-lg border border-night-edge bg-night px-3 py-2.5">
-                      <p className="mb-1 font-mono text-[10px] uppercase tracking-wider text-chalk-dim">
+                      <p className="mb-1 font-mono text-[0.625rem] uppercase tracking-wider text-chalk-dim">
                         รูปแบบองค์กร (Archetype)
                       </p>
                       <div className="flex items-center gap-1.5">
                         <span className={`h-1.5 w-1.5 rounded-full ${arch.healthy ? "bg-go" : "bg-halt"}`} />
-                        <span className="font-display text-[13px] font-semibold text-chalk">{arch.th}</span>
-                        <span className="font-mono text-[10px] text-chalk-dim">{arch.en}</span>
+                        <span className="font-display text-[0.8125rem] font-semibold text-chalk">{arch.th}</span>
+                        <span className="font-mono text-[0.625rem] text-chalk-dim">{arch.en}</span>
                       </div>
-                      <p className="mt-0.5 text-[12px] leading-snug text-chalk-dim">{arch.desc}</p>
+                      <p className="mt-0.5 text-[0.75rem] leading-snug text-chalk-dim">{arch.desc}</p>
                     </div>
                   )}
 
@@ -247,17 +247,17 @@ export default function OrgDnaPanel({
                       const cite = dna?.cites?.[b.key]?.trim();
                       return (
                         <div key={b.key} className="rounded-lg border border-night-edge bg-night px-3 py-2.5">
-                          <p className="font-display text-[13px] font-semibold text-chalk">
+                          <p className="font-display text-[0.8125rem] font-semibold text-chalk">
                             {b.th.split(" (")[0]}
                           </p>
-                          <p className="mt-1 text-[13px] leading-relaxed text-chalk/85">
+                          <p className="mt-1 text-[0.8125rem] leading-relaxed text-chalk/85">
                             {val || <span className="text-chalk-dim">— ยังไม่ได้ระบุ —</span>}
                           </p>
                           {cite && dna?.sources && (
                             <button
                               onClick={() => setViewer({ highlight: cite })}
                               title="คลิกดูที่มาในข้อมูลของคุณ"
-                              className="mt-2 flex w-full items-start gap-1.5 rounded-md border border-night-edge bg-night-panel px-2 py-1.5 text-left text-[11px] text-chalk-dim transition hover:border-shine/50 hover:text-chalk"
+                              className="mt-2 flex w-full items-start gap-1.5 rounded-md border border-night-edge bg-night-panel px-2 py-1.5 text-left text-[0.6875rem] text-chalk-dim transition hover:border-shine/50 hover:text-chalk"
                             >
                               <Quote size={11} className="mt-0.5 shrink-0 text-shine" />
                               <span className="line-clamp-2 italic">“{cite}”</span>
@@ -270,17 +270,17 @@ export default function OrgDnaPanel({
 
                   {dna?.notes?.trim() && (
                     <div className="rounded-lg border border-night-edge bg-night px-3 py-2.5">
-                      <p className="mb-1 font-mono text-[10px] uppercase tracking-wider text-chalk-dim">
+                      <p className="mb-1 font-mono text-[0.625rem] uppercase tracking-wider text-chalk-dim">
                         หมายเหตุ
                       </p>
-                      <p className="text-[13px] leading-relaxed text-chalk/85">{dna.notes.trim()}</p>
+                      <p className="text-[0.8125rem] leading-relaxed text-chalk/85">{dna.notes.trim()}</p>
                     </div>
                   )}
 
                   {dna?.sources?.trim() && (
                     <button
                       onClick={() => setViewer({})}
-                      className="inline-flex items-center gap-1.5 self-start text-[12px] text-chalk-dim transition hover:text-shine"
+                      className="inline-flex items-center gap-1.5 self-start text-[0.75rem] text-chalk-dim transition hover:text-shine"
                     >
                       <Quote size={13} /> ดูแหล่งข้อมูลทั้งหมดที่ AI ใช้
                     </button>

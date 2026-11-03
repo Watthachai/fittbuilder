@@ -67,7 +67,7 @@ export default async function AdminPartnersPage() {
 
         <section className="mb-8 rounded-xl border border-night-edge p-4">
           <h2 className="font-display text-base font-semibold">อีเมล Partner</h2>
-          <p className="mt-1 mb-3 text-[13px] text-chalk-dim">
+          <p className="mt-1 mb-3 text-[0.8125rem] text-chalk-dim">
             พื้นที่ทำงานทุกแห่งของอีเมลในรายการนี้เป็น Partner รวมถึงแห่งที่สร้างทีหลัง
             เพิ่มไว้ก่อนได้แม้เจ้าของอีเมลยังไม่เคยเข้าระบบ กดเพิ่มแล้วระบบส่งอีเมลพร้อมลิงก์เข้าสู่ระบบให้เอง
           </p>
@@ -81,8 +81,8 @@ export default async function AdminPartnersPage() {
                   className="flex items-center gap-3 rounded-lg border border-night-edge bg-night px-3 py-2"
                 >
                   <div className="min-w-0 flex-1">
-                    <p className="truncate font-mono text-[12px] text-chalk">{p.email}</p>
-                    <p className="text-[12px] text-chalk-dim">
+                    <p className="truncate font-mono text-[0.75rem] text-chalk">{p.email}</p>
+                    <p className="text-[0.75rem] text-chalk-dim">
                       {p.has_account
                         ? p.workspaces > 0
                           ? `เป็น Partner แล้ว ${p.workspaces} พื้นที่ทำงาน`
@@ -133,28 +133,28 @@ export default async function AdminPartnersPage() {
                         <p className="font-medium text-chalk">{l.company}</p>
                         <p className="text-chalk-dim">{l.name}</p>
                       </td>
-                      <td className="px-3 py-2.5 align-top font-mono text-[12px]">
+                      <td className="px-3 py-2.5 align-top font-mono text-[0.75rem]">
                         <a href={`mailto:${l.email}`} className="text-shine hover:underline">
                           {l.email}
                         </a>
                         {l.phone && <p className="text-chalk-dim">{l.phone}</p>}
                       </td>
-                      <td className="max-w-md px-3 py-2.5 align-top text-[13px] leading-relaxed whitespace-pre-line text-chalk-dim">
+                      <td className="max-w-md px-3 py-2.5 align-top text-[0.8125rem] leading-relaxed whitespace-pre-line text-chalk-dim">
                         {l.note || "—"}
                       </td>
                       <td className="px-3 py-2.5 align-top">
                         <span
-                          className={`inline-block rounded-full border px-2 py-0.5 font-mono text-[11px] ${s.cls}`}
+                          className={`inline-block rounded-full border px-2 py-0.5 font-mono text-[0.6875rem] ${s.cls}`}
                         >
                           {s.label}
                         </span>
                       </td>
-                      <td className="px-3 py-2.5 align-top font-mono text-[12px] text-chalk-dim">
+                      <td className="px-3 py-2.5 align-top font-mono text-[0.75rem] text-chalk-dim">
                         {when(l.created_at)}
                       </td>
                       <td className="px-3 py-2.5 align-top">
                         {partnerEmails.has(l.email.trim().toLowerCase()) ? (
-                          <span className="text-[12px] text-go">อยู่ในรายการแล้ว</span>
+                          <span className="text-[0.75rem] text-go">อยู่ในรายการแล้ว</span>
                         ) : (
                           <GrantLeadButton email={l.email} leadId={l.id} />
                         )}

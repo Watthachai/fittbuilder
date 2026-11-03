@@ -38,7 +38,7 @@ export default function SpecJourney() {
   return (
     <section id="spec" ref={ref} className="relative" style={{ height: `${NARR.length * 90}vh` }}>
       <div className="sticky top-0 flex h-screen flex-col items-center justify-center overflow-hidden px-6">
-        <p className="font-mono text-[11px] uppercase tracking-[0.25em] text-shine">Spec → Demo</p>
+        <p className="font-mono text-[0.6875rem] uppercase tracking-[0.25em] text-shine">Spec → Demo</p>
         <h2 className="mt-2 text-center font-display text-3xl font-medium tracking-tight text-chalk">
           จากแชท → เว็บจริง ทีละขั้น
         </h2>
@@ -57,7 +57,7 @@ export default function SpecJourney() {
                   />
                 )}
                 <span
-                  className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-medium transition-all duration-500 ${
+                  className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[0.6875rem] font-medium transition-all duration-500 ${
                     lit
                       ? "border-shine/50 bg-shine/15 text-shine"
                       : "border-chalk/15 text-chalk-dim"
@@ -104,7 +104,7 @@ function Stage({ k }: { k: Narr["k"] }) {
     return (
       <div className="flex h-full flex-col justify-center gap-3">
         <div className="glass rounded-2xl px-4 py-3">
-          <span className="text-[15px] text-chalk">
+          <span className="text-[0.9375rem] text-chalk">
             ระบบจัดซื้อ ERP มีขั้นอนุมัติหลายระดับ PR → PO → รับของ
             <span className="caret-blink ml-0.5 inline-block h-[1.05em] w-[2px] bg-shine align-middle" />
           </span>
@@ -129,7 +129,7 @@ function Stage({ k }: { k: Narr["k"] }) {
         </div>
         <div className="flex flex-wrap gap-1.5">
           {["จัดซื้อ", "อนุมัติหลายชั้น", "คลังสินค้า", "ผู้ขาย"].map((t) => (
-            <span key={t} className="rounded-full border border-chalk/15 px-2.5 py-1 text-[11px] text-chalk-dim">
+            <span key={t} className="rounded-full border border-chalk/15 px-2.5 py-1 text-[0.6875rem] text-chalk-dim">
               {t}
             </span>
           ))}
@@ -169,11 +169,11 @@ function Stage({ k }: { k: Narr["k"] }) {
         <span className="h-2.5 w-2.5 rounded-full bg-halt/70" />
         <span className="h-2.5 w-2.5 rounded-full bg-chalk/30" />
         <span className="h-2.5 w-2.5 rounded-full bg-go/70" />
-        <span className="ml-2 rounded-md bg-chalk/10 px-2 py-0.5 font-mono text-[10px] text-chalk-dim">
+        <span className="ml-2 rounded-md bg-chalk/10 px-2 py-0.5 font-mono text-[0.625rem] text-chalk-dim">
           localhost:5173
         </span>
         {k === "ship" && (
-          <span className="ml-auto inline-flex items-center gap-1 rounded-full bg-go/15 px-2.5 py-0.5 text-[11px] font-medium text-go">
+          <span className="ml-auto inline-flex items-center gap-1 rounded-full bg-go/15 px-2.5 py-0.5 text-[0.6875rem] font-medium text-go">
             <Check size={11} /> พร้อมแชร์
           </span>
         )}

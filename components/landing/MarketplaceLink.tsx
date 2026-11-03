@@ -24,10 +24,10 @@ export default function MarketplaceLink({ disabled }: { disabled: boolean }) {
     >
       <Store size={17} className="shrink-0 text-shine" />
       <span className="min-w-0 flex-1">
-        <span className="block font-display text-[13px] font-semibold text-chalk group-hover:text-shine">
+        <span className="block font-display text-[0.8125rem] font-semibold text-chalk group-hover:text-shine">
           มาร์เก็ตเพลสระบบ
         </span>
-        <span className="block text-[12px] leading-snug text-chalk/55">
+        <span className="block text-[0.75rem] leading-snug text-chalk/55">
           {FAMILIES.length} ระบบสำเร็จรูป {MODULES.length} ส่วนประกอบ ลองใช้ของจริงได้ก่อนเลือก
         </span>
       </span>

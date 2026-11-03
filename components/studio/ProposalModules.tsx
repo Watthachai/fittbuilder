@@ -93,7 +93,7 @@ export default function ProposalModules({
   return (
     <div className="rounded-xl border border-night-edge p-3.5">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h3 className="inline-flex items-center gap-1.5 font-display text-[14px] text-chalk">
+        <h3 className="inline-flex items-center gap-1.5 font-display text-[0.875rem] text-chalk">
           <Boxes size={13} className="text-shine" /> โมดูลของระบบ
         </h3>
         {!readOnly && (
@@ -101,14 +101,14 @@ export default function ProposalModules({
             onClick={() => void split()}
             disabled={splitting}
             title="อ่านหน้าจอทั้งหมดและคำอธิบายของแต่ละหน้า แล้วจัดเป็นโมดูล ระบบย่อย และข้อสรุป"
-            className="inline-flex items-center gap-1.5 rounded-lg border border-shine/50 px-2.5 py-1 font-display text-[12.5px] text-shine transition hover:bg-shine/10 disabled:opacity-40"
+            className="inline-flex items-center gap-1.5 rounded-lg border border-shine/50 px-2.5 py-1 font-display text-[0.78125rem] text-shine transition hover:bg-shine/10 disabled:opacity-40"
           >
             {splitting ? <Loader2 size={12} className="animate-spin" /> : <Sparkles size={12} />}
             {doc.modules.length > 0 ? "แตกใหม่ด้วย AI (แทนของเดิม)" : "แตกเป็นโมดูลด้วย AI"}
           </button>
         )}
       </div>
-      <p className="mt-1 text-[12.5px] leading-relaxed text-chalk-dim">
+      <p className="mt-1 text-[0.78125rem] leading-relaxed text-chalk-dim">
         แบ่งระบบเป็นโมดูลตามฝ่ายที่ใช้ แต่ละโมดูลมีระบบย่อยพร้อมข้อสรุป 3–4 ข้อ ใช้สร้างรายการในใบเสนอราคาแบบสรุปเป็นโมดูล
         {screens.length > 0 && doc.modules.length === 0 && " — กด “ร่างด้วย AI จากระบบจริง” ข้างบนก่อนจะได้ผลดีกว่า เพราะ AI อ่านคำอธิบายของแต่ละหน้าด้วย"}
       </p>
@@ -116,7 +116,7 @@ export default function ProposalModules({
       {doc.modules.map((m, k) => (
         <div key={m.id} data-coedit-row={m.id} className="mt-3 rounded-lg border border-night-edge p-2.5">
           <div className="flex items-center gap-2">
-            <span className="shrink-0 font-mono text-[11.5px] text-chalk-dim">{k + 1}</span>
+            <span className="shrink-0 font-mono text-[0.71875rem] text-chalk-dim">{k + 1}</span>
             <input
               value={m.name}
               onChange={(e) => setModule(m.id, { name: e.target.value })}
@@ -137,7 +137,7 @@ export default function ProposalModules({
           <div className="ml-5 mt-2 flex flex-col gap-2">
             {m.parts.map((p, j) => (
               <div key={p.id} data-coedit-row={p.id} className="flex items-start gap-2">
-                <span className="mt-1.5 shrink-0 font-mono text-[11.5px] text-chalk-dim">
+                <span className="mt-1.5 shrink-0 font-mono text-[0.71875rem] text-chalk-dim">
                   {k + 1}.{j + 1}
                 </span>
                 <div className="flex min-w-0 flex-1 flex-col gap-1">
@@ -154,11 +154,11 @@ export default function ProposalModules({
                     rows={Math.max(3, p.points.length)}
                     aria-label="ข้อสรุป หนึ่งข้อต่อบรรทัด"
                     placeholder="หนึ่งข้อต่อบรรทัด — เครื่องหมาย - ระบบใส่ให้เอง"
-                    className={`${inputCls} resize-y text-[12.5px] leading-relaxed`}
+                    className={`${inputCls} resize-y text-[0.78125rem] leading-relaxed`}
                     disabled={readOnly}
                   />
                   {p.screens.length > 0 && (
-                    <p className="text-[11.5px] leading-relaxed text-chalk-dim">หน้าจอ: {p.screens.join(" · ")}</p>
+                    <p className="text-[0.71875rem] leading-relaxed text-chalk-dim">หน้าจอ: {p.screens.join(" · ")}</p>
                   )}
                 </div>
                 {!readOnly && (
@@ -184,7 +184,7 @@ export default function ProposalModules({
       ))}
 
       {left.length > 0 && (
-        <p className="mt-3 rounded-lg border border-shine/50 bg-shine/10 px-2.5 py-2 text-[12.5px] leading-relaxed text-chalk">
+        <p className="mt-3 rounded-lg border border-shine/50 bg-shine/10 px-2.5 py-2 text-[0.78125rem] leading-relaxed text-chalk">
           หน้าจอที่ยังไม่อยู่ในโมดูลไหน ({left.length}): {left.join(" · ")} — ในใบเสนอราคาจะยังเป็นรายการแยกของตัวเอง
         </p>
       )}

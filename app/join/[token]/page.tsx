@@ -164,7 +164,7 @@ export default async function JoinPage({
               <span className="mx-auto grid h-12 w-12 place-items-center rounded-full bg-shine/10 text-shine">
                 {kind === "company" ? <Building2 size={22} /> : <Users size={22} />}
               </span>
-              <p className="mt-5 font-mono text-[11px] uppercase tracking-[0.22em] text-shine">
+              <p className="mt-5 font-mono text-[0.6875rem] uppercase tracking-[0.22em] text-shine">
                 {eyebrow}
               </p>
               <h1 className="mt-2 font-display text-xl font-semibold leading-snug text-chalk">

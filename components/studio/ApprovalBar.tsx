@@ -155,7 +155,7 @@ export function ApprovalBar({
 
   return (
     <div className="mt-3 rounded-lg border border-night-edge p-2.5">
-      <p className={`flex items-start gap-1.5 text-[12.5px] leading-relaxed ${line.tone}`}>
+      <p className={`flex items-start gap-1.5 text-[0.78125rem] leading-relaxed ${line.tone}`}>
         <Icon size={13} className="mt-0.5 shrink-0" />
         <span>{line.text}</span>
       </p>
@@ -164,7 +164,7 @@ export function ApprovalBar({
           <button
             onClick={() => setPicking((v) => !v)}
             disabled={busy || approvers.length === 0}
-            className="inline-flex items-center gap-1 rounded-lg border border-night-edge px-2 py-1 font-display text-[12.5px] text-chalk transition hover:border-shine/60 disabled:opacity-50"
+            className="inline-flex items-center gap-1 rounded-lg border border-night-edge px-2 py-1 font-display text-[0.78125rem] text-chalk transition hover:border-shine/60 disabled:opacity-50"
           >
             <Send size={12} /> {state.kind === "pending" ? "ส่งให้คนอื่นแทน" : "ส่งอนุมัติ"}
           </button>
@@ -172,7 +172,7 @@ export function ApprovalBar({
             <button
               onClick={() => void approveSelf()}
               disabled={busy}
-              className="inline-flex items-center gap-1 rounded-lg border border-go/50 px-2 py-1 font-display text-[12.5px] text-go transition hover:bg-go/10 disabled:opacity-50"
+              className="inline-flex items-center gap-1 rounded-lg border border-go/50 px-2 py-1 font-display text-[0.78125rem] text-go transition hover:bg-go/10 disabled:opacity-50"
             >
               {busy ? <Loader2 size={12} className="animate-spin" /> : <BadgeCheck size={12} />} อนุมัติเอง
             </button>
@@ -186,10 +186,10 @@ export function ApprovalBar({
               <button
                 onClick={() => void send(a.userId)}
                 disabled={busy}
-                className="flex w-full items-center justify-between gap-2 rounded-md border border-night-edge px-2 py-1.5 text-left text-[12.5px] text-chalk transition hover:border-shine/60 disabled:opacity-50"
+                className="flex w-full items-center justify-between gap-2 rounded-md border border-night-edge px-2 py-1.5 text-left text-[0.78125rem] text-chalk transition hover:border-shine/60 disabled:opacity-50"
               >
                 <span className="min-w-0 truncate">{a.name || a.email}</span>
-                <span className="shrink-0 text-[11px] text-chalk-dim">{ROLE_LABEL[a.role] ?? a.role}</span>
+                <span className="shrink-0 text-[0.6875rem] text-chalk-dim">{ROLE_LABEL[a.role] ?? a.role}</span>
               </button>
             </li>
           ))}

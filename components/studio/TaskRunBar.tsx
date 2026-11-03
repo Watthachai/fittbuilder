@@ -48,7 +48,7 @@ export default function TaskRunBar({
           <ListChecks size={15} className="shrink-0 text-amber-300 light:text-amber-700" />
         )}
         <span className="min-w-0 flex-1">
-          <span className="block truncate text-[13px] font-medium text-chalk">{headline}</span>
+          <span className="block truncate text-[0.8125rem] font-medium text-chalk">{headline}</span>
           <span className="mt-1.5 flex items-center gap-2">
             <span className="h-1 flex-1 overflow-hidden rounded-full bg-chalk/10">
               <span
@@ -56,7 +56,7 @@ export default function TaskRunBar({
                 style={{ width: `${(done / total) * 100}%` }}
               />
             </span>
-            <span className="shrink-0 font-mono text-[10.5px] text-chalk-dim">
+            <span className="shrink-0 font-mono text-[0.65625rem] text-chalk-dim">
               เสร็จ {done}/{total}
             </span>
           </span>
@@ -64,7 +64,7 @@ export default function TaskRunBar({
         <ChevronDown size={15} className={`shrink-0 text-chalk-dim transition ${open ? "rotate-180" : ""}`} />
       </button>
       {running && (
-        <p className="-mt-0.5 px-4 pb-2.5 pl-[2.6rem] text-[11.5px] leading-snug text-chalk-dim">
+        <p className="-mt-0.5 px-4 pb-2.5 pl-[2.6rem] text-[0.71875rem] leading-snug text-chalk-dim">
           ระบบทำต่อเองทีละข้อจนครบ ไม่ต้องส่งคำสั่งซ้ำ เปิดหน้านี้ไว้จนครบ ถ้าปิดหรือโหลดใหม่ รายการจะหยุดที่ข้อนั้น อยากเลิกกลางทางกด “หยุด”
         </p>
       )}

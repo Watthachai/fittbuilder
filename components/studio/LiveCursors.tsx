@@ -205,7 +205,7 @@ function RemoteCursor({ peer }: { peer: Peer }) {
         />
       </svg>
       <span
-        className="ml-3.5 -mt-1 inline-block w-fit whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-semibold text-white shadow-lg"
+        className="ml-3.5 -mt-1 inline-block w-fit whitespace-nowrap rounded-full px-2 py-0.5 text-[0.6875rem] font-semibold text-white shadow-lg"
         style={{ background: peer.color }}
       >
         {peer.name}

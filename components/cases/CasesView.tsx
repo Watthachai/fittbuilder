@@ -160,7 +160,7 @@ export default function CasesView({
               key={key}
               onClick={() => pickTab(key)}
               aria-pressed={tab === key}
-              className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 font-display text-[12.5px] transition ${
+              className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 font-display text-[0.78125rem] transition ${
                 tab === key ? "bg-chalk text-night" : "text-chalk-dim hover:text-chalk"
               }`}
             >
@@ -171,7 +171,7 @@ export default function CasesView({
         </nav>
         <button
           onClick={() => setReporting(true)}
-          className="ml-auto inline-flex shrink-0 items-center gap-1 rounded-full bg-shine px-3 py-1.5 font-display text-[12px] font-semibold text-night transition hover:brightness-110"
+          className="ml-auto inline-flex shrink-0 items-center gap-1 rounded-full bg-shine px-3 py-1.5 font-display text-[0.75rem] font-semibold text-night transition hover:brightness-110"
         >
           <Plus size={14} /> แจ้งเคสใหม่
         </button>
@@ -189,7 +189,7 @@ export default function CasesView({
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                   placeholder={team ? "ค้นหาเลขเคส หัวข้อ ผู้แจ้ง โปรเจกต์" : "ค้นหาเลขเคส หัวข้อ โปรเจกต์"}
-                  className="min-w-0 flex-1 bg-transparent text-[13px] text-chalk outline-none placeholder:text-chalk-dim/60"
+                  className="min-w-0 flex-1 bg-transparent text-[0.8125rem] text-chalk outline-none placeholder:text-chalk-dim/60"
                 />
               </label>
               <div className="flex flex-wrap items-center gap-1.5">
@@ -198,7 +198,7 @@ export default function CasesView({
                     key={f.key}
                     onClick={() => setFilter(f.key)}
                     aria-pressed={filter === f.key}
-                    className={`rounded-full px-2.5 py-1 font-display text-[11.5px] transition ${
+                    className={`rounded-full px-2.5 py-1 font-display text-[0.71875rem] transition ${
                       filter === f.key ? "bg-chalk/10 text-chalk" : "text-chalk-dim hover:text-chalk"
                     }`}
                   >
@@ -212,7 +212,7 @@ export default function CasesView({
                         key={s}
                         onClick={() => setScope(s)}
                         aria-pressed={scope === s}
-                        className={`rounded-full px-2.5 py-0.5 font-display text-[11px] transition ${
+                        className={`rounded-full px-2.5 py-0.5 font-display text-[0.6875rem] transition ${
                           scope === s ? "bg-shine text-night" : "text-chalk-dim hover:text-chalk"
                         }`}
                       >
@@ -232,7 +232,7 @@ export default function CasesView({
                   <Loader2 size={14} className="animate-spin" /> กำลังโหลด…
                 </div>
               ) : shown.length === 0 ? (
-                <p className="px-3 py-6 text-center text-[13px] leading-relaxed text-chalk-dim">
+                <p className="px-3 py-6 text-center text-[0.8125rem] leading-relaxed text-chalk-dim">
                   {cases.length === 0
                     ? "ยังไม่มีเคส เจอปัญหาตอนใช้งานกด แจ้งเคสใหม่ หรือกด รายงานปัญหา จากหน้าที่เห็น error"
                     : "ไม่มีเคสที่ตรงกับตัวกรองนี้"}
@@ -252,18 +252,18 @@ export default function CasesView({
                         <Initial name={team ? personName(c.reporter) : (c.project?.name ?? c.title)} />
                         <div className="min-w-0 flex-1">
                           <div className="flex items-baseline justify-between gap-2">
-                            <span className="truncate font-display text-[13px] font-semibold text-chalk">
+                            <span className="truncate font-display text-[0.8125rem] font-semibold text-chalk">
                               {team ? personName(c.reporter) : (c.project?.name ?? "ไม่ได้ผูกกับโปรเจกต์")}
                             </span>
-                            <span className="shrink-0 text-[11px] text-chalk-dim">{ago(c.updatedAt, now)}</span>
+                            <span className="shrink-0 text-[0.6875rem] text-chalk-dim">{ago(c.updatedAt, now)}</span>
                           </div>
-                          <p className="mt-0.5 line-clamp-2 text-[13px] leading-snug text-chalk/85">{c.title}</p>
+                          <p className="mt-0.5 line-clamp-2 text-[0.8125rem] leading-snug text-chalk/85">{c.title}</p>
                           <div className="mt-2 flex flex-wrap items-center gap-1.5">
                             <StatusPill status={c.status} />
                             <KindPill kind={c.kind} />
-                            <span className="font-mono text-[11px] text-chalk-dim">#{c.number}</span>
+                            <span className="font-mono text-[0.6875rem] text-chalk-dim">#{c.number}</span>
                             {c.unread && (
-                              <span className="ml-auto inline-flex items-center gap-1 font-display text-[11px] font-semibold text-shine">
+                              <span className="ml-auto inline-flex items-center gap-1 font-display text-[0.6875rem] font-semibold text-shine">
                                 <span className="h-2 w-2 rounded-full bg-shine" />
                                 ใหม่
                               </span>
@@ -284,7 +284,7 @@ export default function CasesView({
             ) : (
               <div className="flex flex-1 flex-col items-center justify-center gap-2 px-8 text-center text-chalk-dim">
                 <Inbox size={28} className="text-chalk-dim/60" />
-                <p className="text-[13px]">เลือกเคสทางซ้ายเพื่อดูรายละเอียดและคุยกับทีม</p>
+                <p className="text-[0.8125rem]">เลือกเคสทางซ้ายเพื่อดูรายละเอียดและคุยกับทีม</p>
               </div>
             )}
           </section>
@@ -421,13 +421,13 @@ function CaseThread({ id, tick, onChanged }: { id: string; tick: number; onChang
           <KindPill kind={detail.kind} />
           {detail.cause && <CausePill cause={detail.cause} area={detail.area} />}
           {detail.fixedIn && (
-            <span className="rounded-full border border-night-edge px-2 py-0.5 font-display text-[11px] text-chalk-dim">
+            <span className="rounded-full border border-night-edge px-2 py-0.5 font-display text-[0.6875rem] text-chalk-dim">
               แก้ในเวอร์ชัน {detail.fixedIn}
             </span>
           )}
         </div>
-        <p className="mt-1.5 text-[12.5px] text-chalk-dim">{CASE_STATUS[detail.status].hint}</p>
-        <p className="mt-2 text-[12px] text-chalk-dim">
+        <p className="mt-1.5 text-[0.78125rem] text-chalk-dim">{CASE_STATUS[detail.status].hint}</p>
+        <p className="mt-2 text-[0.75rem] text-chalk-dim">
           แจ้งโดย <span className="text-chalk">{personName(detail.reporter)}</span>
           {team && detail.reporter.email && detail.reporter.name ? ` (${detail.reporter.email})` : ""} ·{" "}
           {when(detail.createdAt)}
@@ -446,12 +446,12 @@ function CaseThread({ id, tick, onChanged }: { id: string; tick: number; onChang
         <div className="rounded-lg border border-night-edge bg-night-panel">
           <button
             onClick={() => setShowContext((v) => !v)}
-            className="flex w-full items-center gap-2 px-3 py-2 text-left font-display text-[12px] text-chalk-dim transition hover:text-chalk"
+            className="flex w-full items-center gap-2 px-3 py-2 text-left font-display text-[0.75rem] text-chalk-dim transition hover:text-chalk"
           >
             {showContext ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
             ข้อมูลที่ระบบแนบมากับเคส
             {detail.context.error && !showContext && (
-              <span className="min-w-0 flex-1 truncate font-mono text-[11px] text-halt">{detail.context.error}</span>
+              <span className="min-w-0 flex-1 truncate font-mono text-[0.6875rem] text-halt">{detail.context.error}</span>
             )}
           </button>
           {showContext && <ContextRows context={detail.context} projectName={detail.project?.name ?? null} />}
@@ -463,7 +463,7 @@ function CaseThread({ id, tick, onChanged }: { id: string; tick: number; onChang
             return (
               <li key={m.id} className="flex flex-col gap-3">
                 {(m.statusTo || m.cause) && (
-                  <div className="flex flex-wrap items-center justify-center gap-2 text-[12px] text-chalk-dim">
+                  <div className="flex flex-wrap items-center justify-center gap-2 text-[0.75rem] text-chalk-dim">
                     <span className="h-px min-w-6 flex-1 bg-night-edge" />
                     {m.statusTo && (
                       <>
@@ -487,17 +487,17 @@ function CaseThread({ id, tick, onChanged }: { id: string; tick: number; onChang
                     <Initial name={name} team={m.authorKind === "team"} />
                     <div className="min-w-0 flex-1">
                       <div className="flex flex-wrap items-baseline gap-x-2">
-                        <span className="font-display text-[13px] font-semibold text-chalk">{name}</span>
+                        <span className="font-display text-[0.8125rem] font-semibold text-chalk">{name}</span>
                         {m.authorKind === "team" && m.author && (
-                          <span className="rounded-full bg-shine/15 px-1.5 py-0.5 font-display text-[10px] font-semibold text-shine">
+                          <span className="rounded-full bg-shine/15 px-1.5 py-0.5 font-display text-[0.625rem] font-semibold text-shine">
                             ทีม FITT Builder
                           </span>
                         )}
-                        <span className="text-[11px] text-chalk-dim">{when(m.createdAt)}</span>
+                        <span className="text-[0.6875rem] text-chalk-dim">{when(m.createdAt)}</span>
                       </div>
                       {m.body && (
                         <p
-                          className={`mt-1.5 whitespace-pre-wrap break-words text-[13.5px] leading-relaxed text-chalk/90 ${
+                          className={`mt-1.5 whitespace-pre-wrap break-words text-[0.84375rem] leading-relaxed text-chalk/90 ${
                             m.authorKind === "team" ? "rounded-lg border border-shine/25 bg-shine/[0.06] px-3.5 py-2.5" : ""
                           }`}
                         >
@@ -518,7 +518,7 @@ function CaseThread({ id, tick, onChanged }: { id: string; tick: number; onChang
                                 <img src={a.url} alt={a.name} className="h-24 w-36 object-cover" />
                               </button>
                             ) : (
-                              <span key={a.path} className="text-[11px] text-chalk-dim">
+                              <span key={a.path} className="text-[0.6875rem] text-chalk-dim">
                                 {a.name} (เปิดไม่ได้)
                               </span>
                             )
@@ -532,7 +532,7 @@ function CaseThread({ id, tick, onChanged }: { id: string; tick: number; onChang
             );
           })}
           {detail.messages.length === 0 && (
-            <li className="text-[13px] text-chalk-dim">ยังไม่มีข้อความในเคสนี้</li>
+            <li className="text-[0.8125rem] text-chalk-dim">ยังไม่มีข้อความในเคสนี้</li>
           )}
         </ol>
       </div>
@@ -558,7 +558,7 @@ function CaseThread({ id, tick, onChanged }: { id: string; tick: number; onChang
                 ? "ตอบผู้แจ้ง หรือบอกว่าแก้อะไรไปแล้ว"
                 : "ตอบกลับ หรือเพิ่มข้อมูล เช่น “ลองแล้วยังไม่ได้” หรือแนบภาพเพิ่ม"
             }
-            className="block w-full resize-none rounded-t-xl bg-transparent px-3.5 py-3 text-[13.5px] leading-relaxed text-chalk outline-none placeholder:text-chalk-dim/60"
+            className="block w-full resize-none rounded-t-xl bg-transparent px-3.5 py-3 text-[0.84375rem] leading-relaxed text-chalk outline-none placeholder:text-chalk-dim/60"
           />
           <div className="px-3">
             <PendingImages images={images.images} uploading={images.uploading} onRemove={images.remove} />
@@ -570,7 +570,7 @@ function CaseThread({ id, tick, onChanged }: { id: string; tick: number; onChang
                 <select
                   value={status}
                   onChange={(e) => pickStatus(e.target.value as CaseStatus | "")}
-                  className="rounded-md border border-night-edge bg-night px-2 py-1 font-display text-[12px] text-chalk outline-none focus:border-shine"
+                  className="rounded-md border border-night-edge bg-night px-2 py-1 font-display text-[0.75rem] text-chalk outline-none focus:border-shine"
                 >
                   <option value="">สถานะเดิม ({CASE_STATUS[detail.status].label})</option>
                   {CASE_STATUSES.filter((s) => s !== detail.status).map((s) => (
@@ -585,7 +585,7 @@ function CaseThread({ id, tick, onChanged }: { id: string; tick: number; onChang
                     onChange={(e) => setFixedIn(e.target.value)}
                     maxLength={60}
                     placeholder="เวอร์ชันที่แก้ เช่น 0.96.1"
-                    className="w-44 rounded-md border border-night-edge bg-night px-2 py-1 text-[12px] text-chalk outline-none placeholder:text-chalk-dim/60 focus:border-shine"
+                    className="w-44 rounded-md border border-night-edge bg-night px-2 py-1 text-[0.75rem] text-chalk outline-none placeholder:text-chalk-dim/60 focus:border-shine"
                   />
                 )}
                 {classifying && (
@@ -594,7 +594,7 @@ function CaseThread({ id, tick, onChanged }: { id: string; tick: number; onChang
                       value={cause}
                       onChange={(e) => setCause(e.target.value as CaseCause | "")}
                       aria-label="สาเหตุ"
-                      className={`rounded-md border bg-night px-2 py-1 font-display text-[12px] text-chalk outline-none focus:border-shine ${
+                      className={`rounded-md border bg-night px-2 py-1 font-display text-[0.75rem] text-chalk outline-none focus:border-shine ${
                         cause ? "border-night-edge" : "border-orange-400/70"
                       }`}
                     >
@@ -609,7 +609,7 @@ function CaseThread({ id, tick, onChanged }: { id: string; tick: number; onChang
                       value={area}
                       onChange={(e) => setArea(e.target.value as CaseArea | "")}
                       aria-label="ส่วนของระบบ"
-                      className={`rounded-md border bg-night px-2 py-1 font-display text-[12px] text-chalk outline-none focus:border-shine ${
+                      className={`rounded-md border bg-night px-2 py-1 font-display text-[0.75rem] text-chalk outline-none focus:border-shine ${
                         area ? "border-night-edge" : "border-orange-400/70"
                       }`}
                     >
@@ -624,11 +624,11 @@ function CaseThread({ id, tick, onChanged }: { id: string; tick: number; onChang
                 )}
               </>
             )}
-            <span className="ml-auto hidden text-[11px] text-chalk-dim sm:inline">Ctrl + Enter เพื่อส่ง</span>
+            <span className="ml-auto hidden text-[0.6875rem] text-chalk-dim sm:inline">Ctrl + Enter เพื่อส่ง</span>
             <button
               onClick={() => void send()}
               disabled={!canSend}
-              className="inline-flex items-center gap-1.5 rounded-full bg-shine px-3.5 py-1.5 font-display text-[12.5px] font-semibold text-night transition hover:brightness-110 disabled:opacity-40"
+              className="inline-flex items-center gap-1.5 rounded-full bg-shine px-3.5 py-1.5 font-display text-[0.78125rem] font-semibold text-night transition hover:brightness-110 disabled:opacity-40"
             >
               {sending ? <Loader2 size={13} className="animate-spin" /> : <Send size={13} />}
               ส่ง

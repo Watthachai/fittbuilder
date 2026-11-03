@@ -149,7 +149,7 @@ export default function CloudDelivery({
       <span className={`mt-0.5 ${value.target === target ? "text-shine" : "text-chalk-dim"}`}>{icon}</span>
       <span>
         <span className="block font-display text-xs font-semibold text-chalk">{title}</span>
-        <span className="block text-[11px] text-chalk-dim">{note}</span>
+        <span className="block text-[0.6875rem] text-chalk-dim">{note}</span>
       </span>
     </button>
   );
@@ -164,14 +164,14 @@ export default function CloudDelivery({
 
       {value.target === "cloud" ? (
         <label className="mt-3 block">
-          <span className="mb-1 block text-[11px] text-chalk-dim">อีเมลผู้ดูแลคนแรก (ใช้ล็อกอินครั้งแรกในแอป)</span>
+          <span className="mb-1 block text-[0.6875rem] text-chalk-dim">อีเมลผู้ดูแลคนแรก (ใช้ล็อกอินครั้งแรกในแอป)</span>
           <input
             type="email"
             value={value.admin_email}
             disabled={!editable}
             onChange={(e) => onChange({ ...value, admin_email: e.target.value })}
             placeholder="admin@customer.co.th"
-            className="w-full rounded-lg border border-night-edge bg-night px-3 py-1.5 text-[13px] text-chalk outline-none focus:border-shine disabled:opacity-70"
+            className="w-full rounded-lg border border-night-edge bg-night px-3 py-1.5 text-[0.8125rem] text-chalk outline-none focus:border-shine disabled:opacity-70"
           />
         </label>
       ) : null}
@@ -181,7 +181,7 @@ export default function CloudDelivery({
           type="button"
           onClick={() => void saveOnly()}
           disabled={saving}
-          className="mt-2 inline-flex items-center gap-1.5 rounded-lg border border-night-edge px-3 py-1.5 text-[12px] text-chalk-dim transition hover:border-shine hover:text-chalk disabled:opacity-40"
+          className="mt-2 inline-flex items-center gap-1.5 rounded-lg border border-night-edge px-3 py-1.5 text-[0.75rem] text-chalk-dim transition hover:border-shine hover:text-chalk disabled:opacity-40"
         >
           {saving ? <Loader2 size={12} className="animate-spin" /> : <Save size={12} />} บันทึกโดยไม่ build ใหม่
         </button>
@@ -193,9 +193,9 @@ export default function CloudDelivery({
             const e = state.events[env];
             if (!e && env === "production") return null;
             return (
-              <div key={env} className="text-[12px]">
+              <div key={env} className="text-[0.75rem]">
                 <p className="text-chalk">
-                  <span className="font-mono text-[11px] text-chalk-dim">{ENV_LABEL[env]}</span>{" "}
+                  <span className="font-mono text-[0.6875rem] text-chalk-dim">{ENV_LABEL[env]}</span>{" "}
                   {e ? (
                     <>
                       <span className={e.stage === "failed" ? "text-halt" : e.stage === "ready" ? "text-go" : "text-chalk"}>{STAGE[e.stage]}</span>
@@ -207,12 +207,12 @@ export default function CloudDelivery({
                   )}
                 </p>
                 {e?.stage === "ready" && e.url ? (
-                  <a href={e.url} target="_blank" rel="noreferrer" className="mt-0.5 inline-flex items-center gap-1 font-mono text-[11px] text-shine hover:underline">
+                  <a href={e.url} target="_blank" rel="noreferrer" className="mt-0.5 inline-flex items-center gap-1 font-mono text-[0.6875rem] text-shine hover:underline">
                     {e.url} <ExternalLink size={11} />
                   </a>
                 ) : null}
                 {e?.stage === "failed" ? (
-                  <p className="mt-0.5 whitespace-pre-wrap text-[11px] text-chalk-dim">
+                  <p className="mt-0.5 whitespace-pre-wrap text-[0.6875rem] text-chalk-dim">
                     {e.message}
                     {env === "uat" ? (state.needs_team ? "\nต้องให้ทีมดู: ระบบหยุดลองแล้ว" : "\nระบบจะลองใหม่เองใน 5 นาที") : ""}
                   </p>
@@ -221,7 +221,7 @@ export default function CloudDelivery({
                   <button
                     type="button"
                     onClick={() => void reveal(env)}
-                    className="mt-1 inline-flex items-center gap-1.5 rounded-lg border border-night-edge px-2.5 py-1 text-[11px] text-chalk-dim transition hover:border-shine hover:text-chalk"
+                    className="mt-1 inline-flex items-center gap-1.5 rounded-lg border border-night-edge px-2.5 py-1 text-[0.6875rem] text-chalk-dim transition hover:border-shine hover:text-chalk"
                   >
                     <KeyRound size={12} /> แสดงรหัสผ่านครั้งแรก
                   </button>
@@ -229,7 +229,7 @@ export default function CloudDelivery({
                 {password?.env === env ? (
                   <div className="mt-1 rounded-lg border border-shine/40 bg-shine/[0.06] px-3 py-2">
                     <div className="flex items-center gap-2">
-                      <code className="flex-1 break-all font-mono text-[12px] text-chalk">{password.value}</code>
+                      <code className="flex-1 break-all font-mono text-[0.75rem] text-chalk">{password.value}</code>
                       <button
                         type="button"
                         onClick={() => void navigator.clipboard.writeText(password.value).then(() => toast.success("คัดลอกแล้ว"))}
@@ -239,7 +239,7 @@ export default function CloudDelivery({
                         <Copy size={13} />
                       </button>
                     </div>
-                    <p className="mt-1 text-[11px] text-chalk-dim">แสดงครั้งเดียว ส่งต่อทางช่องทางลับ · ผู้ดูแลควรเปลี่ยนรหัสหลังล็อกอินครั้งแรก</p>
+                    <p className="mt-1 text-[0.6875rem] text-chalk-dim">แสดงครั้งเดียว ส่งต่อทางช่องทางลับ · ผู้ดูแลควรเปลี่ยนรหัสหลังล็อกอินครั้งแรก</p>
                   </div>
                 ) : null}
               </div>

@@ -57,39 +57,39 @@ export default function OrgModules({ orgId }: { orgId: string }) {
         <Boxes size={15} className="text-shine" />
         <h2 className="font-display text-sm font-semibold">งานที่ทำให้องค์กรนี้</h2>
         {work && work.length > 0 && (
-          <span className="ml-auto font-mono text-[12px] text-chalk-dim">
+          <span className="ml-auto font-mono text-[0.75rem] text-chalk-dim">
             {work.length} โปรเจกต์ · {moduleCount} โมดูล
           </span>
         )}
       </div>
-      <p className="mt-1 text-[13px] text-chalk-dim">
+      <p className="mt-1 text-[0.8125rem] text-chalk-dim">
         แต่ละโปรเจกต์แยกเป็นโมดูลตามที่แตกไว้ในแท็บข้อเสนอโครงการ ราคาดึงจากรายการในใบเสนอราคาที่ชื่อตรงกับโมดูล
       </p>
 
       {work === null ? (
-        <p className="mt-3 inline-flex items-center gap-2 text-[13px] text-chalk-dim">
+        <p className="mt-3 inline-flex items-center gap-2 text-[0.8125rem] text-chalk-dim">
           <Loader2 size={13} className="animate-spin text-shine" /> กำลังอ่านโปรเจกต์ขององค์กรนี้…
         </p>
       ) : work.length === 0 ? (
-        <p className="mt-3 text-[13px] text-chalk-dim">ยังไม่มีโปรเจกต์ในองค์กรนี้</p>
+        <p className="mt-3 text-[0.8125rem] text-chalk-dim">ยังไม่มีโปรเจกต์ในองค์กรนี้</p>
       ) : (
         <div className="mt-3 space-y-2">
           {work.map((p) => (
             <div key={p.id} className="rounded-lg border border-night-edge bg-night px-3 py-2.5">
               <div className="flex items-center gap-3">
-                <p className="min-w-0 flex-1 truncate font-display text-[13.5px] text-chalk">{p.name}</p>
-                <Link href={`/project/${p.id}`} className="shrink-0 text-[12.5px] text-shine hover:underline">
+                <p className="min-w-0 flex-1 truncate font-display text-[0.84375rem] text-chalk">{p.name}</p>
+                <Link href={`/project/${p.id}`} className="shrink-0 text-[0.78125rem] text-shine hover:underline">
                   เปิดโปรเจกต์
                 </Link>
               </div>
               {p.modules.length === 0 ? (
-                <p className="mt-1 text-[12.5px] text-chalk-dim">
+                <p className="mt-1 text-[0.78125rem] text-chalk-dim">
                   ยังไม่ได้แตกโมดูล — เปิดโปรเจกต์ แล้วกด “แตกเป็นโมดูลด้วย AI” ในแท็บข้อเสนอโครงการ
                 </p>
               ) : (
                 <ul className="mt-1.5 space-y-1">
                   {p.modules.map((m) => (
-                    <li key={m.name} className="flex flex-wrap items-baseline gap-x-3 text-[12.5px]">
+                    <li key={m.name} className="flex flex-wrap items-baseline gap-x-3 text-[0.78125rem]">
                       <span className="min-w-0 flex-1 text-chalk">{m.name}</span>
                       <span className="text-chalk-dim">
                         {m.parts} ระบบย่อย · {m.screens} หน้าจอ

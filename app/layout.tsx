@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Anuphan, IBM_Plex_Mono, Inter } from "next/font/google";
+import localFont from "next/font/local";
 import "./globals.css";
 import FloatingThemeToggle from "@/components/FloatingThemeToggle";
 import GlobalGenerationIndicator from "@/components/GlobalGenerationIndicator";
@@ -10,21 +10,32 @@ import CreateWorkspaceHost from "@/components/org/CreateWorkspaceHost";
 import { CaseInboxProvider } from "@/components/cases/CaseInbox";
 
 // Inter is the theme's typeface (docs/brief-plans/design.md); it has no Thai
-// glyphs, so Anuphan sits behind it in the stack for Thai text.
-const inter = Inter({
+// glyphs, so Anuphan sits behind it in the stack for Thai text — and only its
+// Thai file is kept, since every Latin glyph is Inter's.
+//
+// The Google Fonts files (OFL) live in the repo rather than coming through
+// next/font/google: a production build that could not fetch one failed with
+// "next/font/google queries have exactly one entry" (2026-10-30, 2026-11-03),
+// while the same commit built on sandbox.
+const inter = localFont({
+  src: "./fonts/inter-latin.woff2",
+  weight: "100 900",
   variable: "--font-inter",
-  subsets: ["latin"],
 });
 
-const anuphan = Anuphan({
+const anuphan = localFont({
+  src: "./fonts/anuphan-thai.woff2",
+  weight: "100 700",
   variable: "--font-anuphan",
-  subsets: ["latin", "thai"],
 });
 
-const plexMono = IBM_Plex_Mono({
+const plexMono = localFont({
+  src: [
+    { path: "./fonts/plex-mono-400-latin.woff2", weight: "400" },
+    { path: "./fonts/plex-mono-500-latin.woff2", weight: "500" },
+    { path: "./fonts/plex-mono-600-latin.woff2", weight: "600" },
+  ],
   variable: "--font-plex-mono",
-  subsets: ["latin"],
-  weight: ["400", "500", "600"],
 });
 
 export const metadata: Metadata = {

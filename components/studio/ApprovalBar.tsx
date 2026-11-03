@@ -15,7 +15,13 @@ import { thaiDateShort } from "@/lib/quote";
 import { toast } from "@/lib/toast";
 import type { VersionKey } from "@/lib/versions";
 
-const ROLE_LABEL: Record<string, string> = { owner: "เจ้าของ", admin: "ผู้ดูแล", approver: "ผู้อนุมัติ" };
+// The reasons fittbuilder_project_approvers gives (migration 0065).
+const ROLE_LABEL: Record<string, string> = {
+  owner: "เจ้าของ",
+  admin: "ผู้ดูแล",
+  company_approver: "ผู้อนุมัติ",
+  company_admin: "ผู้ดูแลบริษัท",
+};
 
 /**
  * Where a quotation or proposal stands in its approval, and whether it may be

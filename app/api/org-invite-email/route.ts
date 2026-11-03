@@ -24,8 +24,6 @@ export async function POST(request: Request) {
     .eq("id", body.inviteId)
     .maybeSingle();
   if (!invite) return Response.json({ error: "forbidden" }, { status: 403 });
-  // A link invite has no address; it is handed out by hand.
-  if (!invite.email) return Response.json({ error: "no address" }, { status: 400 });
 
   const { data: org } = await supabase
     .from("fittbuilder_orgs")

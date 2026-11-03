@@ -1014,8 +1014,7 @@ export interface Database {
         Row: {
           id: string;
           org_id: string;
-          /** Null for a link anyone signed in can take, once (migration 0063). */
-          email: string | null;
+          email: string;
           role: string;
           token: string;
           status: string;
@@ -1025,7 +1024,7 @@ export interface Database {
         Insert: {
           id?: string;
           org_id: string;
-          email: string | null;
+          email: string;
           role: string;
           token: string;
           status?: string;
@@ -1035,10 +1034,58 @@ export interface Database {
         Update: {
           id?: string;
           org_id?: string;
-          email?: string | null;
+          email?: string;
           role?: string;
           token?: string;
           status?: string;
+          expires_at?: string;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      /** A company: staff by email domain, approvers for all its workspaces (migration 0065). Read-only to clients. */
+      fittbuilder_companies: {
+        Row: { id: string; name: string; email_domain: string | null; created_at: string };
+        Insert: { id?: string; name: string; email_domain?: string | null; created_at?: string };
+        Update: { id?: string; name?: string; email_domain?: string | null; created_at?: string };
+        Relationships: [];
+      };
+      /** One company per person (migration 0065). Read-only to clients: the functions write. */
+      fittbuilder_company_members: {
+        Row: { user_id: string; company_id: string; role: string; created_at: string };
+        Insert: { user_id: string; company_id: string; role?: string; created_at?: string };
+        Update: { user_id?: string; company_id?: string; role?: string; created_at?: string };
+        Relationships: [];
+      };
+      /** One-use links into a company, for a week (migration 0065). Admins read them. */
+      fittbuilder_company_invites: {
+        Row: {
+          id: string;
+          company_id: string;
+          role: string;
+          token: string;
+          status: string;
+          created_by: string;
+          expires_at: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          company_id: string;
+          role: string;
+          token: string;
+          status?: string;
+          created_by: string;
+          expires_at?: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          company_id?: string;
+          role?: string;
+          token?: string;
+          status?: string;
+          created_by?: string;
           expires_at?: string;
           created_at?: string;
         };
@@ -1051,7 +1098,7 @@ export interface Database {
       fittbuilder_can_edit_project: { Args: { pid: string; uid: string }; Returns: boolean };
       /** Claim the next running document number for a workspace (migration 0041). */
       fittbuilder_next_doc_number: { Args: { oid: string }; Returns: number };
-      /** Who can approve a project's documents — owner, admins, approvers (migration 0063). */
+      /** Who can approve a project's documents — owner, admins, the company's approvers (migration 0065). */
       fittbuilder_project_approvers: {
         Args: { pid: string };
         Returns: { user_id: string; email: string | null; name: string | null; role: string }[];
@@ -1061,8 +1108,23 @@ export interface Database {
         Args: { pid: string; kind: string; ver: string; approver: string; snap: Json };
         Returns: string;
       };
-      /** Take a workspace invite link (email null): join with its role; returns the workspace (migration 0063). */
-      fittbuilder_accept_org_link: { Args: { tok: string }; Returns: string };
+      /** My company's people with names (migration 0065). */
+      fittbuilder_company_members_detailed: {
+        Args: Record<string, never>;
+        Returns: { user_id: string; email: string | null; name: string | null; role: string; created_at: string }[];
+      };
+      /** A company admin changing someone's role; the last admin stays (0065). */
+      fittbuilder_set_company_role: { Args: { target: string; new_role: string }; Returns: undefined };
+      /** A company admin taking someone else out (0065). */
+      fittbuilder_remove_company_member: { Args: { target: string }; Returns: undefined };
+      /** A company admin making a one-use, one-week link with a role (0065). */
+      fittbuilder_create_company_link: {
+        Args: { r: string };
+        Returns: Database["public"]["Tables"]["fittbuilder_company_invites"]["Row"];
+      };
+      fittbuilder_revoke_company_invite: { Args: { iid: string }; Returns: undefined };
+      /** Take a company link; returns the role taken (0065). */
+      fittbuilder_accept_company_link: { Args: { tok: string }; Returns: string };
       /** Approve or return a request; a return needs a note (migration 0063). */
       fittbuilder_decide_approval: { Args: { aid: string; approve: boolean; note: string }; Returns: undefined };
       /** The owner or an admin approving a document as it stands (migration 0063). */

@@ -162,7 +162,7 @@ export interface OrgInviteEmailArgs {
 }
 
 export function buildOrgInvitePayload(args: OrgInviteEmailArgs): DmailPayload {
-  const roleText = args.role === "admin" ? "Admin" : args.role === "approver" ? "Approver" : "Member";
+  const roleText = args.role === "admin" ? "Admin" : "Member";
   return {
     templateId: INVITATION_TEMPLATE_ID,
     to: [{ email: args.to, name: args.to }],

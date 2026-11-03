@@ -5,7 +5,8 @@ import CaseBell from "@/components/cases/CaseBell";
 import { useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { ArrowLeft, BadgeCheck, BarChart3, Handshake, LifeBuoy, Loader2, Plus, ShieldCheck } from "lucide-react";
+import { ArrowLeft, BadgeCheck, BarChart3, Building2, Handshake, LifeBuoy, Loader2, Plus, ShieldCheck } from "lucide-react";
+import { myCompany } from "@/lib/company";
 import { currentUser } from "@/lib/current-user";
 import { listOrgs } from "@/lib/orgs";
 import { openCreateWorkspace } from "@/lib/workspace-modal";
@@ -27,6 +28,7 @@ export default function SettingsShell({ children }: { children: ReactNode }) {
   const [account, setAccount] = useState<Account | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [orgs, setOrgs] = useState<OrgRecord[] | null>(null);
+  const [inCompany, setInCompany] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -45,6 +47,11 @@ export default function SettingsShell({ children }: { children: ReactNode }) {
       .catch(() => {
         if (!cancelled) setOrgs([]);
       });
+    void myCompany()
+      .then((mine) => {
+        if (!cancelled) setInCompany(mine !== null);
+      })
+      .catch(() => {});
     void fetch("/api/me")
       .then((r) => (r.ok ? r.json() : null))
       .then((d: { isAdmin?: boolean } | null) => {
@@ -138,18 +145,29 @@ export default function SettingsShell({ children }: { children: ReactNode }) {
             </button>
           </div>
 
-          {orgs !== null && orgs.length > 0 && (
+          {((orgs !== null && orgs.length > 0) || inCompany) && (
             <>
               <p className="mt-5 px-3 pb-1.5 font-display text-[11px] font-semibold uppercase tracking-wide text-chalk-dim/60">
                 เอกสาร
               </p>
-              <NavLink
-                href="/approvals"
-                active={pathname === "/approvals"}
-                icon={<BadgeCheck size={15} className="shrink-0" />}
-              >
-                อนุมัติเอกสาร
-              </NavLink>
+              <div className="space-y-1">
+                <NavLink
+                  href="/approvals"
+                  active={pathname === "/approvals"}
+                  icon={<BadgeCheck size={15} className="shrink-0" />}
+                >
+                  อนุมัติเอกสาร
+                </NavLink>
+                {inCompany && (
+                  <NavLink
+                    href="/company"
+                    active={pathname === "/company"}
+                    icon={<Building2 size={15} className="shrink-0" />}
+                  >
+                    บริษัทและผู้อนุมัติ
+                  </NavLink>
+                )}
+              </div>
             </>
           )}
 

@@ -6,11 +6,12 @@ import { createAdminClient } from "@/lib/supabase/admin";
 
 /**
  * Accept an invitation, then land the user where the invite points. A
- * `/join/<token>` link is one of THREE kinds and we resolve which by looking the
+ * `/join/<token>` link is one of FOUR kinds and we resolve which by looking the
  * token up:
  *   1. a project share-link → `fittbuilder_projects.share_token` (role = share_role)
  *   2. a per-email project invite → `fittbuilder_project_invites.token`
- *   3. a per-email workspace invite → `fittbuilder_org_invites.token`
+ *   3. a company link → `fittbuilder_company_invites.token` (migration 0065)
+ *   4. a per-email workspace invite → `fittbuilder_org_invites.token`
  *
  * Identity comes from the authenticated server session, never the client — the
  * accept RPC is keyed on the verified user.id/email so a token can't be redeemed
@@ -71,27 +72,35 @@ export async function joinProject(
     redirect(`/project/${invite.project_id}`);
   }
 
-  // ── 3. Per-email WORKSPACE invite token? ────────────────────────────────
+  // ── 3. COMPANY link? Whoever opens it first takes it. ───────────────────
+  const { data: companyInvite } = await admin
+    .from("fittbuilder_company_invites")
+    .select("id")
+    .eq("token", token)
+    .maybeSingle();
+  if (companyInvite) {
+    const { data: role, error: linkError } = await supabase.rpc("fittbuilder_accept_company_link", { tok: token });
+    if (linkError) {
+      if (linkError.message.includes("already in this company"))
+        return "คุณอยู่ในบริษัทนี้ด้วยบทบาทนี้อยู่แล้ว — ลิงก์นี้ยังใช้ได้สำหรับคนที่ได้รับเชิญ";
+      if (linkError.message.includes("in another company"))
+        return "บัญชีนี้อยู่ในบริษัทอื่นแล้ว — ติดต่อผู้ดูแลบริษัท";
+      if (linkError.message.includes("link already used"))
+        return "ลิงก์นี้ถูกใช้ไปแล้ว — ขอลิงก์ใหม่จากผู้ดูแลบริษัท";
+      if (linkError.message.includes("link expired")) return "ลิงก์นี้หมดอายุแล้ว — ขอลิงก์ใหม่จากผู้ดูแลบริษัท";
+      return "เข้าร่วมไม่สำเร็จ ลองอีกครั้ง";
+    }
+    // An approver's work is the approval page.
+    redirect(role === "approver" ? "/approvals" : "/company");
+  }
+
+  // ── 4. Per-email WORKSPACE invite token? ────────────────────────────────
   const { data: orgInvite } = await admin
     .from("fittbuilder_org_invites")
     .select("org_id, email, role, status, expires_at")
     .eq("token", token)
     .maybeSingle();
   if (!orgInvite) return "ลิงก์คำเชิญไม่ถูกต้องหรือหมดอายุ";
-
-  // A link with no address: whoever opens it first takes it (migration 0063).
-  if (orgInvite.email === null) {
-    const { error: linkError } = await supabase.rpc("fittbuilder_accept_org_link", { tok: token });
-    if (linkError) {
-      if (linkError.message.includes("already in this workspace"))
-        return "คุณอยู่ใน workspace นี้อยู่แล้ว — ลิงก์นี้ยังใช้ได้สำหรับคนที่ได้รับเชิญ";
-      if (linkError.message.includes("link already used"))
-        return "ลิงก์นี้ถูกใช้ไปแล้ว — ขอลิงก์ใหม่จากผู้ดูแล workspace";
-      if (linkError.message.includes("link expired")) return "ลิงก์นี้หมดอายุแล้ว — ขอลิงก์ใหม่จากผู้ดูแล workspace";
-      return "เข้าร่วมไม่สำเร็จ ลองอีกครั้ง";
-    }
-    redirect(orgInvite.role === "approver" ? "/approvals" : `/org/${orgInvite.org_id}`);
-  }
 
   if (orgInvite.status === "revoked") return "คำเชิญนี้ถูกยกเลิกแล้ว";
   if (new Date(orgInvite.expires_at) < new Date()) return "คำเชิญนี้หมดอายุแล้ว";
@@ -103,6 +112,5 @@ export async function joinProject(
     mail: user.email!,
   });
   if (error) return "เข้าร่วมไม่สำเร็จ ลองอีกครั้ง";
-  // An approver's work is the approval page, not the workspace's settings.
-  redirect(orgInvite.role === "approver" ? "/approvals" : `/org/${orgInvite.org_id}`);
+  redirect(`/org/${orgInvite.org_id}`);
 }

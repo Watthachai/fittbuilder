@@ -274,10 +274,37 @@ export interface ProjectInvite {
 }
 
 /** Workspace roles. 'owner' is implicit (fittbuilder_orgs.owner_id) and can't be
- *  invited. An approver reads every project and approves its quotations and
- *  proposals, and edits nothing (migration 0063). */
-export type OrgRole = "owner" | "admin" | "member" | "approver";
-export type OrgInviteRole = "admin" | "member" | "approver";
+ *  invited. Approvers are the company's (CompanyRole), not the workspace's. */
+export type OrgRole = "owner" | "admin" | "member";
+export type OrgInviteRole = "admin" | "member";
+
+/** Company roles (migration 0065). An approver reads every workspace of the
+ *  company's staff and approves their documents; an admin also manages people. */
+export type CompanyRole = "admin" | "approver" | "member";
+
+export interface Company {
+  id: string;
+  name: string;
+  /** Staff signing up with this domain join as members. */
+  emailDomain: string | null;
+}
+
+export interface CompanyMember {
+  userId: string;
+  email: string;
+  name: string | null;
+  role: CompanyRole;
+  createdAt: string;
+}
+
+/** A one-use link joining the company with a role, for a week. */
+export interface CompanyInvite {
+  id: string;
+  role: CompanyRole;
+  token: string;
+  expiresAt: string;
+  createdAt: string;
+}
 
 export interface OrgMember {
   orgId: string;
@@ -291,8 +318,7 @@ export interface OrgMember {
 export interface OrgInvite {
   id: string;
   orgId: string;
-  /** Null for a link anyone signed in can take, once. */
-  email: string | null;
+  email: string;
   role: OrgInviteRole;
   token: string;
   status: "pending" | "accepted" | "revoked";

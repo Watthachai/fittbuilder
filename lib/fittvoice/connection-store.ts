@@ -86,11 +86,8 @@ export async function workspacesOf(
     await db.from("fittbuilder_org_members").select("org_id, role").eq("user_id", userId),
     "memberships"
   );
-  // An approver edits nothing in the workspace, so connects nothing to it (roleOf agrees).
   const memberOf = new Map(
-    memberships
-      .filter((m) => m.role === "admin" || m.role === "member")
-      .map((m) => [m.org_id, m.role === "admin" ? "ADMIN" : "MEMBER"] as const)
+    memberships.map((m) => [m.org_id, m.role === "admin" ? "ADMIN" : "MEMBER"] as const)
   );
   const ids = [...memberOf.keys()];
   const orgs = need(

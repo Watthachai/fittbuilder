@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowRight, Eye, Pencil, Users } from "lucide-react";
+import { ArrowRight, Building2, Eye, Pencil, Users } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import AcceptInvite from "./AcceptInvite";
@@ -9,9 +9,9 @@ export const metadata = { title: "คำเชิญเข้าร่วมโ�
 /**
  * Accept-invitation landing. Replaces the old silent redirect route: the invitee
  * sees what they're joining (project + role) and confirms, rather than being
- * bounced straight in. A token is either a project share-link (share_token) or a
- * per-email invite (invites.token); we preview either via the service role since
- * RLS hides both from a not-yet-member.
+ * bounced straight in. A token is a project share-link (share_token), a per-email
+ * project or workspace invite, or a company link (0065); we preview each via the
+ * service role since RLS hides them from a not-yet-member.
  */
 export default async function JoinPage({
   params,
@@ -28,7 +28,7 @@ export default async function JoinPage({
   const admin = createAdminClient();
   let entityName: string | null = null;
   let role: string | null = null;
-  let isOrg = false;
+  let kind: "project" | "org" | "company" = "project";
   let invalidReason: string | null = null;
 
   const { data: proj } = await admin
@@ -63,20 +63,41 @@ export default async function JoinPage({
         entityName = p?.name ?? "โปรเจกต์ที่ไม่มีชื่อ";
       }
     } else {
-      // Workspace invite?
-      const { data: orgInvite } = await admin
-        .from("fittbuilder_org_invites")
-        .select("role, status, expires_at, org_id, email")
+      // Company link (migration 0065)?
+      const { data: companyInvite } = await admin
+        .from("fittbuilder_company_invites")
+        .select("role, status, expires_at, company_id")
         .eq("token", token)
         .maybeSingle();
-      if (!orgInvite) invalidReason = "ลิงก์คำเชิญนี้ไม่ถูกต้อง";
+      // Workspace invite?
+      const { data: orgInvite } = companyInvite
+        ? { data: null }
+        : await admin
+            .from("fittbuilder_org_invites")
+            .select("role, status, expires_at, org_id")
+            .eq("token", token)
+            .maybeSingle();
+      if (companyInvite) {
+        if (companyInvite.status === "revoked") invalidReason = "คำเชิญนี้ถูกยกเลิกแล้ว";
+        // Spent by the first person who takes it.
+        else if (companyInvite.status === "accepted")
+          invalidReason = "ลิงก์นี้ถูกใช้ไปแล้ว — ขอลิงก์ใหม่จากผู้ดูแลบริษัท";
+        else if (new Date(companyInvite.expires_at) < new Date()) invalidReason = "คำเชิญนี้หมดอายุแล้ว";
+        else {
+          kind = "company";
+          role = companyInvite.role;
+          const { data: c } = await admin
+            .from("fittbuilder_companies")
+            .select("name")
+            .eq("id", companyInvite.company_id)
+            .maybeSingle();
+          entityName = c?.name ?? "บริษัท";
+        }
+      } else if (!orgInvite) invalidReason = "ลิงก์คำเชิญนี้ไม่ถูกต้อง";
       else if (orgInvite.status === "revoked") invalidReason = "คำเชิญนี้ถูกยกเลิกแล้ว";
-      // A link with no address is spent by the first person who takes it.
-      else if (orgInvite.email === null && orgInvite.status === "accepted")
-        invalidReason = "ลิงก์นี้ถูกใช้ไปแล้ว — ขอลิงก์ใหม่จากผู้ดูแล workspace";
       else if (new Date(orgInvite.expires_at) < new Date()) invalidReason = "คำเชิญนี้หมดอายุแล้ว";
       else {
-        isOrg = true;
+        kind = "org";
         role = orgInvite.role;
         const { data: o } = await admin
           .from("fittbuilder_orgs")
@@ -89,20 +110,27 @@ export default async function JoinPage({
   }
 
   // Role presentation differs by invite kind: projects use editor/viewer,
-  // workspaces use admin/member.
+  // workspaces admin/member, companies admin/approver/member.
   const elevated = role === "editor" || role === "admin";
-  const roleLabel = isOrg
-    ? role === "admin" ? "ผู้ดูแล" : role === "approver" ? "ผู้อนุมัติ" : "สมาชิก"
-    : elevated ? "ผู้แก้ไข" : "ผู้ชม";
-  const roleHint = isOrg
-    ? role === "admin"
-      ? "จัดการสมาชิกและทุกโปรเจกต์ได้"
-      : role === "approver"
-        ? "ตรวจและอนุมัติใบเสนอราคากับข้อเสนอโครงการ เปิดดูทุกโปรเจกต์ได้อย่างเดียว"
-        : "ทำงานกับทุกโปรเจกต์ใน workspace ได้"
-    : elevated ? "แก้ไขและสร้างร่วมกันได้" : "เปิดดูได้อย่างเดียว";
-  const RoleIcon = isOrg ? Users : elevated ? Pencil : Eye;
-  const eyebrow = isOrg ? "คำเชิญเข้าร่วม workspace" : "คำเชิญเข้าร่วมโปรเจกต์";
+  const roleLabel =
+    kind === "company"
+      ? role === "admin" ? "ผู้ดูแลบริษัท" : role === "approver" ? "ผู้อนุมัติ" : "พนักงาน"
+      : kind === "org"
+        ? role === "admin" ? "ผู้ดูแล" : "สมาชิก"
+        : elevated ? "ผู้แก้ไข" : "ผู้ชม";
+  const roleHint =
+    kind === "company"
+      ? role === "admin"
+        ? "จัดการคนในบริษัท และอนุมัติเอกสารของทุก workspace ในบริษัท"
+        : role === "approver"
+          ? "ตรวจและอนุมัติใบเสนอราคากับข้อเสนอโครงการของทุก workspace ในบริษัท เปิดดูได้อย่างเดียว"
+          : "workspace ของคุณจะส่งเอกสารให้ผู้อนุมัติของบริษัทได้"
+      : kind === "org"
+        ? role === "admin" ? "จัดการสมาชิกและทุกโปรเจกต์ได้" : "ทำงานกับทุกโปรเจกต์ใน workspace ได้"
+        : elevated ? "แก้ไขและสร้างร่วมกันได้" : "เปิดดูได้อย่างเดียว";
+  const RoleIcon = kind === "company" ? Building2 : kind === "org" ? Users : elevated ? Pencil : Eye;
+  const eyebrow =
+    kind === "company" ? "คำเชิญเข้าร่วมบริษัท" : kind === "org" ? "คำเชิญเข้าร่วม workspace" : "คำเชิญเข้าร่วมโปรเจกต์";
 
   return (
     <main className="grid min-h-screen place-items-center bg-night px-6">
@@ -134,7 +162,7 @@ export default async function JoinPage({
           ) : (
             <>
               <span className="mx-auto grid h-12 w-12 place-items-center rounded-full bg-shine/10 text-shine">
-                <Users size={22} />
+                {kind === "company" ? <Building2 size={22} /> : <Users size={22} />}
               </span>
               <p className="mt-5 font-mono text-[11px] uppercase tracking-[0.22em] text-shine">
                 {eyebrow}

@@ -440,6 +440,31 @@
   margin-top: 9px;
 }
 
+/* The release's poster: what changed, before and after. Opens full size. */
+.shots {
+  display: grid;
+  gap: 12px;
+  margin-top: 25px;
+}
+
+.shot {
+  display: block;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--night-edge) 72%, transparent);
+  border-radius: 14px;
+  transition: border-color 0.15s ease;
+}
+
+.shot:hover {
+  border-color: var(--shine);
+}
+
+.shot img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
 .more {
   padding: 26px 0 0;
   text-align: center;

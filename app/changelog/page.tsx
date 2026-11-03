@@ -251,6 +251,23 @@ export default function ChangelogPage() {
                               </section>
                             );
                           })}
+                          {entry.images && (
+                            <div className={styles.shots}>
+                              {entry.images.map((image) => (
+                                <a
+                                  key={image.src}
+                                  href={image.src}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className={styles.shot}
+                                  title="เปิดภาพขนาดเต็ม"
+                                >
+                                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                                  <img src={image.src} alt={image.alt} width={image.width} height={image.height} loading="lazy" />
+                                </a>
+                              ))}
+                            </div>
+                          )}
                         </div>
                       </div>
                     </article>

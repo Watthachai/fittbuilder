@@ -4,7 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import AcceptInvite from "./AcceptInvite";
 
-export const metadata = { title: "คำเชิญเข้าร่วมโปรเจกต์" };
+export const metadata = { title: "คำเชิญ" };
 
 /**
  * Accept-invitation landing. Replaces the old silent redirect route: the invitee

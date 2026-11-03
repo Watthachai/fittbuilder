@@ -15,6 +15,44 @@ alter table fittbuilder_org_invites drop constraint if exists fittbuilder_org_in
 alter table fittbuilder_org_invites
   add constraint fittbuilder_org_invites_role_check check (role in ('admin', 'member', 'approver'));
 
+-- ---------- a link anyone signed in can take, once ----------
+-- A workspace invite is bound to an email. An admin who does not know the
+-- approver's address hands out a link instead (email null): the first account
+-- to accept it joins with its role and the link is spent. Expiry and revoking
+-- work as for any invite. Accepting an email invite (fittbuilder_accept_org_invites)
+-- matches on the address, so it never takes one of these.
+alter table fittbuilder_org_invites alter column email drop not null;
+
+create or replace function fittbuilder_accept_org_link(tok text) returns uuid
+  language plpgsql security definer set search_path = public as $$
+declare
+  inv fittbuilder_org_invites%rowtype;
+begin
+  if auth.uid() is null then
+    raise exception 'sign in first';
+  end if;
+  select * into inv from fittbuilder_org_invites where token = tok and email is null for update;
+  if inv.id is null then
+    raise exception 'not a link invite';
+  end if;
+  if inv.status <> 'pending' then
+    raise exception 'link already used';
+  end if;
+  if inv.expires_at < now() then
+    raise exception 'link expired';
+  end if;
+  -- Someone already in the workspace (an admin trying the link) must not spend it.
+  if fittbuilder_is_org_member(inv.org_id, auth.uid()) then
+    raise exception 'already in this workspace';
+  end if;
+  insert into fittbuilder_org_members (org_id, user_id, role) values (inv.org_id, auth.uid(), inv.role);
+  update fittbuilder_org_invites set status = 'accepted' where id = inv.id;
+  return inv.org_id;
+end;
+$$;
+revoke execute on function fittbuilder_accept_org_link(text) from public;
+grant execute on function fittbuilder_accept_org_link(text) to authenticated;
+
 -- ---------- working in a workspace, as against seeing it ----------
 create or replace function fittbuilder_can_work_in_org(oid uuid, uid uuid) returns boolean
   language sql security definer stable set search_path = public as $$
@@ -86,7 +124,10 @@ $$;
 -- ---------- approvals ----------
 -- One row per request. The snapshot is the document as sent: the approver reads
 -- that, not the live one, which may change while they read. A document is
--- approved while the newest approved row's doc_hash equals the live document's.
+-- approved while the newest request was approved and the live document still
+-- reads the same as its snapshot. The comparison is with the snapshot itself,
+-- never with a value the sender supplies beside it: a sender could otherwise
+-- have one document read and another one pass.
 create table if not exists fittbuilder_doc_approvals (
   id uuid primary key default gen_random_uuid(),
   project_id uuid not null references fittbuilder_projects(id) on delete cascade,
@@ -96,7 +137,6 @@ create table if not exists fittbuilder_doc_approvals (
   requested_at timestamptz not null default now(),
   approver_id uuid not null references auth.users(id) on delete cascade,
   snapshot jsonb not null,
-  doc_hash text not null,
   status text not null default 'pending'
     check (status in ('pending', 'approved', 'returned', 'withdrawn')),
   decided_by uuid references auth.users(id) on delete set null,
@@ -148,7 +188,7 @@ $$;
 
 -- Send a document for approval. Withdraws the request already open on it.
 create or replace function fittbuilder_request_approval(
-  pid uuid, kind text, ver text, approver uuid, snap jsonb, hash text
+  pid uuid, kind text, ver text, approver uuid, snap jsonb
 ) returns uuid
   language plpgsql security definer set search_path = public as $$
 declare
@@ -168,8 +208,8 @@ begin
   update fittbuilder_doc_approvals
     set status = 'withdrawn', decided_by = auth.uid(), decided_at = now()
     where project_id = pid and doc_kind = kind and version = ver and status = 'pending';
-  insert into fittbuilder_doc_approvals (project_id, doc_kind, version, requested_by, approver_id, snapshot, doc_hash)
-    values (pid, kind, ver, auth.uid(), approver, snap, hash)
+  insert into fittbuilder_doc_approvals (project_id, doc_kind, version, requested_by, approver_id, snapshot)
+    values (pid, kind, ver, auth.uid(), approver, snap)
     returning id into new_id;
   return new_id;
 end;
@@ -189,7 +229,7 @@ begin
     raise exception 'request is not waiting for a decision';
   end if;
   select p.org_id into oid from fittbuilder_projects p where p.id = req.project_id;
-  if req.approver_id <> auth.uid() and not fittbuilder_can_admin_org(oid, auth.uid()) then
+  if req.approver_id is distinct from auth.uid() and not fittbuilder_can_admin_org(oid, auth.uid()) then
     raise exception 'not yours to decide';
   end if;
   if not approve and coalesce(btrim(note), '') = '' then
@@ -203,7 +243,7 @@ end;
 $$;
 
 -- The owner or an admin approving the document as it stands, without a request.
-create or replace function fittbuilder_approve_now(pid uuid, kind text, ver text, snap jsonb, hash text)
+create or replace function fittbuilder_approve_now(pid uuid, kind text, ver text, snap jsonb)
   returns uuid
   language plpgsql security definer set search_path = public as $$
 declare
@@ -218,8 +258,8 @@ begin
     set status = 'withdrawn', decided_by = auth.uid(), decided_at = now()
     where project_id = pid and doc_kind = kind and version = ver and status = 'pending';
   insert into fittbuilder_doc_approvals
-    (project_id, doc_kind, version, requested_by, approver_id, snapshot, doc_hash, status, decided_by, decided_at)
-    values (pid, kind, ver, auth.uid(), auth.uid(), snap, hash, 'approved', auth.uid(), now())
+    (project_id, doc_kind, version, requested_by, approver_id, snapshot, status, decided_by, decided_at)
+    values (pid, kind, ver, auth.uid(), auth.uid(), snap, 'approved', auth.uid(), now())
     returning id into new_id;
   return new_id;
 end;
@@ -228,12 +268,12 @@ $$;
 -- The two predicates stay callable like fittbuilder_is_org_member, which policies
 -- also call; the functions that act are for signed-in callers only.
 revoke execute on function fittbuilder_project_approvers(uuid) from public;
-revoke execute on function fittbuilder_request_approval(uuid, text, text, uuid, jsonb, text) from public;
+revoke execute on function fittbuilder_request_approval(uuid, text, text, uuid, jsonb) from public;
 revoke execute on function fittbuilder_decide_approval(uuid, boolean, text) from public;
-revoke execute on function fittbuilder_approve_now(uuid, text, text, jsonb, text) from public;
+revoke execute on function fittbuilder_approve_now(uuid, text, text, jsonb) from public;
 grant execute on function fittbuilder_project_approvers(uuid) to authenticated;
-grant execute on function fittbuilder_request_approval(uuid, text, text, uuid, jsonb, text) to authenticated;
+grant execute on function fittbuilder_request_approval(uuid, text, text, uuid, jsonb) to authenticated;
 grant execute on function fittbuilder_decide_approval(uuid, boolean, text) to authenticated;
-grant execute on function fittbuilder_approve_now(uuid, text, text, jsonb, text) to authenticated;
+grant execute on function fittbuilder_approve_now(uuid, text, text, jsonb) to authenticated;
 
 notify pgrst, 'reload schema';

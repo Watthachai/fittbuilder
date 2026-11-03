@@ -78,6 +78,21 @@ export async function joinProject(
     .eq("token", token)
     .maybeSingle();
   if (!orgInvite) return "ลิงก์คำเชิญไม่ถูกต้องหรือหมดอายุ";
+
+  // A link with no address: whoever opens it first takes it (migration 0063).
+  if (orgInvite.email === null) {
+    const { error: linkError } = await supabase.rpc("fittbuilder_accept_org_link", { tok: token });
+    if (linkError) {
+      if (linkError.message.includes("already in this workspace"))
+        return "คุณอยู่ใน workspace นี้อยู่แล้ว — ลิงก์นี้ยังใช้ได้สำหรับคนที่ได้รับเชิญ";
+      if (linkError.message.includes("link already used"))
+        return "ลิงก์นี้ถูกใช้ไปแล้ว — ขอลิงก์ใหม่จากผู้ดูแล workspace";
+      if (linkError.message.includes("link expired")) return "ลิงก์นี้หมดอายุแล้ว — ขอลิงก์ใหม่จากผู้ดูแล workspace";
+      return "เข้าร่วมไม่สำเร็จ ลองอีกครั้ง";
+    }
+    redirect(orgInvite.role === "approver" ? "/approvals" : `/org/${orgInvite.org_id}`);
+  }
+
   if (orgInvite.status === "revoked") return "คำเชิญนี้ถูกยกเลิกแล้ว";
   if (new Date(orgInvite.expires_at) < new Date()) return "คำเชิญนี้หมดอายุแล้ว";
   if (user.email && orgInvite.email.toLowerCase() !== user.email.toLowerCase())

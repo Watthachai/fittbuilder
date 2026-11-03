@@ -2,7 +2,7 @@
 
 import { createClient } from "@/lib/supabase/client";
 import type { Json } from "@/lib/db/types";
-import { docHash, type ApprovalDocKind, type ApprovalRow, type ApprovalStatus } from "./doc-approval";
+import type { ApprovalDocKind, ApprovalRow, ApprovalStatus } from "./doc-approval";
 import type { VersionKey } from "./versions";
 
 /**
@@ -18,7 +18,7 @@ type Row = {
   requested_by: string;
   requested_at: string;
   status: string;
-  doc_hash: string;
+  snapshot: Json;
   decided_by: string | null;
   decided_at: string | null;
   comment: string | null;
@@ -30,13 +30,13 @@ const toApproval = (r: Row): ApprovalRow => ({
   requestedBy: r.requested_by,
   requestedAt: r.requested_at,
   status: r.status as ApprovalStatus,
-  docHash: r.doc_hash,
+  snapshot: r.snapshot,
   decidedBy: r.decided_by,
   decidedAt: r.decided_at,
   comment: r.comment,
 });
 
-const COLUMNS = "id, approver_id, requested_by, requested_at, status, doc_hash, decided_by, decided_at, comment";
+const COLUMNS = "id, approver_id, requested_by, requested_at, status, snapshot, decided_by, decided_at, comment";
 
 /** Every request made for one document. */
 export async function listApprovals(
@@ -81,7 +81,6 @@ export async function requestApproval(
     ver: version,
     approver: approverId,
     snap: doc as unknown as Json,
-    hash: await docHash(doc),
   });
   if (error) throw error;
 }
@@ -98,7 +97,6 @@ export async function approveNow(
     kind,
     ver: version,
     snap: doc as unknown as Json,
-    hash: await docHash(doc),
   });
   if (error) throw error;
 }
@@ -114,13 +112,12 @@ export interface ApprovalItem extends ApprovalRow {
   projectName: string;
   kind: ApprovalDocKind;
   version: VersionKey;
-  snapshot: Json;
 }
 
 /** Requests waiting on me, and the ones I decided most recently. */
 export async function myApprovals(meId: string): Promise<{ waiting: ApprovalItem[]; decided: ApprovalItem[] }> {
   const supabase = createClient();
-  const select = `${COLUMNS}, project_id, doc_kind, version, snapshot`;
+  const select = `${COLUMNS}, project_id, doc_kind, version`;
   const [waiting, decided] = await Promise.all([
     supabase.from(TABLE).select(select).eq("approver_id", meId).eq("status", "pending").order("requested_at"),
     supabase
@@ -146,7 +143,6 @@ export async function myApprovals(meId: string): Promise<{ waiting: ApprovalItem
     projectName: names.get(r.project_id) ?? "—",
     kind: r.doc_kind as ApprovalDocKind,
     version: r.version as VersionKey,
-    snapshot: r.snapshot,
   });
   return { waiting: (waiting.data ?? []).map(item), decided: (decided.data ?? []).map(item) };
 }

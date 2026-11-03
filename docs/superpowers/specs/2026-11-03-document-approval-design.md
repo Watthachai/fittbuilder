@@ -66,29 +66,30 @@ One new table, `fittbuilder_doc_approvals`:
 | `requested_by`, `requested_at` | who sent it, when |
 | `approver_id` | the person it was sent to |
 | `snapshot` | jsonb. The document as sent; this is what the approver reads |
-| `doc_hash` | hash of the snapshot |
 | `status` | `'pending'`, `'approved'`, `'returned'` or `'withdrawn'` |
 | `decided_by`, `decided_at`, `comment` | the decision, and the reason for a return |
 
 - **Approved means one thing:** the newest request for (project, kind,
-  version) that is not withdrawn was approved, and its `doc_hash` equals the
-  live document's. The hash is taken
-  over the parsed document (`parseDoc` for a quotation, `parseProposal` for a
-  proposal; keys sorted), by one shared function. Any edit changes the hash, and the document is not approved
-  again until someone approves the new content.
+  version) that is not withdrawn was approved, and the live document reads
+  the same as its snapshot (`docContent` in lib/doc-approval.ts: keys sorted,
+  the export-time document number left out). Any edit makes them differ, and
+  the document is not approved again until someone approves the new content.
+  - The comparison is with the snapshot itself. A hash the sender computed
+    and sent beside it would let them have one document read and another
+    one pass (raised by the security review of the first commit).
 - **One request at a time.** A new request for the same (project, kind,
   version) withdraws the pending one.
 
 **Access rules for the table:**
 - **Read:** `fittbuilder_can_read_project`.
-- **Request:** insert where `fittbuilder_can_edit_project` holds and
-  `requested_by = auth.uid()`. The `approver_id` must be someone who can
-  approve in that project's workspace.
+- **Request:** only through `fittbuilder_request_approval(project, kind,
+  version, approver, snapshot)`. It needs `fittbuilder_can_edit_project`, and
+  the approver must be someone who can approve in that project's workspace.
 - **Decide:** only through a SECURITY DEFINER function
   `fittbuilder_decide_approval(id, approve, comment)`. It accepts the
   request's `approver_id`, or the owner or an admin of the workspace.
 - **Approve without a request:** `fittbuilder_approve_now(project, kind,
-  version, snapshot, hash)`, for the owner and admins. It records a request
+  version, snapshot)`, for the owner and admins. It records a request
   and its approval in one step.
 
 ### The quotation and proposal panels
@@ -143,7 +144,7 @@ One new table, `fittbuilder_doc_approvals`:
 ## Calls I made (the user should check these)
 
 1. Any edit to the content (even a customer's phone number) needs a new
-   approval. The approved state is the hash comparison above.
+   approval. The approved state is the snapshot comparison above.
 2. The approver reviews the snapshot that was sent, not the live document, so
    it cannot change under them while they read.
 3. The requester gets no email about the decision: the status line and the

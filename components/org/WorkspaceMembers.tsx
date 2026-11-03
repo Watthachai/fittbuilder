@@ -6,6 +6,7 @@ import { BadgeCheck, Copy, Crown, LogOut, Mail, Shield, Trash2, User, Users } fr
 import { currentUser } from "@/lib/current-user";
 import {
   createOrgInvite,
+  createOrgLink,
   listOrgInvites,
   listOrgMembers,
   removeOrgMember,
@@ -85,6 +86,21 @@ export default function WorkspaceMembers({ orgId }: { orgId: string }) {
     }
   }
 
+  /** A one-use approver link, for when the approver's email is not known. */
+  async function handleApproverLink() {
+    if (inviteBusy) return;
+    setInviteBusy(true);
+    try {
+      const inv = await createOrgLink(orgId, "approver");
+      setInvites((prev) => [...prev, inv]);
+      await handleCopyLink(inv);
+    } catch (e) {
+      toast.error("สร้างลิงก์ไม่สำเร็จ", { description: e instanceof Error ? e.message : undefined });
+    } finally {
+      setInviteBusy(false);
+    }
+  }
+
   async function handleRoleChange(userId: string, role: OrgInviteRole) {
     const prev = members;
     setMembers((cur) => cur.map((m) => (m.userId === userId ? { ...m, role } : m)));
@@ -142,7 +158,11 @@ export default function WorkspaceMembers({ orgId }: { orgId: string }) {
   async function handleCopyLink(inv: OrgInvite) {
     try {
       await navigator.clipboard.writeText(`${window.location.origin}/join/${inv.token}`);
-      toast.success("คัดลอกลิงก์คำเชิญแล้ว", { description: `ใช้ได้กับ ${inv.email} เท่านั้น` });
+      toast.success("คัดลอกลิงก์คำเชิญแล้ว", {
+        description: inv.email
+          ? `ใช้ได้กับ ${inv.email} เท่านั้น`
+          : `คนแรกที่กดจะได้เป็น${ROLE_LABEL[inv.role]} · ใช้ได้ครั้งเดียว ภายใน 7 วัน`,
+      });
     } catch {
       toast.error("คัดลอกไม่สำเร็จ");
     }
@@ -206,6 +226,16 @@ export default function WorkspaceMembers({ orgId }: { orgId: string }) {
             เชิญ
           </button>
         </div>
+      )}
+      {canManage && (
+        <button
+          onClick={() => void handleApproverLink()}
+          disabled={inviteBusy}
+          className="mt-2 inline-flex items-center gap-1.5 rounded-lg border border-night-edge px-2.5 py-1.5 text-xs text-chalk-dim transition hover:border-shine hover:text-chalk disabled:opacity-40"
+          title="ไม่รู้อีเมลของผู้อนุมัติ — สร้างลิงก์ให้กดแล้วได้บทบาทผู้อนุมัติ ใช้ได้ครั้งเดียว ภายใน 7 วัน"
+        >
+          <BadgeCheck size={13} /> สร้างลิงก์เชิญผู้อนุมัติ (ไม่ต้องใช้อีเมล)
+        </button>
       )}
 
       {/* Roster */}
@@ -284,7 +314,9 @@ export default function WorkspaceMembers({ orgId }: { orgId: string }) {
             className="flex items-center gap-3 rounded-lg border border-night-edge/60 bg-night px-3 py-2 opacity-75"
           >
             <Mail size={14} className="shrink-0 text-chalk-dim" />
-            <span className="min-w-0 flex-1 truncate font-mono text-xs text-chalk-dim">{inv.email}</span>
+            <span className="min-w-0 flex-1 truncate font-mono text-xs text-chalk-dim">
+              {inv.email ?? "ลิงก์เชิญ · ใช้ได้ครั้งเดียว"}
+            </span>
             <span className="shrink-0 rounded-sm border border-night-edge px-1.5 py-0.5 text-[10px] text-chalk-dim">
               {ROLE_LABEL[inv.role] ?? inv.role}
             </span>

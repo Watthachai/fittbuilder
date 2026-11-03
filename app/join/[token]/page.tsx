@@ -66,11 +66,14 @@ export default async function JoinPage({
       // Workspace invite?
       const { data: orgInvite } = await admin
         .from("fittbuilder_org_invites")
-        .select("role, status, expires_at, org_id")
+        .select("role, status, expires_at, org_id, email")
         .eq("token", token)
         .maybeSingle();
       if (!orgInvite) invalidReason = "ลิงก์คำเชิญนี้ไม่ถูกต้อง";
       else if (orgInvite.status === "revoked") invalidReason = "คำเชิญนี้ถูกยกเลิกแล้ว";
+      // A link with no address is spent by the first person who takes it.
+      else if (orgInvite.email === null && orgInvite.status === "accepted")
+        invalidReason = "ลิงก์นี้ถูกใช้ไปแล้ว — ขอลิงก์ใหม่จากผู้ดูแล workspace";
       else if (new Date(orgInvite.expires_at) < new Date()) invalidReason = "คำเชิญนี้หมดอายุแล้ว";
       else {
         isOrg = true;

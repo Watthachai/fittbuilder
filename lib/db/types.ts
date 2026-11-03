@@ -215,7 +215,6 @@ export interface Database {
           requested_at: string;
           approver_id: string;
           snapshot: Json;
-          doc_hash: string;
           status: string;
           decided_by: string | null;
           decided_at: string | null;
@@ -1015,7 +1014,8 @@ export interface Database {
         Row: {
           id: string;
           org_id: string;
-          email: string;
+          /** Null for a link anyone signed in can take, once (migration 0063). */
+          email: string | null;
           role: string;
           token: string;
           status: string;
@@ -1025,7 +1025,7 @@ export interface Database {
         Insert: {
           id?: string;
           org_id: string;
-          email: string;
+          email: string | null;
           role: string;
           token: string;
           status?: string;
@@ -1035,7 +1035,7 @@ export interface Database {
         Update: {
           id?: string;
           org_id?: string;
-          email?: string;
+          email?: string | null;
           role?: string;
           token?: string;
           status?: string;
@@ -1058,14 +1058,16 @@ export interface Database {
       };
       /** Send a document for approval, withdrawing the open request (migration 0063). */
       fittbuilder_request_approval: {
-        Args: { pid: string; kind: string; ver: string; approver: string; snap: Json; hash: string };
+        Args: { pid: string; kind: string; ver: string; approver: string; snap: Json };
         Returns: string;
       };
+      /** Take a workspace invite link (email null): join with its role; returns the workspace (migration 0063). */
+      fittbuilder_accept_org_link: { Args: { tok: string }; Returns: string };
       /** Approve or return a request; a return needs a note (migration 0063). */
       fittbuilder_decide_approval: { Args: { aid: string; approve: boolean; note: string }; Returns: undefined };
       /** The owner or an admin approving a document as it stands (migration 0063). */
       fittbuilder_approve_now: {
-        Args: { pid: string; kind: string; ver: string; snap: Json; hash: string };
+        Args: { pid: string; kind: string; ver: string; snap: Json };
         Returns: string;
       };
       /** The workspace letterhead for a project's editors, or null without a workspace (migration 0044). */

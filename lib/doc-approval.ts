@@ -2,9 +2,10 @@
  * Quotations and proposals are approved before they reach a customer
  * (docs/superpowers/specs/2026-11-03-document-approval-design.md).
  *
- * A request carries the document as sent and its hash. The document is
- * approved while the newest decided request was approved and the live document
- * still hashes to what was approved: any edit after that needs approving again.
+ * A request carries the document as sent. The document is approved while the
+ * newest request was approved and the live document still reads the same as
+ * that snapshot: any edit after that needs approving again. The comparison is
+ * with the snapshot the approver read, never with a value the sender supplies.
  */
 
 export type ApprovalDocKind = "quote" | "proposal";
@@ -17,7 +18,8 @@ export interface ApprovalRow {
   requestedBy: string;
   requestedAt: string;
   status: ApprovalStatus;
-  docHash: string;
+  /** The document as sent, as stored. */
+  snapshot: unknown;
   decidedBy: string | null;
   decidedAt: string | null;
   comment: string | null;
@@ -34,7 +36,7 @@ export type ApprovalState =
 
 /**
  * Issued on the first export and written into the document (SQP…, PRP…).
- * Hashing them would undo an approval the moment the document is printed.
+ * Counting them would undo an approval the moment the document is printed.
  */
 const NUMBER_FIELDS: ReadonlySet<string> = new Set(["quoteNo", "proposalNo"]);
 
@@ -50,23 +52,23 @@ function canonical(value: unknown): string {
   return JSON.stringify(value);
 }
 
-/** The hash a request carries and the live document is compared against. */
-export async function docHash(doc: object): Promise<string> {
-  const content = Object.fromEntries(Object.entries(doc).filter(([k]) => !NUMBER_FIELDS.has(k)));
-  const bytes = new TextEncoder().encode(canonical(content));
-  const digest = await crypto.subtle.digest("SHA-256", bytes);
-  return Array.from(new Uint8Array(digest), (b) => b.toString(16).padStart(2, "0")).join("");
+/** What an approval covers: the document without the number issued at export. */
+export function docContent(doc: unknown): string {
+  if (!doc || typeof doc !== "object" || Array.isArray(doc)) return canonical(doc);
+  return canonical(Object.fromEntries(Object.entries(doc).filter(([k]) => !NUMBER_FIELDS.has(k))));
 }
 
 /** The document's state from its requests, in any order. */
-export function approvalState(rows: ApprovalRow[], liveHash: string): ApprovalState {
+export function approvalState(rows: ApprovalRow[], live: object): ApprovalState {
   const newest = rows
     .filter((r) => r.status !== "withdrawn")
     .sort((a, b) => (a.requestedAt < b.requestedAt ? 1 : a.requestedAt > b.requestedAt ? -1 : 0))[0];
   if (!newest) return { kind: "none" };
   if (newest.status === "pending") return { kind: "pending", request: newest };
   if (newest.status === "returned") return { kind: "returned", request: newest };
-  return newest.docHash === liveHash ? { kind: "approved", request: newest } : { kind: "changed", request: newest };
+  return docContent(newest.snapshot) === docContent(live)
+    ? { kind: "approved", request: newest }
+    : { kind: "changed", request: newest };
 }
 
 /** Printing and the Word file: a workspace project's document only once approved. */

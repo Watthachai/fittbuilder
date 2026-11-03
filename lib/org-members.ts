@@ -104,6 +104,32 @@ export async function createOrgInvite(
   };
 }
 
+/**
+ * An invite link not bound to an address: the first signed-in account to open
+ * it joins with `role`, and the link is spent. For an approver whose email the
+ * admin does not know. A week, not the table's two: anyone holding it can use it.
+ */
+export async function createOrgLink(orgId: string, role: OrgInviteRole): Promise<OrgInvite> {
+  const supabase = createClient();
+  const expires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+  const { data, error } = await supabase
+    .from("fittbuilder_org_invites")
+    .insert({ org_id: orgId, email: null, role, token: token(), expires_at: expires })
+    .select("*")
+    .single();
+  if (error) throw error;
+  return {
+    id: data.id,
+    orgId: data.org_id,
+    email: null,
+    role: data.role as OrgInviteRole,
+    token: data.token,
+    status: data.status as OrgInvite["status"],
+    expiresAt: data.expires_at,
+    createdAt: data.created_at,
+  };
+}
+
 export async function revokeOrgInvite(inviteId: string): Promise<void> {
   const supabase = createClient();
   const { error } = await supabase

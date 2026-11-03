@@ -1,9 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { BadgeCheck, Clock, Loader2, Send, Undo2 } from "lucide-react";
 import { currentUser } from "@/lib/current-user";
-import { approvalState, canExport, docHash, type ApprovalDocKind, type ApprovalState } from "@/lib/doc-approval";
+import { approvalState, canExport, type ApprovalDocKind, type ApprovalState } from "@/lib/doc-approval";
 import {
   approveNow,
   listApprovals,
@@ -29,7 +29,6 @@ export function useDocApproval(
   doc: object | null,
   inWorkspace: boolean
 ) {
-  const [state, setState] = useState<ApprovalState>({ kind: "none" });
   const [approvers, setApprovers] = useState<Approver[]>([]);
   const [meId, setMeId] = useState<string | null>(null);
   const [rows, setRows] = useState<Awaited<ReturnType<typeof listApprovals>> | null>(null);
@@ -50,17 +49,11 @@ export function useDocApproval(
     reload().catch((e) => console.error("[approval] load failed:", e));
   }, [reload]);
 
-  // The live document's hash decides "approved" against "edited since".
-  useEffect(() => {
-    if (!doc || rows === null) return;
-    let cancelled = false;
-    void docHash(doc).then((hash) => {
-      if (!cancelled) setState(approvalState(rows, hash));
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [doc, rows]);
+  // The live document against the snapshot approved decides "approved" or "edited since".
+  const state: ApprovalState = useMemo(
+    () => (doc && rows ? approvalState(rows, doc) : { kind: "none" }),
+    [doc, rows]
+  );
 
   return {
     state,

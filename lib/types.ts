@@ -291,7 +291,8 @@ export interface OrgMember {
 export interface OrgInvite {
   id: string;
   orgId: string;
-  email: string;
+  /** Null for a link anyone signed in can take, once. */
+  email: string | null;
   role: OrgInviteRole;
   token: string;
   status: "pending" | "accepted" | "revoked";

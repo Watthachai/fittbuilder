@@ -28,6 +28,7 @@ import type { VersionKey } from "@/lib/versions";
 import type { ProjectFiles } from "@/lib/types";
 import { toast } from "@/lib/toast";
 import { printSheet } from "@/lib/print-sheet";
+import { ApprovalBar, useDocApproval } from "./ApprovalBar";
 import ProposalModules from "./ProposalModules";
 import ProposalPrint from "./ProposalPrint";
 import QuoteBrandBar from "./QuoteBrandBar";
@@ -82,6 +83,8 @@ export default function Proposal({
     reload: () => loadProposal(projectId, version, today),
     saveError: "บันทึกข้อเสนอไม่สำเร็จ",
   });
+  // A workspace's proposal is approved before it is printed (migration 0063).
+  const approval = useDocApproval(projectId, "proposal", version, doc, orgId !== null);
   const rootRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -270,7 +273,7 @@ export default function Proposal({
   };
 
   const print = async () => {
-    if (exporting || !doc) return;
+    if (exporting || !doc || !approval.exportAllowed) return;
     setExporting("pdf");
     try {
       const { docNo, shots: printable } = await prepareExport(doc);
@@ -286,7 +289,7 @@ export default function Proposal({
 
   /** The same paper as a .docx the sender can keep editing in Word (case #27). */
   const saveWord = async () => {
-    if (exporting || !doc) return;
+    if (exporting || !doc || !approval.exportAllowed) return;
     setExporting("word");
     try {
       const { docNo, shots: fresh } = await prepareExport(doc);
@@ -746,9 +749,12 @@ export default function Proposal({
           />
         </div>
 
+        {orgId !== null && (
+          <ApprovalBar projectId={projectId} kind="proposal" version={version} doc={doc} readOnly={readOnly} approval={approval} />
+        )}
         <button
           onClick={() => void print()}
-          disabled={exporting !== null}
+          disabled={exporting !== null || !approval.exportAllowed}
           className="flex w-full items-center justify-center gap-1.5 rounded-lg bg-shine px-3 py-2 font-display text-[14px] font-semibold text-night transition hover:brightness-110 disabled:opacity-60"
         >
           {exporting === "pdf" ? (
@@ -765,7 +771,11 @@ export default function Proposal({
           ในหน้าต่างพิมพ์ เลือกปลายทางเป็น “Save as PDF” — ส่งคู่กับใบเสนอราคาเป็นชุดเดียว
         </p>
         <div className="-mt-3">
-          <WordButton busy={exporting === "word"} disabled={exporting !== null} onClick={() => void saveWord()} />
+          <WordButton
+            busy={exporting === "word"}
+            disabled={exporting !== null || !approval.exportAllowed}
+            onClick={() => void saveWord()}
+          />
         </div>
       </div>
 

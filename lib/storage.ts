@@ -239,7 +239,11 @@ export async function getAccess(id: string): Promise<{ access: "owner" | "member
   if (p.owner_id === me) return { access: "owner" };
   const { data: m, error: mErr } = await supabase.from("fittbuilder_project_members").select("role").eq("project_id", id).eq("user_id", me).maybeSingle();
   if (mErr) { console.error("[storage] getAccess member:", mErr); return null; }
-  return { access: "member", role: m?.role as ShareRole | undefined };
+  if (m) return { access: "member", role: m.role as ShareRole };
+  // In it through the workspace: an approver reads every project and edits none (migration 0063).
+  const { data: canEdit, error: eErr } = await supabase.rpc("fittbuilder_can_edit_project", { pid: id, uid: me });
+  if (eErr) { console.error("[storage] getAccess edit:", eErr); return null; }
+  return { access: "member", role: canEdit ? undefined : "viewer" };
 }
 
 /* ---------- multi-party phase approval ---------- */

@@ -70,8 +70,9 @@ One new table, `fittbuilder_doc_approvals`:
 | `status` | `'pending'`, `'approved'`, `'returned'` or `'withdrawn'` |
 | `decided_by`, `decided_at`, `comment` | the decision, and the reason for a return |
 
-- **Approved means one thing:** the latest `approved` row for (project, kind,
-  version) has the same `doc_hash` as the live document. The hash is taken
+- **Approved means one thing:** the newest request for (project, kind,
+  version) that is not withdrawn was approved, and its `doc_hash` equals the
+  live document's. The hash is taken
   over the parsed document (`parseDoc` for a quotation, `parseProposal` for a
   proposal; keys sorted), by one shared function. Any edit changes the hash, and the document is not approved
   again until someone approves the new content.

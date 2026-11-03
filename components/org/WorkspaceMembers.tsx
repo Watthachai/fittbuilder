@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Crown, LogOut, Mail, Shield, Trash2, User, Users } from "lucide-react";
+import { BadgeCheck, Copy, Crown, LogOut, Mail, Shield, Trash2, User, Users } from "lucide-react";
 import { currentUser } from "@/lib/current-user";
 import {
   createOrgInvite,
@@ -20,6 +20,7 @@ const ROLE_LABEL: Record<string, string> = {
   owner: "เจ้าของ",
   admin: "ผู้ดูแล",
   member: "สมาชิก",
+  approver: "ผู้อนุมัติ",
 };
 
 /**
@@ -137,6 +138,16 @@ export default function WorkspaceMembers({ orgId }: { orgId: string }) {
     }
   }
 
+  /** The invite's own link, to send by chat when the email does not arrive. */
+  async function handleCopyLink(inv: OrgInvite) {
+    try {
+      await navigator.clipboard.writeText(`${window.location.origin}/join/${inv.token}`);
+      toast.success("คัดลอกลิงก์คำเชิญแล้ว", { description: `ใช้ได้กับ ${inv.email} เท่านั้น` });
+    } catch {
+      toast.error("คัดลอกไม่สำเร็จ");
+    }
+  }
+
   async function handleRevoke(inviteId: string) {
     setBusy(true);
     try {
@@ -161,7 +172,7 @@ export default function WorkspaceMembers({ orgId }: { orgId: string }) {
         )}
       </div>
       <p className="mt-1 text-[13px] text-chalk-dim">
-        ทุกคนใน workspace เห็นและทำงานกับทุกโปรเจกต์ในนี้ได้ · ผู้ดูแลจัดการสมาชิกได้
+        ทุกคนใน workspace เห็นและทำงานกับทุกโปรเจกต์ในนี้ได้ · ผู้ดูแลจัดการสมาชิกได้ · ผู้อนุมัติเปิดดูได้อย่างเดียว และอนุมัติใบเสนอราคากับข้อเสนอโครงการ
       </p>
 
       {/* Invite by email (admins/owner only) */}
@@ -185,6 +196,7 @@ export default function WorkspaceMembers({ orgId }: { orgId: string }) {
           >
             <option value="member">สมาชิก</option>
             <option value="admin">ผู้ดูแล</option>
+            <option value="approver">ผู้อนุมัติ</option>
           </select>
           <button
             onClick={() => void handleInvite()}
@@ -204,7 +216,7 @@ export default function WorkspaceMembers({ orgId }: { orgId: string }) {
           members.map((m) => {
             const isOwner = m.role === "owner";
             const isSelf = m.userId === meId;
-            const RoleIcon = isOwner ? Crown : m.role === "admin" ? Shield : User;
+            const RoleIcon = isOwner ? Crown : m.role === "admin" ? Shield : m.role === "approver" ? BadgeCheck : User;
             return (
               <div
                 key={m.userId}
@@ -235,6 +247,7 @@ export default function WorkspaceMembers({ orgId }: { orgId: string }) {
                     >
                       <option value="member">สมาชิก</option>
                       <option value="admin">ผู้ดูแล</option>
+                      <option value="approver">ผู้อนุมัติ</option>
                     </select>
                     <button
                       onClick={() => void handleRemove(m)}
@@ -276,6 +289,15 @@ export default function WorkspaceMembers({ orgId }: { orgId: string }) {
               {ROLE_LABEL[inv.role] ?? inv.role}
             </span>
             <span className="shrink-0 text-[10px] text-chalk-dim">รอตอบรับ</span>
+            {canManage && (
+              <button
+                onClick={() => void handleCopyLink(inv)}
+                className="inline-flex shrink-0 items-center gap-1 rounded-sm border border-night-edge px-1.5 py-0.5 text-[10px] text-chalk-dim transition hover:border-shine hover:text-chalk"
+                title="คัดลอกลิงก์คำเชิญ ส่งทางแชตได้"
+              >
+                <Copy size={11} /> ลิงก์
+              </button>
+            )}
             {canManage && (
               <button
                 onClick={() => void handleRevoke(inv.id)}

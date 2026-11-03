@@ -89,10 +89,14 @@ export default async function JoinPage({
   // workspaces use admin/member.
   const elevated = role === "editor" || role === "admin";
   const roleLabel = isOrg
-    ? role === "admin" ? "ผู้ดูแล" : "สมาชิก"
+    ? role === "admin" ? "ผู้ดูแล" : role === "approver" ? "ผู้อนุมัติ" : "สมาชิก"
     : elevated ? "ผู้แก้ไข" : "ผู้ชม";
   const roleHint = isOrg
-    ? role === "admin" ? "จัดการสมาชิกและทุกโปรเจกต์ได้" : "ทำงานกับทุกโปรเจกต์ใน workspace ได้"
+    ? role === "admin"
+      ? "จัดการสมาชิกและทุกโปรเจกต์ได้"
+      : role === "approver"
+        ? "ตรวจและอนุมัติใบเสนอราคากับข้อเสนอโครงการ เปิดดูทุกโปรเจกต์ได้อย่างเดียว"
+        : "ทำงานกับทุกโปรเจกต์ใน workspace ได้"
     : elevated ? "แก้ไขและสร้างร่วมกันได้" : "เปิดดูได้อย่างเดียว";
   const RoleIcon = isOrg ? Users : elevated ? Pencil : Eye;
   const eyebrow = isOrg ? "คำเชิญเข้าร่วม workspace" : "คำเชิญเข้าร่วมโปรเจกต์";

@@ -5,7 +5,7 @@ import CaseBell from "@/components/cases/CaseBell";
 import { useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { ArrowLeft, BarChart3, Handshake, LifeBuoy, Loader2, Plus, ShieldCheck } from "lucide-react";
+import { ArrowLeft, BadgeCheck, BarChart3, Handshake, LifeBuoy, Loader2, Plus, ShieldCheck } from "lucide-react";
 import { currentUser } from "@/lib/current-user";
 import { listOrgs } from "@/lib/orgs";
 import { openCreateWorkspace } from "@/lib/workspace-modal";
@@ -137,6 +137,21 @@ export default function SettingsShell({ children }: { children: ReactNode }) {
               <Plus size={15} className="shrink-0" /> สร้าง workspace ใหม่
             </button>
           </div>
+
+          {orgs !== null && orgs.length > 0 && (
+            <>
+              <p className="mt-5 px-3 pb-1.5 font-display text-[11px] font-semibold uppercase tracking-wide text-chalk-dim/60">
+                เอกสาร
+              </p>
+              <NavLink
+                href="/approvals"
+                active={pathname === "/approvals"}
+                icon={<BadgeCheck size={15} className="shrink-0" />}
+              >
+                อนุมัติเอกสาร
+              </NavLink>
+            </>
+          )}
 
           <p className="mt-5 px-3 pb-1.5 font-display text-[11px] font-semibold uppercase tracking-wide text-chalk-dim/60">
             ช่วยเหลือ

@@ -274,9 +274,10 @@ export interface ProjectInvite {
 }
 
 /** Workspace roles. 'owner' is implicit (fittbuilder_orgs.owner_id) and can't be
- *  invited; invites only ever grant 'admin' or 'member'. */
-export type OrgRole = "owner" | "admin" | "member";
-export type OrgInviteRole = "admin" | "member";
+ *  invited. An approver reads every project and approves its quotations and
+ *  proposals, and edits nothing (migration 0063). */
+export type OrgRole = "owner" | "admin" | "member" | "approver";
+export type OrgInviteRole = "admin" | "member" | "approver";
 
 export interface OrgMember {
   orgId: string;

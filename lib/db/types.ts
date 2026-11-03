@@ -204,6 +204,27 @@ export interface Database {
         };
         Relationships: [];
       };
+      /** A quotation or proposal sent for approval, and the decision (migration 0063). Written only through its functions. */
+      fittbuilder_doc_approvals: {
+        Row: {
+          id: string;
+          project_id: string;
+          doc_kind: string;
+          version: string;
+          requested_by: string;
+          requested_at: string;
+          approver_id: string;
+          snapshot: Json;
+          doc_hash: string;
+          status: string;
+          decided_by: string | null;
+          decided_at: string | null;
+          comment: string | null;
+        };
+        Insert: never;
+        Update: never;
+        Relationships: [];
+      };
       /** A service credential (stored as its SHA-256) bound to one workspace (migration 0045). */
       fittbuilder_integration_bindings: {
         Row: {
@@ -1030,6 +1051,23 @@ export interface Database {
       fittbuilder_can_edit_project: { Args: { pid: string; uid: string }; Returns: boolean };
       /** Claim the next running document number for a workspace (migration 0041). */
       fittbuilder_next_doc_number: { Args: { oid: string }; Returns: number };
+      /** Who can approve a project's documents — owner, admins, approvers (migration 0063). */
+      fittbuilder_project_approvers: {
+        Args: { pid: string };
+        Returns: { user_id: string; email: string | null; name: string | null; role: string }[];
+      };
+      /** Send a document for approval, withdrawing the open request (migration 0063). */
+      fittbuilder_request_approval: {
+        Args: { pid: string; kind: string; ver: string; approver: string; snap: Json; hash: string };
+        Returns: string;
+      };
+      /** Approve or return a request; a return needs a note (migration 0063). */
+      fittbuilder_decide_approval: { Args: { aid: string; approve: boolean; note: string }; Returns: undefined };
+      /** The owner or an admin approving a document as it stands (migration 0063). */
+      fittbuilder_approve_now: {
+        Args: { pid: string; kind: string; ver: string; snap: Json; hash: string };
+        Returns: string;
+      };
       /** The workspace letterhead for a project's editors, or null without a workspace (migration 0044). */
       fittbuilder_project_letterhead: { Args: { pid: string }; Returns: Json };
       /** Claim the next document number for a project's workspace — gated on editing the project (0044). */

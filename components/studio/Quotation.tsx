@@ -38,6 +38,7 @@ import {
   type Size,
 } from "@/lib/quote";
 import { loadQuote, saveQuote } from "@/lib/quote-store";
+import { ApprovalBar, useDocApproval } from "./ApprovalBar";
 import { loadProposal } from "@/lib/proposal-store";
 import type { ProposalModule } from "@/lib/proposal-modules";
 import { rowsFromModules } from "@/lib/quote-modules";
@@ -125,6 +126,8 @@ export default function Quotation({
     reload: () => loadQuote(projectId, version, today),
     saveError: "บันทึกใบเสนอราคาไม่สำเร็จ",
   });
+  // A workspace's quotation is approved before it is printed (migration 0063).
+  const approval = useDocApproval(projectId, "quote", version, doc, orgId !== null);
   const rootRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -373,7 +376,7 @@ export default function Quotation({
    * what the preview shows.
    */
   const print = async () => {
-    if (exporting || !doc) return;
+    if (exporting || !doc || !approval.exportAllowed) return;
     setExporting("pdf");
     try {
       const { docNo, shots: printable, modules } = await prepareExport(doc);
@@ -389,7 +392,7 @@ export default function Quotation({
 
   /** The same paper as a .docx the sender can keep editing in Word (case #27). */
   const saveWord = async () => {
-    if (exporting || !doc) return;
+    if (exporting || !doc || !approval.exportAllowed) return;
     setExporting("word");
     try {
       const { docNo, shots: fresh, modules } = await prepareExport(doc);
@@ -1032,9 +1035,12 @@ export default function Quotation({
               disabled={readOnly}
             />
           </div>
+          {orgId !== null && (
+            <ApprovalBar projectId={projectId} kind="quote" version={version} doc={doc} readOnly={readOnly} approval={approval} />
+          )}
           <button
             onClick={() => void print()}
-            disabled={exporting !== null}
+            disabled={exporting !== null || !approval.exportAllowed}
             className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-lg bg-shine px-3 py-2 font-display text-[14px] font-semibold text-night transition hover:brightness-110 disabled:opacity-60"
           >
             {exporting === "pdf" ? (
@@ -1050,7 +1056,11 @@ export default function Quotation({
           <p className="mt-1.5 text-center text-[11.5px] leading-relaxed text-chalk-dim">
             ในหน้าต่างพิมพ์ เลือกปลายทางเป็น “Save as PDF”
           </p>
-          <WordButton busy={exporting === "word"} disabled={exporting !== null} onClick={() => void saveWord()} />
+          <WordButton
+            busy={exporting === "word"}
+            disabled={exporting !== null || !approval.exportAllowed}
+            onClick={() => void saveWord()}
+          />
         </div>
       </div>
 

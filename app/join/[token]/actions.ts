@@ -74,7 +74,7 @@ export async function joinProject(
   // ── 3. Per-email WORKSPACE invite token? ────────────────────────────────
   const { data: orgInvite } = await admin
     .from("fittbuilder_org_invites")
-    .select("org_id, email, status, expires_at")
+    .select("org_id, email, role, status, expires_at")
     .eq("token", token)
     .maybeSingle();
   if (!orgInvite) return "ลิงก์คำเชิญไม่ถูกต้องหรือหมดอายุ";
@@ -88,5 +88,6 @@ export async function joinProject(
     mail: user.email!,
   });
   if (error) return "เข้าร่วมไม่สำเร็จ ลองอีกครั้ง";
-  redirect(`/org/${orgInvite.org_id}`);
+  // An approver's work is the approval page, not the workspace's settings.
+  redirect(orgInvite.role === "approver" ? "/approvals" : `/org/${orgInvite.org_id}`);
 }

@@ -10,6 +10,7 @@ import {
   type ProposalDoc,
 } from "@/lib/proposal";
 import type { Shot } from "@/lib/shots";
+import { DraftMark } from "./DocPreview";
 import { Row, wordSafe } from "./QuotationPrint";
 
 /**
@@ -29,7 +30,10 @@ export default function ProposalPrint({
   doc,
   quote,
   shots,
+  draft,
 }: {
+  /** Not yet approved: the paper carries the "ตัวอย่าง" mark, on screen and on every printed page. */
+  draft: boolean;
   doc: ProposalDoc;
   /** The priced scope this proposal points at — null when none exists yet. */
   quote: QuoteDoc | null;
@@ -45,6 +49,7 @@ export default function ProposalPrint({
 
   return (
     <div id="fitt-print-root" className="fitt-paper" style={{ ["--accent" as string]: accent }}>
+      {draft && <DraftMark />}
       <table className="q-sheet">
         <thead>
           <tr>

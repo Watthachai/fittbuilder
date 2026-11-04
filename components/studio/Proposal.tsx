@@ -71,11 +71,11 @@ export default function Proposal({
   void files;
   const [quote, setQuote] = useState<QuoteDoc | null>(null);
   const [loading, setLoading] = useState(true);
-  const [sheet, setSheet] = useState<Shot[] | null>(null);
+  const [sheet, setSheet] = useState<{ shots: Shot[]; draft: boolean } | null>(null);
   const [preview, setPreview] = useState<Shot[] | null>(null);
   const [previewing, setPreviewing] = useState(false);
   // Which export is running; one value for both buttons — see Quotation.
-  const [exporting, setExporting] = useState<"pdf" | "word" | null>(null);
+  const [exporting, setExporting] = useState<"pdf" | "word" | "draft" | null>(null);
   const [writing, setWriting] = useState(false);
   const today = useMemo(() => new Date().toISOString().slice(0, 10), []);
   // Everyone with this proposal open edits one document — see useSharedDoc.
@@ -296,9 +296,35 @@ export default function Proposal({
     try {
       const { docNo, shots: printable } = await prepareExport(doc);
       await printSheet(
-        () => setSheet(printable),
+        () => setSheet({ shots: printable, draft: false }),
         () => setSheet(null),
         { fileName: docFileName(docNo, doc.customerName) }
+      );
+    } finally {
+      setExporting(null);
+    }
+  };
+
+  /**
+   * The draft through the print dialog, to read its real A4 pages (case #46):
+   * every page marked "ตัวอย่าง", and no number issued. The preview closes
+   * while it prints — its paper is a second #fitt-print-root.
+   */
+  const printDraft = async () => {
+    if (exporting || !doc || !preview) return;
+    const shots = preview;
+    setExporting("draft");
+    try {
+      await printSheet(
+        () => {
+          setPreview(null);
+          setSheet({ shots, draft: true });
+        },
+        () => {
+          setSheet(null);
+          setPreview(shots);
+        },
+        { fileName: `ตัวอย่าง-${docFileName(doc.proposalNo, doc.customerName)}` }
       );
     } finally {
       setExporting(null);
@@ -800,10 +826,16 @@ export default function Proposal({
 
       {sheet &&
         typeof document !== "undefined" &&
-        createPortal(<ProposalPrint doc={doc} quote={quote} shots={sheet} />, document.body)}
+        createPortal(<ProposalPrint doc={doc} quote={quote} shots={sheet.shots} draft={sheet.draft} />, document.body)}
       {preview && (
-        <DocPreview title="ข้อเสนอโครงการ" approved={approval.exportAllowed} onClose={() => setPreview(null)}>
-          <ProposalPrint doc={doc} quote={quote} shots={preview} />
+        <DocPreview
+          title="ข้อเสนอโครงการ"
+          approved={approval.exportAllowed}
+          onClose={() => setPreview(null)}
+          onPages={() => void printDraft()}
+          pagesBusy={exporting === "draft"}
+        >
+          <ProposalPrint doc={doc} quote={quote} shots={preview} draft={!approval.exportAllowed} />
         </DocPreview>
       )}
     </div>

@@ -292,8 +292,10 @@ function Review({
 
       {/* The paper exactly as it will print: light, whatever the studio's theme. */}
       <div className="mt-4 overflow-x-auto rounded-xl border border-night-edge">
-        {quoteDoc && <QuotationPrint doc={quoteDoc} shots={quoteDoc.showShots ? shots : []} modules={modules} />}
-        {proposalDoc && <ProposalPrint doc={proposalDoc} quote={quote} shots={shots} />}
+        {quoteDoc && (
+          <QuotationPrint doc={quoteDoc} shots={quoteDoc.showShots ? shots : []} modules={modules} draft={false} />
+        )}
+        {proposalDoc && <ProposalPrint doc={proposalDoc} quote={quote} shots={shots} draft={false} />}
         {!quoteDoc && !proposalDoc && <p className="p-6 text-sm text-chalk-dim">อ่านเอกสารนี้ไม่ได้</p>}
       </div>
     </div>

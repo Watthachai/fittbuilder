@@ -100,7 +100,7 @@ export default function Quotation({
    * rather than a `printing` flag beside them, so they cannot disagree about
    * what is on the paper.
    */
-  const [sheet, setSheet] = useState<{ shots: Shot[]; modules: ProposalModule[] } | null>(null);
+  const [sheet, setSheet] = useState<{ shots: Shot[]; modules: ProposalModule[]; draft: boolean } | null>(null);
   const [preview, setPreview] = useState<{ shots: Shot[]; modules: ProposalModule[] } | null>(null);
   const [previewing, setPreviewing] = useState(false);
   /**
@@ -109,7 +109,7 @@ export default function Quotation({
    * "what is on the paper", this one answers "is the button working". One value
    * for both buttons, so a PDF and a Word file are never issued at once.
    */
-  const [exporting, setExporting] = useState<"pdf" | "word" | null>(null);
+  const [exporting, setExporting] = useState<"pdf" | "word" | "draft" | null>(null);
   const [writing, setWriting] = useState(false);
   const [pricing, setPricing] = useState(false);
   // The advisor's proposal, held OUTSIDE the document until it is accepted:
@@ -400,9 +400,35 @@ export default function Quotation({
     try {
       const { docNo, shots: printable, modules } = await prepareExport(doc);
       await printSheet(
-        () => setSheet({ shots: printable, modules }),
+        () => setSheet({ shots: printable, modules, draft: false }),
         () => setSheet(null),
         { fileName: docFileName(docNo, doc.customerName) }
+      );
+    } finally {
+      setExporting(null);
+    }
+  };
+
+  /**
+   * The draft through the print dialog, to read its real A4 pages (case #46):
+   * every page marked "ตัวอย่าง", and no number issued. The preview closes
+   * while it prints — its paper is a second #fitt-print-root.
+   */
+  const printDraft = async () => {
+    if (exporting || !doc || !preview) return;
+    const materials = preview;
+    setExporting("draft");
+    try {
+      await printSheet(
+        () => {
+          setPreview(null);
+          setSheet({ ...materials, draft: true });
+        },
+        () => {
+          setSheet(null);
+          setPreview(materials);
+        },
+        { fileName: `ตัวอย่าง-${docFileName(doc.quoteNo, doc.customerName)}` }
       );
     } finally {
       setExporting(null);
@@ -1089,10 +1115,24 @@ export default function Quotation({
 
       {sheet &&
         typeof document !== "undefined" &&
-        createPortal(<QuotationPrint doc={doc} shots={sheet.shots} modules={sheet.modules} />, document.body)}
+        createPortal(
+          <QuotationPrint doc={doc} shots={sheet.shots} modules={sheet.modules} draft={sheet.draft} />,
+          document.body
+        )}
       {preview && (
-        <DocPreview title="ใบเสนอราคา" approved={approval.exportAllowed} onClose={() => setPreview(null)}>
-          <QuotationPrint doc={doc} shots={preview.shots} modules={preview.modules} />
+        <DocPreview
+          title="ใบเสนอราคา"
+          approved={approval.exportAllowed}
+          onClose={() => setPreview(null)}
+          onPages={() => void printDraft()}
+          pagesBusy={exporting === "draft"}
+        >
+          <QuotationPrint
+            doc={doc}
+            shots={preview.shots}
+            modules={preview.modules}
+            draft={!approval.exportAllowed}
+          />
         </DocPreview>
       )}
     </div>

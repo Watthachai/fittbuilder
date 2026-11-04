@@ -23,7 +23,7 @@ function paper(showShots: boolean): string {
     showShots,
     screenDocs: { รายการสินค้า: { does: "ดูสต๊อกทุกสาขา", how: "", result: "" } },
   };
-  return renderToStaticMarkup(createElement(ProposalPrint, { doc, quote: null, shots }));
+  return renderToStaticMarkup(createElement(ProposalPrint, { doc, quote: null, shots, draft: false }));
 }
 
 describe("the proposal's walk without its pictures", () => {
@@ -56,7 +56,7 @@ describe("the proposal's reference to the quotation", () => {
   const quote = { ...newDoc([], "Mabuchi", "2026-10-13"), quoteNo: "SQP-0001" };
   const paper = (showQuoteRef: boolean) =>
     renderToStaticMarkup(
-      createElement(ProposalPrint, { doc: { ...newProposal("Mabuchi", "2026-10-13"), showQuoteRef }, quote, shots: [] })
+      createElement(ProposalPrint, { doc: { ...newProposal("Mabuchi", "2026-10-13"), showQuoteRef }, quote, shots: [], draft: false })
     );
 
   it("is left off when the switch is off — header and price section both", () => {
@@ -89,7 +89,7 @@ describe("the schedule when the quotation counts no man-days", () => {
     const quote = newDoc([], "Mabuchi", "2026-10-13");
     quote.rows = [{ ...emptyRow(), name: "ค่าพัฒนาระบบ", pricing: "unit", qty: 1, unitPrice: 450_000 }];
     const html = renderToStaticMarkup(
-      createElement(ProposalPrint, { doc: newProposal("Mabuchi", "2026-10-13"), quote, shots: [] })
+      createElement(ProposalPrint, { doc: newProposal("Mabuchi", "2026-10-13"), quote, shots: [], draft: false })
     );
     expect(html).not.toContain("วันทำการ");
     expect(html).toContain("ตรวจรับหลังส่งมอบ");
@@ -116,7 +116,7 @@ describe("the short proposal on paper", () => {
   };
 
   it("states the scope by module and leaves the walk and its pictures out", () => {
-    const html = renderToStaticMarkup(createElement(ProposalPrint, { doc, quote: null, shots }));
+    const html = renderToStaticMarkup(createElement(ProposalPrint, { doc, quote: null, shots, draft: false }));
     expect(html).toContain("ขอบเขตงาน");
     expect(html).toContain("ระบบขายหน้าร้าน");
     expect(html).toContain("ตะกร้าสินค้า");
@@ -127,7 +127,7 @@ describe("the short proposal on paper", () => {
 
   it("prints no price even beside a priced quotation", () => {
     const quote = { ...newDoc([], "Pace", "2026-10-19"), rows: [{ ...emptyRow(), name: "ตะกร้า", days: 5 }] };
-    const html = renderToStaticMarkup(createElement(ProposalPrint, { doc, quote, shots }));
+    const html = renderToStaticMarkup(createElement(ProposalPrint, { doc, quote, shots, draft: false }));
     expect(html).not.toContain("40,000");
     expect(html).not.toContain("฿");
   });

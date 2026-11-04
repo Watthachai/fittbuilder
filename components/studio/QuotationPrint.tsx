@@ -25,6 +25,7 @@ import { acceptanceClauses } from "@/lib/quote-clauses";
 import { quoteSheet } from "@/lib/quote-sheet";
 import type { ProposalModule } from "@/lib/proposal-modules";
 import type { Shot } from "@/lib/shots";
+import { DraftMark } from "./DocPreview";
 import { CoverDetail, CoverSummary } from "./QuotationSheet";
 
 /**
@@ -51,7 +52,10 @@ export default function QuotationPrint({
   doc,
   shots,
   modules,
+  draft,
 }: {
+  /** Not yet approved: the paper carries the "ตัวอย่าง" mark, on screen and on every printed page. */
+  draft: boolean;
   doc: QuoteDoc;
   shots: Shot[];
   /** The proposal's modules — the sections of the "cover" layout's detail. */
@@ -74,6 +78,7 @@ export default function QuotationPrint({
 
   return (
     <div id="fitt-print-root" className="fitt-paper" style={{ ["--accent" as string]: accent }}>
+      {draft && <DraftMark />}
       <table className="q-sheet">
         {/* Page furniture — repeats on every printed page. */}
         <thead>

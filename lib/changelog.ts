@@ -33,6 +33,17 @@ export const CHANGE_BADGE: Record<ChangeType, { label: string; className: string
 // Newest first. SemVer: fix → PATCH, feature → MINOR, breaking → MAJOR.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.124.0",
+    date: "2026-11-04",
+    title: "ดูตัวอย่างเอกสารแบบแบ่งหน้า A4",
+    items: [
+      {
+        type: "feature",
+        text: "ในหน้า “ดูตัวอย่างเอกสาร” ของใบเสนอราคาและข้อเสนอโครงการที่ยังไม่อนุมัติ มีปุ่ม “ดูแบบแบ่งหน้า A4” เปิดหน้าต่างพิมพ์ของเบราว์เซอร์ให้เห็นการแบ่งหน้าจริง ตรวจได้ว่าข้อความตกขอบหรือล้นหน้าไหม ทุกหน้ามีลายน้ำ “ตัวอย่าง · ยังไม่อนุมัติ” และไม่ออกเลขที่เอกสาร",
+      },
+    ],
+  },
+  {
     version: "0.123.2",
     date: "2026-11-04",
     title: "โปรเจกต์ใหญ่สั่งงาน AI ต่อได้",

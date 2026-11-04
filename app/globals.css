@@ -763,6 +763,21 @@ body {
   line-height: 1.55;
   padding: 14mm 14mm 12mm;
 }
+/* A draft's "ตัวอย่าง" mark (DraftMark). On screen it covers the sheet; the
+   preview's frame is its positioned box. Printed, position: fixed puts it on
+   every page, and print-color-adjust keeps it when the print dialog's
+   "background graphics" is off — the default, which drops background images
+   (case #46). */
+.fitt-paper .fitt-draft-mark {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  user-select: none;
+  background-repeat: repeat;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
 /* The document is one table so <thead> and <tfoot> repeat on every printed
    page — a quotation whose page two has no letterhead is an anonymous sheet
    of numbers. See the comment in QuotationPrint.tsx. */
@@ -1545,6 +1560,9 @@ body {
      space below itself. */
   .fitt-paper {
     padding-bottom: 0;
+  }
+  .fitt-paper .fitt-draft-mark {
+    position: fixed;
   }
   /* The letterhead and the mark ride along on every page — this pair of rules
      is the whole reason the document is wrapped in a table. */

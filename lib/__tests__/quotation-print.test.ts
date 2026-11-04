@@ -17,7 +17,7 @@ const shots: Shot[] = [
 
 function paper(showShots: boolean): string {
   const doc = { ...newDoc(shots, "Pace", "2026-10-12"), showShots };
-  return renderToStaticMarkup(createElement(QuotationPrint, { doc, shots, modules: [] }));
+  return renderToStaticMarkup(createElement(QuotationPrint, { doc, shots, modules: [], draft: false }));
 }
 
 describe("the quotation's screenshot appendix", () => {
@@ -52,7 +52,7 @@ describe("a row priced by the unit on the paper", () => {
     doc.rows = [
       { ...emptyRow(), name: "ค่าบริการรายปี", pricing: "unit", qty: 12, unit: "เดือน", unitPrice: 12_500 },
     ];
-    const html = renderToStaticMarkup(createElement(QuotationPrint, { doc, shots: [], modules: [] }));
+    const html = renderToStaticMarkup(createElement(QuotationPrint, { doc, shots: [], modules: [], draft: false }));
     expect(html).toContain("12 เดือน × 12,500");
     expect(html).toContain("150,000");
     expect(html).not.toContain(" วัน × ");
@@ -72,7 +72,7 @@ describe("what each line's price is made of, on the paper", () => {
   ];
   const paper = (showBasis: boolean) => {
     const doc = { ...newDoc([], "Mabuchi", "2026-10-13"), ratePerDay: 100_000, rows, showBasis };
-    return renderToStaticMarkup(createElement(QuotationPrint, { doc, shots: [], modules: [] }));
+    return renderToStaticMarkup(createElement(QuotationPrint, { doc, shots: [], modules: [], draft: false }));
   };
 
   it("is left off when the switch is off, and each line keeps its total", () => {
@@ -102,7 +102,7 @@ describe("the printed MA table", () => {
     const base = newDoc([], "Pace", "2026-10-12");
     const render = (billingCycle: "monthly" | "yearly" | null) =>
       renderToStaticMarkup(
-        createElement(QuotationPrint, { doc: { ...base, ma: { ...base.ma, enabled: true, billingCycle } }, shots: [], modules: [] })
+        createElement(QuotationPrint, { doc: { ...base, ma: { ...base.ma, enabled: true, billingCycle } }, shots: [], modules: [], draft: false })
       );
     expect(render("yearly")).toContain("รอบการชำระ");
     expect(render("yearly")).toContain("รายปี");
@@ -121,7 +121,7 @@ describe("a row priced at 0 on the paper", () => {
       { ...emptyRow(), name: "Module: Product Library", pricing: "unit", qty: 1, unitPrice: 240_000 },
       { ...emptyRow(), name: "Module: Sale", note: "ระบบ Dashboard สำหรับฝ่ายขาย", pricing: "unit", qty: 1, unitPrice: 0 },
     ];
-    const html = renderToStaticMarkup(createElement(QuotationPrint, { doc, shots: [], modules: [] }));
+    const html = renderToStaticMarkup(createElement(QuotationPrint, { doc, shots: [], modules: [], draft: false }));
     expect(html).toContain("Module: Sale");
     expect(html).toContain("ระบบ Dashboard สำหรับฝ่ายขาย");
     expect(html).not.toContain(`<td class="q-r">0</td>`);
@@ -132,7 +132,7 @@ describe("a row priced at 0 on the paper", () => {
 
 describe("the payment share on the paper (case #36)", () => {
   const render = (showPercent: boolean) =>
-    renderToStaticMarkup(createElement(QuotationPrint, { doc: { ...newDoc(shots, "Pace", "2026-10-16"), showPercent }, shots, modules: [] }));
+    renderToStaticMarkup(createElement(QuotationPrint, { doc: { ...newDoc(shots, "Pace", "2026-10-16"), showPercent }, shots, modules: [], draft: false }));
 
   it("prints the share column and its 100% while it is switched on", () => {
     const html = render(true);
@@ -163,7 +163,7 @@ describe("the cover layout on the paper", () => {
   ];
 
   it("totals each module on the cover and lists every line in the detail", () => {
-    const html = renderToStaticMarkup(createElement(QuotationPrint, { doc: { ...base(), layout: "cover" }, shots: [], modules }));
+    const html = renderToStaticMarkup(createElement(QuotationPrint, { doc: { ...base(), layout: "cover" }, shots: [], modules, draft: false }));
     expect(html).toContain("รวมทุกรายการ");
     expect(html).toContain("ราคาสุทธิ / Grand Total");
     expect(html).toContain("q-detail");
@@ -175,7 +175,7 @@ describe("the cover layout on the paper", () => {
   });
 
   it("prints the list layout unchanged", () => {
-    const html = renderToStaticMarkup(createElement(QuotationPrint, { doc: base(), shots: [], modules }));
+    const html = renderToStaticMarkup(createElement(QuotationPrint, { doc: base(), shots: [], modules, draft: false }));
     expect(html).not.toContain("q-detail");
     expect(html).toContain("ราคาสุทธิ / Net");
   });

@@ -33,6 +33,17 @@ export const CHANGE_BADGE: Record<ChangeType, { label: string; className: string
 // Newest first. SemVer: fix → PATCH, feature → MINOR, breaking → MAJOR.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.123.2",
+    date: "2026-11-04",
+    title: "โปรเจกต์ใหญ่สั่งงาน AI ต่อได้",
+    items: [
+      {
+        type: "fix",
+        text: "โปรเจกต์ที่ไฟล์รวมกันเกิน 10MB สั่งงานแล้ว AI ไม่ทำ ทุกข้อในรายการงานขึ้น “คำขอไม่ถูกต้อง” ทันที กด “ทำข้อที่ค้างต่อ” ก็ได้ข้อความเดิม เพราะระบบตัดคำขอที่ใหญ่เกิน 10MB ทิ้งครึ่งหนึ่งโดยไม่แจ้ง ตอนนี้รับได้ถึง 32MB กด “ทำข้อที่ค้างต่อ” เพื่อทำข้อที่ค้างได้เลย",
+      },
+    ],
+  },
+  {
     version: "0.123.1",
     date: "2026-11-03",
     title: "รายการ workspace แยกของฉันกับของคนในบริษัท",

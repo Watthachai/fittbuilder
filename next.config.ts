@@ -15,6 +15,14 @@ const nextConfig: NextConfig = {
   // Pin the workspace root (a stray lockfile in the home directory makes
   // Next.js guess wrong otherwise).
   turbopack: { root: __dirname },
+  experimental: {
+    // proxy.ts runs on every route, so Next buffers each request body for it
+    // and, past this size, keeps only the start — without an error. A build
+    // turn sends the project's files: past the 10MB default every turn arrived
+    // as cut-off JSON and was refused as "คำขอไม่ถูกต้อง" (case #45). 32MB is
+    // what Cloud Run accepts at all; above it Cloud Run answers 413 itself.
+    proxyClientMaxBodySize: "32mb",
+  },
   // WebContainers require cross-origin isolation.
   // `credentialless` (instead of `require-corp`) lets the Monaco CDN and
   // other third-party assets load without per-resource CORP headers.

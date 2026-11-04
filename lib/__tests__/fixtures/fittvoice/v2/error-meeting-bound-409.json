@@ -1,0 +1,8 @@
+{
+  "code": "MEETING_BOUND_TO_OTHER_PROJECT",
+  "latestSnapshotRevision": null,
+  "message": "This meeting already belongs to another project.",
+  "requestId": "req-example-0001",
+  "retryable": false,
+  "schemaVersion": "fittbuilder.error.v2"
+}

@@ -212,12 +212,17 @@ describe("summary-only deliveries", () => {
     expect(codeOf(scheck(sbase(), "del_other"))).toBe("INVALID_PAYLOAD");
   });
 
-  it("rejects a schemaVersion it does not support, naming the ones it does", () => {
-    const d = { ...sbase(), schemaVersion: "fittbuilder.summary-delivery.v2" } as unknown as SummaryDelivery;
+  it("rejects a schemaVersion it does not support, naming the ones it does, in error v2", () => {
+    const d = { ...sbase(), schemaVersion: "fittbuilder.summary-delivery.v9" } as unknown as SummaryDelivery;
     expect(scheck(d)).toMatchObject({
-      code: "INVALID_PAYLOAD",
+      code: "UNSUPPORTED_SCHEMA_VERSION",
+      envelope: "v2",
       message: expect.stringContaining("fittbuilder.summary-delivery.v1"),
     });
+  });
+
+  it("answers a v1 payload's problems in error v1", () => {
+    expect(scheck(sbase(), "del_other")).toMatchObject({ code: "INVALID_PAYLOAD", envelope: "v1" });
   });
 
   it("shows the reviewed summary as the source document, without discovery or evidence sections", () => {

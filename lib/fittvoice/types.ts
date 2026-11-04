@@ -113,9 +113,48 @@ export interface SummaryDelivery {
   contentHash: string;
 }
 
-/** Either contract, told apart by schemaVersion. */
+/** Either v1 contract, told apart by schemaVersion. */
 export type VoiceDelivery = Delivery | SummaryDelivery;
 
+/**
+ * Contract fittbuilder.summary-delivery.v2 (schemas/summary-delivery-v2.schema.json,
+ * agreed as v2.1 on 4 Nov 2026): one meeting's reviewed summary, into a new
+ * project or one the sender picked. A project collects many meetings; a
+ * meeting's next revision replaces only that meeting. The schema leaves the
+ * target's two shapes open — checkDelivery holds them.
+ */
+export interface MeetingDelivery {
+  schemaVersion: "fittbuilder.summary-delivery.v2";
+  deliveryId: string;
+  meeting: {
+    meetingId: string;
+    revision: number;
+    title: string;
+    recordedAt: string;
+    profile: { profileId: string; profileVersion: number; templateId: string; label: string };
+    /** Only for a company profile's meetings; kept, not used yet. */
+    company: { fittcoreCompanyId: string; organizationId: string } | null;
+  };
+  target:
+    | { mode: "CREATE_PROJECT"; projectTitle: string; builderProjectId?: null }
+    | { mode: "ATTACH_TO_PROJECT"; builderProjectId: string; projectTitle?: null };
+  source: { summaryId: string; sourceTranscriptVersionId: string; configRevisionId?: string | null };
+  review: { approvalId: string; reviewedAt: string };
+  content: { summaryMarkdown: string };
+  sentAt: string;
+  contentHash: string;
+}
+
+/**
+ * One thing FITT Voice sent into a project, as fittbuilder_fittvoice_sources
+ * (migration 0067) lists them, oldest first: the v1 interview the project came
+ * from, or a v2 meeting at its newest revision with who sent that revision.
+ */
+export type VoiceSourceItem =
+  | { kind: "session"; payload: VoiceDelivery; receivedAt: string }
+  | { kind: "meeting"; id: string; payload: MeetingDelivery; receivedAt: string; sender: string | null };
+
+/** Codes of both error envelopes; which one a code may go out in is the contract's (schemas/error-v*.schema.json). */
 export type ErrorCode =
   | "INVALID_PAYLOAD"
   | "HASH_MISMATCH"
@@ -128,4 +167,11 @@ export type ErrorCode =
   | "SESSION_FINALIZED"
   | "PAYLOAD_TOO_LARGE"
   | "RATE_LIMITED"
-  | "TEMPORARILY_UNAVAILABLE";
+  | "TEMPORARILY_UNAVAILABLE"
+  // v2 only
+  | "PROJECT_WRITE_FORBIDDEN"
+  | "MEETING_BOUND_TO_OTHER_PROJECT"
+  | "UNSUPPORTED_SCHEMA_VERSION";
+
+/** error v1 for the v1 contracts and whatever fails before the payload's version is known; v2 after. */
+export type ErrorEnvelope = "v1" | "v2";

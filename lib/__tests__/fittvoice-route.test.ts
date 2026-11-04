@@ -134,6 +134,53 @@ describe("POST /v1/integrations/fittvoice/deliveries", () => {
     });
   });
 
+  describe("a v2 meeting delivery", () => {
+    const v2 = readFileSync(join(__dirname, "fixtures/fittvoice/v2/delivery-attach-to-project.json"), "utf8");
+    const postV2 = () => post({ raw: v2, key: JSON.parse(v2).deliveryId });
+    const person: Binding = { ...SERVICE, id: "binding_c", user_id: "user_1", client_id: "fittvoice-sandbox", last_used_at: new Date().toISOString() };
+
+    it("is sent as a person: a service credential is refused in error v2", async () => {
+      const res = await postV2();
+      expect(res.status).toBe(403);
+      expect(await res.json()).toMatchObject({ schemaVersion: "fittbuilder.error.v2", code: "FORBIDDEN", retryable: false });
+      expect(apply).not.toHaveBeenCalled();
+    });
+
+    it("goes to the v2 database function and returns its receipt with its status", async () => {
+      binding.data = person;
+      const receipt = { schemaVersion: "fittbuilder.receipt.v2", outcome: "CREATED" };
+      apply.mockResolvedValue({ data: { status: 201, body: receipt }, error: null });
+      const res = await postV2();
+      expect(res.status).toBe(201);
+      expect(await res.json()).toEqual(receipt);
+      expect(apply).toHaveBeenCalledWith("fittbuilder_fittvoice_apply_v2", expect.objectContaining({ p_binding: "binding_c" }));
+    });
+
+    it("wraps the database's refusal in error v2", async () => {
+      binding.data = person;
+      apply.mockResolvedValue({
+        data: { status: 409, body: { code: "MEETING_BOUND_TO_OTHER_PROJECT", message: "อยู่ในโปรเจกต์อื่นแล้ว", latestSnapshotRevision: null } },
+        error: null,
+      });
+      const res = await postV2();
+      expect(res.status).toBe(409);
+      expect(await res.json()).toMatchObject({ schemaVersion: "fittbuilder.error.v2", code: "MEETING_BOUND_TO_OTHER_PROJECT" });
+    });
+
+    it("answers what fails before the payload is read in error v1, as agreed", async () => {
+      binding.data = null;
+      const res = await postV2();
+      expect(res.status).toBe(401);
+      expect(await res.json()).toMatchObject({ schemaVersion: "fittbuilder.error.v1", code: "UNAUTHORIZED" });
+    });
+  });
+
+  it("answers an unknown schemaVersion with UNSUPPORTED_SCHEMA_VERSION in error v2", async () => {
+    const res = await post({ raw: JSON.stringify({ ...JSON.parse(body), schemaVersion: "fittbuilder.delivery.v9" }) });
+    expect(res.status).toBe(422);
+    expect(await res.json()).toMatchObject({ schemaVersion: "fittbuilder.error.v2", code: "UNSUPPORTED_SCHEMA_VERSION" });
+  });
+
   it("answers 503, retryable, when the credential cannot be looked up", async () => {
     binding.error = { message: "timeout" };
     const res = await post();

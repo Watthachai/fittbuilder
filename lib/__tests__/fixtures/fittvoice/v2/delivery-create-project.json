@@ -1,0 +1,35 @@
+{
+  "content": {
+    "summaryMarkdown": "## ภาพรวม\n\nลูกค้าเข้าใจขอบเขตโมดูลจัดซื้อและรอใบเสนอราคาฉบับแก้ไข\n\n## ประเด็นที่ยังค้าง\n\n- ยืนยันราคาค่าบำรุงรักษารายปี\n\n## งานถัดไป\n\n- ส่งใบเสนอราคาฉบับแก้ไข (คุณเอ · 7 พ.ย.)"
+  },
+  "contentHash": "d4bf154b8856dcaf22c1104a7111e9d954ef297469d0d8d38b0e405094add59e",
+  "deliveryId": "8f0c2b6e4a1d4f7e9b3c5a7d1e2f3a4b",
+  "meeting": {
+    "company": null,
+    "meetingId": "fittvoice:production:rec:6f1a",
+    "profile": {
+      "label": "ประชุมภายใน",
+      "profileId": "INTERNAL_MEETING",
+      "profileVersion": 1,
+      "templateId": "INTERNAL_MEETING"
+    },
+    "recordedAt": "2026-11-03T06:11:00Z",
+    "revision": 1,
+    "title": "เคลียร์ proposal รอบ 3"
+  },
+  "review": {
+    "approvalId": "approval-8f0c2b6e4a1d4f7e9b3c5a7d1e2f3a4b",
+    "reviewedAt": "2026-11-03T07:00:00Z"
+  },
+  "schemaVersion": "fittbuilder.summary-delivery.v2",
+  "sentAt": "2026-11-03T07:00:05Z",
+  "source": {
+    "configRevisionId": null,
+    "sourceTranscriptVersionId": "tv_6f1a",
+    "summaryId": "sum_6f1a_1"
+  },
+  "target": {
+    "mode": "CREATE_PROJECT",
+    "projectTitle": "ระบบจัดซื้อ — บริษัทตัวอย่าง"
+  }
+}

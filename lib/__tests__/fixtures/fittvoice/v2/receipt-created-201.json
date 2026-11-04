@@ -1,0 +1,11 @@
+{
+  "acceptedAt": "2026-11-03T07:00:06Z",
+  "builderMeetingId": "0d9e4b7a-6a43-4a43-8d4d-3c2b1a0f9e88",
+  "builderProjectId": "6c1f3a52-2d1f-4c55-9b55-0f6a8e7b1c11",
+  "contentHash": "d4bf154b8856dcaf22c1104a7111e9d954ef297469d0d8d38b0e405094add59e",
+  "deliveryId": "8f0c2b6e4a1d4f7e9b3c5a7d1e2f3a4b",
+  "meetingId": "fittvoice:production:rec:6f1a",
+  "outcome": "CREATED",
+  "revision": 1,
+  "schemaVersion": "fittbuilder.receipt.v2"
+}

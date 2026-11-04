@@ -39,6 +39,26 @@ export const CHANGE_BADGE: Record<ChangeType, { label: string; className: string
 // Newest first. SemVer: fix → PATCH, feature → MINOR, breaking → MAJOR.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.126.0",
+    date: "2026-11-05",
+    title: "หลายการประชุมจาก FITT Voice ในโปรเจกต์เดียว",
+    items: [
+      {
+        type: "feature",
+        text: "ส่งสรุปการประชุมจาก FITT Voice เข้าโปรเจกต์ที่มีอยู่แล้วได้ ไม่ต้องสร้างโปรเจกต์ใหม่ทุกครั้ง แต่ละการประชุมเป็นรายการแยก ส่งฉบับแก้ของการประชุมเดิมจะแทนเฉพาะการประชุมนั้น และหลายคนในทีมส่งเข้าโปรเจกต์เดียวกันได้ด้วยบัญชีของตัวเอง",
+      },
+      {
+        type: "improvement",
+        text: "ปุ่ม FITT Voice ในโปรเจกต์บอกจำนวนการประชุม กดแล้วเห็นทุกการประชุม พร้อมประเภท วันที่ประชุม และคนส่ง",
+      },
+      {
+        type: "improvement",
+        text: "AI เฟส Define และ Plan อ่านได้ทุกการประชุมในโปรเจกต์ เรียงจากเก่าไปใหม่ ถ้าข้อมูลขัดกันจะถือการประชุมที่ใหม่กว่าและบอกว่าขัดกันตรงไหน",
+      },
+    ],
+    guide: "fitt-voice",
+  },
+  {
     version: "0.125.0",
     date: "2026-11-04",
     title: "คู่มือการใช้งานในเว็บ",

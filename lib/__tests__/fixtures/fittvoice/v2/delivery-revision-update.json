@@ -1,0 +1,35 @@
+{
+  "content": {
+    "summaryMarkdown": "## ภาพรวม\n\nลูกค้าเข้าใจขอบเขตโมดูลจัดซื้อและรอใบเสนอราคาฉบับแก้ไข\n\n## ประเด็นที่ยังค้าง\n\n- ยืนยันราคาค่าบำรุงรักษารายปี\n\n## งานถัดไป\n\n- ส่งใบเสนอราคาฉบับแก้ไข (คุณเอ · 7 พ.ย.)"
+  },
+  "contentHash": "92f1d24f11698f527b275197432061b206ed830cb7e9c29b1e88f93da22ee629",
+  "deliveryId": "9e8d7c6b5a4f40312e1d0c9b8a7f6e5d",
+  "meeting": {
+    "company": null,
+    "meetingId": "fittvoice:production:rec:6f1a",
+    "profile": {
+      "label": "ประชุมภายใน",
+      "profileId": "INTERNAL_MEETING",
+      "profileVersion": 1,
+      "templateId": "INTERNAL_MEETING"
+    },
+    "recordedAt": "2026-11-03T06:11:00Z",
+    "revision": 2,
+    "title": "เคลียร์ proposal รอบ 3"
+  },
+  "review": {
+    "approvalId": "approval-9e8d7c6b5a4f40312e1d0c9b8a7f6e5d",
+    "reviewedAt": "2026-11-03T07:00:00Z"
+  },
+  "schemaVersion": "fittbuilder.summary-delivery.v2",
+  "sentAt": "2026-11-03T07:00:05Z",
+  "source": {
+    "configRevisionId": null,
+    "sourceTranscriptVersionId": "tv_6f1a",
+    "summaryId": "sum_6f1a_2"
+  },
+  "target": {
+    "builderProjectId": "6c1f3a52-2d1f-4c55-9b55-0f6a8e7b1c11",
+    "mode": "ATTACH_TO_PROJECT"
+  }
+}

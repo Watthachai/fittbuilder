@@ -127,7 +127,12 @@ describe("connectionBody", () => {
       canSend: true,
       lastUsedAt: "2026-10-12T05:04:27Z",
       expiresAt: "2027-01-10T05:04:27Z",
+      capabilities: ["fittvoice.summary-delivery.v2", "fittvoice.project-search.v1"],
     });
+  });
+
+  it("offers v2 only to a person's connection: a service credential has nobody to send as", () => {
+    expect(connectionBody({ ...base, clientId: null, user: null, role: null }).capabilities).toEqual([]);
   });
 
   it("cannot send once the person has left the workspace", () => {

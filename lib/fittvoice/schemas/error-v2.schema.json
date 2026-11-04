@@ -1,0 +1,71 @@
+{
+  "$id": "https://fittvoice.example/schemas/error-v2.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Error body for v2 endpoints (same shape as error v1, v2 code list).",
+  "properties": {
+    "code": {
+      "enum": [
+        "UNAUTHORIZED",
+        "FORBIDDEN",
+        "INVALID_PAYLOAD",
+        "HASH_MISMATCH",
+        "PAYLOAD_TOO_LARGE",
+        "RATE_LIMITED",
+        "TEMPORARILY_UNAVAILABLE",
+        "PROJECT_WRITE_FORBIDDEN",
+        "PROJECT_NOT_FOUND",
+        "MEETING_BOUND_TO_OTHER_PROJECT",
+        "STALE_REVISION",
+        "IDEMPOTENCY_CONFLICT",
+        "UNSUPPORTED_SCHEMA_VERSION"
+      ],
+      "title": "Code",
+      "type": "string"
+    },
+    "latestSnapshotRevision": {
+      "anyOf": [
+        {
+          "maximum": 9007199254740991,
+          "minimum": 1,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Latestsnapshotrevision"
+    },
+    "message": {
+      "maxLength": 2000,
+      "minLength": 1,
+      "title": "Message",
+      "type": "string"
+    },
+    "requestId": {
+      "maxLength": 200,
+      "minLength": 1,
+      "title": "Requestid",
+      "type": "string"
+    },
+    "retryable": {
+      "title": "Retryable",
+      "type": "boolean"
+    },
+    "schemaVersion": {
+      "const": "fittbuilder.error.v2",
+      "title": "Schemaversion",
+      "type": "string"
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "code",
+    "message",
+    "retryable",
+    "requestId"
+  ],
+  "title": "FITT Builder error v2",
+  "type": "object"
+}

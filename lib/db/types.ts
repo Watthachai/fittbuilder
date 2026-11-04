@@ -1144,6 +1144,21 @@ export interface Database {
       fittbuilder_next_project_doc_number: { Args: { pid: string }; Returns: number };
       /** Apply one FITT Voice delivery atomically; {status, body} (migration 0045). Service role only. */
       fittbuilder_fittvoice_apply: { Args: { p_binding: string; p_payload: Json }; Returns: Json };
+      /** Apply one FITT Voice v2 meeting delivery atomically; {status, body} (migration 0067). Service role only. */
+      fittbuilder_fittvoice_apply_v2: { Args: { p_binding: string; p_payload: Json }; Returns: Json };
+      /** The workspace's projects a FITT Voice sender may pick, with canWrite (migration 0067). Service role only. */
+      fittbuilder_fittvoice_projects: {
+        Args: {
+          p_org: string;
+          p_user: string;
+          p_project: string | null;
+          p_pattern: string | null;
+          p_after_at: string | null;
+          p_after_id: string | null;
+          p_limit: number;
+        };
+        Returns: Json;
+      };
       /** Set a project's billing status and record the command, in one transaction (migration 0055).
        *  No row when the project doesn't exist. Service role only. */
       fittbuilder_billing_set_status: {
@@ -1164,8 +1179,8 @@ export interface Database {
       fittbuilder_partner_welcome: { Args: Record<string, never>; Returns: boolean };
       /** Close that welcome for good, on every device (0061). */
       fittbuilder_partner_welcome_done: { Args: Record<string, never>; Returns: undefined };
-      /** A project's latest FITT Voice snapshot for its readers, or null (migration 0045). */
-      fittbuilder_fittvoice_source: { Args: { pid: string }; Returns: Json };
+      /** Everything FITT Voice sent into a project, oldest first, for its readers; [] otherwise (migration 0067). */
+      fittbuilder_fittvoice_sources: { Args: { pid: string }; Returns: Json };
       /** Read a shared demo snapshot by token — public, {name, files} or null (migration 0043). */
       fittbuilder_shared_demo: { Args: { share_token: string }; Returns: Json };
       /** The project's share link and when its content was last set (0062). */

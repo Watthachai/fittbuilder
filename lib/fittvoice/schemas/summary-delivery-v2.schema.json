@@ -1,0 +1,292 @@
+{
+  "$defs": {
+    "BuilderTargetModeV2": {
+      "enum": [
+        "CREATE_PROJECT",
+        "ATTACH_TO_PROJECT"
+      ],
+      "title": "BuilderTargetModeV2",
+      "type": "string"
+    },
+    "_Company": {
+      "additionalProperties": false,
+      "properties": {
+        "fittcoreCompanyId": {
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "Fittcorecompanyid",
+          "type": "string"
+        },
+        "organizationId": {
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "Organizationid",
+          "type": "string"
+        }
+      },
+      "required": [
+        "fittcoreCompanyId",
+        "organizationId"
+      ],
+      "title": "_Company",
+      "type": "object"
+    },
+    "_Content": {
+      "additionalProperties": false,
+      "properties": {
+        "summaryMarkdown": {
+          "maxLength": 20000,
+          "minLength": 1,
+          "title": "Summarymarkdown",
+          "type": "string"
+        }
+      },
+      "required": [
+        "summaryMarkdown"
+      ],
+      "title": "_Content",
+      "type": "object"
+    },
+    "_Meeting": {
+      "additionalProperties": false,
+      "properties": {
+        "company": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/_Company"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "meetingId": {
+          "maxLength": 200,
+          "pattern": "^fittvoice:[a-z]+:rec:[^\\s]+$",
+          "title": "Meetingid",
+          "type": "string"
+        },
+        "profile": {
+          "$ref": "#/$defs/_Profile"
+        },
+        "recordedAt": {
+          "format": "date-time",
+          "title": "Recordedat",
+          "type": "string"
+        },
+        "revision": {
+          "maximum": 9007199254740991,
+          "minimum": 1,
+          "title": "Revision",
+          "type": "integer"
+        },
+        "title": {
+          "maxLength": 300,
+          "minLength": 1,
+          "title": "Title",
+          "type": "string"
+        }
+      },
+      "required": [
+        "meetingId",
+        "revision",
+        "title",
+        "recordedAt",
+        "profile",
+        "company"
+      ],
+      "title": "_Meeting",
+      "type": "object"
+    },
+    "_Profile": {
+      "additionalProperties": false,
+      "properties": {
+        "label": {
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "Label",
+          "type": "string"
+        },
+        "profileId": {
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "Profileid",
+          "type": "string"
+        },
+        "profileVersion": {
+          "minimum": 1,
+          "title": "Profileversion",
+          "type": "integer"
+        },
+        "templateId": {
+          "maxLength": 100,
+          "minLength": 1,
+          "title": "Templateid",
+          "type": "string"
+        }
+      },
+      "required": [
+        "profileId",
+        "profileVersion",
+        "templateId",
+        "label"
+      ],
+      "title": "_Profile",
+      "type": "object"
+    },
+    "_Review": {
+      "additionalProperties": false,
+      "properties": {
+        "approvalId": {
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "Approvalid",
+          "type": "string"
+        },
+        "reviewedAt": {
+          "format": "date-time",
+          "title": "Reviewedat",
+          "type": "string"
+        }
+      },
+      "required": [
+        "approvalId",
+        "reviewedAt"
+      ],
+      "title": "_Review",
+      "type": "object"
+    },
+    "_Source": {
+      "additionalProperties": false,
+      "properties": {
+        "configRevisionId": {
+          "anyOf": [
+            {
+              "maxLength": 200,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Configrevisionid"
+        },
+        "sourceTranscriptVersionId": {
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "Sourcetranscriptversionid",
+          "type": "string"
+        },
+        "summaryId": {
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "Summaryid",
+          "type": "string"
+        }
+      },
+      "required": [
+        "summaryId",
+        "sourceTranscriptVersionId"
+      ],
+      "title": "_Source",
+      "type": "object"
+    },
+    "_Target": {
+      "additionalProperties": false,
+      "properties": {
+        "builderProjectId": {
+          "anyOf": [
+            {
+              "maxLength": 200,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Builderprojectid"
+        },
+        "mode": {
+          "$ref": "#/$defs/BuilderTargetModeV2"
+        },
+        "projectTitle": {
+          "anyOf": [
+            {
+              "maxLength": 300,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Projecttitle"
+        }
+      },
+      "required": [
+        "mode"
+      ],
+      "title": "_Target",
+      "type": "object"
+    }
+  },
+  "$id": "https://fittvoice.example/schemas/summary-delivery-v2.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "content": {
+      "$ref": "#/$defs/_Content"
+    },
+    "contentHash": {
+      "pattern": "^[a-f0-9]{64}$",
+      "title": "Contenthash",
+      "type": "string"
+    },
+    "deliveryId": {
+      "maxLength": 200,
+      "minLength": 1,
+      "title": "Deliveryid",
+      "type": "string"
+    },
+    "meeting": {
+      "$ref": "#/$defs/_Meeting"
+    },
+    "review": {
+      "$ref": "#/$defs/_Review"
+    },
+    "schemaVersion": {
+      "const": "fittbuilder.summary-delivery.v2",
+      "title": "Schemaversion",
+      "type": "string"
+    },
+    "sentAt": {
+      "format": "date-time",
+      "title": "Sentat",
+      "type": "string"
+    },
+    "source": {
+      "$ref": "#/$defs/_Source"
+    },
+    "target": {
+      "$ref": "#/$defs/_Target"
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "deliveryId",
+    "meeting",
+    "target",
+    "source",
+    "review",
+    "content",
+    "sentAt",
+    "contentHash"
+  ],
+  "title": "FITT Voice → FITT Builder summary delivery v2",
+  "type": "object"
+}

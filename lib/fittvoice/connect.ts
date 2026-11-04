@@ -105,6 +105,13 @@ export function isExpired(lastUsedAt: Date, now: Date): boolean {
 }
 
 /**
+ * What a person's connection can do beyond v1 (contract v2.1, 2.1). FITT Voice
+ * turns on its v2 flow only when it sees these; a service credential has nobody
+ * to send as, so it gets none and stays on v1.
+ */
+export const CONNECTION_CAPABILITIES = ["fittvoice.summary-delivery.v2", "fittvoice.project-search.v1"] as const;
+
+/**
  * What GET /connection answers. A service credential has no person: it always
  * may send and never lapses. A connection may send while its person is still in
  * the workspace.
@@ -127,6 +134,7 @@ export function connectionBody(c: {
     canSend: c.user === null || c.role !== null,
     lastUsedAt: isoSeconds(c.lastUsedAt),
     expiresAt: c.user ? isoSeconds(expiresAt(c.lastUsedAt)) : null,
+    capabilities: c.user ? [...CONNECTION_CAPABILITIES] : [],
   };
 }
 

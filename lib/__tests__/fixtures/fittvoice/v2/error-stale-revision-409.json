@@ -1,0 +1,8 @@
+{
+  "code": "STALE_REVISION",
+  "latestSnapshotRevision": 2,
+  "message": "A newer revision of this meeting already exists.",
+  "requestId": "req-example-0001",
+  "retryable": false,
+  "schemaVersion": "fittbuilder.error.v2"
+}

@@ -5,8 +5,10 @@ import {
   type CategoryKey,
   type Delivery,
   type Item,
+  type MeetingDelivery,
   type SummaryDelivery,
   type VoiceDelivery,
+  type VoiceSourceItem,
   type WorkflowItem,
 } from "./types";
 
@@ -61,10 +63,39 @@ const inline = (s: string) => s.replace(/\s*\n\s*/g, " ").trim();
 // and on the server (the agent's context), which do not share a time zone.
 const THAI_TIME = new Intl.DateTimeFormat("th-TH", { dateStyle: "medium", timeStyle: "short", timeZone: "Asia/Bangkok" });
 /** "9 ต.ค. 2569 10:59" — the payload's ISO timestamps were shown raw. */
-const when = (iso: string) => THAI_TIME.format(new Date(iso));
+export const when = (iso: string) => THAI_TIME.format(new Date(iso));
 
 export function sourceMarkdown(d: VoiceDelivery): string {
   return d.schemaVersion === "fittbuilder.summary-delivery.v1" ? summarySource(d) : fullSource(d);
+}
+
+/** One entry of a project's FITT Voice list, as its document. */
+export function itemMarkdown(item: VoiceSourceItem): string {
+  return item.kind === "meeting" ? meetingSource(item.payload, item.sender) : sourceMarkdown(item.payload);
+}
+
+/** What the list calls an entry: the meeting's own title, or the v1 project title. */
+export function itemTitle(item: VoiceSourceItem): string {
+  return inline(item.kind === "meeting" ? item.payload.meeting.title : item.payload.content.projectTitle);
+}
+
+/** v2: one meeting's summary as the user reviewed it, under the meeting's own title and type. */
+function meetingSource(d: MeetingDelivery, sender: string | null): string {
+  const m = d.meeting;
+  const meta = [
+    inline(m.profile.label),
+    `ประชุมเมื่อ ${when(m.recordedAt)}`,
+    `ฉบับที่ ${m.revision}`,
+    `ส่งเมื่อ ${when(d.sentAt)}`,
+    ...(sender ? [`ส่งโดย ${inline(sender)}`] : []),
+  ];
+  return [
+    `# ${inline(m.title)}`,
+    `> ตรวจแล้วใน FITT Voice เมื่อ ${when(d.review.reviewedAt)}`,
+    `ข้อมูลจาก FITT Voice · ${meta.join(" · ")}`,
+    "## สรุป",
+    d.content.summaryMarkdown,
+  ].join("\n\n");
 }
 
 /** Summary-only: the text the user reviewed in FITT Voice, as they approved it. */

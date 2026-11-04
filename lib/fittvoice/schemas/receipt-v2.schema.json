@@ -1,0 +1,75 @@
+{
+  "$id": "https://fittvoice.example/schemas/receipt-v2.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Builder's receipt for one accepted (or replayed) meeting delivery.",
+  "properties": {
+    "acceptedAt": {
+      "format": "date-time",
+      "title": "Acceptedat",
+      "type": "string"
+    },
+    "builderMeetingId": {
+      "maxLength": 200,
+      "minLength": 1,
+      "title": "Buildermeetingid",
+      "type": "string"
+    },
+    "builderProjectId": {
+      "maxLength": 200,
+      "minLength": 1,
+      "title": "Builderprojectid",
+      "type": "string"
+    },
+    "contentHash": {
+      "pattern": "^[a-f0-9]{64}$",
+      "title": "Contenthash",
+      "type": "string"
+    },
+    "deliveryId": {
+      "maxLength": 200,
+      "minLength": 1,
+      "title": "Deliveryid",
+      "type": "string"
+    },
+    "meetingId": {
+      "maxLength": 200,
+      "minLength": 1,
+      "title": "Meetingid",
+      "type": "string"
+    },
+    "outcome": {
+      "enum": [
+        "CREATED",
+        "UPDATED",
+        "DUPLICATE"
+      ],
+      "title": "Outcome",
+      "type": "string"
+    },
+    "revision": {
+      "maximum": 9007199254740991,
+      "minimum": 1,
+      "title": "Revision",
+      "type": "integer"
+    },
+    "schemaVersion": {
+      "const": "fittbuilder.receipt.v2",
+      "title": "Schemaversion",
+      "type": "string"
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "deliveryId",
+    "meetingId",
+    "revision",
+    "contentHash",
+    "builderProjectId",
+    "builderMeetingId",
+    "outcome",
+    "acceptedAt"
+  ],
+  "title": "FITT Builder receipt v2",
+  "type": "object"
+}

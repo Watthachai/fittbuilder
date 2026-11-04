@@ -66,6 +66,47 @@
 - ปุ่ม "FITT Voice" แสดงชื่อโปรเจกต์ เวลาที่ตรวจ และบทสรุปตามที่ผู้ใช้ยืนยัน ผ่าน renderer ที่ไม่รัน HTML ดิบ AI เฟส Define/Plan ได้รับบทสรุปนี้เป็นข้อมูลที่ไม่ใช่คำสั่ง การรับข้อมูลไม่สร้าง BRD หรือ Prototype เอง
 - `review` ของสัญญานี้ไม่มี `reviewerRef` เอกสารต้นทางจึงแสดงเฉพาะเวลาที่ตรวจ
 
+## สัญญา v2: หลายการประชุมในโปรเจกต์เดียว (`fittbuilder.summary-delivery.v2`)
+
+ตกลงกับทีม FITT Voice เป็นฉบับ v2.1 เมื่อ 4 พ.ย. 2026 ไฟล์อ้างอิงของทีม Voice ซึ่งสร้างจากโค้ดจริงของ Voice อยู่ที่ `lib/fittvoice/schemas/` (`summary-delivery-v2`, `receipt-v2`, `error-v2`) ส่วนตัวอย่างและ test vector ของ hash อยู่ที่ `lib/__tests__/fixtures/fittvoice/v2/` v1 ยังใช้ได้ตามเดิมทุกอย่าง
+
+- ใช้ได้เฉพาะการเชื่อมบัญชีรายผู้ใช้ ผู้ส่งคือคนที่ token เป็นตัวแทนเสมอ service credential ส่ง v2 ได้ 403 `FORBIDDEN`
+- `GET /connection` ของการเชื่อมรายผู้ใช้มี `capabilities: ["fittvoice.summary-delivery.v2", "fittvoice.project-search.v1"]` ส่วน service credential ได้ `[]`
+- แต่ละการประชุม (`meeting.meetingId`) เป็นรายการแยกในโปรเจกต์ (migration 0067) ส่งฉบับใหม่ของการประชุมเดิมจะแทนเฉพาะการประชุมนั้น การรับข้อมูลไม่เปลี่ยนชื่อโปรเจกต์ และไม่แตะ BRD ข้อเสนอโครงการ หรือใบเสนอราคา
+- `CREATE_PROJECT` สร้างโปรเจกต์ในเฟส Define ของ workspace ที่เชื่อม ผู้ส่งเป็นเจ้าของ ชื่อโปรเจกต์มาจาก `target.projectTitle`
+- `ATTACH_TO_PROJECT` ต้องเป็นโปรเจกต์ใน workspace ที่เชื่อม และผู้ส่งต้องแก้โปรเจกต์นั้นได้ (`fittbuilder_can_edit_project`) ตรวจซ้ำทุกครั้งที่ส่ง
+
+### ลำดับการตัดสินใจ (`fittbuilder_fittvoice_apply_v2`)
+
+ทำใน transaction เดียว และล็อกแยกต่อการประชุม:
+1. `deliveryId` เดิมจากผู้ส่งคนเดิม: hash ตรงได้ receipt เดิม (`DUPLICATE`, 200) hash ต่างได้ 409 `IDEMPOTENCY_CONFLICT`
+2. ATTACH ไปโปรเจกต์ที่ไม่มี ถูกลบ หรืออยู่นอก workspace ได้ 404 `PROJECT_NOT_FOUND` ผู้ส่งแก้โปรเจกต์ไม่ได้ (`fittbuilder_can_edit_project`) ได้ 403 `PROJECT_WRITE_FORBIDDEN` — ตอนนี้คนที่เชื่อมได้ (เจ้าของ ผู้ดูแล สมาชิก workspace) แก้ได้ทุกโปรเจกต์ของ workspace ข้อนี้จึงกันไว้สำหรับวันที่สิทธิ์เปลี่ยน
+3. การประชุมที่อยู่ในโปรเจกต์อื่น หรือ CREATE ด้วยการประชุมที่มีโปรเจกต์อยู่แล้ว ได้ 409 `MEETING_BOUND_TO_OTHER_PROJECT` ถ้าโปรเจกต์เดิมถูกลบ การผูกจะหลุด และส่งไปที่อื่นได้
+4. `deliveryId` ใหม่ที่ `revision` ไม่เกินฉบับล่าสุดของการประชุม ได้ 409 `STALE_REVISION` เสมอ พร้อม `latestSnapshotRevision` (revision ข้ามเลขได้)
+5. ผ่านหมดแล้วได้ 201 `CREATED` เมื่อเป็นการประชุมใหม่ของโปรเจกต์นั้น หรือ 200 `UPDATED` เมื่อเป็นฉบับใหม่ของการประชุมเดิม
+
+### Error
+
+- ผิดก่อน Builder อ่านเนื้อหา คือ 401, 403 `FORBIDDEN` ของผู้ใช้ที่ออกจาก workspace, 429, 413, Content-Type ผิด หรือ JSON อ่านไม่ได้ ตอบเป็น `fittbuilder.error.v1` เพราะยังไม่รู้รุ่นของ payload ทีม Voice รับทั้งสองรุ่นที่ปลายทางนี้
+- หลังรู้ว่าเป็น v2 ตอบ `fittbuilder.error.v2` ทั้งหมด
+- `schemaVersion` ที่ไม่รู้จักตอบ 422 `UNSUPPORTED_SCHEMA_VERSION` (error v2) แทน `INVALID_PAYLOAD` ของเดิม
+
+### ค้นหาโปรเจกต์
+
+- `GET /v1/integrations/fittvoice/projects?query=&cursor=&limit=`
+  - ค้นในโปรเจกต์ของ workspace ที่เชื่อม ที่ผู้ส่งอ่านได้ พร้อม `canWrite`
+  - `query` จับชื่อโดยไม่สนตัวพิมพ์เล็กใหญ่ และเว้นว่างได้ (เรียงตามที่แก้ล่าสุด)
+  - `limit` 1–50 (ค่าเริ่มต้น 20) และ `nextCursor` เป็นข้อความที่ไม่ต้องแยกส่วน
+- `GET /v1/integrations/fittvoice/projects/{builderProjectId}` ตอบ object เดียวกัน หรือ 404 `PROJECT_NOT_FOUND`
+- `meetingCount` นับการประชุม v2 รวมกับข้อมูล v1 ที่สร้างโปรเจกต์ (นับเป็น 1)
+- ทั้งสองปลายทางตอบ error v2 เสมอ จำกัด 120 ครั้งต่อนาทีต่อการเชื่อม แยกจากโควตาการส่ง และ service credential ได้ 403 `FORBIDDEN`
+- ข้อจำกัดที่ทีม Voice ยอมรับแล้ว: คนที่ถูกเชิญเข้าโปรเจกต์โดยตรงแต่ไม่ได้เป็นสมาชิก workspace จะหาโปรเจกต์นั้นไม่เจอ
+
+### ใน Builder
+
+- ปุ่ม "FITT Voice" บนแถบด้านบนบอกจำนวนการประชุม กดแล้วเห็นรายการเรียงจากเก่าไปใหม่ พร้อมประเภท วันที่ประชุม และคนส่ง ข้อมูล v1 ที่สร้างโปรเจกต์แสดงเป็นรายการแรก
+- AI เฟส Define และ Plan ได้ทุกการประชุมผ่าน `fittbuilder_fittvoice_sources` เป็นข้อมูลที่ไม่ใช่คำสั่ง รวมแล้วไม่เกิน 60,000 ตัวอักษร ถ้าเกิน การประชุมเก่าสุดจะบอกแค่ชื่อ
+
 ## การเชื่อมบัญชีรายผู้ใช้ (OAuth 2.0 Authorization Code + PKCE)
 
 ทีม FITT Voice ตกลงแนวทางนี้เมื่อ 12 ต.ค. 2026 ผู้ใช้ FITT Voice เชื่อมบัญชี Builder ของตัวเองและเลือก workspace หนึ่งแห่งที่ตนเป็นสมาชิก Builder เป็นฝั่งออก token เอง (migration 0053, `lib/fittvoice/connect.ts`) ไม่ใช้ OAuth server ของ Supabase เพราะยังเป็น beta ตั้งหน้าอนุมัติได้หน้าเดียวต่อ project ทั้งที่ Sandbox กับ Production ใช้ project เดียวกัน และไม่มีการเลือก workspace

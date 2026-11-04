@@ -3,18 +3,21 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { rateLimit } from "@/lib/rate-limit";
 import { authenticate } from "@/lib/fittvoice/authenticate";
 import { HTTP_STATUS, MAX_BODY_BYTES, checkDelivery, errorBody } from "@/lib/fittvoice/delivery";
-import type { ErrorCode } from "@/lib/fittvoice/types";
+import type { ErrorCode, ErrorEnvelope } from "@/lib/fittvoice/types";
 import type { Json } from "@/lib/db/types";
 
 /**
- * FITT Voice → FITT Builder deliveries (contracts fittbuilder.delivery.v1 and
- * fittbuilder.summary-delivery.v1, told apart by schemaVersion in checkDelivery).
+ * FITT Voice → FITT Builder deliveries (contracts fittbuilder.delivery.v1,
+ * fittbuilder.summary-delivery.v1 and fittbuilder.summary-delivery.v2, told
+ * apart by schemaVersion in checkDelivery).
  *
- * Backend to backend: FITT Voice's server sends the summary of a customer
- * interview its user reviewed; the first delivery of an export session creates a
- * project in the Define phase of the workspace the token is bound to — a service
+ * Backend to backend: FITT Voice's server sends the summary of a meeting its
+ * user reviewed. v1: the first delivery of an export session creates a project
+ * in the Define phase of the workspace the token is bound to — a service
  * credential, or a person's account connection (lib/fittvoice/connect.ts) — and
- * later ones update that project. Nothing here starts a generation.
+ * later ones update that project. v2 (connections only): each meeting is its
+ * own entry, in a new project or one the sender may edit, and its next revision
+ * replaces only that meeting (migration 0067). Nothing here starts a generation.
  *
  * Order matters and follows the contract: the credential, then the rate, then
  * the size, the JSON, the schema, the hash and the references — all before
@@ -49,9 +52,15 @@ async function readCapped(request: Request, max: number): Promise<string | null>
 
 export async function POST(request: Request) {
   const requestId = randomUUID();
-  const fail = (code: ErrorCode, message: string, latest: number | null = null, headers?: HeadersInit) => {
+  const fail = (
+    code: ErrorCode,
+    message: string,
+    latest: number | null = null,
+    headers?: HeadersInit,
+    envelope: ErrorEnvelope = "v1"
+  ) => {
     console.info(`[fittvoice] ${requestId} ${code}`);
-    return Response.json(errorBody(code, message, requestId, latest), { status: HTTP_STATUS[code], headers });
+    return Response.json(errorBody(code, message, requestId, latest, envelope), { status: HTTP_STATUS[code], headers });
   };
 
   const auth = await authenticate(request.headers.get("authorization"));
@@ -81,22 +90,31 @@ export async function POST(request: Request) {
   if (raw === null) return fail("PAYLOAD_TOO_LARGE", "request เกิน 1 MiB — ลดข้อมูลแล้วส่งใหม่ ระบบไม่ตัดหลักฐานให้เอง");
 
   const checked = checkDelivery(raw, request.headers.get("idempotency-key"));
-  if (!checked.ok) return fail(checked.code, checked.message);
+  if (!checked.ok) return fail(checked.code, checked.message, null, undefined, checked.envelope);
+  const { delivery } = checked;
+  const v2 = delivery.schemaVersion === "fittbuilder.summary-delivery.v2";
+  // v2 is sent by a person: a service credential has nobody to send as.
+  if (v2 && !binding.user_id) {
+    return fail("FORBIDDEN", "v2 ส่งได้เฉพาะการเชื่อมบัญชีรายผู้ใช้ ไม่รับ service credential", null, undefined, "v2");
+  }
 
-  const { data, error } = await createAdminClient().rpc("fittbuilder_fittvoice_apply", {
-    p_binding: binding.id,
-    p_payload: checked.delivery as unknown as Json,
-  });
+  const { data, error } = await createAdminClient().rpc(
+    v2 ? "fittbuilder_fittvoice_apply_v2" : "fittbuilder_fittvoice_apply",
+    { p_binding: binding.id, p_payload: delivery as unknown as Json }
+  );
+  const envelope: ErrorEnvelope = v2 ? "v2" : "v1";
   if (error || !data) {
     console.error(`[fittvoice] ${requestId} apply failed: ${error?.message ?? "no result"}`);
-    return fail("TEMPORARILY_UNAVAILABLE", "บันทึกไม่สำเร็จชั่วคราว ส่งชุดเดิมซ้ำได้");
+    return fail("TEMPORARILY_UNAVAILABLE", "บันทึกไม่สำเร็จชั่วคราว ส่งชุดเดิมซ้ำได้", null, undefined, envelope);
   }
   const result = data as { status: number; body: Record<string, unknown> };
   if (result.status >= 400) {
     return fail(
       result.body.code as ErrorCode,
       result.body.message as string,
-      (result.body.latestSnapshotRevision as number | null) ?? null
+      (result.body.latestSnapshotRevision as number | null) ?? null,
+      undefined,
+      envelope
     );
   }
   console.info(`[fittvoice] ${requestId} ${result.body.outcome} ${result.status}`);

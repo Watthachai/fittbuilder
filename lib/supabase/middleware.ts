@@ -28,6 +28,8 @@ const PUBLIC_PREFIXES = [
   "/marketplace",
   "/auth",
   "/changelog",
+  // The guide is read before an account exists, and its links go into group chats.
+  "/guide",
   "/join",
   "/partner",
   "/api/version",

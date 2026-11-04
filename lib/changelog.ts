@@ -21,6 +21,12 @@ export interface ChangelogEntry {
   items: ChangelogItem[];
   /** The poster the team shares for this release, shown under its items. */
   images?: ChangelogImage[];
+  /**
+   * The /guide section this release changed — a release that changes how
+   * something is used updates that section in the same change, and the
+   * entry links to it as "ดูวิธีใช้".
+   */
+  guide?: string;
 }
 
 /** Badge label + theme class per change type (used by the /changelog page). */
@@ -33,6 +39,26 @@ export const CHANGE_BADGE: Record<ChangeType, { label: string; className: string
 // Newest first. SemVer: fix → PATCH, feature → MINOR, breaking → MAJOR.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.125.0",
+    date: "2026-11-04",
+    title: "คู่มือการใช้งานในเว็บ",
+    items: [
+      {
+        type: "feature",
+        text: "หน้า “คู่มือการใช้งาน” (fitt-builder.fittbsa.com/guide) อธิบายทุกส่วนของระบบทีละขั้น พร้อมภาพหน้าจอที่มีหมายเลขกำกับและคำอธิบายใต้ภาพ แบ่งตามบทบาท: ทุกคน คนทำเดโม คนทำเอกสาร ส่งอนุมัติ ผู้ดูแลบริษัท และช่วยเหลือ เปิดอ่านได้โดยไม่ต้องเข้าสู่ระบบ ส่งลิงก์ไปที่หัวข้อใดก็ได้",
+      },
+      {
+        type: "feature",
+        text: "เมนูบัญชีมีปุ่ม “คู่มือการใช้งาน” เปิดคู่มือในแท็บใหม่",
+      },
+      {
+        type: "improvement",
+        text: "อัปเดตในหน้านี้ที่เปลี่ยนวิธีใช้ จะมีปุ่ม “ดูวิธีใช้ในคู่มือ” พาไปที่หัวข้อนั้นในคู่มือ",
+      },
+    ],
+    guide: "overview",
+  },
+  {
     version: "0.124.0",
     date: "2026-11-04",
     title: "ดูตัวอย่างเอกสารแบบแบ่งหน้า A4",
@@ -42,6 +68,7 @@ export const CHANGELOG: ChangelogEntry[] = [
         text: "ในหน้า “ดูตัวอย่างเอกสาร” ของใบเสนอราคาและข้อเสนอโครงการที่ยังไม่อนุมัติ มีปุ่ม “ดูแบบแบ่งหน้า A4” เปิดหน้าต่างพิมพ์ของเบราว์เซอร์ให้เห็นการแบ่งหน้าจริง ตรวจได้ว่าข้อความตกขอบหรือล้นหน้าไหม ทุกหน้ามีลายน้ำ “ตัวอย่าง · ยังไม่อนุมัติ” และไม่ออกเลขที่เอกสาร",
       },
     ],
+    guide: "send-approval",
   },
   {
     version: "0.123.2",
@@ -68,6 +95,7 @@ export const CHANGELOG: ChangelogEntry[] = [
         text: "แถบซ้ายและเมนูบัญชีบอกว่าคุณอยู่บริษัทไหนและในบทบาทอะไร หรือยังไม่อยู่ในบริษัท กดเพื่อไปหน้าบริษัท workspace ของคนอื่นที่เปิดผ่านบริษัทขึ้นป้าย “ดูอย่างเดียว” และไม่มีปุ่มบันทึกหรือลบ",
       },
     ],
+    guide: "company-workspaces",
   },
   {
     version: "0.123.0",
@@ -97,6 +125,7 @@ export const CHANGELOG: ChangelogEntry[] = [
         height: 1100,
       },
     ],
+    guide: "review",
   },
   {
     version: "0.122.0",

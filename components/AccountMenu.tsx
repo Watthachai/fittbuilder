@@ -5,7 +5,7 @@ import { createPortal } from "react-dom";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "motion/react";
-import { BarChart3, Check, Dna, FileCode, LifeBuoy, Loader2, LogOut, ShieldCheck, Stethoscope, Users, X } from "lucide-react";
+import { BarChart3, BookOpen, Check, Dna, FileCode, LifeBuoy, Loader2, LogOut, ShieldCheck, Stethoscope, Users, X } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { currentUser, type CurrentUser } from "@/lib/current-user";
 import { firstOrg } from "@/lib/orgs";
@@ -365,6 +365,14 @@ export default function AccountMenu() {
                   </span>
                 </Link>
               )}
+              <Link
+                href="/guide"
+                target="_blank"
+                onClick={() => setOpen(false)}
+                className="flex w-full items-center justify-center gap-2 rounded-full border border-chalk/15 py-2.5 font-display text-sm text-chalk/85 transition hover:bg-chalk/5 hover:text-chalk"
+              >
+                <BookOpen size={15} className="text-shine" /> คู่มือการใช้งาน
+              </Link>
               <Link
                 href="/cases"
                 onClick={() => setOpen(false)}

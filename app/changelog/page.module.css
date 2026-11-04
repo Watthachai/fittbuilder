@@ -441,6 +441,23 @@
 }
 
 /* The release's poster: what changed, before and after. Opens full size. */
+.guideLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 18px;
+  padding: 7px 12px;
+  border: 1px solid color-mix(in srgb, var(--shine) 35%, var(--night-edge));
+  border-radius: 999px;
+  font-size: 0.8125rem;
+  color: var(--shine);
+  transition: background 150ms;
+}
+
+.guideLink:hover {
+  background: color-mix(in srgb, var(--shine) 10%, transparent);
+}
+
 .shots {
   display: grid;
   gap: 12px;

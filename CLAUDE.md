@@ -33,6 +33,7 @@ Stack as implemented: Google Gemini (`@google/genai`) for code generation, WebCo
 
 - TypeScript strict mode; path alias `@/*` maps to the repo root.
 - Tailwind CSS v4: configured in CSS via `@theme` in `app/globals.css` (no `tailwind.config` file); PostCSS plugin is `@tailwindcss/postcss`.
+- The user guide (/guide) is data in `lib/guide.ts`, its screenshots in `public/guide/`. A release that changes how something is used updates that section in the same change, and its `lib/changelog.ts` entry names it with `guide: "<section id>"`. The pictures are plain screenshots; the numbered badges come from each figure's `marks` (centre, in % of the picture). People's names and emails in a screenshot are swapped for sample ones before capturing.
 
 ### Foundational Mindset
 

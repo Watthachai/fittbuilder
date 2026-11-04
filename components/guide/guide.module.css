@@ -1,0 +1,535 @@
+/* คู่มือการใช้งาน — one long page, read top to bottom or jumped into from a
+   link. Colours come from the theme tokens so it follows สว่าง / มืด; the
+   screenshots are of the dark studio either way. */
+
+.page {
+  --badge: #f26b3a;
+  min-height: 100dvh;
+  background: var(--night);
+  color: var(--chalk);
+  padding: 0 24px 96px;
+}
+
+.topbar {
+  max-width: 1180px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px 0;
+}
+
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-family: var(--font-display);
+  font-size: 1.0625rem;
+  font-weight: 600;
+}
+
+.logo {
+  border-radius: 9px;
+}
+
+.topLinks {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.8125rem;
+  color: var(--chalk-dim);
+}
+
+.topLinks a {
+  padding: 8px 12px;
+  border-radius: 999px;
+  transition: color 150ms, background 150ms;
+}
+
+.topLinks a:hover {
+  color: var(--chalk);
+  background: var(--night-panel);
+}
+
+.back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--night-edge);
+}
+
+.hero {
+  max-width: 1180px;
+  margin: 8px auto 40px;
+  padding: 36px 40px;
+  border: 1px solid color-mix(in srgb, var(--shine) 18%, var(--night-edge));
+  border-radius: 24px;
+  background: color-mix(in srgb, var(--shine) 6%, var(--night));
+}
+
+.eyebrow {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--shine);
+}
+
+.hero h1 {
+  margin-top: 6px;
+  font-family: var(--font-display);
+  font-size: clamp(1.75rem, 4vw, 2.5rem);
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.heroText {
+  margin-top: 12px;
+  max-width: 62ch;
+  line-height: 1.75;
+  color: var(--chalk-dim);
+}
+
+.heroMeta {
+  margin-top: 14px;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: var(--chalk-dim);
+}
+
+.layout {
+  max-width: 1180px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: 240px minmax(0, 1fr);
+  gap: 48px;
+  align-items: start;
+}
+
+/* ── สารบัญ ─────────────────────────────────────────────────────────────── */
+
+.toc {
+  position: sticky;
+  top: 16px;
+  max-height: calc(100dvh - 32px);
+  overflow-y: auto;
+  padding: 4px 4px 24px 0;
+  font-size: 0.8125rem;
+}
+
+.tocGroup + .tocGroup {
+  margin-top: 18px;
+}
+
+.tocRole {
+  display: block;
+  margin-bottom: 6px;
+  font-family: var(--font-display);
+  font-weight: 600;
+  color: var(--chalk);
+}
+
+.toc ol a {
+  display: flex;
+  gap: 8px;
+  padding: 5px 8px;
+  border-radius: 8px;
+  line-height: 1.45;
+  color: var(--chalk-dim);
+  transition: color 150ms, background 150ms;
+}
+
+.toc ol a:hover {
+  color: var(--chalk);
+  background: var(--night-panel);
+}
+
+.toc ol a span {
+  min-width: 1.4em;
+  font-family: var(--font-mono);
+  color: var(--shine);
+}
+
+/* ── เนื้อหา ────────────────────────────────────────────────────────────── */
+
+.content {
+  min-width: 0;
+}
+
+.chapter + .chapter {
+  margin-top: 56px;
+}
+
+.chapterTitle {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--night-edge);
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  font-weight: 700;
+  scroll-margin-top: 16px;
+}
+
+.chapterTitle span {
+  font-family: var(--font-sans);
+  font-size: 0.875rem;
+  font-weight: 400;
+  color: var(--chalk-dim);
+}
+
+.section {
+  padding-top: 40px;
+  scroll-margin-top: 8px;
+}
+
+.sectionNumber {
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--shine);
+}
+
+.section h3 {
+  margin-top: 2px;
+  font-family: var(--font-display);
+  font-size: 1.625rem;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.intro,
+.text {
+  margin-top: 12px;
+  max-width: 75ch;
+  line-height: 1.8;
+}
+
+.intro {
+  color: var(--chalk-dim);
+}
+
+.subheading {
+  margin-top: 28px;
+  font-family: var(--font-display);
+  font-size: 1.0625rem;
+  font-weight: 600;
+}
+
+.bullets {
+  margin-top: 10px;
+  padding-left: 1.25em;
+  list-style: disc;
+  line-height: 1.8;
+}
+
+.bullets li::marker {
+  color: var(--shine);
+}
+
+.bullets li + li {
+  margin-top: 6px;
+}
+
+/* A button named in the text, drawn the way the screen draws it. */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin: 0 2px;
+  padding: 1px 8px;
+  border: 1px solid var(--night-edge);
+  border-radius: 7px;
+  background: var(--night-panel);
+  font-size: 0.875em;
+  font-weight: 600;
+  line-height: 1.6;
+  white-space: nowrap;
+  vertical-align: baseline;
+}
+
+.chip svg {
+  color: var(--shine);
+}
+
+.tip {
+  margin-top: 20px;
+  padding: 14px 18px;
+  border-left: 3px solid var(--shine);
+  border-radius: 0 12px 12px 0;
+  background: color-mix(in srgb, var(--shine) 8%, var(--night));
+  line-height: 1.75;
+}
+
+.tip strong {
+  color: var(--shine);
+}
+
+/* ── ขั้นตอน ────────────────────────────────────────────────────────────── */
+
+.steps {
+  margin-top: 18px;
+  display: grid;
+  gap: 12px 24px;
+}
+
+.steps[data-columns="3"] { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.steps[data-columns="4"] { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.steps[data-columns="5"] { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+
+.step {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 12px 14px;
+  border: 1px solid var(--night-edge);
+  border-radius: 12px;
+  background: var(--night-panel);
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  color: var(--chalk-dim);
+}
+
+.step strong {
+  margin-top: 6px;
+  font-family: var(--font-display);
+  font-size: 0.9375rem;
+  color: var(--chalk);
+}
+
+.stepNumber {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  background: var(--shine);
+  color: var(--night);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.stepArrow {
+  position: absolute;
+  top: 50%;
+  right: -19px;
+  translate: 0 -50%;
+  color: var(--shine);
+}
+
+/* ── ภาพหน้าจอ ──────────────────────────────────────────────────────────── */
+
+.figure {
+  margin-top: 20px;
+  display: grid;
+  gap: 14px;
+}
+
+.figure[data-layout="side"] {
+  grid-template-columns: minmax(0, var(--media)) minmax(0, 1fr);
+  gap: 28px;
+  align-items: start;
+}
+
+.figureMedia figcaption {
+  margin-top: 8px;
+  font-size: 0.8125rem;
+  color: var(--chalk-dim);
+}
+
+.shot {
+  position: relative;
+  border: 1px solid var(--night-edge);
+  border-radius: 12px;
+  overflow: hidden;
+  background: #000;
+}
+
+.shot img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+/* Positioned by its centre, so a badge lands where the data says whatever
+   the width the picture is shown at. */
+.badge {
+  position: absolute;
+  display: grid;
+  place-items: center;
+  min-width: 24px;
+  height: 24px;
+  padding: 0 6px;
+  translate: -50% -50%;
+  border: 2px solid #fff;
+  border-radius: 999px;
+  background: var(--badge);
+  box-shadow: 0 2px 8px rgb(0 0 0 / 45%);
+  color: #fff;
+  font-size: 0.75rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.legend {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px 24px;
+  font-size: 0.9375rem;
+  line-height: 1.65;
+}
+
+.figure[data-layout="side"] .legend {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.legend li {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.legendBadge {
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  min-width: 22px;
+  height: 22px;
+  margin-top: 2px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--badge);
+  color: #fff;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+/* ── ไอคอน และสิ่งที่ทำได้ ──────────────────────────────────────────────── */
+
+.features,
+.iconGrid {
+  margin-top: 14px;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 14px 24px;
+}
+
+.iconGrid {
+  margin-top: 10px;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+}
+
+.iconItem {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.iconItem > span:last-child {
+  display: flex;
+  flex-direction: column;
+  color: var(--chalk-dim);
+}
+
+.iconItem strong {
+  color: var(--chalk);
+  font-weight: 600;
+}
+
+.iconBox {
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border: 1px solid var(--night-edge);
+  border-radius: 9px;
+  background: var(--night-panel);
+  color: var(--shine);
+}
+
+.iconGroups section + section {
+  margin-top: 4px;
+}
+
+/* ── คำถามที่พบบ่อย ─────────────────────────────────────────────────────── */
+
+.faq {
+  margin-top: 20px;
+  display: grid;
+  gap: 18px;
+}
+
+.faq dt {
+  font-family: var(--font-display);
+  font-weight: 600;
+}
+
+.faq dd {
+  margin-top: 4px;
+  line-height: 1.75;
+  color: var(--chalk-dim);
+}
+
+/* ── จอแคบ ──────────────────────────────────────────────────────────────── */
+
+@media (max-width: 900px) {
+  .layout {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 24px;
+  }
+
+  .toc {
+    position: static;
+    max-height: none;
+    padding: 16px;
+    border: 1px solid var(--night-edge);
+    border-radius: 16px;
+    background: var(--night-panel);
+  }
+
+  .figure[data-layout="side"] {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .figure[data-layout="side"] .figureMedia {
+    width: 100%;
+    max-width: var(--media);
+  }
+
+  .steps[data-columns] {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .stepArrow {
+    display: none;
+  }
+}
+
+@media (max-width: 640px) {
+  .page {
+    padding: 0 16px 64px;
+  }
+
+  .hero {
+    padding: 24px 20px;
+  }
+
+  .legend {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .stepArrow {
+    display: none;
+  }
+
+  .badge {
+    min-width: 20px;
+    height: 20px;
+    font-size: 0.6875rem;
+  }
+}

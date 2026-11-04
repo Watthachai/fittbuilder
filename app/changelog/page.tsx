@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowDown, ArrowLeft, ChevronDown } from "lucide-react";
+import { ArrowDown, ArrowLeft, BookOpen, ChevronDown } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { currentUser } from "@/lib/current-user";
 import { CHANGE_BADGE, CHANGELOG, latestVersion, type ChangeType } from "@/lib/changelog";
@@ -251,6 +251,11 @@ export default function ChangelogPage() {
                               </section>
                             );
                           })}
+                          {entry.guide && (
+                            <Link href={`/guide#${entry.guide}`} className={styles.guideLink}>
+                              <BookOpen size={14} aria-hidden="true" /> ดูวิธีใช้ในคู่มือ
+                            </Link>
+                          )}
                           {entry.images && (
                             <div className={styles.shots}>
                               {entry.images.map((image) => (

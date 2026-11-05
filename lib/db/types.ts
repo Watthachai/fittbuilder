@@ -204,6 +204,31 @@ export interface Database {
         };
         Relationships: [];
       };
+      /** A copy of a quotation or proposal someone chose to keep (migration 0069). Added to, never changed. */
+      fittbuilder_doc_editions: {
+        Row: {
+          id: string;
+          project_id: string;
+          doc_kind: string;
+          version: string;
+          /** Counts up per document and tier; set by the database. */
+          number: number;
+          label: string;
+          payload: Json;
+          saved_by: string | null;
+          saved_by_name: string;
+          saved_at: string;
+        };
+        Insert: {
+          project_id: string;
+          doc_kind: string;
+          version: string;
+          label?: string;
+          payload: Json;
+        };
+        Update: never;
+        Relationships: [];
+      };
       /** A quotation or proposal sent for approval, and the decision (migration 0063). Written only through its functions. */
       fittbuilder_doc_approvals: {
         Row: {

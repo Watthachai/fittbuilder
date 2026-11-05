@@ -38,7 +38,9 @@ import {
   type Size,
 } from "@/lib/quote";
 import { loadQuote, saveQuote } from "@/lib/quote-store";
-import { ApprovalBar, useDocApproval } from "./ApprovalBar";
+import { restoredDoc } from "@/lib/doc-editions";
+import { ApprovalBar, readQuote, useDocApproval } from "./ApprovalBar";
+import { DocEditions } from "./DocEditions";
 import { loadProposal } from "@/lib/proposal-store";
 import type { ProposalModule } from "@/lib/proposal-modules";
 import { rowsFromModules } from "@/lib/quote-modules";
@@ -1080,6 +1082,17 @@ export default function Quotation({
               disabled={readOnly}
             />
           </div>
+          {!readOnly && (
+            <DocEditions
+              key={version}
+              projectId={projectId}
+              kind="quote"
+              version={version}
+              doc={doc}
+              read={readQuote}
+              onRestore={(saved) => edit((d) => restoredDoc(saved, d))}
+            />
+          )}
           {orgId !== null && (
             <ApprovalBar projectId={projectId} kind="quote" version={version} doc={doc} readOnly={readOnly} approval={approval} />
           )}

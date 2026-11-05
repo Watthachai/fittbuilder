@@ -61,7 +61,7 @@ export type ApprovalState =
  * Issued on the first export and written into the document (SQP…, PRP…).
  * Counting them would undo an approval the moment the document is printed.
  */
-const NUMBER_FIELDS: ReadonlySet<string> = new Set(["quoteNo", "proposalNo"]);
+export const NUMBER_FIELDS: ReadonlySet<string> = new Set(["quoteNo", "proposalNo"]);
 
 /** JSON with every object's keys sorted, so equal documents read the same. */
 function canonical(value: unknown): string {

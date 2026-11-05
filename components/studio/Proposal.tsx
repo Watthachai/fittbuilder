@@ -28,7 +28,9 @@ import type { VersionKey } from "@/lib/versions";
 import type { ProjectFiles } from "@/lib/types";
 import { toast } from "@/lib/toast";
 import { printSheet } from "@/lib/print-sheet";
-import { ApprovalBar, useDocApproval } from "./ApprovalBar";
+import { restoredDoc } from "@/lib/doc-editions";
+import { ApprovalBar, readProposal, useDocApproval } from "./ApprovalBar";
+import { DocEditions } from "./DocEditions";
 import ProposalModules from "./ProposalModules";
 import ProposalPrint from "./ProposalPrint";
 import DocPreview, { PreviewButton } from "./DocPreview";
@@ -793,6 +795,17 @@ export default function Proposal({
           />
         </div>
 
+        {!readOnly && (
+          <DocEditions
+            key={version}
+            projectId={projectId}
+            kind="proposal"
+            version={version}
+            doc={doc}
+            read={readProposal}
+            onRestore={(saved) => edit((d) => restoredDoc(saved, d))}
+          />
+        )}
         {orgId !== null && (
           <ApprovalBar projectId={projectId} kind="proposal" version={version} doc={doc} readOnly={readOnly} approval={approval} />
         )}

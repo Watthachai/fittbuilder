@@ -29,8 +29,8 @@ const ROLE_LABEL: Record<string, string> = {
 const REVIEWER_ROLE = "company_reviewer";
 
 // Every stored copy carries its own date, so the fallback date never decides anything.
-const readQuote = (doc: unknown) => parseDoc(doc, "");
-const readProposal = (doc: unknown) => parseProposal(doc, "");
+export const readQuote = (doc: unknown) => parseDoc(doc, "");
+export const readProposal = (doc: unknown) => parseProposal(doc, "");
 
 /**
  * Where a quotation or proposal stands in its approval, and whether it may be

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { AlertTriangle, CalendarClock, Plus, Trash2, Wrench } from "lucide-react";
 import {
+  defaultDueLine,
   defaultPaymentHead,
   emptyTerm,
   formatTHB,
@@ -146,6 +147,17 @@ export default function QuoteTerms({
       ...d,
       payment: d.payment.map((t) => (t.id === id ? { ...t, ...patch } : t)),
     }));
+  /** Blank goes back to the days sentence, and leaves no key behind (approval compares keys). */
+  const setDue = (id: string, text: string) =>
+    onEdit((d) => ({
+      ...d,
+      payment: d.payment.map((t) => {
+        if (t.id !== id) return t;
+        const next: PaymentTerm = { ...t, due: text };
+        if (!text.trim()) delete next.due;
+        return next;
+      }),
+    }));
   const setPayment = (payment: PaymentTerm[]) => onEdit((d) => ({ ...d, payment }));
   /** The schedule being left is put aside under its own preset, not replaced (case #44). */
   const pick = (preset: PaymentPreset) => onEdit((d) => choosePreset(d, preset, splitCount));
@@ -261,6 +273,16 @@ export default function QuoteTerms({
                       placeholder="เช่น เมื่อส่งมอบระบบขึ้น UAT"
                       disabled={readOnly}
                       className="w-full rounded-md bg-transparent px-1.5 py-1 text-chalk outline-none focus:bg-night"
+                    />
+                    {/* The line the paper prints under it: blank shows, and prints, the days sentence. */}
+                    <input
+                      value={line.term.due ?? ""}
+                      onChange={(e) => setDue(line.term.id, e.target.value)}
+                      placeholder={defaultDueLine(line.term) || "บรรทัดใต้เงื่อนไข (ไม่บังคับ)"}
+                      title="บรรทัดใต้เงื่อนไขในเอกสาร พิมพ์ข้อความเองได้ เว้นว่างเพื่อใช้ประโยคเดิม"
+                      aria-label={`บรรทัดใต้เงื่อนไขงวดที่ ${i + 1}`}
+                      disabled={readOnly}
+                      className="w-full rounded-md bg-transparent px-1.5 py-0.5 text-[0.75rem] text-chalk-dim outline-none placeholder:text-chalk-dim/50 focus:bg-night focus:text-chalk"
                     />
                   </td>
                   {doc.showPercent && (

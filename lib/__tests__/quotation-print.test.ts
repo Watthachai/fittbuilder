@@ -180,3 +180,45 @@ describe("the cover layout on the paper", () => {
     expect(html).toContain("ราคาสุทธิ / Net");
   });
 });
+
+/**
+ * Case #47: under each instalment the paper said "ชำระภายใน 7 วันนับจากวันที่
+ * ถึงกำหนด" and nothing could change the wording, while the sender's own clause
+ * above it read "ภายใน 7 วัน ณ วันสั่งซื้อ". The line is now the sender's to write.
+ */
+describe("the line under each instalment", () => {
+  const signing = (due?: string, netDays = 7) => ({
+    ...newDoc([], "SiamPools", "2026-11-05"),
+    payment: [
+      { id: "a", when: "เมื่อลงนามในสัญญา", percent: 60, netDays, ...(due === undefined ? {} : { due }) },
+      { id: "b", when: "เมื่อส่งมอบงาน", percent: 40, netDays: 30 },
+    ],
+  });
+  const print = (doc: ReturnType<typeof signing>) =>
+    renderToStaticMarkup(createElement(QuotationPrint, { doc, shots: [], modules: [], draft: false }));
+
+  it("prints the sender's wording in place of the days sentence", () => {
+    const html = print(signing("ชำระภายใน 7 วัน ณ วันสั่งซื้อ"));
+    expect(html).toContain("ชำระภายใน 7 วัน ณ วันสั่งซื้อ");
+    expect(html).not.toContain("ชำระภายใน 7 วันนับจากวันที่ถึงกำหนด");
+    expect(html).toContain("ชำระภายใน 30 วันนับจากวันที่ถึงกำหนด");
+  });
+
+  it("keeps the days sentence when the line is left blank", () => {
+    expect(print(signing("  "))).toContain("ชำระภายใน 7 วันนับจากวันที่ถึงกำหนด");
+    expect(print(signing())).toContain("ชำระภายใน 7 วันนับจากวันที่ถึงกำหนด");
+  });
+
+  it("prints the sender's wording even with no days to count", () => {
+    expect(print(signing("ชำระเป็นเงินสด ณ วันส่งมอบ", 0))).toContain("ชำระเป็นเงินสด ณ วันส่งมอบ");
+  });
+
+  it("survives saving, and a blank one leaves nothing behind", () => {
+    const saved = (d: object) => parseDoc(JSON.parse(JSON.stringify(d)), "2026-11-05")!;
+    expect(saved(signing("ณ วันสั่งซื้อ")).payment[0].due).toBe("ณ วันสั่งซื้อ");
+    // An approved quotation compares its content key by key: a blank line must
+    // not add one, or every quotation approved before this would read as changed.
+    expect("due" in saved(signing("")).payment[0]).toBe(false);
+    expect("due" in saved(signing()).payment[1]).toBe(false);
+  });
+});

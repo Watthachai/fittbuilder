@@ -39,6 +39,18 @@ export const CHANGE_BADGE: Record<ChangeType, { label: string; className: string
 // Newest first. SemVer: fix → PATCH, feature → MINOR, breaking → MAJOR.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.127.0",
+    date: "2026-11-05",
+    title: "พิมพ์บรรทัดใต้เงื่อนไขของแต่ละงวดเองได้",
+    items: [
+      {
+        type: "feature",
+        text: "ในตารางงวดชำระของใบเสนอราคา บรรทัดเล็กใต้เงื่อนไขของแต่ละงวด เช่น “ชำระภายใน 7 วันนับจากวันที่ถึงกำหนด” พิมพ์ข้อความเองได้แล้ว เช่น “ชำระภายใน 7 วัน ณ วันสั่งซื้อ” ให้ตรงกับข้อสัญญาที่แก้ไว้ ข้อความที่แก้ขึ้นทั้งใบที่พิมพ์ ไฟล์ Word และลิงก์ที่แชร์ เว้นว่างไว้จะใช้ประโยคเดิมตามจำนวนวัน",
+      },
+    ],
+    guide: "quotation-pricing",
+  },
+  {
     version: "0.126.0",
     date: "2026-11-05",
     title: "หลายการประชุมจาก FITT Voice ในโปรเจกต์เดียว",

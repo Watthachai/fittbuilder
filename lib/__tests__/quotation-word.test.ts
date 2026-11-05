@@ -155,3 +155,16 @@ describe("the cover layout in the Word file", () => {
     expect(body).toContain("ราคาสุทธิ / Net");
   });
 });
+
+describe("the line under each instalment in the Word file (case #47)", () => {
+  it("is the sender's wording when they wrote one, the days sentence when not", async () => {
+    const payment = [
+      { id: "a", when: "เมื่อลงนามในสัญญา", percent: 60, netDays: 7, due: "ชำระภายใน 7 วัน ณ วันสั่งซื้อ" },
+      { id: "b", when: "เมื่อส่งมอบงาน", percent: 40, netDays: 30 },
+    ];
+    const { body } = await readWord(quotationDocx(quote({ payment }), [], [], NO_ART));
+    expect(body).toContain("ชำระภายใน 7 วัน ณ วันสั่งซื้อ");
+    expect(body).not.toContain("ชำระภายใน 7 วันนับจากวันที่ถึงกำหนด");
+    expect(body).toContain("ชำระภายใน 30 วันนับจากวันที่ถึงกำหนด");
+  });
+});

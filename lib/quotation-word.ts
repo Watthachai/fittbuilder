@@ -3,6 +3,7 @@ import {
   annualLine,
   BILLING_CYCLE_LABEL,
   discountRate,
+  dueLine,
   formatTHB,
   lineTotal,
   lumpSumScope,
@@ -517,9 +518,7 @@ function payments(doc: QuoteDoc, plan: ReturnType<typeof paymentSchedule>): Tabl
     }),
     ...plan.rows.map((line, i) => {
       const term: Paragraph[] = [para([run(line.term.when || "—")])];
-      if (line.term.netDays > 0) {
-        term.push(para([run(`ชำระภายใน ${line.term.netDays} วันนับจากวันที่ถึงกำหนด`, { size: fs(10), color: DIM })]));
-      }
+      if (dueLine(line.term)) term.push(para([run(dueLine(line.term), { size: fs(10), color: DIM })]));
       const amount = (text: string) => [para([run(text)], { alignment: R })];
       return new TableRow({
         cantSplit: true,

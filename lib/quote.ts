@@ -94,7 +94,21 @@ export interface PaymentTerm {
   percent: number;
   /** Days to pay once it falls due. */
   netDays: number;
+  /**
+   * The line printed under `when`, in the sender's words — "ชำระภายใน 7 วัน
+   * ณ วันสั่งซื้อ" where the days sentence says something else (case #47).
+   * Absent prints dueLine's days sentence. Never stored blank: an approved
+   * quotation compares key by key.
+   */
+  due?: string;
 }
+
+/** What the table says under an instalment unless the sender wrote their own. */
+export const defaultDueLine = (term: PaymentTerm): string =>
+  term.netDays > 0 ? `ชำระภายใน ${term.netDays} วันนับจากวันที่ถึงกำหนด` : "";
+
+/** The line under an instalment's condition on the paper; empty prints nothing. */
+export const dueLine = (term: PaymentTerm): string => term.due?.trim() || defaultDueLine(term);
 
 /** The ready-made schedules the panel offers, one button each. */
 export type PaymentPreset = "uat" | "signing" | "equal";
@@ -781,11 +795,13 @@ export function parseDoc(payload: unknown, fallbackDate: string): QuoteDoc | nul
   const terms = (raw: unknown[]): PaymentTerm[] =>
     raw.map((x, i) => {
       const t = obj(x);
+      const due = str(t.due);
       return {
         id: str(t.id) || `pay-${i + 1}`,
         when: str(t.when),
         percent: n(t.percent, 0),
         netDays: n(t.netDays, PAY_NET_DAYS),
+        ...(due.trim() ? { due } : {}),
       };
     });
   // An empty array is a real state — someone deleted every instalment — so

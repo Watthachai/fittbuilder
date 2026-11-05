@@ -39,6 +39,17 @@ export const CHANGE_BADGE: Record<ChangeType, { label: string; className: string
 // Newest first. SemVer: fix → PATCH, feature → MINOR, breaking → MAJOR.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.128.1",
+    date: "2026-11-05",
+    title: "หน้าคู่มือบอกว่ามีอะไรอัปเดตล่าสุด",
+    items: [
+      {
+        type: "improvement",
+        text: "บนสุดของหน้าคู่มือมีรายการ “อัปเดตล่าสุด” 3 เรื่อง กดแล้วเลื่อนไปหัวข้อนั้นทันที หัวข้อที่เพิ่งเปลี่ยนมีป้าย “ใหม่” ทั้งในสารบัญและใต้ชื่อหัวข้อ พร้อมบอกว่าเปลี่ยนอะไร และหัวข้อที่กดไปถึงจะมีแถบสีให้เห็นชัด",
+      },
+    ],
+  },
+  {
     version: "0.128.0",
     date: "2026-11-05",
     title: "เก็บใบเสนอราคาและข้อเสนอเป็นฉบับ แล้วดึงกลับมาทำต่อได้",
@@ -3533,6 +3544,18 @@ export const CHANGELOG: ChangelogEntry[] = [
 
 export function latestVersion(): string {
   return CHANGELOG[0].version;
+}
+
+/**
+ * The newest releases that changed a section of the guide, for /guide to name
+ * at its top and mark on those sections. A release that changed none, such as a
+ * bug fix, has nowhere to send the reader, so it is left to /changelog.
+ */
+export function latestInGuide(
+  count: number,
+  entries: readonly ChangelogEntry[] = CHANGELOG
+): (ChangelogEntry & { guide: string })[] {
+  return entries.filter((entry): entry is ChangelogEntry & { guide: string } => Boolean(entry.guide)).slice(0, count);
 }
 
 export function isChangelogUnseen(lastSeen: string | null): boolean {

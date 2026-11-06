@@ -11,6 +11,18 @@ export function requestOrigin(request: Request): string {
 }
 
 /**
+ * The origin for a link in an email we send: where the caller is, so the link
+ * opens on the address they use and stay signed in on, when that is one of ours.
+ * The header is theirs to set, and must not put another address in our mail.
+ */
+export function mailOrigin(request: Request): string | null {
+  const origin = requestOrigin(request);
+  const { hostname } = new URL(origin);
+  if (hostname.endsWith(".fittbsa.com") || hostname === "localhost") return origin;
+  return publicSiteUrl(request);
+}
+
+/**
  * Our origin as it must appear INSIDE generated code.
  *
  * `requestOrigin` reads a header the caller controls, which is fine for a

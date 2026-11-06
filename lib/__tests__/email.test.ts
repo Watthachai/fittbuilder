@@ -1,5 +1,5 @@
 import { expect, test } from "vitest";
-import { buildInvitePayload, buildPartnerWelcomePayload } from "@/lib/email";
+import { buildApprovalNoticePayload, buildInvitePayload, buildPartnerWelcomePayload } from "@/lib/email";
 
 test("maps role and project into DMAIL variables", () => {
   const p = buildInvitePayload({
@@ -28,5 +28,27 @@ test("a partner welcome names the email to sign in with and links to sign-in", (
     email: "owner@partner.co.th",
     loginLink: "https://app/login",
     senderName: "ทีม FITT Builder",
+  });
+});
+
+test("an approval notice carries what its one template shows", () => {
+  const p = buildApprovalNoticePayload({
+    to: "boss@co.th",
+    name: "พี่เอ๋",
+    subject: "รอคุณอนุมัติ: ใบเสนอราคา · SiamPools",
+    heading: "มีเอกสารรอคุณอนุมัติ",
+    message: "อริสรา ส่งใบเสนอราคาให้คุณอนุมัติ",
+    actionLabel: "เปิดหน้าอนุมัติเอกสาร",
+    actionLink: "https://app/approvals",
+  });
+  expect(p.to).toEqual([{ email: "boss@co.th", name: "พี่เอ๋" }]);
+  expect(p.subject).toBe("รอคุณอนุมัติ: ใบเสนอราคา · SiamPools");
+  expect(p.variables).toEqual({
+    name: "พี่เอ๋",
+    heading: "มีเอกสารรอคุณอนุมัติ",
+    message: "อริสรา ส่งใบเสนอราคาให้คุณอนุมัติ",
+    actionLabel: "เปิดหน้าอนุมัติเอกสาร",
+    actionLink: "https://app/approvals",
+    year: new Date().getFullYear().toString(),
   });
 });

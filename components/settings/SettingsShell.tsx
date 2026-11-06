@@ -1,6 +1,7 @@
 "use client";
 
 import AppVersion from "@/components/AppVersion";
+import { useApprovalInbox } from "@/components/approvals/ApprovalInbox";
 import CaseBell from "@/components/cases/CaseBell";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import Link from "next/link";
@@ -25,6 +26,7 @@ interface Account {
  *  feel like one place instead of disconnected screens. */
 export default function SettingsShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
+  const { waiting: waitingDocs } = useApprovalInbox();
   const router = useRouter();
   const [account, setAccount] = useState<Account | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
@@ -216,7 +218,12 @@ export default function SettingsShell({ children }: { children: ReactNode }) {
                   active={pathname === "/approvals"}
                   icon={<BadgeCheck size={15} className="shrink-0" />}
                 >
-                  อนุมัติเอกสาร
+                  <span className="min-w-0 flex-1">อนุมัติเอกสาร</span>
+                  {waitingDocs > 0 && (
+                    <span className="grid h-4 min-w-4 shrink-0 place-items-center rounded-full bg-red-600 px-1 text-[0.625rem] font-semibold text-white">
+                      {waitingDocs}
+                    </span>
+                  )}
                 </NavLink>
                 {company && (
                   <NavLink

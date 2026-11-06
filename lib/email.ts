@@ -4,6 +4,50 @@ const DMAIL_API_URL = "https://dmail-api.digitalvalue.co.th/api/v1/mail/send";
 const INVITATION_TEMPLATE_ID = "4b72b137-4124-4b4a-982b-a7b38d723547";
 // DMail "FITT Builder — เชิญ Partner": variables email, loginLink, senderName.
 const PARTNER_WELCOME_TEMPLATE_ID = "6a1a524b-2c7b-4309-bc6a-7b69885df68d";
+// DMail "FITT Builder — แจ้งเตือนเอกสาร": variables name, heading, message, actionLabel, actionLink, year.
+const APPROVAL_NOTICE_TEMPLATE_ID = "";
+
+export interface ApprovalNoticeEmailArgs {
+  to: string;
+  name: string;
+  subject: string;
+  heading: string;
+  message: string;
+  actionLabel: string;
+  actionLink: string;
+}
+
+/** One template for every move on a document: what happened is in its variables. */
+export function buildApprovalNoticePayload(args: ApprovalNoticeEmailArgs): DmailPayload {
+  return {
+    templateId: APPROVAL_NOTICE_TEMPLATE_ID,
+    to: [{ email: args.to, name: args.name }],
+    subject: args.subject,
+    variables: {
+      name: args.name,
+      heading: args.heading,
+      message: args.message,
+      actionLabel: args.actionLabel,
+      actionLink: args.actionLink,
+      year: new Date().getFullYear().toString(),
+    },
+  };
+}
+
+export async function sendApprovalNoticeEmail(args: ApprovalNoticeEmailArgs): Promise<{ sent: boolean }> {
+  const apiKey = process.env.DMAIL_API_KEY;
+  if (!apiKey || !APPROVAL_NOTICE_TEMPLATE_ID) {
+    console.error("[email] DMAIL_API_KEY or the approval notice template is not set — skipping approval notice");
+    return { sent: false };
+  }
+  const res = await fetch(DMAIL_API_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "X-API-Key": apiKey },
+    body: JSON.stringify(buildApprovalNoticePayload(args)),
+  });
+  if (!res.ok) throw new Error(`DMAIL error ${res.status}: ${await res.text()}`);
+  return { sent: true };
+}
 
 export interface InviteEmailArgs {
   to: string;

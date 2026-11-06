@@ -1,10 +1,12 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Bell, BellRing, Loader2, Plus } from "lucide-react";
+import Link from "next/link";
+import { BadgeCheck, Bell, BellRing, Loader2, Plus } from "lucide-react";
 import { isClosed, type CaseSummary } from "@/lib/cases";
 import { listCases } from "@/lib/cases-client";
 import { useDismiss } from "@/lib/useDismiss";
+import { useApprovalInbox } from "@/components/approvals/ApprovalInbox";
 import { useCaseInbox } from "./inbox-context";
 import { StatusPill } from "./CaseBits";
 import ReportCaseModal from "./ReportCaseModal";
@@ -22,6 +24,7 @@ type Permission = NotificationPermission | "unsupported";
  */
 export default function CaseBell({ align = "right" }: { align?: "left" | "right" }) {
   const { signedIn, alerts, openCases } = useCaseInbox();
+  const { waiting } = useApprovalInbox();
   const [open, setOpen] = useState(false);
   const [cases, setCases] = useState<CaseSummary[] | null>(null);
   const [team, setTeam] = useState(false);
@@ -67,6 +70,7 @@ export default function CaseBell({ align = "right" }: { align?: "left" | "right"
   if (!signedIn) return null;
 
   const count = alerts.length;
+  const total = count + waiting;
   const shown = (cases ?? [])
     .filter((c) => !isClosed(c.status) || c.unread)
     .sort((a, b) => Number(b.unread) - Number(a.unread) || Date.parse(b.updatedAt) - Date.parse(a.updatedAt))
@@ -78,16 +82,16 @@ export default function CaseBell({ align = "right" }: { align?: "left" | "right"
     <div ref={root} className="relative shrink-0">
       <button
         onClick={() => setOpen((v) => !v)}
-        aria-label={count ? `เคสของฉัน มี ${count} เคสที่รอคุณ` : "เคสของฉัน"}
+        aria-label={total ? `การแจ้งเตือน รอคุณ ${total} รายการ` : "เคสของฉัน"}
         title="เคสของฉัน"
         className={`relative grid h-8 w-8 place-items-center rounded-full transition ${
           open ? "bg-chalk/10 text-chalk" : "text-chalk-dim hover:bg-chalk/5 hover:text-chalk"
         }`}
       >
-        {count ? <BellRing size={16} /> : <Bell size={16} />}
-        {count > 0 && (
+        {total ? <BellRing size={16} /> : <Bell size={16} />}
+        {total > 0 && (
           <span className="absolute -right-0.5 -top-0.5 grid h-4 min-w-4 place-items-center rounded-full bg-red-600 px-1 font-mono text-[0.5625rem] font-bold text-white">
-            {count}
+            {total}
           </span>
         )}
       </button>
@@ -95,6 +99,17 @@ export default function CaseBell({ align = "right" }: { align?: "left" | "right"
       {open && (
         <>
           <div className={`absolute top-full z-50 mt-2 w-80 ${align === "right" ? "right-0" : "left-0"} overflow-hidden rounded-xl border border-night-edge bg-night-panel shadow-2xl`}>
+            {waiting > 0 && (
+              <Link
+                href="/approvals"
+                onClick={() => setOpen(false)}
+                className="flex items-center gap-2 border-b border-night-edge bg-shine/10 px-3.5 py-2.5 text-[0.8125rem] text-chalk transition hover:bg-shine/15"
+              >
+                <BadgeCheck size={14} className="shrink-0 text-shine" />
+                <span className="min-w-0 flex-1">เอกสารรอคุณตรวจหรืออนุมัติ</span>
+                <span className="shrink-0 font-semibold text-shine">{waiting} ฉบับ</span>
+              </Link>
+            )}
             <div className="flex items-center justify-between border-b border-night-edge px-3.5 py-2.5">
               <p className="font-display text-[0.8125rem] font-semibold text-chalk">{team ? "เคสที่ยังไม่ปิด" : "เคสของฉัน"}</p>
               {count > 0 && <p className="text-[0.6875rem] text-red-400">รอคุณ {count} เคส</p>}
@@ -161,7 +176,7 @@ export default function CaseBell({ align = "right" }: { align?: "left" | "right"
               <div className="border-t border-night-edge px-3.5 py-2.5 text-[0.6875rem] leading-relaxed text-chalk-dim">
                 {permission === "default" ? (
                   <button onClick={() => void allow()} className="text-shine transition hover:underline">
-                    เปิดแจ้งเตือนบนเดสก์ท็อป เมื่อทีมตอบระหว่างเปิดแท็บอื่นอยู่
+                    เปิดแจ้งเตือนบนเดสก์ท็อป เมื่อทีมตอบเคสหรือมีความคืบหน้าของเอกสาร ระหว่างเปิดแท็บอื่นอยู่
                   </button>
                 ) : permission === "granted" ? (
                   "แจ้งเตือนบนเดสก์ท็อปเปิดอยู่"

@@ -39,6 +39,22 @@ export const CHANGE_BADGE: Record<ChangeType, { label: string; className: string
 // Newest first. SemVer: fix → PATCH, feature → MINOR, breaking → MAJOR.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.129.0",
+    date: "2026-11-06",
+    title: "แจ้งเตือนทุกขั้นของการอนุมัติเอกสาร",
+    guide: "approval-flow",
+    items: [
+      {
+        type: "feature",
+        text: "ส่งอีเมลถึงคนที่ต้องทำขั้นถัดไปให้เอง ผู้ตรวจหรือผู้อนุมัติได้รับเมื่อมีเอกสารรอ คนส่งได้รับเมื่อผู้ตรวจส่งต่อ เมื่ออนุมัติแล้ว และเมื่อถูกส่งกลับพร้อมเหตุผล",
+      },
+      {
+        type: "feature",
+        text: "กระดิ่งและเมนู “อนุมัติเอกสาร” บอกจำนวนเอกสารที่รอคุณ ถ้าเปิด FITT Builder อยู่จะเห็นข้อความเด้งขึ้นเมื่อมีเอกสารใหม่หรือมีความคืบหน้า",
+      },
+    ],
+  },
+  {
     version: "0.128.4",
     date: "2026-11-06",
     title: "ร่างเอกสารจากสรุปการประชุมครบและไม่เติมข้อมูลเอง",

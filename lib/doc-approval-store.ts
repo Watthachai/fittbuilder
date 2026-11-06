@@ -1,6 +1,8 @@
 "use client";
 
 import { createClient } from "@/lib/supabase/client";
+import { currentUser } from "@/lib/current-user";
+import { approvalAlerts, type ApprovalAlert } from "./approval-notice";
 import type { Json } from "@/lib/db/types";
 import type { ApprovalDocKind, ApprovalRow, ApprovalStage, ApprovalStatus } from "./doc-approval";
 import type { VersionKey } from "./versions";
@@ -77,6 +79,16 @@ export async function projectApprovers(projectId: string): Promise<Approver[]> {
   return (data ?? []).map((a) => ({ userId: a.user_id, email: a.email ?? "", name: a.name, role: a.role }));
 }
 
+/** Best effort: the move stands, and the page says so, whether or not the mail goes out. */
+function mailAboutMove(id: string): void {
+  void fetch("/api/approval-notice", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ id }),
+    keepalive: true,
+  }).catch((e) => console.error("[approval] notice failed:", e));
+}
+
 export async function requestApproval(
   projectId: string,
   kind: ApprovalDocKind,
@@ -86,7 +98,7 @@ export async function requestApproval(
   /** Who checks it first; null sends it straight to the approver. */
   reviewerId: string | null
 ): Promise<void> {
-  const { error } = await createClient().rpc("fittbuilder_request_approval", {
+  const { data: id, error } = await createClient().rpc("fittbuilder_request_approval", {
     pid: projectId,
     kind,
     ver: version,
@@ -95,6 +107,7 @@ export async function requestApproval(
     reviewer: reviewerId,
   });
   if (error) throw error;
+  mailAboutMove(id);
 }
 
 /** The owner or an admin approving the document as it stands. */
@@ -116,6 +129,59 @@ export async function approveNow(
 export async function decideApproval(id: string, approve: boolean, note: string): Promise<void> {
   const { error } = await createClient().rpc("fittbuilder_decide_approval", { aid: id, approve, note });
   if (error) throw error;
+  mailAboutMove(id);
+}
+
+/** Moves on my own requests stay news for this long; what is on my desk stays until it is dealt with. */
+const ALERT_DAYS = 7;
+
+/** What the bell and the toasts tell the signed-in person about documents. */
+export async function loadApprovalAlerts(): Promise<ApprovalAlert[]> {
+  const me = await currentUser();
+  if (!me) return [];
+  const since = new Date(Date.now() - ALERT_DAYS * 86_400_000).toISOString();
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from(TABLE)
+    .select(
+      "id, status, stage, requested_by, requested_at, reviewer_id, reviewed_at, review_note, approver_id, decided_by, decided_at, comment, project_id, doc_kind"
+    )
+    .or(
+      [
+        `and(status.eq.pending,stage.eq.review,reviewer_id.eq.${me.id})`,
+        `and(status.eq.pending,stage.eq.approve,approver_id.eq.${me.id})`,
+        `and(requested_by.eq.${me.id},status.in.(approved,returned),decided_at.gte.${since})`,
+        `and(requested_by.eq.${me.id},status.eq.pending,reviewed_at.gte.${since})`,
+      ].join(",")
+    );
+  if (error) throw error;
+  const rows = data ?? [];
+  const ids = [...new Set(rows.map((r) => r.project_id))];
+  const names = new Map<string, string>();
+  if (ids.length) {
+    const { data: projects } = await supabase.from("fittbuilder_projects").select("id, name").in("id", ids);
+    for (const p of projects ?? []) names.set(p.id, p.name);
+  }
+  return approvalAlerts(
+    rows.map((r) => ({
+      id: r.id,
+      status: r.status as ApprovalStatus,
+      stage: r.stage as ApprovalStage,
+      requestedBy: r.requested_by,
+      requestedAt: r.requested_at,
+      reviewerId: r.reviewer_id,
+      reviewedAt: r.reviewed_at,
+      reviewNote: r.review_note,
+      approverId: r.approver_id,
+      decidedBy: r.decided_by,
+      decidedAt: r.decided_at,
+      comment: r.comment,
+      kind: r.doc_kind as ApprovalDocKind,
+      projectId: r.project_id,
+      projectName: names.get(r.project_id) ?? "—",
+    })),
+    me.id
+  );
 }
 
 /** One request on the approval page: the document as sent, and where it came from. */

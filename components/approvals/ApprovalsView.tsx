@@ -15,6 +15,7 @@ import { parseDoc, thaiDateShort, type QuoteDoc } from "@/lib/quote";
 import { loadQuote } from "@/lib/quote-store";
 import { listShots, type Shot } from "@/lib/shots";
 import { toast } from "@/lib/toast";
+import { useApprovalInbox } from "./ApprovalInbox";
 import { VERSION_LABEL } from "@/lib/versions";
 
 const KIND_LABEL = { quote: "ใบเสนอราคา", proposal: "ข้อเสนอโครงการ" } as const;
@@ -191,6 +192,7 @@ function Review({
     };
   }, [item.projectId, item.version, item.kind, today]);
 
+  const { refresh: refreshInbox } = useApprovalInbox();
   const decide = async (approve: boolean) => {
     if (!approve && !note.trim()) {
       toast.error("ใส่เหตุผลที่ส่งกลับก่อน", { description: "คนส่งจะเห็นข้อความนี้และแก้ตาม" });
@@ -199,6 +201,7 @@ function Review({
     setBusy(true);
     try {
       await decideApproval(item.id, approve, note);
+      refreshInbox();
       toast.success(!approve ? "ส่งกลับให้แก้แล้ว" : reviewing ? `ส่งต่อให้ ${approverName} อนุมัติแล้ว` : "อนุมัติแล้ว");
       onDecided();
     } catch (e) {

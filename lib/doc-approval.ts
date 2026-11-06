@@ -33,7 +33,7 @@ export interface ApprovalRow {
 }
 
 /** Who a pending request is waiting on right now. */
-export function waitingOn(request: ApprovalRow): string {
+export function waitingOn(request: Pick<ApprovalRow, "stage" | "reviewerId" | "approverId">): string {
   return request.stage === "review" && request.reviewerId ? request.reviewerId : request.approverId;
 }
 

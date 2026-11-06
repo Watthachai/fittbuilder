@@ -14,6 +14,7 @@ import {
 import { parseProposal } from "@/lib/proposal";
 import { parseDoc, thaiDateShort } from "@/lib/quote";
 import { toast } from "@/lib/toast";
+import { useApprovalInbox } from "@/components/approvals/ApprovalInbox";
 import type { VersionKey } from "@/lib/versions";
 
 // The reasons fittbuilder_project_approvers gives (migrations 0065, 0066).
@@ -60,9 +61,14 @@ export function useDocApproval(
     setMeId(me?.id ?? null);
   }, [projectId, kind, version, inWorkspace]);
 
+  // `changes`: a move on a request came in. Focus: back from reading the email about one.
+  const { changes } = useApprovalInbox();
   useEffect(() => {
     reload().catch((e) => console.error("[approval] load failed:", e));
-  }, [reload]);
+    const onFocus = () => void reload().catch((e) => console.error("[approval] load failed:", e));
+    window.addEventListener("focus", onFocus);
+    return () => window.removeEventListener("focus", onFocus);
+  }, [reload, changes]);
 
   // The live document against the snapshot approved decides "approved" or "edited since",
   // both read the way the approval page reads them.

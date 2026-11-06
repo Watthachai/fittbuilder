@@ -329,7 +329,7 @@ export default function Studio({ projectId }: { projectId: string }) {
   // selection / re-measure after a patch changed the element's size).
   const [wandNudge, setWandNudge] = useState({ clear: 0, repaint: 0 });
   const [previewPhase, setPreviewPhase] = useState<PhaseId | null>(null);
-  // The tab it opens on; null is the phase's first document.
+  // The tab it opens on; null is the phase's latest document.
   const [previewKind, setPreviewKind] = useState<DocKind | null>(null);
   const [approval, setApproval] = useState<ApprovalState | null>(null);
   const [approveOpen, setApproveOpen] = useState(false);
@@ -762,6 +762,7 @@ export default function Studio({ projectId }: { projectId: string }) {
         const docEntries = (Object.entries(turn.docs) as [DocKind, string][]).map(
           ([kind, text]) => [kind, text.slice(0, DOC_MAX_CHARS)] as [DocKind, string]
         );
+        const docTab = docTabAfterTurn(DOC_KINDS_BY_PHASE[working.phase] ?? [], docEntries.map(([kind]) => kind));
         if (docEntries.length > 0) {
           const files = { ...(working.files ?? {}) };
           for (const [kind, contents] of docEntries) {
@@ -772,13 +773,14 @@ export default function Studio({ projectId }: { projectId: string }) {
           // panel to read raw Markdown showed them the file instead of the
           // thing the file says — the preview modal is the reader for this.
           setPreviewPhase(working.phase);
-          setPreviewKind(docTabAfterTurn(DOC_KINDS_BY_PHASE[working.phase] ?? [], docEntries.map(([kind]) => kind)));
+          setPreviewKind(docTab);
           pushTerminal(`📄 อัปเดต ${docEntries.map(([kind]) => DOC_PATHS[kind]).join(", ")}`);
         }
         const assistantMsg = newMessage("assistant", turn.reply, working.phase);
         if (turn.ask) assistantMsg.ask = turn.ask;
         if (turn.citations?.length) assistantMsg.citations = turn.citations;
         if (docEntries.length > 0) assistantMsg.hasDoc = true;
+        if (docTab) assistantMsg.docKind = docTab;
         const snap = liveRef.current;
         if (snap?.thinking.trim())
           assistantMsg.thinking = snap.thinking.trim().slice(0, THINKING_STORE_LIMIT);
@@ -1550,12 +1552,12 @@ export default function Studio({ projectId }: { projectId: string }) {
    * Preview a phase's document in a modal (Build has no doc → peek at the running
    * app). Used by the chat's "ดูเอกสาร" and as the "just look" branch of a step click.
    */
-  const previewPhaseDoc = useCallback((target: PhaseId) => {
+  const previewPhaseDoc = useCallback((target: PhaseId, kind: DocKind | null = null) => {
     if (isBuildPhase(target)) {
       if (hasRunnableApp(projectRef.current?.files ?? null)) setView("preview");
       return;
     }
-    setPreviewKind(null);
+    setPreviewKind(kind);
     setPreviewPhase(target);
   }, []);
 

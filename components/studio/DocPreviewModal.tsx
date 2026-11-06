@@ -36,7 +36,7 @@ export default function DocPreviewModal({
   /** Printed on every page of the PDF and in its file name. */
   projectName: string;
   docs: DocTab[];
-  /** The tab to open on; the first one when it is null or not among `docs`. */
+  /** The tab to open on; the phase's latest document when it is null or not among `docs`. */
   initialKind: string | null;
   /** Extra line under the revise box, e.g. "แก้ BRD แล้วจะ gen PRD ใหม่ให้ด้วย". */
   hint?: string;
@@ -47,7 +47,7 @@ export default function DocPreviewModal({
   const [comment, setComment] = useState("");
   // By kind: a document just written can reach `docs` a render after the window opens.
   const [activeKind, setActiveKind] = useState(initialKind);
-  const doc = docs.find((d) => d.kind === activeKind) ?? docs[0] ?? null;
+  const doc = docs.find((d) => d.kind === activeKind) ?? docs[docs.length - 1] ?? null;
   const [sheet, setSheet] = useState<DocTab | null>(null);
   const [printing, setPrinting] = useState(false);
 

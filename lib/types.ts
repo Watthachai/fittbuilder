@@ -55,6 +55,8 @@ export interface ChatMessage {
   changes?: FileChange[];
   /** This turn produced/updated this phase's doc → show a "ดูเอกสาร" button. */
   hasDoc?: boolean;
+  /** The document that button opens on. Absent on older messages: the phase's latest document. */
+  docKind?: DocKind;
   /** Org DNA aspects this turn drew on → shown as citation chips. */
   citations?: string[];
   /** Checkpoint this turn produced — shown as a chip you can roll back to. */

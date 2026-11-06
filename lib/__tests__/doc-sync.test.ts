@@ -13,6 +13,8 @@ import { docTabAfterTurn } from "../define";
  */
 const studio = readFileSync("components/studio/Studio.tsx", "utf8");
 const stepper = readFileSync("components/studio/PhaseStepper.tsx", "utf8");
+const chat = readFileSync("components/studio/ChatPanel.tsx", "utf8");
+const modal = readFileSync("components/studio/DocPreviewModal.tsx", "utf8");
 
 describe("updating the docs from the built project", () => {
   // Bounded at its own closing deps array — a longer window runs into the next
@@ -80,11 +82,24 @@ describe("where a written doc opens", () => {
     expect(docTabAfterTurn(["idea", "brd"], ["prd"])).toBeNull();
   });
 
-  it("hands that tab to the window, and a step click goes back to the first tab", () => {
+  it("hands that tab to the window", () => {
     const write = studio.slice(studio.indexOf("files[DOC_PATHS[kind]] = contents"));
-    expect(write.slice(0, 900)).toContain("setPreviewKind(docTabAfterTurn(");
+    expect(write.slice(0, 900)).toContain("setPreviewKind(docTab)");
     expect(studio).toContain("initialKind={previewKind}");
+  });
+
+  // Testing 0.129.1 live: the button under a reply that wrote BRD still opened IDEA.
+  it("a reply's “ดูเอกสาร” opens the document that reply wrote", () => {
+    expect(studio).toContain("assistantMsg.docKind = docTab");
+    expect(chat).toContain("onViewDoc(message.phase!, message.docKind ?? null)");
+  });
+
+  // The rail says BRD.md and the revise box talks about BRD, and replies from
+  // before messages kept their document have nothing else to go on.
+  it("with no document named, opens on the phase's latest one", () => {
     const look = studio.slice(studio.indexOf("const previewPhaseDoc"));
-    expect(look.slice(0, 300)).toContain("setPreviewKind(null)");
+    expect(look.slice(0, 300)).toContain("kind: DocKind | null = null");
+    expect(look.slice(0, 300)).toContain("setPreviewKind(kind)");
+    expect(modal).toContain("?? docs[docs.length - 1] ?? null");
   });
 });

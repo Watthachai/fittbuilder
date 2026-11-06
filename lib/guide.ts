@@ -1317,9 +1317,9 @@ export const GUIDE: readonly GuideSection[] = [
           layout: "wide",
           marks: [
             { n: 1, x: 79, y: 9 },
-            { n: 2, x: 22.6, y: 19 },
+            { n: 2, x: 23.2, y: 19 },
             { n: 3, x: 22.3, y: 47 },
-            { n: 4, x: 10.2, y: 62 },
+            { n: 4, x: 13.4, y: 62 },
             { n: 5, x: 72.6, y: 54 },
             { n: 6, x: 7.6, y: 93 },
           ],

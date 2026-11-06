@@ -48,7 +48,7 @@ import { ATTACHMENT_TEXT_MAX_CHARS, MESSAGE_MAX_CHARS, MESSAGE_WARN_CHARS } from
 import DropOverlay from "@/components/ui/DropOverlay";
 import ImageLightbox from "@/components/ui/ImageLightbox";
 import SourceViewer from "@/components/org/SourceViewer";
-import type { AgentAction, ChatAttachmentInput, ChatMessage, LiveMessage, OrgDna } from "@/lib/types";
+import type { AgentAction, ChatAttachmentInput, ChatMessage, DocKind, LiveMessage, OrgDna } from "@/lib/types";
 import type { DnaCapture } from "@/lib/dna-capture";
 
 const CITE_LABELS: Record<string, string> = {
@@ -94,7 +94,7 @@ interface ChatPanelProps {
   onSubmit: (text: string, media: ChatAttachmentInput[]) => void;
   onCancel: () => void;
   /** Open the doc-preview modal for a phase (from a message's "ดูเอกสาร" button). */
-  onViewDoc: (phase: PhaseId) => void;
+  onViewDoc: (phase: PhaseId, kind: DocKind | null) => void;
   /** The signed-in user's profile photo + name — used only to tell "you" from
    *  a teammate; each message carries its own author. */
   myAvatar?: string | null;
@@ -568,7 +568,7 @@ export default function ChatPanel({
               message.phase &&
               !isBuildPhase(message.phase) && (
                 <button
-                  onClick={() => onViewDoc(message.phase!)}
+                  onClick={() => onViewDoc(message.phase!, message.docKind ?? null)}
                   className="mt-2 inline-flex items-center gap-1.5 rounded-md border border-night-edge bg-night px-2.5 py-1 font-mono text-[0.6875rem] text-chalk-dim transition hover:border-shine/60 hover:text-chalk"
                 >
                   <FileText size={12} className="text-shine" />

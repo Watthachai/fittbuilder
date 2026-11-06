@@ -2,6 +2,8 @@ import Link from "next/link";
 import { ArrowRight, Building2, Eye, Pencil, Users } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { companyHome, spentLinkView } from "@/lib/company-link";
+import type { CompanyRole } from "@/lib/types";
 import AcceptInvite from "./AcceptInvite";
 
 export const metadata = { title: "คำเชิญ" };
@@ -30,6 +32,10 @@ export default async function JoinPage({
   let role: string | null = null;
   let kind: "project" | "org" | "company" = "project";
   let invalidReason: string | null = null;
+  let invalidHint = "ขอลิงก์คำเชิญใหม่จากเจ้าของโปรเจกต์ แล้วลองอีกครั้ง";
+  let invalidAction = { href: "/", label: "กลับหน้าแรก" };
+  // The company link is spent, and this person holds the role it gives.
+  let alreadyIn = false;
 
   const { data: proj } = await admin
     .from("fittbuilder_projects")
@@ -78,14 +84,35 @@ export default async function JoinPage({
             .eq("token", token)
             .maybeSingle();
       if (companyInvite) {
+        invalidHint = "ขอลิงก์ใหม่จากผู้ดูแลบริษัท แล้วลองอีกครั้ง";
+        // Spent by the first person who takes it, who has no reason to ask for another.
+        const spent = companyInvite.status === "accepted";
+        const { data: mine } =
+          spent && user
+            ? await admin
+                .from("fittbuilder_company_members")
+                .select("role")
+                .eq("user_id", user.id)
+                .eq("company_id", companyInvite.company_id)
+                .maybeSingle()
+            : { data: null };
+        const view = spent
+          ? spentLinkView(companyInvite.role as CompanyRole, {
+              signedIn: Boolean(user),
+              role: (mine?.role as CompanyRole | undefined) ?? null,
+            })
+          : null;
         if (companyInvite.status === "revoked") invalidReason = "คำเชิญนี้ถูกยกเลิกแล้ว";
-        // Spent by the first person who takes it.
-        else if (companyInvite.status === "accepted")
-          invalidReason = "ลิงก์นี้ถูกใช้ไปแล้ว — ขอลิงก์ใหม่จากผู้ดูแลบริษัท";
-        else if (new Date(companyInvite.expires_at) < new Date()) invalidReason = "คำเชิญนี้หมดอายุแล้ว";
+        else if (view === "used") invalidReason = "ลิงก์นี้ถูกใช้ไปแล้ว";
+        else if (view === "sign-in") {
+          invalidReason = "ลิงก์นี้ถูกใช้ไปแล้ว";
+          invalidHint = "ถ้าคุณตอบรับลิงก์นี้ไว้แล้ว เข้าสู่ระบบเพื่อใช้งานต่อได้เลย ไม่ต้องขอลิงก์ใหม่";
+          invalidAction = { href: `/login?next=/join/${token}`, label: "เข้าสู่ระบบ" };
+        } else if (!spent && new Date(companyInvite.expires_at) < new Date()) invalidReason = "คำเชิญนี้หมดอายุแล้ว";
         else {
           kind = "company";
-          role = companyInvite.role;
+          alreadyIn = spent;
+          role = mine?.role ?? companyInvite.role;
           const { data: c } = await admin
             .from("fittbuilder_companies")
             .select("name")
@@ -131,8 +158,10 @@ export default async function JoinPage({
         ? role === "admin" ? "จัดการสมาชิกและทุกโปรเจกต์ได้" : "ทำงานกับทุกโปรเจกต์ใน workspace ได้"
         : elevated ? "แก้ไขและสร้างร่วมกันได้" : "เปิดดูได้อย่างเดียว";
   const RoleIcon = kind === "company" ? Building2 : kind === "org" ? Users : elevated ? Pencil : Eye;
-  const eyebrow =
-    kind === "company" ? "คำเชิญเข้าร่วมบริษัท" : kind === "org" ? "คำเชิญเข้าร่วม workspace" : "คำเชิญเข้าร่วมโปรเจกต์";
+  const eyebrow = alreadyIn
+    ? "คุณอยู่ในบริษัทนี้แล้ว"
+    : kind === "company" ? "คำเชิญเข้าร่วมบริษัท" : kind === "org" ? "คำเชิญเข้าร่วม workspace" : "คำเชิญเข้าร่วมโปรเจกต์";
+  const home = alreadyIn ? companyHome(role as CompanyRole) : null;
 
   return (
     <main className="grid min-h-screen place-items-center bg-night px-6">
@@ -152,13 +181,13 @@ export default async function JoinPage({
                 {invalidReason}
               </h1>
               <p className="mt-2 text-sm leading-relaxed text-chalk-dim">
-                ขอลิงก์คำเชิญใหม่จากเจ้าของโปรเจกต์ แล้วลองอีกครั้ง
+                {invalidHint}
               </p>
               <Link
-                href="/"
+                href={invalidAction.href}
                 className="mt-7 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-chalk/15 bg-chalk/[0.03] py-3 font-display text-sm font-medium text-chalk transition hover:border-chalk/30 hover:bg-chalk/[0.06]"
               >
-                กลับหน้าแรก
+                {invalidAction.label}
               </Link>
             </>
           ) : (
@@ -181,7 +210,20 @@ export default async function JoinPage({
                 <span className="text-xs text-chalk-dim/70">· {roleHint}</span>
               </div>
 
-              {user ? (
+              {home ? (
+                <>
+                  <p className="mt-6 text-sm leading-relaxed text-chalk-dim">
+                    ลิงก์เชิญใช้ได้ครั้งเดียว ครั้งต่อไปเข้าหน้าที่ใช้งานได้เลย ไม่ต้องใช้ลิงก์เดิม
+                  </p>
+                  <Link
+                    href={home.href}
+                    className="group mt-5 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-shine py-3 font-display text-sm font-semibold text-night transition hover:brightness-110"
+                  >
+                    {home.label}
+                    <ArrowRight size={16} className="transition-transform group-hover:translate-x-0.5" />
+                  </Link>
+                </>
+              ) : user ? (
                 <AcceptInvite token={token} />
               ) : (
                 <>

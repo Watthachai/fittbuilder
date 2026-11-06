@@ -3,6 +3,8 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { companyHome } from "@/lib/company-link";
+import type { CompanyRole } from "@/lib/types";
 
 /**
  * Accept an invitation, then land the user where the invite points. A
@@ -91,7 +93,7 @@ export async function joinProject(
       return "เข้าร่วมไม่สำเร็จ ลองอีกครั้ง";
     }
     // An approver's and a reviewer's work is the approval page.
-    redirect(role === "approver" || role === "reviewer" ? "/approvals" : "/company");
+    redirect(companyHome(role as CompanyRole).href);
   }
 
   // ── 4. Per-email WORKSPACE invite token? ────────────────────────────────

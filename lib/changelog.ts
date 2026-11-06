@@ -39,6 +39,22 @@ export const CHANGE_BADGE: Record<ChangeType, { label: string; className: string
 // Newest first. SemVer: fix → PATCH, feature → MINOR, breaking → MAJOR.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.128.2",
+    date: "2026-11-06",
+    title: "เปิดลิงก์เชิญเข้าบริษัทซ้ำ ไม่ถูกบอกให้ขอลิงก์ใหม่แล้ว",
+    guide: "approve",
+    items: [
+      {
+        type: "fix",
+        text: "คนที่ตอบรับลิงก์เชิญเข้าบริษัทไปแล้วและเปิดลิงก์เดิมซ้ำ จะเห็นว่าอยู่ในบริษัทแล้ว พร้อมปุ่มไปหน้าที่ใช้งาน แทนข้อความให้ขอลิงก์ใหม่ ถ้ายังไม่ได้เข้าสู่ระบบ จะมีปุ่มเข้าสู่ระบบให้ก่อน",
+      },
+      {
+        type: "fix",
+        text: "ลิงก์เชิญเข้าบริษัทที่ใช้ไม่ได้แล้ว บอกให้ขอลิงก์ใหม่จากผู้ดูแลบริษัท ไม่ใช่จากเจ้าของโปรเจกต์",
+      },
+    ],
+  },
+  {
     version: "0.128.1",
     date: "2026-11-05",
     title: "หน้าคู่มือบอกว่ามีอะไรอัปเดตล่าสุด",

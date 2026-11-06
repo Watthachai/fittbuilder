@@ -2,7 +2,18 @@ import { describe, expect, it } from "vitest";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import QuotationPrint from "@/components/studio/QuotationPrint";
-import { emptyRow, newDoc, parseDoc } from "@/lib/quote";
+import QuoteTerms from "@/components/studio/QuoteTerms";
+import {
+  emptyRow,
+  emptyTerm,
+  newDoc,
+  parseDoc,
+  presetEqual,
+  presetUat,
+  restoreTermText,
+  termTextEdited,
+  withDueLine,
+} from "@/lib/quote";
 import type { Shot } from "@/lib/shots";
 
 /**
@@ -204,8 +215,7 @@ describe("the line under each instalment", () => {
     expect(html).toContain("ชำระภายใน 30 วันนับจากวันที่ถึงกำหนด");
   });
 
-  it("keeps the days sentence when the line is left blank", () => {
-    expect(print(signing("  "))).toContain("ชำระภายใน 7 วันนับจากวันที่ถึงกำหนด");
+  it("keeps the days sentence until the sender touches the line", () => {
     expect(print(signing())).toContain("ชำระภายใน 7 วันนับจากวันที่ถึงกำหนด");
   });
 
@@ -213,12 +223,109 @@ describe("the line under each instalment", () => {
     expect(print(signing("ชำระเป็นเงินสด ณ วันส่งมอบ", 0))).toContain("ชำระเป็นเงินสด ณ วันส่งมอบ");
   });
 
-  it("survives saving, and a blank one leaves nothing behind", () => {
+  it("survives saving, and an untouched one leaves nothing behind", () => {
     const saved = (d: object) => parseDoc(JSON.parse(JSON.stringify(d)), "2026-11-05")!;
     expect(saved(signing("ณ วันสั่งซื้อ")).payment[0].due).toBe("ณ วันสั่งซื้อ");
-    // An approved quotation compares its content key by key: a blank line must
-    // not add one, or every quotation approved before this would read as changed.
-    expect("due" in saved(signing("")).payment[0]).toBe(false);
+    // An approved quotation compares its content key by key: an untouched line
+    // must not add one, or every quotation approved before this would read as changed.
     expect("due" in saved(signing()).payment[1]).toBe(false);
+  });
+});
+
+/**
+ * Case #48: clearing the line brought the days sentence straight back, so a
+ * sender who wanted it gone could not have that, and once the wording was
+ * changed nothing led back to what the system had set.
+ */
+describe("leaving an instalment's wording blank", () => {
+  const signing = (over: { when?: string; due?: string }) => ({
+    ...newDoc([], "SiamPools", "2026-11-06"),
+    payment: [{ id: "a", when: "เมื่อลงนามในสัญญา", percent: 100, netDays: 7, ...over }],
+  });
+  const print = (doc: ReturnType<typeof signing>) =>
+    renderToStaticMarkup(createElement(QuotationPrint, { doc, shots: [], modules: [], draft: false }));
+
+  it("prints no line under the condition once it is cleared", () => {
+    expect(print(signing({ due: "" }))).not.toContain("นับจากวันที่ถึงกำหนด");
+    expect(print(signing({ due: "  " }))).not.toContain("นับจากวันที่ถึงกำหนด");
+  });
+
+  it("prints a blank condition as blank, not a dash", () => {
+    const html = print(signing({ when: "" }));
+    expect(html).not.toMatch(/—\s*<span class="q-of">/);
+    expect(html).toContain("ชำระภายใน 7 วันนับจากวันที่ถึงกำหนด");
+  });
+
+  it("stays cleared after saving", () => {
+    const saved = parseDoc(JSON.parse(JSON.stringify(signing({ due: "" }))), "2026-11-06")!;
+    expect(saved.payment[0].due).toBe("");
+  });
+
+  it("stores a cleared line, and drops the key when the sentence is typed back", () => {
+    const term = presetUat()[0];
+    expect(withDueLine(term, "").due).toBe("");
+    const typedBack = withDueLine({ ...term, due: "x" }, "ชำระภายใน 30 วันนับจากวันที่ถึงกำหนด");
+    expect("due" in typedBack).toBe(false);
+  });
+
+  it("leaves no key when there are no days to say anything about", () => {
+    expect("due" in withDueLine({ ...presetUat()[0], netDays: 0 }, "")).toBe(false);
+  });
+});
+
+describe("restoring an instalment's wording", () => {
+  it("brings back a preset's text and leaves its share and days alone", () => {
+    const edited = { ...presetUat()[0], when: "ข้อความที่แก้", due: "", percent: 25, netDays: 15 };
+    const back = restoreTermText(edited);
+    expect(back.when).toBe(presetUat()[0].when);
+    expect("due" in back).toBe(false);
+    expect(back.percent).toBe(25);
+    expect(back.netDays).toBe(15);
+  });
+
+  it("knows the wording of an equal instalment by its place", () => {
+    const third = presetEqual(4)[2];
+    expect(restoreTermText({ ...third, when: "แก้แล้ว" }).when).toBe("งวดที่ 3");
+    const first = presetEqual(4)[0];
+    expect(restoreTermText({ ...first, when: "แก้แล้ว" }).when).toBe("งวดแรก — เมื่อลงนามในสัญญา");
+  });
+
+  it("keeps the condition of a row the sender added, which the system never set", () => {
+    const added = { ...emptyTerm(2), when: "เมื่อขึ้นระบบจริง", due: "" };
+    const back = restoreTermText(added);
+    expect(back.when).toBe("เมื่อขึ้นระบบจริง");
+    expect("due" in back).toBe(false);
+  });
+
+  it("is only on offer when there is something to restore", () => {
+    expect(termTextEdited(presetUat()[0])).toBe(false);
+    expect(termTextEdited({ ...presetUat()[0], percent: 10, netDays: 3 })).toBe(false);
+    expect(termTextEdited({ ...presetUat()[0], when: "แก้แล้ว" })).toBe(true);
+    expect(termTextEdited({ ...presetUat()[0], due: "" })).toBe(true);
+    expect(termTextEdited({ ...emptyTerm(2), when: "เมื่อขึ้นระบบจริง" })).toBe(false);
+    expect(termTextEdited({ ...emptyTerm(2), due: "ภายใน 3 วัน" })).toBe(true);
+  });
+});
+
+describe("the instalment rows in the editor", () => {
+  const panel = (term: ReturnType<typeof presetUat>[number], readOnly = false) => {
+    const doc = { ...newDoc([], "SiamPools", "2026-11-06"), payment: [term] };
+    return renderToStaticMarkup(createElement(QuoteTerms, { doc, readOnly, onEdit: () => {} }));
+  };
+
+  it("shows the sentence that will print as text in the field", () => {
+    expect(panel(presetUat()[0])).toContain('value="ชำระภายใน 30 วันนับจากวันที่ถึงกำหนด"');
+  });
+
+  it("shows a cleared line as empty, and says what empty does", () => {
+    const html = panel({ ...presetUat()[0], due: "" });
+    expect(html).not.toContain('value="ชำระภายใน 30 วันนับจากวันที่ถึงกำหนด"');
+    expect(html).toContain("ไม่พิมพ์บรรทัดนี้");
+  });
+
+  it("offers คืนค่า only on a row whose wording changed, and not when read-only", () => {
+    expect(panel(presetUat()[0])).not.toContain("คืนค่าข้อความ");
+    expect(panel({ ...presetUat()[0], due: "" })).toContain("คืนค่าข้อความ");
+    expect(panel({ ...presetUat()[0], due: "" }, true)).not.toContain("คืนค่าข้อความ");
   });
 });

@@ -168,3 +168,23 @@ describe("the line under each instalment in the Word file (case #47)", () => {
     expect(body).toContain("ชำระภายใน 30 วันนับจากวันที่ถึงกำหนด");
   });
 });
+
+/** Case #48: what the sender left blank stays blank in the Word file too. */
+describe("an instalment's blank wording in the Word file", () => {
+  const term = { id: "a", when: "เมื่อลงนามในสัญญา", percent: 100, netDays: 7 };
+
+  it("leaves out the line under the condition once it is cleared", async () => {
+    const doc = quote({ payment: [{ ...term, due: "" }] });
+    const { body } = await readWord(quotationDocx(doc, [], [], NO_ART));
+    expect(body).toContain("เมื่อลงนามในสัญญา");
+    expect(body).not.toContain("นับจากวันที่ถึงกำหนด");
+  });
+
+  it("prints a blank condition as blank, and opens with both blank", async () => {
+    const dash = await readWord(quotationDocx(quote({ payment: [{ ...term, when: "" }] }), [], [], NO_ART));
+    expect(dash.body).toContain("ชำระภายใน 7 วันนับจากวันที่ถึงกำหนด");
+    expect(dash.body).not.toContain("—\nชำระภายใน");
+    const both = await readWord(quotationDocx(quote({ payment: [{ ...term, when: "", due: "" }] }), [], [], NO_ART));
+    expect(both.body).toContain("100%");
+  });
+});

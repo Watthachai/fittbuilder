@@ -39,6 +39,22 @@ export const CHANGE_BADGE: Record<ChangeType, { label: string; className: string
 // Newest first. SemVer: fix → PATCH, feature → MINOR, breaking → MAJOR.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.128.3",
+    date: "2026-11-06",
+    title: "เว้นว่างเงื่อนไขการชำระได้ และคืนค่าข้อความที่ระบบตั้งให้ได้",
+    guide: "quotation-pricing",
+    items: [
+      {
+        type: "fix",
+        text: "ในตารางงวดชำระของใบเสนอราคา ลบข้อความเงื่อนไขหรือบรรทัดเล็กใต้เงื่อนไขจนว่าง เอกสาร PDF และ Word จะเว้นว่างตรงนั้นจริง ไม่กลับไปขึ้นประโยคเดิมหรือขีดอีก",
+      },
+      {
+        type: "improvement",
+        text: "เพิ่มปุ่ม “คืนค่าข้อความ” ในงวดที่แก้ข้อความไว้ กดแล้วกลับไปใช้ข้อความที่ระบบตั้งให้ โดย % และจำนวนวันไม่เปลี่ยน งวดที่เพิ่มเองจะคืนได้เฉพาะบรรทัดเล็กใต้เงื่อนไข",
+      },
+    ],
+  },
+  {
     version: "0.128.2",
     date: "2026-11-06",
     title: "เปิดลิงก์เชิญเข้าบริษัทซ้ำ ไม่ถูกบอกให้ขอลิงก์ใหม่แล้ว",

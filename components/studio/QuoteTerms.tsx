@@ -5,6 +5,9 @@ import { AlertTriangle, CalendarClock, Plus, Trash2, Wrench } from "lucide-react
 import {
   defaultDueLine,
   defaultPaymentHead,
+  restoreTermText,
+  termTextEdited,
+  withDueLine,
   emptyTerm,
   formatTHB,
   MA_MIN_MONTHLY,
@@ -147,16 +150,15 @@ export default function QuoteTerms({
       ...d,
       payment: d.payment.map((t) => (t.id === id ? { ...t, ...patch } : t)),
     }));
-  /** Blank goes back to the days sentence, and leaves no key behind (approval compares keys). */
   const setDue = (id: string, text: string) =>
     onEdit((d) => ({
       ...d,
-      payment: d.payment.map((t) => {
-        if (t.id !== id) return t;
-        const next: PaymentTerm = { ...t, due: text };
-        if (!text.trim()) delete next.due;
-        return next;
-      }),
+      payment: d.payment.map((t) => (t.id === id ? withDueLine(t, text) : t)),
+    }));
+  const restoreText = (id: string) =>
+    onEdit((d) => ({
+      ...d,
+      payment: d.payment.map((t) => (t.id === id ? restoreTermText(t) : t)),
     }));
   const setPayment = (payment: PaymentTerm[]) => onEdit((d) => ({ ...d, payment }));
   /** The schedule being left is put aside under its own preset, not replaced (case #44). */
@@ -274,16 +276,26 @@ export default function QuoteTerms({
                       disabled={readOnly}
                       className="w-full rounded-md bg-transparent px-1.5 py-1 text-chalk outline-none focus:bg-night"
                     />
-                    {/* The line the paper prints under it: blank shows, and prints, the days sentence. */}
+                    {/* The line the paper prints under it, as it will print: cleared prints nothing. */}
                     <input
-                      value={line.term.due ?? ""}
+                      value={line.term.due ?? defaultDueLine(line.term)}
                       onChange={(e) => setDue(line.term.id, e.target.value)}
-                      placeholder={defaultDueLine(line.term) || "บรรทัดใต้เงื่อนไข (ไม่บังคับ)"}
-                      title="บรรทัดใต้เงื่อนไขในเอกสาร พิมพ์ข้อความเองได้ เว้นว่างเพื่อใช้ประโยคเดิม"
+                      placeholder="ว่างไว้จะไม่พิมพ์บรรทัดนี้"
+                      title="บรรทัดใต้เงื่อนไขในเอกสาร แก้ข้อความหรือลบออกได้"
                       aria-label={`บรรทัดใต้เงื่อนไขงวดที่ ${i + 1}`}
                       disabled={readOnly}
                       className="w-full rounded-md bg-transparent px-1.5 py-0.5 text-[0.75rem] text-chalk-dim outline-none placeholder:text-chalk-dim/50 focus:bg-night focus:text-chalk"
                     />
+                    {!readOnly && termTextEdited(line.term) && (
+                      <button
+                        type="button"
+                        onClick={() => restoreText(line.term.id)}
+                        title="กลับไปใช้ข้อความที่ระบบตั้งให้ % และจำนวนวันไม่เปลี่ยน"
+                        className="px-1.5 font-mono text-[0.71875rem] text-chalk-dim underline transition hover:text-chalk"
+                      >
+                        คืนค่าข้อความ
+                      </button>
+                    )}
                   </td>
                   {doc.showPercent && (
                     <td className="px-2 py-1">

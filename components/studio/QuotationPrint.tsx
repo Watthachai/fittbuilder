@@ -310,7 +310,7 @@ export default function QuotationPrint({
                         <tr key={line.term.id}>
                           <td className="q-n">{i + 1}</td>
                           <td>
-                            {line.term.when || "—"}
+                            {line.term.when}
                             {dueLine(line.term) && <span className="q-of">{dueLine(line.term)}</span>}
                           </td>
                           {doc.showPercent && <td className="q-c">{percentText(line.term.percent)}%</td>}

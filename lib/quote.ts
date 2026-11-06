@@ -97,8 +97,9 @@ export interface PaymentTerm {
   /**
    * The line printed under `when`, in the sender's words — "ชำระภายใน 7 วัน
    * ณ วันสั่งซื้อ" where the days sentence says something else (case #47).
-   * Absent prints dueLine's days sentence. Never stored blank: an approved
-   * quotation compares key by key.
+   * Absent prints the days sentence and follows the days; only a line someone
+   * touched has the key, since an approved quotation compares key by key.
+   * Blank is the sender clearing it: nothing prints (case #48).
    */
   due?: string;
 }
@@ -108,7 +109,15 @@ export const defaultDueLine = (term: PaymentTerm): string =>
   term.netDays > 0 ? `ชำระภายใน ${term.netDays} วันนับจากวันที่ถึงกำหนด` : "";
 
 /** The line under an instalment's condition on the paper; empty prints nothing. */
-export const dueLine = (term: PaymentTerm): string => term.due?.trim() || defaultDueLine(term);
+export const dueLine = (term: PaymentTerm): string =>
+  term.due === undefined ? defaultDueLine(term) : term.due.trim();
+
+/** An edit to that line. Typing the sentence back resumes following the days, as a clause does. */
+export function withDueLine(term: PaymentTerm, text: string): PaymentTerm {
+  const next: PaymentTerm = { ...term, due: text };
+  if (text === defaultDueLine(term)) delete next.due;
+  return next;
+}
 
 /** The ready-made schedules the panel offers, one button each. */
 export type PaymentPreset = "uat" | "signing" | "equal";
@@ -445,15 +454,37 @@ export function presetSigning(): PaymentTerm[] {
  * times and ฿10,044 once. The money is rounded where it is printed
  * (paymentSchedule), and the percentage where it is shown (percentText).
  */
+const equalWhen = (i: number) => (i === 0 ? "งวดแรก — เมื่อลงนามในสัญญา" : `งวดที่ ${i + 1}`);
+
 export function presetEqual(count: number): PaymentTerm[] {
   const n = Math.max(1, Math.floor(num(count)));
   const each = 100 / n;
   return Array.from({ length: n }, (_, i) => ({
     id: `pay-${i + 1}`,
-    when: i === 0 ? "งวดแรก — เมื่อลงนามในสัญญา" : `งวดที่ ${i + 1}`,
+    when: equalWhen(i),
     percent: i === n - 1 ? 100 - each * (n - 1) : each,
     netDays: PAY_NET_DAYS,
   }));
+}
+
+/** The condition the system set on an instalment, by its id; null on a row the sender added. */
+function defaultWhen(term: PaymentTerm): string | null {
+  const place = /^pay-(\d+)$/.exec(term.id)?.[1];
+  if (place) return equalWhen(Number(place) - 1);
+  return [...presetUat(), ...presetSigning()].find((t) => t.id === term.id)?.when ?? null;
+}
+
+/** Whether an instalment's wording differs from what the system set. */
+export function termTextEdited(term: PaymentTerm): boolean {
+  const when = defaultWhen(term);
+  return term.due !== undefined || (when !== null && when !== term.when);
+}
+
+/** An instalment's wording back as the system set it; its share and days stay (case #48). */
+export function restoreTermText(term: PaymentTerm): PaymentTerm {
+  const next: PaymentTerm = { ...term, when: defaultWhen(term) ?? term.when };
+  delete next.due;
+  return next;
 }
 
 /** A preset's schedule as it starts out. */
@@ -795,13 +826,12 @@ export function parseDoc(payload: unknown, fallbackDate: string): QuoteDoc | nul
   const terms = (raw: unknown[]): PaymentTerm[] =>
     raw.map((x, i) => {
       const t = obj(x);
-      const due = str(t.due);
       return {
         id: str(t.id) || `pay-${i + 1}`,
         when: str(t.when),
         percent: n(t.percent, 0),
         netDays: n(t.netDays, PAY_NET_DAYS),
-        ...(due.trim() ? { due } : {}),
+        ...(typeof t.due === "string" ? { due: t.due } : {}),
       };
     });
   // An empty array is a real state — someone deleted every instalment — so

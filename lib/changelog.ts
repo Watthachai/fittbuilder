@@ -74,6 +74,7 @@ export const CHANGELOG: ChangelogEntry[] = [
     date: "2026-11-06",
     title: "ร่างเอกสารจากสรุปการประชุมครบและไม่เติมข้อมูลเอง",
     guide: "fitt-voice",
+    images: [{ src: "/whats-new/0.128.4-brd.jpg", alt: "FITT Voice ร่าง BRD: ถามก่อนว่าจะใช้การประชุมไหน บอกผลในแชต และไม่ตัดสินใจแทน", width: 1600, height: 900 }],
     items: [
       {
         type: "fix",
@@ -90,6 +91,7 @@ export const CHANGELOG: ChangelogEntry[] = [
     date: "2026-11-06",
     title: "เว้นว่างเงื่อนไขการชำระได้ และคืนค่าข้อความที่ระบบตั้งให้ได้",
     guide: "quotation-pricing",
+    images: [{ src: "/whats-new/0.128.3-terms.jpg", alt: "งวดชำระ: ลบข้อความจนว่าง เอกสารเว้นว่างตรงนั้น และกดคืนค่าข้อความได้", width: 1600, height: 900 }],
     items: [
       {
         type: "fix",

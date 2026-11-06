@@ -15,7 +15,7 @@ import {
   useState,
   useSyncExternalStore,
 } from "react";
-import { DOC_PATHS, docOnlyFiles, docsFromFiles, hasRunnableApp, phaseArtefacts } from "@/lib/define";
+import { DOC_PATHS, docOnlyFiles, docTabAfterTurn, docsFromFiles, hasRunnableApp, phaseArtefacts } from "@/lib/define";
 import { DOC_MAX_CHARS } from "@/lib/limits";
 import { REORGANIZE_PROMPT } from "@/lib/code-health";
 import { commitRevision, revisionFiles } from "@/lib/revisions";
@@ -329,6 +329,8 @@ export default function Studio({ projectId }: { projectId: string }) {
   // selection / re-measure after a patch changed the element's size).
   const [wandNudge, setWandNudge] = useState({ clear: 0, repaint: 0 });
   const [previewPhase, setPreviewPhase] = useState<PhaseId | null>(null);
+  // The tab it opens on; null is the phase's first document.
+  const [previewKind, setPreviewKind] = useState<DocKind | null>(null);
   const [approval, setApproval] = useState<ApprovalState | null>(null);
   const [approveOpen, setApproveOpen] = useState(false);
   const [specOpen, setSpecOpen] = useState(false);
@@ -770,6 +772,7 @@ export default function Studio({ projectId }: { projectId: string }) {
           // panel to read raw Markdown showed them the file instead of the
           // thing the file says — the preview modal is the reader for this.
           setPreviewPhase(working.phase);
+          setPreviewKind(docTabAfterTurn(DOC_KINDS_BY_PHASE[working.phase] ?? [], docEntries.map(([kind]) => kind)));
           pushTerminal(`📄 อัปเดต ${docEntries.map(([kind]) => DOC_PATHS[kind]).join(", ")}`);
         }
         const assistantMsg = newMessage("assistant", turn.reply, working.phase);
@@ -1552,6 +1555,7 @@ export default function Studio({ projectId }: { projectId: string }) {
       if (hasRunnableApp(projectRef.current?.files ?? null)) setView("preview");
       return;
     }
+    setPreviewKind(null);
     setPreviewPhase(target);
   }, []);
 
@@ -3264,6 +3268,7 @@ export default function Studio({ projectId }: { projectId: string }) {
           title={`${phaseDef(previewPhase).user} — ${phaseDef(previewPhase).name}`}
           projectName={project.name}
           docs={previewDocs}
+          initialKind={previewKind}
           hint={
             previewPhase === "define"
               ? "คอมเมนต์จะส่งเข้าแชท แล้ว AI จะ gen BRD ใหม่ และ gen PRD ตามให้อัตโนมัติ"

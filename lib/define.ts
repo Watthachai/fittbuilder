@@ -28,6 +28,14 @@ export function docsFromFiles(
   return docs;
 }
 
+/**
+ * The tab a phase's document window opens on after a turn wrote documents: the
+ * last of the phase's tabs that the turn wrote. Null when it wrote none of them.
+ */
+export function docTabAfterTurn(tabs: readonly DocKind[], written: readonly DocKind[]): DocKind | null {
+  return [...tabs].reverse().find((kind) => written.includes(kind)) ?? null;
+}
+
 /** Subset of `files` under docs/ — preserved across full regenerations. */
 export function docOnlyFiles(files: ProjectFiles | null): ProjectFiles {
   if (!files) return {};

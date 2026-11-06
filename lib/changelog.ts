@@ -39,6 +39,17 @@ export const CHANGE_BADGE: Record<ChangeType, { label: string; className: string
 // Newest first. SemVer: fix → PATCH, feature → MINOR, breaking → MAJOR.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.129.1",
+    date: "2026-11-06",
+    title: "เปิดเอกสารฉบับที่ AI เพิ่งเขียน",
+    items: [
+      {
+        type: "fix",
+        text: "เฟส Define มีทั้ง IDEA และ BRD เมื่อ AI เพิ่งเขียน BRD หน้าต่างเอกสารเปิดแท็บ IDEA ก่อน จึงอ่านฉบับเก่าเหมือนเป็นผลใหม่ ตอนนี้เปิดแท็บของเอกสารที่เพิ่งเขียน",
+      },
+    ],
+  },
+  {
     version: "0.129.0",
     date: "2026-11-06",
     title: "กระดิ่งบอกเอกสารที่รอคุณ",

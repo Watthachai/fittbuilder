@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
+import { docTabAfterTurn } from "../define";
 
 /**
  * The brief has to be able to catch up with the build.
@@ -63,5 +64,27 @@ describe("where a written doc opens", () => {
     const write = studio.slice(studio.indexOf("files[DOC_PATHS[kind]] = contents"));
     expect(write.slice(0, 700)).toContain("setPreviewPhase(");
     expect(write.slice(0, 700)).not.toContain('setView("code")');
+  });
+
+  // Define keeps IDEA beside BRD. An older IDEA on top after a new BRD reads as the new result.
+  it("opens on the document the turn wrote, not the phase's first tab", () => {
+    expect(docTabAfterTurn(["idea", "brd"], ["brd"])).toBe("brd");
+    expect(docTabAfterTurn(["idea", "brd"], ["idea"])).toBe("idea");
+  });
+
+  it("opens on the later document when a turn wrote both", () => {
+    expect(docTabAfterTurn(["idea", "brd"], ["brd", "idea"])).toBe("brd");
+  });
+
+  it("leaves the first tab when the turn wrote nothing this phase shows", () => {
+    expect(docTabAfterTurn(["idea", "brd"], ["prd"])).toBeNull();
+  });
+
+  it("hands that tab to the window, and a step click goes back to the first tab", () => {
+    const write = studio.slice(studio.indexOf("files[DOC_PATHS[kind]] = contents"));
+    expect(write.slice(0, 900)).toContain("setPreviewKind(docTabAfterTurn(");
+    expect(studio).toContain("initialKind={previewKind}");
+    const look = studio.slice(studio.indexOf("const previewPhaseDoc"));
+    expect(look.slice(0, 300)).toContain("setPreviewKind(null)");
   });
 });

@@ -26,6 +26,7 @@ export default function DocPreviewModal({
   title,
   projectName,
   docs,
+  initialKind,
   hint,
   busy,
   onRevise,
@@ -35,6 +36,8 @@ export default function DocPreviewModal({
   /** Printed on every page of the PDF and in its file name. */
   projectName: string;
   docs: DocTab[];
+  /** The tab to open on; the first one when it is null or not among `docs`. */
+  initialKind: string | null;
   /** Extra line under the revise box, e.g. "แก้ BRD แล้วจะ gen PRD ใหม่ให้ด้วย". */
   hint?: string;
   busy: boolean;
@@ -42,8 +45,9 @@ export default function DocPreviewModal({
   onClose: () => void;
 }) {
   const [comment, setComment] = useState("");
-  const [active, setActive] = useState(0);
-  const doc = docs[active] ?? null;
+  // By kind: a document just written can reach `docs` a render after the window opens.
+  const [activeKind, setActiveKind] = useState(initialKind);
+  const doc = docs.find((d) => d.kind === activeKind) ?? docs[0] ?? null;
   const [sheet, setSheet] = useState<DocTab | null>(null);
   const [printing, setPrinting] = useState(false);
 
@@ -76,12 +80,12 @@ export default function DocPreviewModal({
             <p className="shrink-0 font-display text-sm font-semibold text-chalk">{title}</p>
             {docs.length > 1 && (
               <div className="flex items-center gap-1 rounded-full border border-night-edge bg-night p-0.5">
-                {docs.map((d, i) => (
+                {docs.map((d) => (
                   <button
                     key={d.kind}
-                    onClick={() => setActive(i)}
+                    onClick={() => setActiveKind(d.kind)}
                     className={`rounded-full px-3 py-1 text-xs font-medium transition ${
-                      i === active ? "bg-shine text-night" : "text-chalk-dim hover:text-chalk"
+                      d.kind === doc?.kind ? "bg-shine text-night" : "text-chalk-dim hover:text-chalk"
                     }`}
                   >
                     {d.label}

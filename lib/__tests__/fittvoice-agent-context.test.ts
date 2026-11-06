@@ -62,7 +62,28 @@ describe("the rules a phase agent gets with FITT Voice meetings", () => {
     db.items = [meeting("แอป 2.1")];
     const context = await getProjectVoiceContext("p");
     expect(context).toContain("ให้เขียนเป็นคำถามค้างเท่านั้น");
-    expect(context).toContain("ห้ามใส่ในรายการทำหรือไม่ทำ");
+    expect(context).toContain("ห้ามใส่ในขอบเขต ความต้องการ หรือเกณฑ์การยอมรับ");
+  });
+
+  // A combined BRD named the decision maker as a user, set must/should on its own,
+  // and listed "send the revised price" as scope and as an acceptance criterion.
+  it("lists as users only the people the summary says use the system", async () => {
+    db.items = [meeting("แอป 2.1")];
+    const context = await getProjectVoiceContext("p");
+    expect(context).toContain("ผู้ตัดสินใจหรือคนที่ร่วมประชุมไม่ถือเป็นผู้ใช้");
+  });
+
+  it("leaves a priority the summary does not give as รอระบุ", async () => {
+    db.items = [meeting("แอป 2.1")];
+    const context = await getProjectVoiceContext("p");
+    expect(context).toContain("ลำดับความสำคัญ เช่น must หรือ should ให้ใส่เฉพาะที่สรุปบอก");
+  });
+
+  it("keeps follow-up work out of what the system must do", async () => {
+    db.items = [meeting("แอป 2.1")];
+    const context = await getProjectVoiceContext("p");
+    expect(context).toContain("งานหลังประชุม");
+    expect(context).toContain("ไม่ใช่ขอบเขต ความต้องการ หรือเกณฑ์การยอมรับของระบบ");
   });
 
   it("forbids sharpening or re-purposing what the summary said", async () => {

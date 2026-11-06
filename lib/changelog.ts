@@ -39,6 +39,22 @@ export const CHANGE_BADGE: Record<ChangeType, { label: string; className: string
 // Newest first. SemVer: fix → PATCH, feature → MINOR, breaking → MAJOR.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.129.3",
+    date: "2026-11-06",
+    title: "ร่าง BRD จากการประชุม ไม่ตีความเรื่องผู้ใช้และลำดับความสำคัญเอง",
+    guide: "fitt-voice",
+    items: [
+      {
+        type: "improvement",
+        text: "AI ใส่ผู้ใช้ระบบและลำดับความสำคัญเฉพาะที่สรุปการประชุมบอก ที่เหลือเขียนว่า “รอระบุ” ผู้ตัดสินใจไม่ถูกนับเป็นผู้ใช้อีก",
+      },
+      {
+        type: "improvement",
+        text: "งานหลังประชุม เช่น ส่งราคาหรือนัดประชุม และเรื่องที่ยังค้าง ไม่อยู่ในขอบเขต ความต้องการ และเกณฑ์การยอมรับอีก",
+      },
+    ],
+  },
+  {
     version: "0.129.2",
     date: "2026-11-06",
     title: "เปิดเอกสารแล้วเห็นฉบับล่าสุดก่อน",

@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { sendProjectInviteEmail } from "@/lib/email";
-import { requestOrigin } from "@/lib/origin";
+import { mailOrigin } from "@/lib/origin";
 import type { ShareRole } from "@/lib/types";
 
 const schema = z.object({
@@ -33,8 +33,13 @@ export async function POST(request: Request) {
 
   // Derive sender and link server-side — never from the client.
   const senderName = (user.user_metadata?.full_name as string | undefined) ?? user.email ?? "FITT Builder";
-  // Public origin (not the 0.0.0.0 bind host) so the emailed link works.
-  const inviteLink = `${requestOrigin(request)}/join/${invite.token}`;
+  // The sender's browser sets the forwarded host, and our mail must not carry an address they typed.
+  const site = mailOrigin(request);
+  if (!site) {
+    console.error("[invite-email] no public site URL — skipping");
+    return Response.json({ success: false }, { status: 200 });
+  }
+  const inviteLink = `${site}/join/${invite.token}`;
 
   try {
     const r = await sendProjectInviteEmail({

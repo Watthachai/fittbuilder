@@ -39,6 +39,30 @@ export const CHANGE_BADGE: Record<ChangeType, { label: string; className: string
 // Newest first. SemVer: fix → PATCH, feature → MINOR, breaking → MAJOR.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.129.4",
+    date: "2026-11-07",
+    title: "สั่งร่าง BRD ใหม่ เขียนจากการประชุม ไม่ยกจากฉบับเก่า",
+    guide: "fitt-voice",
+    items: [
+      {
+        type: "improvement",
+        text: "สั่งร่างใหม่ทั้งฉบับ AI จะเขียนจากสรุปการประชุมกับสิ่งที่คุณบอกในแชต ไม่ยกเรื่องที่ยังค้างจากฉบับเดิมมา และบอกว่าเอาอะไรออกเพราะอะไร",
+      },
+      {
+        type: "improvement",
+        text: "ความต้องการของระบบมีเฉพาะที่สรุปบอกว่าระบบต้องทำ เป้าหมาย ราคา และเงื่อนไขการขายไม่ถูกเขียนเป็นฟังก์ชัน ถ้าสรุปไม่ได้บอกจะเขียนว่า “รอระบุ”",
+      },
+      {
+        type: "improvement",
+        text: "สั่งให้ร่างจากการประชุมเดียว AI จะร่างให้เลย ไม่ถามซ้ำว่าจะให้ร่างไหม",
+      },
+      {
+        type: "fix",
+        text: "ลิงก์ในอีเมลเชิญเข้าโปรเจกต์และ workspace ใช้ที่อยู่ของ FITT Builder เท่านั้น",
+      },
+    ],
+  },
+  {
     version: "0.129.3",
     date: "2026-11-06",
     title: "ร่าง BRD จากการประชุม ไม่ตีความเรื่องผู้ใช้และลำดับความสำคัญเอง",
@@ -85,6 +109,7 @@ export const CHANGELOG: ChangelogEntry[] = [
     date: "2026-11-06",
     title: "กระดิ่งบอกเอกสารที่รอคุณ",
     guide: "approval-flow",
+    images: [{ src: "/whats-new/0.129.0-bell.jpg", alt: "กระดิ่งแสดงจำนวนเอกสารที่รอคุณ และข้อความเด้งเมื่อมีเอกสารรออนุมัติ", width: 1568, height: 720 }],
     items: [
       {
         type: "feature",

@@ -32,6 +32,44 @@ describe("the rules a phase agent gets with FITT Voice meetings", () => {
     db.items = [];
   });
 
+  // Measured on 2026-11-07: a fresh draft left the undecided accounting link out of
+  // the requirements in 8 of 8 runs, a redraft over the old document kept it in 3 of 4.
+  it("makes a full redraft come from the meetings, not from the document it replaces", async () => {
+    db.items = [meeting("ระบบจัดซื้อ")];
+    const context = await getProjectVoiceContext("p");
+    expect(context).toContain("เมื่อผู้ใช้สั่งร่างใหม่ทั้งฉบับ");
+    expect(context).toContain("ห้ามยกเนื้อหาจากเอกสารฉบับเดิมหรือคำตอบเก่ามาเพียงเพราะมีอยู่แล้ว");
+    expect(context).toContain("ให้บอกในแชตสั้นๆ ว่าเอาอะไรออกและเพราะอะไร");
+  });
+
+  it("keeps an undecided matter out of the requirements even with its priority left open", async () => {
+    db.items = [meeting("ระบบจัดซื้อ")];
+    expect(await getProjectVoiceContext("p")).toContain("แม้จะเขียนลำดับความสำคัญว่า รอระบุ ก็ตาม");
+  });
+
+  it("does not let goals, prices or sales terms become functions", async () => {
+    db.items = [meeting("ระบบจัดซื้อ")];
+    const context = await getProjectVoiceContext("p");
+    expect(context).toContain("ความต้องการเชิงฟังก์ชัน ให้ใส่เฉพาะสิ่งที่สรุปบอกว่าระบบต้องทำ");
+    expect(context).toContain("เป้าหมาย ราคา ค่าบำรุงรักษา และเงื่อนไขการขาย ไม่ใช่ฟังก์ชัน");
+  });
+
+  it("does not let the agent make up a role for users nobody named", async () => {
+    db.items = [meeting("ระบบจัดซื้อ")];
+    expect(await getProjectVoiceContext("p")).toContain("ห้ามตั้งบทบาทขึ้นเอง เช่น เจ้าหน้าที่ หรือผู้ใช้งานทั่วไป");
+  });
+
+  // One run of three stopped to ask "shall I draft it?" after being told to draft it.
+  it("does not ask again when the person already asked for the document", async () => {
+    db.items = [meeting("ระบบจัดซื้อ")];
+    expect(await getProjectVoiceContext("p")).toContain("ถ้าผู้ใช้ขอมาแล้วในข้อความนั้น ไม่ต้องถามซ้ำ");
+  });
+
+  it("keeps these rules out of what the person reads in the chat", async () => {
+    db.items = [meeting("ระบบจัดซื้อ")];
+    expect(await getProjectVoiceContext("p")).toContain("ห้ามพูดถึงคำว่ากติกาหรือกฎในแชต");
+  });
+
   it("says nothing for a project with no meetings", async () => {
     expect(await getProjectVoiceContext("p")).toBe("");
   });

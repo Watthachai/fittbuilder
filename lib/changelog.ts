@@ -39,6 +39,22 @@ export const CHANGE_BADGE: Record<ChangeType, { label: string; className: string
 // Newest first. SemVer: fix → PATCH, feature → MINOR, breaking → MAJOR.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.129.5",
+    date: "2026-11-07",
+    title: "สิ่งที่ลูกค้าขอแล้ว ยังอยู่ใน BRD แม้รายละเอียดยังรอส่ง",
+    guide: "fitt-voice",
+    items: [
+      {
+        type: "fix",
+        text: "ลูกค้าขอเรื่องใดชัดเจนแล้ว เช่น export เป็น Excel AI จะเก็บไว้ในความต้องการของระบบ และถามเฉพาะรายละเอียดที่ยังรอเป็นคำถามค้าง",
+      },
+      {
+        type: "fix",
+        text: "สั่งแก้เฉพาะจุด AI จะแก้เฉพาะจุดนั้น ส่วนอื่นของเอกสารเหมือนเดิม ถ้าเห็นเรื่องอื่นที่ควรแก้จะบอกในแชต",
+      },
+    ],
+  },
+  {
     version: "0.129.4",
     date: "2026-11-07",
     title: "สั่งร่าง BRD ใหม่ เขียนจากการประชุม ไม่ยกจากฉบับเก่า",

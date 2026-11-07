@@ -47,6 +47,15 @@ describe("the rules a phase agent gets with FITT Voice meetings", () => {
     expect(await getProjectVoiceContext("p")).toContain("แม้จะเขียนลำดับความสำคัญว่า รอระบุ ก็ตาม");
   });
 
+  // After the undecided-matters rule tightened, a Dashboard export the customer had asked for
+  // left the requirements in 4 of 10 runs because its spec was still to come.
+  it("keeps what the customer asked for, and asks only about the details still to come", async () => {
+    db.items = [meeting("แอป 2.1")];
+    expect(await getProjectVoiceContext("p")).toContain(
+      "สิ่งที่สรุประบุว่าลูกค้าขอแล้ว หรือบอกว่าทีมต้องแก้ ให้คงไว้ในความต้องการ แม้รายละเอียดยังรอส่ง และถามเฉพาะรายละเอียดเป็นคำถามค้าง"
+    );
+  });
+
   it("does not let goals, prices or sales terms become functions", async () => {
     db.items = [meeting("ระบบจัดซื้อ")];
     const context = await getProjectVoiceContext("p");
@@ -63,6 +72,12 @@ describe("the rules a phase agent gets with FITT Voice meetings", () => {
   it("does not ask again when the person already asked for the document", async () => {
     db.items = [meeting("ระบบจัดซื้อ")];
     expect(await getProjectVoiceContext("p")).toContain("ถ้าผู้ใช้ขอมาแล้วในข้อความนั้น ไม่ต้องถามซ้ำ");
+  });
+
+  // One edit of four asked for a single question and also rewrote the users table.
+  it("keeps a targeted edit to what was asked", async () => {
+    db.items = [meeting("ระบบจัดซื้อ")];
+    expect(await getProjectVoiceContext("p")).toContain("เมื่อผู้ใช้สั่งแก้เฉพาะจุด ให้แก้เฉพาะจุดนั้น เนื้อหาส่วนอื่นต้องเหมือนเดิมทุกตัวอักษร");
   });
 
   it("keeps these rules out of what the person reads in the chat", async () => {

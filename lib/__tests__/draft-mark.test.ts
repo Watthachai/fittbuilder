@@ -16,17 +16,22 @@ import { newDoc } from "@/lib/quote";
 describe("the draft mark", () => {
   const quote = newDoc([], "SiamPools", "2026-11-04");
   const proposal = newProposal("SiamPools", "2026-11-04");
-  const html = (draft: boolean) => [
-    renderToStaticMarkup(createElement(QuotationPrint, { doc: quote, shots: [], modules: [], draft })),
-    renderToStaticMarkup(createElement(ProposalPrint, { doc: proposal, quote, shots: [], draft })),
-  ];
+  const html = (draft: boolean) =>
+    renderToStaticMarkup(createElement(QuotationPrint, { doc: quote, shots: [], modules: [], draft }));
 
   it("is drawn by the paper of a draft", () => {
-    for (const page of html(true)) expect(page).toContain("fitt-draft-mark");
+    expect(html(true)).toContain("fitt-draft-mark");
   });
 
   it("is absent from an approved paper", () => {
-    for (const page of html(false)) expect(page).not.toContain("fitt-draft-mark");
+    expect(html(false)).not.toContain("fitt-draft-mark");
+  });
+
+  // Case #50: only the quotation is approved. A proposal is never a draft awaiting it.
+  it("is never on a proposal's paper", () => {
+    expect(renderToStaticMarkup(createElement(ProposalPrint, { doc: proposal, quote, shots: [] }))).not.toContain(
+      "fitt-draft-mark"
+    );
   });
 
   const css = readFileSync("app/globals.css", "utf8");

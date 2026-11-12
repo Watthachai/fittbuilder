@@ -64,7 +64,7 @@ export default function ApprovalsView() {
       <section className="w-80 shrink-0 overflow-y-auto border-r border-night-edge p-4">
         <h1 className="font-display text-lg font-semibold text-chalk">อนุมัติเอกสาร</h1>
         <p className="mt-1 text-[0.78125rem] leading-relaxed text-chalk-dim">
-          ใบเสนอราคาและข้อเสนอโครงการที่ส่งมาให้คุณตรวจ ก่อนส่งถึงลูกค้า
+          ใบเสนอราคาที่ส่งมาให้คุณตรวจ ก่อนส่งถึงลูกค้า
         </p>
         {lists === null ? (
           <p className="mt-6 flex items-center gap-2 text-sm text-chalk-dim">
@@ -298,7 +298,7 @@ function Review({
         {quoteDoc && (
           <QuotationPrint doc={quoteDoc} shots={quoteDoc.showShots ? shots : []} modules={modules} draft={false} />
         )}
-        {proposalDoc && <ProposalPrint doc={proposalDoc} quote={quote} shots={shots} draft={false} />}
+        {proposalDoc && <ProposalPrint doc={proposalDoc} quote={quote} shots={shots} />}
         {!quoteDoc && !proposalDoc && <p className="p-6 text-sm text-chalk-dim">อ่านเอกสารนี้ไม่ได้</p>}
       </div>
     </div>

@@ -16,22 +16,26 @@ import Overlay from "@/components/ui/Overlay";
  * print engine knows — the letterhead repeats on each page and rows refuse to
  * split. "ดูแบบแบ่งหน้า A4" opens that engine on the draft, every page still
  * marked (case #46).
+ *
+ * A proposal needs no approval (case #50): its preview says only that it can
+ * be printed, and carries no mark.
  */
+export type PreviewStatus =
+  | { kind: "approved" }
+  | { kind: "free" }
+  /** Not approved yet: read only, with the marked draft's real pages a click away. */
+  | { kind: "draft"; onPages: () => void; pagesBusy: boolean };
+
 export default function DocPreview({
   title,
-  approved,
+  status,
   onClose,
-  onPages,
-  pagesBusy,
   children,
 }: {
   title: string;
   /** Whether this document may be printed — the same answer the print button has. */
-  approved: boolean;
+  status: PreviewStatus;
   onClose: () => void;
-  /** Open the print dialog on the marked draft, to read its real pages. */
-  onPages: () => void;
-  pagesBusy: boolean;
   children: ReactNode;
 }) {
   return (
@@ -40,29 +44,33 @@ export default function DocPreview({
         <header className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-night-edge bg-night px-4 py-2.5">
           <Eye size={15} className="shrink-0 text-shine" />
           <p className="font-display text-[0.875rem] font-semibold text-chalk">ตัวอย่าง{title}</p>
-          {approved ? (
+          {status.kind === "approved" && (
             <span className="flex items-center gap-1 text-[0.78125rem] text-go">
               <BadgeCheck size={13} /> อนุมัติแล้ว — ปิดหน้านี้แล้วกดพิมพ์หรือบันทึก Word ได้
             </span>
-          ) : (
+          )}
+          {status.kind === "free" && (
+            <span className="text-[0.78125rem] text-chalk-dim">ปิดหน้านี้แล้วกดพิมพ์หรือบันทึก Word ได้</span>
+          )}
+          {status.kind === "draft" && (
             <span className="text-[0.78125rem] text-halt">
               ยังไม่ได้อนุมัติ — ดูได้อย่างเดียว พอพร้อมแล้วกด “ส่งอนุมัติ” เพื่อพิมพ์หรือบันทึกไฟล์
             </span>
           )}
-          {!approved && (
+          {status.kind === "draft" && (
             <button
-              onClick={onPages}
-              disabled={pagesBusy}
+              onClick={status.onPages}
+              disabled={status.pagesBusy}
               title="เปิดหน้าต่างพิมพ์ของเบราว์เซอร์เพื่อดูการแบ่งหน้าจริง ทุกหน้ามีลายน้ำ “ตัวอย่าง”"
               className="ml-auto inline-flex items-center gap-1.5 rounded-lg border border-shine/50 px-2.5 py-1 font-display text-[0.78125rem] text-chalk transition hover:bg-shine/10 disabled:opacity-60"
             >
-              {pagesBusy ? <Loader2 size={13} className="animate-spin" /> : <FileText size={13} />} ดูแบบแบ่งหน้า A4
+              {status.pagesBusy ? <Loader2 size={13} className="animate-spin" /> : <FileText size={13} />} ดูแบบแบ่งหน้า A4
             </button>
           )}
           <button
             onClick={onClose}
             aria-label="ปิดตัวอย่าง"
-            className={`${approved ? "ml-auto " : ""}grid h-8 w-8 place-items-center rounded-lg text-chalk-dim transition hover:bg-chalk/10 hover:text-chalk`}
+            className={`${status.kind === "draft" ? "" : "ml-auto "}grid h-8 w-8 place-items-center rounded-lg text-chalk-dim transition hover:bg-chalk/10 hover:text-chalk`}
           >
             <X size={16} />
           </button>

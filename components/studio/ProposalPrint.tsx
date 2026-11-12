@@ -11,7 +11,6 @@ import {
 } from "@/lib/proposal";
 import { partPoints } from "@/lib/proposal-modules";
 import type { Shot } from "@/lib/shots";
-import { DraftMark } from "./DocPreview";
 import { Row, wordSafe } from "./QuotationPrint";
 
 /**
@@ -26,15 +25,14 @@ import { Row, wordSafe } from "./QuotationPrint";
  * quotation by number. Every figure it does carry (days, review window,
  * included maintenance) is read off the quotation through proposalTimeline,
  * never typed here, so the two sheets in the envelope cannot disagree.
+ *
+ * It carries no "ตัวอย่าง" mark: only the quotation is approved (case #50).
  */
 export default function ProposalPrint({
   doc,
   quote,
   shots,
-  draft,
 }: {
-  /** Not yet approved: the paper carries the "ตัวอย่าง" mark, on screen and on every printed page. */
-  draft: boolean;
   doc: ProposalDoc;
   /** The priced scope this proposal points at — null when none exists yet. */
   quote: QuoteDoc | null;
@@ -50,7 +48,6 @@ export default function ProposalPrint({
 
   return (
     <div id="fitt-print-root" className="fitt-paper" style={{ ["--accent" as string]: accent }}>
-      {draft && <DraftMark />}
       <table className="q-sheet">
         <thead>
           <tr>

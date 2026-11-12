@@ -157,7 +157,7 @@ export default function CompanyView() {
     <div className="w-full max-w-3xl px-8 py-10">
       <Header name={company.name} />
       <p className="mt-3 text-[0.8125rem] leading-relaxed text-chalk-dim">
-        ผู้อนุมัติของบริษัทอนุมัติใบเสนอราคาและข้อเสนอโครงการได้ทุก workspace ของคนในบริษัท และเปิดดูได้อย่างเดียว
+        ผู้อนุมัติของบริษัทอนุมัติใบเสนอราคาได้ทุก workspace ของคนในบริษัท และเปิดดูได้อย่างเดียว
         · ผู้ตรวจอ่านเอกสารก่อน แล้วส่งต่อให้ผู้อนุมัติ
         {company.emailDomain && <> · คนที่ใช้อีเมล @{company.emailDomain} เข้าบริษัทให้เอง</>}
       </p>

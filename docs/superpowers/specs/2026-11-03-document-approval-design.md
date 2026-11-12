@@ -19,6 +19,9 @@ step and a role whose whole job is that step.
 - **The sender picks the approver** when they send a document for approval.
 - **Documents:** the quotation and the proposal (ข้อเสนอโครงการ). BRD and PRD
   are out.
+  - **Changed 2026-11-12 (case #50):** only the quotation is approved. A
+    proposal names no price, and prints without approval. Earlier proposal
+    requests stay in the approvers' history.
 - **Applies to every workspace,** partner workspaces included. A project that
   is not in a workspace needs no approval.
 - **An edit after approval** returns the document to "not approved".

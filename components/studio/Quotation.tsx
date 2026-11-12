@@ -1135,10 +1135,12 @@ export default function Quotation({
       {preview && (
         <DocPreview
           title="ใบเสนอราคา"
-          approved={approval.exportAllowed}
+          status={
+            approval.exportAllowed
+              ? { kind: "approved" }
+              : { kind: "draft", onPages: () => void printDraft(), pagesBusy: exporting === "draft" }
+          }
           onClose={() => setPreview(null)}
-          onPages={() => void printDraft()}
-          pagesBusy={exporting === "draft"}
         >
           <QuotationPrint
             doc={doc}

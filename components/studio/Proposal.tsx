@@ -29,7 +29,7 @@ import type { ProjectFiles } from "@/lib/types";
 import { toast } from "@/lib/toast";
 import { printSheet } from "@/lib/print-sheet";
 import { restoredDoc } from "@/lib/doc-editions";
-import { ApprovalBar, readProposal, useDocApproval } from "./ApprovalBar";
+import { readProposal } from "./ApprovalBar";
 import { DocEditions } from "./DocEditions";
 import ProposalModules from "./ProposalModules";
 import ProposalPrint from "./ProposalPrint";
@@ -73,11 +73,12 @@ export default function Proposal({
   void files;
   const [quote, setQuote] = useState<QuoteDoc | null>(null);
   const [loading, setLoading] = useState(true);
-  const [sheet, setSheet] = useState<{ shots: Shot[]; draft: boolean } | null>(null);
+  // The shots of the paper being printed.
+  const [sheet, setSheet] = useState<Shot[] | null>(null);
   const [preview, setPreview] = useState<Shot[] | null>(null);
   const [previewing, setPreviewing] = useState(false);
   // Which export is running; one value for both buttons — see Quotation.
-  const [exporting, setExporting] = useState<"pdf" | "word" | "draft" | null>(null);
+  const [exporting, setExporting] = useState<"pdf" | "word" | null>(null);
   const [writing, setWriting] = useState(false);
   const today = useMemo(() => new Date().toISOString().slice(0, 10), []);
   // Everyone with this proposal open edits one document — see useSharedDoc.
@@ -88,8 +89,7 @@ export default function Proposal({
     reload: () => loadProposal(projectId, version, today),
     saveError: "บันทึกข้อเสนอไม่สำเร็จ",
   });
-  // A workspace's proposal is approved before it is printed (migration 0063).
-  const approval = useDocApproval(projectId, "proposal", version, doc, orgId !== null);
+  // A proposal is printed without approval: only the quotation is approved (case #50).
   const rootRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -281,7 +281,7 @@ export default function Proposal({
     return fresh.length > 0 ? fresh : shots;
   };
 
-  /** The paper on screen, before approval — no number is issued for it. */
+  /** The paper on screen — no number is issued for it. */
   const openPreview = async () => {
     if (previewing || !doc) return;
     setPreviewing(true);
@@ -293,12 +293,12 @@ export default function Proposal({
   };
 
   const print = async () => {
-    if (exporting || !doc || !approval.exportAllowed) return;
+    if (exporting || !doc) return;
     setExporting("pdf");
     try {
       const { docNo, shots: printable } = await prepareExport(doc);
       await printSheet(
-        () => setSheet({ shots: printable, draft: false }),
+        () => setSheet(printable),
         () => setSheet(null),
         { fileName: docFileName(docNo, doc.customerName) }
       );
@@ -307,35 +307,9 @@ export default function Proposal({
     }
   };
 
-  /**
-   * The draft through the print dialog, to read its real A4 pages (case #46):
-   * every page marked "ตัวอย่าง", and no number issued. The preview closes
-   * while it prints — its paper is a second #fitt-print-root.
-   */
-  const printDraft = async () => {
-    if (exporting || !doc || !preview) return;
-    const shots = preview;
-    setExporting("draft");
-    try {
-      await printSheet(
-        () => {
-          setPreview(null);
-          setSheet({ shots, draft: true });
-        },
-        () => {
-          setSheet(null);
-          setPreview(shots);
-        },
-        { fileName: `ตัวอย่าง-${docFileName(doc.proposalNo, doc.customerName)}` }
-      );
-    } finally {
-      setExporting(null);
-    }
-  };
-
   /** The same paper as a .docx the sender can keep editing in Word (case #27). */
   const saveWord = async () => {
-    if (exporting || !doc || !approval.exportAllowed) return;
+    if (exporting || !doc) return;
     setExporting("word");
     try {
       const { docNo, shots: fresh } = await prepareExport(doc);
@@ -806,13 +780,10 @@ export default function Proposal({
             onRestore={(saved) => edit((d) => restoredDoc(saved, d))}
           />
         )}
-        {orgId !== null && (
-          <ApprovalBar projectId={projectId} kind="proposal" version={version} doc={doc} readOnly={readOnly} approval={approval} />
-        )}
         <PreviewButton busy={previewing} onClick={() => void openPreview()} />
         <button
           onClick={() => void print()}
-          disabled={exporting !== null || !approval.exportAllowed}
+          disabled={exporting !== null}
           className="flex w-full items-center justify-center gap-1.5 rounded-lg bg-shine px-3 py-2 font-display text-[0.875rem] font-semibold text-night transition hover:brightness-110 disabled:opacity-60"
         >
           {exporting === "pdf" ? (
@@ -831,7 +802,7 @@ export default function Proposal({
         <div className="-mt-3">
           <WordButton
             busy={exporting === "word"}
-            disabled={exporting !== null || !approval.exportAllowed}
+            disabled={exporting !== null}
             onClick={() => void saveWord()}
           />
         </div>
@@ -839,16 +810,10 @@ export default function Proposal({
 
       {sheet &&
         typeof document !== "undefined" &&
-        createPortal(<ProposalPrint doc={doc} quote={quote} shots={sheet.shots} draft={sheet.draft} />, document.body)}
+        createPortal(<ProposalPrint doc={doc} quote={quote} shots={sheet} />, document.body)}
       {preview && (
-        <DocPreview
-          title="ข้อเสนอโครงการ"
-          approved={approval.exportAllowed}
-          onClose={() => setPreview(null)}
-          onPages={() => void printDraft()}
-          pagesBusy={exporting === "draft"}
-        >
-          <ProposalPrint doc={doc} quote={quote} shots={preview} draft={!approval.exportAllowed} />
+        <DocPreview title="ข้อเสนอโครงการ" status={{ kind: "free" }} onClose={() => setPreview(null)}>
+          <ProposalPrint doc={doc} quote={quote} shots={preview} />
         </DocPreview>
       )}
     </div>

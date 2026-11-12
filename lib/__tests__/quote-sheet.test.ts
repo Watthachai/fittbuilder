@@ -165,3 +165,18 @@ describe("bahtText", () => {
     expect(bahtText(amount)).toBe(words);
   });
 });
+
+/** Case #49: blank lines left in a part's points are no dashes in the quotation's detail. */
+describe("quoteSheet with blank lines in a part's points", () => {
+  const SEARCH: ProposalModule = {
+    id: "m3",
+    name: "งานจัดส่ง",
+    parts: [{ id: "p3", name: "ระบบสืบค้นเอกสาร", points: ["ค้นหาเอกสาร", "", "  ", "ส่งออกผลการค้นหา", ""], screens: ["หน้าค้นหา"] }],
+  };
+  const before = doc([row({ name: "หน้าค้นหา", days: 3 })]);
+  const cut = { ...before, rows: rowsFromModules(before, [SEARCH]).rows };
+
+  it("notes only the points that carry something", () => {
+    expect(quoteSheet(cut, [SEARCH]).sections[0].lines[0].note).toBe("- ค้นหาเอกสาร\n- ส่งออกผลการค้นหา");
+  });
+});

@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   buildModulesUser,
   declaredSections,
+  emptyModule,
+  emptyPart,
   MODULES_SYSTEM,
   moduleNote,
   parseModulesDraft,
@@ -185,5 +187,22 @@ describe("declaredSections", () => {
     });
     expect(user).not.toMatch(/หมวด/);
     expect(MODULES_SYSTEM).not.toMatch(/หมวด/);
+  });
+});
+
+/**
+ * Case #49: no button added a part, so the person wanting a 3.4 typed it into
+ * 3.3's points and got bullets. A part and a module can be added by hand now;
+ * the paper numbers them like the rest.
+ */
+describe("emptyPart and emptyModule", () => {
+  it("start blank, ready to type into", () => {
+    expect(emptyPart()).toMatchObject({ name: "", points: [], screens: [] });
+    expect(emptyModule()).toMatchObject({ name: "", parts: [{ name: "", points: [], screens: [] }] });
+  });
+
+  it("give each new row an id of its own, even when added in the same moment", () => {
+    const ids = [emptyPart().id, emptyPart().id, emptyModule().id, emptyModule().id];
+    expect(new Set(ids).size).toBe(4);
   });
 });

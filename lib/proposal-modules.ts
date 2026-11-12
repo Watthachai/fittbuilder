@@ -248,10 +248,24 @@ export function unplacedScreens(modules: ProposalModule[], screenNames: string[]
  */
 export function moduleNote(module: ProposalModule, number: number): string {
   return module.parts
-    .map((p, j) => [
-      `${number}.${j + 1} ${p.name.trim()}`,
-      // Blank lines are what an edit leaves mid-typing, not points.
-      ...p.points.map((pt) => pt.trim()).filter(Boolean).map((pt) => `- ${pt}`),
-    ].join("\n"))
+    .map((p, j) => [`${number}.${j + 1} ${p.name.trim()}`, ...partPoints(p).map((pt) => `- ${pt}`)].join("\n"))
     .join("\n\n");
+}
+
+/** A part added by hand (case #49): blank, numbered by the paper like the rest. */
+export function emptyPart(): ModulePart {
+  return { id: `part-${crypto.randomUUID()}`, name: "", points: [], screens: [] };
+}
+
+/** A module added by hand, with one blank part to type into. */
+export function emptyModule(): ProposalModule {
+  return { id: `mod-${crypto.randomUUID()}`, name: "", parts: [emptyPart()] };
+}
+
+/**
+ * A part's points as every paper prints them. The box takes one point a line,
+ * and blank lines are what an edit leaves mid-typing (case #49), not points.
+ */
+export function partPoints(part: Pick<ModulePart, "points">): string[] {
+  return part.points.map((pt) => pt.trim()).filter(Boolean);
 }

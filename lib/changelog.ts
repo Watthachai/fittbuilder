@@ -39,6 +39,22 @@ export const CHANGE_BADGE: Record<ChangeType, { label: string; className: string
 // Newest first. SemVer: fix → PATCH, feature → MINOR, breaking → MAJOR.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.129.6",
+    date: "2026-11-12",
+    title: "เพิ่มโมดูลและระบบย่อยในข้อเสนอโครงการได้เอง",
+    guide: "proposal",
+    items: [
+      {
+        type: "improvement",
+        text: "ส่วน “โมดูลของระบบ” มีปุ่ม “เพิ่มระบบย่อย” และ “เพิ่มโมดูล” ระบบใส่เลขหัวข้อ เช่น 3.4 ให้เอง และเรียงเลขใหม่ให้เมื่อลบหัวข้อ",
+      },
+      {
+        type: "fix",
+        text: "บรรทัดว่างในช่องข้อสรุปไม่ขึ้นเป็นจุดว่างในข้อเสนอโครงการ ไฟล์ Word และใบเสนอราคาแล้ว",
+      },
+    ],
+  },
+  {
     version: "0.129.5",
     date: "2026-11-07",
     title: "สิ่งที่ลูกค้าขอแล้ว ยังอยู่ใน BRD แม้รายละเอียดยังรอส่ง",

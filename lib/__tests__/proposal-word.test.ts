@@ -80,3 +80,15 @@ describe("the short proposal as a Word file", () => {
     expect(pictures.body).toBe(0);
   });
 });
+
+/** Case #49: blank lines left in a part's points are no bullets in the Word file either. */
+describe("blank lines in a part's points, as a Word file", () => {
+  const withPoints = (points: string[]) =>
+    proposal({ short: true, modules: [{ id: "m1", name: "งานจัดส่ง", parts: [{ id: "p1", name: "ระบบสืบค้นเอกสาร", points, screens: [] }] }] });
+
+  it("packs no empty bullet for them", async () => {
+    const blank = await readWord(proposalDocx(withPoints(["ค้นหาเอกสาร", "", "  ", "ส่งออกผลการค้นหา", ""]), quote, shots, art));
+    const clean = await readWord(proposalDocx(withPoints(["ค้นหาเอกสาร", "ส่งออกผลการค้นหา"]), quote, shots, art));
+    expect(blank.body).toBe(clean.body);
+  });
+});

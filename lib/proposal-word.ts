@@ -9,6 +9,7 @@ import {
   type ProposalDoc,
   type ProposalStep,
 } from "@/lib/proposal";
+import { partPoints } from "@/lib/proposal-modules";
 import type { Shot } from "@/lib/shots";
 import {
   CONTENT,
@@ -70,14 +71,15 @@ export function proposalDocx(doc: ProposalDoc, quote: QuoteDoc | null, shots: Sh
         })
       );
       m.parts.forEach((p, j) => {
+        const points = partPoints(p);
         body.push(
           para([run(`${i + 1}.${j + 1}  `, { bold: true, color: accent }), run(p.name, { bold: true })], {
-            keepNext: p.points.length > 0,
+            keepNext: points.length > 0,
             indent: { left: px(18) },
             spacing: { before: px(4) },
           })
         );
-        for (const x of p.points) {
+        for (const x of points) {
           body.push(para([run(x, { color: NOTE })], { numbering: { reference: LIST.bullets, level: 0 }, indent: { left: px(48), hanging: px(14) } }));
         }
       });

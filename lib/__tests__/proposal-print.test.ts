@@ -137,3 +137,24 @@ describe("the short proposal on paper", () => {
     expect(parseProposal({ points: [], short: true }, "2026-01-01")!.short).toBe(true);
   });
 });
+
+/**
+ * Case #49: the points box takes one point a line, and Enter pressed past the
+ * last one leaves blank lines. They printed as empty bullets under 3.3.
+ */
+describe("blank lines in a part's points", () => {
+  const part = (points: string[]) => ({ id: "p1", name: "ระบบสืบค้นเอกสาร", points, screens: [] });
+  const paper = (points: string[]) =>
+    renderToStaticMarkup(
+      createElement(ProposalPrint, {
+        doc: { ...newProposal("TBF", "2026-11-12"), short: true, modules: [{ id: "m1", name: "งานจัดส่ง", parts: [part(points)] }] },
+        quote: null,
+        shots: [],
+        draft: false,
+      })
+    );
+
+  it("prints no empty bullet for them", () => {
+    expect(paper(["ค้นหาเอกสาร", "", "  ", "ส่งออกผลการค้นหา", "", ""])).toBe(paper(["ค้นหาเอกสาร", "ส่งออกผลการค้นหา"]));
+  });
+});

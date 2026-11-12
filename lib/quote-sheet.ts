@@ -1,4 +1,4 @@
-import type { ProposalModule } from "@/lib/proposal-modules";
+import { partPoints, type ProposalModule } from "@/lib/proposal-modules";
 import { lineTotal, printsPrice, quoteTotals, type QuoteDoc, type QuoteRow } from "@/lib/quote";
 
 /**
@@ -93,7 +93,7 @@ function partLines(m: ProposalModule, sectionNo: string): SheetLine[] {
   return m.parts.map((p, j) => ({
     no: `${sectionNo}.${j + 1}`,
     name: p.name,
-    note: p.points.map((x) => `- ${x}`).join("\n"),
+    note: partPoints(p).map((x) => `- ${x}`).join("\n"),
     qty: null,
     unit: "",
     unitPrice: null,

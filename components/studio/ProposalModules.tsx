@@ -1,9 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { Boxes, Loader2, Sparkles, Trash2 } from "lucide-react";
+import { Boxes, Loader2, Plus, Sparkles, Trash2 } from "lucide-react";
 import type { ProposalDoc, ProposalStep } from "@/lib/proposal";
-import { unplacedScreens, type ModulePart, type ProposalModule } from "@/lib/proposal-modules";
+import { emptyModule, emptyPart, unplacedScreens, type ModulePart, type ProposalModule } from "@/lib/proposal-modules";
 import { toast } from "@/lib/toast";
 import { inputCls } from "./QuoteFields";
 
@@ -121,6 +121,7 @@ export default function ProposalModules({
               value={m.name}
               onChange={(e) => setModule(m.id, { name: e.target.value })}
               aria-label="ชื่อโมดูล"
+              placeholder="ชื่อโมดูล เช่น Module: Transportation (งานจัดส่ง)"
               className={`${inputCls} font-display`}
               disabled={readOnly}
             />
@@ -145,6 +146,7 @@ export default function ProposalModules({
                     value={p.name}
                     onChange={(e) => setPart(m.id, p.id, { name: e.target.value })}
                     aria-label="ชื่อระบบย่อย"
+                    placeholder="ชื่อระบบย่อย — เลขหัวข้อระบบใส่ให้เอง"
                     className={inputCls}
                     disabled={readOnly}
                   />
@@ -179,9 +181,31 @@ export default function ProposalModules({
                 )}
               </div>
             ))}
+            {!readOnly && (
+              <button
+                onClick={() =>
+                  edit((d) => ({
+                    ...d,
+                    modules: d.modules.map((x) => (x.id !== m.id ? x : { ...x, parts: [...x.parts, emptyPart()] })),
+                  }))
+                }
+                className="inline-flex w-fit items-center gap-1.5 rounded-lg border border-night-edge px-2.5 py-1 font-display text-[0.78125rem] text-chalk-dim transition hover:border-shine/60 hover:text-chalk"
+              >
+                <Plus size={12} /> เพิ่มระบบย่อย {k + 1}.{m.parts.length + 1}
+              </button>
+            )}
           </div>
         </div>
       ))}
+
+      {!readOnly && (
+        <button
+          onClick={() => edit((d) => ({ ...d, modules: [...d.modules, emptyModule()] }))}
+          className="mt-3 inline-flex items-center gap-1.5 rounded-lg border border-night-edge px-2.5 py-1 font-display text-[0.78125rem] text-chalk-dim transition hover:border-shine/60 hover:text-chalk"
+        >
+          <Plus size={12} /> เพิ่มโมดูล
+        </button>
+      )}
 
       {left.length > 0 && (
         <p className="mt-3 rounded-lg border border-shine/50 bg-shine/10 px-2.5 py-2 text-[0.78125rem] leading-relaxed text-chalk">

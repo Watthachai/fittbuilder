@@ -9,6 +9,7 @@ import {
   stepJourney,
   type ProposalDoc,
 } from "@/lib/proposal";
+import { partPoints } from "@/lib/proposal-modules";
 import type { Shot } from "@/lib/shots";
 import { DraftMark } from "./DocPreview";
 import { Row, wordSafe } from "./QuotationPrint";
@@ -179,9 +180,9 @@ export default function ProposalPrint({
                             </span>{" "}
                             {p.name}
                           </p>
-                          {p.points.length > 0 && (
+                          {partPoints(p).length > 0 && (
                             <ul>
-                              {p.points.map((x, k) => (
+                              {partPoints(p).map((x, k) => (
                                 <li key={k}>{x}</li>
                               ))}
                             </ul>

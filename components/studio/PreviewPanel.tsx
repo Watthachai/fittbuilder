@@ -61,6 +61,8 @@ interface PreviewPanelProps {
   onBridge?: (send: (msg: Record<string, unknown>) => void) => void;
   /** What put the panel in its error phase: the preview pipeline, or an AI turn. */
   failedAt: "preview" | "generation";
+  /** The preview could not start and only a page reload starts it again (PreviewBootError). */
+  needsReload: boolean;
   /** Files the project has saved — the preview failing does not mean they are gone. */
   savedFiles: number;
   /** Boot the preview again from the saved files (absent for read-only viewers). */
@@ -93,6 +95,7 @@ export default function PreviewPanel({
   onRebuildShell,
   onBridge,
   failedAt,
+  needsReload,
   savedFiles,
   onRestart,
   onShowCode,
@@ -503,15 +506,24 @@ export default function PreviewPanel({
             "the preview needs another go".
           */
           <CenterNote
-            title={failedAt === "preview" ? "เปิด preview ไม่ขึ้น" : "สร้างไม่สำเร็จ"}
+            title={needsReload ? "ตัวพรีวิวเริ่มทำงานไม่ได้" : failedAt === "preview" ? "เปิด preview ไม่ขึ้น" : "สร้างไม่สำเร็จ"}
             body={
-              savedFiles > 0
-                ? `งานไม่ได้หาย ไฟล์ ${savedFiles} ไฟล์บันทึกไว้แล้ว — ดูสาเหตุได้ที่แถบด้านล่าง ลองเปิดใหม่ หรือส่งเรื่องให้ทีม`
-                : "ดูสาเหตุได้ที่แถบด้านล่าง ลองเปิดใหม่ หรือส่งเรื่องให้ทีม"
+              needsReload
+                ? `${savedFiles > 0 ? `งานไม่ได้หาย ไฟล์ ${savedFiles} ไฟล์บันทึกไว้แล้ว — ` : ""}ต้องโหลดหน้าใหม่จึงจะเริ่มได้อีก มักเกิดจากหน่วยความจำเครื่องไม่พอหรือเน็ตสะดุด ปิดแท็บและโปรแกรมอื่นก่อนโหลดใหม่`
+                : savedFiles > 0
+                  ? `งานไม่ได้หาย ไฟล์ ${savedFiles} ไฟล์บันทึกไว้แล้ว — ดูสาเหตุได้ที่แถบด้านล่าง ลองเปิดใหม่ หรือส่งเรื่องให้ทีม`
+                  : "ดูสาเหตุได้ที่แถบด้านล่าง ลองเปิดใหม่ หรือส่งเรื่องให้ทีม"
             }
             action={
               <div className="mt-4 flex flex-wrap justify-center gap-2">
-                {onRestart && (
+                {needsReload ? (
+                  <button
+                    onClick={() => window.location.reload()}
+                    className="inline-flex items-center gap-1.5 rounded-full bg-shine px-4 py-2 font-display text-[0.8125rem] font-semibold text-night transition hover:brightness-110"
+                  >
+                    <RotateCw size={14} /> โหลดหน้าใหม่
+                  </button>
+                ) : onRestart && (
                   <button
                     onClick={onRestart}
                     className="inline-flex items-center gap-1.5 rounded-full bg-shine px-4 py-2 font-display text-[0.8125rem] font-semibold text-night transition hover:brightness-110"

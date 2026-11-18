@@ -90,6 +90,7 @@ import {
   runProject,
   warmBoot,
   writeFile,
+  type RunFailure,
 } from "@/lib/webcontainer";
 import {
   beginGeneration,
@@ -248,6 +249,9 @@ export default function Studio({ projectId }: { projectId: string }) {
   // Where errorMessage came from — the preview pipeline or an AI turn — so the
   // error screen and a case about it name the right failure.
   const [errorKind, setErrorKind] = useState<"preview" | "generation">("preview");
+  // The preview could not start: final for this page (PreviewBootError), so
+  // the error screens offer a page reload instead of a retry or an AI fix.
+  const [previewDead, setPreviewDead] = useState(false);
   const [reportPreset, setReportPreset] = useState<CaseReportPreset | null>(null);
   const [terminal, setTerminal] = useState<string[]>([]);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -620,9 +624,10 @@ export default function Studio({ projectId }: { projectId: string }) {
         // Fresh server + fresh document — a still-broken app re-reports itself.
         setPreviewRuntimeError(null);
       },
-      onError: (message: string) => {
+      onError: (message: string, failed: RunFailure) => {
         setErrorMessage(message);
         setErrorKind("preview");
+        setPreviewDead(failed === "boot");
         setPhase("error");
         pushTerminal(`✖ ${message}`);
       },
@@ -2283,7 +2288,16 @@ export default function Studio({ projectId }: { projectId: string }) {
       if (cancelled) return;
       // Boot the container while the user is still typing/answering so the
       // first build skips the boot wait.
-      warmBoot();
+      warmBoot((message) => pushTerminal(`✖ ${message} — โหลดหน้าใหม่เพื่อเริ่มใหม่`));
+      // A preview takes ~2.2 GB of the browser's memory (measured 2026-11-18);
+      // a 4 GB laptop fails to start it. Chrome reports memory rounded, capped at 8.
+      const memory = (navigator as Navigator & { deviceMemory?: number }).deviceMemory;
+      if (memory !== undefined && memory <= 4) {
+        toast.warning(`เครื่องนี้มีหน่วยความจำราว ${memory} GB`, {
+          description: "พรีวิวใช้หน่วยความจำราว 2 GB ต่อแท็บ ปิดแท็บและโปรแกรมอื่นก่อนสร้าง แนะนำเครื่องแรม 8 GB ขึ้นไป",
+          duration: 15000,
+        });
+      }
 
       const pending = takePendingAction(projectId);
       if (pending) {
@@ -3152,6 +3166,7 @@ export default function Studio({ projectId }: { projectId: string }) {
                 onRebuildShell={readOnly ? undefined : rebuildShell}
                 onBridge={takeBridge}
                 failedAt={errorKind}
+                needsReload={previewDead}
                 savedFiles={project.files ? Object.keys(project.files).length : 0}
                 onRestart={readOnly ? undefined : restartPreview}
                 onShowCode={() => setView("code")}
@@ -3185,6 +3200,7 @@ export default function Studio({ projectId }: { projectId: string }) {
             onRetry={retry}
             onFixWithAi={fixWithAi}
             canFix={hasApp}
+            needsReload={previewDead}
             onReport={() => openReport(errorMessage ? errorKind : "other", null)}
           />
         </div>

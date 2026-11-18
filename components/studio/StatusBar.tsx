@@ -17,6 +17,8 @@ interface StatusBarProps {
   errorMessage: string | null;
   terminal: string[];
   canFix: boolean;
+  /** The preview could not start: only a page reload helps, not a retry or an AI fix. */
+  needsReload: boolean;
   onRetry: () => void;
   onFixWithAi: () => void;
   /** Open a case for the team — about the error shown, or anything else. */
@@ -28,6 +30,7 @@ export default function StatusBar({
   errorMessage,
   terminal,
   canFix,
+  needsReload,
   onRetry,
   onFixWithAi,
   onReport,
@@ -108,12 +111,12 @@ export default function StatusBar({
           <div className="flex min-w-0 flex-1 items-center gap-2">
             <span className="truncate text-[0.75rem] text-halt">{errorMessage}</span>
             <button
-              onClick={onRetry}
+              onClick={needsReload ? () => window.location.reload() : onRetry}
               className="shrink-0 rounded-sm border border-night-edge px-2 py-0.5 text-[0.6875rem] text-chalk transition hover:border-shine"
             >
-              ลองใหม่
+              {needsReload ? "โหลดหน้าใหม่" : "ลองใหม่"}
             </button>
-            {canFix && (
+            {canFix && !needsReload && (
               <button
                 onClick={onFixWithAi}
                 className="inline-flex shrink-0 items-center gap-1 rounded-sm bg-shine px-2 py-0.5 text-[0.6875rem] font-medium text-night transition hover:bg-shine-soft"

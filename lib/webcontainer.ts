@@ -26,6 +26,25 @@ export class BrowserUnsupportedError extends Error {
   }
 }
 
+/**
+ * The preview could not start, and cannot in this page any more: StackBlitz's
+ * runtime marks its one instance taken when a boot starts and keeps it taken
+ * when the boot fails, so every later boot in the page fails with "Unable to
+ * create more instances" (checked against the live runtime, 2026-11-18). Only
+ * a page reload starts it again.
+ */
+export class PreviewBootError extends Error {
+  constructor(cause: unknown) {
+    super(`ตัวพรีวิวเริ่มทำงานไม่ได้: ${cause instanceof Error ? cause.message : String(cause)}`);
+    this.name = "PreviewBootError";
+  }
+}
+
+/** Where a run failed: starting the preview (final for the page) or running in it. */
+export type RunFailure = "boot" | "run";
+
+const failure = (error: unknown): RunFailure => (error instanceof PreviewBootError ? "boot" : "run");
+
 // The boot promise lives on globalThis, NOT a module-level let: Next.js dev
 // HMR/Fast Refresh re-evaluates this module, which would reset a module-level
 // reference to null while the WebContainer is still alive in the page — and
@@ -51,19 +70,13 @@ export function isPreviewSupported(): boolean {
 
 async function getContainer(): Promise<WebContainer> {
   if (!isPreviewSupported()) throw new BrowserUnsupportedError();
-  if (!wcGlobal.__fittContainer) {
-    const booting = import("@webcontainer/api").then(({ WebContainer }) =>
-      WebContainer.boot({ workdirName: "fitt-builder" })
-    );
-    wcGlobal.__fittContainer = booting;
-    // If boot rejects, clear the cache so a later attempt can retry — UNLESS an
-    // instance is already booted (the API gives no handle to it, so retrying
-    // would just loop on the same error).
-    booting.catch((error: unknown) => {
-      const message = error instanceof Error ? error.message : String(error);
-      if (!message.includes("single WebContainer")) wcGlobal.__fittContainer = null;
+  // A failed boot stays cached: booting again in this page cannot succeed
+  // (PreviewBootError), so every later run reports the failure that caused it.
+  wcGlobal.__fittContainer ??= import("@webcontainer/api")
+    .then(({ WebContainer }) => WebContainer.boot({ workdirName: "fitt-builder" }))
+    .catch((error: unknown) => {
+      throw new PreviewBootError(error);
     });
-  }
   return wcGlobal.__fittContainer;
 }
 
@@ -74,14 +87,12 @@ function peekContainer(): Promise<WebContainer> | null {
 
 /**
  * Boot the container ahead of time (studio open) so the first generation
- * skips the boot wait. Fire-and-forget; runProject reuses the same promise.
+ * skips the boot wait; runProject reuses the same promise. A failure is told
+ * at once, when it happens — every later run reports it again.
  */
-export function warmBoot(): void {
+export function warmBoot(onError: (message: string) => void): void {
   if (!isPreviewSupported()) return;
-  void getContainer().catch(() => {
-    // Boot failures surface properly on the first real run (getContainer's own
-    // catch already cleared the cache where a retry makes sense).
-  });
+  getContainer().catch((error: unknown) => onError(error instanceof Error ? error.message : String(error)));
 }
 
 /**
@@ -256,7 +267,7 @@ export interface RunCallbacks {
   onPhase: (phase: GenerationPhase) => void;
   onTerminal: (line: string) => void;
   onServerReady: (url: string) => void;
-  onError: (message: string) => void;
+  onError: (message: string, failed: RunFailure) => void;
 }
 
 /** The runId that already consumed its one automatic dev-server restart. */
@@ -278,7 +289,7 @@ function watchDevExit(wc: WebContainer, cb: RunCallbacks, runId: number): void {
     currentDevProcess = null;
     cb.onTerminal(`⚠ dev server หยุดทำงานเอง (exit ${code})`);
     if (autoRestartedRunId === runId) {
-      cb.onError("dev server หยุดทำงานซ้ำ — กรุณาโหลดหน้าใหม่");
+      cb.onError("dev server หยุดทำงานซ้ำ — กรุณาโหลดหน้าใหม่", "run");
       return;
     }
     autoRestartedRunId = runId;
@@ -286,7 +297,7 @@ function watchDevExit(wc: WebContainer, cb: RunCallbacks, runId: number): void {
     const url = await startDev(wc, cb, runId);
     if (url === "superseded") return;
     if (url === null) {
-      cb.onError("รีสตาร์ต dev server ไม่สำเร็จ — กรุณาโหลดหน้าใหม่");
+      cb.onError("รีสตาร์ต dev server ไม่สำเร็จ — กรุณาโหลดหน้าใหม่", "run");
       return;
     }
     cb.onServerReady(url);
@@ -369,7 +380,7 @@ async function execRun(runId: number, files: ProjectFiles, cb: RunCallbacks): Pr
         const ok = await runInstall(wc, pkgJson, cb, runId);
         if (ok === "superseded") return;
         if (!ok) {
-          cb.onError("npm install ล้มเหลว");
+          cb.onError("npm install ล้มเหลว", "run");
           return;
         }
         installedFresh = true;
@@ -389,14 +400,14 @@ async function execRun(runId: number, files: ProjectFiles, cb: RunCallbacks): Pr
       const ok = await runInstall(wc, pkgJson, cb, runId);
       if (ok === "superseded") return;
       if (!ok) {
-        cb.onError("npm install ล้มเหลว");
+        cb.onError("npm install ล้มเหลว", "run");
         return;
       }
       installedFresh = true;
       url = await startDev(wc, cb, runId);
       if (url === "superseded") return;
       if (url === null) {
-        cb.onError("เปิด dev server ไม่สำเร็จ กรุณาลองใหม่");
+        cb.onError("เปิด dev server ไม่สำเร็จ กรุณาลองใหม่", "run");
         return;
       }
     }
@@ -409,7 +420,7 @@ async function execRun(runId: number, files: ProjectFiles, cb: RunCallbacks): Pr
     if (installedFresh) void cacheNodeModules(wc, pkgJson);
   } catch (error) {
     if (runId !== currentRunId) return;
-    cb.onError(error instanceof Error ? error.message : "เกิดข้อผิดพลาดในการรัน preview");
+    cb.onError(error instanceof Error ? error.message : "เกิดข้อผิดพลาดในการรัน preview", failure(error));
   }
 }
 
@@ -445,7 +456,7 @@ export async function applyChanges(
     }
     cb.onPhase("ready");
   } catch (error) {
-    cb.onError(error instanceof Error ? error.message : "อัปเดตไฟล์ไม่สำเร็จ");
+    cb.onError(error instanceof Error ? error.message : "อัปเดตไฟล์ไม่สำเร็จ", failure(error));
   }
 }
 

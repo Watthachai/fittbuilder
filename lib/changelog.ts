@@ -39,6 +39,21 @@ export const CHANGE_BADGE: Record<ChangeType, { label: string; className: string
 // Newest first. SemVer: fix → PATCH, feature → MINOR, breaking → MAJOR.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.129.8",
+    date: "2026-11-18",
+    title: "พรีวิวที่เริ่มไม่ได้ บอกสาเหตุจริงและพาโหลดหน้าใหม่",
+    items: [
+      {
+        type: "fix",
+        text: "เมื่อตัวพรีวิวเริ่มทำงานไม่ได้ เช่น หน่วยความจำเครื่องไม่พอหรือเน็ตสะดุด ระบบบอกสาเหตุจริงแทนข้อความ “Unable to create more instances” ที่ขึ้นซ้ำทุกครั้ง และมีปุ่ม “โหลดหน้าใหม่” แทนปุ่มลองใหม่และ “แก้ด้วย AI” ที่ช่วยไม่ได้",
+      },
+      {
+        type: "improvement",
+        text: "เครื่องที่มีหน่วยความจำ 4 GB หรือน้อยกว่าจะเห็นคำเตือนตอนเปิดโปรเจกต์ ว่าพรีวิวใช้หน่วยความจำราว 2 GB ต่อแท็บ และแนะนำเครื่องแรม 8 GB ขึ้นไป",
+      },
+    ],
+  },
+  {
     version: "0.129.7",
     date: "2026-11-12",
     title: "ข้อเสนอโครงการพิมพ์ได้เลย ไม่ต้องอนุมัติ",

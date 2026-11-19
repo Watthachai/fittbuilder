@@ -97,7 +97,8 @@ const bodySchema = z.object({
   prompt: z.string().trim().min(1).max(TURN_PROMPT_MAX_CHARS),
   /** The user's own words that started the project, carried through verbatim. */
   brief: z.string().max(MESSAGE_MAX_CHARS).optional(),
-  previousFiles: z.record(z.string().max(200), z.string().max(200_000)).optional(),
+  /** No cap per file: one long data file must not refuse every edit. What the model reads is bounded by lib/iteration-context. */
+  previousFiles: z.record(z.string().max(200), z.string()).optional(),
   iterationMode: z.boolean().optional(),
   brd: z.string().max(DOC_MAX_CHARS).optional(),
   prd: z.string().max(DOC_MAX_CHARS).optional(),
@@ -144,8 +145,10 @@ export async function POST(request: Request) {
   let body: z.infer<typeof bodySchema>;
   try {
     body = bodySchema.parse(await request.json());
-  } catch {
-    return Response.json({ error: "คำขอไม่ถูกต้อง" }, { status: 400 });
+  } catch (e) {
+    // Name what was refused: a bare "คำขอไม่ถูกต้อง" left a stuck project with no clue why.
+    const fields = e instanceof z.ZodError ? ` (${[...new Set(e.issues.map((i) => i.path.join("/")))].join(", ")})` : "";
+    return Response.json({ error: `คำขอไม่ถูกต้อง${fields}` }, { status: 400 });
   }
 
 

@@ -12,7 +12,7 @@ import type { ProjectFiles } from "@/lib/types";
  * so the descriptions line up one-to-one with the priced rows.
  */
 const bodySchema = z.object({
-  files: z.record(z.string().max(200), z.string().max(200_000)),
+  files: z.record(z.string().max(200), z.string()),
   names: z.array(z.string().max(200)).min(1).max(80),
 });
 

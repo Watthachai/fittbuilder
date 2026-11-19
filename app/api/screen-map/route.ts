@@ -12,7 +12,7 @@ import type { ProjectFiles } from "@/lib/types";
  * running app from this map and photographs every stop.
  */
 const bodySchema = z.object({
-  files: z.record(z.string().max(200), z.string().max(200_000)),
+  files: z.record(z.string().max(200), z.string()),
 });
 
 export async function POST(request: Request) {

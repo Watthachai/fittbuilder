@@ -60,3 +60,36 @@ describe("migration 0055", () => {
     expect(sql55).toMatch(/notify\s+pgrst,\s*'reload schema';/i);
   });
 });
+
+/**
+ * 0070: FITT Billing can put an app in read-only (people sign in and read, nothing is saved), and each app's switch
+ * says which version it runs. Like every migration it is re-run on every deploy, so it must apply again cleanly.
+ */
+const sql70 = readFileSync(join(__dirname, "../../supabase/migrations/0070_billing_read_only.sql"), "utf8");
+
+describe("migration 0070", () => {
+  it("lets a project's status and every status in its history be read_only, besides active and suspended", () => {
+    for (const table of ["fittbuilder_project_billing", "fittbuilder_project_billing_events"]) {
+      expect(sql70).toMatch(new RegExp(`alter table ${table}\\s+add constraint ${table}_status_check check \\(status in \\('active', 'suspended', 'read_only'\\)\\)`));
+    }
+  });
+
+  it("drops only the two status checks it replaces, each if it exists, so it can run again", () => {
+    const drops = [...sql70.matchAll(/drop constraint if exists (\w+)/g)].map((m) => m[1]);
+    expect(drops).toEqual(["fittbuilder_project_billing_status_check", "fittbuilder_project_billing_events_status_check"]);
+    expect(sql70).not.toMatch(/drop constraint (?!if exists)/);
+  });
+
+  it("stops if a status check without read_only is still there, rather than leave Billing's command to fail", () => {
+    expect(sql70).toMatch(/raise exception/);
+    expect(sql70).toMatch(/not like '%read_only%'/);
+  });
+
+  it("keeps the last switch version an app said it runs: 1 or more, or none when it never asked", () => {
+    expect(sql70).toMatch(/add column if not exists switch_version integer check \(switch_version >= 1\)/);
+  });
+
+  it("tells the API to reload its schema", () => {
+    expect(sql70).toMatch(/notify pgrst, 'reload schema';/);
+  });
+});

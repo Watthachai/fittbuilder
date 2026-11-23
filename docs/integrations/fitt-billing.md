@@ -47,7 +47,7 @@ Spec: `docs/superpowers/specs/2026-10-14-fitt-billing-integration-design.md`
   "project": { "id": "uuid", "name": "", "phase": "build", "orgId": "uuid หรือ null", "orgName": "ชื่อ workspace หรือ null", "ownerId": "uuid", "ownerName": "ชื่อ หรือ null", "ownerEmail": "อีเมล หรือ null", "activeVersion": "standard", "createdAt": "", "updatedAt": "" },
   "customer": { "name": "", "attn": "", "address": "", "phone": "" },
   "build": { "sentAt": "2026-10-10T02:00:00.000Z", "jobId": "", "buildNo": null },
-  "billing": { "status": "active", "reason": "", "changedAt": null, "licenseKeyIssued": false },
+  "billing": { "status": "active", "reason": "", "changedAt": null, "licenseKeyIssued": false, "switchVersion": null },
   "quotes": {
     "standard": {
       "quoteNo": "", "issuedAt": "2026-10-01", "validDays": 30, "subject": "", "currency": "THB",
@@ -96,24 +96,28 @@ Spec: `docs/superpowers/specs/2026-10-14-fitt-billing-integration-design.md`
 | 429 | `rate_limited` | true | เรียกถี่เกิน · ดู header `Retry-After` (วินาที) |
 | 500 | `internal` | true | ฝั่ง FITT Builder มีปัญหา · ลองใหม่ได้ ถ้าไม่หายส่ง `requestId` ให้ทีม |
 
-## ระงับและเปิดคืนแอปของลูกค้า
+## ระงับ ตั้งเป็นอ่านอย่างเดียว และเปิดคืนแอปของลูกค้า
 
 แต่ละแอปที่ Code Runner สร้างมีสวิตช์ระงับในตัว แอปถาม `GET /v1/service-status` ด้วย license key ของโปรเจกต์ตอนเริ่มและทุก 5 นาที
 
 1. **ก่อนติดตั้ง:** `POST /projects/{id}/license-key` ได้ `{ "licenseKey": "fbl_..." }` (แสดงครั้งเดียว ระบบเก็บแค่ SHA-256) ส่งให้คนติดตั้งผ่านช่องทางลับ ใส่ใน `FITT_LICENSE_KEY` คู่กับ `FITT_STATUS_URL=https://fitt-builder.fittbsa.com/v1/service-status`
 2. **ระงับ:** `PUT /projects/{id}/status` body `{ "status": "suspended", "reason": "ค้างชำระค่าบริการเดือนกันยายน" }` ภายในประมาณ 5 นาที ทุกหน้าของแอปตอบหน้า "บริการถูกระงับชั่วคราว" (HTTP 503) ข้อมูลของลูกค้าไม่ถูกแตะ
-3. **เปิดคืน:** คำสั่งเดิมด้วย `{ "status": "active" }` แอปกลับมาใช้งานได้ภายในประมาณ 5 นาที
-4. **ประวัติ:** ทุกคำสั่งถูกบันทึกพร้อมเหตุผล เวลา และ token ที่สั่ง
+3. **อ่านอย่างเดียว:** คำสั่งเดิมด้วย `{ "status": "read_only", "reason": "..." }` ภายในประมาณ 5 นาที คนในองค์กรยังเข้าระบบและดูข้อมูลได้ แต่บันทึกหรือแก้ไขไม่ได้ (สวิตช์เวอร์ชัน 2 ขึ้นไปเท่านั้น ดูข้อจำกัด)
+4. **เปิดคืน:** คำสั่งเดิมด้วย `{ "status": "active" }` แอปกลับมาใช้งานได้ภายในประมาณ 5 นาที
+5. **ประวัติ:** ทุกคำสั่งถูกบันทึกพร้อมเหตุผล เวลา และ token ที่สั่ง
 
 `PUT /projects/{id}/status` ตอบ `{ "status", "reason", "changedAt" }` · ส่งคำสั่งเดิมซ้ำได้ ผลเท่าเดิม (`changedAt` ไม่ขยับ แต่บันทึกประวัติทุกครั้ง) · `reason` ไม่เกิน 500 ตัวอักษร และทุกคำสั่งตั้งเหตุผลใหม่ ไม่ส่ง `reason` = ล้างเหตุผลเดิม ถ้าจะส่งซ้ำให้ส่งเหตุผลเดิมไปด้วย · body ผิดรูปแบบตอบ 400 · ไม่มีโปรเจกต์ตอบ 404
 
 `POST /projects/{id}/license-key` ตอบ 201 · ออกใหม่เมื่อไร key เดิมใช้ไม่ได้ทันที ต้องเปลี่ยนในแอปที่ติดตั้งด้วย (ระหว่างนั้นแอปใช้สถานะล่าสุดที่รู้) · ถ้าเรียกพร้อมกันสองครั้ง ใช้ได้เฉพาะ key ที่ออกทีหลัง · การออก key ครั้งแรกให้โปรเจกต์ที่ไม่เคยถูกสั่งมาก่อนจะตั้ง `billing.changedAt` เป็นเวลาที่ออก key (สถานะยังเป็น `active`)
 
-`GET /v1/service-status` (แอปเรียกเอง) ส่ง `Authorization: Bearer <license key>` ตอบ `{ "status": "active" | "suspended", "message", "checkedAt" }` · `message` ตอนระงับคือ "บริการถูกระงับชั่วคราว กรุณาติดต่อผู้ให้บริการ" · ไม่มีข้อมูลอื่นของโปรเจกต์ · key ผิดหรือถูกเปลี่ยนตอบ 401 · จำกัด 60 ครั้งต่อนาทีต่อ key
+`GET /v1/service-status` (แอปเรียกเอง) ส่ง `Authorization: Bearer <license key>` ตอบ `{ "status": "active" | "suspended" | "read_only", "message", "checkedAt" }` · `message` ตอนระงับคือ "บริการถูกระงับชั่วคราว กรุณาติดต่อผู้ให้บริการ" ตอนอ่านอย่างเดียวคือ "ระบบอยู่ในโหมดอ่านอย่างเดียว ดูข้อมูลได้ แต่บันทึกหรือแก้ไขไม่ได้ กรุณาติดต่อผู้ให้บริการ" · ไม่มีข้อมูลอื่นของโปรเจกต์ · key ผิดหรือถูกเปลี่ยนตอบ 401 · จำกัด 60 ครั้งต่อนาทีต่อ key
+
+**เวอร์ชันของสวิตช์:** สวิตช์ในแอปส่ง header `x-fitt-switch-version` (เลข 1–9999) ตอนถาม `/v1/service-status` แอปที่ไม่ส่งถือเป็นเวอร์ชัน 1 · ระบบเก็บเวอร์ชันล่าสุดที่เห็นของแต่ละโปรเจกต์ ดูได้ที่ `billing.switchVersion` ใน `GET /projects/{id}` (`null` = แอปยังไม่เคยถามตั้งแต่เริ่มเก็บ) · ค่าที่อ่านไม่ได้ไม่ถูกเก็บ แต่ยังตอบสถานะตามปกติ
 
 **ข้อจำกัด**
 
 - ใช้ได้กับแอปที่ build หลังใส่สวิตช์แล้วเท่านั้น
+- `read_only` ใช้ได้กับแอปที่ใช้สวิตช์เวอร์ชัน 2 ขึ้นไป (`billing.switchVersion` ≥ 2) แอปที่ยังเป็นเวอร์ชัน 1 ไม่รู้จักสถานะนี้และทำงานตามปกติ ต้อง build และติดตั้งใหม่ก่อน
 - แอปที่ไม่ได้ตั้ง `FITT_STATUS_URL` และ `FITT_LICENSE_KEY` หรือเครื่องลูกค้าไม่มีอินเทอร์เน็ต ระงับจากระยะไกลไม่ได้ ต้องใช้สัญญาแทน
 - ถ้าแอปถาม FITT Builder ไม่ได้ชั่วคราว จะใช้สถานะล่าสุดที่รู้ ไม่หยุดทำงานเอง
 - token ของ Billing ตัวเดียวสั่งระงับได้ทุกโปรเจกต์ เก็บไว้ฝั่งเซิร์ฟเวอร์ของ Billing เท่านั้น

@@ -29,7 +29,7 @@ const DEFAULT_LIMIT = 50;
 const MAX_LIMIT = 100;
 
 const iso = (ms: number) => new Date(ms).toISOString();
-const statusOf = (row: BillingRow | null | undefined): BillingStatus => (row?.status === "suspended" ? "suspended" : "active");
+const statusOf = (row: BillingRow | null | undefined): BillingStatus => (row?.status === "suspended" || row?.status === "read_only" ? row.status : "active");
 
 function docFor(records: DocRecord[], version: string): DocRecord | null {
   return records.find((r) => r.version === version) ?? null;
@@ -159,6 +159,7 @@ export function projectDetail(b: ProjectBundle, today: string): BillingProjectDe
       reason: b.billing?.reason ?? "",
       changedAt: b.billing?.changed_at ?? null,
       licenseKeyIssued: Boolean(b.billing?.license_key_hash),
+      switchVersion: b.billing?.switch_version ?? null,
     },
     quotes,
     proposals,

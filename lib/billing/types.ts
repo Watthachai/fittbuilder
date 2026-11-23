@@ -4,7 +4,8 @@ import type { BillingCycle, PaymentTerm } from "@/lib/quote";
 /** The FITT Billing contract (docs/integrations/fitt-billing.md). */
 
 export type BillingErrorCode = "unauthorized" | "not_found" | "invalid_request" | "rate_limited" | "internal";
-export type BillingStatus = "active" | "suspended";
+/** read_only: people still sign in and read, nothing can be saved (the app's switch enforces it). */
+export type BillingStatus = "active" | "suspended" | "read_only";
 
 /** A Billing credential reads every project, so it carries no workspace. */
 export interface BillingBinding {
@@ -52,6 +53,8 @@ export interface BillingRow {
   reason: string;
   changed_at: string;
   license_key_hash: string | null;
+  /** The last version of the switch the app said it runs when it asked /v1/service-status; null when it hasn't asked since migration 0070. */
+  switch_version: number | null;
 }
 
 /** Every project in FITT Builder, with what listing them needs. */
@@ -180,7 +183,7 @@ export interface BillingProjectDetail {
   customer: BillingCustomer | null;
   /** The last time the project was sent to Code Runner to build — not whether that build passed. */
   build: BillingBuild | null;
-  billing: { status: BillingStatus; reason: string; changedAt: string | null; licenseKeyIssued: boolean };
+  billing: { status: BillingStatus; reason: string; changedAt: string | null; licenseKeyIssued: boolean; switchVersion: number | null };
   quotes: { standard: BillingQuote | null; premium: BillingQuote | null };
   proposals: { standard: BillingProposal | null; premium: BillingProposal | null };
   documents: { brd: string | null; prd: string | null };

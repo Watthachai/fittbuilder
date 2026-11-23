@@ -5,7 +5,8 @@ import { billingError } from "@/lib/billing/errors";
 import { setBillingStatus } from "@/lib/billing/store";
 
 /**
- * FITT Billing suspends or reactivates a project's app. Sending the same
+ * FITT Billing suspends a project's app, puts it in read-only (people read, nothing is saved; migration 0070) or
+ * reactivates it. Sending the same
  * command again leaves the state as it was, and every command is kept in the
  * project's history with the credential that sent it (migration 0055). The app
  * learns the change the next time it asks /v1/service-status.
@@ -25,8 +26,8 @@ export async function PUT(request: Request, ctx: { params: Promise<{ id: string 
   if (!UUID.test(id)) return billingError("not_found", "ไม่พบโปรเจกต์", requestId);
   const body: unknown = await request.json().catch(() => null);
   const b = body && typeof body === "object" && !Array.isArray(body) ? (body as Record<string, unknown>) : null;
-  if (!b || (b.status !== "active" && b.status !== "suspended")) {
-    return billingError("invalid_request", 'ต้องส่ง JSON { "status": "active" | "suspended", "reason": "..." }', requestId);
+  if (!b || (b.status !== "active" && b.status !== "suspended" && b.status !== "read_only")) {
+    return billingError("invalid_request", 'ต้องส่ง JSON { "status": "active" | "suspended" | "read_only", "reason": "..." }', requestId);
   }
   if (b.reason !== undefined && typeof b.reason !== "string") return billingError("invalid_request", "reason ต้องเป็นข้อความ", requestId);
   const reason = ((b.reason as string | undefined) ?? "").trim();

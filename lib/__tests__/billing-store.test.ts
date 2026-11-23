@@ -20,9 +20,11 @@ function query(table: string) {
   let rows = [...(tables[table] ?? [])];
   let window: [number, number] | null = null;
   let single = false;
+  let changes: Row | null = null;
   const q = {
     select: () => q,
-    update: () => q,
+    // applied to the rows the filters leave, when the query runs
+    update: (row: Row) => ((changes = row), q),
     order: () => q,
     eq: (col: string, v: unknown) => ((rows = rows.filter((r) => r[col] === v)), q),
     is: (col: string, v: unknown) => ((rows = rows.filter((r) => (r[col] ?? null) === v)), q),
@@ -38,6 +40,7 @@ function query(table: string) {
     },
     maybeSingle: () => ((single = true), q),
     then: (resolve: (v: { data: unknown; error: null }) => void) => {
+      if (changes) for (const r of rows) Object.assign(r, changes);
       const [from, to] = window ?? [0, MAX_ROWS - 1];
       const page = rows.slice(from, Math.min(to + 1, from + MAX_ROWS));
       resolve({ data: single ? (page[0] ?? null) : page, error: null });
@@ -55,7 +58,7 @@ vi.mock("@/lib/supabase/admin", () => ({
   }),
 }));
 
-const { findBillingBinding, loadSnapshot, loadProjectBundle, setBillingStatus, setLicenseKeyHash, findLicenseStatus } = await import(
+const { findBillingBinding, loadSnapshot, loadProjectBundle, setBillingStatus, setLicenseKeyHash, findLicenseStatus, recordSwitchVersion } = await import(
   "@/lib/billing/store"
 );
 
@@ -188,5 +191,18 @@ describe("billing store writes", () => {
     ];
     expect(await findLicenseStatus("a".repeat(64))).toMatchObject({ status: "suspended" });
     expect(await findLicenseStatus("c".repeat(64))).toBeNull();
+  });
+
+  it("finds a key's switch version with its status, and records a new one on that key's project only", async () => {
+    tables.fittbuilder_project_billing = [
+      { project_id: "p1", status: "read_only", reason: "", license_key_hash: "a".repeat(64), switch_version: null },
+      { project_id: "p2", status: "active", reason: "", license_key_hash: "b".repeat(64), switch_version: 1 },
+    ];
+    expect(await findLicenseStatus("a".repeat(64))).toMatchObject({ status: "read_only", switch_version: null });
+    await recordSwitchVersion("a".repeat(64), 2);
+    expect(tables.fittbuilder_project_billing!.map((r) => [r.project_id, r.status, r.switch_version])).toEqual([
+      ["p1", "read_only", 2],
+      ["p2", "active", 1],
+    ]);
   });
 });

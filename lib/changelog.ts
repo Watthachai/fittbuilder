@@ -39,6 +39,21 @@ export const CHANGE_BADGE: Record<ChangeType, { label: string; className: string
 // Newest first. SemVer: fix → PATCH, feature → MINOR, breaking → MAJOR.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.130.0",
+    date: "2026-11-23",
+    title: "FITT Billing ตั้งแอปของลูกค้าเป็นอ่านอย่างเดียวได้",
+    items: [
+      {
+        type: "feature",
+        text: "FITT Billing ตั้งแอปของลูกค้าเป็นอ่านอย่างเดียวได้ นอกจากระงับและเปิดคืน คนในองค์กรยังเข้าระบบและดูข้อมูลได้ แต่บันทึกหรือแก้ไขไม่ได้ ใช้กับแอปที่ build ด้วยสวิตช์เวอร์ชันใหม่",
+      },
+      {
+        type: "feature",
+        text: "FITT Billing เห็นว่าแอปของแต่ละโปรเจกต์ใช้สวิตช์เวอร์ชันไหน จากที่แอปบอกทุกครั้งที่ถามสถานะ",
+      },
+    ],
+  },
+  {
     version: "0.129.9",
     date: "2026-11-19",
     title: "ไฟล์ยาวในโปรเจกต์ไม่ทำให้สั่งแก้ด้วย AI ไม่ได้อีก",

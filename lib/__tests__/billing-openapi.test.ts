@@ -68,7 +68,7 @@ function bundle(over: Partial<ProjectBundle> = {}): ProjectBundle {
       { project_id: P1, version: "premium", payload: quote({ lumpSum: { enabled: true, amount: 90000, title: "ระบบคลังสินค้า" } }) as unknown as Json, updated_at: "2026-10-13T10:00:00+00:00" },
     ],
     proposals: [{ project_id: P1, version: "standard", payload: newProposal("คลังสินค้า", TODAY) as unknown as Json, updated_at: "2026-10-13T10:00:00+00:00" }],
-    billing: { project_id: P1, status: "suspended", reason: "ค้างชำระ", changed_at: "2026-10-14T01:00:00+00:00", license_key_hash: "a".repeat(64) },
+    billing: { project_id: P1, status: "suspended", reason: "ค้างชำระ", changed_at: "2026-10-14T01:00:00+00:00", license_key_hash: "a".repeat(64), switch_version: 2 },
     ...over,
   };
 }

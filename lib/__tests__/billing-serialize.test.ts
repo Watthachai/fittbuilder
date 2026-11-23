@@ -59,7 +59,7 @@ describe("projectDetail", () => {
     expect(d.quotes.premium).toBeNull();
     expect(d.customer).toEqual({ name: "บริษัท ตัวอย่าง จำกัด", attn: "คุณสมชาย", address: "", phone: "" });
     expect(d.documents).toEqual({ brd: "# BRD", prd: "# PRD" });
-    expect(d.billing).toEqual({ status: "active", reason: "", changedAt: null, licenseKeyIssued: false });
+    expect(d.billing).toEqual({ status: "active", reason: "", changedAt: null, licenseKeyIssued: false, switchVersion: null });
   });
 
   it("names no workspace for a personal project, and still names its owner", () => {
@@ -125,10 +125,19 @@ describe("projectDetail", () => {
 
   it("reports a suspension and whether a licence key exists", () => {
     const d = projectDetail(
-      bundle({ billing: { project_id: "p1", status: "suspended", reason: "ค้างชำระ", changed_at: "2026-10-14T01:00:00Z", license_key_hash: "a".repeat(64) } }),
+      bundle({ billing: { project_id: "p1", status: "suspended", reason: "ค้างชำระ", changed_at: "2026-10-14T01:00:00Z", license_key_hash: "a".repeat(64), switch_version: null } }),
       TODAY
     );
-    expect(d.billing).toEqual({ status: "suspended", reason: "ค้างชำระ", changedAt: "2026-10-14T01:00:00Z", licenseKeyIssued: true });
+    expect(d.billing).toEqual({ status: "suspended", reason: "ค้างชำระ", changedAt: "2026-10-14T01:00:00Z", licenseKeyIssued: true, switchVersion: null });
+  });
+
+  it("reports read-only, and which version of the switch the app last said it runs", () => {
+    const d = projectDetail(
+      bundle({ billing: { project_id: "p1", status: "read_only", reason: "", changed_at: "2026-11-24T01:00:00Z", license_key_hash: "a".repeat(64), switch_version: 2 } }),
+      TODAY
+    );
+    expect(d.billing).toMatchObject({ status: "read_only", switchVersion: 2 });
+    expect(projectDetail(bundle({ billing: null }), TODAY).billing.switchVersion).toBeNull();
   });
 });
 

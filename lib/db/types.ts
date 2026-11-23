@@ -298,6 +298,8 @@ export interface Database {
           license_key_hash: string | null;
           changed_at: string;
           changed_by: string | null;
+          /** The last switch version the app said it runs (migration 0070); null when it hasn't asked since. */
+          switch_version: number | null;
         };
         Insert: {
           project_id: string;
@@ -306,6 +308,7 @@ export interface Database {
           license_key_hash?: string | null;
           changed_at?: string;
           changed_by?: string | null;
+          switch_version?: number | null;
         };
         Update: {
           status?: string;
@@ -313,6 +316,7 @@ export interface Database {
           license_key_hash?: string | null;
           changed_at?: string;
           changed_by?: string | null;
+          switch_version?: number | null;
         };
         Relationships: [];
       };

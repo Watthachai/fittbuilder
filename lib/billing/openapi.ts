@@ -97,7 +97,11 @@ const proposal = obj({
   updatedAt: time(),
 });
 
-const billingStatus: Schema = { type: "string", enum: ["active", "suspended"] };
+const billingStatus: Schema = {
+  type: "string",
+  enum: ["active", "suspended", "read_only"],
+  description: "active ใช้งานปกติ · suspended ทุกหน้าของแอปตอบหน้าบริการถูกระงับ · read_only เข้าระบบและดูข้อมูลได้ แต่บันทึกหรือแก้ไขไม่ได้",
+};
 const idParam: Schema = { name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } };
 const orgId = nullable(str("workspace · null = โปรเจกต์ส่วนตัว"));
 const orgName = nullable(str());
@@ -150,7 +154,7 @@ export const billingOpenApi = {
     "/projects/{id}/status": {
       put: {
         operationId: "setProjectStatus",
-        summary: "ระงับหรือเปิดคืนแอปของโปรเจกต์",
+        summary: "ระงับ ตั้งเป็นอ่านอย่างเดียว หรือเปิดคืนแอปของโปรเจกต์",
         description:
           "ส่งคำสั่งเดิมซ้ำได้ ผลเท่าเดิม (changedAt ไม่ขยับ) · ทุกคำสั่งถูกบันทึกในประวัติพร้อม token ที่สั่ง · แอปรู้ผลภายในประมาณ 5 นาที ตอนถาม /service-status ครั้งถัดไป",
         parameters: [idParam],
@@ -185,9 +189,19 @@ export const billingOpenApi = {
       servers: [{ url: "https://fitt-builder.fittbsa.com/v1" }],
       get: {
         operationId: "getServiceStatus",
-        summary: "แอปของลูกค้าถามว่าถูกระงับหรือไม่ (แอปเรียกเอง Billing ไม่ต้องเรียก)",
-        description: "ใช้ license key ของโปรเจกต์ ไม่ใช่ token ของ Billing · ตอบแค่สถานะและข้อความที่ต้องแสดง ไม่มีข้อมูลอื่นของโปรเจกต์",
+        summary: "แอปของลูกค้าถามว่าถูกระงับหรืออยู่ในโหมดอ่านอย่างเดียวหรือไม่ (แอปเรียกเอง Billing ไม่ต้องเรียก)",
+        description:
+          "ใช้ license key ของโปรเจกต์ ไม่ใช่ token ของ Billing · ตอบแค่สถานะและข้อความที่ต้องแสดง ไม่มีข้อมูลอื่นของโปรเจกต์ · สวิตช์ในแอปบอกเวอร์ชันของตัวเองใน x-fitt-switch-version (ไม่ส่ง = 1) ระบบเก็บเวอร์ชันล่าสุดไว้ ดูได้ที่ billing.switchVersion ของ GET /projects/{id}",
         security: [{ licenseKey: [] }],
+        parameters: [
+          {
+            name: "x-fitt-switch-version",
+            in: "header",
+            required: false,
+            description: "เวอร์ชันของสวิตช์ในแอป เลขจำนวนเต็ม 1–9999 · ไม่ส่ง = 1 · ค่าที่อ่านไม่ได้ไม่ถูกเก็บ แต่ยังตอบสถานะตามปกติ",
+            schema: { type: "string", pattern: "^[1-9][0-9]{0,3}$" },
+          },
+        ],
         responses: {
           "200": { description: "สถานะ", content: { "application/json": { schema: ref("ServiceStatus") } } },
           "401": errorResponse("ไม่มี key หรือ key ไม่ถูกต้อง/ถูกเปลี่ยนแล้ว"),
@@ -254,6 +268,7 @@ export const billingOpenApi = {
           reason: str(),
           changedAt: nullable(time()),
           licenseKeyIssued: { type: "boolean" },
+          switchVersion: nullable({ type: "integer", minimum: 1, description: "เวอร์ชันของสวิตช์ที่แอปบอกครั้งล่าสุดตอนถาม /service-status · null = ยังไม่เคยถามตั้งแต่เริ่มเก็บ" }),
         }),
         quotes: obj({ standard: nullable(ref("Quote")), premium: nullable(ref("Quote")) }),
         proposals: obj({ standard: nullable(ref("Proposal")), premium: nullable(ref("Proposal")) }),
@@ -272,7 +287,7 @@ export const billingOpenApi = {
       LicenseKey: obj({ licenseKey: str("แสดงครั้งเดียว ขึ้นต้นด้วย fbl_") }),
       ServiceStatus: obj({
         status: billingStatus,
-        message: str("ข้อความที่แอปต้องแสดงตอนถูกระงับ · ว่างเมื่อ active"),
+        message: str("ข้อความที่แอปต้องแสดงตอนถูกระงับหรืออยู่ในโหมดอ่านอย่างเดียว · ว่างเมื่อ active"),
         checkedAt: time(),
       }),
             Quote: quote,

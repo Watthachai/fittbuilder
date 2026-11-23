@@ -19,8 +19,10 @@ const store = {
   statusCalls: [] as unknown[][],
   licenseExists: true,
   licenseCalls: [] as [string, string][],
-  licenseStatus: null as { status: string } | null,
+  licenseStatus: null as { status: string; switch_version: number | null } | null,
   lookups: [] as string[],
+  switchCalls: [] as [string, number][],
+  switchFail: false,
 };
 vi.mock("@/lib/billing/store", () => ({
   setBillingStatus: async (...args: unknown[]) => {
@@ -37,6 +39,10 @@ vi.mock("@/lib/billing/store", () => ({
     store.lookups.push(hash);
     if (store.fail) throw new Error("db down");
     return store.licenseStatus;
+  },
+  recordSwitchVersion: async (hash: string, version: number) => {
+    store.switchCalls.push([hash, version]);
+    if (store.switchFail) throw new Error("db down");
   },
 }));
 const limit = { ok: true, retryAfter: 0, keys: [] as string[] };
@@ -75,12 +81,16 @@ const post = (id: string) =>
   license.POST(new Request(`http://builder.test/v1/integrations/billing/projects/${id}/license-key`, { method: "POST", headers: { authorization: "Bearer fbb_x" } }), {
     params: Promise.resolve({ id }),
   });
-const ask = (authorization?: string) =>
-  serviceStatus.GET(new Request("http://builder.test/v1/service-status", { headers: authorization ? { authorization } : {} }));
+const ask = (authorization?: string, version?: string) =>
+  serviceStatus.GET(
+    new Request("http://builder.test/v1/service-status", {
+      headers: { ...(authorization ? { authorization } : {}), ...(version !== undefined ? { "x-fitt-switch-version": version } : {}) },
+    })
+  );
 
 beforeEach(() => {
   auth.result = { ok: true, binding: { id: "bind_1" } };
-  Object.assign(store, { fail: false, statusResult: null, statusCalls: [], licenseExists: true, licenseCalls: [], licenseStatus: null, lookups: [] });
+  Object.assign(store, { fail: false, statusResult: null, statusCalls: [], licenseExists: true, licenseCalls: [], licenseStatus: null, lookups: [], switchCalls: [], switchFail: false });
   Object.assign(limit, { ok: true, retryAfter: 0, keys: [] });
 });
 
@@ -94,6 +104,17 @@ describe("PUT /v1/integrations/billing/projects/{id}/status", () => {
     matches("BillingState", body);
     matches("StatusRequest", { status: "suspended", reason: "ค้างชำระ" });
     expect(store.statusCalls).toEqual([[ID, "suspended", "ค้างชำระ", "bind_1"]]);
+  });
+
+  it("puts an app in read-only: people still read, nothing is saved", async () => {
+    store.statusResult = { status: "read_only", reason: "ใกล้ครบกำหนดชำระ", changed_at: "2026-11-24T10:00:00+07:00" };
+    const res = await put(ID, { status: "read_only", reason: "ใกล้ครบกำหนดชำระ" });
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body).toEqual({ status: "read_only", reason: "ใกล้ครบกำหนดชำระ", changedAt: "2026-11-24T03:00:00.000Z" });
+    matches("BillingState", body);
+    matches("StatusRequest", { status: "read_only", reason: "ใกล้ครบกำหนดชำระ" });
+    expect(store.statusCalls).toEqual([[ID, "read_only", "ใกล้ครบกำหนดชำระ", "bind_1"]]);
   });
 
   it("reactivates without a reason", async () => {
@@ -163,7 +184,7 @@ describe("POST /v1/integrations/billing/projects/{id}/license-key", () => {
 
 describe("GET /v1/service-status", () => {
   it("tells a suspended app what to show, and nothing else about the project", async () => {
-    store.licenseStatus = { status: "suspended" };
+    store.licenseStatus = { status: "suspended", switch_version: 1 };
     const res = await ask("Bearer fbl_key");
     expect(res.status).toBe(200);
     expect(res.headers.get("cache-control")).toBe("no-store");
@@ -175,8 +196,44 @@ describe("GET /v1/service-status", () => {
   });
 
   it("tells an active app it is active", async () => {
-    store.licenseStatus = { status: "active" };
+    store.licenseStatus = { status: "active", switch_version: 1 };
     expect(await (await ask("Bearer fbl_key")).json()).toMatchObject({ status: "active", message: "" });
+  });
+
+  it("tells a read-only app what to show: people read, nothing can be saved", async () => {
+    store.licenseStatus = { status: "read_only", switch_version: 2 };
+    const res = await ask("Bearer fbl_key", "2");
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body).toMatchObject({ status: "read_only", message: "ระบบอยู่ในโหมดอ่านอย่างเดียว ดูข้อมูลได้ แต่บันทึกหรือแก้ไขไม่ได้ กรุณาติดต่อผู้ให้บริการ" });
+    matches("ServiceStatus", body);
+  });
+
+  it("keeps the switch version an app says it runs: none is 1, a change is written, the same one is not written again", async () => {
+    store.licenseStatus = { status: "active", switch_version: null };
+    await ask("Bearer fbl_key");
+    store.licenseStatus = { status: "active", switch_version: 1 };
+    await ask("Bearer fbl_key", "2");
+    store.licenseStatus = { status: "active", switch_version: 2 };
+    await ask("Bearer fbl_key", " 2 ");
+    expect(store.switchCalls).toEqual([
+      [sha256("fbl_key"), 1],
+      [sha256("fbl_key"), 2],
+    ]);
+  });
+
+  it("answers an app that sends a version it can't read, and records nothing for it", async () => {
+    store.licenseStatus = { status: "active", switch_version: 1 };
+    for (const v of ["abc", "0", "-3", "1.5", "99999"]) expect((await ask("Bearer fbl_key", v)).status).toBe(200);
+    expect(store.switchCalls).toEqual([]);
+  });
+
+  it("still answers the status when the version can't be written", async () => {
+    store.licenseStatus = { status: "suspended", switch_version: 1 };
+    store.switchFail = true;
+    const res = await ask("Bearer fbl_key", "2");
+    expect(res.status).toBe(200);
+    expect(await res.json()).toMatchObject({ status: "suspended" });
   });
 
   it("answers 401 without a key, or for a key no project holds", async () => {

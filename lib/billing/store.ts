@@ -46,7 +46,7 @@ export async function touchBillingBinding(id: string, now: Date): Promise<void> 
 /** PostgREST answers at most this many rows per request (Supabase's default max_rows). */
 const PAGE = 1000;
 const PROJECT = "id, name, phase, active_version, org_id, owner_id, runner_last, created_at, updated_at";
-const BILLING = "project_id, status, reason, changed_at, license_key_hash";
+const BILLING = "project_id, status, reason, changed_at, license_key_hash, switch_version";
 
 /** Every project in FITT Builder, without its files, plus what is needed to list them. */
 export async function loadSnapshot(): Promise<BillingSnapshot> {
@@ -136,8 +136,13 @@ export async function setLicenseKeyHash(projectId: string, keyHash: string): Pro
   return true;
 }
 
-/** The status a license key's app must obey; null when no project holds that key. */
-export async function findLicenseStatus(keyHash: string): Promise<{ status: string } | null> {
-  const r = await createAdminClient().from("fittbuilder_project_billing").select("status").eq("license_key_hash", keyHash).maybeSingle();
+/** The status a license key's app must obey, and the switch version it last said it runs; null when no project holds that key. */
+export async function findLicenseStatus(keyHash: string): Promise<{ status: string; switch_version: number | null } | null> {
+  const r = await createAdminClient().from("fittbuilder_project_billing").select("status, switch_version").eq("license_key_hash", keyHash).maybeSingle();
   return must(r, "license status");
+}
+
+/** Keep the version of the switch a license key's app says it runs (migration 0070), for Billing to see which apps run which. */
+export async function recordSwitchVersion(keyHash: string, version: number): Promise<void> {
+  must(await createAdminClient().from("fittbuilder_project_billing").update({ switch_version: version }).eq("license_key_hash", keyHash), "switch version");
 }

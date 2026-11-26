@@ -43,6 +43,18 @@ describe("v2 meeting deliveries", () => {
     }
   });
 
+  // A long customer call summarised to 24,853–26,505 characters could not be sent (FITT Voice, 2026-11-26).
+  it("takes a meeting summary of up to 40,000 characters, and refuses a longer one", () => {
+    for (const n of [26_505, 40_000]) {
+      const d = create();
+      d.content.summaryMarkdown = "ก".repeat(n);
+      expect(check(d), String(n)).toMatchObject({ ok: true });
+    }
+    const d = create();
+    d.content.summaryMarkdown = "ก".repeat(40_001);
+    expect(check(d)).toMatchObject({ ok: false, code: "INVALID_PAYLOAD" });
+  });
+
   it("holds the target's two shapes, which the schema leaves open", () => {
     const createWithProject = create();
     createWithProject.target = { ...createWithProject.target, builderProjectId: "6c1f3a52-2d1f-4c55-9b55-0f6a8e7b1c11" } as never;

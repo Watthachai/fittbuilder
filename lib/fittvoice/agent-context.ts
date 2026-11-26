@@ -7,10 +7,12 @@ const CLOSE = "FITT_VOICE_SOURCE>>>";
 
 /**
  * How much of the meetings' text goes to the agent. A project collects meetings
- * (contract v2), each up to 20,000 characters of summary; past this the oldest
- * are named but left out, so every turn is not paid for a whole history.
+ * (contract v2), each up to 40,000 characters of summary (20,000 until FITT Voice
+ * needed longer ones, 2026-11-26); this reads three of the longest whole, with
+ * their headings, as it did before. Past it the oldest are named but left out,
+ * so every turn is not paid for a whole history.
  */
-const SOURCE_BUDGET = 60_000;
+const SOURCE_BUDGET = 125_000;
 
 /**
  * A project's FITT Voice sources, framed for a phase agent (Define, Plan, …):

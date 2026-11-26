@@ -27,6 +27,34 @@ const meeting = (title: string): VoiceSourceItem =>
  * meeting wins a conflict" read two different subjects as a conflict, and the
  * BRD template's "ต้องว่างก่อนอนุมัติ" read an open question as a thing to close.
  */
+/** A meeting whose summary is as long as FITT Voice may send: 40,000 characters. */
+const longest = (title: string): VoiceSourceItem => {
+  const m = meeting(title) as unknown as { payload: { content: { summaryMarkdown: string } } };
+  m.payload.content.summaryMarkdown = `${title} ${"ข".repeat(40_000 - title.length - 1)}`;
+  return m as unknown as VoiceSourceItem;
+};
+
+describe("how much of the meetings the agent reads", () => {
+  beforeEach(() => {
+    db.items = [];
+  });
+
+  it("reads three meetings whole at the longest a summary may be", async () => {
+    db.items = [longest("ประชุมที่ 1"), longest("ประชุมที่ 2"), longest("ประชุมที่ 3")];
+    const text = await getProjectVoiceContext("p1");
+    expect(text).not.toMatch(/ไม่ได้ใส่เนื้อหามาเพราะยาวเกิน/);
+    for (const t of ["ประชุมที่ 1", "ประชุมที่ 2", "ประชุมที่ 3"]) expect(text).toContain(`${t} ขขข`);
+  });
+
+  it("names the oldest instead of reading it once a fourth comes in", async () => {
+    db.items = [longest("ประชุมที่ 1"), longest("ประชุมที่ 2"), longest("ประชุมที่ 3"), longest("ประชุมที่ 4")];
+    const text = await getProjectVoiceContext("p1");
+    expect(text).toMatch(/การประชุมเก่าที่ไม่ได้ใส่เนื้อหามาเพราะยาวเกิน: .*ประชุมที่ 1/);
+    expect(text).not.toContain("ประชุมที่ 1 ขขข");
+    expect(text).toContain("ประชุมที่ 4 ขขข");
+  });
+});
+
 describe("the rules a phase agent gets with FITT Voice meetings", () => {
   beforeEach(() => {
     db.items = [];

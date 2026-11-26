@@ -162,6 +162,18 @@ describe("summary-only deliveries", () => {
   const ssign = (d: SummaryDelivery): string => JSON.stringify({ ...d, contentHash: contentHashOf(d) });
   const scheck = (d: SummaryDelivery, key: string | null = d.deliveryId) => checkDelivery(ssign(d), key);
 
+  // A long customer call summarised to 24,853–26,505 characters could not be sent (FITT Voice, 2026-11-26).
+  it("takes a summary of up to 40,000 characters, and refuses a longer one", () => {
+    for (const n of [26_505, 40_000]) {
+      const d = sbase();
+      d.content.summaryMarkdown = "ก".repeat(n);
+      expect(codeOf(scheck(d)), String(n)).toBe("OK");
+    }
+    const d = sbase();
+    d.content.summaryMarkdown = "ก".repeat(40_001);
+    expect(codeOf(scheck(d))).toBe("INVALID_PAYLOAD");
+  });
+
   it("hashes FITT Voice's summary example to the test vector they computed", () => {
     expect(contentHashOf(sbase())).toBe("b8d575240dbe711819041a08f14a39d6ac260c1d338944d924274dbc48513364");
   });

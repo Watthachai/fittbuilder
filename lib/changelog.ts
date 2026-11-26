@@ -39,6 +39,21 @@ export const CHANGE_BADGE: Record<ChangeType, { label: string; className: string
 // Newest first. SemVer: fix → PATCH, feature → MINOR, breaking → MAJOR.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.130.2",
+    date: "2026-11-26",
+    title: "รับสรุปการประชุมจาก FITT Voice ที่ยาวได้ถึง 40,000 ตัวอักษร",
+    items: [
+      {
+        type: "fix",
+        text: "สรุปการประชุมที่ส่งมาจาก FITT Voice ยาวได้ถึง 40,000 ตัวอักษร เดิมรับได้ 20,000 สรุปการคุยกับลูกค้าที่ยาวจึงส่งเข้า Builder ไม่ได้",
+      },
+      {
+        type: "improvement",
+        text: "AI ของแต่ละเฟสอ่านสรุปการประชุมเต็มได้ 3 รายการล่าสุด แม้แต่ละรายการจะยาวเต็ม 40,000 ตัวอักษร การประชุมที่เก่ากว่านั้นยังแสดงชื่อไว้ และเปิดดูได้จากปุ่ม FITT Voice",
+      },
+    ],
+  },
+  {
     version: "0.130.1",
     date: "2026-11-26",
     title: "เลือก workspace ได้ครบโดยไม่ต้องเลื่อนหน้า",

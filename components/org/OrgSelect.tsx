@@ -15,6 +15,10 @@ import type { OrgRecord } from "@/lib/types";
  */
 /** localStorage key: the workspace preselected on load ("personal" or an org id). */
 const DEFAULT_KEY = "fittbuilder:default-workspace";
+/** The open menu stops this far above the window's bottom edge (its 6px gap under the button included). */
+const MENU_EDGE = 16;
+/** The least height the open menu takes, however little room is left under the button. */
+const MENU_MIN_HEIGHT = 240;
 
 export default function OrgSelect({
   value,
@@ -27,6 +31,7 @@ export default function OrgSelect({
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
   const [defaultSel, setDefaultSel] = useState<string | null>(null);
+  const [menuMaxHeight, setMenuMaxHeight] = useState(MENU_MIN_HEIGHT);
 
   useEffect(() => {
     let cancelled = false;
@@ -87,7 +92,12 @@ export default function OrgSelect({
   return (
     <div className="relative">
       <button
-        onClick={() => setOpen((v) => !v)}
+        onClick={(e) => {
+          // A long workspace list scrolls inside the menu instead of running past the window (case #51).
+          const below = window.innerHeight - e.currentTarget.getBoundingClientRect().bottom - MENU_EDGE;
+          setMenuMaxHeight(Math.max(MENU_MIN_HEIGHT, below));
+          setOpen((v) => !v);
+        }}
         className="inline-flex max-w-[220px] items-center gap-1.5 rounded-full border border-chalk/15 bg-chalk/5 px-2.5 py-1 text-chalk/80 transition hover:border-chalk/30"
         title="เลือก workspace ของโปรเจกต์นี้"
       >
@@ -105,84 +115,89 @@ export default function OrgSelect({
       {open && (
         <>
           <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
-          <div className="absolute left-0 top-full z-50 mt-1.5 w-64 overflow-hidden rounded-xl border border-chalk/12 bg-night-panel p-1.5 shadow-2xl">
-            <p className="px-2.5 py-1 font-mono text-[0.625rem] uppercase tracking-wider text-chalk/40">
+          <div
+            className="absolute left-0 top-full z-50 mt-1.5 flex w-64 flex-col overflow-hidden rounded-xl border border-chalk/12 bg-night-panel p-1.5 shadow-2xl"
+            style={{ maxHeight: menuMaxHeight }}
+          >
+            <p className="shrink-0 px-2.5 py-1 font-mono text-[0.625rem] uppercase tracking-wider text-chalk/40">
               Workspace
             </p>
-            <div className="group flex items-center gap-1 rounded-lg pr-1 transition hover:bg-chalk/5">
-              <button
-                onClick={() => {
-                  onChange(null);
-                  setOpen(false);
-                }}
-                className="flex min-w-0 flex-1 items-center gap-2 px-2.5 py-2 text-left text-[0.8125rem] text-chalk/85"
-              >
-                <span className="grid h-6 w-6 shrink-0 place-items-center rounded-md bg-chalk/10 text-chalk-dim">
-                  <User size={14} />
-                </span>
-                <span className="min-w-0 flex-1 truncate">ส่วนตัว (ไม่ใช้ workspace)</span>
-                {!value && <Check size={14} className="shrink-0 text-shine" />}
-              </button>
-              <button
-                onClick={() => toggleDefault("personal")}
-                title={defaultSel === "personal" ? "เลิกตั้งเป็นค่าเริ่มต้น" : "ตั้งเป็นค่าเริ่มต้น"}
-                aria-label="ตั้งเป็นค่าเริ่มต้น"
-                className="grid h-7 w-7 shrink-0 place-items-center rounded-md transition hover:bg-chalk/10"
-              >
-                <Star
-                  size={13}
-                  fill={defaultSel === "personal" ? "currentColor" : "none"}
-                  className={defaultSel === "personal" ? "text-shine" : "text-chalk-dim/60"}
-                />
-              </button>
-            </div>
-            {orgs.map((o) => (
-              <div
-                key={o.id}
-                className="group flex items-center gap-1 rounded-lg pr-1 transition hover:bg-chalk/5"
-              >
+            <div className="min-h-0 overflow-y-auto overscroll-contain">
+              <div className="group flex items-center gap-1 rounded-lg pr-1 transition hover:bg-chalk/5">
                 <button
                   onClick={() => {
-                    onChange(o.id);
+                    onChange(null);
                     setOpen(false);
                   }}
                   className="flex min-w-0 flex-1 items-center gap-2 px-2.5 py-2 text-left text-[0.8125rem] text-chalk/85"
                 >
-                  <span
-                    className="grid h-6 w-6 shrink-0 place-items-center rounded-md"
-                    style={{ background: `${o.color}22`, color: o.color }}
-                  >
-                    <WorkspaceIcon icon={o.icon} size={14} />
+                  <span className="grid h-6 w-6 shrink-0 place-items-center rounded-md bg-chalk/10 text-chalk-dim">
+                    <User size={14} />
                   </span>
-                  <span className="min-w-0 flex-1 truncate">{o.name}</span>
-                  {o.id === current?.id && <Check size={14} className="shrink-0 text-shine" />}
+                  <span className="min-w-0 flex-1 truncate">ส่วนตัว (ไม่ใช้ workspace)</span>
+                  {!value && <Check size={14} className="shrink-0 text-shine" />}
                 </button>
                 <button
-                  onClick={() => toggleDefault(o.id)}
-                  title={defaultSel === o.id ? "เลิกตั้งเป็นค่าเริ่มต้น" : "ตั้งเป็นค่าเริ่มต้น"}
+                  onClick={() => toggleDefault("personal")}
+                  title={defaultSel === "personal" ? "เลิกตั้งเป็นค่าเริ่มต้น" : "ตั้งเป็นค่าเริ่มต้น"}
                   aria-label="ตั้งเป็นค่าเริ่มต้น"
                   className="grid h-7 w-7 shrink-0 place-items-center rounded-md transition hover:bg-chalk/10"
                 >
                   <Star
                     size={13}
-                    fill={defaultSel === o.id ? "currentColor" : "none"}
-                    className={defaultSel === o.id ? "text-shine" : "text-chalk-dim/60"}
+                    fill={defaultSel === "personal" ? "currentColor" : "none"}
+                    className={defaultSel === "personal" ? "text-shine" : "text-chalk-dim/60"}
                   />
                 </button>
-                <Link
-                  href={`/org/${o.id}`}
-                  onClick={() => setOpen(false)}
-                  title="ข้อมูล workspace · Org DNA"
-                  className="grid h-7 w-7 shrink-0 place-items-center rounded-md text-chalk-dim transition hover:bg-chalk/10 hover:text-shine"
-                >
-                  <Settings2 size={14} />
-                </Link>
               </div>
-            ))}
-            <div className="my-1 h-px bg-chalk/10" />
+              {orgs.map((o) => (
+                <div
+                  key={o.id}
+                  className="group flex items-center gap-1 rounded-lg pr-1 transition hover:bg-chalk/5"
+                >
+                  <button
+                    onClick={() => {
+                      onChange(o.id);
+                      setOpen(false);
+                    }}
+                    className="flex min-w-0 flex-1 items-center gap-2 px-2.5 py-2 text-left text-[0.8125rem] text-chalk/85"
+                  >
+                    <span
+                      className="grid h-6 w-6 shrink-0 place-items-center rounded-md"
+                      style={{ background: `${o.color}22`, color: o.color }}
+                    >
+                      <WorkspaceIcon icon={o.icon} size={14} />
+                    </span>
+                    <span className="min-w-0 flex-1 truncate">{o.name}</span>
+                    {o.id === current?.id && <Check size={14} className="shrink-0 text-shine" />}
+                  </button>
+                  <button
+                    onClick={() => toggleDefault(o.id)}
+                    title={defaultSel === o.id ? "เลิกตั้งเป็นค่าเริ่มต้น" : "ตั้งเป็นค่าเริ่มต้น"}
+                    aria-label="ตั้งเป็นค่าเริ่มต้น"
+                    className="grid h-7 w-7 shrink-0 place-items-center rounded-md transition hover:bg-chalk/10"
+                  >
+                    <Star
+                      size={13}
+                      fill={defaultSel === o.id ? "currentColor" : "none"}
+                      className={defaultSel === o.id ? "text-shine" : "text-chalk-dim/60"}
+                    />
+                  </button>
+                  <Link
+                    href={`/org/${o.id}`}
+                    onClick={() => setOpen(false)}
+                    title="ข้อมูล workspace · Org DNA"
+                    className="grid h-7 w-7 shrink-0 place-items-center rounded-md text-chalk-dim transition hover:bg-chalk/10 hover:text-shine"
+                  >
+                    <Settings2 size={14} />
+                  </Link>
+                </div>
+              ))}
+            </div>
+            <div className="my-1 h-px shrink-0 bg-chalk/10" />
             <button
               onClick={() => void handleCreate()}
-              className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-[0.8125rem] text-chalk/85 transition hover:bg-chalk/5"
+              className="flex w-full shrink-0 items-center gap-2 rounded-lg px-2.5 py-2 text-left text-[0.8125rem] text-chalk/85 transition hover:bg-chalk/5"
             >
               <Plus size={14} /> สร้าง workspace ใหม่
             </button>

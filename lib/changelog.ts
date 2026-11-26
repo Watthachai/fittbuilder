@@ -39,6 +39,17 @@ export const CHANGE_BADGE: Record<ChangeType, { label: string; className: string
 // Newest first. SemVer: fix → PATCH, feature → MINOR, breaking → MAJOR.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.130.1",
+    date: "2026-11-26",
+    title: "เลือก workspace ได้ครบโดยไม่ต้องเลื่อนหน้า",
+    items: [
+      {
+        type: "fix",
+        text: "รายการ workspace ในกล่องพิมพ์หน้าแรกหยุดที่ขอบล่างของจอ ถ้ามี workspace มาก เลื่อนดูได้ในรายการเอง ปุ่ม “สร้าง workspace ใหม่” อยู่ล่างสุดให้เห็นเสมอ เดิมรายการยาวเลยจอ ต้องเลื่อนทั้งหน้าลงไปถึงจะเลือกตัวล่าง ๆ ได้",
+      },
+    ],
+  },
+  {
     version: "0.130.0",
     date: "2026-11-23",
     title: "FITT Billing ตั้งแอปของลูกค้าเป็นอ่านอย่างเดียวได้",
